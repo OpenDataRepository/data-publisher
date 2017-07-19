@@ -68,8 +68,15 @@ use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\TrackedError;
 use ODR\OpenRepository\UserBundle\Entity\User;
 use ODR\AdminBundle\Entity\UserGroup;
-// Forms
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -140,11 +147,14 @@ class ODRCustomController extends Controller
 
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
+        $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
+        /** @var DatarecordInfoService $dri_service */
+        $dri_service = $this->container->get('odr.datarecord_info_service');
         /** @var PermissionsManagementService $pm_service */
         $pm_service = $this->container->get('odr.permissions_management_service');
-
-        $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
         $logged_in = false;
         $user_permissions = array();
@@ -231,44 +241,29 @@ class ODRCustomController extends Controller
 
 
             // ----------------------------------------
-            // Load datatype and datarecord data from the cache
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-            // Always bypass cache if in dev mode?
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
-
-            // Initialize services
-            $dti_service = $this->container->get('odr.datatype_info_service');
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-            // $pm_service = $this->container->get('odr.permissions_management_service');
-
             // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
             $related_datarecord_array = array();
             foreach ($datarecord_list as $num => $dr_id) {
-                $datarecord_info = $dri_service->getRelatedDatarecords($dr_id);
+                $datarecord_info = $dri_service->getDatarecordArray($dr_id);
 
                 foreach ($datarecord_info as $local_dr_id => $data)
                     $related_datarecord_array[$local_dr_id] = $data;
             }
 
             // Get datatypes of all related datarecords
-            $datatype_array = $dti_service->getRecordDatatypes($related_datarecord_array);
+            $datatype_array = $dti_service->getDatatypeArrayByDatarecords($related_datarecord_array);
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $related_datarecord_array, $user_permissions);
 
             // Stack the datatype and all of its children
-            $datatype_array[ $datatype->getId() ] = self::stackDatatypeArray($datatype_array, $datatype->getId(), $theme->getId());
+            $datatype_array[ $datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $datatype->getId(), $theme->getId());
 
             // Stack each individual datarecord in the array
             $datarecord_array = array();
             foreach ($related_datarecord_array as $dr_id => $dr) {
                 if ( $dr['dataType']['id'] == $datatype->getId() )
-                    $datarecord_array[$dr_id] = self::stackDatarecordArray($related_datarecord_array, $dr_id);
+                    $datarecord_array[$dr_id] = $dri_service->stackDatarecordArray($related_datarecord_array, $dr_id);
             }
 
 
@@ -349,6 +344,7 @@ class ODRCustomController extends Controller
 
     /**
      * Attempt to load the textresult version of the cached entries for each datarecord in $datarecord_list.
+     * @todo - move to datarecord_info service?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param array $datarecord_list           The list of datarecord ids that need rendered
@@ -362,6 +358,9 @@ class ODRCustomController extends Controller
     public function renderTextResultsList($em, $datarecord_list, $theme, Request $request)
     {
         try {
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+
             // --------------------
             // Store whether the user has view privileges for this datatype
             $datatype = $theme->getDataType();
@@ -382,12 +381,6 @@ class ODRCustomController extends Controller
             }
             // --------------------
 
-
-            // Grab necessary objects
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
             // Always bypass cache if in dev mode?
             $bypass_cache = false;
             if ($this->container->getParameter('kernel.environment') === 'dev')
@@ -396,11 +389,10 @@ class ODRCustomController extends Controller
 
             // ----------------------------------------
             // Attempt to load from memcached...
-//        $datatype_revision = intval( $datatype->getRevision() );      // TODO?
             $rows = array();
             foreach ($datarecord_list as $num => $datarecord_id) {
                 // Get the table version for this datarecord from memcached if possible
-                $data = self::getRedisData(($redis->get($redis_prefix.'.datarecord_table_data_'.$datarecord_id)));
+                $data = $cache_service->get('datarecord_table_data_'.$datarecord_id);
                 if ($bypass_cache || $data == false)
                     $data = self::Text_GetDisplayData($em, $datarecord_id, $request);
 
@@ -531,6 +523,7 @@ class ODRCustomController extends Controller
 
     /**
      * Get (or create) a list of datarecords returned by searching on the given search key
+     * TODO - move this into some sort of "searching service"?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
@@ -546,10 +539,8 @@ class ODRCustomController extends Controller
      */
     public function getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype_id, $search_key, Request $request)
     {
-        // Get necessary objects
-        $redis = $this->container->get('snc_redis.default');
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        /** @var CacheService $cache_service*/
+        $cache_service = $this->container->get('odr.cache_service');
 
         // ----------------------------------------
         // Going to need the search controller for determining whether $search_key is valid or not
@@ -574,7 +565,7 @@ class ODRCustomController extends Controller
 
         // Attempt to load the search result for this search_key
         $data = array();
-        $cached_searches = self::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+        $cached_searches = $cache_service->get('cached_search_results');
         if ( $cached_searches == false
             || !isset($cached_searches[$datatype_id])
             || !isset($cached_searches[$datatype_id][$search_checksum]) ) {
@@ -586,7 +577,7 @@ class ODRCustomController extends Controller
             else if ($ret['redirect'] == true)
                 return array('redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key'], 'datarecord_list' => '');
 
-            $cached_searches = self::getRedisData($redis->get($redis_prefix.'.cached_search_results'));
+            $cached_searches = $cache_service->get('cached_search_results');
         }
 
         // ----------------------------------------
@@ -941,6 +932,7 @@ class ODRCustomController extends Controller
 
     /**
      * Determines and returns an array of top-level datatype ids
+     * @deprecated
      *
      * @return int[]
      */
@@ -987,7 +979,8 @@ class ODRCustomController extends Controller
     /**
      * Utility function to returns the DataTree table in array format
      * TODO: This function is a really bad idea - will be absolutely GIGANTIC at some point.
-     * Why is this needed? Plus, how do you know when it needs to be flushed? 
+     * Why is this needed? Plus, how do you know when it needs to be flushed?
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param boolean $force_rebuild
@@ -1056,6 +1049,7 @@ class ODRCustomController extends Controller
 
     /**
      * Returns the id of the grandparent of the given datatype
+     * @deprecated
      *
      * @param array $datatree_array         @see self::getDatatreeArray()
      * @param integer $initial_datatype_id
@@ -1074,6 +1068,7 @@ class ODRCustomController extends Controller
 
     /**
      * Automatically decompresses and unserializes redis data.
+     * @deprecated
      *
      * @throws \Exception
      *
@@ -1091,7 +1086,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * @deprecated most likely going to be replaced by the PermissionsManagementService
+     * @todo move into PermissionsManagementService?
      *
      * Ensures the given user is in the given group.
      *
@@ -1137,7 +1132,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * @deprecated most likely going to be replaced by the PermissionsManagementService
+     * @todo move into PermissionsManagementService?
      *
      * Create a new Group for users of the given datatype.
      *
@@ -1150,6 +1145,11 @@ class ODRCustomController extends Controller
      */
     protected function ODR_createGroup($em, $user, $datatype, $initial_purpose = '')
     {
+        /** @var CacheService $cache_service*/
+        $cache_service = $this->container->get('odr.cache_service');
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
+
         // ----------------------------------------
         // Create the Group entity
         $group = new Group();
@@ -1197,11 +1197,11 @@ class ODRCustomController extends Controller
 
         // ----------------------------------------
         // Need to keep track of which datatypes are top-level
-        $top_level_datatypes = self::getTopLevelDatatypes();
+        $top_level_datatypes = $dti_service->getTopLevelDatatypes();
 
         // Create the initial datatype permission entries
         $include_links = false;
-        $associated_datatypes = self::getAssociatedDatatypes($em, array($datatype->getId()), $include_links);   // TODO - if datatypes are eventually going to be undeleteable, then this needs to also return deleted child datatypes
+        $associated_datatypes = $dti_service->getAssociatedDatatypes(array($datatype->getId()), $include_links);   // TODO - if datatypes are eventually going to be undeleteable, then this needs to also return deleted child datatypes
 //print_r($associated_datatypes);
 
         // Build a single INSERT INTO query to add GroupDatatypePermissions entries for this top-level datatype and for each of its children
@@ -1287,11 +1287,6 @@ class ODRCustomController extends Controller
         // ----------------------------------------
         // Automatically add super-admin users to new default "admin" groups
         if ($initial_purpose == 'admin') {
-            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
             // Grab all users
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var User[] $user_list */
@@ -1304,7 +1299,7 @@ class ODRCustomController extends Controller
                     self::ODR_createUserGroup($em, $u, $group, $user);
 
                     // ...delete the cached list of permissions for each super-admin belongs to
-                    $redis->del($redis_prefix.'.user_'.$u->getId().'_permissions');
+                    $cache_service->delete('user_'.$u->getId().'_permissions');
                 }
             }
         }
@@ -1314,7 +1309,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * @deprecated most likely going to be replaced by the PermissionsManagementService
+     * @todo move into PermissionsManagementService?
      *
      * Creates GroupDatatypePermissions for all groups when a new datatype is created.
      *
@@ -1325,6 +1320,11 @@ class ODRCustomController extends Controller
      */
     protected function ODR_createGroupsForDatatype($em, $user, $datatype, $is_top_level)
     {
+        /** @var CacheService $cache_service*/
+        $cache_service = $this->container->get('odr.cache_service');
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
+
         $datatype_id = $datatype->getId();
 
         // Locate all groups for this datatype's grandparent
@@ -1359,8 +1359,7 @@ class ODRCustomController extends Controller
         }
         else {
             // This function call is to create initial groups for a child datatype...locate its grandparent id
-            $datatree_array = self::getDatatreeArray($em, true);
-            $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype_id);
+            $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($datatype_id);
 
             // Load all groups belonging to the grandparent datatype
             $groups = $repo_group->findBy( array('dataType' => $grandparent_datatype_id) );
@@ -1368,14 +1367,6 @@ class ODRCustomController extends Controller
 
         // If this function is called to create groups for a top-level datatype, the following section wouldn't be needed since it's already covered by in self::ODR_createGroup()...
         if ( !$is_top_level ) {
-
-            // ----------------------------------------
-            // Going to need these later...
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-
             // ----------------------------------------
             // Load the list of groups and users this INSERT INTO query will affect
             $group_list = array();
@@ -1434,10 +1425,10 @@ class ODRCustomController extends Controller
 
                 if ($cache_update != null) {
                     // Immediately update group permissions with the new datatype, if a cached version of those permissions exists
-                    $group_permissions = self::getRedisData(($redis->get($redis_prefix.'.group_'.$group->getId().'_permissions')));
+                    $group_permissions = $cache_service->get('group_'.$group->getId().'_permissions');
                     if ($group_permissions != false) {
                         $group_permissions['datatypes'][$datatype_id] = $cache_update;
-                        $redis->set($redis_prefix.'.group_'.$group->getId().'_permissions', gzcompress(serialize($group_permissions)));
+                        $cache_service->set('group_'.$group->getId().'_permissions', $group_permissions);
                     }
                 }
             }
@@ -1452,13 +1443,13 @@ class ODRCustomController extends Controller
             // Delete all permission entries for each affected user...
             // Not updating cached entry because it's a combination of all group permissions, and would take as much work to figure out what all to change as it would to just rebuild it
             foreach ($user_list as $user_id)
-                $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
+                $cache_service->delete('user_'.$user_id.'_permissions');
         }
     }
 
 
     /**
-     * @deprecated most likely going to be replaced by the PermissionsManagementService
+     * @todo move into PermissionsManagementService?
      *
      * Creates GroupDatafieldPermissions for all groups when a new datafield is created, and updates existing cache entries for groups and users with the new datafield.
      *
@@ -1468,18 +1459,16 @@ class ODRCustomController extends Controller
      */
     protected function ODR_createGroupsForDatafield($em, $user, $datafield)
     {
-        // ----------------------------------------
-        // Going to need these later...
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        /** @var CacheService $cache_service*/
+        $cache_service = $this->container->get('odr.cache_service');
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
 
 
         // ----------------------------------------
         // Locate this datafield's datatype's grandparent
-        $datatree_array = self::getDatatreeArray($em);
         $datatype_id = $datafield->getDataType()->getId();
-        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype_id);
+        $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($datatype_id);
 
         // Locate all groups for this datatype's grandparent
         /** @var Group[] $groups */
@@ -1535,13 +1524,13 @@ class ODRCustomController extends Controller
 
             if ($cache_update != null) {
                 // Immediately update group permissions with the new datafield, if a cached version of those permissions exists
-                $group_permissions = self::getRedisData(($redis->get($redis_prefix.'.group_'.$group->getId().'_permissions')));
+                $group_permissions = $cache_service->get('group_'.$group->getId().'_permissions');
                 if ($group_permissions != false) {
                     if ( !isset($group_permissions['datafields'][$datatype_id]) )
                         $group_permissions['datafields'][$datatype_id] = array();
 
                     $group_permissions['datafields'][$datatype_id][$datafield->getId()] = $cache_update;
-                    $redis->set($redis_prefix.'.group_'.$group->getId().'_permissions', gzcompress(serialize($group_permissions)));
+                    $cache_service->set('group_'.$group->getId().'_permissions', $group_permissions);
                 }
             }
         }
@@ -1556,7 +1545,7 @@ class ODRCustomController extends Controller
         // Delete all permission entries for each affected user...
         // Not updating cached entry because it's a combination of all group permissions, and would take as much work to figure out what all to change as it would to just rebuild it
         foreach ($user_list as $user_id)
-            $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
+            $cache_service->delete('user_'.$user_id.'_permissions');
     }
 
 
@@ -1810,20 +1799,21 @@ class ODRCustomController extends Controller
      * @param integer $user_id
      * @param boolean $force_rebuild
      *
-     * @throws \Exception
+     * @throws ODRException
      *
      * @return array
      */
     public function getUserPermissionsArray($em, $user_id, $force_rebuild = false)
     {
         try {
-            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
 
 //$force_rebuild = true;
-            $user_permissions = self::getRedisData(($redis->get($redis_prefix.'.user_'.$user_id.'_permissions')));
+            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
+            $user_permissions = $cache_service->get('user_'.$user_id.'_permissions');
             if ( !$force_rebuild && $user_permissions != false )
                 return $user_permissions;
 
@@ -1849,11 +1839,11 @@ class ODRCustomController extends Controller
             $group_permissions = array();
             foreach ($user_groups as $num => $group_id) {
                 // Attempt to load the permissions for this group
-                $permissions = self::getRedisData(($redis->get($redis_prefix.'.group_'.$group_id.'_permissions')));
+                $permissions = $cache_service->get('group_'.$group_id.'_permissions');
 
                 if ( $force_rebuild || $permissions == false ) {
                     $permissions = self::rebuildGroupPermissionsArray($em, $group_id);
-                    $redis->set($redis_prefix.'.group_'.$group_id.'_permissions', gzcompress(serialize($permissions)));
+                    $cache_service->set('group_'.$group_id.'_permissions', $permissions);
                 }
 
                 $group_permissions[$group_id] = $permissions;
@@ -1891,7 +1881,7 @@ class ODRCustomController extends Controller
             }
 
             // If child datatypes have the "dr_edit" permission, ensure their parents do as well
-            $datatree_array = self::getDatatreeArray($em, $force_rebuild);
+            $datatree_array = $dti_service->getDatatreeArray();
 
             foreach ($user_permissions['datatypes'] as $dt_id => $dt_permissions) {
                 if ( isset($dt_permissions['dr_edit']) ) {
@@ -1905,7 +1895,7 @@ class ODRCustomController extends Controller
             }
 
             // Store that array in the cache
-            $redis->set($redis_prefix.'.user_'.$user_id.'_permissions', gzcompress(serialize($user_permissions)));
+            $cache_service->set('user_'.$user_id.'_permissions', $user_permissions);
 
 
             // ----------------------------------------
@@ -1913,7 +1903,7 @@ class ODRCustomController extends Controller
             return $user_permissions;
         }
         catch (\Exception $e) {
-            throw new \Exception( $e->getMessage() );
+            throw new ODRException( $e->getMessage() );
         }
     }
 
@@ -2061,6 +2051,7 @@ class ODRCustomController extends Controller
 
     /**
      * Temporary? function to mark datarecord as updated and delete cached version
+     * TODO - move into caching service?  or datarecord_info service?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param DataRecord $datarecord
@@ -2068,6 +2059,9 @@ class ODRCustomController extends Controller
      */
     protected function tmp_updateDatarecordCache($em, $datarecord, $user)
     {
+        /** @var CacheService $cache_service*/
+        $cache_service = $this->container->get('odr.cache_service');
+
         // Mark datarecord as updated
         $datarecord->setUpdatedBy($user);
         $datarecord->setUpdated(new \DateTime());   // guarantee that the datarecord gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
@@ -2076,18 +2070,16 @@ class ODRCustomController extends Controller
 
         // Locate and clear the cache entry for this datarecord
         $grandparent_datarecord_id = $datarecord->getGrandparent()->getId();
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        $redis->del($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord_id);
-        $redis->del($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
-        $redis->del($redis_prefix.'.datarecord_table_data_'.$grandparent_datarecord_id);
+        $cache_service->delete('associated_datarecords_for_'.$grandparent_datarecord_id);
+        $cache_service->delete('cached_datarecord_'.$grandparent_datarecord_id);
+        $cache_service->delete('datarecord_table_data_'.$grandparent_datarecord_id);
     }
 
 
     /**
      * Temporary? function to mark datatype as updated and delete cached version
+     * TODO - move into caching service?  or datatype_info service?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param DataType $datatype
@@ -2095,6 +2087,9 @@ class ODRCustomController extends Controller
      */
     protected function tmp_updateDatatypeCache($em, $datatype, $user)
     {
+        /** @var CacheService $cache_service*/
+        $cache_service = $this->container->get('odr.cache_service');
+
         // Mark datatype as updated
         $datatype->setUpdatedBy($user);
         $datatype->setUpdated(new \DateTime());   // guarantee that the datatype gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
@@ -2106,16 +2101,14 @@ class ODRCustomController extends Controller
 //        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype->getId());
         $datatype_id = $datatype->getId();
 
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        $redis->del($redis_prefix.'.cached_datatype_'.$datatype_id);
+        $cache_service->delete('cached_datatype_'.$datatype_id);
     }
 
 
     /**
      * Temporary? function to mark theme as updated and delete cached version of datatype
+     * TODO - move into caching service?  or theme_info service?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param Theme $theme
@@ -2124,6 +2117,9 @@ class ODRCustomController extends Controller
      */
     protected function tmp_updateThemeCache($em, $theme, $user, $update_datatype = false)
     {
+        /** @var CacheService $cache_service*/
+        $cache_service = $this->container->get('odr.cache_service');
+
         // Mark theme as updated
         $theme->setUpdatedBy($user);
         $theme->setUpdated(new \DateTime());   // guarantee that the theme gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
@@ -2144,11 +2140,7 @@ class ODRCustomController extends Controller
 //        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $theme->getDataType()->getId());
         $datatype_id = $theme->getDataType()->getId();
 
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        $redis->del($redis_prefix.'.cached_datatype_'.$datatype_id);
+        $cache_service->delete('cached_datatype_'.$datatype_id);
     }
 
 
@@ -2166,13 +2158,13 @@ class ODRCustomController extends Controller
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        /** @var CacheService $cache_service*/
+        $cache_service = $this->container->get('odr.cache_service');
+
 
         // Attempt to grab the list of datarecords for this datatype from the cache
         $datarecords = array();
-        $datarecord_str = self::getRedisData(($redis->get($redis_prefix.'.data_type_'.$datatype->getId().'_record_order')));
+        $datarecord_str = $cache_service->get('data_type_'.$datatype->getId().'_record_order');
 //print 'loaded record_order: '.$datarecord_str."\n";
 
         // No caching in dev environment
@@ -2253,7 +2245,7 @@ class ODRCustomController extends Controller
             $datarecord_str = substr($str, 0, strlen($str)-1);
 //print 'saving record_order: '.$datarecord_str."\n";
 
-            $redis->set($redis_prefix.'.data_type_'.$datatype->getId().'_record_order', gzcompress(serialize($datarecord_str)));
+            $cache_service->set('data_type_'.$datatype->getId().'_record_order', $datarecord_str);
         }
 
         // TODO - leave this as comma-separated list, or return an array instead?
@@ -2345,7 +2337,7 @@ class ODRCustomController extends Controller
 
         $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
         if ($tracked_job == null)
-            return self::deletedEntityError('TrackedJob');
+            throw new ODRNotFoundException('TrackedJob');
 
         /** @var TrackedError[] $tracked_errors */
         $tracked_errors = $em->getRepository('ODRAdminBundle:TrackedError')->findBy( array('trackedJob' => $tracked_job_id) );
@@ -2361,7 +2353,6 @@ class ODRCustomController extends Controller
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $tracked_job_id
-     *
      */
     protected function ODR_deleteTrackedErrorsByJob($em, $tracked_job_id)
     {
@@ -3720,13 +3711,16 @@ class ODRCustomController extends Controller
 
         $new_datatype_meta->setUpdatedBy($user);
 
-        if($datatype->getIsMasterType()) {
-            // Update grandparent master revision
-            $datatree_array = self::getDatatreeArray($em);
-            $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype->getId());
+        if ($datatype->getIsMasterType()) {
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
 
-            if($grandparent_datatype_id != $datatype->getId()) {
+            // Update grandparent master revision
+            $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($datatype->getId());
+
+            if ($grandparent_datatype_id != $datatype->getId()) {
                 $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+                /** @var DataType $grandparent_datatype */
                 $grandparent_datatype = $repo_datatype->find($grandparent_datatype_id);
 
                 $gp_properties['master_revision'] = $grandparent_datatype->getDataTypeMeta()->getMasterRevision() + 1;
@@ -4919,35 +4913,22 @@ class ODRCustomController extends Controller
      */
     protected function Text_GetDisplayData($em, $datarecord_id, Request $request)
     {
-        // ----------------------------------------
-        // Grab necessary objects
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
+        /** @var DatarecordInfoService $dri_service */
+        $dri_service = $this->container->get('odr.datarecord_info_service');
+        /** @var CacheService $cache_service*/
+        $cache_service = $this->container->get('odr.cache_service');
+
         $router = $this->container->get('router');
 
-
         // ----------------------------------------
-        // Always bypass cache in dev mode
-        $bypass_cache = false;
-        if ($this->container->getParameter('kernel.environment') === 'dev')
-            $bypass_cache = true;
-
         // Grab the cached version of the requested datarecord
-        $datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$datarecord_id)));
-        if ($bypass_cache || $datarecord_data == false)
-            $datarecord_data = self::getDatarecordData($em, $datarecord_id, $bypass_cache);
-
-        $datatype_id = $datarecord_data[$datarecord_id]['dataType']['id'];
+        $datarecord_data = $dri_service->getDatarecordArray($datarecord_id);
 
         // Grab the cached version of the requested datatype
-        // print $redis_prefix.'.cached_datatype_'.$datatype_id;
-        $datatype_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype_id)));
-        if ($bypass_cache || $datatype_data == false) {
-            $datatype_data = self::getDatatypeData($em, self::getDatatreeArray($em, $bypass_cache), $datatype_id, $bypass_cache);
-        }
-
-
+        $datatype_id = $datarecord_data[$datarecord_id]['dataType']['id'];
+        $datatype_data = $dti_service->getDatatypeArray( array($datatype_id) );
 //print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();
 //print '<pre>'.print_r($datarecord_data, true).'</pre>'; exit();
 
@@ -5056,11 +5037,9 @@ class ODRCustomController extends Controller
             }
         }
 
-        // Store the resulting array back in memcached before returning it
-        // TODO - There should be no need to store the redis data again.  Data should not
-        // be modified during the rendering of the object.  The plugins should not be called
-        // during the creation of redis data so something is messed up here.
-        $redis->set($redis_prefix.'.datarecord_table_data_'.$datarecord_id, gzcompress(serialize($data)));
+
+        // Store the resulting array back in the cache before returning it
+        $cache_service->set('datarecord_table_data_'.$datarecord_id, $data);
         return $data;
     }
 
@@ -5315,6 +5294,7 @@ class ODRCustomController extends Controller
 
     /**
      * Gets all layout information required for the given datatype in array format
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param array $datatree_array
@@ -5512,6 +5492,7 @@ if ($debug)
 
     /**
      * Runs a single database query to get all non-layout data for a given grandparent datarecord.
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $grandparent_datarecord_id
@@ -5797,6 +5778,7 @@ if ($timing) {
 
     /**
      * Removes all private/non-essential user info from an array generated by self::getDatarecordData() or self::getDatatypeData()
+     * @deprecated
      *
      * @param array $user_data
      *
@@ -5815,6 +5797,7 @@ if ($timing) {
 
     /**
      * Builds and returns a list of all child and linked datatype ids related to the given datatype id.
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param int[] $datatype_ids
@@ -5869,6 +5852,7 @@ if ($timing) {
     /**
      * Builds and returns a list of all child and linked datarecords of the given datarecord id.
      * Due to recursive interaction with self::getLinkedDatarecords(), this function doesn't attempt to store results in the cache.
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param int[] $grandparent_ids
@@ -5904,6 +5888,7 @@ if ($timing) {
 
     /**
      * Builds and returns a list of all datarecords linked to from the provided datarecord ids.
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer[] $ancestor_ids
@@ -5942,6 +5927,7 @@ if ($timing) {
 
     /**
      * "Inflates" the normally flattened $datarecord_array...
+     * @deprecated
      *
      * @param array $datarecord_array
      * @param integer $initial_datarecord_id
@@ -5980,6 +5966,7 @@ if ($timing) {
 
     /**
      * "Inflates" the normally flattened $datatype_array...
+     * @deprecated
      *
      * @param array $datatype_array
      * @param integer $initial_datatype_id

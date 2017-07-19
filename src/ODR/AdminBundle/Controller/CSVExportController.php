@@ -32,6 +32,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
@@ -113,7 +114,7 @@ class CSVExportController extends ODRCustomController
                 // If there is no tab id for some reason, or the user is attempting to view a datarecord from a search that returned no results...
                 if ( $odr_tab_id === '' || $data['redirect'] == true || ($encoded_search_key !== '' && $datarecord_list === '') ) {
                     // ...get the search controller to redirect to "no results found" page
-                    $url = $this->generateUrl('odr_search_render', array('theme_id' => 0, 'search_key' => $data['encoded_search_key']));
+                    $url = $this->generateUrl('odr_search_render', array('search_key' => $data['encoded_search_key']));
                     return parent::searchPageRedirect($user, $url);
                 }
 
@@ -170,12 +171,11 @@ class CSVExportController extends ODRCustomController
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
         /** @var PermissionsManagementService $pm_service */
         $pm_service = $this->container->get('odr.permissions_management_service');
 
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         // All of these should already exist
         /** @var DataType $datatype */
@@ -191,26 +191,18 @@ class CSVExportController extends ODRCustomController
         $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
         // --------------------
 
-        // Always bypass cache in dev mode
-        $bypass_cache = false;
-        if ($this->container->getParameter('kernel.environment') === 'dev')
-            $bypass_cache = true;
 
         // ----------------------------------------
         // Grab the cached version of the desired datatype
-        $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype->getId())));
-        if ($bypass_cache || $datatype_data == false)
-            $datatype_data = parent::getDatatypeData($em, parent::getDatatreeArray($em, $bypass_cache), $datatype->getId(), $bypass_cache);
-
-
+        $datatype_data = $dti_service->getDatatypeArray( array($datatype_id) );
 //print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();
 
-        // ----------------------------------------
         // Filter by user permissions
         $datarecord_data = array();
         $pm_service->filterByGroupPermissions($datatype_data, $datarecord_data, $user_permissions);
 
 
+        // ----------------------------------------
         // Render the CSVExport page
         $templating = $this->get('templating');
         $html = $templating->render(
@@ -267,11 +259,6 @@ class CSVExportController extends ODRCustomController
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
-
-
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             $session = $request->getSession();
             $api_key = $this->container->getParameter('beanstalk_api_key');
@@ -419,6 +406,7 @@ return;
 
                 // ----------------------------------------
                 // Create a beanstalk job for each of these datarecords
+                $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
                 foreach ($datarecords as $num => $datarecord_id) {
 
                     $priority = 1024;   // should be roughly default priority
@@ -502,12 +490,9 @@ return;
                 $secondary_delimiter = $post['secondary_delimiter'];
 
             // Load symfony objects
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
@@ -670,6 +655,7 @@ return;
 
             // ----------------------------------------
             // Create a beanstalk job for this datarecord
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
             $priority = 1024;   // should be roughly default priority
             $payload = json_encode(
                 array(
@@ -742,12 +728,9 @@ return;
             $delimiter = $post['delimiter'];
 
             // Load symfony objects
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
@@ -922,7 +905,8 @@ return;
                 $url = $this->container->getParameter('site_baseurl');
                 $url .= $this->container->get('router')->generate('odr_csv_export_finalize');
 
-                // 
+                //
+                $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
                 $priority = 1024;   // should be roughly default priority
                 $payload = json_encode(
                     array(
@@ -992,12 +976,9 @@ return;
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
@@ -1045,7 +1026,8 @@ return;
                 $url = $this->container->getParameter('site_baseurl');
                 $url .= $this->container->get('router')->generate('odr_csv_export_finalize');
 
-                // 
+                //
+                $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
                 $priority = 1024;   // should be roughly default priority
                 $payload = json_encode(
                     array(
@@ -1104,10 +1086,8 @@ return;
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
-        $return['d'] = ''; 
-            
+        $return['d'] = '';
 
-        
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */

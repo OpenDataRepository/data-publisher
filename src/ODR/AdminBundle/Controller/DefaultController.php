@@ -23,7 +23,9 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
-// Forms
+// Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -98,9 +100,10 @@ class DefaultController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
 
 
             /** @var User $user */
@@ -116,9 +119,7 @@ class DefaultController extends ODRCustomController
                 $bypass_cache = true;
 
             // Only want to create dashboard html graphs for top-level datatypes...
-            $datatree_array = parent::getDatatreeArray($em);
-            $datatypes = parent::getTopLevelDatatypes();
-
+            $datatypes = $dti_service->getTopLevelDatatypes();
 
             $dashboard_order = array();
             $dashboard_headers = array();
@@ -133,26 +134,25 @@ class DefaultController extends ODRCustomController
                 if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dr_view' ]) )
                     $can_view_datarecord = true;
 
-                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype_id)));
-                if ($bypass_cache || $datatype_data == false)
-                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $datatype_id, $bypass_cache);
 
+                $datatype_data = $dti_service->getDatatypeArray( array($datatype_id) );
                 $public_date = $datatype_data[$datatype_id]['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s');
                 if ($public_date == '2200-01-01 00:00:00' && !$can_view_datatype)
                     continue;
 
 
                 // Attempt to load existing cache entry for this datatype's dashboard html
-                $cache_entry = $redis_prefix.'.dashboard_'.$datatype_id;
+                $cache_entry = 'dashboard_'.$datatype_id;
                 if (!$can_view_datarecord)
                     $cache_entry .= '_public_only';
 
-                $data = parent::getRedisData(($redis->get($cache_entry)));
+                $data = $cache_service->get($cache_entry);
                 if ($bypass_cache || $data == false) {
+                    // Rebuild the cached entry
                     self::getDashboardHTML($em, $datatype_id);
 
                     // Cache entry should now exist, reload it
-                    $data = parent::getRedisData(($redis->get($cache_entry)));
+                    $data = $cache_service->get($cache_entry);
                 }
 
                 $total = $data['total'];
@@ -411,19 +411,17 @@ class DefaultController extends ODRCustomController
             'graph' => $public_graph,
         );
 
-        // Grab memcached stuff
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        /** @var CacheService $cache_service */
+        $cache_service = $this->container->get('odr.cache_service');
 
         // TODO - Figure out how to set an lifetime using PREDIS
         // Store the dashboard data for all datarecords of this datatype
-        $redis->set($redis_prefix.'.dashboard_'.$datatype_id, gzcompress(serialize($data)));
-        $redis->expire($redis_prefix.'.dashboard_'.$datatype_id, 1*24*60*60); // Cache this dashboard entry for upwards of one day
+        $cache_service->set('dashboard_'.$datatype_id, $data);
+        $cache_service->expire('dashboard_'.$datatype_id, 1*24*60*60);    // Cache this dashboard entry for upwards of one day
 
         // Store the dashboard data for all public datarecords of this datatype
-        $redis->set($redis_prefix.'.dashboard_'.$datatype_id.'_public_only', gzcompress(serialize($public_data)));
-        $redis->expire($redis_prefix.'.dashboard_'.$datatype_id.'_public_only', 1*24*60*60); // Cache this dashboard entry for upwards of one day
+        $cache_service->set('dashboard_'.$datatype_id.'_public_only', $public_data);
+        $cache_service->expire('dashboard_'.$datatype_id.'_public_only', 1*24*60*60);    // Cache this dashboard entry for upwards of one day
     }
 
 }

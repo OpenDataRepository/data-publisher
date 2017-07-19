@@ -35,6 +35,8 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
 use ODR\AdminBundle\Form\ODRUserProfileForm;
 // Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\Form\FormError;
@@ -1142,11 +1144,9 @@ class ODRUserController extends ODRCustomController
 
                 // ----------------------------------------
                 // Delete any cached permissions for the affected user
-                $redis = $this->container->get('snc_redis.default');;
-                // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-                $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-                $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
+                /** @var CacheService $cache_service*/
+                $cache_service = $this->container->get('odr.cache_service');
+                $cache_service->delete('user_'.$user_id.'_permissions');
             }
 
             $user_manager->updateUser($user);
@@ -1220,11 +1220,9 @@ class ODRUserController extends ODRCustomController
             $user->removeRole('ROLE_SUPER_ADMIN');
 
             // Delete the user's cached permissions
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-            $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service->delete('user_'.$user_id.'_permissions');
 
 
             // This may not be the right way to do it...
@@ -1403,6 +1401,9 @@ class ODRUserController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
@@ -1413,9 +1414,10 @@ class ODRUserController extends ODRCustomController
             if ($target_user == null || !$target_user->isEnabled())
                 throw new ODRNotFoundException('User');
 
-            $top_level_datatypes = parent::getTopLevelDatatypes();
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
             if ( !in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('Only available for top-level Datatypes');
+
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -1497,13 +1499,11 @@ class ODRUserController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
-
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var ODRUser $target_user */
             $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
@@ -1520,9 +1520,10 @@ class ODRUserController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
-            $top_level_datatypes = parent::getTopLevelDatatypes();
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
             if ( !in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('Only available for top-level Datatypes');
+
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -1545,45 +1546,26 @@ class ODRUserController extends ODRCustomController
             // --------------------
 
 
-            // Always bypass cache in dev mode?
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
-
-            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-
-
+            // ----------------------------------------
             // Load permissions for the target user
-            $user_permissions = parent::getUserPermissionsArray($em, $target_user->getId(), $bypass_cache);
+            $user_permissions = parent::getUserPermissionsArray($em, $target_user->getId());
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
-            // ----------------------------------------
             // Determine which datatypes/childtypes to load from the cache
             $include_links = true;
-            $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype->getId()), $include_links);
-
+            $associated_datatypes = $dti_service->getAssociatedDatatypes(array($datatype->getId()), $include_links);
 //print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
 
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            $datatype_array = array();
-            foreach ($associated_datatypes as $num => $dt_id) {
-                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-                if ($bypass_cache || $datatype_data == null)
-                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
-
-                foreach ($datatype_data as $dt_id => $data)
-                    $datatype_array[$dt_id] = $data;
-            }
-
+            $datatype_array = $dti_service->getDatatypeArray($associated_datatypes);
 //print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
-
 
             // Filter by the target user's permissions
             $datarecord_array = array();
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
 //print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
+
 
             // ----------------------------------------
             // Render the datatype from the target user's point of view

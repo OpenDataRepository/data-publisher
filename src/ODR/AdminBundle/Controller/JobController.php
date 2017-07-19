@@ -25,7 +25,8 @@ use ODR\OpenRepository\UserBundle\Entity\User;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-// Forms
+// Services
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -144,7 +145,9 @@ class JobController extends ODRCustomController
         $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
         $datatype_permissions = $user_permissions['datatypes'];
 
-        $datatree_array = parent::getDatatreeArray($em);
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
+
         $parameters = array();
 
         if ( $job_type !== '' )
@@ -192,7 +195,7 @@ class JobController extends ODRCustomController
                 $job['description'] = $additional_data['description'];
                 $job['can_delete'] = false;
 
-                $top_level_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datatype_id);
+                $top_level_datatype_id = $dti_service->getGrandparentDatatypeId($datatype_id);
                 $job['top_level_datatype_id'] = $top_level_datatype_id;
 
 
@@ -335,11 +338,9 @@ class JobController extends ODRCustomController
                         $job['can_delete'] = true;
                 }
 
-
                 $jobs[] = $job;
             }
         }
-
 
         // DON'T JSON_ENCODE HERE
         if ($job_id == 0) {
@@ -409,6 +410,10 @@ class JobController extends ODRCustomController
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
+
             // --------------------
             // Get datatype_id from tracked job data
             /** @var TrackedJob $tracked_job */
@@ -427,9 +432,7 @@ class JobController extends ODRCustomController
 
                 // TODO - let child types have is_admin permission?
                 // Load the top-level parent, since the is_admin permission is used
-                $datatree_array = parent::getDatatreeArray($em);
-                $datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datatype_id);
-
+                $datatype_id = $dti_service->getGrandparentDatatypeId($datatype_id);
 
                 // If the Datatype is deleted, there's no point to this job...skip the permissions check and delete it
                 /** @var DataType $datatype */
@@ -452,7 +455,6 @@ class JobController extends ODRCustomController
                 }
             }
 
-
             // Delete any errors associated with this job...if job doesn't exist, delete them anyways
             parent::ODR_deleteTrackedErrorsByJob($em, $job_id);
 
@@ -461,7 +463,6 @@ class JobController extends ODRCustomController
                 $em->remove($tracked_job);
                 $em->flush();
             }
-
         }
         catch (\Exception $e) {
             $source = 0x8501ab5c;

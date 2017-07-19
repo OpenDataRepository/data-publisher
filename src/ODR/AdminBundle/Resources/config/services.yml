@@ -47,25 +47,33 @@ services:
 
 
     #
+    odr.cache_service:
+        class: ODR\AdminBundle\Component\Service\CacheService
+        arguments:
+            cache_service: "@snc_redis.default"
+            cache_prefix: "%memcached_key_prefix%"
+
     odr.permissions_management_service:
         class: ODR\AdminBundle\Component\Service\PermissionsManagementService
-        arguments:
-            container: "@service_container"
-            entity_manager: "@doctrine.orm.entity_manager"
-            logger: "@logger"
+#        arguments:
+#            container: "@service_container"
+#            entity_manager: "@doctrine.orm.entity_manager"
+#            logger: "@logger"
 
     odr.datarecord_info_service:
         class: ODR\AdminBundle\Component\Service\DatarecordInfoService
         arguments:
-            container: "@service_container"
+            environment: "%kernel.environment%"
             entity_manager: "@doctrine.orm.entity_manager"
+            cache_service: "@odr.cache_service"
             logger: "@logger"
 
     odr.datatype_info_service:
         class: ODR\AdminBundle\Component\Service\DatatypeInfoService
         arguments:
-            container: "@service_container"
+            environment: "%kernel.environment%"
             entity_manager: "@doctrine.orm.entity_manager"
+            cache_service: "@odr.cache_service"
             logger: "@logger"
 
     odr.create_datatype_service:

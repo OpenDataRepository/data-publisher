@@ -250,11 +250,12 @@ class PlugExtension extends \Twig_Extension
      *
      * @param array $theme_element
      * @param array $datarecord
+     * @param string $mode  'display' or 'edit'
      *
      * @return bool
      * @throws \Exception
      */
-    public function isEmptyFilter($theme_element, $datarecord)
+    public function isEmptyFilter($theme_element, $datarecord, $mode)
     {
         try {
 //            print '<pre>'.print_r($theme_element, true).'</pre>';
@@ -282,7 +283,7 @@ class PlugExtension extends \Twig_Extension
                     //  Edit mode will apparently always pass this check
                     if ( $tdt['hidden'] == 0 && isset($tdt['dataType']) && count($tdt['dataType']) > 0 ) {
 
-                        if ( $tdt['is_link'] == 0 ) {
+                        if ( $tdt['is_link'] == 0 && $mode == 'edit' ) {
                             // This theme element contains a child datatype, and is therefore never considered "empty" when in Edit mode
                             return false;
                         }

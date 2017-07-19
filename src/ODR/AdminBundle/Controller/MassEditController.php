@@ -43,6 +43,8 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -197,12 +199,11 @@ class MassEditController extends ODRCustomController
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
         /** @var PermissionsManagementService $pm_service */
         $pm_service = $this->container->get('odr.permissions_management_service');
 
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -224,30 +225,16 @@ class MassEditController extends ODRCustomController
         $datafield_permissions = $user_permissions['datafields'];
         // --------------------
 
-        $bypass_cache = false;
-        if ($this->container->getParameter('kernel.environment') === 'dev')
-            $bypass_cache = true;
-
 
         // ----------------------------------------
         // Determine which datatypes/childtypes to load from the cache
         $include_links = false;
-        $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype_id), $include_links);
-
+        $associated_datatypes = $dti_service->getAssociatedDatatypes(array($datatype_id), $include_links);
 //print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
 
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-
-        $datatype_array = array();
-        foreach ($associated_datatypes as $num => $dt_id) {
-            $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-            if ($bypass_cache || $datatype_data == null)
-                $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
-
-            foreach ($datatype_data as $dt_id => $data)
-                $datatype_array[$dt_id] = $data;
-        }
+        $datatype_array = $dti_service->getDatatypeArray($associated_datatypes);
+//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
 
         // ----------------------------------------
@@ -312,17 +299,18 @@ class MassEditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-//            $redis = $this->container->get('snc_redis.default');;
-//            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $session = $request->getSession();
             $api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
 
 
             // --------------------
@@ -370,7 +358,7 @@ class MassEditController extends ODRCustomController
             $list = $session->get('mass_edit_datarecord_lists');
 
             $complete_datarecord_list = '';
-            $datarecords = '';
+            $datarecords = array();
             $encoded_search_key = null;
 
             if ( isset($list[$odr_tab_id]) ) {
@@ -380,7 +368,7 @@ class MassEditController extends ODRCustomController
             }
 
             // If the datarecord list doesn't exist for some reason, or the user is attempting to view a datarecord from a search that returned no results...
-            if ( !isset($list[$odr_tab_id]) || ($encoded_search_key !== '' && $datarecords === '') ) {
+            if ( !isset($list[$odr_tab_id]) || ($encoded_search_key !== '' && count($datarecords) == 0) ) {
                 // ...redirect to "no results found" page
                 /** @var SearchController $search_controller */
                 $search_controller = $this->get('odr_search_controller', $request);
@@ -391,8 +379,6 @@ class MassEditController extends ODRCustomController
 
             // TODO - delete the datarecord list/search key out of the user's session?
 
-
-//            $datarecords = explode(',', $datarecords);
 
             // ----------------------------------------
             // Ensure no unique datafields managed to get marked for this mass update...store which datatype they belong to at the same time
@@ -414,9 +400,8 @@ class MassEditController extends ODRCustomController
             }
 
             // Ensure no completely unrelated datafields are in the post request
-            $datatree_array = parent::getDatatreeArray($em);
             foreach ($datatype_list as $dt_id => $num) {
-                $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $dt_id);
+                $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($dt_id);
                 if ($grandparent_datatype_id != $datatype->getId())
                     throw new ODRBadRequestException();
             }
@@ -638,18 +623,15 @@ return;
             $api_key = $post['api_key'];
 
             // Load symfony objects
-//            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-//            $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
@@ -717,7 +699,7 @@ return;
 
                     // ----------------------------------------
                     // See if any cached search results need to be deleted...
-                    $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+                    $cached_searches = $cache_service->get('cached_search_results');
                     if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                         // Delete all cached search results for this datatype that contained this datarecord
                         foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
@@ -727,7 +709,7 @@ return;
                         }
 
                         // Save the collection of cached searches back to memcached
-                        $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                        $cache_service->set('cached_search_results', $cached_searches);
                     }
                 }
             }
@@ -804,21 +786,17 @@ return;
             $api_key = $post['api_key'];
 
             // Load symfony objects
-//            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-//            $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-
-            // Grab memcached stuff
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 //            $repo_datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields');
             $repo_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions');
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
+
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
@@ -1062,13 +1040,13 @@ $ret .= '  Set current to '.$count."\n";
 
                 // ----------------------------------------
                 // See if any cached search results need to be deleted...
-                $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+                $cached_searches = $cache_service->get('cached_search_results');
                 if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                     // Just delete all cached search results for this datatype...TODO - make it more precise than that...
                     unset ( $cached_searches[$datatype_id] );
 
-                    // Save the collection of cached searches back to memcached
-                    $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                    // Save the collection of cached searches
+                    $cache_service->set('cached_search_results', $cached_searches);
                 }
 
 $ret .=  "---------------\n";

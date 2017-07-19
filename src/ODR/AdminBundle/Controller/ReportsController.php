@@ -29,7 +29,9 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-// Forms
+// Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
@@ -58,6 +60,9 @@ class ReportsController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -91,7 +96,7 @@ class ReportsController extends ODRCustomController
 
             // Datafields in child datatypes have different rules for duplicated values...
             $is_child_datatype = false;
-            $datatree_array = parent::getDatatreeArray($em);
+            $datatree_array = $dti_service->getDatatreeArray();
             if ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '' )
                 $is_child_datatype = true;
 
@@ -104,7 +109,7 @@ class ReportsController extends ODRCustomController
             }
             else {
                 // Locate the top-level datatype
-                $top_level_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datatype_id);
+                $top_level_datatype_id = $dti_service->getGrandparentDatatypeId($datatype_id);
 
                 /** @var DataType $top_level_datatype */
                 $top_level_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($top_level_datatype_id);
@@ -1025,6 +1030,9 @@ print_r($grandparent_list);
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
@@ -1076,12 +1084,12 @@ print_r($grandparent_list);
 
             if ($file->getProvisioned() == false) {
                 // Figure out whether the cached version of this datarecord lists this file as fully decrypted or not...
-                $redis = $this->container->get('snc_redis.default');;
-                // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-                $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
                 $grandparent_datarecord_id = $datarecord->getGrandparent()->getId();
-                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id)));
+
+                // Not using datarecord_info_service because we don't really care what's associated with this
+                // datarecord, or want the cache entry to exist if it doesn't for some reason
+                $datarecord_data = $cache_service->get('cached_datarecord_'.$grandparent_datarecord_id);
+
                 if ($datarecord_data != false) {
                     // Attempt to locate this file in the cached datarecord array
                     $delete_cache_entries = true;
@@ -1101,8 +1109,8 @@ print_r($grandparent_list);
 
                     if ($delete_cache_entries) {
                         // Somehow, the file is fully encrypted, but the cached array doesn't properly reflect that...wipe them so they get rebuilt
-                        $redis->del($redis_prefix . '.cached_datarecord_' . $grandparent_datarecord_id);
-                        $redis->del($redis_prefix . '.datarecord_table_data_' . $grandparent_datarecord_id);
+                        $cache_service->delete('cached_datarecord_'.$grandparent_datarecord_id);
+                        $cache_service->delete('datarecord_table_data_'.$grandparent_datarecord_id);
                     }
                 }
             }

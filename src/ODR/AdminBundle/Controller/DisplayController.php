@@ -33,8 +33,9 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-// Forms
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
+use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -260,15 +261,17 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // Get all Datarecords and Datatypes that are associated with the datarecord to render
-            $datarecord_array = $dri_service->getRelatedDatarecords($original_datarecord->getId());
-            $datatype_array = $dti_service->getRecordDatatypes($datarecord_array);
+            $datarecord_array = $dri_service->getDatarecordArray($original_datarecord->getId());
+            $datatype_array = $dti_service->getDatatypeArrayByDatarecords($datarecord_array);
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
             // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-            $stacked_datarecord_array[ $original_datarecord->getId() ] = parent::stackDatarecordArray($datarecord_array, $original_datarecord->getId());
-            $stacked_datatype_array[ $original_datatype->getId() ] = parent::stackDatatypeArray($datatype_array, $original_datatype->getId(), $original_theme->getId());
+            $stacked_datarecord_array[ $original_datarecord->getId() ] = $dri_service->stackDatarecordArray($datarecord_array, $original_datarecord->getId());
+            $stacked_datatype_array[ $original_datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $original_datatype->getId(), $original_theme->getId());
+//exit( '<pre>'.print_r($stacked_datarecord_array, true).'</pre>' );
+//exit( '<pre>'.print_r($stacked_datatype_array, true).'</pre>' );
 
 
             // ----------------------------------------
@@ -315,6 +318,7 @@ class DisplayController extends ODRCustomController
 
     /**
      * Given a datarecord and datafield, re-render and return the html for that datafield.
+     * TODO - I believe the old version of file handling was the only thing that used this...
      *
      * @param integer $datarecord_id
      * @param integer $datafield_id
@@ -335,13 +339,13 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
-
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -419,37 +423,16 @@ class DisplayController extends ODRCustomController
             }
             // --------------------
 
-            // Always bypass cache if in dev mode?
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
-
 
             // ----------------------------------------
-            // Grab the cached versions of the desired datarecord
-            $datarecord_array = array();
-            $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$datarecord->getId())));
-            if ($bypass_cache || $datarecord_data == false)
-                $datarecord_data = parent::getDatarecordData($em, $datarecord->getId(), $bypass_cache);
+            // Get all Datarecords and Datatypes that are associated with the datarecord to render
+            $datarecord_array = $dri_service->getDatarecordArray($datarecord->getId());
+            $datatype_array = $dti_service->getDatatypeArrayByDatarecords($datarecord_array);
 
-            foreach ($datarecord_data as $dr_id => $data)
-                $datarecord_array[$dr_id] = $data;
-
-
-            // Grab the cached version of the datafield's datatype
-            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-            $datatype_array = array();
-            $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$original_datatype->getId())));
-            if ($bypass_cache || $datatype_data == false)
-                $datatype_data = parent::getDatatypeData($em, $datatree_array, $original_datatype->getId(), $bypass_cache);
-
-            foreach ($datatype_data as $dt_id => $data)
-                $datatype_array[$dt_id] = $data;
-
-
-            // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+            // Don't need to stack these two arrays, it'll just make finding the datafield harder
 
             // Extract datafield and theme_datafield from datatype_array
             $datafield = null;
@@ -468,7 +451,7 @@ class DisplayController extends ODRCustomController
             }
 
             if ( $datafield == null )
-                throw new \Exception('Unable to locate array entry for datafield '.$datafield_id);
+                throw new ODRException('Unable to locate array entry for datafield '.$datafield_id);
 
 
             // ----------------------------------------
@@ -521,9 +504,10 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            $redis_prefix = $this->get('memcached_key_prefix');     // debug purposes only
+
 
             // Locate the file in the database
             /** @var File $file */
@@ -592,7 +576,7 @@ class DisplayController extends ODRCustomController
             $url .= $router->generate('odr_crypto_request');
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
-            $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
+            $file_decryptions = $cache_service->get('file_decryptions');
 
 
             // ----------------------------------------
@@ -607,7 +591,7 @@ class DisplayController extends ODRCustomController
                     if ( !isset($file_decryptions[$target_filename]) ) {
                         // File is not scheduled to get decrypted at the moment, store that it will be decrypted
                         $file_decryptions[$target_filename] = 1;
-                        $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
+                        $cache_service->set('file_decryptions', $file_decryptions);
 
                         // Schedule a beanstalk job to start decrypting the file
                         $priority = 1024;   // should be roughly default priority
@@ -663,7 +647,7 @@ class DisplayController extends ODRCustomController
                 if ( !isset($file_decryptions[$target_filename]) ) {
                     // File is not scheduled to get decrypted at the moment, store that it will be decrypted
                     $file_decryptions[$target_filename] = 1;
-                    $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
+                    $cache_service->set('file_decryptions', $file_decryptions);
 
                     // Schedule a beanstalk job to start decrypting the file
                     $priority = 1024;   // should be roughly default priority
@@ -898,6 +882,8 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            throw new ODRNotImplementedException();
+
             // ----------------------------------------
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1156,12 +1142,13 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var DataRecord $grandparent_datarecord */
             $grandparent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($grandparent_datarecord_id);
@@ -1267,60 +1254,10 @@ class DisplayController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Always bypass cache if in dev mode?
-            $bypass_cache = false;
-//            if ($this->container->getParameter('kernel.environment') === 'dev')
-//                $bypass_cache = true;
+            // Get all Datarecords and Datatypes that are associated with the datarecord...need to render an abbreviated view in order to select files
+            $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
+            $datatype_array = $dti_service->getDatatypeArrayByDatarecords($datarecord_array);
 
-
-            // Grab all datarecords "associated" with the desired datarecord...
-            $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId())));
-            if ($bypass_cache || $associated_datarecords == false) {
-                $associated_datarecords = parent::getAssociatedDatarecords($em, array($grandparent_datarecord->getId()));
-
-                $redis->set($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId(), gzcompress(serialize($associated_datarecords)));
-            }
-
-
-            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
-            $datarecord_array = array();
-            foreach ($associated_datarecords as $num => $dr_id) {
-                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
-                if ($bypass_cache || $datarecord_data == false)
-                    $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
-
-                foreach ($datarecord_data as $dr_id => $data)
-                    $datarecord_array[$dr_id] = $data;
-            }
-
-
-            // ----------------------------------------
-            //
-            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-
-            // Grab all datatypes associated with the desired datarecord
-            // NOTE - not using parent::getAssociatedDatatypes() here on purpose...that would always return child/linked datatypes for the datatype even if this datarecord isn't making use of them
-            $associated_datatypes = array();
-            foreach ($datarecord_array as $dr_id => $dr) {
-                $dt_id = $dr['dataType']['id'];
-
-                if ( !in_array($dt_id, $associated_datatypes) )
-                    $associated_datatypes[] = $dt_id;
-            }
-
-
-            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            $datatype_array = array();
-            foreach ($associated_datatypes as $num => $dt_id) {
-                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-                if ($bypass_cache || $datatype_data == false)
-                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
-
-                foreach ($datatype_data as $dt_id => $data)
-                    $datatype_array[$dt_id] = $data;
-            }
-
-            // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
@@ -1340,6 +1277,7 @@ class DisplayController extends ODRCustomController
             $datafield_ids = array_unique($datafield_ids);
             $datatype_ids = array_unique($datatype_ids);
 
+            // Faster/easier to query the database again to store datafield names
             $query = $em->createQuery(
                'SELECT df.id, dfm.fieldName
                 FROM ODRAdminBundle:DataFields AS df
@@ -1357,6 +1295,7 @@ class DisplayController extends ODRCustomController
                 $datafield_names[$df_id] = $df_name;
             }
 
+            // Faster/easier to query the database again to store datatype names
             $query = $em->createQuery(
                'SELECT dt.id, dtm.shortName
                 FROM ODRAdminBundle:DataType AS dt
@@ -1377,7 +1316,7 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-            $stacked_datarecord_array[ $grandparent_datarecord->getId() ] = parent::stackDatarecordArray($datarecord_array, $grandparent_datarecord->getId());
+            $stacked_datarecord_array[ $grandparent_datarecord->getId() ] = $dri_service->stackDatarecordArray($datarecord_array, $grandparent_datarecord->getId());
 //print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
 
             $ret = self::locateFilesforDownloadAll($stacked_datarecord_array, $grandparent_datarecord->getId());
@@ -1501,12 +1440,13 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
 
 
             /** @var DataRecord $grandparent_datarecord */
@@ -1536,63 +1476,15 @@ class DisplayController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Always bypass cache if in dev mode?
-            $bypass_cache = false;
-//            if ($this->container->getParameter('kernel.environment') === 'dev')
-//                $bypass_cache = true;
+            // Easier/faster to just load the entire datarecord/datatype arrays...
+            $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
+            $datatype_array = $dti_service->getDatatypeArrayByDatarecords($datarecord_array);
 
-
-            // Grab all datarecords "associated" with the desired datarecord...
-            $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId())));
-            if ($bypass_cache || $associated_datarecords == false) {
-                $associated_datarecords = parent::getAssociatedDatarecords($em, array($grandparent_datarecord->getId()));
-
-                $redis->set($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId(), gzcompress(serialize($associated_datarecords)));
-            }
-
-
-            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
-            $datarecord_array = array();
-            foreach ($associated_datarecords as $num => $dr_id) {
-                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
-                if ($bypass_cache || $datarecord_data == false)
-                    $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
-
-                foreach ($datarecord_data as $dr_id => $data)
-                    $datarecord_array[$dr_id] = $data;
-            }
-
-
-            // ----------------------------------------
-            //
-            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-
-            // Grab all datatypes associated with the desired datarecord
-            // NOTE - not using parent::getAssociatedDatatypes() here on purpose...that would always return child/linked datatypes for the datatype even if this datarecord isn't making use of them
-            $associated_datatypes = array();
-            foreach ($datarecord_array as $dr_id => $dr) {
-                $dt_id = $dr['dataType']['id'];
-
-                if ( !in_array($dt_id, $associated_datatypes) )
-                    $associated_datatypes[] = $dt_id;
-            }
-
-
-            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            $datatype_array = array();
-            foreach ($associated_datatypes as $num => $dt_id) {
-                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-                if ($bypass_cache || $datatype_data == false)
-                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
-
-                foreach ($datatype_data as $dt_id => $data)
-                    $datatype_array[$dt_id] = $data;
-            }
-
-            // ----------------------------------------
-            // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
+            // ...so the permissions service can prevent the user from downloading files/images they're not allowed to see
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
+
+            // ----------------------------------------
             // Intersect the array of desired file/image ids with the array of permitted files/ids to determine which files/images to add to the zip archive
             $file_list = array();
             $filename_list = array();
@@ -1614,18 +1506,8 @@ class DisplayController extends ODRCustomController
                             }
                         }
                     }
-/*
-                    // TODO - download images in a zip archive?
-                    else if ( count($drf['image']) > 0 ) {
-                        foreach ($drf['image'] as $i_num => $i) {
-                            if ( in_array($i['parent']['id'], $image_ids) ) {
-                                // Store by original checksum so multiples of the same image only get decrypted once
-                                //$original_checksum = $i['original_checksum'];
-                                //$image_list[$original_checksum] = $i;
-                            }
-                        }
-                    }
-*/
+
+                    // TODO - also allow user to download images in a zip archive?
                 }
             }
 

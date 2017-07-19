@@ -1,108 +1,157 @@
 <?php
 
+/**
+ * Open Data Repository Data Publisher
+ * Datarecord Info Service
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * TODO
+ *
+ */
+
 namespace ODR\AdminBundle\Component\Service;
 
-// Controllers/Classes
-use ODR\OpenRepository\SearchBundle\Controller\DefaultController as SearchController;
-// Entities
-use ODR\AdminBundle\Entity\Boolean AS ODRBoolean;
-use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataFieldsMeta;
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataRecordFields;
-use ODR\AdminBundle\Entity\DataRecordMeta;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\DataTreeMeta;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTypeMeta;
-use ODR\AdminBundle\Entity\DatetimeValue;
-use ODR\AdminBundle\Entity\DecimalValue;
-use ODR\AdminBundle\Entity\FieldType;
-use ODR\AdminBundle\Entity\File;
-use ODR\AdminBundle\Entity\FileChecksum;
-use ODR\AdminBundle\Entity\FileMeta;
-use ODR\AdminBundle\Entity\Group;
-use ODR\AdminBundle\Entity\GroupDatafieldPermissions;
-use ODR\AdminBundle\Entity\GroupDatatypePermissions;
-use ODR\AdminBundle\Entity\GroupMeta;
-use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\ImageChecksum;
-use ODR\AdminBundle\Entity\ImageMeta;
-use ODR\AdminBundle\Entity\ImageSizes;
-use ODR\AdminBundle\Entity\IntegerValue;
-use ODR\AdminBundle\Entity\LinkedDataTree;
-use ODR\AdminBundle\Entity\LongText;
-use ODR\AdminBundle\Entity\LongVarchar;
-use ODR\AdminBundle\Entity\MediumVarchar;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RadioOptionsMeta;
-use ODR\AdminBundle\Entity\RadioSelection;
-use ODR\AdminBundle\Entity\RenderPlugin;
-use ODR\AdminBundle\Entity\RenderPluginFields;
-use ODR\AdminBundle\Entity\RenderPluginInstance;
-use ODR\AdminBundle\Entity\RenderPluginMap;
-use ODR\AdminBundle\Entity\RenderPluginOptions;
-use ODR\AdminBundle\Entity\ShortVarchar;
-use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeElementMeta;
-use ODR\AdminBundle\Entity\ThemeMeta;
-use ODR\AdminBundle\Entity\TrackedError;
-use ODR\OpenRepository\UserBundle\Entity\User;
-use ODR\AdminBundle\Entity\UserGroup;
-// Forms
-// Symfony
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
-
-use Symfony\Component\DependencyInjection\ContainerInterface as Container;
 use Doctrine\ORM\EntityManager;
+use Psr\Log\LoggerInterface;
 
 
-/**
- * Created by PhpStorm.
- * User: nate
- * Date: 10/14/16
- * Time: 11:59 AM
- */
 class DatarecordInfoService
 {
 
+    /**
+     * @var string
+     */
+    private $environment;
 
     /**
-     * @var mixed
+     * @var EntityManager
+     */
+    private $em;
+
+    /**
+     * @var CacheService
+     */
+    private $cache_service;
+
+    /**
+     * @var LoggerInterface
      */
     private $logger;
 
 
     /**
-     * @var mixed
+     * DatarecordInfoService constructor.
+     *
+     * @param string $environment
+     * @param EntityManager $entity_manager
+     * @param CacheService $cache_service
+     * @param LoggerInterface $logger
      */
-    private $container;
-
-    public function __construct(Container $container, EntityManager $entity_manager, $logger) {
-        $this->container = $container;
+    public function __construct($environment, EntityManager $entity_manager, CacheService $cache_service, LoggerInterface $logger)
+    {
+        $this->environment = $environment;
         $this->em = $entity_manager;
+        $this->cache_service = $cache_service;
         $this->logger = $logger;
+    }
+
+
+    /**
+     * Loads and returns the cached data array for the requested datarecord.  The array also contains entries for all
+     * child/grandchild (and usually linked) datarecords, with every datarecord being stored on the same array level
+     * as the requested datarecord.  Use self::stackDatarecordArray() to get an array structure where child/linked
+     * datarecords are stored "underneath" their parent datarecords.
+     *
+     * @param integer $grandparent_datarecord_id
+     * @param boolean $include_links
+     *
+     * @return array
+     */
+    public function getDatarecordArray($grandparent_datarecord_id, $include_links = true)
+    {
+        // Always bypass cache if in dev mode?
+        $force_rebuild = false;
+        if ($this->environment == 'dev')
+            $force_rebuild = true;
+
+
+        // ----------------------------------------
+        // Need to locate all child and linked datarecords for the provided datarecord
+        $associated_datarecords = $this->cache_service->get('associated_datarecords_for_'.$grandparent_datarecord_id);
+        if ($force_rebuild || $associated_datarecords == false) {
+            $associated_datarecords = self::getAssociatedDatarecords( array($grandparent_datarecord_id), $include_links );
+
+            // Save the list of associated datarecords back into the cache
+            $this->cache_service->set('associated_datarecords_for_'.$grandparent_datarecord_id, $associated_datarecords);
+        }
+
+        // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
+        $datarecord_array = array();
+        foreach ($associated_datarecords as $num => $dr_id) {
+            $datarecord_data = $this->cache_service->get('cached_datarecord_'.$dr_id);
+            if ($force_rebuild || $datarecord_data == false)
+                $datarecord_data = self::buildDatarecordData($dr_id, $force_rebuild);
+
+            foreach ($datarecord_data as $dr_id => $data)
+                $datarecord_array[$dr_id] = $data;
+        }
+
+        return $datarecord_array;
+    }
+
+
+    /**
+     * Builds and returns a list of all child datarecords (and optionally linked datarecords) of the given datarecord ids.
+     * Due to recursive interaction with self::getLinkedDatarecords(), this function doesn't attempt to store results in the cache.
+     *
+     * @param int[] $grandparent_ids
+     * @param boolean $include_links
+     *
+     * @return int[]
+     */
+    public function getAssociatedDatarecords($grandparent_ids, $include_links = true)
+    {
+        // Locate all datarecords that are children of the datarecords listed in $grandparent_ids
+        $query = $this->em->createQuery(
+           'SELECT dr.id AS id
+            FROM ODRAdminBundle:DataRecord AS dr
+            LEFT JOIN dr.grandparent AS grandparent
+            WHERE grandparent.id IN (:grandparent_ids)
+            AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
+        )->setParameters( array('grandparent_ids' => $grandparent_ids) );
+        $results = $query->getArrayResult();
+
+        // Flatten the results array
+        $datarecord_ids = array();
+        foreach ($results as $result)
+            $datarecord_ids[] = $result['id'];
+
+        // Get all children and datarecords linked to all the datarecords in $datarecord_ids
+        $linked_datarecord_ids = array();
+        if ($include_links)
+            $linked_datarecord_ids = self::getLinkedDatarecords($datarecord_ids);
+
+        // Don't want any duplicate datarecord ids...
+        $associated_datarecord_ids = array_unique( array_merge($grandparent_ids, $linked_datarecord_ids) );
+
+        return $associated_datarecord_ids;
     }
 
 
     /**
      * Builds and returns a list of all datarecords linked to from the provided datarecord ids.
      *
-     * @param integer[] $ancestor_ids
+     * @param int[] $ancestor_ids
      *
-     * @return integer[]
+     * @return int[]
      */
-    private function getLinkedDatarecords($ancestor_ids)
+    public function getLinkedDatarecords($ancestor_ids)
     {
         // Locate all datarecords that are linked to from any datarecord listed in $datarecord_ids
         $query = $this->em->createQuery(
-            'SELECT descendant.id AS descendant_id
+           'SELECT descendant.id AS descendant_id
             FROM ODRAdminBundle:LinkedDataTree AS ldt
             JOIN ldt.ancestor AS ancestor
             JOIN ldt.descendant AS descendant
@@ -127,160 +176,6 @@ class DatarecordInfoService
         return $linked_datarecord_ids;
     }
 
-    /**
-     * Automatically decompresses and unserializes redis data.
-     *
-     * @throws \Exception
-     *
-     * @param string $redis_value - the value returned by the redis call.
-     *
-     * @return boolean|string
-     */
-    public static function getRedisData($redis_value) {
-        if(strlen($redis_value) > 0) {
-            return unserialize(gzuncompress($redis_value));
-        }
-        return false;
-    }
-
-    public function getRelatedDatarecords($datarecord_id) {
-
-        // ----------------------------------------
-        // Always bypass cache if in dev mode?
-        $bypass_cache = false;
-        if ($this->container->getParameter('kernel.environment') === 'dev')
-            $bypass_cache = true;
-
-        // Grab all datarecords "associated" with the desired datarecord...
-        $redis = $this->container->get('snc_redis.default');;
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        $associated_datarecords = self::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$datarecord_id)));
-        if ($bypass_cache || $associated_datarecords == false) {
-            $associated_datarecords = self::getAssociatedDatarecords(array($datarecord_id));
-
-            $redis->set($redis_prefix.'.associated_datarecords_for_'.$datarecord_id, gzcompress(serialize($associated_datarecords)));
-        }
-
-        // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
-        $datarecord_array = array();
-        foreach ($associated_datarecords as $num => $dr_id) {
-            $datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
-            if ($bypass_cache || $datarecord_data == false)
-                $datarecord_data = self::getDatarecordData($dr_id, true);
-
-            foreach ($datarecord_data as $dr_id => $data)
-                $datarecord_array[$dr_id] = $data;
-        }
-
-
-        return $datarecord_array;
-
-    }
-
-    /**
-     * Builds and returns a list of all child and linked datarecords of the given datarecord id.
-     * Due to recursive interaction with self::getLinkedDatarecords(), this function doesn't attempt to store results in the cache.
-     *
-     * @param int[] $grandparent_ids
-     *
-     * @return int[]
-     */
-    protected function getAssociatedDatarecords($grandparent_ids)
-    {
-        // Locate all datarecords that are children of the datarecords listed in $grandparent_ids
-        $query = $this->em->createQuery(
-            'SELECT dr.id AS id
-            FROM ODRAdminBundle:DataRecord AS dr
-            LEFT JOIN dr.grandparent AS grandparent
-            WHERE grandparent.id IN (:grandparent_ids)
-            AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-        )->setParameters( array('grandparent_ids' => $grandparent_ids) );
-        $results = $query->getArrayResult();
-
-        // Flatten the results array
-        $datarecord_ids = array();
-        foreach ($results as $result)
-            $datarecord_ids[] = $result['id'];
-
-        // Get all children and datarecords linked to all the datarecords in $datarecord_ids
-        $linked_datarecord_ids = self::getLinkedDatarecords( $datarecord_ids);
-
-        // Don't want any duplicate datarecord ids...
-        $associated_datarecord_ids = array_unique( array_merge($grandparent_ids, $linked_datarecord_ids) );
-
-        return $associated_datarecord_ids;
-    }
-
-
-    /**
-     * Given a group's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.
-     *
-     * @param array &$datatype_array    @see self::getDatatypeArray()
-     * @param array &$datarecord_array  @see self::getDatarecordArray()
-     * @param array $permissions_array  @see self::getUserPermissionsArray()
-     */
-    protected function filterByGroupPermissions(&$datatype_array, &$datarecord_array, $permissions_array)
-    {
-        $debug = true;
-        $debug = false;
-
-        if ($debug)
-            print '----- permissions filter -----'."\n";
-
-        // Also need to go through the datarecord array and remove both datarecords and datafields that the user isn't allowed to see
-        foreach ($datarecord_array as $dr_id => $dr) {
-            // Save datatype id of this datarecord
-            $dt_id = $dr['dataType']['id'];
-
-            // If there was no datatype permission entry for this datatype, have it default to false
-            if ( !isset($can_view_datarecord[$dt_id]) )
-                $can_view_datarecord[$dt_id] = false;
-
-            // If the datarecord is non-public and user doesn't have the 'can_view_datarecord' permission, then remove the datarecord from the array
-            if ( $dr['dataRecordMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
-                unset( $datarecord_array[$dr_id] );
-                if ($debug)
-                    print 'removed non-public datarecord '.$dr_id."\n";
-
-                // No sense checking anything else for this datarecord, skip to the next one
-                continue;
-            }
-
-            // The user is allowed to view this datarecord...
-            foreach ($dr['dataRecordFields'] as $df_id => $drf) {
-
-                // Remove the datafield if needed
-                if ( isset($datafields_to_remove[$df_id]) ) {
-                    unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
-                    if ($debug)
-                        print 'removed datafield '.$df_id.' from datarecord '.$dr_id."\n";
-
-                    // No sense checking file/image public status, skip to the next datafield
-                    continue;
-                }
-
-                // ...remove the files the user isn't allowed to see
-                foreach ($drf['file'] as $file_num => $file) {
-                    if ( $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
-                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['file'][$file_num] );
-                        if ($debug)
-                            print 'removed non-public file '.$file['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
-                    }
-                }
-
-                // ...remove the images the user isn't allowed to see
-                foreach ($drf['image'] as $image_num => $image) {
-                    if ( $image['parent']['imageMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
-                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['image'][$image_num] );
-                        if ($debug)
-                            print 'removed non-public image '.$image['parent']['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
-                    }
-                }
-            }
-        }
-    }
-
 
     /**
      * Runs a single database query to get all non-layout data for a given grandparent datarecord.
@@ -290,32 +185,25 @@ class DatarecordInfoService
      *
      * @return array
      */
-    protected function getDatarecordData($grandparent_datarecord_id, $force_rebuild = false)
+    private function buildDatarecordData($grandparent_datarecord_id, $force_rebuild = false)
     {
-        /*
-        $debug = true;
-        $debug = false;
+/*
         $timing = true;
         $timing = false;
 
-        $t0 = $t1 = null;
+        $t0 = $t1 = $t2 = null;
         if ($timing)
             $t0 = microtime(true);
-        */
-        // If datarecord data exists in memcached and user isn't demanding a fresh version, return that
-        $redis = $this->container->get('snc_redis.default');;
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        if (!$force_rebuild) {
-            $cached_datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id)));
-            if ( $cached_datarecord_data != false && count($cached_datarecord_data) > 0 )
-                return $cached_datarecord_data;
-        }
+*/
+        // If datarecord data exists in cache and user isn't demanding a fresh version, return that
+        $cached_datarecord_data = $this->cache_service->get('cached_datarecord_'.$grandparent_datarecord_id);
+        if ( $cached_datarecord_data !== false && count($cached_datarecord_data) > 0 && !$force_rebuild)
+            return $cached_datarecord_data;
 
 
-        // Otherwise...get all non-layout data for a given grandparent datarecord
+        // Otherwise...get all non-layout data for the requested grandparent datarecord
         $query = $this->em->createQuery(
-            'SELECT
+           'SELECT
                dr, drm, dr_cb, dr_ub, p_dr, gp_dr,
                dt, dtm, dt_eif, dt_nf, dt_sf,
                drf, e_f, e_fm, e_f_cb,
@@ -385,19 +273,19 @@ class DatarecordInfoService
                 AND (e_i.id IS NULL OR e_i.original = 0)'
         )->setParameters(array('grandparent_id' => $grandparent_datarecord_id));
 
-//print $query->getSQL();  exit();
         $datarecord_data = $query->getArrayResult();
-//print '<pre>'.print_r($datarecord_data, true).'</pre>';  exit();
 
-        /*
+/*
         if ($timing) {
             $t1 = microtime(true);
             $diff = $t1 - $t0;
-            print 'getDatarecordData('.$grandparent_datarecord_id.')'."\n".'query execution in: '.$diff."\n";
+            print 'buildDatarecordData('.$grandparent_datarecord_id.')'."\n".'query execution in: '.$diff."\n";
         }
-        */
-        // The entity -> entity_metadata relationships have to be one -> many from a database perspective, even though there's only supposed to be a single non-deleted entity_metadata object for each entity
-        // Therefore, the previous query generates an array that needs to be slightly flattened in a few places
+*/
+
+        // The entity -> entity_metadata relationships have to be one -> many from a database perspective,
+        // even though there's only supposed to be a single non-deleted entity_metadata object for each entity
+        // Therefore, the preceding query generates an array that needs to be slightly flattened in a few places
         foreach ($datarecord_data as $dr_num => $dr) {
             // Flatten datarecord_meta
             $drm = $dr['dataRecordMeta'][0];
@@ -546,7 +434,7 @@ class DatarecordInfoService
             $datarecord_data[$dr_num]['dataRecordFields'] = $new_drf_array;
         }
 
-        // Organize by datarecord id...DO NOT even attenpt to make this array recursive...for now...
+        // Organize by datarecord id...don't attenpt to make this array recursive here, it'll be done later if needed
         $formatted_datarecord_data = array();
         foreach ($datarecord_data as $num => $dr_data) {
             $dr_id = $dr_data['id'];
@@ -559,19 +447,27 @@ class DatarecordInfoService
 
             $formatted_datarecord_data[$dr_id] = $dr_data;
         }
-
-        $redis->set($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id, gzcompress(serialize($formatted_datarecord_data)));
+/*
+        if ($timing) {
+            $t1 = microtime(true);
+            $diff = $t2 - $t1;
+            print 'buildDatarecordData('.$grandparent_datarecord_id.')'."\n".'array formatted in: '.$diff."\n";
+        }
+*/
+        // Save the formatted datarecord data back in the cache, and return it
+        $this->cache_service->set('cached_datarecord_'.$grandparent_datarecord_id, $formatted_datarecord_data);
         return $formatted_datarecord_data;
     }
 
+
     /**
-     * Removes all private/non-essential user info from an array generated by self::getDatarecordData() or self::getDatatypeData()
+     * Removes all private/non-essential user info from an array generated by self::getDatarecordData()
      *
      * @param array $user_data
      *
      * @return array
      */
-    protected function cleanUserData($user_data)
+    private function cleanUserData($user_data)
     {
         foreach ($user_data as $key => $value) {
             if ($key !== 'username' && $key !== 'email' && $key !== 'firstName' && $key !== 'lastName'/* && $key !== 'institution' && $key !== 'position'*/)
@@ -582,317 +478,45 @@ class DatarecordInfoService
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     /**
-     * Gets all layout information required for the given datatype in array format
+     * Recursively "inflates" a flattened $datarecord_array so that child/linked datarecords are stored "underneath"
+     * their parents/grandparents.
      *
-     * @param array $datatree_array
-     * @param integer $datatype_id
-     * @param boolean $force_rebuild
+     * @see self::getDatarecordArray()
+     *
+     * @param array $datarecord_array
+     * @param integer $initial_datarecord_id
      *
      * @return array
      */
-    public function getDatatypeData($datatree_array, $datatype_id, $force_rebuild = false)
+    public function stackDatarecordArray($datarecord_array, $initial_datarecord_id)
     {
+        $current_datarecord = array();
+        if ( isset($datarecord_array[$initial_datarecord_id]) ) {
+            $current_datarecord = $datarecord_array[$initial_datarecord_id];
 
-        // If datatype data exists in memcached and user isn't demanding a fresh version, return that
-        $redis = $this->container->get('snc_redis.default');;
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            // If this datarecord has children...
+            if ( isset($current_datarecord['children']) ) {
+                foreach ($current_datarecord['children'] as $dt_id => $dr_list) {
 
-        if (!$force_rebuild) {
-            $cached_datatype_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype_id)));
-            if ( $cached_datatype_data != false && count($cached_datatype_data) > 0 )
-                return $cached_datatype_data;
-        }
-
-
-        // Otherwise...get all non-layout data for a given grandparent datarecord
-        $query = $this->em->createQuery(
-            'SELECT
-                t, tm,
-                dt, dtm, dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
-                te, tem,
-                tdf, df, ro, rom,
-                dfm, ft, df_rp, df_rpi, df_rpo, df_rpm,
-                tdt, c_dt
-
-            FROM ODRAdminBundle:dataType AS dt
-            LEFT JOIN dt.dataTypeMeta AS dtm
-
-            LEFT JOIN dt.themes AS t
-            LEFT JOIN t.themeMeta AS tm
-
-            LEFT JOIN dtm.renderPlugin AS dt_rp
-            LEFT JOIN dt_rp.renderPluginInstance AS dt_rpi WITH (dt_rpi.dataType = dt)
-            LEFT JOIN dt_rpi.renderPluginOptions AS dt_rpo
-            LEFT JOIN dt_rpi.renderPluginMap AS dt_rpm
-            LEFT JOIN dt_rpm.renderPluginFields AS dt_rpf
-            LEFT JOIN dt_rpm.dataField AS dt_rpm_df
-
-            LEFT JOIN t.themeElements AS te
-            LEFT JOIN te.themeElementMeta AS tem
-
-            LEFT JOIN te.themeDataFields AS tdf
-            LEFT JOIN tdf.dataField AS df
-            LEFT JOIN df.radioOptions AS ro
-            LEFT JOIN ro.radioOptionMeta AS rom
-
-            LEFT JOIN df.dataFieldMeta AS dfm
-            LEFT JOIN dfm.fieldType AS ft
-
-            LEFT JOIN dfm.renderPlugin AS df_rp
-            LEFT JOIN df_rp.renderPluginInstance AS df_rpi WITH (df_rpi.dataField = df)
-            LEFT JOIN df_rpi.renderPluginOptions AS df_rpo
-            LEFT JOIN df_rpi.renderPluginMap AS df_rpm
-
-            LEFT JOIN te.themeDataType AS tdt
-            LEFT JOIN tdt.dataType AS c_dt
-
-            WHERE
-                dt.id = :datatype_id
-                AND t.deletedAt IS NULL AND dt.deletedAt IS NULL AND te.deletedAt IS NULL
-            ORDER BY dt.id, t.id, tem.displayOrder, te.id, tdf.displayOrder, df.id, rom.displayOrder, ro.id'
-        )->setParameters( array('datatype_id' => $datatype_id) );
-
-        $datatype_data = $query->getArrayResult();
-
-        // The entity -> entity_metadata relationships have to be one -> many from a database perspective, even though there's only supposed to be a single non-deleted entity_metadata object for each entity
-        // Therefore, the preceeding query generates an array that needs to be slightly flattened in a few places
-        foreach ($datatype_data as $dt_num => $dt) {
-            // Flatten datatype meta
-            $dtm = $dt['dataTypeMeta'][0];
-            $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
-
-            // Flatten theme_meta of each theme, and organize by theme id instead of a random number
-            $new_theme_array = array();
-            foreach ($dt['themes'] as $t_num => $theme) {
-                $theme_id = $theme['id'];
-
-                $tm = $theme['themeMeta'][0];
-                $theme['themeMeta'] = $tm;
-
-                // Flatten theme_element_meta of each theme_element
-                foreach ($theme['themeElements'] as $te_num => $te) {
-                    $tem = $te['themeElementMeta'][0];
-                    $theme['themeElements'][$te_num]['themeElementMeta'] = $tem;
-
-                    // Flatten datafield_meta of each datafield
-                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                        $dfm = $tdf['dataField']['dataFieldMeta'][0];
-                        $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['dataFieldMeta'] = $dfm;
-
-                        // Flatten radio options if it exists
-                        foreach ($tdf['dataField']['radioOptions'] as $ro_num => $ro) {
-                            $rom = $ro['radioOptionMeta'][0];
-                            $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['radioOptions'][$ro_num]['radioOptionMeta'] = $rom;
-                        }
-                        if ( count($tdf['dataField']['radioOptions']) == 0 )
-                            unset( $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['radioOptions'] );
+                    // ...stack each child individually
+                    $tmp = array();
+                    foreach ($dr_list as $num => $dr_id) {
+                        if ( isset($datarecord_array[$dr_id]) )
+                            $tmp[$dr_id] = self::stackDatarecordArray($datarecord_array, $dr_id);
                     }
 
-                    // Attach the is_link property to each of the theme_datatype entries
-                    foreach ($te['themeDataType'] as $tdt_num => $tdt) {
-                        $child_datatype_id = $tdt['dataType']['id'];
+                    // ...sort array of child datarecords by their respective sortvalue
+                    uasort($tmp, function ($a, $b) {
+                        return strnatcmp($a['sortField_value'], $b['sortField_value']);
+                    });
 
-                        if ( isset($datatree_array['linked_from'][$child_datatype_id]) && in_array($datatype_id, $datatree_array['linked_from'][$child_datatype_id]) )
-                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 1;
-                        else
-                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 0;
-
-                        if ( isset($datatree_array['multiple_allowed'][$child_datatype_id]) && in_array($datatype_id, $datatree_array['multiple_allowed'][$child_datatype_id]) )
-                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['multiple_allowed'] = 1;
-                        else
-                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['multiple_allowed'] = 0;
-                    }
-
-                    // Easier on twig if these arrays simply don't exist if nothing is in them...
-                    if ( count($te['themeDataFields']) == 0 )
-                        unset( $theme['themeElements'][$te_num]['themeDataFields'] );
-                    if ( count($te['themeDataType']) == 0 )
-                        unset( $theme['themeElements'][$te_num]['themeDataType'] );
+                    // ...store child datarecords under their parent
+                    $current_datarecord['children'][$dt_id] = $tmp;
                 }
-
-                $new_theme_array[$theme_id] = $theme;
-            }
-
-            unset( $datatype_data[$dt_num]['themes'] );
-            $datatype_data[$dt_num]['themes'] = $new_theme_array;
-        }
-
-        // Organize by datatype id
-        $formatted_datatype_data = array();
-        foreach ($datatype_data as $num => $dt_data) {
-            $dt_id = $dt_data['id'];
-
-            $formatted_datatype_data[$dt_id] = $dt_data;
-        }
-
-        $redis->set($redis_prefix.'.cached_datatype_'.$datatype_id, gzcompress(serialize($formatted_datatype_data)));
-        return $formatted_datatype_data;
-    }
-
-
-    /**
-     * Returns the id of the grandparent of the given datatype
-     *
-     * @param array $datatree_array         @see self::getDatatreeArray()
-     * @param integer $initial_datatype_id
-     *
-     * @return integer
-     */
-    public function getGrandparentDatatypeId($datatree_array, $initial_datatype_id)
-    {
-        $grandparent_datatype_id = $initial_datatype_id;
-        while( isset($datatree_array['descendant_of'][$grandparent_datatype_id]) && $datatree_array['descendant_of'][$grandparent_datatype_id] !== '' )
-            $grandparent_datatype_id = $datatree_array['descendant_of'][$grandparent_datatype_id];
-
-        return $grandparent_datatype_id;
-    }
-
-    /**
-     * Utility function to returns the DataTree table in array format
-     * TODO: This function is a really bad idea - will be absolutely GIGANTIC at some point.
-     * Why is this needed? Plus, how do you know when it needs to be flushed?
-     *
-     * @param boolean $force_rebuild
-     *
-     * @return array
-     */
-    public function getDatatreeArray($force_rebuild = false)
-    {
-        // Attempt to load from cache first
-        $redis = $this->container->get('snc_redis.default');
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        $datatree_array = self::getRedisData(($redis->get($redis_prefix.'.cached_datatree_array')));
-        if ( !($force_rebuild || $datatree_array == false) ) {
-            return $datatree_array;
-        }
-
-        $query = $this->em->createQuery(
-            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
-            FROM ODRAdminBundle:DataType AS ancestor
-            JOIN ODRAdminBundle:DataTree AS dt WITH ancestor = dt.ancestor
-            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL');
-        $results = $query->getArrayResult();
-
-        $datatree_array = array(
-            'descendant_of' => array(),
-            'linked_from' => array(),
-            'multiple_allowed' => array(),
-        );
-        foreach ($results as $num => $result) {
-            $ancestor_id = $result['ancestor_id'];
-            $descendant_id = $result['descendant_id'];
-            $is_link = $result['is_link'];
-            $multiple_allowed = $result['multiple_allowed'];
-
-            if ( !isset($datatree_array['descendant_of'][$ancestor_id]) )
-                $datatree_array['descendant_of'][$ancestor_id] = '';
-
-            if ($is_link == 0) {
-                $datatree_array['descendant_of'][$descendant_id] = $ancestor_id;
-            }
-            else {
-                if ( !isset($datatree_array['linked_from'][$descendant_id]) )
-                    $datatree_array['linked_from'][$descendant_id] = array();
-
-                $datatree_array['linked_from'][$descendant_id][] = $ancestor_id;
-            }
-
-            if ($multiple_allowed == 1) {
-                if ( !isset($datatree_array['multiple_allowed'][$descendant_id]) )
-                    $datatree_array['multiple_allowed'][$descendant_id] = array();
-
-                $datatree_array['multiple_allowed'][$descendant_id][] = $ancestor_id;
             }
         }
 
-        // Store in cache and return
-        $redis->set($redis_prefix.'.cached_datatree_array', gzcompress(serialize($datatree_array)));
-        return $datatree_array;
+        return $current_datarecord;
     }
-
-
-    /**
-     * Determines and returns an array of top-level datatype ids
-     *
-     * @return int[]
-     */
-    public function getTopLevelDatatypes()
-    {
-        $query = $this->em->createQuery(
-            'SELECT dt.id AS datatype_id
-            FROM ODRAdminBundle:DataType AS dt
-            WHERE dt.deletedAt IS NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $all_datatypes = array();
-        foreach ($results as $num => $result)
-            $all_datatypes[] = $result['datatype_id'];
-
-        $query = $this->em->createQuery(
-            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-            FROM ODRAdminBundle:DataTree AS dt
-            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-            JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE dtm.is_link = 0
-            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $parent_of = array();
-        foreach ($results as $num => $result)
-            $parent_of[ $result['descendant_id'] ] = $result['ancestor_id'];
-
-        $top_level_datatypes = array();
-        foreach ($all_datatypes as $datatype_id) {
-            if ( !isset($parent_of[$datatype_id]) )
-                $top_level_datatypes[] = $datatype_id;
-        }
-
-        return $top_level_datatypes;
-    }
-
 }

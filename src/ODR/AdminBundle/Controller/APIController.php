@@ -18,47 +18,23 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\File;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
-// Forms
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
+// Services
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 // Symfony
+use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 
 class APIController extends ODRCustomController
 {
-
-    /**
-     * Utility function to cleanly return JSON error responses.
-     *
-     * @param integer $status_code
-     * @param string|null $message
-     *
-     * @return JsonResponse
-     */
-    private function createJSONError($status_code, $message = null)
-    {
-        // Change 403 codes to 401 if user isn't logged in
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-
-        $logged_in = true;
-        if ($user === 'anon.')
-            $logged_in = false;
-
-        if (!$logged_in && $status_code == 403)
-            $status_code = 401;
-
-        // Return an error response
-        return new JsonResponse(
-            array(
-                'error_description' => $message     // TODO
-            ),
-            $status_code
-        );
-    }
-
 
     /**
      * Returns a JSON array of all top-level datatypes the user can view.  Optionally also returns the child datatypes.
@@ -75,8 +51,12 @@ class APIController extends ODRCustomController
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $top_level_datatype_ids = parent::getTopLevelDatatypes();
-            $datatree_array = parent::getDatatreeArray($em);
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
+            $top_level_datatype_ids = $dti_service->getTopLevelDatatypes();
+            $datatree_array = $dti_service->getDatatreeArray();
 
             // Get the user's permissions if applicable
             /** @var ODRUser $user */
@@ -158,7 +138,11 @@ class APIController extends ODRCustomController
             return new JsonResponse( array('datatypes' => $final_datatype_data) );
         }
         catch (\Exception $e) {
-            return self::createJSONError(500, $e->getMessage());
+            $source = 0x5dc89429;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
@@ -209,14 +193,17 @@ class APIController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
-                return self::createJSONError(404, 'Invalid Datatype');
+                throw new ODRNotFoundException('Datatype');
 
-            $top_level_datatype_ids = parent::getTopLevelDatatypes();
+            $top_level_datatype_ids = $dti_service->getTopLevelDatatypes();
             if ( !in_array($datatype_id, $top_level_datatype_ids) )
-                return self::createJSONError(400, 'Datatype must be top-level');
+                throw new ODRBadRequestException('Datatype must be top-level');
 
 
             // ----------------------------------------
@@ -238,7 +225,7 @@ class APIController extends ODRCustomController
                 $can_view_datarecord = true;
 
             if (!$datatype->isPublic() && !$can_view_datatype)
-                return self::createJSONError(403, 'Permission Denied');
+                throw new ODRForbiddenException();
             // ----------------------------------------
 
             // ----------------------------------------
@@ -292,7 +279,11 @@ class APIController extends ODRCustomController
             return new JsonResponse( array('datarecords' => $results) );
         }
         catch (\Exception $e) {
-            return self::createJSONError(500, $e->getMessage());
+            $source = 0xd12ec6ee;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
@@ -316,23 +307,23 @@ class APIController extends ODRCustomController
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
-                return self::createJSONError(404, 'Invalid File');
+                throw new ODRNotFoundException('File');
 
             $datafield = $file->getDataField();
             if ($datafield->getDeletedAt() != null)
-                return self::createJSONError(404, 'Invalid Datafield');
+                throw new ODRNotFoundException('Datafield');
             $datarecord = $file->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
-                return self::createJSONError(404, 'Invalid Datarecord');
+                throw new ODRNotFoundException('Datarecord');
             $datarecord = $datarecord->getGrandparent();
 
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
-                return self::createJSONError(404, 'Invalid Datatype');
+                throw new ODRNotFoundException('Datatype');
 
             // Files that aren't done encrypting shouldn't be downloaded
             if ($file->getProvisioned() == true)
-                return self::createJSONError(404, 'Invalid File');
+                throw new ODRNotFoundException('File');
 
 
             // ----------------------------------------
@@ -360,17 +351,17 @@ class APIController extends ODRCustomController
                 $can_view_datafield = true;
 
             if (!$datatype->isPublic() && !$can_view_datatype)
-                return self::createJSONError(403, 'Permission Denied');
+                throw new ODRForbiddenException();
             if (!$datarecord->isPublic() && !$can_view_datarecord)
-                return self::createJSONError(403, 'Permission Denied');
+                throw new ODRForbiddenException();
             if (!$datafield->isPublic() && !$can_view_datafield)
-                return self::createJSONError(403, 'Permission Denied');
+                throw new ODRForbiddenException();
             // ----------------------------------------
 
             // Only allow this action for files smaller than 5Mb?
             $filesize = $file->getFilesize() / 1024 / 1024;
             if ($filesize > 5)
-                return self::createJSONError(501, 'Currently not allowed to download files larger than 5Mb');
+                throw new ODRNotImplementedException('Currently not allowed to download files larger than 5Mb');
 
 
             // Ensure the file exists in decrypted format
@@ -380,7 +371,7 @@ class APIController extends ODRCustomController
 
             $handle = fopen($file_path, 'r');
             if ($handle === false)
-                throw new \Exception('Unable to open file at "'.$file_path.'"');
+                throw new FileNotFoundException($file_path);
 
 
             // Attach the original filename to the download
@@ -428,7 +419,11 @@ class APIController extends ODRCustomController
             return $response;
         }
         catch (\Exception $e) {
-            return self::createJSONError(500, $e->getMessage());
+            $source = 0xbbaafae5;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 }

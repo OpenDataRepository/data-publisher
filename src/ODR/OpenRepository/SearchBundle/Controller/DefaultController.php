@@ -809,7 +809,7 @@ exit();
             // Attempt to grab the list of datarecords from the cache...
             $search_params = $odrcc->getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype_id, $search_key, $request);
             if ($search_params['redirect'] == 1) {
-                $url = $this->generateUrl('odr_search_render', array('search_key' => $search_params['encoded_search_key'], 'offset' => 1, 'source' => 'searching'));
+                $url = $this->generateUrl('odr_search_render', array('search_key' => $search_params['encoded_search_key']));
                 return $odrcc->searchPageRedirect($user, $url);
             }
 
@@ -924,7 +924,7 @@ exit();
 
                 $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
-                $url = $this->generateUrl('odr_search_render', array('search_key' => $search_params['encoded_search_key'], 'offset' => 1, 'source' => 'searching'));
+                $url = $this->generateUrl('odr_search_render', array('search_key' => $search_params['encoded_search_key']));
                 return $odrcc->searchPageRedirect($user, $url);
             }
 

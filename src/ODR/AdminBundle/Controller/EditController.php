@@ -53,6 +53,9 @@ use ODR\AdminBundle\Form\LongVarcharForm;
 use ODR\AdminBundle\Form\MediumVarcharForm;
 use ODR\AdminBundle\Form\ShortVarcharForm;
 // Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -83,6 +86,11 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ( $datatype == null )
@@ -111,7 +119,7 @@ class EditController extends ODRCustomController
 
 
             // Determine whether this is a request to add a datarecord for a top-level datatype or not
-            $top_level_datatypes = parent::getTopLevelDatatypes();
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
             if ( !in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('EditController::adddatarecordAction() called for child datatype');
 
@@ -134,18 +142,11 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Build the cache entries for this new datarecord
-//            $options = array();
-//            parent::updateDatarecordCache($datarecord->getId(), $options);
-
             // Delete the cached string containing the ordered list of datarecords for this datatype
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $redis->del($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
+            $cache_service->delete('data_type_'.$datatype->getId().'_record_order');
 
             // See if any cached search results need to be deleted...
-            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            $cached_searches = $cache_service->get('cached_search_results');
             if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                 // Delete all cached search results for this datatype that were NOT run with datafield criteria
                 foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
@@ -155,7 +156,7 @@ class EditController extends ODRCustomController
                 }
 
                 // Save the collection of cached searches back to memcached
-                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                $cache_service->set('cached_search_results', $cached_searches);
             }
         }
         catch (\Exception $e) {
@@ -192,6 +193,9 @@ class EditController extends ODRCustomController
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
 
             // Grab needed Entities from the repository
             /** @var DataType $datatype */
@@ -235,7 +239,7 @@ class EditController extends ODRCustomController
 
 
             // Determine whether this is a request to add a datarecord for a top-level datatype or not
-            $top_level_datatypes = parent::getTopLevelDatatypes();
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
             if ( in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('EditController::addchildrecordAction() called for top-level datatype');
 
@@ -292,14 +296,12 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Grab memcached stuff
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
 
             // Grab the necessary entities
             /** @var DataRecord $datarecord */
@@ -416,19 +418,19 @@ class EditController extends ODRCustomController
             // -----------------------------------
             // Delete the list of associated datarecords for the datarecords that linked to this now-deleted datarecord
             foreach ($ancestor_datarecord_ids as $num => $ancestor_id)
-                $redis->del($redis_prefix.'.associated_datarecords_for_'.$ancestor_id);
+                $cache_service->delete('associated_datarecords_for_'.$ancestor_id);
 
             // Delete the cached entry for this now-deleted datarecord
-            $redis->del($redis_prefix.'.cached_datarecord_'.$datarecord_id);
-            $redis->del($redis_prefix.'.datarecord_table_data_'.$datarecord_id);
+            $cache_service->delete('cached_datarecord_'.$datarecord_id);
+            $cache_service->delete('datarecord_table_data_'.$datarecord_id);
 
             // Delete the sorted list of datarecords for this datatype
-            $redis->del($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
+            $cache_service->delete('data_type_'.$datatype->getId().'_record_order');
 
 
             // ----------------------------------------
             // See if any cached search results need to be deleted...
-            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            $cached_searches = $cache_service->get('cached_search_results');
             if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                 // Delete all cached search results for this datatype that contained this now-deleted datarecord
                 foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
@@ -438,7 +440,7 @@ class EditController extends ODRCustomController
                 }
 
                 // Save the collection of cached searches back to memcached
-                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                $cache_service->set('cached_search_results', $cached_searches);
             }
 
 
@@ -497,14 +499,12 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Grab memcached stuff
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
 
             // Grab the necessary entities
             /** @var DataRecord $datarecord */
@@ -640,16 +640,16 @@ class EditController extends ODRCustomController
             // -----------------------------------
             // Delete the list of associated datarecords for the datarecords that linked to this now-deleted datarecord
             foreach ($ancestor_datarecord_ids as $num => $ancestor_id)
-                $redis->del($redis_prefix.'.associated_datarecords_for_'.$ancestor_id);
+                $cache_service->delete('associated_datarecords_for_'.$ancestor_id);
 
             // Delete the cached entries for this datarecord's grandparent
-            $redis->del($redis_prefix.'.associated_datarecords_for_'.$grandparent_id);
+            $cache_service->delete('associated_datarecords_for_'.$grandparent_id);
             parent::tmp_updateDatarecordCache($em, $grandparent, $user);
 
 
             // ----------------------------------------
             // See if any cached search results need to be deleted...
-            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            $cached_searches = $cache_service->get('cached_search_results');
             if ( $cached_searches !== false && isset($cached_searches[$grandparent_datatype_id]) ) {
                 // Delete all cached search results for this datatype that contained this now-deleted datarecord
                 foreach ($cached_searches[$grandparent_datatype_id] as $search_checksum => $search_data) {
@@ -659,7 +659,7 @@ class EditController extends ODRCustomController
                 }
 
                 // Save the collection of cached searches back to memcached
-                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                $cache_service->set('cached_search_results', $cached_searches);
             }
 
 
@@ -818,9 +818,11 @@ class EditController extends ODRCustomController
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
 
             // Grab the necessary entities
             /** @var File $file */
@@ -899,20 +901,22 @@ class EditController extends ODRCustomController
 
                 // ----------------------------------------
                 // Generate the url for cURL to use
+                $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
+
                 $pheanstalk = $this->get('pheanstalk');
                 $router = $this->container->get('router');
                 $url = $this->container->getParameter('site_baseurl');
                 $url .= $router->generate('odr_crypto_request');
 
                 $api_key = $this->container->getParameter('beanstalk_api_key');
-                $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
+                $file_decryptions = $cache_service->get('file_decryptions');
 
                 // Determine the filename after decryption
                 $target_filename = 'File_'.$file_id.'.'.$file->getExt();
                 if ( !isset($file_decryptions[$target_filename]) ) {
                     // File is not scheduled to get decrypted at the moment, store that it will be decrypted
                     $file_decryptions[$target_filename] = 1;
-                    $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
+                    $cache_service->set('file_decryptions', $file_decryptions);
 
                     // Schedule a beanstalk job to start decrypting the file
                     $priority = 1024;   // should be roughly default priority
@@ -958,10 +962,9 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // See if any cached search results need to be deleted...
-            $datatree_array = parent::getDatatreeArray($em);
-            $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datatype->getId());
+            $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($datatype->getId());
 
-            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            $cached_searches = $cache_service->get('cached_search_results');
             if ( $cached_searches != false && isset($cached_searches[$grandparent_datatype_id]) ) {
                 // Delete all cached search results for this datatype that were run with criteria for this specific datafield
                 foreach ($cached_searches[$grandparent_datatype_id] as $search_checksum => $search_data) {
@@ -973,7 +976,7 @@ class EditController extends ODRCustomController
                 }
 
                 // Save the collection of cached searches back to memcached
-                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                $cache_service->set('cached_search_results', $cached_searches);
             }
         }
         catch (\Exception $e) {
@@ -1515,9 +1518,9 @@ class EditController extends ODRCustomController
 
         try {
             // Grab necessary objects
-            $post = $_POST;
-//print_r($post);
-//return;
+            $post = $request->request->all();
+//print_r($post);  exit();
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
@@ -1646,9 +1649,8 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -1703,7 +1705,7 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // See if any cached search results need to be deleted...
-            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            $cached_searches = $cache_service->get('cached_search_results');
             if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                 // Delete all cached search results for this datatype that contained this now-deleted datarecord
                 foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
@@ -1713,11 +1715,10 @@ class EditController extends ODRCustomController
                 }
 
                 // Save the collection of cached searches back to memcached
-                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                $cache_service->set('cached_search_results', $cached_searches);
             }
 
 
-            // re-render?  wat
             $return['d'] = array(
                 'public' => $public,    // TODO - check whether this could get changed to $datarecord->isPublic()...see publicimageAction()
                 'datarecord_id' => $datarecord_id,
@@ -1760,9 +1761,8 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -1874,7 +1874,7 @@ class EditController extends ODRCustomController
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
 
             // See if any cached search results need to be deleted...
-            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            $cached_searches = $cache_service->get('cached_search_results');
             if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                 // Delete all cached search results for this datatype that were run with criteria for this specific datafield
                 foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
@@ -1886,7 +1886,7 @@ class EditController extends ODRCustomController
                 }
 
                 // Save the collection of cached searches back to memcached
-                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                $cache_service->set('cached_search_results', $cached_searches);
             }
         }
         catch (\Exception $e) {
@@ -1926,9 +1926,8 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -2085,10 +2084,10 @@ class EditController extends ODRCustomController
                         // ----------------------------------------
                         // If the datafield that got changed was the datatype's sort datafield, delete the cached datarecord order
                         if ( $datatype->getSortField() != null && $datatype->getSortField()->getId() == $datafield->getId() )
-                            $redis->del($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
+                            $cache_service->del('data_type_'.$datatype->getId().'_record_order');
 
                         // See if any cached search results need to be deleted...
-                        $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+                        $cached_searches = $cache_service->get('cached_search_results');
                         if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                             // Delete all cached search results for this datatype that were run with criteria for this specific datafield
                             foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
@@ -2100,7 +2099,7 @@ class EditController extends ODRCustomController
                             }
 
                             // Save the collection of cached searches back to memcached
-                            $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                            $cache_service->set('cached_search_results', $cached_searches);
                         }
                     }
                     else {
@@ -2137,13 +2136,16 @@ class EditController extends ODRCustomController
      */
     private function findExistingValue($em, $datafield, $parent_datarecord_id, $new_value)
     {
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
+
         // Going to need these...
         $datatype_id = $datafield->getDataType()->getId();
         $typeclass = $datafield->getFieldType()->getTypeClass();
 
         // Determine if this datafield belongs to a top-level datatype or not
         $is_child_datatype = false;
-        $datatree_array = parent::getDatatreeArray($em);
+        $datatree_array = $dti_service->getDatatreeArray();
         if ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '' )
             $is_child_datatype = true;
 
@@ -2517,10 +2519,8 @@ exit();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
 
             /** @var DataRecord $local_datarecord */
             $local_datarecord = $repo_datarecord->find($local_datarecord_id);
@@ -2681,7 +2681,7 @@ if ($debug)
     print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
                     // Delete the cached list of child/linked datarecords for the ancestor datarecord
-                    $redis->del($redis_prefix.'.associated_datarecords_for_'.$ldt->getAncestor()->getId());
+                    $cache_service->delete('associated_datarecords_for_'.$ldt->getAncestor()->getId());
 
                     // Remove the linked_data_tree entry
                     $ldt->setDeletedBy($user);
@@ -2722,7 +2722,7 @@ if ($debug)
                 parent::ODR_linkDataRecords($em, $user, $ancestor_datarecord, $descendant_datarecord);
 
                 // Delete the cached list of child/linked datarecords for the ancestor datarecord
-                $redis->del($redis_prefix.'.associated_datarecords_for_'.$ancestor_datarecord->getId());
+                $cache_service->delete('associated_datarecords_for_'.$ancestor_datarecord->getId());
             }
 
             $em->flush();
@@ -2959,20 +2959,16 @@ if ($debug)
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
+        /** @var DatarecordInfoService $dri_service */
+        $dri_service = $this->container->get('odr.datarecord_info_service');
         /** @var PermissionsManagementService $pm_service */
         $pm_service = $this->container->get('odr.permissions_management_service');
 
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
         $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        // Always bypass cache in dev mode?
-        $bypass_cache = false;
-        if ($this->container->getParameter('kernel.environment') === 'dev')
-            $bypass_cache = true;
 
         // Load all permissions for this user
         /** @var User $user */
@@ -2982,7 +2978,7 @@ if ($debug)
         $datafield_permissions = $user_permissions['datafields'];
 
         // Going to need this a lot...
-        $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+        $datatree_array = $dti_service->getDatatreeArray();
 
 
         // ----------------------------------------
@@ -3027,12 +3023,12 @@ if ($debug)
 
             // Need to determine the top-level datatype to be able to load all necessary data for rendering this child datatype
             if ( isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) && $datatree_array['descendant_of'][ $child_datatype->getId() ] !== '' ) {
-                $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $child_datatype->getId());
+                $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($child_datatype->getId());
 
                 $datatype = $repo_datatype->find($grandparent_datatype_id);
             }
             else if ( isset($datatree_array['linked_from'][ $child_datatype->getId() ]) && in_array($datarecord->getDataType()->getId(), $datatree_array['linked_from'][ $child_datatype->getId() ]) ) {
-                $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datarecord->getDataType()->getId());
+                $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($datarecord->getDataType()->getId());
 
                 $datatype = $repo_datatype->find($grandparent_datatype_id);
             }
@@ -3047,73 +3043,40 @@ if ($debug)
             $child_datatype = $datafield->getDataType();
             $theme = $repo_theme->findOneBy( array('dataType' => $child_datatype->getId(), 'themeType' => 'master') );
 
-            $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datarecord->getDataType()->getId());
+            $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($datarecord->getDataType()->getId());
             $datatype = $repo_datatype->find($grandparent_datatype_id);
         }
 
 
         // ----------------------------------------
         // Grab all datarecords "associated" with the desired datarecord...
-        $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId())));
-        if ($bypass_cache || $associated_datarecords == false) {
-            $associated_datarecords = parent::getAssociatedDatarecords($em, array($grandparent_datarecord->getId()));
-
-//print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
-
-            $redis->set($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId(), gzcompress(serialize($associated_datarecords)));
-        }
-
-        // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
-        $datarecord_array = array();
-        foreach ($associated_datarecords as $num => $dr_id) {
-            $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
-            if ($bypass_cache || $datarecord_data == false)
-                $datarecord_data = parent::getDatarecordData($em, $dr_id, $bypass_cache);
-
-            foreach ($datarecord_data as $dr_id => $data)
-                $datarecord_array[$dr_id] = $data;
-        }
-
+        $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
 //print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 
-
-        // ----------------------------------------
         // Grab all datatypes associated with the desired datarecord
-        // NOTE - using parent::getAssociatedDatatypes() here because we need to be able to see child/linked datatypes even if none are attached to this datarecord
+        // NOTE - specifically doing it this way because $dti_service->getDatatypeArrayByDatarecords() won't load datatype entries if datarecord doesn't have child/linked datatypes
         $include_links = true;
-        $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype->getId()), $include_links);
-
-        // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $datatype_array = array();
-        foreach ($associated_datatypes as $num => $dt_id) {
-            $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-            if ($bypass_cache || $datatype_data == false)
-                $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
-
-            foreach ($datatype_data as $dt_id => $data)
-                $datatype_array[$dt_id] = $data;
-        }
-
+        $associated_datatypes = $dti_service->getAssociatedDatatypes(array($datatype->getId()), $include_links);
+        $datatype_array = $dti_service->getDatatypeArray($associated_datatypes);
 //print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
 
-
-        // ----------------------------------------
         // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
         $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 //print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
 //print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 
 
+        // ----------------------------------------
         // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
         $stacked_datarecord_array = array();
         $stacked_datatype_array = array();
         if ($template_name == 'default') {
-            $stacked_datarecord_array[ $datarecord->getId() ] = parent::stackDatarecordArray($datarecord_array, $datarecord->getId());
-            $stacked_datatype_array[ $datatype->getId() ] = parent::stackDatatypeArray($datatype_array, $datatype->getId(), $theme->getId());
+            $stacked_datarecord_array[ $datarecord->getId() ] = $dri_service->stackDatarecordArray($datarecord_array, $datarecord->getId());
+            $stacked_datatype_array[ $datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $datatype->getId(), $theme->getId());
         }
         else if ($template_name == 'child') {
-            $stacked_datarecord_array[ $initial_datarecord_id ] = parent::stackDatarecordArray($datarecord_array, $initial_datarecord_id);
-            $stacked_datatype_array[ $child_datatype->getId() ] = parent::stackDatatypeArray($datatype_array, $child_datatype->getId(), $theme->getId());
+            $stacked_datarecord_array[ $initial_datarecord_id ] = $dri_service->stackDatarecordArray($datarecord_array, $initial_datarecord_id);
+            $stacked_datatype_array[ $child_datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $child_datatype->getId(), $theme->getId());
         }
 //print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
 //print '<pre>'.print_r($stacked_datatype_array, true).'</pre>';  exit();
@@ -3153,7 +3116,7 @@ if ($debug)
             // Remove ids/names of datatypes this datarecord can link to if the datatype doesn't have a table theme
             $disabled_datatype_links = array();
             foreach ($linked_datatype_descendants as $dt_id => $dt_name) {
-
+                //
                 $has_table_theme = false;
                 if ( isset($datatype_array[$dt_id]) ) {
                     foreach ($datatype_array[$dt_id]['themes'] as $num => $t) {
@@ -3168,11 +3131,8 @@ if ($debug)
                 }
             }
             foreach ($linked_datatype_ancestors as $dt_id => $dt_name) {
-
                 // $datatype_array won't have data on an "ancestor" datatype, so have to load data for each of them from the cache...
-                $anc_dt_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-                if ($anc_dt_data == false)
-                    $anc_dt_data = parent::getDatatypeData($em, $datatree_array, $dt_id);
+                $anc_dt_data = $dti_service->getDatatypeArray(array($dt_id));
 
                 $has_table_theme = false;
                 foreach ($anc_dt_data[$dt_id]['themes'] as $num => $t) {
@@ -3516,6 +3476,9 @@ if ($debug)
             $em = $this->getDoctrine()->getManager();
             $session = $request->getSession();
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
 
             // Get Record In Question
             /** @var DataRecord $datarecord */
@@ -3638,7 +3601,7 @@ if ($debug)
 
             // ----------------------------------------
             // Determine whether this is a top-level datatype...if not, then the "Add new Datarecord" button in edit_header.html.twig needs to be disabled
-            $top_level_datatypes = parent::getTopLevelDatatypes();
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
             $is_top_level = 1;
             if ( !in_array($datatype_id, $top_level_datatypes) )
                 $is_top_level = 0;
