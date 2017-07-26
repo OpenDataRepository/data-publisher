@@ -58,6 +58,11 @@ class DataFields
     private $dataFieldMeta;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $groupDatafieldPermissions;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
     private $dataType;
@@ -87,6 +92,7 @@ class DataFields
         $this->themeDataFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->radioOptions = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataFieldMeta = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->groupDatafieldPermissions = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -293,6 +299,39 @@ class DataFields
     public function getDataFieldMeta()
     {
         return $this->dataFieldMeta->first();
+    }
+
+    /**
+     * Add groupDatafieldPermission
+     *
+     * @param \ODR\AdminBundle\Entity\GroupDatafieldPermissions $groupDatafieldPermission
+     * @return DataFields
+     */
+    public function addGroupDatafieldPermission(\ODR\AdminBundle\Entity\GroupDatafieldPermissions $groupDatafieldPermission)
+    {
+        $this->groupDatafieldPermissions[] = $groupDatafieldPermission;
+
+        return $this;
+    }
+
+    /**
+     * Remove groupDatafieldPermission
+     *
+     * @param \ODR\AdminBundle\Entity\GroupDatafieldPermissions $groupDatafieldPermission
+     */
+    public function removeGroupDatafieldPermission(\ODR\AdminBundle\Entity\GroupDatafieldPermissions $groupDatafieldPermission)
+    {
+        $this->groupDatafieldPermissions->removeElement($groupDatafieldPermission);
+    }
+
+    /**
+     * Get groupDatafieldPermissions
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getGroupDatafieldPermissions()
+    {
+        return $this->groupDatafieldPermissions;
     }
 
     /**

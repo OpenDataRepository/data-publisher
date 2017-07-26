@@ -35,38 +35,43 @@ ODR\AdminBundle\Entity\DataFields:
         relatedMasterFields:
             targetEntity: DataFields
             mappedBy: masterDataField
+            inversedBy: null
             fetch: EXTRA_LAZY
 
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
             mappedBy: dataField
+            inversedBy: null
             fetch: EXTRA_LAZY
-            joinColumns:
-                data_field_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
         themeDataFields:
             targetEntity: ThemeDataField
             cascade: {  }
             mappedBy: dataField
+            inversedBy: null
             orphanRemoval: false
 
         radioOptions:
             targetEntity: RadioOptions
             cascade: {  }
             mappedBy: dataField
+            inversedBy: null
             orphanRemoval: false
 
         dataFieldMeta:
             targetEntity: DataFieldsMeta
-            cascade: { }
+            cascade: {  }
             mappedBy: dataField
             inversedBy: null
-            joinColumns:
-                data_field_meta_id:
-                    referencedColumnName: id
+            orphanRemoval: false
+
+        groupDatafieldPermissions:
+            targetEntity: GroupDatafieldPermissions
+            cascade: {  }
+            mappedBy: dataField
+            inversedBy: null
             orphanRemoval: false
 
     manyToOne:
@@ -94,6 +99,7 @@ ODR\AdminBundle\Entity\DataFields:
         renderPlugin:
             targetEntity: RenderPlugin
             cascade: {  }
+            mappedBy: null
             inversedBy: dataFields
             joinColumns:
                 render_plugin_id:

@@ -1185,6 +1185,9 @@ odr_permissions_clear:
 #    requirements:
 #        object_type: 'file|File|image|Image'
 
+odr_fix_database_dates:
+    path: /admin/fix_dates
+    defaults: { _controller: ODRAdminBundle:Worker:fixdatabasedates }
 
 #-----------------------------------------
 

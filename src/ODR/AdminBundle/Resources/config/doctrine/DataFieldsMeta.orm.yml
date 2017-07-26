@@ -167,6 +167,7 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
         renderPlugin:
             targetEntity: RenderPlugin
             cascade: {  }
+            mappedBy: null
             inversedBy: dataFields
             joinColumns:
                 render_plugin_id:

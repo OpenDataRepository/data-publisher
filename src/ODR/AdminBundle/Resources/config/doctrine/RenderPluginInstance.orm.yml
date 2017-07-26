@@ -44,9 +44,6 @@ ODR\AdminBundle\Entity\RenderPluginInstance:
             mappedBy: renderPluginInstance
             inversedBy: null
 #            fetch: LAZY
-            joinColumns:
-                render_plugin_option_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
         renderPluginMap:
@@ -55,9 +52,6 @@ ODR\AdminBundle\Entity\RenderPluginInstance:
             mappedBy: renderPluginInstance
             inversedBy: null
 #            fetch: LAZY
-            joinColumns:
-                render_plugin_map_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
     manyToOne:

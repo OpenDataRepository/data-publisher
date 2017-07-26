@@ -86,11 +86,6 @@ class ImageSizes
     private $updated;
 
     /**
-     * @var \ODR\AdminBundle\Entity\FieldType
-     */
-    private $fieldType;
-
-    /**
      * @var \ODR\AdminBundle\Entity\DataFields
      */
     private $dataFields;
@@ -390,29 +385,6 @@ class ImageSizes
     public function getUpdated()
     {
         return $this->updated;
-    }
-
-    /**
-     * Set fieldType
-     *
-     * @param \ODR\AdminBundle\Entity\FieldType $fieldType
-     * @return ImageSizes
-     */
-    public function setFieldType(\ODR\AdminBundle\Entity\FieldType $fieldType = null)
-    {
-        $this->fieldType = $fieldType;
-
-        return $this;
-    }
-
-    /**
-     * Get fieldType
-     *
-     * @return \ODR\AdminBundle\Entity\FieldType 
-     */
-    public function getFieldType()
-    {
-        return $this->fieldType;
     }
 
     /**

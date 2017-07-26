@@ -53,6 +53,7 @@ ODR\AdminBundle\Entity\DataRecordMeta:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
+
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -60,7 +61,7 @@ ODR\AdminBundle\Entity\DataRecordMeta:
             inversedBy: null
             fetch: EXTRA_LAZY
             joinColumns:
-                createdBy:
+                updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
 

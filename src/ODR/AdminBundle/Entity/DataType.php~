@@ -97,6 +97,11 @@ class DataType
     private $groups;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $groupDatatypePermissions;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
     private $masterDataType;
@@ -133,6 +138,7 @@ class DataType
         $this->dataFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themes = new \Doctrine\Common\Collections\ArrayCollection();
         $this->groups = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->groupDatatypePermissions = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -532,6 +538,40 @@ class DataType
     }
 
     /**
+     * Add groupDatatypePermission
+     *
+     * @param \ODR\AdminBundle\Entity\GroupDatatypePermissions $groupDatatypePermission
+     *
+     * @return DataType
+     */
+    public function addGroupDatatypePermission(\ODR\AdminBundle\Entity\GroupDatatypePermissions $groupDatatypePermission)
+    {
+        $this->groupDatatypePermissions[] = $groupDatatypePermission;
+
+        return $this;
+    }
+
+    /**
+     * Remove groupDatatypePermission
+     *
+     * @param \ODR\AdminBundle\Entity\GroupDatatypePermissions $groupDatatypePermission
+     */
+    public function removeGroupDatatypePermission(\ODR\AdminBundle\Entity\GroupDatatypePermissions $groupDatatypePermission)
+    {
+        $this->groupDatatypePermissions->removeElement($groupDatatypePermission);
+    }
+
+    /**
+     * Get groupDatatypePermissions
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getGroupDatatypePermissions()
+    {
+        return $this->groupDatatypePermissions;
+    }
+
+    /**
      * Set masterDataType
      *
      * @param \ODR\AdminBundle\Entity\DataType $masterDataType
@@ -659,6 +699,36 @@ class DataType
     public function getSearchSlug()
     {
         return $this->getDataTypeMeta()->getSearchSlug();
+    }
+
+    /**
+     * Get masterRevision
+     *
+     * @return integer
+     */
+    public function getMasterRevision()
+    {
+        return $this->getDataTypeMeta()->getMasterRevision();
+    }
+
+    /**
+     * Get masterPublishedRevision
+     *
+     * @return integer
+     */
+    public function getMasterPublishedRevision()
+    {
+        return $this->getDataTypeMeta()->getMasterPublishedRevision();
+    }
+
+    /**
+     * Get trackingMasterRevision
+     *
+     * @return integer
+     */
+    public function getTrackingMasterRevision()
+    {
+        return $this->getDataTypeMeta()->getTrackingMasterRevision();
     }
 
     /**

@@ -28,9 +28,6 @@ ODR\AdminBundle\Entity\DataTree:
             cascade: { }
             mappedBy: dataTree
             inversedBy: null
-            joinColumns:
-                data_tree_meta_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
     manyToOne:
@@ -43,6 +40,7 @@ ODR\AdminBundle\Entity\DataTree:
                 ancestor_id:
                     referencedColumnName: id
             orphanRemoval: false
+
         descendant:
             targetEntity: DataType
             cascade: {  }
@@ -62,6 +60,7 @@ ODR\AdminBundle\Entity\DataTree:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
+
         deletedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }

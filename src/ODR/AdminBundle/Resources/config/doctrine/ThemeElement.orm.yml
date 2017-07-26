@@ -28,9 +28,6 @@ ODR\AdminBundle\Entity\ThemeElement:
             cascade: { }
             mappedBy: themeElement
             inversedBy: null
-            joinColumns:
-                theme_data_field_meta_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
         themeDataType:
@@ -38,9 +35,6 @@ ODR\AdminBundle\Entity\ThemeElement:
             cascade: { }
             mappedBy: themeElement
             inversedBy: null
-            joinColumns:
-                theme_data_type_meta_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
         themeElementMeta:
@@ -48,9 +42,6 @@ ODR\AdminBundle\Entity\ThemeElement:
             cascade: { }
             mappedBy: themeElement
             inversedBy: null
-            joinColumns:
-                theme_element_meta_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
     manyToOne:

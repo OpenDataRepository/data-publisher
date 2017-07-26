@@ -37,6 +37,7 @@ class User extends BaseUser
     {
         parent::__construct();
 
+        $this->userGroups = new \Doctrine\Common\Collections\ArrayCollection();
         $this->clients = new \Doctrine\Common\Collections\ArrayCollection();
         $this->userLink = new \Doctrine\Common\Collections\ArrayCollection();
     }
@@ -262,6 +263,49 @@ class User extends BaseUser
 
         if ( strlen($this->plainPassword) < 8 )
             $context->buildViolation('Password must be at least 8 characters long')->atPath('plainPassword')->addViolation();
+    }
+
+
+    // -------------------- Groups --------------------
+    /**
+     * @var \ODR\AdminBundle\Entity\UserGroup
+     *
+     * @ORM\OneToMany(targetEntity="\ODR\AdminBundle\Entity\UserGroup", mappedBy="user")
+     * @ORM\JoinTable(name="odr_user_group")
+     */
+    private $userGroups;
+
+    /**
+     * Add userGroup
+     *
+     * @param \ODR\AdminBundle\Entity\UserGroup $userGroup
+     * @return User
+     */
+    public function addUserGroup(\ODR\AdminBundle\Entity\UserGroup $userGroup)
+    {
+        $this->userGroups[] = $userGroup;
+
+        return $this;
+    }
+
+    /**
+     * Remove userGroup
+     *
+     * @param \ODR\AdminBundle\Entity\UserGroup $userGroup
+     */
+    public function removeUserGroup(\ODR\AdminBundle\Entity\UserGroup $userGroup)
+    {
+        $this->clients->removeElement($userGroup);
+    }
+
+    /**
+     * Get userGroup
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getUserGroups()
+    {
+        return $this->userGroups;
     }
 
 

@@ -34,9 +34,6 @@ ODR\AdminBundle\Entity\Group:
             cascade: { }
             mappedBy: group
             inversedBy: null
-            joinColumns:
-                group_meta_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
         userGroups:
@@ -44,9 +41,6 @@ ODR\AdminBundle\Entity\Group:
             cascade: { }
             mappedBy: group
             inversedBy: null
-            joinColumns:
-                user_group_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
         groupDatatypePermissions:
@@ -54,18 +48,13 @@ ODR\AdminBundle\Entity\Group:
             cascade: { }
             mappedBy: group
             inversedBy: null
-            joinColumns:
-                group_datatype_permission_id:
-                    referencedColumnName: id
             orphanRemoval: false
+
         groupDatafieldPermissions:
             targetEntity: GroupDatafieldPermissions
             cascade: { }
             mappedBy: group
             inversedBy: null
-            joinColumns:
-                group_datafield_permission_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
     manyToOne:

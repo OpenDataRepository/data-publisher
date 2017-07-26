@@ -73,9 +73,6 @@ ODR\AdminBundle\Entity\Image:
             cascade: { }
             mappedBy: image
             inversedBy: null
-            joinColumns:
-                image_checksum_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
         imageMeta:
@@ -83,9 +80,6 @@ ODR\AdminBundle\Entity\Image:
             cascade: { }
             mappedBy: image
             inversedBy: null
-            joinColumns:
-                image_meta_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
     manyToOne:
@@ -126,7 +120,7 @@ ODR\AdminBundle\Entity\Image:
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
-#            mappedBy: null
+            mappedBy: null
             inversedBy: image
             joinColumns:
                 data_record_fields_id:

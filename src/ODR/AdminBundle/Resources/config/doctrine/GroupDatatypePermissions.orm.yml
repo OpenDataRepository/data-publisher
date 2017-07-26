@@ -69,7 +69,7 @@ ODR\AdminBundle\Entity\GroupDatatypePermissions:
             targetEntity: DataType
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: groupDatatypePermissions
             joinColumns:
                 data_type_id:
                     referencedColumnName: id

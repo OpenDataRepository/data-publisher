@@ -20,7 +20,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
@@ -29,7 +28,17 @@ use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
-// Forms
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
+// Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -1496,5 +1505,144 @@ $ret .= ' -- added '.$user->getUserString().' to the default "view_all" group'."
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * @param Request $request
+     */
+    public function fixdatabasedatesAction(Request $request)
+    {
+        /** @var User $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+        if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+            throw new ODRForbiddenException();
+
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+        $em->getFilters()->disable('softdeleteable');
+
+        $has_created = $has_updated = $has_deleted = $has_publicdate = array();
+
+        print '<pre>';
+        $filepath = dirname(__FILE__).'/../Entity/';
+        $filelist = scandir($filepath);
+        foreach ($filelist as $num => $filename) {
+
+            if ( strlen($filename) > 3 && strpos($filename, '~') === false && strpos($filename, '.bck') === false ) {
+                $handle = fopen($filepath.$filename, 'r');
+                if (!$handle)
+                    throw new ODRException('Unable to open file');
+
+                $classname = '';
+                while ( !feof($handle) ) {
+                    $line = fgets($handle);
+
+                    $matches = array();
+                    if ( preg_match('/^class ([^\s]+)$/', $line, $matches) == 1 )
+                        $classname = $matches[1];
+
+                    if ( strpos($line, 'private $created;') !== false )
+                        $has_created[] = $classname;
+                    if ( strpos($line, 'private $updated;') !== false )
+                        $has_updated[] = $classname;
+                    if ( strpos($line, 'private $deletedAt;') !== false )
+                        $has_deleted[] = $classname;
+                    if ( strpos($line, 'private $publicDate;') !== false )
+                        $has_publicdate[] = $classname;
+                }
+
+                fclose($handle);
+            }
+        }
+/*
+        print "has created: \n";
+        print_r($has_created);
+        print "has updated: \n";
+        print_r($has_updated);
+        print "has deleted: \n";
+        print_r($has_deleted);
+        print "has publicDate: \n";
+        print_r($has_publicdate);
+*/
+        $bad_created = $bad_updated = $bad_deleted = $bad_publicdate = array();
+        $parameter = array('bad_date' => "0000-00-00%");
+
+        foreach ($has_created as $num => $classname) {
+            $query = $em->createQuery(
+               'SELECT COUNT(e.id)
+                FROM ODRAdminBundle:'.$classname.' AS e
+                WHERE e.created LIKE :bad_date'
+            )->setParameters($parameter);
+            $results = $query->getArrayResult();
+
+            if ( $results[0][1] > 0 )
+                $bad_created[$classname] = $results[0][1];
+        }
+
+        foreach ($has_updated as $num => $classname) {
+            $query = $em->createQuery(
+                'SELECT COUNT(e.id)
+                FROM ODRAdminBundle:'.$classname.' AS e
+                WHERE e.updated LIKE :bad_date'
+            )->setParameters($parameter);
+            $results = $query->getArrayResult();
+
+            if ( $results[0][1] > 0 )
+                $bad_updated[$classname] = $results[0][1];
+        }
+
+        foreach ($has_deleted as $num => $classname) {
+            $query = $em->createQuery(
+                'SELECT COUNT(e.id)
+                FROM ODRAdminBundle:'.$classname.' AS e
+                WHERE e.deletedAt LIKE :bad_date'
+            )->setParameters($parameter);
+            $results = $query->getArrayResult();
+
+            if ( $results[0][1] > 0 )
+                $bad_deleted[$classname] = $results[0][1];
+        }
+
+        foreach ($has_publicdate as $num => $classname) {
+            $query = $em->createQuery(
+                'SELECT COUNT(e.id)
+                FROM ODRAdminBundle:'.$classname.' AS e
+                WHERE e.publicDate LIKE :bad_date'
+            )->setParameters($parameter);
+            $results = $query->getArrayResult();
+
+            if ( $results[0][1] > 0 )
+                $bad_publicdate[$classname] = $results[0][1];
+        }
+
+        print "bad created: \n";
+        print_r($bad_created);
+        print "bad updated: \n";
+        print_r($bad_updated);
+        print "bad deleted: \n";
+        print_r($bad_deleted);
+        print "bad publicDate: \n";
+        print_r($bad_publicdate);
+
+
+        foreach ($bad_updated as $classname => $num) {
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:'.$classname.' AS e
+                SET e.updated = e.deletedAt
+                WHERE e.deletedAt IS NOT NULL'
+            );
+//            $first = $query->execute();
+
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:'.$classname.' AS e
+                SET e.updated = e.created
+                WHERE e.updated < :good_date'
+            )->setParameters( array('good_date' => '2000-01-01 00:00:00') );
+//            $second = $query->execute();
+        }
+
+        $em->getFilters()->enable('softdeleteable');
+        print '</pre>';
     }
 }

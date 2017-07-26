@@ -65,10 +65,9 @@ ODR\AdminBundle\Entity\DataRecord:
             targetEntity: DataRecordFields
             cascade: {  }
             mappedBy: dataRecord
+            inversedBy: null
             fetch: EXTRA_LAZY
-            joinColumns:
-                data_record_id:
-                    referencedColumnName: id
+            orphanRemoval: false
 
         grandchildren:
             targetEntity: DataRecord
@@ -84,9 +83,6 @@ ODR\AdminBundle\Entity\DataRecord:
             cascade: { }
             mappedBy: dataRecord
             inversedBy: null
-            joinColumns:
-                data_record_meta_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
         linkedDatarecords:
@@ -94,9 +90,6 @@ ODR\AdminBundle\Entity\DataRecord:
             cascade: { }
             mappedBy: ancestor
             inversedBy: null
-            joinColumns:
-                linked_data_tree_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
     manyToOne:

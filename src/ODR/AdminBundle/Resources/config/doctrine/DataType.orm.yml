@@ -78,9 +78,6 @@ ODR\AdminBundle\Entity\DataType:
             cascade: { }
             mappedBy: dataType
             inversedBy: null
-            joinColumns:
-                data_type_meta_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
         themeDataType:
@@ -89,9 +86,7 @@ ODR\AdminBundle\Entity\DataType:
             mappedBy: dataType
             inversedBy: null
             fetch: EXTRA_LAZY
-            joinColumns:
-                theme_data_type_id:
-                    referencedColumnName: id
+            orphanRemoval: false
 
         dataFields:
             targetEntity: DataFields
@@ -99,18 +94,13 @@ ODR\AdminBundle\Entity\DataType:
             mappedBy: dataType
             inversedBy: null
             fetch: EXTRA_LAZY
-            joinColumns:
-                data_fields_id:
-                    referencedColumnName: id
+            orphanRemoval: false
 
         themes:
             targetEntity: Theme
             cascade: { }
             mappedBy: dataType
             inversedBy: null
-            joinColumns:
-                theme_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
         groups:
@@ -118,9 +108,13 @@ ODR\AdminBundle\Entity\DataType:
             cascade: { }
             mappedBy: dataType
             inversedBy: null
-            joinColumns:
-                group_id:
-                    referencedColumnName: id
+            orphanRemoval: false
+
+        groupDatatypePermissions:
+            targetEntity: GroupDatatypePermissions
+            cascade: { }
+            mappedBy: dataType
+            inversedBy: null
             orphanRemoval: false
 
     manyToOne:
