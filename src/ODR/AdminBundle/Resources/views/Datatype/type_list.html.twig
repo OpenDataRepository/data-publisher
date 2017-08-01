@@ -4,11 +4,13 @@
     <div class="box">
     
         <div class="header">
-            {% if section == "design" %}
+        {% if section == "design" %}
             <h2>Database Management</h2>
-            {% else %}
+        {% elseif section == "master" %}
+            <h2>Template management</h2>
+        {% else %}
             <h2>Record Management</h2>
-            {% endif %}
+        {% endif %}
         </div>
         
         <div class="content">

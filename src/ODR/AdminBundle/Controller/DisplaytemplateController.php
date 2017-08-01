@@ -42,6 +42,12 @@ use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Forms
 use ODR\AdminBundle\Form\UpdateDataFieldsForm;
 use ODR\AdminBundle\Form\UpdateDataTypeForm;
@@ -49,7 +55,9 @@ use ODR\AdminBundle\Form\UpdateDataTreeForm;
 use ODR\AdminBundle\Form\UpdateThemeDatafieldForm;
 use ODR\AdminBundle\Form\UpdateThemeDatatypeForm;
 // Services
+use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
@@ -590,19 +598,19 @@ class DisplaytemplateController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
 
-            $top_level_datatypes = parent::getTopLevelDatatypes();
+            $datatree_array = $dti_service->getDatatreeArray();
+            $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($datatype->getId());
 
-            $datatree_array = parent::getDatatreeArray($em, true);
-            $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datatype->getId());
 
             // --------------------
             // Determine user privileges
@@ -613,7 +621,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // Ensure user has permissions to be doing this
             if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
-                return parent::permissionDeniedError("delete");
+                throw new ODRForbiddenException();
             // --------------------
 
             // TODO - prevent datatype deletion when jobs are in progress?
@@ -896,47 +904,46 @@ class DisplaytemplateController extends ODRCustomController
                 foreach ($results as $result) {
                     $dr_id = $result['dr_id'];
 
-                    $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
-                    $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
-                    $redis->del($redis_prefix.'.associated_datarecords_for_'.$dr_id);
+                    $cache_service->delete('cached_datarecord_'.$dr_id);
+                    $cache_service->delete('datarecord_table_data_'.$dr_id);
+                    $cache_service->delete('associated_datarecords_for_'.$dr_id);
                 }
             }
 
             // Delete cached entries for Group and User permissions involving this Datafield
             foreach ($groups_to_delete as $group) {
                 $group_id = $group['group_id'];
-                $redis->del($redis_prefix.'.group_'.$group_id.'_permissions');
-
-                // TODO - schedule each of these groups for a recache?
+                $cache_service->delete('group_'.$group_id.'_permissions');
             }
 
             foreach ($all_affected_users as $user) {
                 $user_id = $user['user_id'];
-                $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
-
-                // TODO - schedule each of these users for a recache?
+                $cache_service->delete('user_'.$user_id.'_permissions');
             }
 
             // ...cached searches
-            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            $cached_searches = $cache_service->get('cached_search_results');
             if ( $cached_searches != false && isset($cached_searches[$datatype_id]) ) {
                 unset( $cached_searches[$datatype_id] );
 
                 // Save the collection of cached searches back to memcached
-                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                $cache_service->set('cached_search_results', $cached_searches);
             }
 
             // ...layout data
             foreach ($datatypes_to_delete as $num => $dt_id)
-                $redis->del($redis_prefix.'.cached_datatype_'.$dt_id);
+                $cache_service->delete('cached_datatype_'.$dt_id);
 
             // ...and the cached version of the datatree array
-            $redis->del($redis_prefix.'.cached_datatree_array');
+            $cache_service->delete('top_level_datatypes');
+            $cache_service->delete('cached_datatree_array');
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x1883778 ' . $e->getMessage();
+            $source = 0xa6304ef8;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -965,8 +972,8 @@ class DisplaytemplateController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ( $datatype == null )
-                return parent::deletedEntityError('Datatype');
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
 
             // --------------------
             // Determine user privileges
@@ -974,27 +981,28 @@ class DisplaytemplateController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
             $datatype_permissions = $user_permissions['datatypes'];
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
-                return parent::permissionDeniedError("edit");
             // --------------------
 
 
-
-            // Check if this is a master template based datatype that is still
-            // in the creation process.  If so, redirect to progress system.
-            if($datatype->getSetupStep() == "create" && $datatype->getIsMasterType() == 0) {
-                // Return creating datatype template
+            // Check if this is a master template based datatype that is still in the creation process...
+            if ($datatype->getSetupStep() == "initial" && $datatype->getMasterDataType() != null) {
+                // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
                 $templating = $this->get('templating');
                 $return['t'] = "html";
-                $return['d'] = array();
-                $return['d']['html'] = $templating->render(
-                    'ODRAdminBundle:Datatype:create_status_checker.html.twig',
-                    array("datatype" => $datatype)
+                $return['d'] = array(
+                    'html' => $templating->render(
+                        'ODRAdminBundle:Datatype:create_status_checker.html.twig',
+                        array(
+                            "datatype" => $datatype
+                        )
+                    )
                 );
             }
             else {
+                // Ensure user has permissions to be doing this
+                if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+                    throw new ODRForbiddenException();
+
                 $return['d'] = array(
                     'datatype_id' => $datatype->getId(),
                     'html' => self::GetDisplayData($em, $datatype_id, 'default', $datatype_id, $request),
@@ -1002,9 +1010,11 @@ class DisplaytemplateController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x38288399 ' . $e->getMessage();
+            $source = 0x8ae875b2;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1736,18 +1746,25 @@ class DisplaytemplateController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var ThemeElement $theme_element */
             $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
-                return parent::deletedEntityError('ThemeElement');
+                throw new ODRNotFoundException('ThemeElement');
 
             $theme = $theme_element->getTheme();
-            if ($theme == null)
-                return parent::deletedEntityError('Theme');
+            if ($theme->getDeletedAt() != null)
+                throw new ODRNotFoundException('Theme');
 
             $parent_datatype = $theme->getDataType();
-            if ($parent_datatype == null)
-                return parent::deletedEntityError('DataType');
+            if ($parent_datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
 
             // --------------------
             // Determine user privileges
@@ -1758,7 +1775,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // Ensure user has permissions to be doing this
             if ( !(isset($datatype_permissions[ $parent_datatype->getId() ]) && isset($datatype_permissions[ $parent_datatype->getId() ][ 'dt_admin' ])) )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -1789,10 +1806,9 @@ class DisplaytemplateController extends ODRCustomController
 
             $child_datatype->setIsMasterType(false);
             // TODO Figure out if setup steps are needed for child datatypes.
-            $child_datatype->setSetupStep("child-complete");
-            if($parent_datatype->getIsMasterType()) {
+            $child_datatype->setSetupStep("initial");
+            if ($parent_datatype->getIsMasterType())
                 $child_datatype->setIsMasterType(true);
-            }
 
             // Save all changes made
             $em->persist($child_datatype);
@@ -1821,13 +1837,16 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_meta->setMasterPublishedRevision(0);
             $datatype_meta->setMasterRevision(0);
             $datatype_meta->setTrackingMasterRevision(0);
-            if($child_datatype->getIsMasterType()) {
-                // Set the initial Master Revision
+
+            // Set the initial Master Revision
+            if ($child_datatype->getIsMasterType())
                 $datatype_meta->setMasterRevision(1);
-            }
 
             $datatype_meta->setCreatedBy($user);
             $datatype_meta->setUpdatedBy($user);
+
+            // Ensure the "in-memory" version of the new child Datatype entry knows about its meta entry
+            $child_datatype->addDataTypeMetum($datatype_meta);
             $em->persist($datatype_meta);
 
 
@@ -1845,6 +1864,9 @@ class DisplaytemplateController extends ODRCustomController
             $child_theme->setThemeType('master');
             $child_theme->setCreatedBy($user);
             $child_theme->setUpdatedBy($user);
+
+            // Ensure the "in-memory" version of the new child Datatype entry knows about its master theme
+            $child_datatype->addTheme($child_theme);
             $em->persist($child_theme);
 
 
@@ -1860,6 +1882,9 @@ class DisplaytemplateController extends ODRCustomController
             $datatree_meta->setMultipleAllowed(true);
             $datatree_meta->setCreatedBy($user);
             $datatree_meta->setUpdatedBy($user);
+
+            // Ensure the "in-memory" version of the new Datatree entry knows about its meta entry
+            $datatree->addDataTreeMetum($datatree_meta);
             $em->persist($datatree_meta);
 
             // Create a new ThemeMeta entity to store properties of the childtype's Theme
@@ -1870,56 +1895,42 @@ class DisplaytemplateController extends ODRCustomController
             $theme_meta->setIsDefault(true);
             $theme_meta->setCreatedBy($user);
             $theme_meta->setUpdatedBy($user);
+
+            // Ensure the "in-memory" version of the new Theme entry knows about its meta entry
+            $theme->addThemeMetum($theme_meta);
             $em->persist($theme_meta);
 
 
             // ----------------------------------------
             // Create a new ThemeDatatype entry to let the renderer know it has to render a child datatype in this ThemeElement
-            $theme_datatype = parent::ODR_addThemeDatatype($em, $user, $child_datatype, $theme_element);
-            $em->flush($theme_datatype);
+            parent::ODR_addThemeDatatype($em, $user, $child_datatype, $theme_element);
+            $em->flush();
 
 
-            // ----------------------------------------
-            // Create the default groups for this child datatype
-            $is_top_level = false;
-            parent::ODR_createGroupsForDatatype($em, $user, $child_datatype, $is_top_level);
-
-
-            // ----------------------------------------
-            // Clear memcached of all datatype permissions for all users...the entries will get rebuilt the next time they do something
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-            $user_manager = $this->container->get('fos_user.user_manager');
-            $users = $user_manager->findUsers();
-            foreach ($users as $user)
-                $redis->del($redis_prefix.'.user_'.$user->getId().'_permissions');
+            // Child datatype is technically viewable now...still needs permissions, but that should be dealt with briefly
+            // Group creation through the permissions service currently requires the setup step to not be 'initial'
+            $child_datatype->setSetupStep('incomplete');
+            $em->persist($child_datatype);
+            $em->flush();
+            $em->refresh($child_datatype);
 
             // Delete the cached version of the datatree array because a child datatype was created
-            $redis->del($redis_prefix.'.cached_datatree_array');
+            $cache_service->delete('cached_datatree_array');
+
+            // Create the default groups for this child datatype
+            $pm_service->createGroupsForDatatype($user, $child_datatype);
 
 
             // ----------------------------------------
-/*
-            $return['d'] = array(
-//                'theme_element_id' => $theme_element->getId(),
-//                'html' => self::GetDisplayData($request, null, 'theme_element', $theme_element->getId()),
-            );
-
-            // Schedule the cache for an update
-            $options = array();
-            $options['mark_as_updated'] = true;
-            parent::updateDatatypeCache($parent_datatype->getId(), $options);
-*/
             $update_datatype = true;
             parent::tmp_updateThemeCache($em, $theme, $user, $update_datatype);
-
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x832819234 ' . $e->getMessage();
+            $source = 0xe1cadbac;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     
         $response = new Response(json_encode($return));  
@@ -3584,17 +3595,9 @@ class DisplaytemplateController extends ODRCustomController
         /** @var DatatypeInfoService $dti_service */
         $dti_service = $this->container->get('odr.datatype_info_service');
 
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        // Always bypass cache in dev mode?
-        $bypass_cache = false;
-        if ($this->container->getParameter('kernel.environment') === 'dev')
-            $bypass_cache = true;
 
         // Going to need this a lot...
-        $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+        $datatree_array = $dti_service->getDatatreeArray();
 //print '<pre>'.print_r($datatree_array, true).'</pre>';  exit();
 
         // ----------------------------------------
@@ -3622,7 +3625,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // Need to determine the top-level datatype to be able to load all necessary data for rendering this child datatype
             if ( isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) && $datatree_array['descendant_of'][ $child_datatype->getId() ] !== '' ) {
-                $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $child_datatype->getId());
+                $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($child_datatype->getId());
 
                 $datatype = $repo_datatype->find($grandparent_datatype_id);
             }
@@ -3639,7 +3642,7 @@ class DisplaytemplateController extends ODRCustomController
             $datatype = $theme->getDataType();
             if ( isset($datatree_array['descendant_of'][ $datatype->getId() ]) && $datatree_array['descendant_of'][ $datatype->getId() ] !== '' ) {
                 $child_datatype = $theme->getDataType();
-                $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $child_datatype->getId());
+                $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($child_datatype->getId());
 
                 $datatype = $repo_datatype->find($grandparent_datatype_id);
             }
@@ -3653,7 +3656,7 @@ class DisplaytemplateController extends ODRCustomController
             $datatype = $datafield->getDataType();
             if ( isset($datatree_array['descendant_of'][ $datatype->getId() ]) && $datatree_array['descendant_of'][ $datatype->getId() ] !== '' ) {
                 $child_datatype = $theme->getDataType();
-                $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $child_datatype->getId());
+                $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($child_datatype->getId());
 
                 $datatype = $repo_datatype->find($grandparent_datatype_id);
             }
@@ -3675,21 +3678,15 @@ class DisplaytemplateController extends ODRCustomController
         // ----------------------------------------
         // Determine which datatypes/childtypes to load from the cache
         $include_links = true;
-        $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype->getId()), $include_links);
-
+        $associated_datatypes = $dti_service->getAssociatedDatatypes( array($datatype->getId()), $include_links );
 //print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
 
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $datatype_array = array();
-        foreach ($associated_datatypes as $num => $dt_id) {
-            $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-            if ($bypass_cache || $datatype_data == null)
-                $datatype_data = $dti_service->getDatatypeData($datatree_array, $dt_id, $bypass_cache);
-                // $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
+        $datatype_array = $dti_service->getDatatypeArray($associated_datatypes);
+//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
-            foreach ($datatype_data as $dt_id => $data)
-                $datatype_array[$dt_id] = $data;
-        }
+        // TODO - should $datatype_array get filtered or stacked?
+
 
         // ----------------------------------------
         // Going to need an array of fieldtype ids and fieldtype typenames for notifications about changing fieldtypes

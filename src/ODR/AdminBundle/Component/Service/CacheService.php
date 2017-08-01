@@ -7,8 +7,7 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * TODO
- *
+ * This service provides an interface to whichever caching provider is currently being used by ODR. (currently redis)
  */
 
 namespace ODR\AdminBundle\Component\Service;
@@ -49,7 +48,7 @@ class CacheService
      */
     public function delete($key)
     {
-        $this->cache_service->del( array($key) );
+        $this->cache_service->del( array($this->cache_prefix.'.'.$key) );
     }
 
 

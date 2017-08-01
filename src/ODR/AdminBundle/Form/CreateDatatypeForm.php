@@ -13,7 +13,6 @@ namespace ODR\AdminBundle\Form;
 
 // Symfony Forms
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -31,8 +30,8 @@ class CreateDatatypeForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
-
-        $this->form_settings = $options['form_settings'];
+        $is_master_type = $options['form_settings']['is_master_type'];
+        $master_type_id = $options['form_settings']['master_type_id'];
 
         $builder->add(
             'shortName', 
@@ -41,12 +40,12 @@ class CreateDatatypeForm extends AbstractType
                 'required' => true,
                 'label'  => 'Short Name',
                 'attr' => array(
-                    // 'maxlength' => 32,
+                    'maxlength' => 32,  // underlying database column has a max length of 32 characters
                 ),
             )
         );
 
-        /*
+/*
         $builder->add(
             'longName', 
             TextType::class,
@@ -58,7 +57,7 @@ class CreateDatatypeForm extends AbstractType
                 ),
             )
         );
-        */
+*/
 
         $builder->add(
             'description',
@@ -69,24 +68,13 @@ class CreateDatatypeForm extends AbstractType
             )
         );
 
-        /*
-                $builder->add(
-                    'description',
-                    'text',
-                    array(
-                        'required' => true,
-                        'label'  => 'Description',
-                    )
-                );
-        */
-
         // Adding a non-tracked field to allow master template creation.
         $builder->add(
             'is_master_type',
             HiddenType::class,
             array(
                 'mapped' => false,
-                'data' => $this->form_settings['is_master_type']
+                'data' => $is_master_type,
             )
         );
 
@@ -95,12 +83,11 @@ class CreateDatatypeForm extends AbstractType
             HiddenType::class,
             array(
                 'mapped' => false,
-                'data' => $this->form_settings['master_type_id']
+                'data' => $master_type_id,
             )
         );
 
         $builder->add('save', SubmitType::class);
-
     }
 
 
@@ -136,10 +123,8 @@ class CreateDatatypeForm extends AbstractType
         $resolver->setDefaults(
             array(
                 'data_class' => 'ODR\AdminBundle\Entity\DataTypeMeta',
-                'form_settings' => null
+                'form_settings' => null,
             )
         );
     }
-
-
 }

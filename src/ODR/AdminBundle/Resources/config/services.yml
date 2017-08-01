@@ -55,10 +55,12 @@ services:
 
     odr.permissions_management_service:
         class: ODR\AdminBundle\Component\Service\PermissionsManagementService
-#        arguments:
-#            container: "@service_container"
-#            entity_manager: "@doctrine.orm.entity_manager"
-#            logger: "@logger"
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            cache_service: "@odr.cache_service"
+            datatype_info_service: "@odr.datatype_info_service"
+            user_manager: "@fos_user.user_manager"
+            logger: "@logger"
 
     odr.datarecord_info_service:
         class: ODR\AdminBundle\Component\Service\DatarecordInfoService
@@ -66,6 +68,7 @@ services:
             environment: "%kernel.environment%"
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
+            permissions_service: "@odr.permissions_management_service"
             logger: "@logger"
 
     odr.datatype_info_service:
@@ -79,8 +82,18 @@ services:
     odr.create_datatype_service:
         class: ODR\AdminBundle\Component\Service\CreateDatatypeService
         arguments:
-            container: "@service_container"
             entity_manager: "@doctrine.orm.entity_manager"
+            cache_service: "@odr.cache_service"
+            datatype_info_service: "@odr.datatype_info_service"
+            permissions_service: "@odr.permissions_management_service"
+            user_manager: "@fos_user.user_manager"
+            logger: "@logger"
+
+    odr.tracked_job_service:
+        class: ODR\AdminBundle\Component\Service\TrackedJobService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            datatype_info_service: "@odr.datatype_info_service"
             logger: "@logger"
 
     odr.theme_service:

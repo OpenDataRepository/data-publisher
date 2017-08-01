@@ -900,35 +900,48 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function dtclearAction($datatype_id, Request $request)
     {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
 
-        /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
 
-        if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
-            return parent::permissionDeniedError();
+            $results = array();
+            if ($datatype_id == 0) {
+                $query = $em->createQuery(
+                   'SELECT dt.id AS dt_id
+                    FROM ODRAdminBundle:DataType AS dt'
+                );
 
-        $results = array();
-        if ($datatype_id == 0) {
-            $query = $em->createQuery(
-               'SELECT dt.id AS dt_id
-                FROM ODRAdminBundle:DataType AS dt');
+                $results = $query->getArrayResult();
+            }
+            else {
+                $results = array('dt_id' => $datatype_id);
+            }
 
-            $results = $query->getArrayResult();
+            $cache_service->delete('cached_datatree_array');
+            $cache_service->delete('top_level_datatypes');
+
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $cache_service->delete('cached_datatype_'.$dt_id);
+                $cache_service->delete('data_type_'.$dt_id.'_record_order');
+
+                $cache_service->delete('dashboard_'.$dt_id);
+                $cache_service->delete('dashboard_'.$dt_id.'_public_only');
+            }
         }
-        else {
-            $results = array('dt_id' => $datatype_id);
-        }
-
-
-        foreach ($results as $result) {
-            $dt_id = $result['dt_id'];
-
-            $redis->del($redis_prefix.'.cached_datatype_'.$dt_id);
+        catch (\Exception $e) {
+            $source = 0xaa016ab8;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $return = array(
@@ -954,39 +967,47 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function drclearAction($datatype_id, Request $request)
     {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
 
-        /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
 
-        if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
-            return parent::permissionDeniedError();
+            $query = null;
+            if ($datatype_id == 0) {
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr'
+                );
+            }
+            else {
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.dataType = :datatype_id'
+                )->setParameters(array('datatype_id' => $datatype_id));
+            }
+            $results = $query->getArrayResult();
 
-        $query = null;
-        if ($datatype_id == 0) {
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord AS dr');
+            foreach ($results as $result) {
+                $dr_id = $result['dr_id'];
+
+                $cache_service->delete('associated_datarecords_for_'.$dr_id);
+                $cache_service->delete('cached_datarecord_'.$dr_id);
+                $cache_service->delete('datarecord_table_data_'.$dr_id);
+            }
         }
-        else {
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                WHERE dr.dataType = :datatype_id'
-            )->setParameters( array('datatype_id' => $datatype_id) );
-        }
-        $results = $query->getArrayResult();
-
-        foreach ($results as $result) {
-            $dr_id = $result['dr_id'];
-
-            $redis->del($redis_prefix.'.associated_datarecords_for_'.$dr_id);
-            $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
-            $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
+        catch (\Exception $e) {
+            $source = 0xc178ea4b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $return = array(
@@ -1006,17 +1027,25 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function searchclearAction(Request $request)
     {
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        try {
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
 
-        /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-        if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
-            return parent::permissionDeniedError();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
 
-        $redis->del($redis_prefix.'.cached_search_results');
+            $cache_service->delete('cached_search_results');
+        }
+        catch (\Exception $e) {
+            $source = 0xcb3e7952;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
 
         $return = array(
             'r' => 0,
@@ -1035,45 +1064,51 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function permissionsclearAction(Request $request)
     {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
 
-        /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
 
-        if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
-            return parent::permissionDeniedError();
+            // ----------------------------------------
+            // Clear all cached user permissions
+            $query = $em->createQuery(
+               'SELECT u.id AS user_id
+                FROM ODROpenRepositoryUserBundle:User AS u'
+            );
+            $results = $query->getArrayResult();
 
-        // ----------------------------------------
-        // Clear all cached user permissions
-        $query = $em->createQuery(
-           'SELECT u.id AS user_id
-            FROM ODROpenRepositoryUserBundle:User AS u'
-        );
-        $results = $query->getArrayResult();
+            foreach ($results as $result) {
+                $user_id = $result['user_id'];
+                $cache_service->delete('user_'.$user_id.'_permissions');
+            }
 
-        foreach ($results as $result) {
-            $user_id = $result['user_id'];
-            $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
+
+            // ----------------------------------------
+            // Clear all cached group permissions
+            $query = $em->createQuery(
+               'SELECT g.id AS group_id
+                FROM ODRAdminBundle:Group AS g'
+            );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                $group_id = $result['group_id'];
+                $cache_service->delete('group_'.$group_id.'_permissions');
+            }
         }
-
-
-        // ----------------------------------------
-        // Clear all cached group permissions
-        $query = $em->createQuery(
-           'SELECT g.id AS group_id
-            FROM ODRAdminBundle:Group AS g'
-        );
-        $results = $query->getArrayResult();
-
-        foreach ($results as $result) {
-            $group_id = $result['group_id'];
-            $redis->del($redis_prefix.'.group_'.$group_id.'_permissions');
+        catch (\Exception $e) {
+            $source = 0x2afc476b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-
 
         $return = array(
             'r' => 0,
@@ -1582,7 +1617,7 @@ $ret .= ' -- added '.$user->getUserString().' to the default "view_all" group'."
 
         foreach ($has_updated as $num => $classname) {
             $query = $em->createQuery(
-                'SELECT COUNT(e.id)
+               'SELECT COUNT(e.id)
                 FROM ODRAdminBundle:'.$classname.' AS e
                 WHERE e.updated LIKE :bad_date'
             )->setParameters($parameter);
@@ -1594,7 +1629,7 @@ $ret .= ' -- added '.$user->getUserString().' to the default "view_all" group'."
 
         foreach ($has_deleted as $num => $classname) {
             $query = $em->createQuery(
-                'SELECT COUNT(e.id)
+               'SELECT COUNT(e.id)
                 FROM ODRAdminBundle:'.$classname.' AS e
                 WHERE e.deletedAt LIKE :bad_date'
             )->setParameters($parameter);
@@ -1606,7 +1641,7 @@ $ret .= ' -- added '.$user->getUserString().' to the default "view_all" group'."
 
         foreach ($has_publicdate as $num => $classname) {
             $query = $em->createQuery(
-                'SELECT COUNT(e.id)
+               'SELECT COUNT(e.id)
                 FROM ODRAdminBundle:'.$classname.' AS e
                 WHERE e.publicDate LIKE :bad_date'
             )->setParameters($parameter);

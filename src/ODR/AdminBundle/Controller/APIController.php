@@ -76,8 +76,9 @@ class APIController extends ODRCustomController
                    'SELECT dt.id AS dt_id, dtm.shortName AS datatype_name, dtm.description AS datatype_description, dtm.publicDate AS public_date
                     FROM ODRAdminBundle:DataType AS dt
                     JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                    WHERE dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-                );
+                    WHERE dt.setup_step IN (:setup_steps)
+                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+                )->setParameters( array('setup_steps' => DataType::STATE_VIEWABLE) );
                 $results = $query->getArrayResult();
             }
             else {
@@ -86,9 +87,9 @@ class APIController extends ODRCustomController
                    'SELECT dt.id AS dt_id, dtm.shortName AS datatype_name, dtm.description AS datatype_description, dtm.publicDate AS public_date
                     FROM ODRAdminBundle:DataType AS dt
                     JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                    WHERE dt.id IN (:datatype_ids)
+                    WHERE dt.id IN (:datatype_ids) AND dt.setup_step IN (:setup_steps)
                     AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-                )->setParameters( array('datatype_ids' => $top_level_datatype_ids) );
+                )->setParameters( array('datatype_ids' => $top_level_datatype_ids, 'setup_steps' => DataType::STATE_VIEWABLE) );
                 $results = $query->getArrayResult();
             }
 

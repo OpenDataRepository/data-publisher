@@ -1086,7 +1086,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * @todo move into PermissionsManagementService?
+     * @deprecated
      *
      * Ensures the given user is in the given group.
      *
@@ -1132,7 +1132,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * @todo move into PermissionsManagementService?
+     * @deprecated
      *
      * Create a new Group for users of the given datatype.
      *
@@ -1309,7 +1309,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * @todo move into PermissionsManagementService?
+     * @deprecated
      *
      * Creates GroupDatatypePermissions for all groups when a new datatype is created.
      *
@@ -1449,7 +1449,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * @todo move into PermissionsManagementService?
+     * @deprecated
      *
      * Creates GroupDatafieldPermissions for all groups when a new datafield is created, and updates existing cache entries for groups and users with the new datafield.
      *
@@ -1621,6 +1621,10 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
+        // Ensure the "in-memory" version of $group references the correct meta entry
+        $group->removeGroupMetum($old_meta_entry);
+        $group->addGroupMetum($new_group_meta);
+
         // Save the new meta entry
         $em->persist($new_group_meta);
         $em->flush();
@@ -1791,7 +1795,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * @todo - move into the PermissionsManagementService?
+     * @todo - move to the permissions service?
      *
      * Gets and returns the permissions array for the given group.
      *
@@ -1828,6 +1832,7 @@ class ODRCustomController extends Controller
                 AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
             )->setParameters( array('user_id' => $user_id) );
             $results = $query->getArrayResult();
+//exit('<pre>'.print_r($results, true).'</pre>' );
 
             $user_groups = array();
             foreach ($results as $result)
@@ -1897,7 +1902,6 @@ class ODRCustomController extends Controller
             // Store that array in the cache
             $cache_service->set('user_'.$user_id.'_permissions', $user_permissions);
 
-
             // ----------------------------------------
             // Return the permissions for all groups this user belongs to
             return $user_permissions;
@@ -1909,7 +1913,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * @todo - move into the PermissionsManagementService?
+     * @todo - move to the permissions service?
      *
      * Rebuilds the cached version of a group's datatype/datafield permissions array
      *
@@ -1934,7 +1938,7 @@ class ODRCustomController extends Controller
             AND g.deletedAt IS NULL AND gm.deletedAt IS NULL AND gdtp.deletedAt IS NULL AND gdfp.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND df_dt.deletedAt IS NULL'
         )->setParameters( array('group_id' => $group_id) );
         $results = $query->getArrayResult();
-//print '<pre>'.print_r($results, true).'</pre>'; exit();
+//exit( '<pre>'.print_r($results, true).'</pre>' );
 
         // Read the query result to find...
         $datarecord_restriction = '';
@@ -1947,6 +1951,9 @@ class ODRCustomController extends Controller
 
             // Build the permissions list for datatypes
             foreach ($group['groupDatatypePermissions'] as $num => $permission) {
+                if ( !isset($permission['dataType']['id']) )
+                    continue;
+
                 $dt_id = $permission['dataType']['id'];
                 $datatype_permissions[$dt_id] = array();
 
@@ -2273,6 +2280,7 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated
      * Gets or creates a TrackedJob entity in the database for use by background processes
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -2324,6 +2332,7 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated
      * Gets an array of TrackedError entities for a specified TrackedJob
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -2349,6 +2358,7 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated
      * Deletes all TrackedError entities associated with a specified TrackedJob
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -2502,6 +2512,10 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
+        // Ensure the "in-memory" version of $datarecord references the correct meta entry
+        $datarecord->removeDataRecordMetum($old_meta_entry);
+        $datarecord->addDataRecordMetum($new_datarecord_meta);
+
         $em->persist($new_datarecord_meta);
         $em->flush();
 
@@ -2576,6 +2590,10 @@ class ODRCustomController extends Controller
         // Save the new datatree meta entry and delete the old one if needed
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
+
+        // Ensure the "in-memory" version of $datatree references the correct meta entry
+        $datatree->removeDataTreeMetum($old_meta_entry);
+        $datatree->addDataTreeMetum($new_datatree_meta);
 
         $em->persist($new_datatree_meta);
         $em->flush();
@@ -3132,6 +3150,10 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
+        // Ensure the "in-memory" version of $file references the correct meta entry
+        $file->removeFileMetum($old_meta_entry);
+        $file->addFileMetum($new_file_meta);
+
         $em->persist($new_file_meta);
         $em->flush();
 
@@ -3218,6 +3240,10 @@ class ODRCustomController extends Controller
         // Save the new meta entry and delete the old one if needed
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
+
+        // Ensure the "in-memory" version of $image references the correct meta entry
+        $image->removeImageMetum($old_meta_entry);
+        $image->addImageMetum($new_image_meta);
 
         $em->persist($new_image_meta);
         $em->flush();
@@ -3424,6 +3450,10 @@ class ODRCustomController extends Controller
         // Delete the old entry if needed
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
+
+        // Ensure the "in-memory" version of $radio_option references the correct meta entry
+        $radio_option->removeRadioOptionMetum($old_meta_entry);
+        $radio_option->addRadioOptionMetum($new_radio_option_meta);
 
         // Save the new meta entry
         $em->persist($new_radio_option_meta);
@@ -3732,6 +3762,10 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
+        // Ensure the "in-memory" version of $datatype references the correct meta entry
+        $datatype->removeDataTypeMetum($old_meta_entry);
+        $datatype->addDataTypeMetum($new_datatype_meta);
+
         // Save the new meta entry
         $em->persist($new_datatype_meta);
         $em->flush();
@@ -3992,6 +4026,10 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
+        // Ensure the "in-memory" version of $datafield references the correct meta entry
+        $datafield->removeDataFieldMetum($old_meta_entry);
+        $datafield->addDataFieldMetum($new_datafield_meta);
+
         // All metadata changes result in a new
         // Data Field Master Published Revision.  Revision
         // changes are picked up by derivative data types
@@ -4077,6 +4115,10 @@ class ODRCustomController extends Controller
         // Delete the old meta entry if needed
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
+
+        // Ensure the "in-memory" version of $theme references the correct meta entry
+        $theme->removeThemeMetum($old_meta_entry);
+        $theme->addThemeMetum($new_theme_meta);
 
         // Save the new meta entry
         $em->persist($new_theme_meta);
@@ -4196,6 +4238,10 @@ class ODRCustomController extends Controller
         // Remove old meta entry if needed
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
+
+        // Ensure the "in-memory" version of $theme_element references the correct meta entry
+        $theme_element->removeThemeElementMetum($old_meta_entry);
+        $theme_element->addThemeElementMetum($theme_element_meta);
 
         // Save the new meta entry
         $em->persist($theme_element_meta);
@@ -4769,6 +4815,7 @@ class ODRCustomController extends Controller
 
     /**
      * Locates and returns a datarecord based on its external id
+     * @todo - move to datarecord info service?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $datafield_id
@@ -4805,6 +4852,7 @@ class ODRCustomController extends Controller
 
     /**
      * Locates and returns a child datarecord based on its external id and its parent's external id
+     * @todo - move to datarecord info service?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $child_datafield_id
@@ -5194,9 +5242,9 @@ class ODRCustomController extends Controller
         if (!$has_original) {
             // Create an ImageSize entity for the original image
             $query =
-               'INSERT INTO odr_image_sizes (data_fields_id, field_type_id, size_constraint, min_width, width, max_width, min_height, height, max_height, original, created, createdBy, updated, updatedBy)
+               'INSERT INTO odr_image_sizes (data_fields_id, size_constraint, min_width, width, max_width, min_height, height, max_height, original, created, createdBy, updated, updatedBy)
                 SELECT * FROM (
-                    SELECT :df_id AS data_fields_id, :ft_id AS field_type_id, :size_constraint AS size_constraint,
+                    SELECT :df_id AS data_fields_id, :size_constraint AS size_constraint,
                         :min_width AS min_width, :width AS width, :max_width AS max_width,
                         :min_height AS min_height, :height AS height, :max_height AS max_height,
                         :original AS original,
@@ -5207,7 +5255,6 @@ class ODRCustomController extends Controller
                 ) LIMIT 1;';
             $params = array(
                 'df_id' => $datafield->getId(),
-                'ft_id' => $datafield->getFieldType()->getId(),
                 'size_constraint' => 'none',
 
                 'min_width' => 1024,
@@ -5234,9 +5281,9 @@ class ODRCustomController extends Controller
         if (!$has_thumbnail) {
             // Create an ImageSize entity for the thumbnail
             $query =
-               'INSERT INTO odr_image_sizes (data_fields_id, field_type_id, size_constraint, min_width, width, max_width, min_height, height, max_height, original, imagetype, created, createdBy, updated, updatedBy)
+               'INSERT INTO odr_image_sizes (data_fields_id, size_constraint, min_width, width, max_width, min_height, height, max_height, original, imagetype, created, createdBy, updated, updatedBy)
                 SELECT * FROM (
-                    SELECT :df_id AS data_fields_id, :ft_id AS field_type_id, :size_constraint AS size_constraint,
+                    SELECT :df_id AS data_fields_id, :size_constraint AS size_constraint,
                         :min_width AS min_width, :width AS width, :max_width AS max_width,
                         :min_height AS min_height, :height AS height, :max_height AS max_height,
                         :original AS original, :imagetype AS imagetype,
@@ -5247,7 +5294,6 @@ class ODRCustomController extends Controller
                 ) LIMIT 1;';
             $params = array(
                 'df_id' => $datafield->getId(),
-                'ft_id' => $datafield->getFieldType()->getId(),
                 'size_constraint' => 'both',
 
                 'min_width' => 500,

@@ -949,7 +949,7 @@ class EditController extends ODRCustomController
             // Need to rebuild this particular datafield's html to reflect the changes...
             $return['t'] = 'html';
             $return['d'] = array(
-                'is_public' => $file->isPublic(),   // TODO - why does this not throw an exception like publicimageAction()?
+                'is_public' => $file->isPublic(),
                 'public_date' => $public_date->format('Y-m-d'),
             );
 
@@ -1072,7 +1072,6 @@ class EditController extends ODRCustomController
             // Toggle public status of specified image...
             $public_date = null;
 
-            $is_public = null;
             if ( $image->isPublic() ) {
                 // Make the original image non-public
                 $public_date = new \DateTime('2200-01-01 00:00:00');
@@ -1089,8 +1088,6 @@ class EditController extends ODRCustomController
                     if ( file_exists($absolute_path) )
                         unlink($absolute_path);
                 }
-
-                $is_public = false;
             }
             else {
                 // Make the original image public
@@ -1102,16 +1099,13 @@ class EditController extends ODRCustomController
                 // Immediately decrypt the image and all of its children
                 foreach ($all_images as $img)
                     parent::decryptObject($img->getId(), 'image');
-
-                $is_public = true;
             }
 
 
             // Need to rebuild this particular datafield's html to reflect the changes...
             $return['t'] = 'html';
             $return['d'] = array(
-//                'is_public' => $image->isPublic(),    // TODO - this was throwing exceptions about not being able to access the associated ImageMeta entry after creating a new one...
-                'is_public' => $is_public,
+                'is_public' => $image->isPublic(),
                 'public_date' => $public_date->format('Y-m-d'),
             );
 
@@ -1681,7 +1675,6 @@ class EditController extends ODRCustomController
 
 
             // Toggle the public status of the datarecord
-            $public = 0;
             if ( $datarecord->isPublic() ) {
                 // Make the datarecord non-public
                 $public_date = new \DateTime('2200-01-01 00:00:00');
@@ -1695,8 +1688,6 @@ class EditController extends ODRCustomController
 
                 $properties = array('publicDate' => $public_date);
                 parent::ODR_copyDatarecordMeta($em, $user, $datarecord, $properties);
-
-                $public = 1;
             }
 
             // Refresh the cache entries for this datarecord?
@@ -1720,7 +1711,7 @@ class EditController extends ODRCustomController
 
 
             $return['d'] = array(
-                'public' => $public,    // TODO - check whether this could get changed to $datarecord->isPublic()...see publicimageAction()
+                'public' => $datarecord->isPublic(),
                 'datarecord_id' => $datarecord_id,
             );
         }
@@ -2763,7 +2754,7 @@ if ($debug)
         $return['d'] = '';
 
         try {
-            // Don't actually need a search_key for a child reload, but GetDisplayData() expects the parameter
+            // Don't actually need a search_key for a child reload, but parameter is expected
             $search_key = '';
 
             // Grab necessary objects
@@ -2862,7 +2853,7 @@ if ($debug)
         $return['d'] = '';
 
         try {
-            // Don't actually need a search_key for a child reload, but GetDisplayData() expects the parameter
+            // Don't actually need a search_key for a datafield reload, but the parameter is expected
             $search_key = '';
 
             // Grab necessary objects
@@ -3349,6 +3340,8 @@ if ($debug)
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -3420,7 +3413,7 @@ if ($debug)
             foreach ($results as $num => $result) {
                 $file = $result;
                 $file['fileMeta'] = $result['fileMeta'][0];
-                $file['createdBy'] = parent::cleanUserData($result['createdBy']);
+                $file['createdBy'] = $pm_service->cleanUserData($result['createdBy']);
 
                 $file_list[$num] = $file;
             }

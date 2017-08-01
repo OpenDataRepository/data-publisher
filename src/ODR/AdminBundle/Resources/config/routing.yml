@@ -275,26 +275,20 @@ odr_list_types:
 odr_create_type:
     path:  /admin/type/create/{create_master}
     defaults: { _controller: ODRAdminBundle:Datatype:create }
-    requirements: { methods: GET, create_master: \d }
+    requirements:
+        create_master: 0|1
 
 odr_create_type_info:
-    path:  /admin/type/create/info/{template_choice}
+    path:  /admin/type/create/info/{template_choice}/{creating_master_template}
     defaults: { _controller: ODRAdminBundle:Datatype:createinfo }
-    requirements: { methods: GET, template_choice: -?\d+ }
-
-odr_create_from_master:
-    path:  /admin/type/create/masterbased/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:ODRCustom:copyfrommaster }
-    requirements: { methods: GET, datatype_id: -?\d+ }
+    requirements:
+        template_choice: \d+
+        creating_master_template: 0|1
 
 odr_add_types:
     path:  /admin/type/add
     defaults: { _controller: ODRAdminBundle:Datatype:add }
     requirements: { methods: POST }
-
-odr_recache_all:
-    path: /admin/type/recache_all
-    defaults: { _controller: ODRAdminBundle:Datatype:recacheall }
 
 #-----------------------------------------
 

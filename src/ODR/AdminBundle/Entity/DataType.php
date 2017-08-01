@@ -21,6 +21,18 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class DataType
 {
+    // These are defined as strings instead of bitmasks because they're easier to read in the twig files
+    // Datatypes in these states are usually still being copied from a master template, and shouldn't be displayed/used elsewhere
+    const STATE_INITIAL = "initial";
+    // Datatypes in this state are technically viewable, but lack a search results theme
+    const STATE_INCOMPLETE = "incomplete";
+    // Datatypes in this state have *everything* they need
+    const STATE_OPERATIONAL = "operational";
+
+    // Convenience state so controllers can filter out datatypes that aren't ready for general use yet
+    const STATE_VIEWABLE = array(self::STATE_INCOMPLETE, self::STATE_OPERATIONAL);
+
+
     /**
      * @var integer
      */
@@ -529,6 +541,8 @@ class DataType
 
     /**
      * Get groups
+     * NOTE: Only a top-level datatype actually "has" groups in the database...the groups are applied to child datatypes
+     * through GroupDatatypePermission entities.
      *
      * @return \Doctrine\Common\Collections\Collection
      */

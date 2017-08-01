@@ -7,14 +7,17 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * TODO
- *
+ * This service stores the code to get and rebuild the cached version of the datatype array, as well
+ * as several other utility functions related to lists of datatypes.
  */
 
 namespace ODR\AdminBundle\Component\Service;
 
+// Entities
+use ODR\AdminBundle\Entity\DataType;
+// Other
 use Doctrine\ORM\EntityManager;
-use Psr\Log\LoggerInterface;
+use Symfony\Bridge\Monolog\Logger;
 
 
 class DatatypeInfoService
@@ -36,7 +39,7 @@ class DatatypeInfoService
     private $cache_service;
 
     /**
-     * @var LoggerInterface
+     * @var Logger
      */
     private $logger;
 
@@ -47,9 +50,9 @@ class DatatypeInfoService
      * @param $environment
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param LoggerInterface $logger
+     * @param Logger $logger
      */
-    public function __construct($environment, EntityManager $entity_manager, CacheService $cache_service, LoggerInterface $logger)
+    public function __construct($environment, EntityManager $entity_manager, CacheService $cache_service, Logger $logger)
     {
         $this->environment = $environment;
         $this->em = $entity_manager;
@@ -59,13 +62,26 @@ class DatatypeInfoService
 
 
     /**
-     * Determines and returns an array of top-level datatype ids.
-     * TODO - cache this list?
+     * Returns an array of top-level datatype ids.
      *
      * @return int[]
      */
     public function getTopLevelDatatypes()
     {
+        // ----------------------------------------
+        // Always bypass cache if in dev mode?
+        $force_rebuild = false;
+        if ($this->environment == 'dev')
+            $force_rebuild = true;
+
+        // If list of top level datatypes exists in cache and user isn't demanding a fresh version, return that
+        $top_level_datatypes = $this->cache_service->get('top_level_datatypes');
+        if ( $top_level_datatypes !== false && count($top_level_datatypes) > 0 && !$force_rebuild)
+            return $top_level_datatypes;
+
+
+        // ----------------------------------------
+        // Otherwise, rebuild the list of top-level datatypes
         $query = $this->em->createQuery(
            'SELECT dt.id AS datatype_id
             FROM ODRAdminBundle:DataType AS dt
@@ -77,15 +93,17 @@ class DatatypeInfoService
         foreach ($results as $num => $result)
             $all_datatypes[] = $result['datatype_id'];
 
+        // Get all datatypes that are ready to view
         $query = $this->em->createQuery(
            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
             FROM ODRAdminBundle:DataTree AS dt
             JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
             JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE dtm.is_link = 0
+            WHERE dtm.is_link = 0 AND ancestor.setup_step IN (:setup_steps) AND descendant.setup_step IN (:setup_steps)
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-        );
+        )->setParameters( array('setup_steps' => DataType::STATE_VIEWABLE) );
+
         $results = $query->getArrayResult();
 
         $parent_of = array();
@@ -98,6 +116,10 @@ class DatatypeInfoService
                 $top_level_datatypes[] = $datatype_id;
         }
 
+
+        // ----------------------------------------
+        // Store the list in the cache and return
+        $this->cache_service->set('top_level_datatypes', $top_level_datatypes);
         return $top_level_datatypes;
     }
 
@@ -138,12 +160,14 @@ class DatatypeInfoService
 
         // Otherwise...get all the datatree data
         $query = $this->em->createQuery(
-            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
+           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
             FROM ODRAdminBundle:DataType AS ancestor
             JOIN ODRAdminBundle:DataTree AS dt WITH ancestor = dt.ancestor
             JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL');
+            WHERE ancestor.setup_step IN (:setup_step) AND descendant.setup_step IN (:setup_step)
+            AND ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+        )->setParameters( array('setup_step' => DataType::STATE_VIEWABLE) );
         $results = $query->getArrayResult();
 
         $datatree_array = array(
@@ -254,9 +278,6 @@ class DatatypeInfoService
 
 
         // ----------------------------------------
-        // May end up needing this...
-        $datatree_array = self::getDatatreeArray($force_rebuild);
-
         // Grab all datatypes associated with the desired datarecord
         $associated_datatypes = array();
         foreach ($datarecord_array as $dr_id => $dr) {
@@ -271,7 +292,7 @@ class DatatypeInfoService
         foreach ($associated_datatypes as $num => $dt_id) {
             $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id);
             if ($force_rebuild || $datatype_data == false)
-                $datatype_data = self::buildDatatypeData($datatree_array, $dt_id, $force_rebuild);
+                $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild);
 
             foreach ($datatype_data as $local_dt_id => $data)
                 $datatype_array[$local_dt_id] = $data;
@@ -286,7 +307,7 @@ class DatatypeInfoService
      * Use self::stackDatatypeArray() to get an array structure where child datatypes are stored "underneath" their
      * parent datatypes.
      *
-     * @param int[] $datatype_id
+     * @param int[] $datatype_ids
      *
      * @return array
      */
@@ -297,14 +318,11 @@ class DatatypeInfoService
         if ($this->environment == 'dev')
             $force_rebuild = true;
 
-        // May end up needing this...
-        $datatree_array = self::getDatatreeArray($force_rebuild);
-
         $datatype_array = array();
         foreach ($datatype_ids as $num => $dt_id) {
             $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id);
             if ($force_rebuild || $datatype_data == false)
-                $datatype_data = self::buildDatatypeData($datatree_array, $dt_id, $force_rebuild);
+                $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild);
 
             foreach ($datatype_data as $dt_id => $data)
                 $datatype_array[$dt_id] = $data;
@@ -317,13 +335,12 @@ class DatatypeInfoService
     /**
      * Gets all layout information required for the given datatype in array format
      *
-     * @param array $datatree_array
      * @param integer $datatype_id
      * @param boolean $force_rebuild
      *
      * @return array
      */
-    private function buildDatatypeData($datatree_array, $datatype_id, $force_rebuild = false)
+    private function buildDatatypeData($datatype_id, $force_rebuild = false)
     {
 /*
         $timing = true;
@@ -340,8 +357,7 @@ class DatatypeInfoService
 
 
         // Otherwise...going to need the datatree array
-        if ( !is_array($datatree_array) || count($datatree_array) < 1 )
-            $datatree_array = self::getDatatreeArray($force_rebuild);
+        $datatree_array = self::getDatatreeArray($force_rebuild);
 
         // Get all non-layout data for the requested datatype
         $query = $this->em->createQuery(

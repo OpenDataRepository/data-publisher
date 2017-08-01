@@ -7,14 +7,13 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * TODO
- *
+ * This service stores the code to get and rebuild the cached version of the datarecord array.
  */
 
 namespace ODR\AdminBundle\Component\Service;
 
 use Doctrine\ORM\EntityManager;
-use Psr\Log\LoggerInterface;
+use Symfony\Bridge\Monolog\Logger;
 
 
 class DatarecordInfoService
@@ -36,7 +35,12 @@ class DatarecordInfoService
     private $cache_service;
 
     /**
-     * @var LoggerInterface
+     * @var PermissionsManagementService
+     */
+    private $pm_service;
+
+    /**
+     * @var Logger
      */
     private $logger;
 
@@ -47,13 +51,15 @@ class DatarecordInfoService
      * @param string $environment
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param LoggerInterface $logger
+     * @param PermissionsManagementService $permissions_service
+     * @param Logger $logger
      */
-    public function __construct($environment, EntityManager $entity_manager, CacheService $cache_service, LoggerInterface $logger)
+    public function __construct($environment, EntityManager $entity_manager, CacheService $cache_service, PermissionsManagementService $permissions_service, Logger $logger)
     {
         $this->environment = $environment;
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->pm_service = $permissions_service;
         $this->logger = $logger;
     }
 
@@ -290,8 +296,8 @@ class DatarecordInfoService
             // Flatten datarecord_meta
             $drm = $dr['dataRecordMeta'][0];
             $datarecord_data[$dr_num]['dataRecordMeta'] = $drm;
-            $datarecord_data[$dr_num]['createdBy'] = self::cleanUserData( $dr['createdBy'] );
-            $datarecord_data[$dr_num]['updatedBy'] = self::cleanUserData( $dr['updatedBy'] );
+            $datarecord_data[$dr_num]['createdBy'] = $this->pm_service->cleanUserData( $dr['createdBy'] );
+            $datarecord_data[$dr_num]['updatedBy'] = $this->pm_service->cleanUserData( $dr['updatedBy'] );
 
             // Store which datafields are used for the datatype's external_id_datafield, name_datafield, and sort_datafield
             $external_id_field = null;
@@ -353,7 +359,7 @@ class DatarecordInfoService
                     $drf['file'][$file_num]['fileMeta'] = $fm;
 
                     // Get rid of all private/non-essential information in the createdBy association
-                    $drf['file'][$file_num]['createdBy'] = self::cleanUserData( $drf['file'][$file_num]['createdBy'] );
+                    $drf['file'][$file_num]['createdBy'] = $this->pm_service->cleanUserData( $drf['file'][$file_num]['createdBy'] );
                 }
 
                 // Flatten image metadata, get rid of both the thumbnail's and the parent's encrypt keys, and sort appropriately
@@ -375,7 +381,7 @@ class DatarecordInfoService
                     $image['parent']['imageMeta'] = $im;
 
                     // Get rid of all private/non-essential information in the createdBy association
-                    $image['parent']['createdBy'] = self::cleanUserData( $image['parent']['createdBy'] );
+                    $image['parent']['createdBy'] = $this->pm_service->cleanUserData( $image['parent']['createdBy'] );
 
                     if ($sort_by_image_id) {
                         // Store by parent id
@@ -394,7 +400,7 @@ class DatarecordInfoService
                 $keys = array('boolean', 'integerValue', 'decimalValue', 'longText', 'longVarchar', 'mediumVarchar', 'shortVarchar', 'datetimeValue');
                 foreach ($keys as $typeclass) {
                     if ( count($drf[$typeclass]) > 0 ) {
-                        $drf[$typeclass][0]['createdBy'] = self::cleanUserData( $drf[$typeclass][0]['createdBy'] );
+                        $drf[$typeclass][0]['createdBy'] = $this->pm_service->cleanUserData( $drf[$typeclass][0]['createdBy'] );
 
                         // Store the value from this storage entity if it's the one being used for external_id/name/sort datafields
                         if ($external_id_field !== null && $external_id_field == $df_id) {
@@ -420,7 +426,7 @@ class DatarecordInfoService
                 // Organize radio selections by radio option id
                 $new_rs_array = array();
                 foreach ($drf['radioSelection'] as $rs_num => $rs) {
-                    $rs['createdBy'] = self::cleanUserData( $rs['createdBy'] );
+                    $rs['createdBy'] = $this->pm_service->cleanUserData( $rs['createdBy'] );
 
                     $ro_id = $rs['radioOption']['id'];
                     $new_rs_array[$ro_id] = $rs;
@@ -457,24 +463,6 @@ class DatarecordInfoService
         // Save the formatted datarecord data back in the cache, and return it
         $this->cache_service->set('cached_datarecord_'.$grandparent_datarecord_id, $formatted_datarecord_data);
         return $formatted_datarecord_data;
-    }
-
-
-    /**
-     * Removes all private/non-essential user info from an array generated by self::getDatarecordData()
-     *
-     * @param array $user_data
-     *
-     * @return array
-     */
-    private function cleanUserData($user_data)
-    {
-        foreach ($user_data as $key => $value) {
-            if ($key !== 'username' && $key !== 'email' && $key !== 'firstName' && $key !== 'lastName'/* && $key !== 'institution' && $key !== 'position'*/)
-                unset( $user_data[$key] );
-        }
-
-        return $user_data;
     }
 
 

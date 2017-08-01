@@ -12,7 +12,7 @@ php app/console odr_record:migrate >> app/logs/migrate.log 2>&1 &
 php app/console odr_record:mass_edit >> app/logs/mass_edit.log 2>&1 &
 
 php app/console odr_crypto:worker >> app/logs/crypto_worker.log 2>&1 &
-php app/console odr_crypto:worker >> app/logs/crypto_worker_2.log 2>&1 &
+#php app/console odr_crypto:worker >> app/logs/crypto_worker_2.log 2>&1 &
 
 php app/console odr_datatype:create >> app/logs/datatype_create.log 2>&1 &
 

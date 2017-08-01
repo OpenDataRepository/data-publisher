@@ -34,7 +34,6 @@
         LoadContentFullAjax('{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}', false);
     }
     $(function() {
-        console.log('setup monitor')
         // Reload this box every 5 seconds
         timer = setTimeout("CheckStatus()", 5000);
     });

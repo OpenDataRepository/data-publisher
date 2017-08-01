@@ -134,10 +134,13 @@ class DefaultController extends ODRCustomController
                 if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dr_view' ]) )
                     $can_view_datarecord = true;
 
-
                 $datatype_data = $dti_service->getDatatypeArray( array($datatype_id) );
                 $public_date = $datatype_data[$datatype_id]['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s');
                 if ($public_date == '2200-01-01 00:00:00' && !$can_view_datatype)
+                    continue;
+
+                // Also don't display on dashboard if this is a "master template" datatype
+                if ($datatype_data[$datatype_id]['is_master_type'] == 1)
                     continue;
 
 
@@ -414,7 +417,6 @@ class DefaultController extends ODRCustomController
         /** @var CacheService $cache_service */
         $cache_service = $this->container->get('odr.cache_service');
 
-        // TODO - Figure out how to set an lifetime using PREDIS
         // Store the dashboard data for all datarecords of this datatype
         $cache_service->set('dashboard_'.$datatype_id, $data);
         $cache_service->expire('dashboard_'.$datatype_id, 1*24*60*60);    // Cache this dashboard entry for upwards of one day
