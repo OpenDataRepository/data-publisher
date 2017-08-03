@@ -222,8 +222,8 @@ if ($debug)
 
 
     /**
-     * When passed an array that's either $some_entity['createdBy'] or $some_entity['updatedBy'], this will scrub
-     * the private/non-essential information from that array and return it.
+     * When passed the array version of a User entity, this function will scrub the private/non-essential information
+     * from that array and return it.
      *
      * @param array $user_data
      *

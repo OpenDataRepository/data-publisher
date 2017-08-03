@@ -28,7 +28,7 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-    <span id="DataTypeTools_{{ datatype_id }}" class="DataTypeTools" style="float:right;" rel="{{ datatype_id }}">
+    <span id="DataTypeTools_{{ datatype_id }}" class="ODRDatatypePermissionIcons" rel="{{ datatype_id }}">
         <input type="hidden" id="datatype_{{ datatype_id }}_public" value="{% if datatype_is_public %}1{% else %}0{% endif %}" />
 
         {% if not is_top_level %}

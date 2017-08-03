@@ -8,8 +8,8 @@
                     <b>Default Groups</b>
                 </span>
             </div>
-            <div class="pure-u-1-12"></div>
-            <div class="pure-u-11-12">
+            <div class="pure-u-1-24"></div>
+            <div class="pure-u-23-24">
                 {% set count = 0 %}
                 {% for group in group_list %}
                     {% set group_name = group.groupMeta.groupName %}
@@ -39,8 +39,8 @@
                     <b>Custom Groups</b>
                 </span>
             </div>
-            <div class="pure-u-1-12"></div>
-            <div class="pure-u-11-12">
+            <div class="pure-u-1-24"></div>
+            <div class="pure-u-23-24">
                 {% set count = 0 %}
                 {% for group in group_list %}
                     {% set group_name = group.groupMeta.groupName %}
@@ -55,7 +55,7 @@
                                 <i id="edit_group_{{ group.id }}" class="fa fa-lg fa-edit Pointer ODREditGroup" title="Edit Group" rel="{{ group.id }}"></i>
                                 <i id="group_members_{{ group.id }}" class="fa fa-lg fa-users Pointer ODRGroupMembers" title="Show which Users are members of this Group" rel="{{ group.id }}"></i>
                             </span>
-                            <span id="ODRGroup_{{ group.id }}_name" class="Cursor" style="padding-left:15px;">
+                            <span class="Cursor ODRGroup_{{ group.id }}_name" style="padding-left:15px;">
                                 {{ group_name }}
                             </span>
                         </div>
