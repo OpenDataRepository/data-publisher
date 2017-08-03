@@ -3,7 +3,7 @@
 <!-- Plugin Settings Dialog Form -->
 <div style="display: block;">
 
-    <form action="{{ path('odr_save_render_plugin_settings') }}" method="post" {#{{ form_enctype(form) }}#} class="full validate" id="PluginSettingsForm">
+    <form action="{{ path('odr_save_render_plugin_settings') }}" method="post" class="full validate" id="PluginSettingsForm">
 
         <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
         {% if local_datafield == null %}
@@ -41,7 +41,7 @@
         </fieldset>
 
         <fieldset>
-            <div class="pure-control-group" id="render_plugin_data"></div>
+            <div id="render_plugin_data" class="pure-control-group"></div>
         </fieldset>
 
     </form>
@@ -83,21 +83,13 @@
             url: url,
             dataType: dataType,
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    switch(data.t) {
-                        case 'html':
-                            $("#render_plugin_data").html(data.d.html);
-                            $("#dialog_plugin_settings").dialog({ position: { my: "center", at: "center", of: window } });
-                            PluginSettingsFormInit();
-                            break;
-                    }
-                }
-                else {
-                    // An error has occurred.
-                    $("#dialog_plugin_settings").dialog('close');
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+                $("#render_plugin_data").html(data.d.html);
+                $("#dialog_plugin_settings").dialog({ position: { my: "center", at: "center", of: window } });
+                PluginSettingsFormInit();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog when an error occurs?
+                $("#dialog_plugin_settings").dialog('close');
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -114,6 +106,7 @@
             }
         });
     }
+
 </script>
 
 {% endspaceless %}

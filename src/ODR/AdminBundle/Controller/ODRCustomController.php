@@ -3275,9 +3275,11 @@ class ODRCustomController extends Controller
             $radio_option->setCreatedBy($user);
             $radio_option->setCreated(new \DateTime());
 
-            // Save and reload the RadioOption so the associated meta entry can access it
+            // Ensure the "in-memory" version of the datafield knows about the new radio option
+            $datafield->addRadioOption($radio_option);
             $em->persist($radio_option);
-            $em->flush($radio_option);
+
+            $em->flush();
             $em->refresh($radio_option);
 
             // Create a new RadioOptionMeta entity
@@ -3291,11 +3293,12 @@ class ODRCustomController extends Controller
             $radio_option_meta->setCreatedBy($user);
             $radio_option_meta->setCreated( new \DateTime() );
 
+            // Ensure the "in-memory" version of the new radio option knows about its meta entry
+            $radio_option->addRadioOptionMetum($radio_option_meta);
             $em->persist($radio_option_meta);
-            $em->flush($radio_option_meta);
+            $em->flush();
 
-            // Master Template Data Fields must increment Master Revision
-            // on all change requests.
+            // Master Template Data Fields must increment Master Revision on all change requests.
             if($datafield->getIsMasterField()) {
                 $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
                 self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);

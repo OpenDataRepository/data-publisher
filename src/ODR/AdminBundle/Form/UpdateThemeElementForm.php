@@ -19,8 +19,8 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 // Symfony Form classes
-use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
+
 
 class UpdateThemeElementForm extends AbstractType
 {
@@ -40,48 +40,6 @@ class UpdateThemeElementForm extends AbstractType
             'cssWidthXL',
             HiddenType::class
         );
-
-        /*
-        $builder->add(
-            'cssWidthMed',
-            ChoiceType::class,
-            array(
-                'choices' => array(
-                    '25%' => '1-4',
-                    '33%' => '1-3',
-                    '50%' => '1-2',
-                    '66%' => '2-3',
-                    '75%' => '3-4',
-                    '100%' => '1-1',
-                ),
-                'choices_as_values' => true,
-                'label'  => 'Med Width',
-                'expanded' => false,
-                'multiple' => false,
-                'placeholder' => false
-            )
-        );
-
-        $builder->add(
-            'cssWidthXL',
-            ChoiceType::class,
-            array(
-                'choices' => array(
-                    '25%' => '1-4',
-                    '33%' => '1-3',
-                    '50%' => '1-2',
-                    '66%' => '2-3',
-                    '75%' => '3-4',
-                    '100%' => '1-1',
-                ),
-                'choices_as_values' => true,
-                'label'  => 'XL Width',
-                'expanded' => false,
-                'multiple' => false,
-                'placeholder' => false
-            )
-        );
-        */
     }
 
 

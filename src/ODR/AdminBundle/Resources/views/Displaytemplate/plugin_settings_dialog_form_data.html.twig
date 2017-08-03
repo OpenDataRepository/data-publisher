@@ -9,133 +9,131 @@
     {% endfor %}
 {% endif %}
 
-    <div class="pure-control-group">
-        <div style="margin-top:10px; margin-left:10px; margin-bottom:10px; font-size: 1.2em;">
-            {% if valid_fieldtype == false %}
-                <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
-                <span>&nbsp;The "{{ plugin.pluginName }}" Render Plugin is not compatible with a "{{ local_datafield.fieldtype.typeclass }}" Datafield</span>
-            {% else %}
-                {{ plugin.description }}
-            {% endif %}
-        </div>
+<div class="pure-control-group">
+    <div style="margin-top:10px; margin-left:10px; margin-bottom:10px; font-size: 1.2em;">
+        {% if valid_fieldtype == false %}
+            <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+            <span>&nbsp;The "{{ plugin.pluginName }}" Render Plugin is not compatible with a "{{ local_datafield.fieldtype.typeclass }}" Datafield</span>
+        {% else %}
+            {{ plugin.description }}
+        {% endif %}
     </div>
+</div>
 
 {% if local_datafield == null %}    {# if render plugin is for a datatype #}
-    <div class="pure-control-group">
-        <div style="margin-top:10px; margin-left:10px; margin-bottom:10px; max-height: 500px; overflow-y: auto; font-size: 1.2em;">
-            {# Determine if the rendering plugin has any required fields #}
-            {% set has_fields = 0 %}
-            {% for plugin_field in render_plugin_fields %}
-                {% if plugin_field.renderplugin.id == plugin.id %}
-                    {% set has_fields = 1 %}
-                {% endif %}
-            {% endfor %}
-
-            {% if has_fields == 0 %}
-                This Render Plugin does not require specific fields.
-            {% else %}
-                {# Print out all required fields for this plugin #}
-                <table class="pure-table pure-table-bordered pure-table-striped">
-                    <thead><tr>
-                        <th>Field Name</th>
-                        <th>Field Description</th>
-                        <th>Field Type</th>
-                        <th>Map to DataField...</th>
-                    </tr></thead>
-                    <tbody>
-                    {% for plugin_field in render_plugin_fields %}
-                        {#{% if plugin_field.renderplugin.id == plugin.id %}#}
-                            <tr>
-                                <td><strong>{{ plugin_field.fieldname }}: </strong></td>
-                                <td>{{ plugin_field.description }}</td>
-                                <td>
-                                    <select id="plugin_fieldtype_{{ plugin_field.id }}" class="ODRRenderPluginFieldtype" name="plugin_fieldtypes[{{ plugin_field.id }}]">
-                                        {% for ft_id,ft in all_fieldtypes %}
-                                            {% if ft_id in allowed_fieldtypes[plugin_field.id] %}
-                                            <option value="{{ ft_id }}">{{ ft.gettypeclass }}</option>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </select>
-                                </td>
-                                <td>
-                                    {# Print out a dropdown of fields in this datatype that match the fieldtype of the required field #}
-                                    <select id="plugin_map_{{ plugin_field.id }}" class="ODRRenderPluginMap" name="plugin_map[{{ plugin_field.id }}]" rel="{{ plugin_field.id }}">
-                                        <option value="-1" selected>Create new datafield...</option>
-                                        {% for df in datafields %}
-                                            {% if df.fieldtype.id in allowed_fieldtypes[plugin_field.id] %}
-                                                <option value="{{ df.id }}" rel="{{ df.fieldtype.id }}">{{ df.fieldname }}</option>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </select>
-                                </td>
-                            </tr>
-                        {#{% endif %}#}
-                    {% endfor %}
-                    </tbody>
-                </table>
-
-                <div id="render_plugin_datafield_creation_warn">
-                    <span><i class="fa fa-lg fa-exclamation-circle"></i></span>
-                    <span>&nbsp;Clicking "Save" will automatically create new Datafields for this Render Plugin...</span>
-                </div>
-
-                </br>
-            {% endif %}
-        </div>
-    </div>
-
-    <script>
-        $(function() {
-            //
-            $(".ODRRenderPluginMap").unbind('change');
-            $(".ODRRenderPluginMap").change(function() {
-                var datafield_id = $(this).val();
-                var plugin_field_id = $(this).attr('rel');
-                var fieldtype_id = $(this).children(':selected').attr('rel');
-
-                if (datafield_id != '-1') {
-                    // Prevent user from changing fieldtype of existing datafield
-                    $("#plugin_fieldtype_" + plugin_field_id).attr('disabled', 'disabled');
-                    // Select fieldtype of selected datafield, for consistency
-                    $("#plugin_fieldtype_" + plugin_field_id).val(fieldtype_id);
-
-                    // Show warning about creating new datafields if needed
-                    var show_warning = false;
-                    $(".ODRRenderPluginMap").each(function() {
-                        if ( $(this).val() == '-1' ) {
-                            show_warning = true;
-                            return false;
-                        }
-                    });
-
-                    if (show_warning)
-                        $("#render_plugin_datafield_creation_warn").show();
-                    else
-                        $("#render_plugin_datafield_creation_warn").hide();
-                }
-                else {
-                    // Let user select fieldtype of new datafield
-                    $("#plugin_fieldtype_" + plugin_field_id).removeAttr('disabled');
-
-                    // Show warning about creating new datafields
-                    $("#render_plugin_datafield_creation_warn").show();
-                }
-            });
-
-{% if render_plugin_map != null %}
-            // Pre-select any existing datafield mappings
-    {% for plugin_field in render_plugin_fields %}
-        {% for map in render_plugin_map %}
-            {% if map.renderpluginfields.id == plugin_field.id %}
-            $("#plugin_map_{{ plugin_field.id }}").val("{{ map.datafield.id }}");
-            $("#plugin_map_{{ plugin_field.id }}").trigger('change');
+<div class="pure-control-group">
+    <div style="margin-top:10px; margin-left:10px; margin-bottom:10px; max-height: 400px; overflow-y: auto; font-size: 1.2em;">
+        {# Determine if the rendering plugin has any required fields #}
+        {% set has_fields = 0 %}
+        {% for plugin_field in render_plugin_fields %}
+            {% if plugin_field.renderplugin.id == plugin.id %}
+                {% set has_fields = 1 %}
             {% endif %}
         {% endfor %}
-    {% endfor %}
-{% endif %}
 
+        {% if has_fields == 0 %}
+            This Render Plugin does not require specific fields.
+        {% else %}
+            {# Print out all required fields for this plugin #}
+            <table class="pure-table pure-table-bordered pure-table-striped">
+                <thead><tr>
+                    <th>Field Name</th>
+                    <th>Field Description</th>
+                    <th>Field Type</th>
+                    <th>Map to DataField...</th>
+                </tr></thead>
+                <tbody>
+                {% for plugin_field in render_plugin_fields %}
+                    {#{% if plugin_field.renderplugin.id == plugin.id %}#}
+                    <tr>
+                        <td><strong>{{ plugin_field.fieldname }}: </strong></td>
+                        <td>{{ plugin_field.description }}</td>
+                        <td>
+                            <select id="plugin_fieldtype_{{ plugin_field.id }}" class="ODRRenderPluginFieldtype" name="plugin_fieldtypes[{{ plugin_field.id }}]">
+                                {% for ft_id,ft in all_fieldtypes %}
+                                    {% if ft_id in allowed_fieldtypes[plugin_field.id] %}
+                                        <option value="{{ ft_id }}">{{ ft.gettypeclass }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            {# Print out a dropdown of fields in this datatype that match the fieldtype of the required field #}
+                            <select id="plugin_map_{{ plugin_field.id }}" class="ODRRenderPluginMap" name="plugin_map[{{ plugin_field.id }}]" rel="{{ plugin_field.id }}">
+                                <option value="-1" selected>Create new datafield...</option>
+                                {% for df in datafields %}
+                                    {% if df.fieldtype.id in allowed_fieldtypes[plugin_field.id] %}
+                                        <option value="{{ df.id }}" rel="{{ df.fieldtype.id }}">{{ df.fieldname }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    {#{% endif %}#}
+                {% endfor %}
+                </tbody>
+            </table>
+
+            <div id="render_plugin_datafield_creation_warn">
+                <span><i class="fa fa-lg fa-exclamation-circle"></i></span>
+                <span>&nbsp;Clicking "Save" will automatically create new Datafields for this Render Plugin...</span>
+            </div>
+
+            </br>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    $(function() {
+
+        $(".ODRRenderPluginMap").unbind('change').change(function() {
+            var datafield_id = $(this).val();
+            var plugin_field_id = $(this).attr('rel');
+            var fieldtype_id = $(this).children(':selected').attr('rel');
+
+            if (datafield_id != '-1') {
+                // Prevent user from changing fieldtype of existing datafield
+                $("#plugin_fieldtype_" + plugin_field_id).attr('disabled', 'disabled');
+                // Select fieldtype of selected datafield, for consistency
+                $("#plugin_fieldtype_" + plugin_field_id).val(fieldtype_id);
+
+                // Show warning about creating new datafields if needed
+                var show_warning = false;
+                $(".ODRRenderPluginMap").each(function() {
+                    if ( $(this).val() == '-1' ) {
+                        show_warning = true;
+                        return false;
+                    }
+                });
+
+                if (show_warning)
+                    $("#render_plugin_datafield_creation_warn").show();
+                else
+                    $("#render_plugin_datafield_creation_warn").hide();
+            }
+            else {
+                // Let user select fieldtype of new datafield
+                $("#plugin_fieldtype_" + plugin_field_id).removeAttr('disabled');
+                 // Show warning about creating new datafields
+                $("#render_plugin_datafield_creation_warn").show();
+            }
         });
-    </script>
+
+    {% if render_plugin_map != null %}
+        // Pre-select any existing datafield mappings
+        {% for plugin_field in render_plugin_fields %}
+            {% for map in render_plugin_map %}
+                {% if map.renderpluginfields.id == plugin_field.id %}
+                $("#plugin_map_{{ plugin_field.id }}").val("{{ map.datafield.id }}");
+                $("#plugin_map_{{ plugin_field.id }}").trigger('change');
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+    {% endif %}
+
+    });
+</script>
 
 {% else %}  {# render plugin is for a datafield #}
     {% for plugin_field in render_plugin_fields %}
@@ -145,7 +143,7 @@
 
 {% if valid_fieldtype == true %}
     <div class="row">
-        <div style="margin-top:10px; margin-left:10px; margin-bottom:10px; font-size:1.2em;">
+        <div style="margin-top:10px; margin-left:10px; margin-bottom:10px; max-height: 400px; overflow-y: auto; font-size:1.2em;">
             {# Determine if the rendering plugin has any available options #}
             {% set has_options = 0 %}
             {% for plugin_id, plugin_options in available_options %}
@@ -264,44 +262,42 @@
     </div>
 {% endif %}
 
-    <div style="display: block;">
-        <button type="button" class="pure-button ODRCancelButton">Cancel</button>
-        {% if valid_fieldtype == true %}
-        <button type="button" class="pure-button pure-button-primary ODRSubmitButton">Save Plugin Settings</button>
-        {% endif %}
-    </div>
+<div style="display: block;">
+    <button type="button" class="pure-button ODRCancelButton">Cancel</button>
+{% if valid_fieldtype == true %}
+    <button type="button" class="pure-button pure-button-primary ODRSubmitButton">Save Plugin Settings</button>
+{% endif %}
+</div>
 
-    <script>
-        $(function() {
-            // Initialize the cancel button
-            $("#dialog_plugin_settings").find('.ODRCancelButton').click(function(){
-                var $el = $(this).parents('.ui-dialog-content');
-                $el.find('form')[0].reset();
-                $el.dialog('close');
-            });
+<script>
+    $(function() {
+        // Initialize the cancel button
+        $("#dialog_plugin_settings").find('.ODRCancelButton').click(function(){
+            var $el = $(this).parents('.ui-dialog-content');
+            $el.find('form')[0].reset();
+            $el.dialog('close');
+        });
 
 {% if valid_fieldtype == true %}
-            // Initialize the submission button
-            $("#dialog_plugin_settings .ODRSubmitButton").unbind('click');
-            $("#dialog_plugin_settings .ODRSubmitButton").click(function() {
-                // Determine whether anything is set to create a new datafield
-                var need_confirmation = false;
-                $(".ODRRenderPluginMap").each(function() {
-                    if ( $(this).val() == '-1' ) {
-                        need_confirmation = true;
-                        return false;
-                    }
-                });
-
-                // If no new datafields will be created, or the user accepts that datafields will be created...
-                if ( !need_confirmation || confirm('This will automatically create any missing DataFields required for this RenderPlugin in a new ThemeElement...are you sure?') ) {
-                    // ...submit the form
-                    $("#PluginSettingsForm").submit();
+        // Initialize the submission button
+        $("#dialog_plugin_settings .ODRSubmitButton").unbind('click').click(function() {
+            // Determine whether anything is set to create a new datafield
+            var need_confirmation = false;
+            $(".ODRRenderPluginMap").each(function() {
+                if ( $(this).val() == '-1' ) {
+                    need_confirmation = true;
+                    return false;
                 }
             });
-{% endif %}
-        });
-    </script>
 
+            // If no new datafields will be created, or the user accepts that datafields will be created...
+            if ( !need_confirmation || confirm('This will automatically create any missing DataFields required for this RenderPlugin in a new ThemeElement...are you sure?') ) {
+                // ...submit the form
+                $("#PluginSettingsForm").submit();
+            }
+        });
+{% endif %}
+    });
+</script>
 
 {% endspaceless %}

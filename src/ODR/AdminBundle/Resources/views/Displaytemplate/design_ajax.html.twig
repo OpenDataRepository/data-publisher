@@ -72,11 +72,11 @@
         </div>
         <div id="ThemeDesignArea">
             {% include 'ODRAdminBundle:Displaytemplate:design_area.html.twig' with {
-            'datatype_array': datatype_array,
-            'initial_datatype_id': initial_datatype_id,
-            'theme_id': theme_id,
+                'datatype_array': datatype_array,
+                'initial_datatype_id': initial_datatype_id,
+                'theme_id': theme_id,
 
-            'is_datatype_admin': is_datatype_admin,
+                'is_datatype_admin': is_datatype_admin,
             } %}
         </div>
     </div>
@@ -98,7 +98,6 @@
     var SaveTimeout = 2000;
     $(function() {
         initPage();
-        initResizeables();
         initDesignScrollHandler($("#ThemeLeftColumn").offset().top);
     });
 
@@ -106,7 +105,7 @@
         $.jGrowl('SAVED');
     }
 
-
+    // TODO - test this
     function SubmitThemeDesignForm() {
         jQuery.ajax({
             type: "POST",
@@ -119,6 +118,7 @@
         });
     }
 
+    // TODO - test this
     function LoadThemeElementForm(theme_element_id) {
 //        console.log('load theme element form')
         var url = "{{ path('odr_design_get_theme_element_properties', {'theme_element_id': 0}) }}";
@@ -132,6 +132,7 @@
         )
     }
 
+    // TODO - test this
     function LoadDatafieldForm(theme_element_id, datafield_id) {
         var url = "{{ path('odr_design_load_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}";
         url = url.substr(0, url.length-3);
@@ -162,53 +163,7 @@
         )
     }
 
-{#
-    // Use an interval to track all drops
-    // and then work out the "highest" drop target
-    // to assign the drop to
-    var drop_interval = ""
-    var drop_objects = new Array()
-    var dropped_object = ""
-    function addDropResult(dropped_obj, elem) {
-        console.log("add drop result 2")
-        clearInterval(drop_interval)
-        if (typeof dropped_obj === 'undefined' && typeof elem === 'undefined') {
-            // Process the add and assign the drop
-            console.log('process the drop')
-        }
-        else {
-            // Add an element and set interval (50ms)
-            drop_interval = setInterval(addDropResult, 50)
-
-            console.log($(elem).attr('id'))
-            dropped_object = dropped_obj
-            drop_objects.push( elem )
-        }
-    }
-#}
-
     function initResizeables() {
-
-{#
-        jQuery(".ODRThemeElement").each(function() {
-            $(this).droppable({
-                accept: ".ODRDataField",
-                activeClass: 'ODRDropActive',
-                hoverClass: 'ODRDropHover',
-                classes: {
-                    'ui-droppable-active': 'ODRDropActive',
-                    'ui-droppable-hover': 'ODRDropHover',
-                },
-                drop: function (event, ui) {
-                    // Cut draggable and move to target
-                    // ui.draggable.prependTo($(this).find(".ODRInnerBox:first"))
-                    $(this).css('background', 'none')
-                    // addDropResult(ui.draggable, $(this))
-                },
-            })
-        })
-#}
-
         // Setup resizable for all ThemeElements
         jQuery(".ODRThemeElement").each(function() {
             // Only attach this event to theme elements in the design area
@@ -301,7 +256,7 @@
             if ( $(this).resizable('instance') !== undefined )
                 $(this).resizable('destroy');
 
-            $( this ).resizable({
+            $(this).resizable({
                 handles: "e",   // Only permit resizing width, and only from the right of the Datafield
                 minHeight: $(this).height(),
                 maxHeight: $(this).height(),
@@ -375,11 +330,9 @@
 
 
     function InitDatatypeTools() {
-//        console.log('setup render plugin')
-        // Setup Add/Info Buttons
+
         $(".ODRRenderPlugin").off('click').on('click',function() {
 
-//            console.log('fire render')
             if ( $(this).hasClass('fa-muted') )
                 return;
 
@@ -388,7 +341,6 @@
 
             openPluginSettingsDialog(datafield_id, datatype_id);
         });
-
 
         $(".ODRAddChildtype").unbind('click').click(function() {
 
@@ -408,21 +360,17 @@
                 type: 'GET',
                 url: url,
                 dataType: "json",
-                success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        // Clear object properties panel
-                        $("#ThemeDesignForm").html("");
+                success: function(data) {
+                    // Clear object properties panel
+                    $("#ThemeDesignForm").html("");
 
-                        // ReloadThemeElement() forces a re-render of the theme element, so the 'Add Datafield', 'Add Childtype', 'Link DataType', and 'Delete ThemeElement' icons get muted automatically
-                        ReloadThemeElement(theme_element_id);
-                    }
-                    else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        alert(data.d);
-                    }
+                    // ReloadThemeElement() forces a re-render of the theme element, so the 'Add Datafield', 'Add Childtype', 'Link DataType', and 'Delete ThemeElement' icons get muted automatically
+                    ReloadThemeElement(theme_element_id);
                 },
-                complete: function(jqXHR, textStatus) {
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR) {
                     // Get the xdebugToken from response headers
                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -437,7 +385,6 @@
                 }
             });
         });
-
 
         $(".ODRAddDatafield").unbind('click').click(function() {
 
@@ -455,21 +402,17 @@
                 type: 'GET',
                 url: url,
                 dataType: "json",
-                success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        // Clear object properties panel
-                        $("#ThemeDesignForm").html("");
+                success: function(data) {
+                    // Clear object properties panel
+                    $("#ThemeDesignForm").html("");
 
-                        // ReloadThemeElement() forces a re-render of the theme element, so the 'Add Childtype', 'Link DataType', and 'Delete ThemeElement' icons get muted automatically
-                        ReloadThemeElement(theme_element_id);
-                    }
-                    else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        alert(data.d);
-                    }
+                    // ReloadThemeElement() forces a re-render of the theme element, so the 'Add Childtype', 'Link DataType', and 'Delete ThemeElement' icons get muted automatically
+                    ReloadThemeElement(theme_element_id);
                 },
-                complete: function(jqXHR, textStatus) {
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR) {
                     // Get the xdebugToken from response headers
                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -484,7 +427,6 @@
                 }
             });
         });
-
 
         $(".ODRAddThemeElement").unbind('click').click(function() {
             // I think this option is always available, but just incase...
@@ -501,29 +443,25 @@
                 type: 'GET',
                 url: url,
                 dataType: "json",
-                success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        // Clear object properties panel
-                        $("#ThemeDesignForm").html("");
+                success: function(data) {
+                    // Clear object properties panel
+                    $("#ThemeDesignForm").html("");
 
-                        // Grab ID of new theme element
-                        var theme_element_id = data.d.theme_element_id;
-                        var datatype_id = data.d.datatype_id;
+                    // Grab ID of new theme element
+                    var theme_element_id = data.d.theme_element_id;
+                    var datatype_id = data.d.datatype_id;
 
-                        // Create a fake theme element and force a save of theme element order
-                        $("#FieldArea_" + datatype_id).prepend("<div id=\"ThemeElement_" + theme_element_id + "\" class=\"ODRThemeElement pure-u-1\"></div>");
-                        SaveThemeElementOrder("#FieldArea_" + datatype_id);
+                    // Create a fake theme element and force a save of theme element order
+                    $("#FieldArea_" + datatype_id).prepend("<div id=\"ThemeElement_" + theme_element_id + "\" class=\"ODRThemeElement pure-u-1\"></div>");
+                    SaveThemeElementOrder("#FieldArea_" + datatype_id);
 
-                        // Reload to get actual theme element contents
-                        ReloadThemeElement(theme_element_id);
-                    }
-                    else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        alert(data.d);
-                    }
+                    // Reload to get actual theme element contents
+                    ReloadThemeElement(theme_element_id);
                 },
-                complete: function(jqXHR, textStatus) {
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR) {
                     // Get the xdebugToken from response headers
                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -539,9 +477,7 @@
             });
         });
 
-
         $(".ODRDeleteDatatype").unbind('click').click(function() {
-
             // I think this option is always available, but just incase...
             if ( $(this).hasClass('fa-muted') )
                 return;
@@ -551,7 +487,7 @@
             var theme_element_data = $(this).parent().parent().parent().parent().parent().attr('id').split(/_/);
             var theme_element_id = theme_element_data[1];
 
-            if(confirm("This will delete this data type and all associated records.\nAre you sure?")) {
+            if (confirm("This will delete this data type and all associated records.\nAre you sure?")) {
                 var url = '{{ path('odr_design_delete_datatype', { 'datatype_id': 0 } ) }}';
                 url = url.substring(0, (url.length - 1));
                 url += datatype_id;
@@ -561,22 +497,18 @@
                     type: 'GET',
                     url: url,
                     dataType: "json",
-                    success: function(data, textStatus, jqXHR) {
-                        if(data.r == 0) {
-                            // Delete the datatype from the page
-                            $("#DataType_" + datatype_id).remove();
+                    success: function(data) {
+                        // Delete the datatype from the page
+                        $("#DataType_" + datatype_id).remove();
 
-                            // Reset the containing theme element's icons
-                            var icons = {"ODRAddDatafield": 1, "ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
-                            setThemeElementIcons(theme_element_id, icons);
-                        }
-                        else {
-                            // An error has occurred.
-                            // Show Error message dialog
-                            alert(data.d);
-                        }
+                        // Reset the containing theme element's icons
+                        var icons = {"ODRAddDatafield": 1, "ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
+                        setThemeElementIcons(theme_element_id, icons);
                     },
-                    complete: function(jqXHR, textStatus) {
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Don't need to do anything specific on an error
+                    },
+                    complete: function(jqXHR) {
                         // Get the xdebugToken from response headers
                         var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -611,20 +543,17 @@
                     type: 'GET',
                     url: url,
                     dataType: "json",
-                    success: function(data, textStatus, jqXHR) {
-                        if(data.r == 0) {
-                            // Remove theme element from page
-                            $("#ThemeElement_" + theme_element_id).remove();
+                    success: function(data) {
+                        // Remove theme element from page
+                        $("#ThemeElement_" + theme_element_id).remove();
 
-                            // No need to update theme element property icons, since it no longer exists
-                            // Also don't need to update order of theme elements
-                        }
-                        else {
-                            // Notify of failure
-                            alert(data.d);
-                        }
+                        // No need to update theme element property icons, since it no longer exists
+                        // Also don't need to update order of theme elements
                     },
-                    complete: function(jqXHR, textStatus) {
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Don't need to do anything specific on an error
+                    },
+                    complete: function(jqXHR) {
                         // Get the xdebugToken from response headers
                         var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -640,7 +569,6 @@
                 });
             }
         });
-
 
         $(".ODRDatatypeProperties").unbind('click').click(function() {
             // Grab the id of the Datatype to load
@@ -671,24 +599,18 @@
                 type: 'GET',
                 url: url,
                 dataType: "json",
-                success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        $("#ThemeDesignForm").html(data.d);
+                success: function(data) {
+                     $("#ThemeDesignForm").html(data.d);
 
-                        // Prepend the DataTypeTools
-                        $("#ThemeDesignForm").prepend(datatype_tools).fadeIn('fast');
-                        InitDatatypeTools();
-                        InitDatatypePropertiesForm();
-                    }
-                    else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        console.log(data.d);
-
-                        // TODO - Need to convert this data to a growl message for user.
-                    }
+                    // Prepend the DataTypeTools
+                    $("#ThemeDesignForm").prepend(datatype_tools).fadeIn('fast');
+                    InitDatatypeTools();
+                    InitDatatypePropertiesForm();
                 },
-                complete: function(jqXHR, textStatus) {
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR) {
                     // Get the xdebugToken from response headers
                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -703,50 +625,7 @@
                 }
             });
         });
-{#
-        $(".ODRThemeElementProperties").unbind('click').click(function() {
-// Load Properties into Element Data
-            var theme_element_id_data = $(this).parent().parent().parent().parent().attr('id').split(/_/);
-            var theme_element_id = theme_element_id_data[1];
 
-// Load form for current datfield if not already loaded
-            $("#ThemeDesignForm").hide().html("");
-            var url = '{{ path('odr_design_get_theme_element_properties', { 'theme_element_id': 0 } ) }}';
-            url = url.substring(0, (url.length - 1));
-            url += theme_element_id;
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function(data, textStatus, jqXHR) {
-                    if (data.r == 0) {
-                        $("#ThemeDesignForm").html(data.d).fadeIn('fast');
-                        InitThemeElementPropertiesForm();
-                    }
-                    else {
-// An error has occurred.
-// Show Error message dialog
-                        alert(data.d);
-                    }
-                },
-                complete: function(jqXHR, textStatus) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
-                }
-            });
-        });
-#}
         $(".ODRPublicDatatype").unbind('click').click(function() {
             var datatype_id = $(this).attr('rel');
             var element = $(this);
@@ -760,24 +639,20 @@
                 type: 'GET',
                 url: url,
                 dataType: "json",
-                success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-// Toggle muted status
-                        var icons = {};
-                        if ( $(element).hasClass('ODRActiveIcon') )
-                            icons = {"ODRPublicDatatype": 0};
-                        else
-                            icons = {"ODRPublicDatatype": 1};
+                success: function(data) {
+                    // Toggle muted status
+                    var icons = {};
+                    if ( $(element).hasClass('ODRActiveIcon') )
+                        icons = {"ODRPublicDatatype": 0};
+                    else
+                        icons = {"ODRPublicDatatype": 1};
 
-                        setDatatypeIcons(datatype_id, icons);
-                    }
-                    else {
-// An error has occurred.
-// Show Error message dialog
-                        alert(data.d);
-                    }
+                    setDatatypeIcons(datatype_id, icons);
                 },
-                complete: function(jqXHR, textStatus) {
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR) {
                     // Get the xdebugToken from response headers
                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -791,7 +666,6 @@
                     }
                 }
             });
-
         });
 
         $(".ODRPublicDatafield").unbind('click').click(function() {
@@ -807,26 +681,22 @@
                 type: 'GET',
                 url: url,
                 dataType: "json",
-                success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-// Toggle muted status
-                        var icons = {};
-                        if ( $(element).hasClass('ODRActiveIcon') ) {
-                            $(element).removeClass('ODRActiveIcon');
-                            $(element).attr('title', 'Datafield requires permission to view');
-                        }
-                        else {
-                            $(element).addClass('ODRActiveIcon');
-                            $(element).attr('title', 'Datafield does not require permission to view');
-                        }
+                success: function(data) {
+                    // Toggle muted status
+                    var icons = {};
+                    if ( $(element).hasClass('ODRActiveIcon') ) {
+                        $(element).removeClass('ODRActiveIcon');
+                        $(element).attr('title', 'Datafield requires permission to view');
                     }
                     else {
-// An error has occurred.
-// Show Error message dialog
-                        alert(data.d);
+                        $(element).addClass('ODRActiveIcon');
+                        $(element).attr('title', 'Datafield does not require permission to view');
                     }
                 },
-                complete: function(jqXHR, textStatus) {
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR) {
                     // Get the xdebugToken from response headers
                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -840,7 +710,6 @@
                     }
                 }
             });
-
         });
     }
 
@@ -848,8 +717,8 @@
         // Setup Data Fields
         SetupDataFields();
         InitDatatypeTools();
+        initResizeables();
 
-        // Setup Add/Info Buttons
         $(".ODRLinkDatatype").unbind('click').click(function() {
 
             if ( $(this).hasClass('fa-muted') )
@@ -868,19 +737,15 @@
                 url: url,
                 dataType: "json",
                 success: function(data) {
-                    if(data.r == 0) {
-                        $("#dialog_link_datatype > .form_contents").html(data.d.html);
-                        $("#dialog_link_datatype").dialog( "open" );
+                    $("#dialog_link_datatype > .form_contents").html(data.d.html);
+                    $("#dialog_link_datatype").dialog( "open" );
 
-                        // This just opens the link dialog, icon muting only happens after the link dialog succeeds
-                    }
-                    else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        alert(data.d);
-                    }
+                    // This just opens the link dialog, icon muting only happens after the link dialog succeeds
                 },
-                complete: function(jqXHR, textStatus) {
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR) {
                     // Get the xdebugToken from response headers
                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -897,11 +762,9 @@
             });
         });
 
-        // Setup Add/Info Buttons
-        $(".ODRUndeleteFields").unbind('click');
-        $(".ODRUndeleteFields").click(function() {
+        $(".ODRUndeleteFields").unbind('click').click(function() {
 
-            if ( $(this).hasClass('fa-muted') )
+//            if ( $(this).hasClass('fa-muted') )
                 return;
 
             var datatype_id = $(this).attr('rel');
@@ -914,22 +777,14 @@
                 type: 'GET',
                 url: url,
                 dataType: "json",
-                success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        switch(data.t) {
-                            case 'html':
-                                $("#dialog_deleted_fields .form_contents").html(data.d.html);
-                                $("#dialog_deleted_fields").dialog( "open" );
-                                break;
-                        }
-                    }
-                    else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        alert(data.d);
-                    }
+                success: function(data) {
+                    $("#dialog_deleted_fields .form_contents").html(data.d.html);
+                    $("#dialog_deleted_fields").dialog( "open" );
                 },
-                complete: function(jqXHR, textStatus) {
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR) {
                     // Get the xdebugToken from response headers
                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -945,7 +800,6 @@
                 }
             });
         });
-
 
         $(".ODRRadioOptions").unbind('click').click(function() {
             var datafield_id = $(this).attr('rel');
@@ -961,19 +815,15 @@
                 type: 'GET',
                 url: url,
                 dataType: "json",
-                success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        //
-                        $("#ThemeDesignForm").html(data.d.html).fadeIn('fast');
-                        InitRadioOptionsForm(datafield_id);
-                    }
-                    else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        alert(data.d);
-                    }
+                success: function(data) {
+                    //
+                    $("#ThemeDesignForm").html(data.d.html).fadeIn('fast');
+                    InitRadioOptionsForm(datafield_id);
                 },
-                complete: function(jqXHR, textStatus) {
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR) {
                     // Get the xdebugToken from response headers
                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -987,9 +837,7 @@
                     }
                 }
             });
-
         });
-
 
         // Setup sortable for all ThemeElements
         var starting_fieldarea = null;
@@ -1107,6 +955,7 @@
         $("#content").find(".ODRInnerBox").disableSelection();
     }
 
+
     var datafield_properties_xhr = null;
     var save_datafield_xhr = null;
     var SaveDatafieldPropertyInterval = [];
@@ -1124,33 +973,26 @@
             url: url,
             dataType: "json",
             data: post_data,
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    notifySaved();
+            success: function(data) {
+                notifySaved();
 
-                    // Only reload datafield if necessary
-                    if (reload_datafield == true) {
-                        ReloadDatafield(datafield_id);
-                    }
+                // Only reload datafield if necessary
+                if (reload_datafield == true)
+                    ReloadDatafield(datafield_id);
 
-                    if (data.d.force_slideout_reload == true) {
-                        $("#ThemeDesignForm").fadeOut('slow').html("");
-                        $("#ThemeDesignForm").html(data.d.html).fadeIn('slow');
+                if (data.d.force_slideout_reload == true) {
+                    $("#ThemeDesignForm").fadeOut('slow').html("");
+                    $("#ThemeDesignForm").html(data.d.html).fadeIn('slow');
 
-                        InitDatafieldPropertiesForm();
-                    }
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-
-                    // Forcibly reload object properties panel
-                    $("#ThemeDesignForm").html("");
-                    $("#Field_" + datafield_id).trigger('click');
+                    InitDatafieldPropertiesForm();
                 }
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Forcibly reload object properties panel
+                $("#ThemeDesignForm").html("");
+                $("#Field_" + datafield_id).trigger('click');
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -1169,6 +1011,7 @@
         });
     }
 
+    // This is referencing ThemeController...
     var starting_field_top, starting_field_left;
     function SaveThemeDatafieldProperties(theme_element_id, datafield_id) {
 
@@ -1182,29 +1025,25 @@
             url: url,
             dataType: "json",
             data: post_data,
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Grab css strings from the ajax return
-                    var med_width_old = data.widths.med_width_old;
-                    var xl_width_old = data.widths.xl_width_old;
-                    var med_width_current = data.widths.med_width_current;
-                    var xl_width_current = data.widths.xl_width_current;
+            success: function(data) {
+                // Grab css strings from the ajax return
+                var med_width_old = data.widths.med_width_old;
+                var xl_width_old = data.widths.xl_width_old;
+                var med_width_current = data.widths.med_width_current;
+                var xl_width_current = data.widths.xl_width_current;
 
-                    // Update the theme element's width classes if necessary
-                    if (med_width_current != undefined && med_width_old != med_width_current)
-                        $("#Field_" + datafield_id).removeClass('pure-u-md-' + med_width_old).addClass('pure-u-md-' + med_width_current);
-                    if (xl_width_current != undefined && xl_width_old != xl_width_current)
-                        $("#Field_" + datafield_id).removeClass('pure-u-xl-' + xl_width_old).addClass('pure-u-xl-' + xl_width_current);
+                // Update the theme element's width classes if necessary
+                if (med_width_current != undefined && med_width_old != med_width_current)
+                    $("#Field_" + datafield_id).removeClass('pure-u-md-' + med_width_old).addClass('pure-u-md-' + med_width_current);
+                if (xl_width_current != undefined && xl_width_old != xl_width_current)
+                    $("#Field_" + datafield_id).removeClass('pure-u-xl-' + xl_width_old).addClass('pure-u-xl-' + xl_width_current);
 
-                    notifySaved();
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+                notifySaved();
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -1219,7 +1058,6 @@
                 }
             }
         });
-
     }
 
     // This function is needed for setTimeout() a couple lines down in SetupDataFields()
@@ -1227,11 +1065,10 @@
         $("#Field_" + datafield_id).trigger('click');
     }
 
+
     function SetupDataFields() {
 
-        $(".ODRDataField label").addClass('Pointer');
         $(".ODRDataField").unbind('click').click(function(event) {
-
             // The icon to open RadioOption properties will be overriden by this click event unless this if statement is active
             if ( event.target.className.indexOf('ODRRadioOptions') !== -1 )
                 return;
@@ -1274,18 +1111,14 @@
                     type: 'GET',
                     url: url,
                     dataType: "json",
-                    success: function(data, textStatus, jqXHR) {
-                        if(data.r == 0) {
-                            $("#ThemeDesignForm").html(data.d.html).fadeIn('fast');
-                            InitDatafieldPropertiesForm();
-                        }
-                        else {
-                            // An error has occurred.
-                            // Show Error message dialog
-                            alert(data.d);
-                        }
+                    success: function(data) {
+                         $("#ThemeDesignForm").html(data.d.html).fadeIn('fast');
+                        InitDatafieldPropertiesForm();
                     },
-                    complete: function(jqXHR, textStatus) {
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Don't need to do anything specific on an error
+                    },
+                    complete: function(jqXHR) {
                         // Get the xdebugToken from response headers
                         var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -1309,6 +1142,7 @@
         // TODO Review if this causes problems.  Allowing linked data types to be edited through source linked type.
         // $(".ODRLinkedType").find(".ODRDataField").unbind('click');
     }
+
 
     function InitDatafieldPropertiesForm() {
         // Init Field Properties forms
@@ -1398,7 +1232,7 @@
             var datafield_id = datafield_id_data[1];
 
             // Save changes
-            if($(this).is(":checkbox")) {
+            if ($(this).is(":checkbox")) {
                 $(this).unbind('change').change(function() {
                     //
                     var reload_datafield = false;
@@ -1430,9 +1264,9 @@
         });
 
         var fieldtype_array = {};
-        {% for ft_id,ft_typename in fieldtype_array %}
+{% for ft_id,ft_typename in fieldtype_array %}
         fieldtype_array[{{ ft_id }}] = "{{ ft_typename }}";
-        {% endfor %}
+{% endfor %}
 
         // Override the handler for the fieldtype selector
         $("#ThemeDesignForm .ODRDatafieldPropertiesForm").find("#DatafieldsForm_field_type").each(function() {
@@ -1570,21 +1404,15 @@
             url: url,
             data: form_data,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    notifySaved();
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-
-                    // Forcibly reload object properties panel
-                    $("#ThemeDesignForm").html("");
-                    $("#DataTypeTools_" + datatype_id + " > .ODRDatatypeProperties").trigger('click');
-                }
+            success: function(data) {
+                notifySaved();
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Forcibly reload object properties panel
+                $("#ThemeDesignForm").html("");
+                $("#DataTypeTools_" + datatype_id + " > .ODRDatatypeProperties").trigger('click');
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -1614,17 +1442,13 @@
             url: url,
             data: form_data,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
-                    notifySaved();
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+            success: function(data) {
+                notifySaved();
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -1641,7 +1465,7 @@
         });
     }
 
-
+    // This is referencing ThemeController...
     function SaveThemeDatatypeProperties(theme_element_id, datatype_id) {
 
         var url = '{{ path('odr_design_save_theme_datatype', {'theme_element_id': 0, 'datatype_id': 0}) }}';
@@ -1654,17 +1478,13 @@
             url: url,
             data: form_data,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    notifySaved();
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+            success: function(data) {
+                notifySaved();
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -1681,6 +1501,7 @@
         });
     }
 
+    // This is referencing ThemeController...
     function SaveThemeElementOrder(container) {
 
         var i = 0;
@@ -1699,16 +1520,13 @@
             data: theme_element_ids,
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+            success: function(data) {
+                notifySaved();
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -1725,6 +1543,7 @@
         });
     }
 
+    // This is referencing ThemeController...
     function SaveDatafieldOrder(container, initial_theme_element_id, ending_theme_element_id) {
 
         var i = 0;
@@ -1738,7 +1557,7 @@
         // Get the id numbers of the passed-in theme elements
         var theme_element = initial_theme_element_id.split(/_/);
         initial_theme_element_id = theme_element[1];
-        var theme_element = ending_theme_element_id.split(/_/);
+        theme_element = ending_theme_element_id.split(/_/);
         ending_theme_element_id = theme_element[1];
 
         // Theme ID
@@ -1752,34 +1571,29 @@
             data: datafield_ids,
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Don't reload a ThemeElement div unless a DataField got moved between different ThemeElements
-                    if ( initial_theme_element_id != ending_theme_element_id ) {
-                        // Reload starting ThemeElement if all datafields got moved out of it
-                        if ( $("#ThemeElement_"+initial_theme_element_id).children(".ODRDataField").length == 0 ) {
+            success: function(data) {
+                // Don't reload a ThemeElement div unless a DataField got moved between different ThemeElements
+                if ( initial_theme_element_id != ending_theme_element_id ) {
+                    // Reload starting ThemeElement if all datafields got moved out of it
+                    if ( $("#ThemeElement_"+initial_theme_element_id).children(".ODRDataField").length == 0 ) {
                         ReloadThemeElement(initial_theme_element_id);
 
-                            var icons = {"ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
-                            setThemeElementIcons(initial_theme_element_id, icons);
-                        }
+                        var icons = {"ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
+                        setThemeElementIcons(initial_theme_element_id, icons);
+                    }
 
-                        // Reload ending ThemeElement if it now posesses a single datafield (would have been empty before)
-                        if ( $("#ThemeElement_"+ending_theme_element_id).children(".ODRDataField").length == 1 ) {
+                    // Reload ending ThemeElement if it now posesses a single datafield (would have been empty before)
+                    if ( $("#ThemeElement_"+ending_theme_element_id).children(".ODRDataField").length == 1 ) {
 
-                            var icons = {"ODRAddChildtype": 0, "ODRLinkDatatype": 0, "ODRDeleteThemeElement": 0};
-                            setThemeElementIcons(ending_theme_element_id, icons);
-                        }
-
+                        var icons = {"ODRAddChildtype": 0, "ODRLinkDatatype": 0, "ODRDeleteThemeElement": 0};
+                        setThemeElementIcons(ending_theme_element_id, icons);
                     }
                 }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -1796,58 +1610,6 @@
         });
     }
 
-
-    function SaveThemeElementProperties(theme_element_id) {
-
-        var url = '{{ path('odr_design_get_theme_element_properties', { 'theme_element_id': 0 } ) }}';
-        url = url.substring(0, (url.length - 1));
-        url += theme_element_id;
-
-        var form_data = $("#ThemeElementPropertiesForm_" + theme_element_id).serialize();
-        $.ajax({
-            type: 'POST',
-            url: url,
-            data: form_data,
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Grab css strings from the ajax return
-                    var med_width_old = data.widths.med_width_old;
-                    var xl_width_old = data.widths.xl_width_old;
-                    var med_width_current = data.widths.med_width_current;
-                    var xl_width_current = data.widths.xl_width_current;
-
-                    // Update the theme element's width classes if necessary
-                    if (med_width_current != undefined && med_width_old != med_width_current)
-                        $("#ThemeElement_" + theme_element_id).removeClass('pure-u-md-' + med_width_old).addClass('pure-u-md-' + med_width_current);
-                    if (xl_width_current != undefined && xl_width_old != xl_width_current)
-                        $("#ThemeElement_" + theme_element_id).removeClass('pure-u-xl-' + xl_width_old).addClass('pure-u-xl-' + xl_width_current);
-
-                    notifySaved();
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-
-    }
 
     function InitDatatypePropertiesForm() {
         // Init Datatype Properties forms
@@ -1922,19 +1684,8 @@
             });
         });
     }
-{#
-    function InitThemeElementPropertiesForm() {
-        // Init Theme Element Properties forms
-        $("#ThemeDesignForm .ODRThemeElementPropertiesForm").find("select").each(function() {
-            var id_data = $("#ThemeDesignForm .ODRThemeElementPropertiesForm").attr('id').split(/_/);
-            var theme_element_id = id_data[1];
 
-            $(this).unbind('change').change(function() {
-                SaveThemeElementProperties(theme_element_id);
-            });
-        });
-    }
-#}
+
     function CopyDatafield(datafield_id) {
         // Grab theme_element id
         var theme_element_id_data = $("#Field_" + datafield_id).parent().parent().attr('id').split(/_/);
@@ -1952,21 +1703,17 @@
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Clear object properties panel
-                    $("#ThemeDesignForm").html("");
+            success: function(data) {
+                 // Clear object properties panel
+                $("#ThemeDesignForm").html("");
 
-                    // Reload the theme element because of the brand-new datafield
-                    ReloadThemeElement(theme_element_id);
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+                // Reload the theme element because of the brand-new datafield
+                ReloadThemeElement(theme_element_id);
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -1982,6 +1729,7 @@
             }
         });
     }
+
 
     function DeleteDatafield(datafield_id) {
         var url = '{{ path('odr_design_delete_datafield', { 'datafield_id': 0 } ) }}';
@@ -1996,36 +1744,32 @@
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Grab containing ThemeElement and its id
-                    var theme_element = $("#Field_" + datafield_id).parent().parent();
-                    var id_data = $(theme_element).attr('id').split(/_/);
-                    var theme_element_id = id_data[1];
+            success: function(data) {
+                // Grab containing ThemeElement and its id
+                var theme_element = $("#Field_" + datafield_id).parent().parent();
+                var id_data = $(theme_element).attr('id').split(/_/);
+                var theme_element_id = id_data[1];
 
-                    // Don't want the datafield or its associated properties panel html anymore
-                    $("#Field_" + datafield_id).remove();
-                    $("#ThemeDesignForm").html('');
+                // Don't want the datafield or its associated properties panel html anymore
+                $("#Field_" + datafield_id).remove();
+                $("#ThemeDesignForm").html('');
 
-                    // Determine whether icons need to be un-muted due to deletion of datafield
-                    var has_datafields = false;
-                    $(theme_element).children(".ODRDataField").each(function() {
-                        has_datafields = true;
-                    });
+                // Determine whether icons need to be un-muted due to deletion of datafield
+                var has_datafields = false;
+                $(theme_element).children(".ODRDataField").each(function() {
+                    has_datafields = true;
+                });
 
-                    if (!has_datafields) {
-                        // Enable icons
-                        var icons = {"ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
-                        setThemeElementIcons(theme_element_id, icons);
-                    }
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
+                if (!has_datafields) {
+                    // Enable icons
+                    var icons = {"ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
+                    setThemeElementIcons(theme_element_id, icons);
                 }
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -2041,6 +1785,7 @@
             }
         });
     }
+
 
     function InitRadioOptionsForm(datafield_id) {
         $("#ThemeDesignForm").find(".ODRDeleteRadioOption").each(function() {
@@ -2064,7 +1809,6 @@
 
         $("#ThemeDesignForm").find(".ODRAddRadioOption").unbind('click').click(function() {
             var datafield_id = $(this).attr('rel');
-
             AddOption(datafield_id);
         });
 
@@ -2112,8 +1856,8 @@
             });
 //        $(".ODRSortableOption").disableSelection();   // TODO - commented out because it was intefering with clicking into the radio optio name fields...wat?!?
         }
-
     }
+
 
     function SaveRadioOptionOrder(alphabetical_sort) {
         // Grab order of radio options
@@ -2141,20 +1885,16 @@
             data: radio_option_ids,
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    notifySaved();
+            success: function(data) {
+                notifySaved();
 
-                    // Can't necessarily cut and paste one option because this could be a first-time request to make options alphabetical...
-                    ReloadDatafield(datafield_id);
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+                // Can't necessarily cut and paste one option because this could be a first-time request to make options alphabetical...
+                ReloadDatafield(datafield_id);
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -2169,7 +1909,6 @@
                 }
             }
         });
-
     }
 
 
@@ -2191,22 +1930,21 @@
             url: url,
             dataType: "json",
             data: post_data,
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-//                $("#ThemeDesignForm").html('');
-                    notifySaved();
+            success: function(data) {
+                notifySaved();
 
-                    // Save the radio option order if necessary
-                    if ( $("#datafield_" + datafield_id + "_name_sort").val() == 1 )
-                        SaveRadioOptionOrder(1);    // 1 == alphabetical sort
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
+                // Save the radio option order if necessary
+                if ( $("#datafield_" + datafield_id + "_name_sort").val() == 1 ) {
+                    SaveRadioOptionOrder(1);    // 1 == alphabetical sort
+
+                    // Reload datafield properties panel since the position of the option will change
+                    $("#Field_" + datafield_id + "_radio_options").trigger('click');
                 }
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -2221,8 +1959,8 @@
                 }
             }
         });
-
     }
+
 
     function AddOption(datafield_id) {
         var url = '{{ path('odr_design_add_radio_option', { 'datafield_id': 0 }) }}';
@@ -2238,21 +1976,17 @@
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Reload datafield properties panel
-                    $("#Field_" + datafield_id + "_radio_options").trigger('click');
+            success: function(data) {
+                // Reload datafield properties panel
+                $("#Field_" + datafield_id + "_radio_options").trigger('click');
 
-                    // Reload the datafield to get the new radio option
-                    ReloadDatafield(datafield_id);
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+                // Reload the datafield to get the new radio option
+                ReloadDatafield(datafield_id);
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -2268,6 +2002,7 @@
             }
         });
     }
+
 
     function DeleteOption(radio_option_id) {
         var url = '{{ path('odr_design_delete_radio_option', { 'radio_option_id': 0 } ) }}';
@@ -2282,21 +2017,17 @@
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Delete the radio option out of the properties panel
-                    $("#radio_option_" + radio_option_id).remove();
+            success: function(data) {
+                // Delete the radio option out of the properties panel
+                $("#radio_option_" + radio_option_id).remove();
 
-                    // Delete the radio option off the page
-                    $("#Option_" + radio_option_id).remove();
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+                // Delete the radio option off the page
+                $("#Option_" + radio_option_id).remove();
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -2313,6 +2044,7 @@
         });
     }
 
+
     function DefaultOption(radio_option_id) {
         var url = '{{ path('odr_design_default_radio_option', { 'radio_option_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
@@ -2326,17 +2058,13 @@
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    notifySaved();
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+            success: function(data) {
+                notifySaved();
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -2373,13 +2101,12 @@
         // Create a loading div to block off the datafield?
         insertLoadingDiv("DataType_" + datatype_id);
 
-
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
             dataType: 'json',
-            success: function(data, textStatus, jqXHR) {
+            success: function(data) {
                 // remove old datatype
                 $(datatype_div).fadeOut();
                 $(datatype_div).remove();
@@ -2392,7 +2119,10 @@
 
                 initPage();
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -2434,7 +2164,7 @@
             type: 'GET',
             url: url,
             dataType: 'json',
-            success: function(data, textStatus, jqXHR) {
+            success: function(data) {
                 // Remove old theme element
                 $(theme_element).fadeOut();
                 $(theme_element).remove();
@@ -2447,7 +2177,10 @@
 
                 initPage();
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -2463,6 +2196,7 @@
             }
         });
     }
+
 
     function ReloadDatafield(datafield_id) {
         var url = '{{ path('odr_design_reload_datafield', { 'source_datatype_id': 0, 'datafield_id': 0 }) }}';
@@ -2490,7 +2224,7 @@
             type: 'GET',
             url: url,
             dataType: 'json',
-            success: function(data, textStatus, jqXHR) {
+            success: function(data) {
                 // Remove old datafield
                 $(datafield).remove();
 
@@ -2501,9 +2235,11 @@
                     $(element).prepend(data.d.html);
 
                 initPage();
-//            $("#Field_" + datafield_id).trigger('click');
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -2519,6 +2255,7 @@
             }
         });
     }
+
 
     function insertLoadingDiv(parent_div_id) {
 
@@ -2546,18 +2283,14 @@
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    $("#dialog_plugin_settings .form_contents").html(data.d.html);
-                    $("#dialog_plugin_settings").dialog( "open" );
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+            success: function(data) {
+                $("#dialog_plugin_settings .form_contents").html(data.d.html);
+                $("#dialog_plugin_settings").dialog("open");
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 

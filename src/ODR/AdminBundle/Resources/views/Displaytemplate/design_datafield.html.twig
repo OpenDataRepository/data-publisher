@@ -8,7 +8,7 @@
 
     {% if field_typename == "Boolean" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;">
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1 Pointer" style="margin:0.5em 0;">
             <input type="checkbox" name="">&nbsp;
 
             <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield.dataFieldMeta.fieldName }}</span>
@@ -81,7 +81,7 @@
 
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Paragraph Text" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1 Pointer">
 
         {% if is_datatype_admin == true %}
             <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="ODRPublicStatusIndicator Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
@@ -95,7 +95,7 @@
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel Pointer" title="{{ datafield.dataFieldMeta.description }}">
                 <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield.dataFieldMeta.fieldName }}</span>
             </label>
 
@@ -111,7 +111,7 @@
 
         {% if datafield.radioOptions is defined %}
             {% for radio_option in datafield.radioOptions %}
-                <label id="Option_{{ radio_option.id }}" for="Option_object_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
+                <label id="Option_{{ radio_option.id }}" for="Option_object_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }} Pointer" style="margin: 0.5em 0;">
 
                 {% if field_typename == "Single Radio" %}
                     <input id="Option_object_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datafield.id }}" class="SingleRadioGroup" disabled />
@@ -128,7 +128,7 @@
     {% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel Pointer" title="{{ datafield.dataFieldMeta.description }}">
                 <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield.dataFieldMeta.fieldName }}</span>
             </label>
 
@@ -157,7 +157,7 @@
 
     {% elseif field_typename == "DateTime" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1 Pointer">
             <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield.dataFieldMeta.fieldName }}</span>
 
             {% if is_datatype_admin == true %}

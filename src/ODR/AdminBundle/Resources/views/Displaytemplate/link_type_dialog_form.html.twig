@@ -70,14 +70,20 @@
             $("#selected_datatype").unbind('change').change(function() {
                 // Disable submission if already linked to current selection
                 var current_remote_datatype = $("#ODRLinkDatatypeForm_previous").val();
-                /*
+                console.log( $(this).val() );
+                console.log( current_remote_datatype );
+
                 if ( $(this).val() == current_remote_datatype )
                     $("#ODRLinkDatatypeFormSubmit").attr('disabled', 'disabled');
                 else
                     $("#ODRLinkDatatypeFormSubmit").removeAttr('disabled');
-                */
 
-                $("#ODRLinkDatatypeFormSubmit").removeAttr('disabled');
+                // Change button text if selecting the "empty" option
+                if ( $(this).val() == '' && current_remote_datatype != '' )
+                    $("#ODRLinkDatatypeFormSubmit").html('Unlink Current Database');
+                else
+                    $("#ODRLinkDatatypeFormSubmit").html('Link Database');
+
                 // Warn about missing table theme if necessary
                 if ( $(this).children('option:selected').first().attr('rel') == 'warn' )
                     $("#ODRRemoteDatatypeLacksTableTheme").show();
@@ -93,9 +99,9 @@
                     $(this).parent().css('overflow', 'visible');
                 }
             });
-            $("#dialog_link_datatype").find('.ODRSubmitButton').click(function() {
+
+            $("#dialog_link_datatype").find('.ODRSubmitButton').unbind('click').click(function() {
                 var $el = $(this).parents('.ui-dialog-content');
-//                if ($el.validate().form()) {
                 if ( $("#LinkDatatypeForm").valid() ) {
                     $("#LinkDatatypeForm").submit();
 
@@ -103,7 +109,8 @@
                     $el.dialog('close');
                 }
             });
-            $("#dialog_link_datatype").find('.ODRCancelButton').click(function() {
+
+            $("#dialog_link_datatype").find('.ODRCancelButton').unbind('click').click(function() {
                 var $el = $(this).parents('.ui-dialog-content');
 
                 $el.find('form')[0].reset();
@@ -113,13 +120,6 @@
             // Init Form
             LinkDataTypeFormInit();
         });
-/*
-        $(function() {
-            if(typeof(LinkDataTypeFormInit) !== "undefined") {
-                LinkDataTypeFormInit();
-            }
-        });
-*/
     </script>
 
 {% endspaceless %}
