@@ -31,6 +31,7 @@ twig:
     strict_variables: %kernel.debug%
     #cache: memcached
     #cache: false
+    exception_controller: ODR.exception_controller:showAction
 
 # Assetic Configuration
 assetic:
@@ -189,6 +190,10 @@ services:
     session.handler.memcached:
         class:     Symfony\Component\HttpFoundation\Session\Storage\Handler\MemcachedSessionHandler
         arguments: [@session.memcached, { prefix: %session_memcached_prefix%, expiretime: %session_memcached_expire% }]
+
+    ODR.exception_controller:
+        class: ODR\AdminBundle\Controller\ODRExceptionController
+        arguments: [ "@twig", "%kernel.debug%", "@security.token_storage" ]
 
     odr.openrepository.oauthclient.oauth_user_provider:
         class: ODR\OpenRepository\OAuthClientBundle\Security\Core\User\ODROAuthUserProvider
