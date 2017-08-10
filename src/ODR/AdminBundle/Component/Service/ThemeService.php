@@ -102,7 +102,114 @@ class ThemeService
         $this->logger = $logger;
     }
 
+    // availableThemes($datatype_id)
+    //    - restricted to current user
 
+    /**
+     * Finds available themes for the selected datatype.
+     *
+     * @param $datatype_id
+     * @param string $theme_type
+     * @param null $user_id
+     * @return array
+     * @throws \Exception
+     */
+    public function getAvailableThemes(
+        $datatype_id,
+        $theme_type = 'master',
+        $user_id = null
+    ) {
+
+        $redis = $this->container->get('snc_redis.default');
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+        $datatype_info_service = $this->container->get('odr.datatype_info_service');
+
+        // Get the DataType to work with
+        $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
+        $datatype = $repo_datatype->find($datatype_id);
+
+        if($datatype == null) {
+            throw new \Exception("Datatype is null.");
+        }
+
+        $qb = $this->em->createQueryBuilder();
+        $qb->select('t')
+            ->from('ODRAdminBundle:Theme', 't')
+            ->leftJoin('t.themeMeta', 'tm')
+            ->where('t.dataType = :datatype_id')
+            ->andWhere('t.themeType like :theme_type')
+            ->addOrderBy('tm.displayOrder', 'ASC')
+            ->addOrderBy('tm.templateName', 'ASC')
+            ->setParameters(array(
+                'datatype_id' => $datatype_id,
+                'theme_type' => $theme_type
+            ));
+
+        $query = $qb->getQuery();
+        $available_themes = $query->getResult();
+
+        $filtered_themes = array();
+        if(count($available_themes) > 0) {
+
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            foreach($available_themes as $theme){
+
+                $add_theme = false;
+                if($theme->getThemeMeta()->getPublic() != null
+                   && $theme->getThemeMeta()->getPublic() <= date()
+                ) {
+                    // Check if theme is public
+                    $add_theme = true;
+                }
+                else if(
+                    $user != "anon."
+                    && $theme->getCreatedBy() != $user->getId()
+                ) {
+                    // Check if user has access
+                    $add_theme = true;
+                }
+                else if($theme->getThemeMeta()->getIsDefault() != null) {
+                    // Check if is default theme for datatype and theme type
+                    $add_theme = true;
+                }
+
+                if($add_theme){
+                    $theme_record = array();
+                    $theme_record['id'] = $theme->getId();
+                    $theme_record['name'] = $theme->getThemeMeta()->getTemplateName();
+                    $theme_record['description'] = $theme->getThemeMeta()->getTemplateDescription();
+                    $theme_record['public'] = $theme->getThemeMeta()->getPublic();
+                    $theme_record['is_default'] = $theme->getThemeMeta()->getIsDefault();
+                    $theme_record['created_by'] = $theme->getCreatedBy()->getId();
+                    $theme_record['display_order'] = $theme->getThemeMeta()->getDisplayOrder();
+                    array_push($filtered_themes, $theme_record);
+                }
+            }
+        }
+
+        return $filtered_themes;
+
+    }
+
+    // cacheTheme($theme_id)
+
+    // checkThemeVersion($theme_id)
+    // - recursively check all child themes
+
+    // updateThemeFromSource($theme_id)
+
+
+    /**
+     * Clone a theme for a particular datatype.  Automatically recurses through related themes
+     * and sets their source theme id as well as parent id.
+     *
+     * @param $datatype_id
+     * @param $from_theme_type
+     * @param $to_theme_type
+     * @param $user_id
+     * @return string
+     */
     public function cloneThemesForDatatype($datatype_id, $from_theme_type, $to_theme_type, $user_id)
     {
         try {
@@ -172,6 +279,7 @@ class ThemeService
         $this->em->flush();
         $this->em->refresh($obj);
     }
+
 
     /**
      * @param RenderPlugin $parent_render_plugin

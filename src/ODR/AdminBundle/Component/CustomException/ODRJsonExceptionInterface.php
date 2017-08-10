@@ -9,7 +9,7 @@
 namespace ODR\AdminBundle\Component\CustomException;
 
 
-class ODRJsonExceptionInterface
+interface ODRJsonExceptionInterface
 {
 
 }
