@@ -102,10 +102,10 @@ class DisplayController extends ODRCustomController
             $original_datatype = $datatype;
             $original_theme = $theme;
 
-
             // ...want the grandparent datarecord and datatype for everything else, however
             $is_top_level = 1;
             if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() ) {
+                // This is a child datatype
                 $is_top_level = 0;
                 $datarecord = $datarecord->getGrandparent();
                 if ($datarecord->getDeletedAt() != null)
@@ -115,6 +115,7 @@ class DisplayController extends ODRCustomController
                 if ($datatype->getDeletedAt() != null)
                     throw new ODRNotFoundException('Datatype');
 
+                // Need to get user's chosen theme for this child datatype
                 /** @var Theme $theme */
                 $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
                 if ($theme == null)
@@ -1716,7 +1717,7 @@ exit();
 
         $return = array();
         $return['r'] = 0;
-        $return['t'] = 'html';
+        $return['t'] = 'json';
         $return['d'] = '';
 
         try {
