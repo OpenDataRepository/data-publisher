@@ -59,12 +59,12 @@
         "files": [
         {% for file in valuefield %}
             {
+                "internal_id": {{ file.id }},
                 "original_name": "{% if file.fileMeta.originalFileName != null %}{{ file.fileMeta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}",
                 "href": "{{ baseurl ~ path('odr_file_download', {'file_id': file.id}) }}",
 
                 {% if using_metadata == true %}
                 "_file_metadata": {
-                    "_internal_id": "{{ file.id }}",
                     "_external_id": "{{ file.fileMeta.external_id }}",
                     "_create_date": "{{ file.created|date('Y-m-d H:i:s') }}",
                     "_create_auth": "{% if file.createdBy != '' %}{{ file.createdBy|user_string }}{% endif %}",
@@ -93,13 +93,13 @@
             {% set image_filename = oimage.imageMeta.originalFileName %}
 
             {
+                "internal_id": {{ oimage.id }},
                 "original_name": "{% if image_filename != '' %}{{ image_filename|raw }}{% else %}Image_{{ oimage.id }}{% endif %}",
                 "href": "{{ baseurl ~ path('odr_image_download', {'image_id': oimage.id}) }}",
                 "caption": "{{ image_caption|raw }}",
 
                 {% if using_metadata == true %}
                 "_image_metadata": {
-                    "_internal_id": "{{ oimage.id }}",
                     "_external_id": "{{ oimage.imageMeta.external_id }}",
                     "_create_date": "{{ oimage.created|date('Y-m-d H:i:s') }}",
                     "_create_auth": "{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}",
@@ -132,12 +132,12 @@
 
                 {% if version == 'v1' %}
                     "radio_option_{{ radio_option.id }}": {
-                        "radio_option_name": "{{ radio_option.radioOptionMeta.optionName }}",
+                        "name": "{{ radio_option.radioOptionMeta.optionName }}",
                 {% elseif version == 'v2' %}
                     "{{ radio_option.radioOptionMeta.optionName }}": {
                 {% endif %}
 
-                        "content": "1"
+                        "selected": "1"
                     },
             {% endif %}
         {% endfor %}

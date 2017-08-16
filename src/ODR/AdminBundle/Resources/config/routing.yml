@@ -810,7 +810,7 @@ odr_datatables_state_destroy:
 #-----------------------------------------
 # XSD Controller
 odr_get_datatype_xsd:
-    path:  /api/schema/datatype/{version}/{datatype_id}
+    path:  /admin/schema/datatype/{version}/{datatype_id}
     defaults: { _controller: ODRAdminBundle:XSD:getDatatypeXSD }
     requirements:
         version: 'v1|v2'
@@ -850,9 +850,17 @@ odr_xml_import_file_download:
 
 #-----------------------------------------
 # XMLExport Controller
-odr_get_datarecord_xml:
-    path:  /api/datarecord/{version}/{datarecord_id}/{format}
-    defaults: { _controller: ODRAdminBundle:XMLExport:getDatarecordXML, format: 'xml' }
+odr_get_datatype_export:
+    path:  /admin/datatype_export/{version}/{datatype_id}/{format}
+    defaults: { _controller: ODRAdminBundle:XMLExport:getDatatypeExport, format: 'json' }
+    requirements:
+        version: 'v1|v2'
+        datatype_id: \d+
+        format: '|xml|json'
+
+odr_get_datarecord_export:
+    path:  /admin/datarecord_export/{version}/{datarecord_id}/{format}
+    defaults: { _controller: ODRAdminBundle:XMLExport:getDatarecordExport, format: 'json' }
     requirements:
         version: 'v1|v2'
         datarecord_id: \d+
@@ -1209,6 +1217,22 @@ odr_api_datarecord_list:
     defaults: { _controller: ODRAdminBundle:API:datarecordlist }
     requirements:
         datatype_id: \d+
+
+odr_api_get_datatype_export:
+    path:  /api/datatype/{version}/{datatype_id}/{format}
+    defaults: { _controller: ODRAdminBundle:API:getDatatypeData, format: 'json' }
+    requirements:
+        version: 'v1|v2'
+        datatype_id: \d+
+        format: '|xml|json'
+
+odr_api_get_datarecord_export:
+    path:  /api/datarecord/{version}/{datarecord_id}/{format}
+    defaults: { _controller: ODRAdminBundle:API:getDatarecordData, format: 'json' }
+    requirements:
+        version: 'v1|v2'
+        datarecord_id: \d+
+        format: '|xml|json'
 
 odr_api_download_file:
     path: /api/file_download/{file_id}

@@ -12,24 +12,30 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\AdminBundle\Component\Service\DatatypeExportService;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRMethodNotAllowedException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
+use ODR\AdminBundle\Component\Service\DatarecordExportService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 
@@ -47,6 +53,10 @@ class APIController extends ODRCustomController
     public function datatypelistAction($type, Request $request)
     {
         try {
+            // Only allow for GET requests
+            if ($request->getMethod() !== 'GET')
+                throw new ODRMethodNotAllowedException();
+
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -150,6 +160,7 @@ class APIController extends ODRCustomController
 
     /**
      * Utility function to recursively inflate the datatype array for self::datatypelistAction()
+     * Can't use the one in the DatatypeInfoService because this array has a different structure
      *
      * @param $source_data  @see self::datatypelistAction()
      * @param $datatree_array  @see parent::getDatatreeArray()
@@ -189,6 +200,10 @@ class APIController extends ODRCustomController
     public function datarecordlistAction($datatype_id, Request $request)
     {
         try {
+            // Only allow for GET requests
+            if ($request->getMethod() !== 'GET')
+                throw new ODRMethodNotAllowedException();
+
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -290,6 +305,243 @@ class APIController extends ODRCustomController
 
 
     /**
+     * Renders and returns the json/XML version of the given DataRecord when accessed via the OAuth firewall
+     *
+     * @param string $version         'v1' or 'v2'
+     * @param integer $datatype_id
+     * @param string $format          'xml' or 'json'
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function getDatatypeDataAction($version, $datatype_id, $format, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // ----------------------------------------
+            // Only allow for GET requests
+            if ($request->getMethod() !== 'GET')
+                throw new ODRMethodNotAllowedException();
+
+            // Verify the format first
+            if ($format == '')
+                throw new ODRBadRequestException('Invalid Format: Must request either XML or JSON');
+
+            // Assume the user wants the export in xml...setRequestFormat() here so any error messages returned are in the desired format
+            $mime_type = 'text/xml';
+            $request->setRequestFormat('xml');
+            if ($format == 'json') {
+                $mime_type = 'application/json';
+                $request->setRequestFormat('json');
+            }
+
+            // ----------------------------------------
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatypeExportService $dte_service */
+            $dte_service = $this->container->get('odr.datatype_export_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            if ($theme == null)
+                throw new ODRNotFoundException('Theme');
+
+
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+            if ( !in_array($datatype_id, $top_level_datatypes) )
+                throw new ODRBadRequestException('Only permitted on top-level datatypes');
+
+
+            // ----------------------------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user_permissions = array();
+            if ( $user === 'anon.' ) {
+                if ( !$datatype->isPublic() ) {
+                    // non-public datatype and anonymous user, can't view
+                    throw new ODRForbiddenException();
+                }
+                else {
+                    // public datatype, anybody can view
+                }
+            }
+            else {
+                // Grab user's permissions
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                    $can_view_datatype = true;
+
+                if (!$datatype->isPublic() && !$can_view_datatype)
+                    throw new ODRForbiddenException();
+            }
+            // ----------------------------------------
+
+
+            // ----------------------------------------
+            // Render the requested datarecord
+            $baseurl = $this->container->getParameter('site_baseurl');
+            $data = $dte_service->getData($version, $datatype_id, $format, $user_permissions, $baseurl);
+
+            // Set up a response to send the datarecord back
+            $response = new Response();
+
+            $response->setPrivate();
+            $response->headers->set('Content-Type', $mime_type);
+            //$response->headers->set('Content-Length', filesize($xml_export_path.$filename));
+            $response->headers->set('Content-Disposition', 'attachment; filename="Datatype_'.$datatype_id.'.'.$format.'";');
+
+            $response->setContent($data);
+            return $response;
+        }
+        catch (\Exception $e) {
+            $source = 0x43dd4818;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Renders and returns the json/XML version of the given DataRecord when accessed via the OAuth firewall
+     *
+     * @param string $version         'v1' or 'v2'
+     * @param integer $datarecord_id
+     * @param string $format          'xml' or 'json'
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function getDatarecordDataAction($version, $datarecord_id, $format, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // ----------------------------------------
+            // Only allow for GET requests
+            if ($request->getMethod() !== 'GET')
+                throw new ODRMethodNotAllowedException();
+
+            // Verify the format first
+            if ($format == '')
+                throw new ODRBadRequestException('Invalid Format: Must request either XML or JSON');
+
+            // Assume the user wants the export in xml...setRequestFormat() here so any error messages returned are in the desired format
+            $mime_type = 'text/xml';
+            $request->setRequestFormat('xml');
+            if ($format == 'json') {
+                $mime_type = 'application/json';
+                $request->setRequestFormat('json');
+            }
+
+            // ----------------------------------------
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatarecordExportService $dre_service */
+            $dre_service = $this->container->get('odr.datarecord_export_service');
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            if ($datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            if ($theme == null)
+                throw new ODRNotFoundException('Theme');
+
+            if ($datarecord->getId() != $datarecord->getGrandparent()->getId())
+                throw new ODRBadRequestException('Only permitted on top-level datarecords');
+
+
+            // ----------------------------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user_permissions = array();
+            if ( $user === 'anon.' ) {
+                if ( !$datatype->isPublic() || !$datarecord->isPublic() ) {
+                    // non-public datatype and anonymous user, can't view
+                    throw new ODRForbiddenException();
+                }
+                else {
+                    // public datatype, anybody can view
+                }
+            }
+            else {
+                // Grab user's permissions
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                    $can_view_datatype = true;
+
+                $can_view_datarecord = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                    $can_view_datarecord = true;
+
+                // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
+                if (!$datatype->isPublic() && !$can_view_datatype)
+                    throw new ODRForbiddenException();
+                if (!$datarecord->isPublic() && !$can_view_datarecord)
+                    throw new ODRForbiddenException();
+            }
+            // ----------------------------------------
+
+
+            // ----------------------------------------
+            // Render the requested datarecord
+            $baseurl = $this->container->getParameter('site_baseurl');
+            $data = $dre_service->getData($version, $datarecord_id, $format, $user_permissions, $baseurl);
+
+            // Set up a response to send the datarecord back
+            $response = new Response();
+
+            $response->setPrivate();
+            $response->headers->set('Content-Type', $mime_type);
+            //$response->headers->set('Content-Length', filesize($xml_export_path.$filename));
+            $response->headers->set('Content-Disposition', 'attachment; filename="Datarecord_'.$datarecord_id.'.'.$format.'";');
+
+            $response->setContent($data);
+            return $response;
+        }
+        catch (\Exception $e) {
+            $source = 0x722347a6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
      * Assuming the user has permissions to do so, creates a Symfony StreamedResponse for a file download
      *
      * @param integer $file_id
@@ -300,6 +552,10 @@ class APIController extends ODRCustomController
     public function filedownloadAction($file_id, Request $request)
     {
         try {
+            // Only allow for GET requests
+            if ($request->getMethod() !== 'GET')
+                throw new ODRMethodNotAllowedException();
+
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */

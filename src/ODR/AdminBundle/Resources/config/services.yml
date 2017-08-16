@@ -62,6 +62,16 @@ services:
             user_manager: "@fos_user.user_manager"
             logger: "@logger"
 
+    odr.datarecord_export_service:
+        class: ODR\AdminBundle\Component\Service\DatarecordExportService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            datarecord_info_service: "@odr.datarecord_info_service"
+            datatype_info_service: "@odr.datatype_info_service"
+            permissions_service: "@odr.permissions_management_service"
+            templating: "@templating"
+            logger: "@logger"
+
     odr.datarecord_info_service:
         class: ODR\AdminBundle\Component\Service\DatarecordInfoService
         arguments:
@@ -69,6 +79,15 @@ services:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
             permissions_service: "@odr.permissions_management_service"
+            logger: "@logger"
+
+    odr.datatype_export_service:
+        class: ODR\AdminBundle\Component\Service\DatatypeExportService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            datatype_info_service: "@odr.datatype_info_service"
+            permissions_service: "@odr.permissions_management_service"
+            templating: "@templating"
             logger: "@logger"
 
     odr.datatype_info_service:

@@ -225,7 +225,7 @@ def _buildFileListJSON(datarecord_list, file_list):
 
     for dr in datarecord_list['datarecords']:
         # Grab the name to identify this datarecord by
-        dr_name = dr['_datarecord_metadata']['_datarecord_name']
+        dr_name = dr['datarecord_name']
 
         for df_name, df in dr['datafields'].items():
             # In earlier versions of the spec, the datafield name is a value inside the datafield object
@@ -235,7 +235,7 @@ def _buildFileListJSON(datarecord_list, file_list):
             if 'files' in df:
                 for f in df['files']:
                     # Grab the identifiers for each file
-                    f_id = f['_file_metadata']['_internal_id']
+                    f_id = f['internal_id']
                     f_name = f['original_name']
 
                     # Store them in the dict

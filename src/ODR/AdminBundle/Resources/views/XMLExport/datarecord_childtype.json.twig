@@ -10,32 +10,19 @@
 
 {% for dr_id, datarecord in datarecord_array %}
 
-{#
-----------</br>
-datarecord: {{ datarecord.id }}...datatype {{ datarecord.dataType.id }}</br>
-parent: {{ datarecord.parent.id }}</br>
-grandparent: {{ datarecord.grandparent.id }}</br>
-</br>
-parent_datarecord_id: {{ parent_datarecord_id }}</br>
-target_datatype_id: {{ target_datatype_id }}</br>
-</br>
-is_top_level: {{ is_top_level }}</br>
-is_link: {{ is_link }}</br>
-----------</br>
-#}
-
     {% if is_link == 0 %}
 
         {# each datarecord is its own JSON object #}
         {
         {# ---------- #}
 
+            "internal_id": {{ datarecord.id }},
+            "external_id": {{ datarecord.externalIdField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
+            "datarecord_name": {{ datarecord.nameField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
+
         {% if using_metadata == true %}
             {# display metadata and datafields for top-level and child datarecords #}
             "_datarecord_metadata": {
-                "_internal_id": {{ datarecord.id }},
-                "_external_id": {{ datarecord.externalIdField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
-                "_datarecord_name": {{ datarecord.nameField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
                 "_create_date": "{{ datarecord.created|date('Y-m-d H:i:s') }}",
                 "_create_auth": "{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string|xml }}{% endif %}",
                 "_public_date": "{{ datarecord.dataRecordMeta.publicDate|date('Y-m-d H:i:s') }}"
@@ -66,11 +53,9 @@ is_link: {{ is_link }}</br>
     {% else %}
         {# only display external and internal ids for linked datarecords #}
         {
-            "_datarecord_metadata": {
-                "_internal_id": {{ datarecord.id }},
-                "_external_id": {{ datarecord.externalIdField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
-                "_datarecord_name": {{ datarecord.nameField_value|json_encode|raw }}   {# lack of surrounding quotation marks necessary #}
-            }
+            "internal_id": {{ datarecord.id }},
+            "external_id": {{ datarecord.externalIdField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
+            "datarecord_name": {{ datarecord.nameField_value|json_encode|raw }}   {# lack of surrounding quotation marks necessary #}
         },
     {% endif %}
 

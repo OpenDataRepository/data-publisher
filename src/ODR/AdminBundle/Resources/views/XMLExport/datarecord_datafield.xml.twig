@@ -69,6 +69,7 @@
     {{ tag_start|raw }}
     {% for file in valuefield %}
         <file>
+            <internal_id>{{ file.id }}</internal_id>
             <original_name>{% if file.fileMeta.originalFileName != null %}{{ file.fileMeta.originalFileName|xml|raw }}{% else %}File_{{ file.id }}{% endif %}</original_name>
             <href>{{ baseurl ~ path('odr_file_download', {'file_id': file.id}) }}</href>
             {#<caption></caption>#}
@@ -76,7 +77,6 @@
 
             {% if using_metadata == true %}
             <_file_metadata>
-                <_internal_id>{{ file.id }}</_internal_id>
                 <_external_id>{{ file.fileMeta.external_id }}</_external_id>
                 <_create_date>{{ file.created|date('Y-m-d H:i:s') }}</_create_date>
                 <_create_auth>{% if file.createdBy != '' %}{{ file.createdBy|user_string }}{% endif %}</_create_auth>
@@ -98,6 +98,7 @@
         {% set image_filename = oimage.imageMeta.originalFileName %}
 
         <image>
+            <internal_id>{{ oimage.id }}</internal_id>
             <original_name>{% if image_filename != '' %}{{ image_filename|xml|raw }}{% else %}Image_{{ oimage.id }}{% endif %}</original_name>
             <href>{{ baseurl ~ path('odr_image_download', {'image_id': oimage.id}) }}</href>
             <caption>{{ image_caption|xml|raw }}</caption>
@@ -105,7 +106,6 @@
 
             {% if using_metadata == true %}
             <_image_metadata>
-                <_internal_id>{{ oimage.id }}</_internal_id>
                 <_external_id>{{ oimage.imageMeta.external_id }}</_external_id>
                 <_create_date>{{ oimage.created|date('Y-m-d H:i:s') }}</_create_date>
                 <_create_auth>{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}</_create_auth>
@@ -139,8 +139,8 @@
                     {% set radio_tag_start = '<radio_option_' ~ radio_option.id ~ ' radio_option_name="' ~ radio_option.radioOptionMeta.optionName|xml ~'">' %}
                     {% set radio_tag_end = '</radio_option_' ~ radio_option.id ~ '>' %}
                 {% elseif version == 'v2' %}
-                    {% set radio_tag_start = '<' ~ datafield.dataFieldMeta.xml_fieldName ~ '>' %}
-                    {% set radio_tag_end = '</' ~ datafield.dataFieldMeta.xml_fieldName ~ '>' %}
+                    {% set radio_tag_start = '<' ~ radio_option.radioOptionMeta.xml_fieldName ~ '>' %}
+                    {% set radio_tag_end = '</' ~ radio_option.radioOptionMeta.xml_fieldName ~ '>' %}
                 {% endif %}
 
                 {{ radio_tag_start|raw }}1{{ radio_tag_end|raw }}

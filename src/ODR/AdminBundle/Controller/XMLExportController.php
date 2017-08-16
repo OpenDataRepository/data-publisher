@@ -18,17 +18,18 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
-use ODR\OpenRepository\UserBundle\Entity\User;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
-use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\DatarecordExportService;
+use ODR\AdminBundle\Component\Service\DatatypeExportService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
-use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -38,16 +39,16 @@ class XMLExportController extends ODRCustomController
 {
 
     /**
-     * Renders and returns the XML version of the given DataRecord
+     * Renders and returns the json/XML version of the given DataRecord when accessed via the OAuth firewall
      *
-     * @param string $version
-     * @param integer $datarecord_id
-     * @param string $format
+     * @param string $version         'v1' or 'v2'
+     * @param integer $datatype_id
+     * @param string $format          'xml' or 'json'
      * @param Request $request
-     * 
+     *
      * @return Response
      */
-    public function getDatarecordXMLAction($version, $datarecord_id, $format, Request $request)
+    public function getDatatypeDataAction($version, $datatype_id, $format, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -72,6 +73,120 @@ class XMLExportController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatatypeExportService $dte_service */
+            $dte_service = $this->container->get('odr.datatype_export_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            if ($theme == null)
+                throw new ODRNotFoundException('Theme');
+
+
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+            if ( !in_array($datatype_id, $top_level_datatypes) )
+                throw new ODRBadRequestException('Only permitted on top-level datatypes');
+
+
+            // ----------------------------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user_permissions = array();
+            if ( $user === 'anon.' ) {
+                if ( !$datatype->isPublic() ) {
+                    // non-public datatype and anonymous user, can't view
+                    throw new ODRForbiddenException();
+                }
+                else {
+                    // public datatype, anybody can view
+                }
+            }
+            else {
+                // Grab user's permissions
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                    $can_view_datatype = true;
+
+                if (!$datatype->isPublic() && !$can_view_datatype)
+                    throw new ODRForbiddenException();
+            }
+            // ----------------------------------------
+
+
+            // ----------------------------------------
+            // Render the requested datarecord
+            $baseurl = $this->container->getParameter('site_baseurl');
+            $data = $dte_service->getData($version, $datatype_id, $format, $user_permissions, $baseurl);
+
+            // Set up a response to send the datarecord back
+            $response = new Response();
+
+            $response->setPrivate();
+            $response->headers->set('Content-Type', $mime_type);
+            //$response->headers->set('Content-Length', filesize($xml_export_path.$filename));
+            $response->headers->set('Content-Disposition', 'attachment; filename="Datatype_'.$datatype_id.'.'.$format.'";');
+
+            $response->setContent($data);
+            return $response;
+        }
+        catch (\Exception $e) {
+            $source = 0xc3368234;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Renders and returns the json/XML version of the given DataRecord when accessed via the regular UI
+     *
+     * @param string $version         'v1' or 'v2'
+     * @param integer $datarecord_id
+     * @param string $format          'xml' or 'json'
+     * @param Request $request
+     * 
+     * @return Response
+     */
+    public function getDatarecordExportAction($version, $datarecord_id, $format, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // ----------------------------------------
+            // Verify the format first
+            if ($format == '')
+                throw new ODRBadRequestException('Invalid Format: Must request either XML or JSON');
+
+            // Assume the user wants the export in xml...setRequestFormat() here so any error messages returned are in the desired format
+            $mime_type = 'text/xml';
+            $request->setRequestFormat('xml');
+            if ($format == 'json') {
+                $mime_type = 'application/json';
+                $request->setRequestFormat('json');
+            }
+
+            // ----------------------------------------
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatarecordExportService $dre_service */
+            $dre_service = $this->container->get('odr.datarecord_export_service');
+
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
@@ -86,10 +201,15 @@ class XMLExportController extends ODRCustomController
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
+            if ($datarecord->getId() != $datarecord->getGrandparent()->getId())
+                throw new ODRBadRequestException('Only permitted on top-level datarecords');
+
+
             // ----------------------------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user_permissions = array();
             if ( $user === 'anon.' ) {
                 if ( !$datatype->isPublic() || !$datarecord->isPublic() ) {
                     // non-public datatype and anonymous user, can't view
@@ -113,23 +233,18 @@ class XMLExportController extends ODRCustomController
                     $can_view_datarecord = true;
 
                 // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
-                if ( (!$datatype->isPublic() && !$can_view_datatype) || (!$datarecord->isPublic() && !$can_view_datarecord) )
+                if (!$datatype->isPublic() && !$can_view_datatype)
+                    throw new ODRForbiddenException();
+                if (!$datarecord->isPublic() && !$can_view_datarecord)
                     throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
-            if ($datarecord->getId() != $datarecord->getGrandparent()->getId())
-                throw new ODRBadRequestException('Only permitted on top-level datarecords');
-
 
             // ----------------------------------------
             // Render the requested datarecord
-            $data = self::GetDisplayData($em, $version, $datarecord_id, $format, $request);
-
-            // If returning as json, reformat the data because twig can't really do a good enoug job by itself for this type of data
-            if ($format == 'json')
-                $data = self::reformatJson($data);
-
+            $baseurl = $this->container->getParameter('site_baseurl');
+            $data = $dre_service->getData($version, $datarecord_id, $format, $user_permissions, $baseurl);
 
             // Set up a response to send the file back
             $response = new Response();
@@ -149,143 +264,6 @@ class XMLExportController extends ODRCustomController
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-    }
-
-
-    /**
-     * Because of the recursive nature of ODR entities, any json generated by twig has a LOT of whitespace
-     * and newlines...this function cleans up after twig by stripping as much of the extraneous whitespace as
-     * possible.  It also ensures the final json string won't have the ",}" or ",]" character sequences outside of quotes.
-     *
-     * @param string $data
-     *
-     * @return string
-     */
-    private function reformatJson($data)
-    {
-        // Get rid of all whitespace characters that aren't inside double-quotes
-        $trimmed_str = '';
-        $in_quotes = false;
-
-        for ($i = 0; $i < strlen($data); $i++) {
-            if (!$in_quotes) {
-                if ($data{$i} === "\"") {
-                    // If not in quotes and a quote is encountered, transcribe it and switch modes
-                    $trimmed_str .= $data{$i};
-                    $in_quotes = true;
-                }
-                else if ($data{$i} === '}' && substr($trimmed_str, -1) === ',') {
-                    // If not in quotes and would end up transcribing a closing brace immediately after a comma, replace the last comma with a closing brace instead
-                    $trimmed_str = substr_replace($trimmed_str, '}', -1);
-                }
-                else if ($data{$i} === ']' && substr($trimmed_str, -1) === ',') {
-                    // If not in quotes and would end up transcribing a closing bracket immediately after a comma, replace the last comma with a closing bracket instead
-                    $trimmed_str = substr_replace($trimmed_str, ']', -1);
-                }
-                else if ($data{$i} !== ' ' && $data{$i} !== "\n") {
-                    // If not in quotes and found a non-space character, transcribe it
-                    $trimmed_str .= $data{$i};
-                }
-            }
-            else {
-                if ($data{$i} === "\"" && $data{$i-1} !== "\\")
-                    $in_quotes = false;
-
-                // If in quotes, always transcribe every character
-                $trimmed_str .= $data{$i};
-            }
-        }
-
-        // Also get rid of parts that signify no child/linked datarecords
-        $trimmed_str = str_replace( array(',"child_datarecords":{}', ',"linked_datarecords":{}'), '', $trimmed_str );
-
-        return $trimmed_str;
-    }
-
-
-    /**
-     * Renders the XMLExport version of the datarecord.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param string $version                  "v1" identifies datafields/datatypes by id with names as attributes, "v2" identifies datafields/datatypes by using their XML-safe name
-     * @param integer $datarecord_id
-     * @param string $format                   "xml" or "json"
-     * @param Request $request
-     *
-     * @return string
-     */
-    private function GetDisplayData($em, $version, $datarecord_id, $format, Request $request)
-    {
-        /** @var DatatypeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatype_info_service');
-        /** @var DatarecordInfoService $dri_service */
-        $dri_service = $this->container->get('odr.datarecord_info_service');
-        /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
-
-        // All of these should already exist
-        /** @var DataRecord $datarecord */
-        $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-        $datatype = $datarecord->getDataType();
-
-        /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy(array('dataType' => $datatype->getId(), 'themeType' => 'master'));
-
-
-        // ----------------------------------------
-        // Determine user privileges
-        /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-        $user_permissions = array();
-
-        if ( $user === 'anon.' ) {
-            // no permissions to load
-        }
-        else {
-            // Grab user's permissions
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-        }
-        // ----------------------------------------
-
-
-        // ----------------------------------------
-        // Grab all datarecords and datatypes for rendering purposes
-        $datarecord_array = $dri_service->getDatarecordArray($datarecord_id);
-        $datatype_array = $dti_service->getDatatypeArrayByDatarecords($datarecord_array);
-
-        // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-        $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-        // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-        $stacked_datarecord_array[ $datarecord_id ] = $dri_service->stackDatarecordArray($datarecord_array, $datarecord_id);
-        $stacked_datatype_array[ $datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $datatype->getId(), $theme->getId());
-
-
-        // ----------------------------------------
-        // Determine which template to use for rendering
-        $baseurl = $this->container->getParameter('site_baseurl');
-        $template = 'ODRAdminBundle:XMLExport:datarecord_ajax.'.$format.'.twig';
-
-        // Render the DataRecord
-        $using_metadata = true;
-        $templating = $this->get('templating');
-        $html = $templating->render(
-            $template,
-            array(
-                'datatype_array' => $stacked_datatype_array,
-                'datarecord_array' => $stacked_datarecord_array,
-                'theme_id' => $theme->getId(),
-
-                'initial_datatype_id' => $datatype->getId(),
-                'initial_datarecord_id' => $datarecord->getId(),
-
-                'using_metadata' => $using_metadata,
-                'baseurl' => $baseurl,
-                'version' => $version,
-            )
-        );
-
-        return $html;
     }
 
 

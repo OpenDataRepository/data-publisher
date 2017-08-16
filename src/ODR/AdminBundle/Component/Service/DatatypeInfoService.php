@@ -47,7 +47,7 @@ class DatatypeInfoService
     /**
      * DatatypeInfoService constructor.
      *
-     * @param $environment
+     * @param string $environment
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param Logger $logger
@@ -363,14 +363,16 @@ class DatatypeInfoService
         $query = $this->em->createQuery(
             'SELECT
                 t, pt, st, tm,
-                dt, dtm, dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
+                dt, dtm, dt_cb, dt_ub, dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
                 te, tem,
                 tdf, df, ro, rom,
-                dfm, ft, df_rp, df_rpi, df_rpo, df_rpm,
+                dfm, df_cb, ft, df_rp, df_rpi, df_rpo, df_rpm,
                 tdt, c_dt
 
             FROM ODRAdminBundle:DataType AS dt
             LEFT JOIN dt.dataTypeMeta AS dtm
+            LEFT JOIN dt.createdBy AS dt_cb
+            LEFT JOIN dt.updatedBy AS dt_ub
 
             LEFT JOIN dt.themes AS t
             LEFT JOIN t.parentTheme AS pt
@@ -393,6 +395,7 @@ class DatatypeInfoService
             LEFT JOIN ro.radioOptionMeta AS rom
 
             LEFT JOIN df.dataFieldMeta AS dfm
+            LEFT JOIN df.createdBy AS df_cb
             LEFT JOIN dfm.fieldType AS ft
 
             LEFT JOIN dfm.renderPlugin AS df_rp
@@ -424,6 +427,8 @@ class DatatypeInfoService
             // Flatten datatype meta
             $dtm = $dt['dataTypeMeta'][0];
             $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
+            $datatype_data[$dt_num]['createdBy'] = self::cleanUserData( $dt['createdBy'] );
+            $datatype_data[$dt_num]['updatedBy'] = self::cleanUserData( $dt['updatedBy'] );
 
             // Flatten theme_meta of each theme, and organize by theme id instead of a random number
             $new_theme_array = array();
@@ -442,6 +447,7 @@ class DatatypeInfoService
                     foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
                         $dfm = $tdf['dataField']['dataFieldMeta'][0];
                         $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['dataFieldMeta'] = $dfm;
+                        $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['createdBy'] = self::cleanUserData( $tdf['dataField']['createdBy'] );
 
                         // Flatten radio options if it exists
                         foreach ($tdf['dataField']['radioOptions'] as $ro_num => $ro) {
@@ -560,5 +566,25 @@ class DatatypeInfoService
         }
 
         return $current_datatype;
+    }
+
+    /**
+     * When passed the array version of a User entity, this function will scrub the private/non-essential information
+     * from that array and return it.
+     *
+     * Ideally, the one in the PermissionsManagementService would be used, but that creates circular reference issues.
+     *
+     * @param array $user_data
+     *
+     * @return array
+     */
+    private function cleanUserData($user_data)
+    {
+        foreach ($user_data as $key => $value) {
+            if ($key !== 'username' && $key !== 'email' && $key !== 'firstName' && $key !== 'lastName'/* && $key !== 'institution' && $key !== 'position'*/)
+                unset( $user_data[$key] );
+        }
+
+        return $user_data;
     }
 }
