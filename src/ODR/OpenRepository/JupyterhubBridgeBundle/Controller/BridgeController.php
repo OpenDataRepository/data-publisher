@@ -17,45 +17,21 @@ use ODR\AdminBundle\Controller\ODRCustomController;
 // Entities
 use ODR\AdminBundle\Entity\DataType;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
-// Forms
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+// Services
 // Symfony
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\HttpFoundation\Response;
 
 
 class BridgeController extends ODRCustomController
 {
-    /**
-     * Utility function to cleanly return JSON error responses.
-     *
-     * @param integer $status_code
-     * @param string|null $message
-     *
-     * @return JsonResponse
-     */
-    private function createJSONError($status_code, $message = null)
-    {
-        // Change 403 codes to 401 if user isn't logged in
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-
-        $logged_in = true;
-        if ($user === 'anon.')
-            $logged_in = false;
-
-        if (!$logged_in && $status_code == 403)
-            $status_code = 401;
-
-        // Return an error response
-        return new JsonResponse(
-            array(
-                'error_description' => $message     // TODO
-            ),
-            $status_code
-        );
-    }
-
 
     /**
      * Returns the user's Jupyterhub username.
@@ -131,12 +107,16 @@ class BridgeController extends ODRCustomController
                     )
                 );
             }
-            else {
-                return self::createJSONError(403, 'Permission Denied');
-            }
+
+            // Otherwise, user isn't allowed to do this
+            throw new ODRForbiddenException();
         }
         catch (\Exception $e) {
-            return self::createJSONError(500, $e->getMessage());
+            $source = 0xfd346a45;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
@@ -159,17 +139,15 @@ class BridgeController extends ODRCustomController
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ( $datatype == null )
-                return self::createJSONError(404, 'Datatype is deleted');
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
 
 
             // ----------------------------------------
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             if ($user === 'anon.')
-                return self::createJSONError(401);
-            if ( !$user->hasRole('ROLE_USER')/* || !$user->hasRole('ROLE_JUPYTERHUB_USER')*/ )
-                return self::createJSONError(403);
+                throw new ODRForbiddenException();
 
             $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
             $datatype_permissions = $user_permissions['datatypes'];
@@ -179,7 +157,8 @@ class BridgeController extends ODRCustomController
                 $can_view_datatype  = true;
 
             if ( !($datatype->isPublic() || $can_view_datatype) )
-                return self::createJSONError(403);
+                throw new ODRForbiddenException();
+            // ----------------------------------------
 
 
             // ----------------------------------------
@@ -207,7 +186,11 @@ class BridgeController extends ODRCustomController
             return new JsonResponse( array('html' => $html) );
         }
         catch (\Exception $e) {
-            return self::createJSONError(500, $e->getMessage());
+            $source = 0x1c91d10f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
@@ -237,7 +220,7 @@ class BridgeController extends ODRCustomController
             // Extract parameters from the $_POST request
             $parameters = $request->request;
             if ( !$parameters->has('datatype_id') || !$parameters->has('search_key') || !$parameters->has('app_id') )
-                return self::createJSONError(400, "Invalid Form");
+                throw new ODRBadRequestException('Invalid form');
 
             $datatype_id = $parameters->get('datatype_id');
             $search_key = urldecode( $parameters->get('search_key') );
@@ -245,17 +228,15 @@ class BridgeController extends ODRCustomController
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ( $datatype == null )
-                return self::createJSONError(404, 'Datatype is deleted');
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
 
 
             // ----------------------------------------
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             if ($user === 'anon.')
-                return self::createJSONError(401, "Permission denied");
-            if ( !$user->hasRole('ROLE_USER')/* || !$user->hasRole('ROLE_JUPYTERHUB_USER')*/ )
-                return self::createJSONError(403, "Permission denied");
+                throw new ODRForbiddenException();
 
             $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
             $username = self::getJupyterhubUsername($user);
@@ -267,7 +248,7 @@ class BridgeController extends ODRCustomController
 
             // If no datarecords, then don't continue
             if ( strlen($saved_search['datarecord_list']) == 0 )
-                return self::createJSONError(404, "No datarecords found");
+                throw new ODRNotFoundException('No datarecords found', true);
 
 
             // ----------------------------------------
@@ -284,7 +265,7 @@ class BridgeController extends ODRCustomController
 
             // If nothing found, notify user
             if (!$found)
-                return self::createJSONError(404, "Invalid app");
+                throw new ODRNotFoundException('Invalid app', true);
 
 
             // ----------------------------------------
@@ -303,7 +284,11 @@ class BridgeController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            return self::createJSONError(500, $e->getMessage());
+            $source = 0xa7b712c8;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
@@ -448,5 +433,90 @@ class BridgeController extends ODRCustomController
         $ret = json_decode($ret);
 //        exit( print_r($ret, true) );
         return $ret->notebook_path;
+    }
+
+
+    /**
+     * Instructs the jupyterhub server to shutdown.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function hubshutdownAction(Request $request)
+    {
+        try {
+            // ----------------------------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
+
+
+            // Going to need these...
+            $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
+            $jupyterhub_server_baseurl = $jupyterhub_config['jupyterhub_baseurl'];
+
+            $jupyterhub_api_baseurl = $jupyterhub_server_baseurl.'/hub/api';
+            $jupyterhub_api_key = $jupyterhub_config['api_key'];
+
+            $jupyterhub_api_url = $jupyterhub_api_baseurl.'/shutdown';
+
+
+            // Need to use cURL to send a POST request...thanks symfony
+            $ch = curl_init();
+/*
+            $parameters = array(
+                'proxy' => true,    // ensure the proxy and any open notebook servers are shutdown as well
+                'servers' => true,
+            );
+            $parameters = json_encode($parameters);
+*/
+
+            // Set the options for the POST request
+            $headers = array();
+            $headers[] = 'Authorization: token '.$jupyterhub_api_key;
+
+            curl_setopt_array(
+                $ch,
+                array(
+                    CURLOPT_POST => 1,
+                    CURLOPT_URL => $jupyterhub_api_url,
+                    CURLOPT_FRESH_CONNECT => 1,
+                    CURLOPT_RETURNTRANSFER => 1,
+                    CURLOPT_FORBID_REUSE => 1,
+                    CURLOPT_TIMEOUT => 120,
+                    CURLOPT_HTTPHEADER => $headers,
+//                    CURLOPT_POSTFIELDS => http_build_query($parameters),  // TODO - complains about invalid json in the body
+
+                    CURLOPT_SSL_VERIFYPEER => 0,        // TODO - temporary
+
+                    // Debug options
+//                CURLOPT_HEADER => 1,
+//                CURLINFO_HEADER_OUT => 1,
+                )
+            );
+
+            // Execute the cURL request, and check for errors
+            $ret = curl_exec($ch);
+
+//            $status_code = intval( curl_getinfo($ch, CURLINFO_HTTP_CODE) );
+//            exit( print_r(curl_getinfo($ch), true)."\n\n\n".print_r($ret, true) );
+
+            if (!$ret) {
+                // Attempt to throw an exception with details...
+                throw new \Exception('Error when instructing jupyterhub server to shutdown: '.curl_error($ch) );
+            }
+
+            return new Response('Hub shutdown successfully');
+        }
+        catch (\Exception $e) {
+            $source = 0x558b2f44;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
     }
 }

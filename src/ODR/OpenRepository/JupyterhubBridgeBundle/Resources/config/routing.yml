@@ -14,3 +14,7 @@ odr_jupyterhub_export:
     path: /admin/jupyterhub/export
     defaults: { _controller: ODROpenRepositoryJupyterhubBridgeBundle:Bridge:jupyterhubexport }
     requirements: { methods: POST }
+
+odr_jupyter_hub_shutdown:
+    path: /admin/jupyterhub/shutdown
+    defaults: { _controller: ODROpenRepositoryJupyterhubBridgeBundle:Bridge:hubshutdown }

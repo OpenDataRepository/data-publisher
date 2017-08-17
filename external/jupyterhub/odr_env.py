@@ -81,7 +81,29 @@ def getDatatypeList():
     if (list_type == "all"):
         api_url = api_url + '/all'
 
-    return _makeRequest(api_url, 'datatypes')
+    return _makeRequest(api_url, file_format)
+
+
+def getDatatypeData(datatype_id):
+    """
+    Attempts to download a JSON representation of the given datatype from ODR
+
+    Returns a dict describing the datatype
+    """
+
+    # TODO - handle xml format as well?
+    file_format = 'json'
+
+    # Ensure arguments are valid
+    if not isinstance(datatype_id, int):
+        raise ValueError('datatype_id must be numeric')
+    if not (file_format == 'xml' or file_format == 'json'):
+        raise ValueError('file_format must be either "xml" or "json"')
+
+
+    # Send an API request to ODR
+    api_url = os.environ['ODR_BASEURL'] + '/api/datatype/v1/' + str(datatype_id) + '/' + file_format
+    return _makeRequest(api_url, file_format)
 
 
 def getDatarecordList(datatype_id):
@@ -103,7 +125,7 @@ def getDatarecordList(datatype_id):
 
     # Send an API request to ODR
     api_url = os.environ['ODR_BASEURL'] + '/api/datarecord_list/' + str(datatype_id)
-    return _makeRequest(api_url, 'datarecords')
+    return _makeRequest(api_url, file_format)
 
 
 def getDatarecordData(datarecord_id):
@@ -125,10 +147,10 @@ def getDatarecordData(datarecord_id):
 
     # Send an API request to ODR
     api_url = os.environ['ODR_BASEURL'] + '/api/datarecord/v1/' + str(datarecord_id) + '/' + file_format
-    return _makeRequest(api_url, 'datarecords')
+    return _makeRequest(api_url, file_format)
 
 
-def _makeRequest(api_url, success_key):
+def _makeRequest(api_url, file_format):
     """
     Makes a request to the specified api_url, and attempts to deal with any errors that arise.
 
@@ -137,19 +159,21 @@ def _makeRequest(api_url, success_key):
 
     access_token = __getAccessToken()
 
-    r = requests.get(api_url + '?access_token=' + access_token)
+    accept_header = {'accept': 'application/json'}
+    if (file_format == 'xml'):
+        accept_header = {'accept': 'text/xml'}
+
+    r = requests.get(api_url + '?access_token=' + access_token, headers=accept_header)
 #    if (r.status_code != 200):
 #        raise RuntimeError( r.json() )
 
+    # TODO - handle XML data as well
     data = json.loads(r.text)
 
     # Deal with the response...
-    if success_key in data:
+    if (r.status_code == 200):
         # Nothing went wrong, return the result as a dict
         return data
-    elif "d" in data:
-        # Got an ODR error...TODO - FIX ODR SO ITS ERRORS ARE CONSISTENT
-        raise RuntimeError( data )
     elif "error_description" in data:
         # Got an OAuth error, assume it's most likely to be an access token issue...
         if data['error_description'] == 'The access token provided has expired.':
@@ -164,23 +188,20 @@ def _makeRequest(api_url, success_key):
 
                 # Run the http request again with the new access token
                 request_url = api_url + '?access_token=' + new_access_token
-                r = requests.get(request_url)
+                r = requests.get(request_url, headers={'accept': 'application/json'})
                 if (r.status_code != 200):
                     raise RuntimeError( r.json() )
 
                 data = json.loads(r.text)
 
-                if success_key in data:
+                if (r.status_code == 200):
                     # Nothing wrong with the second request, return the result as a dict
                     return data
-                elif "d" in data:
-                    # Got an ODR error on the second request...TODO - FIX ODR SO ITS ERRORS ARE CONSISTENT
-                    raise RuntimeError( data )
                 elif "error_description" in data:
                     # Got an OAUth error again, most likely the refresh token is no longer valid
                     raise RuntimeError( data['error_description'] + "\nTry logging out, and then logging back into JupyterHub to fix this...")
                 else:
-                    # Something completely unexpected happened on the second request, abort
+                    # Some ODR error, or something completely unexpected happened on the second request, abort
                     raise RuntimeError( data )
 
         else:
@@ -188,7 +209,7 @@ def _makeRequest(api_url, success_key):
             raise RuntimeError( data['error_description'] )
 
     else:
-        # Something completely unexpected happened on the first request, abort
+        # Some ODR error, or something completely unexpected happened on the first request, abort
         raise RuntimeError( data )
 
 
@@ -252,6 +273,42 @@ def _buildFileListJSON(datarecord_list, file_list):
                 file_list = _buildFileListJSON(child_dt, file_list)
 
     return file_list
+
+
+def downloadImageToDisk(image_id):
+    """
+    Attempts to download the specified image from ODR, and saves it in the user's notebook directory.
+
+    Returns the path to the downloaded image, or some other error...
+    """
+
+    # Ensure arguments are valid
+    if not isinstance(image_id, int):
+        raise ValueError('image_id must be numeric')
+
+    # Attempt to download the image from ODR
+    api_url = os.environ['ODR_BASEURL'] + '/api/image_download/' + str(image_id)
+    r = _makeFileRequest(api_url)
+
+    # Name of image is stored within the Content-Disposition header, which is 'attachment; filename="<filename>";'
+    filename_header = r.headers['Content-Disposition']
+    final_filename = filename_header[22:-2]
+
+    # Apparently Symfony doesn't send a 'Content-Length' header despite ODR specifying one?
+#    expected_filesize = float(r.headers['Content-Length']) / 1024.0 / 1024.0
+
+    # Download the image from ODR
+    temp_filename = _id_generator() + '.tmp'
+    with open(temp_filename, 'wb') as fd:
+        for chunk in r.iter_content(chunk_size=65536):  # Attempt to read 64kb at a time
+            fd.write(chunk)
+
+    # Rename the downloaded image to match the original name provided by the server
+    shutil.move(temp_filename, final_filename)
+
+    print( 'Saved "' + final_filename + '"' )
+
+    return final_filename
 
 
 def downloadFileToDisk(file_id):
@@ -337,10 +394,7 @@ def _makeFileRequest(api_url):
     else:
         data = json.loads(r.text)
 
-        if "d" in data:
-            # Got an ODR error...TODO - FIX ODR SO ITS ERRORS ARE CONSISTENT
-            raise RuntimeError( data )
-        elif "error_description" in data:
+        if "error_description" in data:
             # Got an OAuth error, assume it's most likely to be an access token issue...
             if data['error_description'] == 'The access token provided has expired.':
                 # Attempt to get a new access token
@@ -360,14 +414,11 @@ def _makeFileRequest(api_url):
                 else:
                     data = json.loads(r.text)
 
-                    if "d" in data:
-                        # Got an ODR error on the second request...TODO - FIX ODR SO ITS ERRORS ARE CONSISTENT
-                        raise RuntimeError( data )
-                    elif "error_description" in data:
+                    if "error_description" in data:
                         # Got an OAUth error again, most likely the refresh token is no longer valid
                         raise RuntimeError( data['error_description'] + "\nTry logging out, and then logging back into JupyterHub to fix this...")
                     else:
-                        # Something completely unexpected happened on the second request, abort
+                        # Some ODR error, or something completely unexpected happened on the second request, abort
                         raise RuntimeError( data )
 
             else:
@@ -375,5 +426,5 @@ def _makeFileRequest(api_url):
                 raise RuntimeError( data['error_description'] )
 
         else:
-            # Something completely unexpected happened on the first request, abort
+            # Some ODR error, or something completely unexpected happened on the first request, abort
             raise RuntimeError( data )

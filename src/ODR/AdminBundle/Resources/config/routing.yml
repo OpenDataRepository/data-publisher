@@ -1239,3 +1239,9 @@ odr_api_download_file:
     defaults: { _controller: ODRAdminBundle:API:filedownload }
     requirements:
         file_id: \d+
+
+odr_api_download_image:
+    path: /api/image_download/{image_id}
+    defaults: { _controller: ODRAdminBundle:API:imagedownload }
+    requirements:
+        image_id: \d+

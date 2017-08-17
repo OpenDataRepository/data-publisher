@@ -12,13 +12,13 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\AdminBundle\Component\Service\DatatypeExportService;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -30,6 +30,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\DatarecordExportService;
+use ODR\AdminBundle\Component\Service\DatatypeExportService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
@@ -676,7 +677,158 @@ class APIController extends ODRCustomController
             return $response;
         }
         catch (\Exception $e) {
+            // Returning an error...do it in json
+            $request->setRequestFormat('json');
+
             $source = 0xbbaafae5;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Assuming the user has permissions to do so, creates a Symfony StreamedResponse for an image download
+     *
+     * @param integer $image_id
+     * @param Request $request
+     *
+     * @return JsonResponse|StreamedResponse
+     */
+    public function imagedownloadAction($image_id, Request $request)
+    {
+        try {
+            // Only allow for GET requests
+            if ($request->getMethod() !== 'GET')
+                throw new ODRMethodNotAllowedException();
+
+            // ----------------------------------------
+            // Load required objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var Image $image */
+            $image = $em->getRepository('ODRAdminBundle:Image')->find($image_id);
+            if ($image == null)
+                throw new ODRNotFoundException('Image');
+
+            $datafield = $image->getDataField();
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
+            $datarecord = $image->getDataRecord();
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
+            $datarecord = $datarecord->getGrandparent();
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Images that aren't done encrypting shouldn't be downloaded
+            if ($image->getEncryptKey() == '')
+                throw new ODRNotFoundException('Image');
+
+
+            // ----------------------------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $datatype_permissions = array();
+            $datafield_permissions = array();
+            if ($user !== 'anon.') {
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+                $datafield_permissions = $user_permissions['datafields'];
+            }
+
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_view_datafield = false;
+            if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ]['view']) )
+                $can_view_datafield = true;
+
+            if (!$datatype->isPublic() && !$can_view_datatype)
+                throw new ODRForbiddenException();
+            if (!$datarecord->isPublic() && !$can_view_datarecord)
+                throw new ODRForbiddenException();
+            if (!$datafield->isPublic() && !$can_view_datafield)
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+            // TODO - Only allow this action for images smaller than 5Mb?
+/*
+            $filesize = $image->->getFilesize() / 1024 / 1024;
+            if ($filesize > 5)
+                throw new ODRNotImplementedException('Currently not allowed to download files larger than 5Mb');
+*/
+
+            // Ensure the image exists in decrypted format
+            $file_path = realpath( dirname(__FILE__).'/../../../../web/'.$image->getLocalFileName() );     // realpath() returns false if file does not exist
+            if ( !$image->isPublic() || !$file_path )
+                $file_path = parent::decryptObject($image->getId(), 'image');     // TODO - decrypts non-public files to guessable names...though 5Mb size restriction should prevent this from being easily exploitable
+
+            $handle = fopen($file_path, 'r');
+            if ($handle === false)
+                throw new FileNotFoundException($file_path);
+
+
+            // Attach the original filename to the download
+            $display_filename = $image->getOriginalFileName();
+            if ($display_filename == null)
+                $display_filename = 'Image_'.$image->getId().'.'.$image->getExt();
+
+            // Set up a response to send the image back
+            $response = new StreamedResponse();
+            $response->setPrivate();
+            $response->headers->set('Content-Type', mime_content_type($file_path));
+            $response->headers->set('Content-Length', filesize($file_path));        // TODO - apparently this isn't sent?
+            $response->headers->set('Content-Disposition', 'attachment; filename="'.$display_filename.'";');
+/*
+            // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
+            $response->headers->setCookie(
+                new Cookie(
+                    'fileDownload', // name
+                    'true',         // value
+                    0,              // duration set to 'session'
+                    '/',            // default path
+                    null,           // default domain
+                    false,          // don't require HTTPS
+                    false           // allow cookie to be accessed outside HTTP protocol
+                )
+            );
+*/
+            //$response->sendHeaders();
+
+            // Use symfony's StreamedResponse to send the decrypted image back in chunks to the user
+
+            $response->setCallback(function () use ($handle) {
+                while (!feof($handle)) {
+                    $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
+                    echo $buffer;
+                    flush();
+                }
+                fclose($handle);
+            });
+
+            // If image is non-public, delete the decrypted version off the server
+            if ( !$image->isPublic() )
+                unlink( $file_path );
+
+            return $response;
+        }
+        catch (\Exception $e) {
+            // Returning an error...do it in json
+            $request->setRequestFormat('json');
+
+            $source = 0x8a8b2309;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
             else

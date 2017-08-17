@@ -19,6 +19,11 @@ After that, you can use any of the helper functions defined in `odr_env.py` insi
    This function returns a dict containing basic data on all the top-level datarecords belonging to `datatype_id` that you're allowed to view.  This function can only return useful identifying information if the datatype's designer has properly set the "External ID Datafield" and/or the "Name Datafield" for the datatype in question.
 
 ---
+* `odr_env.getDatatypeData(datatype_id)`
+
+   This function returns a dict containing all the datafields, child datatypes, and linked datatypes that you're allowed to view on a given top-level `datatype_id`.
+
+---
 * `odr_env.getDatarecordData(datarecord_id)`
 
    This function returns a dict containing all the datafields, child datarecords, and linked datarecords that you're allowed to view on a given top-level `datarecord_id`.
@@ -29,9 +34,14 @@ After that, you can use any of the helper functions defined in `odr_env.py` insi
    This utility function parses the dict returned by `odr_env.getDatarecordData(datarecord_id)`, and returns a new dict with basic identifying data on all the files contained within.
 
 ---
-* `odr_env.downloadFileToDisk(file_id, filename)`
+* `odr_env.downloadImageToDisk(image_id)`
 
-   This function attempts to download a file from ODR by `file_id`, and writes the contents of that file into `filename` inside your Jupyter Notebook directory if successful.  Currently, only files smaller than 5Mb can be downloaded with this function.
+   This function attempts to download the image with the id `image_id` from ODR, and writes the contents of that image into your Jupyter Notebook directory if successful.
+
+---
+* `odr_env.downloadFileToDisk(file_id)`
+
+   This function attempts to download the file with the id `file_id` from ODR, and writes the contents of that file into your Jupyter Notebook directory if successful.  Currently, only files smaller than 5Mb can be downloaded with this function.
 
 ---
 * `odr_env.downloadFile(file_id)`
