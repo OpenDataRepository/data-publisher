@@ -5,15 +5,26 @@
 {% if record_display_view == "single" %}
 <h1 class="no-margin-top-phone">
     <span>Search Result &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
-    <a name="customize"><i class="fa fa-md fa-fw fa-cog"></i></a>
+    <a id="page_settings" name="page_settings"><i class="fa fa-md fa-fw fa-cog"></i></a>
 </h1>
 {# Record View Menu #}
 {# include 'ODRAdminBundle:Display:display_area.html.twig' #}
-    <div class="pure-menu pure-menu-horizontal">
+    <div id="page_settings_menu" class="pure-menu pure-menu-horizontal" style="display:none;">
         <ul class="pure-menu-list">
             <li class="pure-menu-item"><a href="#" class="pure-menu-link">Customize View</a></li>
+            <li class="pure-menu-item">
+                <div class="pure-menu-link">
+                    <label for="state">State</label>
+                    <select id="state" class="pure-input-1-2">
+                        <option>AL</option>
+                        <option>CA</option>
+                        <option>IL</option>
+                    </select>
+                </div>
+            </li>
         </ul>
     </div>
+
 {# End Record View Menu #}
 {% endif %}
 
@@ -37,6 +48,8 @@
 {% if record_display_view == "single" %}
 <script>
 
+    var record_datatype_id = {{ datatype.id }};
+    var record_theme_id = {{ theme_id }};
     function initPage() {
 
         // Resize all elements dependent on window size
@@ -53,23 +66,12 @@
 
         // Hide divs for accordion purposes
         setupAccordions();
-{#
-        // Hide empty theme element divs
-        $(".ODRThemeElement").each(function() {
-            var has_children = false;
-            $(this).find(".ODRDataField").each(function() {
-                has_children = true;
-            });
 
-            $(this).find(".ODRRenderPluginContent").each(function() {
-                // Also don't hide the theme element if a render plugin exists
-                has_children = true;
-            });
+        $("#page_settings").unbind('click').click(function(event) {
+            // Load content after reveal...
+            $("#page_settings_menu").toggle('fast');
+        })
 
-            if (!has_children)
-                $(this).css( "display", "none" );
-        });
-#}
         $(".ODRFileDownloadProgress").hide();
 
         $("a.ODRFileDownload").unbind('click').click(function(event) {

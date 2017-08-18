@@ -269,7 +269,7 @@ class DatatypeInfoService
      *
      * @return array
      */
-    public function getDatatypeArrayByDatarecords($datarecord_array)
+    public function getDatatypeArrayByDatarecords($datarecord_array, $theme_id = null)
     {
         // Always bypass cache if in dev mode?
         $force_rebuild = false;
@@ -292,7 +292,7 @@ class DatatypeInfoService
         foreach ($associated_datatypes as $num => $dt_id) {
             $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id);
             if ($force_rebuild || $datatype_data == false)
-                $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild);
+                $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild, $theme_id);
 
             foreach ($datatype_data as $local_dt_id => $data)
                 $datatype_array[$local_dt_id] = $data;
@@ -311,7 +311,7 @@ class DatatypeInfoService
      *
      * @return array
      */
-    public function getDatatypeArray($datatype_ids)
+    public function getDatatypeArray($datatype_ids, $parent_theme_id = null)
     {
         // Always bypass cache if in dev mode?
         $force_rebuild = false;
@@ -322,7 +322,7 @@ class DatatypeInfoService
         foreach ($datatype_ids as $num => $dt_id) {
             $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id);
             if ($force_rebuild || $datatype_data == false)
-                $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild);
+                $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild, $parent_theme_id);
 
             foreach ($datatype_data as $dt_id => $data)
                 $datatype_array[$dt_id] = $data;
@@ -334,13 +334,15 @@ class DatatypeInfoService
 
     /**
      * Gets all layout information required for the given datatype in array format
+     * These should only store default themes when no theme parameter is sent.  When a
+     * theme id is sent, a specific theme should be loaded.
      *
      * @param integer $datatype_id
      * @param boolean $force_rebuild
      *
      * @return array
      */
-    private function buildDatatypeData($datatype_id, $force_rebuild = false)
+    private function buildDatatypeData($datatype_id, $force_rebuild = false, $parent_theme_id = null)
     {
 /*
         $timing = true;
@@ -360,8 +362,7 @@ class DatatypeInfoService
         $datatree_array = self::getDatatreeArray($force_rebuild);
 
         // Get all non-layout data for the requested datatype
-        $query = $this->em->createQuery(
-            'SELECT
+        $query_txt = 'SELECT
                 t, pt, st, tm,
                 dt, dtm, dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
                 te, tem,
@@ -405,9 +406,24 @@ class DatatypeInfoService
 
             WHERE
                 dt.id = :datatype_id
-                AND t.deletedAt IS NULL AND dt.deletedAt IS NULL AND te.deletedAt IS NULL
-            ORDER BY dt.id, t.id, tem.displayOrder, te.id, tdf.displayOrder, df.id, rom.displayOrder, ro.id'
-        )->setParameters( array('datatype_id' => $datatype_id) );
+                AND t.deletedAt IS NULL AND dt.deletedAt IS NULL AND te.deletedAt IS NULL';
+
+        if($parent_theme_id == null) {
+            // These are the default/system themes for the datatype
+            $query_txt .= ' AND pt.id IS NULL ';
+        }
+        else {
+            $query_txt .= " AND pt.id = :parent_theme_id";
+        }
+
+        $query_txt .= ' ORDER BY dt.id, t.id, tem.displayOrder, te.id, tdf.displayOrder, df.id, rom.displayOrder, ro.id';
+
+        if($parent_theme_id == null) {
+            $query = $this->em->createQuery($query_txt)->setParameters(array('datatype_id' => $datatype_id));
+        }
+        else {
+            $query = $this->em->createQuery($query_txt)->setParameters(array('datatype_id' => $datatype_id, 'parent_theme_id' => $parent_theme_id));
+        }
 
         $datatype_data = $query->getArrayResult();
 /*

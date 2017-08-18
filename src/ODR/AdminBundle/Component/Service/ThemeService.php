@@ -120,9 +120,6 @@ class ThemeService
         $user_id = null
     ) {
 
-        $redis = $this->container->get('snc_redis.default');
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
         $datatype_info_service = $this->container->get('odr.datatype_info_service');
 
         // Get the DataType to work with
@@ -173,6 +170,7 @@ class ThemeService
                     // Check if is default theme for datatype and theme type
                     $add_theme = true;
                 }
+                // TODO - What to do if user is admin for datatype
 
                 if($add_theme){
                     $theme_record = array();
@@ -191,6 +189,128 @@ class ThemeService
         return $filtered_themes;
 
     }
+
+    // Check current session variables for Datatype
+    public function setSessionTheme($datatype_id, $theme_id) {
+        // Set theme
+        // Ensure theme is cached
+        foreach($session_themes as $theme_datatype_id => $theme) {
+            if($datatype_id == $theme_datatype_id) {
+                // Redis Key
+                $session_theme = "user_session_theme_" . $theme_preference['id'] . "_" . $theme['id'];
+
+                // Store theme in REDIS for user (short expiry).
+
+            }
+        }
+    }
+
+
+    // If logged in, check session for themes
+    // Check current datatype in user session
+    // If not default theme, check redis cache for user theme
+    // Set user session to contain theme key
+    // Check if redis data exists...
+
+    /**
+     * The Session Theme functions actually store and retrieve the
+     * entire theme structure for the datatype as selected by the user.
+     * If the user has no preferred theme, the default theme (already part
+     * of the datatype REDIS data) is used.
+     *
+     * The themes themselves will be cached in REDIS and the corresponding
+     * redis key will be stored in the session.
+     *
+     * The return allows the interface to show the selected them in the
+     * theme selection UI.
+     *
+     * @param $datatype_id
+     * @param $theme_type
+     * @return mixed
+     */
+    public function getSessionTheme($datatype_id, $theme_type){
+        /** @var CacheService $cache_service */
+        $cache_service = $this->container->get('odr.cache_service');
+
+        if($this->container->get('session')->isStarted()) {
+            $session = $this->container->get('session');
+            // User theme is the user's default choice for a datatype
+            $user_themes = array();
+            if ($session->has("user_themes")) {
+                $user_themes = $session->get("user_themes");
+            }
+            if(count($user_themes) == 0
+                || !isset($user_themes[$datatype_id])
+                || !isset($user_themes[$datatype_id][$theme_type])
+                ) {
+                // set user themes
+                $qb = $this->em->createQueryBuilder();
+                $qb->select('t')
+                    ->from('ODRAdminBundle:ThemePreference', 'tp')
+                    ->leftJoin('tp.theme', 't')
+                    ->leftJoin('t.themeMeta', 'tm')
+                    ->where('t.dataType = :datatype_id')
+                    ->andWhere('t.themeType like :theme_type')
+                    ->andWhere('tp.createdBy = :user_id')
+                    ->addOrderBy('tm.templateName', 'ASC')
+                    ->setParameters(array(
+                        'datatype_id' => $datatype_id,
+                        'theme_type' => $theme_type,
+                        'user_id' => $user_id
+                    ));
+
+                $query = $qb->getQuery();
+                $available_user_themes = $query->getResult();
+            }
+
+            // Set user default theme for datatype
+            $user_theme = "";
+            foreach($available_user_themes as $theme_datatype_id => $theme) {
+                if($datatype_id == $theme_datatype_id
+                    && $theme['theme_type'] == $theme_type) {
+                    // Redis Key
+                    $user_theme = $theme['id'];
+
+                    // Store theme in REDIS for user (long expiry).
+                    // TODO Get actual theme here and store in REDIS
+                    $data = $cache_service->set($key, $value, $time);
+                }
+            }
+            if($user_theme == "") {
+                // Set theme to default of type
+                $user_theme = "default";
+            }
+
+            // Set session themes
+            $user_themes[$datatype_id][$theme_type] = $user_theme;
+            $session->set('user_themes', $user_themes);
+
+
+            // Session themes are temporary and apply only to a single tab?
+            $session_themes = array();
+            if ($session->has("session_themes")) {
+                $session_themes = $session->get("session_themes");
+            }
+            if(count($session_themes) == 0
+                || !isset($session_themes[$datatype_id])
+                || !isset($session_themes[$datatype_id][$theme_type])
+            ) {
+                // Set session themes
+                $session_themes[$datatype_id][$theme_type] = "default";
+                $session->set('session_themes', $session_themes);
+            }
+        }
+
+        // Returns default theme or session theme
+        $theme_data = array();
+        $theme_data['user'] = $user_themes[$datatype_id][$theme_type];
+        $theme_data['session'] = $session_themes[$datatype_id][$theme_type];
+        return $theme_data;
+    }
+
+
+    // User Preferred Theme for Datatype
+
 
     // cacheTheme($theme_id)
 
@@ -213,9 +333,6 @@ class ThemeService
     public function cloneThemesForDatatype($datatype_id, $from_theme_type, $to_theme_type, $user_id)
     {
         try {
-
-            $redis = $this->container->get('snc_redis.default');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             $user_manager = $this->container->get('fos_user.user_manager');
             $this->user = $user_manager->findUserBy(array('id' => $user_id));

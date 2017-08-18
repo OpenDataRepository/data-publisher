@@ -263,7 +263,9 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Get all Datarecords and Datatypes that are associated with the datarecord to render
             $datarecord_array = $dri_service->getDatarecordArray($original_datarecord->getId());
-            $datatype_array = $dti_service->getDatatypeArrayByDatarecords($datarecord_array);
+            // Need to pass the theme id here. Pulled from user preferences or null for default.
+            $parent_theme_id = 758;
+            $datatype_array = $dti_service->getDatatypeArrayByDatarecords($datarecord_array, $parent_theme_id);
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
@@ -1705,6 +1707,43 @@ exit();
         }
     }
 
+    /**
+     * Get the user's preferred theme for this datatype
+     *
+     * @param $datatype_id
+     * @param Request $request
+     * @return array
+     */
+    public function userthemesAction($datatype_id, Request $request) {
+
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'json';
+        $return['d'] = '';
+
+        try {
+            $theme_service = $this->container->get('odr.theme_service');
+
+            $return['d'] = $theme_service->getAvailableThemes($datatype_id, 'master');
+
+            $response = new Response(json_encode($return));
+            $response->headers->set('Content-Type', 'application/json');
+            return $response;
+        }
+        catch (\Exception $e)
+        {
+            // Usually this'll be called via the jQuery fileDownload plugin, and therefore need a json-format error
+            // But in the off-chance it's a direct link, then the error format needs to remain html
+            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
+                $request->setRequestFormat('json');
+
+            $source = 0x81fad8c3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
 
     /**
      * Get available themes for user and datatype.
@@ -1721,12 +1760,9 @@ exit();
         $return['d'] = '';
 
         try {
-            /** @var PermissionsManagementService $pm_service */
             $theme_service = $this->container->get('odr.theme_service');
 
             $return['d'] = $theme_service->getAvailableThemes($datatype_id, 'master');
-
-            // need to develop template
 
             $response = new Response(json_encode($return));
             $response->headers->set('Content-Type', 'application/json');
