@@ -72,7 +72,10 @@ class DisplayController extends ODRCustomController
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            // Set up the user information
             $session = $request->getSession();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
@@ -80,6 +83,8 @@ class DisplayController extends ODRCustomController
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeService $theme_service */
+            $theme_service = $this->container->get('odr.theme_service');
 
 
             // ----------------------------------------
@@ -92,17 +97,27 @@ class DisplayController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            // Check user theme preferences for this datatype.
+            // Could be using a custom default or a session theme (instantaneous).
+            if ( $user === 'anon.' ) {
+               // Use default theme
+                /** @var Theme $theme */
+                $theme = $theme_service->getDefaultTheme($datatype->getId(), 'master');
+            }
+            else {
+                // Get theme choice of user
+                $theme = $theme_service->getSelectedTheme($datatype->getId(), 'master');
+            }
+
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
-            // Save incase the user originally requested a child datarecord
-            $original_datarecord = $datarecord;
-            $original_datatype = $datatype;
-            $original_theme = $theme;
+            // Save in case the user requested a child datarecord
+            $requested_datarecord = $datarecord;
+            $requested_datatype = $datatype;
+            $requested_theme = $theme;
 
-            // ...want the grandparent datarecord and datatype for everything else, however
+            // Want the grandparent datarecord and datatype for everything else
             $is_top_level = 1;
             if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() ) {
                 // This is a child datatype
@@ -114,10 +129,18 @@ class DisplayController extends ODRCustomController
                 $datatype = $datarecord->getDataType();
                 if ($datatype->getDeletedAt() != null)
                     throw new ODRNotFoundException('Datatype');
-
-                // Need to get user's chosen theme for this child datatype
                 /** @var Theme $theme */
-                $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+                // Need to get user's chosen theme for this child datatype
+                if ( $user === 'anon.' ) {
+                    // Use default theme
+                    /** @var Theme $theme */
+                    $theme = $theme_service->getDefaultTheme($datatype->getId(), 'master');
+                }
+                else {
+                    // Get theme choice of user
+                    $theme = $theme_service->getSelectedTheme($datatype->getId(), 'master');
+                }
+
                 if ($theme == null)
                     throw new ODRNotFoundException('Theme');
             }
@@ -126,11 +149,9 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = array();
             $datatype_permissions = array();
             $datafield_permissions = array();
-
 
             if ( $user === 'anon.' ) {
                 if ( $datatype->isPublic() && $datarecord->isPublic() ) {
@@ -149,16 +170,16 @@ class DisplayController extends ODRCustomController
 //                $datarecord_restriction = $user_permissions['datarecord_restriction'];  // TODO
 
                 $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dt_view' ]) )
+                if ( isset($datatype_permissions[ $requested_datatype->getId() ]) && isset($datatype_permissions[ $requested_datatype->getId() ][ 'dt_view' ]) )
                     $can_view_datatype = true;
 
                 $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dr_view' ]) )
+                if ( isset($datatype_permissions[ $requested_datatype->getId() ]) && isset($datatype_permissions[ $requested_datatype->getId() ][ 'dr_view' ]) )
                     $can_view_datarecord = true;
 
                 // TODO - should this check block viewing of a public child datarecord if the user isn't allowed to see its parent?
                 // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
-                if ( !($original_datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) )
+                if ( !($requested_datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) )
                     throw new ODRForbiddenException();
             }
             // ----------------------------------------
@@ -259,22 +280,23 @@ class DisplayController extends ODRCustomController
                 )
             );
 
+            // Need to pass the theme id here. Pulled from user preferences or null for default.
+            if(!isset($parent_theme_id) || $parent_theme_id == null) {
+                $parent_theme_id = $requested_theme->getId();
+            }
+            $parent_theme_id = 758;
 
             // ----------------------------------------
             // Get all Datarecords and Datatypes that are associated with the datarecord to render
-            $datarecord_array = $dri_service->getDatarecordArray($original_datarecord->getId());
-            // Need to pass the theme id here. Pulled from user preferences or null for default.
-            $parent_theme_id = 758;
+            $datarecord_array = $dri_service->getDatarecordArray($requested_datarecord->getId());
             $datatype_array = $dti_service->getDatatypeArrayByDatarecords($datarecord_array, $parent_theme_id);
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
             // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-            $stacked_datarecord_array[ $original_datarecord->getId() ] = $dri_service->stackDatarecordArray($datarecord_array, $original_datarecord->getId());
-            $stacked_datatype_array[ $original_datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $original_datatype->getId(), $original_theme->getId());
-//exit( '<pre>'.print_r($stacked_datarecord_array, true).'</pre>' );
-//exit( '<pre>'.print_r($stacked_datatype_array, true).'</pre>' );
+            $stacked_datarecord_array[ $requested_datarecord->getId() ] = $dri_service->stackDatarecordArray($datarecord_array, $requested_datarecord->getId());
+            $stacked_datatype_array[ $requested_datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $requested_datatype->getId(), $parent_theme_id);
 
 
             // ----------------------------------------
@@ -286,9 +308,9 @@ class DisplayController extends ODRCustomController
                     'datatype_array' => $stacked_datatype_array,
                     'datarecord_array' => $stacked_datarecord_array,
 
-                    'theme_id' => $original_theme->getId(),    // using these on purpose...user could have requested a child datarecord initially
-                    'initial_datatype_id' => $original_datatype->getId(),
-                    'initial_datarecord_id' => $original_datarecord->getId(),
+                    'theme_id' => $parent_theme_id,
+                    'initial_datatype_id' => $requested_datatype->getId(),
+                    'initial_datarecord_id' => $requested_datarecord->getId(),
 
                     'is_top_level' => $is_top_level,
 

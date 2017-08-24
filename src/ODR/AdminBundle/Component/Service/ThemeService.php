@@ -190,9 +190,51 @@ class ThemeService
 
     }
 
-    // Check current session variables for Datatype
+    /**
+     * @param $datatype_id
+     * @param $theme_type
+     * @return mixed
+     */
+    public function getDefaultTheme($datatype_id, $theme_type, $flush = false) {
+
+        $cache_service = $this->container->get('odr.cache_service');
+
+        $theme = $cache_service->get('default_theme_'.$datatype_id.'_'.$theme_type);
+
+        if($theme == false || $flush) {
+            // Get default theme for datatype and theme type
+            $qb = $this->em->createQueryBuilder();
+            $qb->select('t')
+                ->from('ODRAdminBundle:Theme', 't')
+                ->leftJoin('t.themeMeta', 'tm')
+                ->where('t.dataType = :datatype_id')
+                ->andWhere('t.themeType like :theme_type')
+                ->andWhere('tm.isDefault = 1')
+                ->setParameters(array(
+                    'datatype_id' => $datatype_id,
+                    'theme_type' => $theme_type
+                ));
+
+            $query = $qb->getQuery();
+            $default_themes_result = $query->getResult();
+
+            if(count($default_themes_result) > 0) {
+                $theme = $default_themes_result[0];
+                $cache_service->get('default_theme_'.$datatype_id.'_'.$theme_type, $theme);
+            }
+        }
+
+        // Should pull from cache
+        return $theme;
+    }
+
+    /**
+     * Check current session variables for Datatype
+     *
+     * @param $datatype_id
+     * @param $theme_id
+     */
     public function setSessionTheme($datatype_id, $theme_id) {
-        // Set theme
         // Ensure theme is cached
         foreach($session_themes as $theme_datatype_id => $theme) {
             if($datatype_id == $theme_datatype_id) {
@@ -205,107 +247,91 @@ class ThemeService
         }
     }
 
+    public function getUserDefaultTheme($datatype_id, $theme_type) {
+        $user_theme = "default";
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-    // If logged in, check session for themes
-    // Check current datatype in user session
-    // If not default theme, check redis cache for user theme
-    // Set user session to contain theme key
-    // Check if redis data exists...
+        // Get user's default theme for datatype and theme type
+        $qb = $this->em->createQueryBuilder();
+        $qb->select('tp, t')
+            ->from('ODRAdminBundle:ThemePreferences', 'tp')
+            ->leftJoin('tp.theme', 't')
+            ->leftJoin('t.themeMeta', 'tm')
+            ->where('t.dataType = :datatype_id')
+            ->andWhere('t.themeType like :theme_type')
+            ->andWhere('tp.createdBy = :user_id')
+            ->andWhere('tp.isDefault = 1')
+            ->addOrderBy('tm.templateName', 'ASC')
+            ->setParameters(array(
+                'datatype_id' => $datatype_id,
+                'theme_type' => $theme_type,
+                'user_id' => $user->getId()
+            ));
+
+        $query = $qb->getQuery();
+        $user_themes_result = $query->getResult();
+
+        if(count($user_themes_result) > 0) {
+            $user_theme = $user_themes_result[0]->getTheme();
+        }
+
+        return $user_theme;
+    }
 
     /**
-     * The Session Theme functions actually store and retrieve the
-     * entire theme structure for the datatype as selected by the user.
-     * If the user has no preferred theme, the default theme (already part
-     * of the datatype REDIS data) is used.
+     * Determines the current theme choice for the user for the
+     * selected datatype and theme type.
      *
-     * The themes themselves will be cached in REDIS and the corresponding
-     * redis key will be stored in the session.
-     *
-     * The return allows the interface to show the selected them in the
-     * theme selection UI.
+     * Maybe this should be stored in REDIS - is the session slow?
      *
      * @param $datatype_id
      * @param $theme_type
      * @return mixed
      */
-    public function getSessionTheme($datatype_id, $theme_type){
-        /** @var CacheService $cache_service */
-        $cache_service = $this->container->get('odr.cache_service');
-
+    public function getSelectedTheme($datatype_id, $theme_type){
+        $theme = "default";
         if($this->container->get('session')->isStarted()) {
             $session = $this->container->get('session');
+
             // User theme is the user's default choice for a datatype
             $user_themes = array();
             if ($session->has("user_themes")) {
                 $user_themes = $session->get("user_themes");
             }
-            if(count($user_themes) == 0
-                || !isset($user_themes[$datatype_id])
-                || !isset($user_themes[$datatype_id][$theme_type])
+
+            if(count($user_themes) > 0
+                && isset($user_themes[$datatype_id])
+                && isset($user_themes[$datatype_id][$theme_type])
                 ) {
-                // set user themes
-                $qb = $this->em->createQueryBuilder();
-                $qb->select('t')
-                    ->from('ODRAdminBundle:ThemePreference', 'tp')
-                    ->leftJoin('tp.theme', 't')
-                    ->leftJoin('t.themeMeta', 'tm')
-                    ->where('t.dataType = :datatype_id')
-                    ->andWhere('t.themeType like :theme_type')
-                    ->andWhere('tp.createdBy = :user_id')
-                    ->addOrderBy('tm.templateName', 'ASC')
-                    ->setParameters(array(
-                        'datatype_id' => $datatype_id,
-                        'theme_type' => $theme_type,
-                        'user_id' => $user_id
-                    ));
-
-                $query = $qb->getQuery();
-                $available_user_themes = $query->getResult();
+                $theme = $user_themes[$datatype_id][$theme_type];
             }
+            else {
+                $theme = self::getUserDefaultTheme($datatype_id, $theme_type);
 
-            // Set user default theme for datatype
-            $user_theme = "";
-            foreach($available_user_themes as $theme_datatype_id => $theme) {
-                if($datatype_id == $theme_datatype_id
-                    && $theme['theme_type'] == $theme_type) {
-                    // Redis Key
-                    $user_theme = $theme['id'];
-
-                    // Store theme in REDIS for user (long expiry).
-                    // TODO Get actual theme here and store in REDIS
-                    $data = $cache_service->set($key, $value, $time);
-                }
+                // Set session themes
+                $user_themes[$datatype_id][$theme_type] = $theme;
+                $session->set('user_themes', $user_themes);
             }
-            if($user_theme == "") {
-                // Set theme to default of type
-                $user_theme = "default";
-            }
-
-            // Set session themes
-            $user_themes[$datatype_id][$theme_type] = $user_theme;
-            $session->set('user_themes', $user_themes);
-
 
             // Session themes are temporary and apply only to a single tab?
             $session_themes = array();
             if ($session->has("session_themes")) {
                 $session_themes = $session->get("session_themes");
             }
-            if(count($session_themes) == 0
-                || !isset($session_themes[$datatype_id])
-                || !isset($session_themes[$datatype_id][$theme_type])
+
+            if(count($session_themes) > 0
+                && isset($session_themes[$datatype_id])
+                && isset($session_themes[$datatype_id][$theme_type])
             ) {
-                // Set session themes
-                $session_themes[$datatype_id][$theme_type] = "default";
-                $session->set('session_themes', $session_themes);
+                $theme = $session_themes[$datatype_id][$theme_type];
             }
         }
 
-        // Returns default theme or session theme
-        $theme_data = array();
-        $theme_data['user'] = $user_themes[$datatype_id][$theme_type];
-        $theme_data['session'] = $session_themes[$datatype_id][$theme_type];
-        return $theme_data;
+        if($theme == "default") {
+            $theme = self::getDefaultTheme($datatype_id, $theme_type);
+        }
+
+        return $theme;
     }
 
 

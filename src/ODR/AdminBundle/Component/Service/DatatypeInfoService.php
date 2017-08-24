@@ -269,7 +269,7 @@ class DatatypeInfoService
      *
      * @return array
      */
-    public function getDatatypeArrayByDatarecords($datarecord_array, $theme_id = null)
+    public function getDatatypeArrayByDatarecords($datarecord_array, $parent_theme_id = null)
     {
         // Always bypass cache if in dev mode?
         $force_rebuild = false;
@@ -292,7 +292,7 @@ class DatatypeInfoService
         foreach ($associated_datatypes as $num => $dt_id) {
             $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id);
             if ($force_rebuild || $datatype_data == false)
-                $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild, $theme_id);
+                $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild, $parent_theme_id);
 
             foreach ($datatype_data as $local_dt_id => $data)
                 $datatype_array[$local_dt_id] = $data;
@@ -320,7 +320,12 @@ class DatatypeInfoService
 
         $datatype_array = array();
         foreach ($datatype_ids as $num => $dt_id) {
-            $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id);
+            if($parent_theme_id == null) {
+                $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id.'_default');
+            }
+            else {
+                $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id.'_'.$parent_theme_id);
+            }
             if ($force_rebuild || $datatype_data == false)
                 $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild, $parent_theme_id);
 
@@ -410,9 +415,13 @@ class DatatypeInfoService
 
         if($parent_theme_id == null) {
             // These are the default/system themes for the datatype
-            $query_txt .= ' AND pt.id IS NULL ';
+            // TODO All default themes must be public.  Need to refactor for this change.
+            $query_txt .= ' AND (pt.id IS NULL OR (tm.isDefault = 1 and (tm.public IS NOT NULL AND tm.public < NOW())) ) ';
         }
         else {
+            // Note: two themes could have the same source theme, but no two top-level
+            // themes could have the same parent.  Only child themes could have the same
+            // parent theme
             $query_txt .= " AND pt.id = :parent_theme_id";
         }
 
@@ -512,7 +521,12 @@ class DatatypeInfoService
         }
 */
         // Save the formatted datarecord data back in the cache, and return it
-        $this->cache_service->set('cached_datatype_'.$datatype_id, $formatted_datatype_data);
+        if($parent_theme_id == null) {
+            $this->cache_service->set('cached_datatype_'.$dt_id.'_default', $formatted_datatype_data);
+        }
+        else {
+            $this->cache_service->set('cached_datatype_'.$dt_id.'_'.$parent_theme_id, $formatted_datatype_data);
+        }
         return $formatted_datatype_data;
     }
 
