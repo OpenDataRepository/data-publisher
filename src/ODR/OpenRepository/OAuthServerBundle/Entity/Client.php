@@ -30,6 +30,13 @@ class Client extends BaseClient
     protected $id;
 
     /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     *
+     * @ORM\ManyToOne(targetEntity="ODR\OpenRepository\UserBundle\Entity\User")
+     */
+    private $owner;
+
+    /**
      * @var \Doctrine\Common\Collections\Collection
      *
      * @ORM\ManyToMany(targetEntity="ODR\OpenRepository\UserBundle\Entity\User", mappedBy="clients")
@@ -88,5 +95,28 @@ class Client extends BaseClient
     public function getUsers()
     {
         return $this->users;
+    }
+
+    /**
+     * Set Owner
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $owner
+     * @return Client
+     */
+    public function setOwner(\ODR\OpenRepository\UserBundle\Entity\User $owner = null)
+    {
+        $this->owner = $owner;
+
+        return $this;
+    }
+
+    /**
+     * Get Owner
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    public function getOwner()
+    {
+        return $this->owner;
     }
 }

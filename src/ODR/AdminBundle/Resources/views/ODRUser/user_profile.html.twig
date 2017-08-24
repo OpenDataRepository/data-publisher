@@ -2,7 +2,7 @@
 
 <div class="ODRContentWrapper pure-u-1">
     <div class="ODRThemeElement pure-u-1">
-        <div class="ODRInnerBox pure-u-1">
+        <div class="ODRInnerBox pure-u-1 pure-u-md-1-2" style="border:none;">
             <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i>
                 User Profile{% if target_user != null %} - {{ target_user.getuserstring }}{% endif %}
                 <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
@@ -12,12 +12,24 @@
                 {% include 'ODRAdminBundle:ODRUser:user_profile_form.html.twig' with {'profile_form': profile_form, 'current_user': current_user, 'target_user': target_user} %}
             </div>
         </div>
+
+        <div class="ODRInnerBox pure-u-1 pure-u-md-1-2" style="border:none;">
+            <h3 class="ODRHeader">
+                OAuth Management
+            </h3>
+
+            <div class="ODRBodyContent">
+                {% if self_edit and has_oauth_providers %}
+                    {% include 'ODROpenRepositoryOAuthClientBundle:Default:oauth_provider_list.html.twig' with {'user': target_user, 'connected_oauth_resources': connected_oauth_resources} %}
+                {% endif %}
+
+                {% if self_edit %}
+                    {% include 'ODROpenRepositoryOAuthServerBundle:Clients:owned_clients.html.twig' with {'owned_clients': owned_clients, 'site_baseurl': site_baseurl} %}
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
-
-{% if self_edit and has_oauth_providers %}
-    {% include 'ODROpenRepositoryOAuthClientBundle:Default:oauth_provider_list.html.twig' with {'user': target_user, 'connected_oauth_resources': connected_oauth_resources} %}
-{% endif %}
 
 {% set form_url = path('odr_profile_save') %}
 {% if self_edit %}

@@ -4,3 +4,8 @@ services:
         arguments: []
         tags:
             - { name: kernel.event_subscriber }
+
+    oauth.grant_extension.owned_client:
+        class: ODR\OpenRepository\OAuthServerBundle\OAuth\OwnedClientGrantExtension
+        tags:
+            - { name: fos_oauth_server.grant_extension, uri: 'http://odr.io/grants/owned_client' }

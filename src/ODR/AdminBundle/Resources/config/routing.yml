@@ -25,6 +25,15 @@ odr_self_profile_save:
     defaults: { _controller: ODRAdminBundle:ODRUser:selfsaveprofile }
     requirements: { methods: POST }
 
+# TODO - move these two routes elsewhere?
+odr_create_oauth_client:
+    path:  /profile/oauth_client/create
+    defaults: { _controller: ODRAdminBundle:ODRUser:createOAuthClient }
+
+odr_delete_oauth_client:
+    path:  /profile/oauth_client/delete
+    defaults: { _controller: ODRAdminBundle:ODRUser:deleteOAuthClient }
+
 #-----------------------------------------
 
 #-----------------------------------------
