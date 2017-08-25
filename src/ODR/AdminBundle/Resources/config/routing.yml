@@ -25,15 +25,6 @@ odr_self_profile_save:
     defaults: { _controller: ODRAdminBundle:ODRUser:selfsaveprofile }
     requirements: { methods: POST }
 
-# TODO - move these two routes elsewhere?
-odr_create_oauth_client:
-    path:  /profile/oauth_client/create
-    defaults: { _controller: ODRAdminBundle:ODRUser:createOAuthClient }
-
-odr_delete_oauth_client:
-    path:  /profile/oauth_client/delete
-    defaults: { _controller: ODRAdminBundle:ODRUser:deleteOAuthClient }
-
 #-----------------------------------------
 
 #-----------------------------------------
@@ -879,16 +870,6 @@ odr_get_datarecord_export:
 
 #-----------------------------------------
 # Worker Controller
-#odr_recache_type:
-#    path: /beanstalk/recache_type
-#    defaults: { _controller: ODRAdminBundle:Worker:recachetype }
-#    requirements: { methods: POST }
-
-#odr_recache_record:
-#    path: /beanstalk/recache_record
-#    defaults: { _controller: ODRAdminBundle:Worker:recacherecord }
-#    requirements: { methods: POST }
-
 odr_migrate_field:
     path: /beanstalk/migrate
     defaults: { _controller: ODRAdminBundle:Worker:migrate }
@@ -1215,6 +1196,10 @@ odr_fix_database_dates:
 
 #-----------------------------------------
 # API Controller
+odr_api_userdata:
+    path: /api/userdata
+    defaults: { _controller: ODRAdminBundle:API:userdata }
+
 odr_api_datatype_list:
     path: /api/datatype_list/{type}
     defaults: { _controller: ODRAdminBundle:API:datatypelist, type: '' }

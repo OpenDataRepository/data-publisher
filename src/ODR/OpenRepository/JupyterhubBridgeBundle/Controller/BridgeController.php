@@ -34,20 +34,6 @@ class BridgeController extends ODRCustomController
 {
 
     /**
-     * Returns the user's Jupyterhub username.
-     *
-     * @param ODRUser $user
-     *
-     * @return string
-     */
-    private function getJupyterhubUsername($user)
-    {
-        // TODO - something more sophisticated?
-        return 'jupyter_user_'.$user->getId();
-    }
-
-
-    /**
      * Loads and returns a list of available "apps" to run inside Jupyterhub.
      *
      * @return array
@@ -79,45 +65,6 @@ class BridgeController extends ODRCustomController
         );
 
         return $app_list;
-    }
-
-
-    /**
-     * Used by JupyterHub to determine which user has logged in via ODR's OAuth
-     *
-     * @param Request $request
-     *
-     * @return JsonResponse
-     */
-    public function userdataAction(Request $request)
-    {
-        try {
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-
-            if ($user !== 'anon.' /*&& $user->hasRole('ROLE_JUPYTERHUB_USER')*/ ) {
-                return new JsonResponse(
-                    array(
-                        'id' => $user->getEmail(),
-                        'username' => $user->getUserString(),
-                        'realname' => $user->getUserString(),
-                        'email' => $user->getEmail(),
-                        'jupyterhub_username' => self::getJupyterhubUsername($user),
-                        'baseurl' => $this->getParameter('site_baseurl'),
-                    )
-                );
-            }
-
-            // Otherwise, user isn't allowed to do this
-            throw new ODRForbiddenException();
-        }
-        catch (\Exception $e) {
-            $source = 0xfd346a45;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
     }
 
 
@@ -239,7 +186,7 @@ class BridgeController extends ODRCustomController
                 throw new ODRForbiddenException();
 
             $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $username = self::getJupyterhubUsername($user);
+            $username = $this->get('odr.jupyterhub_bridge.username_service')->getJupyterhubUsername($user);
 
 
             // ----------------------------------------
@@ -312,7 +259,7 @@ class BridgeController extends ODRCustomController
         $headers[] = 'Authorization: token '.$jupyterhub_api_key;
 
         // Juypyterhub API url is of the form  /users/{name}/server
-        $username = self::getJupyterhubUsername($user);
+        $username = $this->get('odr.jupyterhub_bridge.username_service')->getJupyterhubUsername($user);
         $jupyterhub_api_url = $jupyterhub_api_baseurl.'/users/'.$username.'/server';
 
         curl_setopt_array(
@@ -385,7 +332,7 @@ class BridgeController extends ODRCustomController
         $headers[] = 'Authorization: token '.$jupyterhub_api_key;
 
         // Juypyterhub API url is of the form
-        $username = self::getJupyterhubUsername($user);
+        $username = $this->get('odr.jupyterhub_bridge.username_service')->getJupyterhubUsername($user);
         $jupyterhub_api_url = $jupyterhub_server_baseurl.'/services/odr_bridge/create_notebook';
 
         $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
@@ -393,7 +340,7 @@ class BridgeController extends ODRCustomController
 
         $parameters = array(
             'bridge_token' => $bridge_token,
-            'username' => self::getJupyterhubUsername($user),
+            'username' => $username,
             'plugin_name' => $app_id,
             'datarecord_list' => $saved_search['datarecord_list'],      // TODO - or send the search key instead?
         );

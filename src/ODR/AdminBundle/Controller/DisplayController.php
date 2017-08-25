@@ -506,7 +506,7 @@ class DisplayController extends ODRCustomController
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
-            $redis_prefix = $this->get('memcached_key_prefix');     // debug purposes only
+            $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
 
 
             // Locate the file in the database

@@ -44,6 +44,47 @@ class APIController extends ODRCustomController
 {
 
     /**
+     * Provides basic user information to entities using OAuth.
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
+    public function userdataAction(Request $request)
+    {
+        try {
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+
+            if ($user !== 'anon.' /*&& $user->hasRole('ROLE_JUPYTERHUB_USER')*/ ) {
+                $array = array(
+                    'id' => $user->getEmail(),
+                    'username' => $user->getUserString(),
+                    'realname' => $user->getUserString(),
+                    'email' => $user->getEmail(),
+                    'baseurl' => $this->getParameter('site_baseurl'),
+                );
+
+                if ( $this->has('odr.jupyterhub_bridge.username_service') )
+                    $array['jupyterhub_username'] = $this->get('odr.jupyterhub_bridge.username_service')->getJupyterhubUsername($user);
+
+                return new JsonResponse($array);
+            }
+
+            // Otherwise, user isn't allowed to do this
+            throw new ODRForbiddenException();
+        }
+        catch (\Exception $e) {
+            $source = 0xfd346a45;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
      * Returns a JSON array of all top-level datatypes the user can view.  Optionally also returns the child datatypes.
      *
      * @param string $type      "" or "all"...corresponding to "top-level only" or "all datatypes including children"
