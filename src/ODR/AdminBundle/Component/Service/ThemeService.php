@@ -220,7 +220,7 @@ class ThemeService
 
             if(count($default_themes_result) > 0) {
                 $theme = $default_themes_result[0];
-                $cache_service->get('default_theme_'.$datatype_id.'_'.$theme_type, $theme);
+                $cache_service->set('default_theme_'.$datatype_id.'_'.$theme_type, $theme);
             }
         }
 
@@ -606,7 +606,14 @@ class ThemeService
             $new_theme->setParentTheme($cloned_theme);
         }
         $new_theme->setThemeType($to_theme_type);
-        $new_theme->setSourceTheme($datatype_theme);
+
+        // Use original source of parent if copying a derivative theme.
+        if($datatype_theme->getSourceTheme() != null) {
+            $new_theme->setSourceTheme($datatype_theme->getSourceTheme());
+        }
+        else {
+            $new_theme->setSourceTheme($datatype_theme);
+        }
         self::persistObject($new_theme);
 
         // Theme Meta

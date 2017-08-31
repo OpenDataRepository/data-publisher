@@ -763,6 +763,10 @@ exit();
             // Grab default objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var ThemeService $theme_service */
+            $theme_service = $this->container->get('odr.theme_service');
+
 //            $templating = $this->get('templating');
 /*
             $redis = $this->container->get('snc_redis.default');;
@@ -844,23 +848,24 @@ exit();
             // TODO - better error handling, likely need more options as well...going to need a way to get which theme the user wants to use too
             // Grab the desired theme to use for rendering search results
             $theme_type = null;
-            if ($source == 'linking' || $datatype->getUseShortResults() == 0)
-                $theme_type = 'table';
-            else
-                $theme_type = 'search_results';
-
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
+            // TODO Update to use new theme system.
+            // Check user theme preferences for this datatype.
+            // Could be using a custom default or a session theme (instantaneous).
+            if ( $user === 'anon.' ) {
+                // Use default theme
+                /** @var Theme $theme */
+                $theme = $theme_service->getDefaultTheme($datatype->getId(), 'search_results');
+            }
+            else {
+                // Get theme choice of user
+                $theme = $theme_service->getSelectedTheme($datatype->getId(), 'search_results');
+            }
 
             // Lets just use master if theme is null....
             if ($theme == null) {
                 $theme_type = 'master';
-                $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
+                $theme = $theme_service->getDefaultTheme($datatype->getId(), $theme_type);
             }
-
-            // Temporarily set theme to master...
-            // $theme_type = 'master';
-            // $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
 
             if ($theme == null)
                 throw new \Exception('The datatype "'.$datatype->getShortName().'" wants to use a "'.$theme_type.'" theme to render search results, but no such theme exists.');

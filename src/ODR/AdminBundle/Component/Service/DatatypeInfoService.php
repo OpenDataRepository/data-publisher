@@ -71,8 +71,8 @@ class DatatypeInfoService
         // ----------------------------------------
         // Always bypass cache if in dev mode?
         $force_rebuild = false;
-        if ($this->environment == 'dev')
-            $force_rebuild = true;
+        //if ($this->environment == 'dev')
+            //$force_rebuild = true;
 
         // If list of top level datatypes exists in cache and user isn't demanding a fresh version, return that
         $top_level_datatypes = $this->cache_service->get('top_level_datatypes');
@@ -273,8 +273,8 @@ class DatatypeInfoService
     {
         // Always bypass cache if in dev mode?
         $force_rebuild = false;
-        if ($this->environment == 'dev')
-            $force_rebuild = true;
+        //if ($this->environment == 'dev')
+            //$force_rebuild = true;
 
 
         // ----------------------------------------
@@ -315,8 +315,8 @@ class DatatypeInfoService
     {
         // Always bypass cache if in dev mode?
         $force_rebuild = false;
-        if ($this->environment == 'dev')
-            $force_rebuild = true;
+        //if ($this->environment == 'dev')
+            //$force_rebuild = true;
 
         $datatype_array = array();
         foreach ($datatype_ids as $num => $dt_id) {
@@ -358,7 +358,12 @@ class DatatypeInfoService
             $t0 = microtime(true);
 */
         // If datatype data exists in cache and user isn't demanding a fresh version, return that
-        $cached_datatype_data = $this->cache_service->get('cached_datatype_'.$datatype_id);
+        if($parent_theme_id == null) {
+            $cached_datatype_data = $this->cache_service->get('cached_datatype_'.$datatype_id.'_default');
+        }
+        else {
+            $cached_datatype_data = $this->cache_service->get('cached_datatype_'.$datatype_id.'_'.$parent_theme_id);
+        }
         if ( $cached_datatype_data !== false && count($cached_datatype_data) > 0 && !$force_rebuild)
             return $cached_datatype_data;
 
@@ -416,7 +421,7 @@ class DatatypeInfoService
         if($parent_theme_id == null) {
             // These are the default/system themes for the datatype
             // TODO All default themes must be public.  Need to refactor for this change.
-            $query_txt .= ' AND (pt.id IS NULL OR (tm.isDefault = 1 and (tm.public IS NOT NULL AND tm.public < NOW())) ) ';
+            $query_txt .= ' AND (pt.id IS NULL OR (tm.isDefault = 1 and (tm.public IS NOT NULL AND tm.public < CURRENT_TIMESTAMP())) ) ';
         }
         else {
             // Note: two themes could have the same source theme, but no two top-level

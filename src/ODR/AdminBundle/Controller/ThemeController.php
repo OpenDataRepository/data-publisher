@@ -1012,6 +1012,7 @@ class ThemeController extends ODRCustomController
             $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
+            // TODO Alternate settings for individual users to create their own themes...
             if (!(isset($datatype_permissions[$datatype->getId()]) && isset($datatype_permissions[$datatype->getId()]['dt_admin'])))
                 return parent::permissionDeniedError("edit");
             // --------------------

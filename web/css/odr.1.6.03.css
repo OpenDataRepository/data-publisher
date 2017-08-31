@@ -3246,3 +3246,13 @@ form .row {
 .ODRNotificationText {
     margin-top: 5px;
 }
+
+#ODRFileDownloadFormWrapper {
+    display: none;
+    max-height: 80%;
+    overflow: scroll;
+    text-align: left;
+}
+#ODRFileDownloadFormWrapper li {
+    white-space: nowrap;
+}

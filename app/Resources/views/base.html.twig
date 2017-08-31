@@ -46,6 +46,9 @@
     <!-- Hands on table -->
     <link rel="stylesheet" href="/js/mylibs/handsontable/dist/handsontable.full.css">
     <link rel="stylesheet" href="/js/mylibs/jquery_datatables/datatables.min.css">
+    <!-- Remodal -->
+    <link rel="stylesheet" href="/js/mylibs/remodal-master/dist/remodal.css">
+    <link rel="stylesheet" href="/js/mylibs/remodal-master/dist/remodal-default-theme.css">
 
     <!-- Symfony Stylesheets -->
     <link href="/css/odr.1.6.03.css" type="text/css" rel="stylesheet">
@@ -70,12 +73,21 @@
         integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ="
         crossorigin="anonymous"></script>
     <script src="http://code.jquery.com/jquery-migrate-1.4.1.js"></script>
+    <!--
+    <script
+            src="https://code.jquery.com/jquery-2.2.4.js"
+            integrity="sha256-iT6Q9iMJYuQiMWNd9lDyBUStIq/8PuOW33aOqmvFpqI="
+            crossorigin="anonymous"></script>
+    -->
+
 
     <!-- Do the same with jQuery UI -->
     <script
             src="https://code.jquery.com/ui/1.12.0/jquery-ui.min.js"
             integrity="sha256-eGE6blurk5sHj+rmkfsGYeKyZx3M4bG+ZlFyA7Kns7E="
             crossorigin="anonymous"></script>
+
+
     <script src="/js/libs/lo-dash.min.js"></script>
 {#
     <!-- Load Webfont loader -->
@@ -135,7 +147,6 @@
     <script src="/js/mylibs/jquery_datatables/datatables.min.js"></script>
     <script src="/js/mylibs/handsontable/dist/handsontable.full.js"></script>
 
-
     <!-- Images Loaded -->
     <script src="/js/mylibs/imagesloaded/imagesloaded.pkgd.js"></script>
 
@@ -154,6 +165,20 @@
     <script type="text/javascript" src="/js/mylibs/plotly-1.5.0.min.js"></script>
     <script type="text/javascript" src="/js/mylibs/d3-queue.v3.min.js"></script>
     <script type="text/javascript" src="/js/mylibs/odr_plotly_graphs.js"></script>
+
+    <!-- Remodal -->
+    <!--
+    <script>
+        window.REMODAL_GLOBALS = {
+            NAMESPACE: 'remodal',
+            DEFAULTS: {
+                hashTracking: false
+            }
+        };
+    </script>
+    -->
+    <!-- <script src="/js/mylibs/remodal-master/dist/remodal.min.js"></script> -->
+    <script src="/js/mylibs/remodal-master/dist/remodal.js"></script>
 
     <!-- App JS -->
     <script src="/js/app.js"></script>
@@ -296,7 +321,7 @@
 
 
 <!-- main content -->
-<div role="main" id="main" class="pure-form pure-g">
+<div role="main" id="main" class="pure-form pure-g remodal-bg">
     <section id="left-spacer" class="pure-u-md-1-24"></section>
 
     <section id="content" class="pure-u-1 pure-u-md-22-24" data-sort=true style="margin-top: 10px;">

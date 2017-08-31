@@ -1,16 +1,17 @@
 {% spaceless %}
     <!-- File Download Dialog -->
-    <div class="pure-form pure-g" style="display: none;" id="dialog_file_downloads" title="File Download Selector Dialog">
+    <div data-remodal-id="dialog_file_downloads" id="dialog_file_downloads" title="File Download Selector Dialog">
+        <button data-remodal-action="close" class="remodal-close"></button>
         <div class="form_contents pure-u-1">
             <div id="FileDownloadForm_build">
                 <div id="FileDownloadForm_loading" class="pure-u-1" style="font-weight:bold; text-align:center;">Loading...</div>
 
-                <div style="max-height: 700px; overflow:auto;">
+                <div id="ODRFileDownloadFormWrapper">
                     <form id="FileDownloadForm" method="POST"></form>
-                </div>
 
-                <button id="FileDownloadForm_cancel" class="pure-button ODRCancelButton">Cancel</button>
-                <button id="FileDownloadForm_submit" class="pure-button pure-button-primary ODRSubmitButton" disabled>Download Selected Files</button>
+                    <button id="FileDownloadForm_cancel" class="pure-button ODRCancelButton">Cancel</button>
+                    <button id="FileDownloadForm_submit" class="pure-button pure-button-primary ODRSubmitButton" disabled>Download Selected Files</button>
+                </div>
             </div>
 
             <div id="FileDownloadForm_progress" style="display:none; font-size:1.2em;">
@@ -19,19 +20,30 @@
         </div>
     </div>
     <!--  End of File Download Dialog -->
+    <!--
+    <div class="remoda" data-remodal-id="modal"
+         data-remodal-options="hashTracking: false, closeOnOutsideClick: false">
 
+        <button data-remodal-action="close" class="remodal-close"></button>
+        <h1>Remodal</h1>
+        <p>
+            Responsive, lightweight, fast, synchronized with CSS animations, fully customizable modal window plugin with declarative configuration and hash tracking.
+        </p>
+        <br>
+        <button data-remodal-action="cancel" class="remodal-cancel">Cancel</button>
+        <button data-remodal-action="confirm" class="remodal-confirm">OK</button>
+    </div>
+    -->
 <script>
-    $(function() {
-        var dialog_form = $("#dialog_file_downloads");
 
-        $(dialog_form).dialog({
-            autoOpen: false,
-            modal: true,
-            width: 900,
-            open: function() {
-                $(this).parent().css('overflow', 'visible');
-            }
-        });
+    $(function() {
+        var options = {
+            hashTracking: false,
+            closeOnOutsideClick: true
+        };
+        $('[data-remodal-id=dialog_file_downloads]').remodal(options);
+
+        var dialog_form = $("#dialog_file_downloads");
         $(dialog_form).find('.ODRSubmitButton').click(function() {
             var $el = $(this).parents('.ui-dialog-content');
 
@@ -39,15 +51,24 @@
             submitForm( $el.attr('id') );
 
             $el.find('form')[0].reset();
-//            $el.dialog('close');
         });
+
         $(dialog_form).find('.ODRCancelButton').click(function() {
             var $el = $(this).parents('.ui-dialog-content');
 
             $el.find('form')[0].reset();
-            $el.dialog('close');
+
+            var inst = $('[data-remodal-id=dialog_file_downloads]').remodal();
+            inst.close();
         });
     });
+
+    function openFileDownloadDialog(datarecord_id) {
+        var inst = $('[data-remodal-id=dialog_file_downloads]').remodal();
+        inst.open();
+
+        locateFileIds(datarecord_id, 0, 0);      // defined in ODRAdminBundle:Default:file_download_dialog.html.twig
+    }
 
     function locateFileIds(grandparent_datarecord_id, datarecord_id, datafield_id) {
         $("#FileDownloadForm").html('');
@@ -65,15 +86,15 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                $("#FileDownloadForm_loading").hide();
                 $("#FileDownloadForm").html( data.d );
-
-                $("#dialog_file_downloads").dialog({ position: { my: "center", at: "center", of: window } });
                 initFileDownloadDialogForm(datarecord_id, datafield_id);
+                $("#FileDownloadForm_loading").hide();
+                $("#ODRFileDownloadFormWrapper").show();
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to create a jGrowl...close the dialog so it's not in some half-initialized state
-                $("#dialog_file_downloads").dialog('close');
+                var inst = $('[data-remodal-id=dialog_file_downloads]').remodal();
+                inst.close();
             },
             complete: function (jqXHR, textStatus) {
                 // Get the xdebugToken from response headers

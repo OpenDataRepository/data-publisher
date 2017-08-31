@@ -129,6 +129,7 @@ class DisplayController extends ODRCustomController
                 $datatype = $datarecord->getDataType();
                 if ($datatype->getDeletedAt() != null)
                     throw new ODRNotFoundException('Datatype');
+
                 /** @var Theme $theme */
                 // Need to get user's chosen theme for this child datatype
                 if ( $user === 'anon.' ) {
@@ -144,7 +145,6 @@ class DisplayController extends ODRCustomController
                 if ($theme == null)
                     throw new ODRNotFoundException('Theme');
             }
-
 
             // ----------------------------------------
             // Determine user privileges
@@ -280,23 +280,38 @@ class DisplayController extends ODRCustomController
                 )
             );
 
-            // Need to pass the theme id here. Pulled from user preferences or null for default.
-            if(!isset($parent_theme_id) || $parent_theme_id == null) {
-                $parent_theme_id = $requested_theme->getId();
-            }
-            $parent_theme_id = 758;
 
             // ----------------------------------------
             // Get all Datarecords and Datatypes that are associated with the datarecord to render
             $datarecord_array = $dri_service->getDatarecordArray($requested_datarecord->getId());
+
+            // Set parent theme if there is one
+            // If there isn't one, requested theme is used.
+            $parent_theme_id = null;
+            if($requested_theme->getParentTheme() != null) {
+                $parent_theme_id = $requested_theme->getParentTheme()->getId();
+            }
             $datatype_array = $dti_service->getDatatypeArrayByDatarecords($datarecord_array, $parent_theme_id);
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
             // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-            $stacked_datarecord_array[ $requested_datarecord->getId() ] = $dri_service->stackDatarecordArray($datarecord_array, $requested_datarecord->getId());
-            $stacked_datatype_array[ $requested_datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $requested_datatype->getId(), $parent_theme_id);
+            $stacked_datarecord_array[ $requested_datarecord->getId() ] =
+                $dri_service->stackDatarecordArray($datarecord_array, $requested_datarecord->getId());
+
+
+            // Need to set theme here...
+            // set the actual theme id for the template
+            if($requested_theme->getParentTheme() != null) {
+                $template_theme_id = $requested_theme->getParentTheme()->getId();
+            }
+            else {
+                $template_theme_id = $requested_theme->getId();
+            }
+
+            $stacked_datatype_array[ $requested_datatype->getId() ] =
+                $dti_service->stackDatatypeArray($datatype_array, $requested_datatype->getId(), $template_theme_id);
 
 
             // ----------------------------------------
@@ -308,7 +323,7 @@ class DisplayController extends ODRCustomController
                     'datatype_array' => $stacked_datatype_array,
                     'datarecord_array' => $stacked_datarecord_array,
 
-                    'theme_id' => $parent_theme_id,
+                    'theme_id' => $template_theme_id,
                     'initial_datatype_id' => $requested_datatype->getId(),
                     'initial_datarecord_id' => $requested_datarecord->getId(),
 
