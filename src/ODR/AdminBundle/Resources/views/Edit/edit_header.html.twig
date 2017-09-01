@@ -100,10 +100,7 @@
 {% endif %}
 
     function exportXML(datarecord_id) {
-        var url = '{{ path('odr_get_datarecord_export', {'version': 'v1', 'datarecord_id': 0 }) }}';
-        url = url.substring(0, (url.length - 1));
-        url += datarecord_id;
-
+        var url = '{{ path('odr_export_datarecord_single', {'datatype_id': datarecord.datatype.id, 'datarecord_id': datarecord.id, '_format': 'json' }) }}';
         document.location = url;
     }
 

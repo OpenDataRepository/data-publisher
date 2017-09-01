@@ -587,4 +587,108 @@ class DatatypeInfoService
 
         return $user_data;
     }
+
+
+    /**
+     * Uses the contents of the given datatype's sorting datafield to sort datarecords of that datatype.
+     *
+     * @param integer $datatype_id
+     * @param string $subset_str   If specified, the returned string will only contain datarecord ids from $subset_str
+     *
+     * @return array  An ordered list of datarecord_id => sort_value
+     */
+    public function getSortedDatarecordList($datatype_id, $subset_str = null)
+    {
+        // Always bypass cache if in dev mode?
+        $force_rebuild = false;
+        if ($this->environment == 'dev')
+            $force_rebuild = true;
+
+
+        // Attempt to grab the sorted list of datarecords for this datatype from the cache
+        $datarecord_list = $this->cache_service->get('data_type_'.$datatype_id.'_record_order');
+        if ( $force_rebuild || $datarecord_list == false || count($datarecord_list) == 0 ) {
+            // Going to need the datatype's sorting datafield, if it exists
+            $datarecord_list = array();
+
+            /** @var DataType $datatype */
+            $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $sortfield = $datatype->getSortField();
+
+            if ($sortfield == null) {
+                // No sort order defined, just create a query to return all of this datatype's datarecords
+                $query = $this->em->createQuery(
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.dataType = :datatype AND dr.provisioned = false
+                    AND dr.deletedAt IS NULL
+                    ORDER BY dr.id'
+                )->setParameters( array('datatype' => $datatype_id) );
+                $results = $query->getArrayResult();
+
+                // Flatten the array...
+                foreach ($results as $num => $dr)
+                    $datarecord_list[ $dr['dr_id'] ] = $dr['dr_id'];
+            }
+            else {
+                // Since a sort order is defined, create a query to return all of this datatype's datarecords with their sort field value
+                $sort_datafield_fieldtype = $sortfield->getFieldType()->getTypeClass();
+
+                $query = $this->em->createQuery(
+                   'SELECT dr.id AS dr_id, e.value AS sort_value
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
+                    JOIN ODRAdminBundle:'.$sort_datafield_fieldtype.' AS e WITH e.dataRecordFields = drf
+                    WHERE dr.dataType = :datatype AND e.dataField = :sort_datafield
+                    AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
+                )->setParameters( array('datatype' => $datatype_id, 'sort_datafield' => $sortfield->getId()) );
+                $results = $query->getArrayResult();
+
+                // Flatten the array...
+                if ( $sort_datafield_fieldtype == 'DatetimeValue' ) {
+                    // Convert datetime values into strings beforehand
+                    foreach ($results as $num => $dr) {
+                        $sort_value = $dr['sort_value']->format('Y-m-d H:i:s');
+                        if ($sort_value == '9999-12-31 00:00:00')
+                            $sort_value = '';
+
+                        $datarecord_list[ $dr['dr_id'] ] = $sort_value;
+                    }
+                }
+                else {
+                    // Otherwise, just store the value directly
+                    foreach ($results as $num => $dr)
+                        $datarecord_list[ $dr['dr_id'] ] = $dr['sort_value'];
+                }
+
+                // Order the resulting array based on the sort field value
+                asort($datarecord_list, SORT_NATURAL);
+            }
+
+            // Store the sorted datarecord list back in the cache
+            $this->cache_service->set('data_type_'.$datatype_id.'_record_order', $datarecord_list);
+        }
+
+
+        if ( is_null($subset_str) ) {
+            // User just wanted the entire list of sorted datarecords
+            return $datarecord_list;
+        }
+        else if ($subset_str == '') {
+            // User requested a sorted list but didn't specify any datarecords...return an empty array
+            return array();
+        }
+        else {
+            // User specified they only wanted a subset of datarecords sorted...
+            $dr_subset = explode(',', $subset_str);
+            foreach ($datarecord_list as $dr_id => $sort_value) {
+                // ...then only save the datarecord id if it's in the specified subset
+                if ( !in_array($dr_id, $dr_subset) )
+                    unset( $datarecord_list[$dr_id] );
+            }
+
+            // Return the filtered array of sorted datarecords
+            return $datarecord_list;
+        }
+    }
 }

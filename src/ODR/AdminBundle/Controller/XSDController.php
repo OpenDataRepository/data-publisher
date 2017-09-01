@@ -228,4 +228,135 @@ class XSDController extends ODRCustomController
         return $xml;
     }
 
+
+    /**
+     * Returns whether the provided string is valid for use as an XML "name"
+     * @see http://www.w3.org/TR/xml/#sec-common-syn
+     *
+     * @param $str
+     *
+     * @return boolean
+     */
+    public function isValidXMLName($str)
+    {
+        // Ensure str doesn't start with 'xml'
+        if ( strpos( strtolower($str) , 'xml') !== false )
+            return false;
+
+        // Ensure str doesn't start with an invalid character
+        $pattern = self::xml_invalidnamestartchar();
+        print $pattern."\n";
+        if ( preg_match($pattern, substr($str, 0, 1)) == 1 )
+            return false;
+
+        // Ensure rest of str only has legal characters
+        $pattern = self::xml_invalidnamechar();
+        print $pattern."\n";
+        if ( preg_match($pattern, substr($str, 1)) == 1 )
+            return false;
+
+        // No error in name
+        return true;
+    }
+
+
+    /**
+     * Utility function to return a regexp pattern for finding illegal "NameStartCharacters" for XML strings
+     * @see http://www.w3.org/TR/xml/#sec-common-syn
+     *
+     * @return string
+     */
+    private function xml_invalidnamestartchar()
+    {
+        $tmp = array(
+            "[\\x0-\\x39]",
+            //"[\\x3A]",            // colon
+            "[\\x3B-\\x40]",
+            //"[\\x41-\\x5A]",      // A-Z
+            "[\\x5B-\\x5E]",
+            //"[\\x5F]",            // underscore
+            "[\\x60]",
+            //"[\\x61-\\x7A]",      // a-z
+            "[\\x7B-\\xBF]",
+            //"[\\xC0-\\xD6]",
+            "[\\xD7]",              // multiplication sign
+            //"[\\xD8-\\xF6]",
+            "[\\xF7]",              // division sign
+            //"[\\xF8-\\x2FF]",
+            "[\\x300-\\x36F]",
+            //"[\\x370-\\x37D]",
+            "[\\x37E]",             // greek semicolon
+            //"[\\x37F-\\x1FFF]",
+            "[\\x{2000}-\\x{200B}]",
+            //"[\\x200C-\\x200D]",
+            "[\\x{200E}-\\x{206F}]",
+            //"[\\x2070-\\x218F]",
+            "[\\x{2190}-\\x{2BFF}]",
+            //"[\\x2C00-\\x2FEF]",
+            "[\\x{2FF0}-\\x{3000}]",
+            //"[\\x3001-\\xD7FF]",
+            "[\\x{D800}-\\x{F8FF}]",    // private use area
+            //"[\\xF900-\\xFDCF]",
+            "[\\x{FDD0}-\\x{FDEF}]",    // not characters
+            //"[\\xFDF0-\\xFFFD]",
+            "[\\x{FFFE}-\\x{FFFF}]",    // not characters
+            //"[\\x10000-\\xEFFFF]"
+        );
+
+        return '/'.implode("|", $tmp).'/u';
+    }
+
+
+    /**
+     * Utility function to return a regexp pattern for finding illegal "NameCharacters" for XML strings
+     * @see http://www.w3.org/TR/xml/#sec-common-syn
+     *
+     * @return string
+     */
+    private function xml_invalidnamechar()
+    {
+        $tmp = array(
+            "[\\x0-\\x2C]",
+            //"[\\x2D-\\x2E]",      // hyphen, period
+            "[\\x2F]",
+            //"[\\x30-\\x39]",      // 0-9
+            //"[\\x3A]",            // colon
+            "[\\x3B-\\x40]",
+            //"[\\x41-\\x5A]",      // A-Z
+            "[\\x5B-\\x5E]",
+            //"[\\x5F]",            // underscore
+            "[\\x60]",
+            //"[\\x61-\\x7A]",      // a-z
+            "[\\x7B-\\xB6]",
+            //"[\\xB7]",            // "middle dot"
+            "[\\xB8-\\xBF]",
+            //"[\\xC0-\\xD6]",
+            "[\\xD7]",              // multiplication sign
+            //"[\\xD8-\\xF6]",
+            "[\\xF7]",              // division sign
+            //"[\\xF8-\\x2FF]",
+            //"[\\x300-\\x36F]",
+            //"[\\x370-\\x37D]",
+            "[\\x37E]",             // greek semicolon
+            //"[\\x37F-\\x1FFF]",
+            "[\\x{2000}-\\x{200B}]",
+            //"[\\x200C-\\x200D]",
+            "[\\x{200E}-\\x{203E}]",
+            //"[\\x203F-\\x2040]",
+            "[\\x{2041}-\\x{206F}]",
+            //"[\\x2070-\\x218F]",
+            "[\\x{2190}-\\x{2BFF}]",
+            //"[\\x2C00-\\x2FEF]",
+            "[\\x{2FF0}-\\x{3000}]",
+            //"[\\x3001-\\xD7FF]",
+            "[\\x{D800}-\\x{F8FF}]",    // private use area
+            //"[\\xF900-\\xFDCF]",
+            "[\\x{FDD0}-\\x{FDEF}]",    // not characters
+            //"[\\xFDF0-\\xFFFD]",
+            "[\\x{FFFE}-\\x{FFFF}]",    // not characters
+            //"[\\x10000-\\xEFFFF]"
+        );
+
+        return '/'.implode("|", $tmp).'/u';
+    }
 }

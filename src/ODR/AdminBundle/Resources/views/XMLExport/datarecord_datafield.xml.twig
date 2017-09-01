@@ -1,7 +1,9 @@
 {% spaceless %}
 
-{% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
-{% set field_typeclass = datafield.dataFieldMeta.fieldType.typeClass %}
+{% set datafield_meta = datafield.dataFieldMeta %}
+
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
 {% set valuefield = '' %}
 {% set valuefield_value = '' %}
@@ -52,53 +54,56 @@
 {% set tag_start = '' %}
 {% set tag_end = '' %}
 {% if version == 'v1' %}
-    {% set tag_start = '<datafield_' ~ datafield.id ~ ' datafield_name="' ~ datafield.dataFieldMeta.fieldName|xml ~'">' %}
-    {% set tag_end = '</datafield_' ~ datafield.id ~ '>' %}
+    {% set tag_start = '<field_' ~ datafield.id ~ '><field_name>' ~ datafield_meta.fieldName|xml|raw ~ '</field_name>' %}
+    {% set tag_end = '</field_' ~ datafield.id ~ '>' %}
 {% elseif version == 'v2' %}
-    {% set tag_start = '<' ~ datafield.dataFieldMeta.xml_fieldName ~ '>' %}
-    {% set tag_end = '</' ~ datafield.dataFieldMeta.xml_fieldName ~ '>' %}
+    {% set tag_start = '<' ~ datafield_meta.xml_fieldName ~ '>' %}
+    {% set tag_end = '</' ~ datafield_meta.xml_fieldName ~ '>' %}
 {% endif %}
 
+{{ tag_start|raw }}
+    <id>{{ datafield.id }}</id>
 
 {% if field_typename == "Boolean" %}
 
-    {{ tag_start|raw }}{% if valuefield_value == 1 %}1{% else %}0{% endif %}{{ tag_end|raw }}
+    <selected>{% if valuefield_value == 1 %}1{% else %}0{% endif %}</selected>
 
 {% elseif field_typename == "File" %}
 
-    {{ tag_start|raw }}
     {% for file in valuefield %}
+        {% set file_meta = file.fileMeta %}
+
         <file>
-            <internal_id>{{ file.id }}</internal_id>
-            <original_name>{% if file.fileMeta.originalFileName != null %}{{ file.fileMeta.originalFileName|xml|raw }}{% else %}File_{{ file.id }}{% endif %}</original_name>
+            <id>{{ file.id }}</id>
+            <original_name>{% if file_meta.originalFileName != null %}{{ file_meta.originalFileName|xml|raw }}{% else %}File_{{ file.id }}{% endif %}</original_name>
             <href>{{ baseurl ~ path('odr_file_download', {'file_id': file.id}) }}</href>
             {#<caption></caption>#}
             {#<checksum>{{ file.getoriginalchecksum }}</checksum>#}
 
             {% if using_metadata == true %}
             <_file_metadata>
-                <_external_id>{{ file.fileMeta.external_id }}</_external_id>
+                <_external_id>{{ file_meta.external_id }}</_external_id>
                 <_create_date>{{ file.created|date('Y-m-d H:i:s') }}</_create_date>
                 <_create_auth>{% if file.createdBy != '' %}{{ file.createdBy|user_string }}{% endif %}</_create_auth>
-                <_public_date>{{ file.fileMeta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
+                <_public_date>{{ file_meta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
             </_file_metadata>
             {% endif %}
 
         </file>
     {% endfor %}
-    {{ tag_end|raw }}
 
 {% elseif field_typename == "Image" %}
 
-    {{ tag_start|raw }}
     {% for image in valuefield %}
         {% set oimage = image.parent %}
         {% set image_ext = oimage.ext %}
-        {% set image_caption = oimage.imageMeta.caption %}
-        {% set image_filename = oimage.imageMeta.originalFileName %}
+
+        {% set oimage_meta = oimage.imageMeta %}
+        {% set image_caption = oimage_meta.caption %}
+        {% set image_filename = oimage_meta.originalFileName %}
 
         <image>
-            <internal_id>{{ oimage.id }}</internal_id>
+            <id>{{ oimage.id }}</id>
             <original_name>{% if image_filename != '' %}{{ image_filename|xml|raw }}{% else %}Image_{{ oimage.id }}{% endif %}</original_name>
             <href>{{ baseurl ~ path('odr_image_download', {'image_id': oimage.id}) }}</href>
             <caption>{{ image_caption|xml|raw }}</caption>
@@ -106,54 +111,60 @@
 
             {% if using_metadata == true %}
             <_image_metadata>
-                <_external_id>{{ oimage.imageMeta.external_id }}</_external_id>
+                <_external_id>{{ oimage_meta.external_id }}</_external_id>
                 <_create_date>{{ oimage.created|date('Y-m-d H:i:s') }}</_create_date>
                 <_create_auth>{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}</_create_auth>
-                <_public_date>{{ oimage.imageMeta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
-                <_display_order>{{ oimage.imageMeta.displayorder}}</_display_order>
+                <_public_date>{{ oimage_meta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
+                <_display_order>{{ oimage_meta.displayorder}}</_display_order>
             </_image_metadata>
             {% endif %}
         </image>
     {% endfor %}
-    {{ tag_end|raw }}
 
 {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Short Text" or field_typename == "Medium Text" or field_typename == "Long Text" or field_typename == "Paragraph Text" %}
 
-    {{ tag_start|raw }}{{ valuefield_value|xml|raw }}{{ tag_end|raw }}
+    <value>{{ valuefield_value|xml|raw }}</value>
 
 {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
 
-    {{ tag_start|raw }}
     {% if datafield.radioOptions is defined %}
+        <radio_options>
         {% for radio_option in datafield.radioOptions %}
             {% set is_selected = 0 %}
             {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
                 {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
             {% endif %}
 
+            {% set radio_option_meta = radio_option.radioOptionMeta %}
+
             {% if is_selected == 1 %}
 
                 {% set radio_tag_start = '' %}
                 {% set radio_tag_end = '' %}
                 {% if version == 'v1' %}
-                    {% set radio_tag_start = '<radio_option_' ~ radio_option.id ~ ' radio_option_name="' ~ radio_option.radioOptionMeta.optionName|xml ~'">' %}
+                    {% set radio_tag_start = '<radio_option_' ~ radio_option.id ~ '><name>' ~ radio_option_meta.optionName|xml ~'</name>' %}
                     {% set radio_tag_end = '</radio_option_' ~ radio_option.id ~ '>' %}
                 {% elseif version == 'v2' %}
-                    {% set radio_tag_start = '<' ~ radio_option.radioOptionMeta.xml_fieldName ~ '>' %}
-                    {% set radio_tag_end = '</' ~ radio_option.radioOptionMeta.xml_fieldName ~ '>' %}
+                    {% set radio_tag_start = '<' ~ radio_option_meta.xml_fieldName ~ '>' %}
+                    {% set radio_tag_end = '</' ~ radio_option_meta.xml_fieldName ~ '>' %}
                 {% endif %}
 
-                {{ radio_tag_start|raw }}1{{ radio_tag_end|raw }}
+                {{ radio_tag_start|raw }}
+                    <id>{{ radio_option.id }}</id>
+                    <selected>1</selected>
+                {{ radio_tag_end|raw }}
 
             {% endif %}
         {% endfor %}
+        </radio_options>
     {% endif %}
-    {{ tag_end|raw }}
 
 {% elseif field_typename == "DateTime" %}
 
-    {{ tag_start|raw }}{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != '9999-12-31' %}{{ valuefield_value|date('Y-m-d') }}{% endif %}{{ tag_end|raw }}
+    <value>{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != '9999-12-31' %}{{ valuefield_value|date('Y-m-d') }}{% endif %}</value>
 
 {% endif %}
+
+{{ tag_end|raw }}   {# end of datafield #}
 
 {% endspaceless %}

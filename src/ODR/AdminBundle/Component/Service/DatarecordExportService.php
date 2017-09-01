@@ -77,15 +77,18 @@ class DatarecordExportService
 
 
     /**
+     * Renders the specified datarecord in the requested format according to the user's permissions.
      *
-     * @param string $version
-     * @param integer $datarecord_id
-     * @param string $format
-     * @param array $user_permissions
+     * @param string $version           Which version of the export to render
+     * @param integer $datarecord_id      Which datarecord to render
+     * @param string $format            The format (json, xml, etc) to render the datarecord in
+     * @param boolean $using_metadata   Whether to display additional metadata (who created it, public date, revision, etc)
+     * @param array $user_permissions   The permissions of the user requesting this
+     * @param string $baseurl           The current baseurl of this ODR installation, used for file/image links
      *
      * @return string
      */
-    public function getData($version, $datarecord_id, $format, $user_permissions, $baseurl)
+    public function getData($version, $datarecord_id, $format, $using_metadata, $user_permissions, $baseurl)
     {
         // All of these should already exist
         /** @var DataRecord $datarecord */
@@ -114,7 +117,6 @@ class DatarecordExportService
         $template = 'ODRAdminBundle:XMLExport:datarecord_ajax.'.$format.'.twig';
 
         // Render the DataRecord
-        $using_metadata = true;
         $str = $this->templating->render(
             $template,
             array(
@@ -184,7 +186,7 @@ class DatarecordExportService
         }
 
         // Also get rid of parts that signify no child/linked datarecords
-        $trimmed_str = str_replace( array(',"child_datarecords":{}', ',"linked_datarecords":{}'), '', $trimmed_str );
+        $trimmed_str = str_replace( array(',"child_records":{}', ',"linked_records":{}'), '', $trimmed_str );
 
         return $trimmed_str;
     }

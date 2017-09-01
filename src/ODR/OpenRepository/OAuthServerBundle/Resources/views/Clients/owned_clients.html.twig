@@ -50,7 +50,7 @@
 
         <div class="ODROAuthIndent">
             ODR should then return a JSON object that includes an access token, which can then be used to gain access to any part of ODR's API that you already have permission to access.
-            <div style="border: 1px solid #7fb9d8; border-radius: 4px; padding:5px 9px;">{{ site_baseurl }}{{ path('odr_api_userdata') }}?access_token=RETURNED_ACCESS_TOKEN</div>
+            <div style="border: 1px solid #7fb9d8; border-radius: 4px; padding:5px 9px;">{{ site_baseurl }}{{ path('odr_api_userdata', {'version': 'v1'}) }}?access_token=RETURNED_ACCESS_TOKEN</div>
         </div>
 
         <div class="ODROAuthIndent">A complete list of the available API routes is located <a href="{{ path('odr_admin_homepage') }}">here.</a></div>

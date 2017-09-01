@@ -4,7 +4,7 @@
 {% set theme = datatype.themes[theme_id] %}
 
 {# describe datafields first #}
-<datafields>
+<fields>
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataFields is defined %}
 
@@ -27,10 +27,10 @@
         {% endfor %}
     {% endif %}
 {% endfor %}
-</datafields>
+</fields>
 
 {# describe child datatypes next #}
-<child_datatypes>
+<child_databases>
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
 
@@ -69,10 +69,10 @@
         {% endfor %}
     {% endif %}
 {% endfor %}
-</child_datatypes>
+</child_databases>
 
 {# describe linked datatypes last #}
-<linked_datatypes>
+<linked_databases>
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
 
@@ -111,6 +111,6 @@
         {% endfor %}
     {% endif %}
 {% endfor %}
-</linked_datatypes>
+</linked_databases>
 
 {% endspaceless %}

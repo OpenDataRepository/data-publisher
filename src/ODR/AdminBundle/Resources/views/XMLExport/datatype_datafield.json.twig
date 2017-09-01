@@ -3,9 +3,9 @@
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
 {% if version == 'v1' %}
-    "datafield_{{ datafield.id }}": {
-{% else %}
-    "datafield_{{ datafield_meta.xml_fieldName }}": {
+    "field_{{ datafield.id }}": {
+{% elseif version == 'v2' %}
+    "{{ datafield_meta.xml_fieldName }}": {
 {% endif %}
 
         "internal_id": {{ datafield.id }},
@@ -22,7 +22,7 @@
     {% endif %}
 
     {% if using_metadata == true %}
-        "_datafield_metadata": {
+        "_field_metadata": {
             "_create_date": "{{ datafield.created|date('Y-m-d H:i:s') }}",
             "_create_auth": "{% if datafield.createdBy != '' %}{{ datafield.createdBy|user_string|xml }}{% endif %}",
             "_public_date": "{{ datafield_meta.publicDate|date('Y-m-d H:i:s') }}",

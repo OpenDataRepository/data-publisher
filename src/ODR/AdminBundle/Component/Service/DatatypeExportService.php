@@ -71,15 +71,18 @@ class DatatypeExportService
 
 
     /**
+     * Renders the specified datatype in the requested format according to the user's permissions.
      *
-     * @param string $version
-     * @param integer $datatype_id
-     * @param string $format
-     * @param array $user_permissions
+     * @param string $version           Which version of the export to render
+     * @param integer $datatype_id      Which datatype to render
+     * @param string $format            The format (json, xml, etc) to render the datatype in
+     * @param boolean $using_metadata   Whether to display additional metadata (who created it, public date, revision, etc)
+     * @param array $user_permissions   The permissions of the user requesting this
+     * @param string $baseurl           The current baseurl of this ODR installation, used for file/image links
      *
      * @return string
      */
-    public function getData($version, $datatype_id, $format, $user_permissions, $baseurl)
+    public function getData($version, $datatype_id, $format, $using_metadata, $user_permissions, $baseurl)
     {
         // All of these should already exist
         /** @var DataType $datatype */
@@ -110,7 +113,6 @@ class DatatypeExportService
         $template = 'ODRAdminBundle:XMLExport:datatype_ajax.'.$format.'.twig';
 
         // Render the DataRecord
-        $using_metadata = true;
         $str = $this->templating->render(
             $template,
             array(
@@ -178,7 +180,7 @@ class DatatypeExportService
         }
 
         // Also get rid of parts that signify no child/linked datatypes
-        $trimmed_str = str_replace( array(',"child_datatypes":{}', ',"linked_datatypes":{}'), '', $trimmed_str );
+        $trimmed_str = str_replace( array(',"child_databases":{}', ',"linked_databases":{}'), '', $trimmed_str );
 
         return $trimmed_str;
     }

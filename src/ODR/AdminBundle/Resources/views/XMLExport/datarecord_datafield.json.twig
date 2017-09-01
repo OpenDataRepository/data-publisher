@@ -1,5 +1,7 @@
-{% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
-{% set field_typeclass = datafield.dataFieldMeta.fieldType.typeClass %}
+{% set datafield_meta = datafield.dataFieldMeta %}
+
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
 {% set valuefield = '' %}
 {% set valuefield_value = '' %}
@@ -46,80 +48,68 @@
     {% set valuefield = [] %}
 {% endif %}
 
+{% if version == 'v1' %}
+    "field_{{ datafield.id }}": {
+        "field_name": {{ datafield_meta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
+{% else %}
+    "{{ datafield_meta.xml_fieldName }}": {
+{% endif %}
+
+        "id": {{ datafield.id }},
 
 {% if field_typename == "File" %}
 
-    {% if version == 'v1' %}
-        "datafield_{{ datafield.id }}": {
-            "datafield_name": {{ datafield.dataFieldMeta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
-    {% else %}
-        "datafield_{{ datafield.dataFieldMeta.xml_fieldName }}": {
-    {% endif %}
-
         "files": [
         {% for file in valuefield %}
+            {% set file_meta = file.fileMeta %}
             {
-                "internal_id": {{ file.id }},
-                "original_name": "{% if file.fileMeta.originalFileName != null %}{{ file.fileMeta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}",
+                "id": {{ file.id }},
+                "original_name": "{% if file_meta.originalFileName != null %}{{ file_meta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}",
                 "href": "{{ baseurl ~ path('odr_file_download', {'file_id': file.id}) }}",
 
                 {% if using_metadata == true %}
                 "_file_metadata": {
-                    "_external_id": "{{ file.fileMeta.external_id }}",
+                    "_external_id": "{{ file_meta.external_id }}",
                     "_create_date": "{{ file.created|date('Y-m-d H:i:s') }}",
                     "_create_auth": "{% if file.createdBy != '' %}{{ file.createdBy|user_string }}{% endif %}",
-                    "_public_date": "{{ file.fileMeta.publicDate|date('Y-m-d H:i:s') }}"
+                    "_public_date": "{{ file_meta.publicDate|date('Y-m-d H:i:s') }}"
                 }
                 {% endif %}
             },
         {% endfor %}
-        ]
-    },
+        ]   {# end of files #}
 
 {% elseif field_typename == "Image" %}
-
-    {% if version == 'v1' %}
-        "datafield_{{ datafield.id }}": {
-            "datafield_name": {{ datafield.dataFieldMeta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
-    {% else %}
-        "datafield_{{ datafield.dataFieldMeta.xml_fieldName }}": {
-    {% endif %}
 
         "images": [
         {% for image in valuefield %}
             {% set oimage = image.parent %}
             {% set image_ext = oimage.ext %}
-            {% set image_caption = oimage.imageMeta.caption %}
-            {% set image_filename = oimage.imageMeta.originalFileName %}
+
+            {% set oimage_meta = oimage.imageMeta %}
+            {% set image_caption = oimage_meta.caption %}
+            {% set image_filename = oimage_meta.originalFileName %}
 
             {
-                "internal_id": {{ oimage.id }},
+                "id": {{ oimage.id }},
                 "original_name": "{% if image_filename != '' %}{{ image_filename|raw }}{% else %}Image_{{ oimage.id }}{% endif %}",
                 "href": "{{ baseurl ~ path('odr_image_download', {'image_id': oimage.id}) }}",
                 "caption": "{{ image_caption|raw }}",
 
                 {% if using_metadata == true %}
                 "_image_metadata": {
-                    "_external_id": "{{ oimage.imageMeta.external_id }}",
+                    "_external_id": "{{ oimage_meta.external_id }}",
                     "_create_date": "{{ oimage.created|date('Y-m-d H:i:s') }}",
                     "_create_auth": "{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}",
-                    "_public_date": "{{ oimage.imageMeta.publicDate|date('Y-m-d H:i:s') }}",
-                    "_display_order": "{{ oimage.imageMeta.displayorder}}"
+                    "_public_date": "{{ oimage_meta.publicDate|date('Y-m-d H:i:s') }}",
+                    "_display_order": "{{ oimage_meta.displayorder}}"
                 }
                 {% endif %}
             },
         {% endfor %}
-        ]
-    },
+        ]   {# end of images #}
 
 {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
-
-    {% if version == 'v1' %}
-        "datafield_{{ datafield.id }}": {
-            "datafield_name": {{ datafield.dataFieldMeta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
-    {% else %}
-        "datafield_{{ datafield.dataFieldMeta.xml_fieldName }}": {
-    {% endif %}
 
     {% if datafield.radioOptions is defined %}
         {% for radio_option in datafield.radioOptions %}
@@ -128,38 +118,34 @@
                 {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
             {% endif %}
 
+            {% set radio_option_meta = radio_option.radioOptionMeta %}
+
             {% if is_selected == 1 %}
 
                 {% if version == 'v1' %}
                     "radio_option_{{ radio_option.id }}": {
-                        "name": "{{ radio_option.radioOptionMeta.optionName }}",
+                        "name": "{{ radio_option_meta.optionName }}",
                 {% elseif version == 'v2' %}
-                    "{{ radio_option.radioOptionMeta.optionName }}": {
+                    "{{ radio_option_meta.optionName }}": {
                 {% endif %}
 
+                        "id": {{ radio_option.id }},
                         "selected": "1"
                     },
             {% endif %}
         {% endfor %}
     {% endif %}
-    },
 
 {% else %}
 
-    {% if version == 'v1' %}
-        "datafield_{{ datafield.id }}": {
-            "datafield_name": {{ datafield.dataFieldMeta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
-    {% else %}
-        "datafield_{{ datafield.dataFieldMeta.xml_fieldName }}": {
-    {% endif %}
-
     {% if field_typename == "Boolean" %}
-        "content": "{% if valuefield_value == 1 %}1{% else %}0{% endif %}"
+        "selected": "{% if valuefield_value == 1 %}1{% else %}0{% endif %}"
     {% elseif field_typename == "DateTime" %}
-        "content": "{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != '9999-12-31' %}{{ valuefield_value|date('Y-m-d') }}{% endif %}"
+        "value": "{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != '9999-12-31' %}{{ valuefield_value|date('Y-m-d') }}{% endif %}"
     {% else %}
-        "content": {{ valuefield_value|json_encode|raw }}   {# lack of surrounding quotation marks necessary #}
+        "value": {{ valuefield_value|json_encode|raw }}   {# lack of surrounding quotation marks necessary #}
     {% endif %}
-        },
 
 {% endif %}
+
+    },  {# end of datafield #}

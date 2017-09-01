@@ -4,9 +4,9 @@
 {% set datatype_meta = datatype.dataTypeMeta %}
 
 {% if version == 'v1' %}
-    "datatype_{{ datatype.id }}": {
-{% else %}
-    "datatype_{{ datatype_meta.xml_fieldName }}": {
+    "database_{{ datatype.id }}": {
+{% elseif version == 'v2' %}
+    "{{ datatype_meta.xml_fieldName }}": {
 {% endif %}
 
     "internal_id": {{ datatype.id }},
@@ -18,7 +18,7 @@
     {% endif %}
 
 {% if using_metadata == true %}
-    "_datatype_metadata": {
+    "_database_metadata": {
         "_create_date": "{{ datatype.created|date('Y-m-d H:i:s') }}",
         "_create_auth": "{% if datatype.createdBy != '' %}{{ datatype.createdBy|user_string|xml }}{% endif %}",
         "_public_date": "{{ datatype_meta.publicDate|date('Y-m-d H:i:s') }}",

@@ -7,8 +7,8 @@
 {% set tag_start = '' %}
 {% set tag_end = '' %}
 {% if version == 'v1' %}
-    {% set tag_start = '<datafield_' ~ datafield.id ~ ' datafield_name="' ~ datafield_meta.fieldName|xml ~'">' %}
-    {% set tag_end = '</datafield_' ~ datafield.id ~ '>' %}
+    {% set tag_start = '<field_' ~ datafield.id ~ '>' %}
+    {% set tag_end = '</field_' ~ datafield.id ~ '>' %}
 {% elseif version == 'v2' %}
     {% set tag_start = '<' ~ datafield_meta.xml_fieldName ~ '>' %}
     {% set tag_end = '</' ~ datafield_meta.xml_fieldName ~ '>' %}
@@ -33,7 +33,7 @@
     {% endif %}
 
     {% if using_metadata == true %}
-    <_datafield_metadata>
+    <_field_metadata>
         <_create_date>{{ datafield.created|date('Y-m-d H:i:s') }}</_create_date>
         <_create_auth>{% if datafield.createdBy != '' %}{{ datafield.createdBy|user_string|xml }}{% endif %}</_create_auth>
         <_public_date>{{ datafield_meta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
@@ -41,7 +41,7 @@
         <_master_published_version>{{ datafield_meta.master_published_revision }}</_master_published_version>
         <_master_revision>{{ datafield_meta.master_revision }}</_master_revision>
         <_tracking_master_version>{{ datafield_meta.tracking_master_revision }}</_tracking_master_version>
-    </_datafield_metadata>
+    </_field_metadata>
     {% endif %}
 
     {% if field_typeclass == 'Radio' %}

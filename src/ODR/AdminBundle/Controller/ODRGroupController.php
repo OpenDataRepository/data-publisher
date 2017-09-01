@@ -15,8 +15,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\AdminBundle\Exception\ODRMethodNotAllowedException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -35,6 +33,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Forms
 use ODR\AdminBundle\Form\UpdateGroupForm;
 // Services
@@ -76,7 +75,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             if ($datatype->getIsMasterType())
-                throw new ODRMethodNotAllowedException('Master Templates are not allowed to have Groups');
+                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
             // --------------------
             // Determine user privileges
@@ -141,7 +140,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             if ($datatype->getIsMasterType())
-                throw new ODRMethodNotAllowedException('Master Templates are not allowed to have Groups');
+                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -229,7 +228,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             if ($datatype->getIsMasterType())
-                throw new ODRMethodNotAllowedException('Master Templates are not allowed to have Groups');
+                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -298,7 +297,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             if ($datatype->getIsMasterType())
-                throw new ODRMethodNotAllowedException('Master Templates are not allowed to have Groups');
+                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -419,7 +418,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             if ($datatype->getIsMasterType())
-                throw new ODRMethodNotAllowedException('Master Templates are not allowed to have Groups');
+                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -535,7 +534,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             if ($datatype->getIsMasterType())
-                throw new ODRMethodNotAllowedException('Master Templates are not allowed to have Groups');
+                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -626,7 +625,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             if ($datatype->getIsMasterType())
-                throw new ODRMethodNotAllowedException('Master Templates are not allowed to have Groups');
+                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -895,7 +894,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             if ($datatype->getIsMasterType())
-                throw new ODRMethodNotAllowedException('Master Templates are not allowed to have Groups');
+                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -1043,7 +1042,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRNotFoundException('Theme');
 
             if ($datatype->getIsMasterType())
-                throw new ODRMethodNotAllowedException('Master Templates are not allowed to have Groups');
+                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -1522,7 +1521,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRNotFoundException('Permissions Entity');
 
             if ($datatype->getIsMasterType())
-                throw new ODRMethodNotAllowedException('Master Templates are not allowed to have Groups');
+                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -1766,7 +1765,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRNotFoundException('Permissions Entity');
 
             if ($datatype->getIsMasterType())
-                throw new ODRMethodNotAllowedException('Master Templates are not allowed to have Groups');
+                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
