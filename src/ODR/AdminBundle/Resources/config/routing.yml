@@ -1192,7 +1192,7 @@ odr_api_datatype_list:
         version: 'v1'
         _format: '|json|xml'
 
-odr_export_get_datatype_single:    # Alternate URL to use cookie authentication instead of OAuth token do get the single datatype export
+odr_export_get_datatype_single:    # Alternate URL to use cookie authentication instead of OAuth token to get the single datatype export
     path:  /admin/datatype_export/{datatype_id}.{_format}
     defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, version: 'v1', _format: json }
     methods: [ GET ]
@@ -1218,22 +1218,20 @@ odr_api_datarecord_list:
         datatype_id: \d+
         _format: '|json|xml'
 
-odr_export_datarecord_single:    # Alternate URL to use cookie authentication instead of OAuth token do get the single datarecord export
-    path: /admin/datarecord_export/{datatype_id}/{datarecord_id}.{_format}
+odr_export_datarecord_single:    # Alternate URL to use cookie authentication instead of OAuth token to get the single datarecord export
+    path: /admin/datarecord_export/{datarecord_id}.{_format}
     defaults: { _controller: ODRAdminBundle:API:getDatarecordExport, version: 'v1', _format: json }
     methods: [ GET ]
     requirements:
-        datatype_id: \d+
         datarecord_id: \d+
         _format: '|json|xml'
 
 odr_api_get_datarecord_single:
-    path:  /api/{version}/databases/{datatype_id}/records/{datarecord_id}.{_format}
+    path:  /api/{version}/records/{datarecord_id}.{_format}
     defaults: { _controller: ODRAdminBundle:API:getDatarecordExport, _format: json }
     methods: [ GET ]
     requirements:
         version: 'v1'
-        datatype_id: \d+
         datarecord_id: \d+
         format: '|xml|json'
 

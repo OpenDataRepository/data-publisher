@@ -536,13 +536,12 @@ class APIController extends ODRCustomController
      * Renders and returns the json/XML version of the given DataRecord when accessed via the OAuth firewall
      *
      * @param string $version
-     * @param integer $datatype_id
      * @param integer $datarecord_id
      * @param Request $request
      *
      * @return Response
      */
-    public function getDatarecordExportAction($version, $datatype_id, $datarecord_id, Request $request)
+    public function getDatarecordExportAction($version, $datarecord_id, Request $request)
     {
         try {
             // ----------------------------------------
@@ -574,10 +573,6 @@ class APIController extends ODRCustomController
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-
-            if ($datatype->getId() != $datatype_id)
-                throw new ODRBadRequestException('TODO');
-
 
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );

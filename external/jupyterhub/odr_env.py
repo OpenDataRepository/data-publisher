@@ -68,6 +68,7 @@ def getDatatypeList():
     # TODO - handle xml format as well?
     file_format = 'json'
     list_type = ''
+    version = 'v1'
 
     # Ensure arguments are valid
     if not (file_format == 'xml' or file_format == 'json'):
@@ -76,15 +77,17 @@ def getDatatypeList():
         raise ValueError('list_type must be either "" or "all"')
 
 
-    # Send an API request to ODR
-    api_url = os.environ['ODR_BASEURL'] + '/api/datatype_list'
-    if (list_type == "all"):
-        api_url = api_url + '/all'
+    # Send the API request to ODR
+    api_url = os.environ['ODR_BASEURL'] + '/api/' + version + '/databases.' + file_format
 
-    return _makeRequest(api_url, file_format)
+    params = {}
+    if (list_type == 'all'):
+        params = {'display': 'all'}
+
+    return _makeRequest(api_url, file_format, params)
 
 
-def getDatatypeData(datatype_id):
+def getDatatypeData(datatype_id, display_metadata=False):
     """
     Attempts to download a JSON representation of the given datatype from ODR
 
@@ -93,20 +96,28 @@ def getDatatypeData(datatype_id):
 
     # TODO - handle xml format as well?
     file_format = 'json'
+    version = 'v1'
 
     # Ensure arguments are valid
     if not isinstance(datatype_id, int):
         raise ValueError('datatype_id must be numeric')
+    if not isinstance(display_metadata, bool):
+        raise ValueError('display_metadata must be a boolean')
     if not (file_format == 'xml' or file_format == 'json'):
         raise ValueError('file_format must be either "xml" or "json"')
 
 
     # Send an API request to ODR
-    api_url = os.environ['ODR_BASEURL'] + '/api/datatype/v1/' + str(datatype_id) + '/' + file_format
-    return _makeRequest(api_url, file_format)
+    api_url = os.environ['ODR_BASEURL'] + '/api/' + version + '/databases/' + str(datatype_id) + '.' + file_format
+
+    params = {}
+    if (display_metadata == True):
+        params['metadata'] = 'true'
+
+    return _makeRequest(api_url, file_format, params)
 
 
-def getDatarecordList(datatype_id):
+def getDatarecordList(datatype_id, offset=0, limit=999999999):
     """
     Attempts to download a brief JSON list of all datarecords the user can see in a given datatype.
 
@@ -115,20 +126,38 @@ def getDatarecordList(datatype_id):
 
     # TODO - handle xml format as well?
     file_format = 'json'
+    version = 'v1'
 
     # Ensure arguments are valid
     if not isinstance(datatype_id, int):
         raise ValueError('datatype_id must be numeric')
+    if not isinstance(offset, int):
+        raise ValueError('offset must be numeric')
+    if not isinstance(limit, int):
+        raise ValueError('limit must be numeric')
+
+    if (offset < 0 or offset > 999999999):
+        raise ValueError('offset must be a positive integer less than 1,000,000,000')
+    if (limit < 1 or limit > 999999999):
+        raise ValueError('offset must be a positive non-zero integer less than 1,000,000,000')
+
     if not (file_format == 'xml' or file_format == 'json'):
         raise ValueError('file_format must be either "xml" or "json"')
 
 
     # Send an API request to ODR
-    api_url = os.environ['ODR_BASEURL'] + '/api/datarecord_list/' + str(datatype_id)
-    return _makeRequest(api_url, file_format)
+    api_url = os.environ['ODR_BASEURL'] + '/api/' + version + '/databases/' + str(datatype_id) + '/records.' + file_format
+
+    params = {}
+    if (offset != 0):
+        params['offset'] = offset
+    if (limit != 999999999):
+        params['limit'] = limit
+
+    return _makeRequest(api_url, file_format, params)
 
 
-def getDatarecordData(datarecord_id):
+def getDatarecordData(datarecord_id, display_metadata=False):
     """
     Attempts to download a JSON representation of the given datarecord from ODR
 
@@ -137,6 +166,7 @@ def getDatarecordData(datarecord_id):
 
     # TODO - handle xml format as well?
     file_format = 'json'
+    version = 'v1'
 
     # Ensure arguments are valid
     if not isinstance(datarecord_id, int):
@@ -146,28 +176,36 @@ def getDatarecordData(datarecord_id):
 
 
     # Send an API request to ODR
-    api_url = os.environ['ODR_BASEURL'] + '/api/datarecord/v1/' + str(datarecord_id) + '/' + file_format
-    return _makeRequest(api_url, file_format)
+    api_url = os.environ['ODR_BASEURL'] + '/api/' + version + '/records/' + str(datarecord_id) + '.' + file_format
+
+    params = {}
+    if (display_metadata == True):
+        params['metadata'] = 'true'
+
+    return _makeRequest(api_url, file_format, params)
 
 
-def _makeRequest(api_url, file_format):
+def _makeRequest(api_url, file_format, params=None):
     """
     Makes a request to the specified api_url, and attempts to deal with any errors that arise.
 
     Returns a dict of the request data if successful
     """
 
-    access_token = __getAccessToken()
+    # Get the access token into the request parameters list
+    if (params is None):
+        params = {}
+    params['access_token'] = __getAccessToken()
 
+    # Set the correct accept header for the requested file format
     accept_header = {'accept': 'application/json'}
     if (file_format == 'xml'):
         accept_header = {'accept': 'text/xml'}
 
-    r = requests.get(api_url + '?access_token=' + access_token, headers=accept_header)
-#    if (r.status_code != 200):
-#        raise RuntimeError( r.json() )
 
-    # TODO - handle XML data as well
+    # Run the http request
+    r = requests.get(api_url, params=params, headers=accept_header)
+    # TODO - handle non-json data as well
     data = json.loads(r.text)
 
     # Deal with the response...
@@ -184,14 +222,11 @@ def _makeRequest(api_url, file_format):
                 # Something happened while trying to get a new access_token, abort
                 raise RuntimeError( result )
             else:
-                new_access_token = result['access_token']
+                params['access_token'] = result['access_token']
 
                 # Run the http request again with the new access token
-                request_url = api_url + '?access_token=' + new_access_token
-                r = requests.get(request_url, headers={'accept': 'application/json'})
-                if (r.status_code != 200):
-                    raise RuntimeError( r.json() )
-
+                r = requests.get(api_url, params=params, headers=accept_header)
+                # TODO - handle non-json data as well
                 data = json.loads(r.text)
 
                 if (r.status_code == 200):
@@ -244,19 +279,19 @@ def _buildFileListJSON(datarecord_list, file_list):
     Returns a dict of file information.
     """
 
-    for dr in datarecord_list['datarecords']:
+    for dr in datarecord_list['records']:
         # Grab the name to identify this datarecord by
-        dr_name = dr['datarecord_name']
+        dr_name = dr['record_name']
 
-        for df_name, df in dr['datafields'].items():
+        for df_name, df in dr['fields'].items():
             # In earlier versions of the spec, the datafield name is a value inside the datafield object
-            if 'datafield_name' in df:
-                df_name = df['datafield_name']
+            if 'field_name' in df:
+                df_name = df['field_name']
 
             if 'files' in df:
                 for f in df['files']:
                     # Grab the identifiers for each file
-                    f_id = f['internal_id']
+                    f_id = f['id']
                     f_name = f['original_name']
 
                     # Store them in the dict
@@ -268,8 +303,8 @@ def _buildFileListJSON(datarecord_list, file_list):
                     file_list[f_id] = data
 
         # If this datarecord has children, recursively iterate through them looking for files as well
-        if 'child_datarecords' in dr:
-            for child_dt_name, child_dt in dr['child_datarecords'].items():
+        if 'child_records' in dr:
+            for child_dt_name, child_dt in dr['child_records'].items():
                 file_list = _buildFileListJSON(child_dt, file_list)
 
     return file_list
@@ -287,7 +322,7 @@ def downloadImageToDisk(image_id):
         raise ValueError('image_id must be numeric')
 
     # Attempt to download the image from ODR
-    api_url = os.environ['ODR_BASEURL'] + '/api/image_download/' + str(image_id)
+    api_url = os.environ['ODR_BASEURL'] + '/api/v1/image_download/' + str(image_id)
     r = _makeFileRequest(api_url)
 
     # Name of image is stored within the Content-Disposition header, which is 'attachment; filename="<filename>";'
@@ -323,7 +358,7 @@ def downloadFileToDisk(file_id):
         raise ValueError('file_id must be numeric')
 
     # Attempt to download the file from ODR
-    api_url = os.environ['ODR_BASEURL'] + '/api/file_download/' + str(file_id)
+    api_url = os.environ['ODR_BASEURL'] + '/api/v1/file_download/' + str(file_id)
     r = _makeFileRequest(api_url)
 
     # Name of file is stored within the Content-Disposition header, which is 'attachment; filename="<filename>";'
@@ -359,7 +394,7 @@ def downloadFile(file_id):
         raise ValueError('file_id must be numeric')
 
     # Attempt to download the file from ODR
-    api_url = os.environ['ODR_BASEURL'] + '/api/file_download/' + str(file_id)
+    api_url = os.environ['ODR_BASEURL'] + '/api/v1/file_download/' + str(file_id)
     r = _makeFileRequest(api_url)
 
     # Name of file is stored within the Content-Disposition header, which is 'attachment; filename="<filename>";'
@@ -385,8 +420,8 @@ def _makeFileRequest(api_url):
     """
 
     # Run the http request
-    access_token = __getAccessToken()
-    r = requests.get(api_url + '?access_token=' + access_token, stream=True)
+    params = {'access_token': __getAccessToken()}
+    r = requests.get(api_url, params=params, stream=True)
 
     if (r.status_code == 200):
         # Nothing went wrong, return the response
@@ -404,10 +439,10 @@ def _makeFileRequest(api_url):
                     # Something happened while trying to get a new access_token, abort
                     raise RuntimeError( result )
                 else:
-                    new_access_token = result['access_token']
+                    params['access_token'] = result['access_token']
 
                 # Run the http request again with the new access token
-                r = requests.get(api_url + '?access_token=' + new_access_token, stream=True)
+                r = requests.get(api_url, params=params, stream=True)
                 if (r.status_code == 200):
                     # Nothing went wrong, return the response
                     return r
