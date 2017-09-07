@@ -1432,8 +1432,11 @@ class ThemeController extends ODRCustomController
      *
      * @return Response
      */
-    public function savethemedatafieldAction($theme_element_id, $datafield_id, Request $request)
-    {
+    public function savethemedatafieldAction(
+        $theme_element_id,
+        $datafield_id,
+        Request $request
+    ) {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -1454,7 +1457,14 @@ class ThemeController extends ODRCustomController
 //            if ($theme_element == null)
 
             /** @var ThemeDataField $theme_datafield */
-            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(array('themeElement' => $theme_element_id, 'dataField' => $datafield_id));
+            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')
+                ->findOneBy(
+                    array(
+                        'themeElement' => $theme_element_id,
+                        'dataField' => $datafield_id
+                    )
+                );
+
             if ($theme_datafield == null)
                 return parent::deletedEntityError('ThemeDatafield');
 
@@ -1482,12 +1492,13 @@ class ThemeController extends ODRCustomController
             $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if (!(isset($datatype_permissions[$datatype->getId()]) && isset($datatype_permissions[$datatype->getId()]['dt_admin'])))
+            if (!(isset($datatype_permissions[$datatype->getId()])
+                && isset($datatype_permissions[$datatype->getId()]['dt_admin']))
+            ) {
                 return parent::permissionDeniedError("edit");
+            }
             // --------------------
 
-
-            //
             if ($theme->getThemeType() == 'table')
                 throw new \Exception('Unable to change properties of a Table theme');
 

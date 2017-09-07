@@ -25,7 +25,11 @@
     {% endif %}
 
     <ul class="ODR-pure-submenu">
-        <li class="pure-menu-item"><a class="pure-menu-link" href="{{ path('odr_admin_homepage') }}">&nbsp;<i class="fa fa-md fa-dashboard fa-fw"></i>Dashboard</a></li>
+        <li class="pure-menu-item">
+            <a class="pure-menu-link" href="{{ path('odr_admin_homepage') }}">
+                <i class="fa fa-md fa-dashboard fa-fw"></i>Dashboard
+            </a>
+        </li>
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_self_profile_edit') }}">&nbsp;<i class="fa fa-md fa-user fa-fw"></i>Profile</a></li>
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_job_list') }}">&nbsp;<i class="fa fa-md fa-cogs fa-fw"></i>Active Jobs</a></li>
 

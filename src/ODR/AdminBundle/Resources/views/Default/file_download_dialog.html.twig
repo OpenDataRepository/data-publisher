@@ -1,40 +1,29 @@
 {% spaceless %}
     <!-- File Download Dialog -->
-    <div data-remodal-id="dialog_file_downloads" id="dialog_file_downloads" title="File Download Selector Dialog">
+    <div class="ODRRemodal" data-remodal-id="dialog_file_downloads" id="dialog_file_downloads" title="File Download Selector Dialog">
         <button data-remodal-action="close" class="remodal-close"></button>
-        <div class="form_contents pure-u-1">
-            <h3>Select files to download.</h3>
-            <div id="FileDownloadForm_build">
-                <div id="FileDownloadForm_loading" class="pure-u-1" style="font-weight:bold; text-align:center;">Loading...</div>
-
+        <h3 id="ODRRemodalTitle">Select files to download.</h3>
+        <div id="ODRRemodalInner" class="form_contents pure-u-1">
+            <div id="ODRFileDownloadForm_build">
+                <div id="ODRFileDownloadForm_loading" class="pure-u-1 Hide">
+                    Loading...
+                </div>
                 <div id="ODRFileDownloadFormWrapper">
-                    <form id="FileDownloadForm" method="POST"></form>
-
-                    <button id="FileDownloadForm_cancel" class="pure-button ODRCancelButton">Cancel</button>
-                    <button id="FileDownloadForm_submit" class="pure-button pure-button-primary ODRSubmitButton" disabled>Download Selected Files</button>
+                    <form id="ODRFileDownloadForm" method="POST"></form>
+                </div>
+                <div id="ODRFileDownloadForm_progress" class="Hide">
+                    Processing... <span id="ODRFileDownloadForm_current"></span> of
+                    <span id="ODRFileDownloadForm_total"></span> files added to archive...
                 </div>
             </div>
-
-            <div id="FileDownloadForm_progress" style="display:none; font-size:1.2em;">
-                Processing... <span id="FileDownloadForm_current"></span> of <span id="FileDownloadForm_total"></span> files added to archive...
-            </div>
+        </div>
+        <div id="ODRRemodalButtons" class="Hide">
+            <button id="ODRFileDownloadForm_submit" class="pure-button pure-button-primary ODRSubmitButton" disabled>
+                Download Selected Files
+            </button>
+            <button data-remodal-action="close" class="ODRRemodalCancel remodal-close"></button>
         </div>
     </div>
-    <!--  End of File Download Dialog -->
-    <!--
-    <div class="remoda" data-remodal-id="modal"
-         data-remodal-options="hashTracking: false, closeOnOutsideClick: false">
-
-        <button data-remodal-action="close" class="remodal-close"></button>
-        <h1>Remodal</h1>
-        <p>
-            Responsive, lightweight, fast, synchronized with CSS animations, fully customizable modal window plugin with declarative configuration and hash tracking.
-        </p>
-        <br>
-        <button data-remodal-action="cancel" class="remodal-cancel">Cancel</button>
-        <button data-remodal-action="confirm" class="remodal-confirm">OK</button>
-    </div>
-    -->
 <script>
 
     $(function() {
@@ -71,15 +60,21 @@
         locateFileIds(datarecord_id, 0, 0);      // defined in ODRAdminBundle:Default:file_download_dialog.html.twig
     }
 
+    function resetRemodalInnerHeight() {
+        var modal_height =  $(window).height() - $("#ODRRemodalButtons").height() - $("#ODRRemodalTitle").height() - 30
+        $("#ODRRemodalInner").css("max-height", modal_height);
+    }
+
     function locateFileIds(grandparent_datarecord_id, datarecord_id, datafield_id) {
-        $("#FileDownloadForm").html('');
-        $("#FileDownloadForm_loading").show();
+        $("#ODRFileDownloadForm").html('');
+        $("#ODRFileDownloadForm_loading").show();
 
         var url = '{{ path('odr_get_file_list', {'grandparent_datarecord_id': 0}) }}';
         url = url.substring(0, (url.length-1));
         url += grandparent_datarecord_id;
-        if (datarecord_id != 0 || datafield_id != 0)
+        if (datarecord_id != 0 || datafield_id != 0) {
             url += '/' + datarecord_id + '/' + datafield_id;
+        }
 
         $.ajax({
             cache: false,
@@ -87,10 +82,13 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                $("#FileDownloadForm").html( data.d );
+                $("#ODRFileDownloadForm").html( data.d );
                 initFileDownloadDialogForm(datarecord_id, datafield_id);
-                $("#FileDownloadForm_loading").hide();
+                $("#ODRFileDownloadForm_loading").hide();
                 $("#ODRFileDownloadFormWrapper").show();
+                $("#ODRRemodalButtons").show();
+                // Resize ODRFileDownloadModal to take up full height
+                resetRemodalInnerHeight()
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to create a jGrowl...close the dialog so it's not in some half-initialized state
@@ -150,10 +148,10 @@
             applyToParents( $(this) );
 
             // If no files/images selected for download, disable the submit button
-            if ( $("#FileDownloadForm").find('.fa.fa-check').length > 0 )
-                $("#FileDownloadForm_submit").removeAttr('disabled');
+            if ( $("#ODRFileDownloadForm").find('.fa.fa-check').length > 0 )
+                $("#ODRFileDownloadForm_submit").removeAttr('disabled');
             else
-                $("#FileDownloadForm_submit").attr('disabled', 'disabled');
+                $("#ODRFileDownloadForm_submit").attr('disabled', 'disabled');
         });
 
         if (target_datarecord_id != 0 && target_datafield_id != 0) {
@@ -188,21 +186,21 @@
     }
 
     function submitForm(form_id) {
-        $("#FileDownloadForm").find('.binary').each(function() {
+        $("#ODRFileDownloadForm").find('.binary').each(function() {
             if ( $(this).children('.fa').first().hasClass('fa-check') ) {
                 $(this).children('input').removeProp('disabled');
             }
         });
 
-        var id_data = $("#FileDownloadForm > ul").attr('id').split(/_/);
+        var id_data = $("#ODRFileDownloadForm > ul").attr('id').split(/_/);
         var grandparent_datarecord_id = id_data[1];
 
         var url = '{{ path('odr_start_zip_archive_download', {'grandparent_datarecord_id': 0}) }}';
         url = url.substring(0, (url.length-1));
         url += grandparent_datarecord_id;
 
-        var file_list = $("#FileDownloadForm").serialize();
-        $("#FileDownloadForm_submit").attr('disabled', 'disabled');
+        var file_list = $("#ODRFileDownloadForm").serialize();
+        $("#ODRFileDownloadForm_submit").attr('disabled', 'disabled');
 
         $.ajax({
             type: 'POST',
@@ -214,11 +212,11 @@
                 var archive_size = data.d.archive_size;
 
                 var element = $('#' + form_id);
-                $(element).find('#FileDownloadForm_build').hide();
+                $(element).find('#ODRFileDownloadForm_build').hide();
 
-                $(element).find('#FileDownloadForm_current').html("0");
-                $(element).find('#FileDownloadForm_total').html(archive_size);
-                $(element).find('#FileDownloadForm_progress').show();
+                $(element).find('#ODRFileDownloadForm_current').html("0");
+                $(element).find('#ODRFileDownloadForm_total').html(archive_size);
+                $(element).find('#ODRFileDownloadForm_progress').show();
 
                 createZipArchiveProgressCheck(archive_filename, archive_size, form_id);
             },

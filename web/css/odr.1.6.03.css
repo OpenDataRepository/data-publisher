@@ -92,7 +92,7 @@ a {
 .pure-skin-odr .pure-button-disabled,
 .pure-skin-odr .pure-button-disabled:hover,
 .pure-skin-odr .pure-button-disabled:active {
-    border: none;
+    border: 2px solid rgba(0,0,0,0);
     background-image: none;
     filter: progid:DXImageTransform.Microsoft.gradient(enabled = false);
     filter: alpha(opacity=40);
@@ -3101,8 +3101,12 @@ form .row {
     padding-right: 5px;
 }
 
-#FileDownloadForm ul {
+#ODRFileDownloadForm ul {
     list-style: none;
+    padding-left: 6px;
+}
+#ODRFileDownloadForm ul ul {
+    padding-left: 26px;
 }
 
 .ODRFileSpacer {
@@ -3252,7 +3256,119 @@ form .row {
     max-height: 80%;
     overflow: scroll;
     text-align: left;
+    font-size: 0.8em;
+    color: #444;
+    font-family: "Lato-Reg", sans-serif;
+}
+#ODRFileDownloadForm_loading {
+    padding: 10px 10px 10px 10px;
+    color: #3b8bba;
 }
 #ODRFileDownloadFormWrapper li {
     white-space: nowrap;
+    list-style-type: none;
+}
+.ODRRemodal {
+    max-width: 90%;
+    border: 1px solid #7fb9d8;
+    border-radius: 4px;
+    color: sandybrown;
+}
+
+
+.ODRRemodal h3 {
+    font-size: 16px;
+    font-weight: bold;
+    color: #3b8bba;
+    background: #b8e8fa none repeat scroll 0 0;
+    position: absolute;
+    line-height: 35px;
+    top: 0;
+    margin: 0px 0px 0px -35px;
+    overflow: visible;
+    text-align: center;
+    width: 100%;
+}
+.ODRRemodalButtons {
+    display: block;
+    position: relative;
+    bottom: 0px;
+    padding-bottom: 10px;
+    padding-top: 10px;
+    background: white;
+    width: 100%;
+}
+#ODRRemodalInner {
+    overflow: scroll;
+    margin-top: 35px;
+}
+/* Media Queries */
+/* pure-hidden-xs */
+@media screen and (max-width:567px) {
+    .ODRRemodal h3 {
+        margin: 0px 0px 0px 0px;
+        padding: 0;
+        overflow: scroll;
+    }
+    #ODRRemodalButtons {
+        display: block;
+        position: absolute;
+        bottom: 0px;
+        padding-bottom: 10px;
+        padding-top: 10px;
+        background: white;
+        width: 100%;
+    }
+    .ODRRemodalCancel {
+        position: relative;
+        display: inline;
+        margin-top: 10px;
+        padding-top: 10px;
+        vertical-align: middle;
+        top: -5px;
+    }
+    .ODRRemodal {
+        max-width: 100%;
+        color: green;
+        position:fixed !important;
+        position:absolute;
+        top:0;
+        right:0;
+        bottom:0;
+        left:0;
+        margin: 0;
+        padding: 0;
+        /* background: lightgoldenrodyellow; */
+    }
+}
+/* pure-hidden-sm */
+@media screen and (min-width:568px) and (max-width:767px) {
+    .ODRRemodal {
+        max-width: 100%;
+        color: blue;
+    }
+}
+/* pure-hidden-md */
+@media screen and (min-width:768px) and (max-width:1023px) {
+    .ODRRemodal {
+        max-width: 90%;
+        color: magenta;
+    }
+}
+/* pure-hidden-lg */
+@media screen and (min-width:1024px) and (max-width:1279px) {
+    .ODRRemodal {
+        max-width: 90%;
+        color: lemonchiffon;
+    }
+}
+/* pure-hidden-xl */
+@media screen and (min-width:1280px) {
+    .ODRRemodal {
+        max-width: 90%;
+        color: darkseagreen;
+    }
+}
+.remodal-close {
+    z-index: 100;
 }
