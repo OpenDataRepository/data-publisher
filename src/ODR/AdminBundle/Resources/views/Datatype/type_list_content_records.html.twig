@@ -28,7 +28,7 @@
 
         {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) %}
         {% if datatype.dataTypeMeta.searchSlug == '' %}
-            {% set datatype_baseurl = path('odr_search', { 'search_slug': 'admin' } ) %}
+            {% set datatype_baseurl = path('odr_admin_homepage') %}
         {% endif %}
 
         {# Pre-determine which permissions user has for this datatype... #}

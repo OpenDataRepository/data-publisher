@@ -27,7 +27,8 @@ use ODR\OpenRepository\UserBundle\Entity\User;
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-// Forms
+// Services
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -107,6 +108,9 @@ class TextResultsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
@@ -134,19 +138,16 @@ class TextResultsController extends ODRCustomController
             // TODO - user permissions?
 
             // ----------------------------------------
-//            $datarecord_count = 0;
             $list = array();
             if ( $search_key == '' ) {
-                // Grab the sorted list of datarecords for this datatype
-                $list = parent::getSortedDatarecords($datatype);
+                // Theoretically this isn't called during regular operation of ODR anymore, but keeping around just in case
 
-                // TODO - reaaaaaaaaallly need to get the above method to change its return type depending on user needs
-                $list = explode(',', $list);
+                // Grab the sorted list of datarecords for this datatype
+                $list = $dti_service->getSortedDatarecordList($datatype->getId());
             }
             else {
-                // Get all datarecords from the search key
+                // Get all datarecords from the search key...these are already sorted
                 $data = parent::getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype->getId(), $search_key, $request);
-//                $encoded_search_key = $data['encoded_search_key'];
                 $datarecord_list = $data['datarecord_list'];
 
                 // Don't check for a redirect here, right?  would need to modify datatables.js to deal with it... TODO

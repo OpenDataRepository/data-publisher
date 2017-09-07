@@ -6,7 +6,7 @@ c.JupyterHub.authenticator_class = 'oauthenticator.LocalODROAuthenticator'
 # Define the ODR server location
 odr_base_url = '[[ ENTER ODR SERVER BASEURL HERE ]]'
 c.ODROAuthenticator.token_url = odr_base_url + '/oauth/v2/token'
-c.ODROAuthenticator.userdata_url = odr_base_url + '/api/userdata'
+c.ODROAuthenticator.userdata_url = odr_base_url + '/api/v1/userdata.json'
 c.ODROAuthenticator.username_key = 'jupyterhub_username'
 
 # Define the JupyterHub server location

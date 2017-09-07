@@ -304,6 +304,9 @@ class ODRUserController extends ODRCustomController
 
         try {
             // ----------------------------------------
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
             // Grab the specified user
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -311,26 +314,43 @@ class ODRUserController extends ODRCustomController
             // User is doing this to his own profile, by definition
             $self_edit = true;
 
-            // TODO - disable if HWIOAuthBundle isn't installed?
-            // Store whether any OAuth providers have been configured
-            $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
-            $resource_owners = $oauth_utils->getResourceOwners();
 
+            // ----------------------------------------
+            // Store whether any OAuth providers have been configured
             $connected_oauth_resources = array();
             $has_oauth_providers = false;
-            if ( count($resource_owners) > 0 ) {
-                $has_oauth_providers = true;
 
-                // Users should never be able to see or change the connected OAuth accounts of other users
-                if ($self_edit) {
+            // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
+            if ( $self_edit && $this->has('hwi_oauth.security.oauth_utils') ) {
+                $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
+                $resource_owners = $oauth_utils->getResourceOwners();
+
+                if (count($resource_owners) > 0) {
+                    $has_oauth_providers = true;
+
                     // Attempt to figure out which OAuth providers the user is already connected to
                     foreach ($user->getUserLink() as $ul) {
                         /** @var UserLink $ul */
-                        if ( $ul->getProviderName() !== null && $ul->getProviderId() !== null )
+                        if ($ul->getProviderName() !== null && $ul->getProviderId() !== null)
                             $connected_oauth_resources[] = $ul->getProviderName();
                     }
                 }
             }
+
+
+            // ----------------------------------------
+            // Determine whether the user owns any OAuth clients
+            $has_oauth_clients = false;
+            $owned_clients = array();
+            $site_baseurl = $this->getParameter('site_baseurl');
+
+            if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
+                $has_oauth_clients = true;
+
+                $client_manager = $this->get('odr.oauth_server.client_manager');
+                $owned_clients = $client_manager->getOwnedClients($user);
+            }
+
 
             // ----------------------------------------
             // Create a new form to edit the user
@@ -349,6 +369,10 @@ class ODRUserController extends ODRCustomController
 
                         'has_oauth_providers' => $has_oauth_providers,
                         'connected_oauth_resources' => $connected_oauth_resources,
+
+                        'has_oauth_clients' => $has_oauth_clients,
+                        'owned_clients' => $owned_clients,
+                        'site_baseurl' => $site_baseurl,
                     )
                 )
             );
@@ -435,27 +459,44 @@ class ODRUserController extends ODRCustomController
                 $self_edit = true;
 
 
-            // TODO - disable if HWIOAuthBundle isn't installed?
+            // ----------------------------------------
             // Store whether any OAuth providers have been configured
-            $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
-            $resource_owners = $oauth_utils->getResourceOwners();
-
             $connected_oauth_resources = array();
             $has_oauth_providers = false;
-            if ( count($resource_owners) > 0 ) {
-                $has_oauth_providers = true;
 
-                // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
-                if ($self_edit) {
+            // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
+            if ( $self_edit && $this->has('hwi_oauth.security.oauth_utils') ) {
+                $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
+                $resource_owners = $oauth_utils->getResourceOwners();
+
+                if (count($resource_owners) > 0) {
+                    $has_oauth_providers = true;
+
                     // Attempt to figure out which OAuth providers the user is already connected to
                     foreach ($user->getUserLink() as $ul) {
                         /** @var UserLink $ul */
-                        if ( $ul->getProviderName() !== null && $ul->getProviderId() !== null )
+                        if ($ul->getProviderName() !== null && $ul->getProviderId() !== null)
                             $connected_oauth_resources[] = $ul->getProviderName();
                     }
                 }
             }
 
+
+            // ----------------------------------------
+            // Determine whether the user owns any OAuth clients
+            $has_oauth_clients = false;
+            $owned_clients = array();
+            $site_baseurl = $this->getParameter('site_baseurl');
+
+            if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
+                $has_oauth_clients = true;
+
+                $client_manager = $this->get('odr.oauth_server.client_manager');
+                $owned_clients = $client_manager->getOwnedClients($user);
+            }
+
+
+            // ----------------------------------------
             // Create a new form to edit the user
             $form = $this->createForm(ODRUserProfileForm::class, $user, array('target_user_id' => $user->getId()));
 
@@ -472,6 +513,10 @@ class ODRUserController extends ODRCustomController
 
                         'has_oauth_providers' => $has_oauth_providers,
                         'connected_oauth_resources' => $connected_oauth_resources,
+
+                        'has_oauth_clients' => $has_oauth_clients,
+                        'owned_clients' => $owned_clients,
+                        'site_baseurl' => $site_baseurl,
                     )
                 )
             );

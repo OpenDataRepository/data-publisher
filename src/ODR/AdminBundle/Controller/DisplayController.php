@@ -506,7 +506,7 @@ class DisplayController extends ODRCustomController
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
-            $redis_prefix = $this->get('memcached_key_prefix');     // debug purposes only
+            $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
 
 
             // Locate the file in the database
@@ -767,8 +767,11 @@ class DisplayController extends ODRCustomController
                 if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
                     $can_view_datafield = true;
 
-                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
+                if (!$datatype->isPublic() && !$can_view_datatype)
+                    throw new ODRForbiddenException();
+                if (!$datarecord->isPublic() && !$can_view_datarecord)
+                    throw new ODRForbiddenException();
+                if (!$datafield->isPublic() && !$can_view_datafield)
                     throw new ODRForbiddenException();
             }
             // ----------------------------------------

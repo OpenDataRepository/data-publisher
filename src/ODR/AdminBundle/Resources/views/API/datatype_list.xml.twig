@@ -1,0 +1,21 @@
+{% spaceless %}
+
+<?xml version="1.0" encoding="UTF-8"?>
+<databases>
+{% for database in datatype_list.databases %}
+    <database>
+        <id>{{ database.database_id }}</id>
+        <name>{{ database.database_name|xml|raw }}</name>
+        <description>{{ database.database_description|xml|raw }}</description>
+    {% if database.child_databases is defined %}
+        <child_databases>
+            {# Using macro otherwise twig can't compile the template due to infinite recursion #}
+            {% import "ODRAdminBundle:API:datatype_list_child.xml.twig" as mychildform %}
+            {{ mychildform.input(database.child_databases) }}
+        </child_databases>
+    {% endif %}
+    </database>
+{% endfor %}
+</databases>
+
+{% endspaceless %}

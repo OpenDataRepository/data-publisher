@@ -4,7 +4,7 @@
 {% set datarecord = datarecord_array[target_datarecord_id] %}
 
 {# describe datafields first #}
-"datafields": {
+"fields": {
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataFields is defined %}
 
@@ -31,7 +31,7 @@
 },
 
 {# describe child datarecords second #}
-"child_datarecords": {
+"child_records": {
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
 
@@ -64,10 +64,10 @@
 
                     {% if "{" in content|trim %}
                         {% if version == 'v1' %}
-                            "datatype_{{ child_datatype_id }}": {
-                                "datatype_name": {{ child_datatype[child_datatype_id].dataTypeMeta.shortName|json_encode|raw }},
+                            "database_{{ child_datatype_id }}": {
+                                "database_name": {{ child_datatype[child_datatype_id].dataTypeMeta.shortName|json_encode|raw }},
                         {% else %}
-                            "datatype_{{ child_datatype.dataTypeMeta.xml_shortName }}": {
+                            "{{ child_datatype.dataTypeMeta.xml_shortName }}": {
                         {% endif %}
 
                         {{ content }}
@@ -86,7 +86,7 @@
 },
 
 {# describe linked datarecords third #}
-"linked_datarecords": {
+"linked_records": {
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
 
@@ -119,10 +119,10 @@
 
                     {% if "{" in content|trim %}
                         {% if version == 'v1' %}
-                            "datatype_{{ child_datatype_id }}": {
-                                "datatype_name": {{ child_datatype[child_datatype_id].dataTypeMeta.shortName|json_encode|raw }},
+                            "database_{{ child_datatype_id }}": {
+                                "database_name": {{ child_datatype[child_datatype_id].dataTypeMeta.shortName|json_encode|raw }},
                         {% else %}
-                            "datatype_{{ child_datatype.dataTypeMeta.xml_shortName }}": {
+                            "{{ child_datatype.dataTypeMeta.xml_shortName }}": {
                         {% endif %}
 
                         {{ content }}

@@ -60,7 +60,6 @@ class ODRExceptionController extends ExceptionController
         $currentContent = $this->getAndCleanOutputBuffering($request->headers->get('X-Php-Ob-Level', -1));
         $showException = $request->attributes->get('showException', $this->debug);
 
-
         // ----------------------------------------
         if ( $request->getRequestFormat() === 'html' ) {
             // ...most likely this is the default format for the request...attempt to figure out what format the error should be returned as
@@ -126,7 +125,11 @@ class ODRExceptionController extends ExceptionController
 
         // Symfony doesn't always do this reliably, it seems
         $response->setStatusCode($status_code);
-        $response->headers->set('Content-Type', $request->getContentType());
+
+        // Set any other headers the exception specified
+        $headers = $exception->getHeaders();
+        foreach ($headers as $key => $value)
+            $response->headers->set($key, $value);
 
         return $response;
     }

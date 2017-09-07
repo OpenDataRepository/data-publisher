@@ -1013,6 +1013,10 @@ h3.ODRThemeVisibleHiddenElement {
     padding-left: 10px;
     font-weight: 400;
 }
+.ODRShortResultsHeader_edit {
+    float: right;
+    margin-right: 20px;
+}
 
 .ODRShortResults .ODRFormWrap {
     margin-top: 0px;

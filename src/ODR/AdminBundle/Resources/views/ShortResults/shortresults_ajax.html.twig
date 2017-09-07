@@ -5,7 +5,10 @@
 {% for dr_id, datarecord in datarecord_array %}
     <div class="ODRShortResults pure-u-1" id="ShortResults_{{ dr_id }}">
         <div class="ODRShortResultsHeader pure-u-1 Pointer" id="ShortResultsHeader_{{ dr_id }}">
-            Record {{ counter }} - Click here to view
+            <span>Record {{ counter }} - Click here to view</span>
+            {% if can_edit_datarecord %}
+            <span class="ODRShortResultsHeader_edit">Click here to edit</span>
+            {% endif %}
         </div>
 
         {# Get the regular display renderer to render each datarecord individually #}
@@ -29,11 +32,17 @@
 
 <script>
     jQuery(function() {
-        jQuery(".ODRShortResultsHeader").each(function() {
+        $(".ODRShortResultsHeader").unbind('click').click(function() {
             var id = jQuery(this).attr('id').replace(/ShortResultsHeader_/,'');
-            jQuery(this).unbind('click').click(function() {
-                loadDataRecord(id);
-            });
+            loadDataRecord(id);
+        });
+
+        $(".ODRShortResultsHeader_edit").unbind('click').click(function(event) {
+            // Don't trigger the click event bound to this element's parent
+            event.stopImmediatePropagation();
+
+            var id = $(this).parent().attr('id').replace(/ShortResultsHeader_/,'');
+            loadDataRecord(id, 'edit');
         });
     });
 </script>

@@ -1,5 +1,5 @@
 parameters:
-#    odr_open_repository_search.example.class: ODR\OpenRepository\SearchBundle\Example
+    odr.search_slug_blacklist: "admin|api|app|beanstalk|bin|design|docs|edit|jobs|login|login-check|logout|oauth|profile|redirect|resetting|save_fragment|search|src|vendor|view|web"
 
 services:
 #    odr_open_repository_search.example:

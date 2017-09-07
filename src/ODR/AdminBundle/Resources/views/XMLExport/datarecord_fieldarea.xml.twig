@@ -5,7 +5,7 @@
 {% set datarecord = datarecord_array[target_datarecord_id] %}
 
 {# describe datafields first #}
-<datafields>
+<fields>
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataFields is defined %}
 
@@ -29,10 +29,10 @@
         {% endfor %}
     {% endif %}
 {% endfor %}
-</datafields>
+</fields>
 
 {# describe child datarecords second #}
-<child_datarecords>
+<child_records>
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
 
@@ -65,7 +65,8 @@
 
                     {% if "<" in content|trim %}
                         {% if version == 'v1' %}
-                            <datatype_{{ child_datatype_id }} datatype_name="{{ child_datatype[child_datatype_id].dataTypeMeta.shortName|xml }}">
+                            <database_{{ child_datatype_id }}>
+                                <database_name>{{ child_datatype[child_datatype_id].dataTypeMeta.shortName|xml }}</database_name>
                         {% elseif version == 'v2' %}
                             <{{ child_datatype[child_datatype_id].dataTypeMeta.xml_shortName }}>
                         {% endif %}
@@ -73,7 +74,7 @@
                         {{ content }}
 
                         {% if version == 'v1' %}
-                            </datatype_{{ child_datatype_id }}>
+                            </database_{{ child_datatype_id }}>
                         {% elseif version == 'v2' %}
                             </{{ child_datatype[child_datatype_id].dataTypeMeta.xml_shortName }}>
                         {% endif %}
@@ -85,10 +86,10 @@
         {% endfor %}
     {% endif %}
 {% endfor %}
-</child_datarecords>
+</child_records>
 
 {# describe linked datarecords last #}
-<linked_datarecords>
+<linked_records>
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
 
@@ -121,7 +122,8 @@
 
                     {% if "<" in content|trim %}
                         {% if version == 'v1' %}
-                            <datatype_{{ child_datatype_id }} datatype_name="{{ child_datatype[child_datatype_id].dataTypeMeta.shortName|xml }}">
+                            <database_{{ child_datatype_id }}>
+                                <database_name>{{ child_datatype[child_datatype_id].dataTypeMeta.shortName|xml }}</database_name>
                         {% elseif version == 'v2' %}
                             <{{ child_datatype[child_datatype_id].dataTypeMeta.xml_shortName }}>
                         {% endif %}
@@ -129,7 +131,7 @@
                         {{ content }}
 
                         {% if version == 'v1' %}
-                            </datatype_{{ child_datatype_id }}>
+                            </database_{{ child_datatype_id }}>
                         {% elseif version == 'v2' %}
                             </{{ child_datatype[child_datatype_id].dataTypeMeta.xml_shortName }}>
                         {% endif %}
@@ -141,6 +143,6 @@
         {% endfor %}
     {% endif %}
 {% endfor %}
-</linked_datarecords>
+</linked_records>
 
 {% endspaceless %}

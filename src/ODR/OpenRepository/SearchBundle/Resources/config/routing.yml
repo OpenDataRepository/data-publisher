@@ -1,3 +1,4 @@
+# ----------------------------------------
 odr_search_box:
     path:  /edit/search_box/{target_datatype_id}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchbox }
@@ -17,16 +18,43 @@ odr_search_render:
         search_key: '[^\/]*'
         offset: \d+
         source: searching|linking
+# ----------------------------------------
 
+# ----------------------------------------
+# Alternative API access routes
+odr_search_api_get_datatype_single:
+    path:  /{search_slug}/api/info.{_format}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatatypeExport, search_slug: '', _format: json }
+    requirements:
+        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'    # any 32 charactera alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
+        _format: '|json|xml'
+
+odr_search_api_get_datarecord_list:
+    path:  /{search_slug}/api/records.{_format}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatarecordList, search_slug: '', _format: json }
+    requirements:
+        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
+        _format: '|json|xml'
+
+odr_search_api_get_datarecord_single:
+    path:  /{search_slug}/api/records/{datarecord_id}.{_format}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatarecordExport, search_slug: '', _format: json }
+    requirements:
+        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
+        datarecord_id: \d+
+        _format: '|json|xml'
+# ----------------------------------------
+
+# ----------------------------------------
+# These routes MUST be the absolute last routes imported by ODR due to generic terms...they'll typically override any route imported later
 odr_search_immediate:
     path:  /{search_slug}/{search_string}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage }
     requirements:
-        search_slug: '[a-zA-Z0-9_\-]{0,32}'
+        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'    # any 32 charactera alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
 
 odr_search:
     path:  /{search_slug}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage, search_slug: '', search_string: '' }
     requirements:
-        search_slug: '[a-zA-Z0-9_\-]{0,32}'
-
+        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'

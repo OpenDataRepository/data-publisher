@@ -67,12 +67,6 @@ class PlugExtension extends \Twig_Extension
     public function datatypePluginFilter($datarecords, $datatype, $render_plugin, $theme, $rendering_options)
     {
         try {
-            // Re-organize list of datarecords into
-            // TODO - This does nothing.  The datarecords are already in this format
-            // $datarecord_array = array();
-            // foreach ($datarecords as $num => $dr)
-                // $datarecord_array[ $dr['id'] ] = $dr;
-
             // Load and execute the render plugin
             $svc = $this->container->get($render_plugin['pluginClassName']);
             // return $svc->execute($datarecord_array, $datatype, $render_plugin, $theme, $rendering_options);

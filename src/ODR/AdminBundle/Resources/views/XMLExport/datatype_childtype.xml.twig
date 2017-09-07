@@ -1,0 +1,63 @@
+{% macro input(datatype_array, theme_id, target_datatype_id, is_top_level, is_link, using_metadata, baseurl, version) %}
+
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set datatype_meta = datatype.dataTypeMeta %}
+
+{% set tag_start = '' %}
+{% set tag_end = '' %}
+{% if version == 'v1' %}
+    {% set tag_start = '<database_' ~ datatype.id ~ '>' %}
+    {% set tag_end = '</database_' ~ datatype.id ~ '>' %}
+{% elseif version == 'v2' %}
+    {% set tag_start = '<' ~ datatype_meta.xml_shortName ~ '>' %}
+    {% set tag_end = '</' ~ datatype_meta.xml_shortName ~ '>' %}
+{% endif %}
+
+{{ tag_start|raw }}
+
+    <internal_id>{{ datatype.id }}</internal_id>
+    <name>{{ datatype_meta.shortName|xml }}</name>
+    <description>{{ datatype_meta.description|xml }}</description>
+
+    {% if datatype_meta.renderPlugin.id != 1 %}
+    <render_plugin>
+        <name>{{ datatype_meta.renderPlugin.pluginName }}</name>
+    </render_plugin>
+    {% endif %}
+
+{% if using_metadata == true %}
+    <_database_meta>
+        <_create_date>{{ datatype.created|date('Y-m-d H:i:s') }}</_create_date>
+        <_create_auth>{% if datatype.createdBy != '' %}{{ datatype.createdBy|user_string|xml }}{% endif %}</_create_auth>
+        <_public_date>{{ datatype_meta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
+
+        <_master_published_version>{{ datatype_meta.master_published_revision }}</_master_published_version>
+        <_master_revision>{{ datatype_meta.master_revision }}</_master_revision>
+        <_tracking_master_version>{{ datatype_meta.tracking_master_revision }}</_tracking_master_version>
+    </_database_meta>
+{% endif %}
+
+    {% if is_link == 0 %}
+        {# only detail datafields if this is not a linked datatype #}
+        {% include 'ODRAdminBundle:XMLExport:datatype_fieldarea.xml.twig' with {
+            'datatype_array': datatype_array,
+
+            'target_datatype_id': target_datatype_id,
+            'theme_id': theme_id,
+
+            'is_top_level': is_top_level,
+            'is_link': is_link,
+
+            'using_metadata': using_metadata,
+            'baseurl': baseurl,
+            'version': version,
+        } %}
+    {% endif %}
+
+{{ tag_end|raw }}
+
+{% endspaceless %}
+
+{% endmacro %}

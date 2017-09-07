@@ -26,7 +26,11 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
-// Forms
+// Exceptions
+use ODR\AdminBundle\Exception\ODRException;
+// Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -764,12 +768,7 @@ exit();
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 //            $templating = $this->get('templating');
-/*
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $session = $request->getSession();
-*/
+
             /** @var ODRCustomController $odrcc */
             $odrcc = $this->get('odr_custom_controller', $request);
             $odrcc->setContainer($this->container);
@@ -1141,24 +1140,33 @@ if (isset($debug['timing'])) {
 
         $public_grandparent_ids = '';
         if (strpos($grandparent_ids, ',') !== false) {
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
             $grandparent_ids = substr($grandparent_ids, 0, -1);
-            $grandparent_ids = $odrcc->getSortedDatarecords($target_datatype, $grandparent_ids);
+            $grandparent_ids_as_array = $dti_service->getSortedDatarecordList($target_datatype->getId(), $grandparent_ids);
 
             // Need to figure out which of these grandparent datarecords are viewable to people without the 'dr_view' permission
-            $grandparent_ids_as_array = explode(',', $grandparent_ids);
             $query = $em->createQuery(
                'SELECT gp.id AS gp_id
                 FROM ODRAdminBundle:DataRecord AS gp
                 JOIN ODRAdminBundle:DataRecordMeta AS gpm WITH gpm.dataRecord = gp
                 WHERE gp.id IN (:grandparent_ids) AND gpm.publicDate != :public_date
                 AND gp.deletedAt IS NULL AND gpm.deletedAt IS NULL'
-            )->setParameters( array('grandparent_ids' => $grandparent_ids_as_array, 'public_date' => '2200-01-01 00:00:00') );
+            )->setParameters( array('grandparent_ids' => array_keys($grandparent_ids_as_array), 'public_date' => '2200-01-01 00:00:00') );
             $results = $query->getArrayResult();
 
             foreach($results as $result)
                 $public_grandparent_ids .= $result['gp_id'].',';
+
             $public_grandparent_ids = substr($public_grandparent_ids, 0, -1);
-            $public_grandparent_ids = $odrcc->getSortedDatarecords($target_datatype, $public_grandparent_ids);
+            $public_grandparent_ids_as_array = $dti_service->getSortedDatarecordList($target_datatype->getId(), $public_grandparent_ids);
+
+            // Convert the sorted list of public grandparent ids back into a string
+            $str = '';
+            foreach ($public_grandparent_ids_as_array as $dr_id => $sort_value)
+                $str .= $dr_id.',';
+            $public_grandparent_ids = substr($str, 0, -1);
         }
 
 if (isset($debug['basic'])) {
@@ -1185,8 +1193,8 @@ if (isset($debug['basic'])) {
         print 'count($public_grandparent_ids): 0'."\n";
     }
     else {
-        $grandparent_ids_as_array = explode(',', $public_grandparent_ids);
-        print 'count($public_grandparent_ids): '.count($grandparent_ids_as_array)."\n";
+        $public_grandparent_ids_as_array = explode(',', $public_grandparent_ids);
+        print 'count($public_grandparent_ids): '.count($public_grandparent_ids_as_array)."\n";
     }
 }
 if (isset($debug['timing'])) {
@@ -1196,10 +1204,9 @@ if (isset($debug['timing'])) {
 
 
         // --------------------------------------------------
-        // Store the list of datarecord ids for later use
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        // Need to store the list of datarecord ids for later use...
+        /** @var CacheService $cache_service*/
+        $cache_service = $this->container->get('odr.cache_service');
 
         // Determine which datafields were searched on
         $searched_datafields = array();
@@ -1224,7 +1231,7 @@ if (isset($debug['timing'])) {
         // Create pieces of the array if they don't exist
         $search_checksum = md5($search_key);
 
-        $cached_searches = ODRCustomController::getRedisData($redis->get($redis_prefix.'.cached_search_results'));
+        $cached_searches = $cache_service->get('cached_search_results');
 //        $cached_searches = array();
 
         if ($cached_searches == false)
@@ -1238,7 +1245,7 @@ if (isset($debug['timing'])) {
         $cached_searches[$target_datatype_id][$search_checksum]['complete_datarecord_list'] = $datarecord_ids;
         $cached_searches[$target_datatype_id][$search_checksum]['datarecord_list'] = array('all' => $grandparent_ids, 'public' => $public_grandparent_ids);
 
-        $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+        $cache_service->set('cached_search_results', $cached_searches);
 
 if (isset($debug['cached_searches'])) {
     print '$cached_searches: '.print_r($cached_searches, true)."\n";
@@ -3026,5 +3033,4 @@ if ( isset($debug['search_string_parsing']) ) {
         $revert = array('%21'=>'!', '%2A'=>'*', '%27'=>"'", '%28'=>'(', '%29'=>')');
         return strtr(rawurlencode($str), $revert);
     }
-
 }
