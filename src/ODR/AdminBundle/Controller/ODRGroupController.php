@@ -1788,10 +1788,13 @@ class ODRGroupController extends ODRCustomController
             if ($gdtp->getIsDatatypeAdmin())
                 throw new ODRBadRequestException('Unable to change other permissions since this group has the "is_datatype_admin" permission');
 
+            // Don't allow markdown datafields to be set to editable
+            if ($datafield->getFieldType()->getTypeName() == 'Markdown' && $value == 2)
+                throw new ODRBadRequestException('Unable to set the "can_edit_datafield" permission on a Markdown datafield');
 
             // Doesn't make sense to say a user can't view this datafield when it's already public
             if ($datafield->isPublic() && $value == 0)
-                throw new ODRBadRequestException('Groups must have the "can_view_datafield" permission for public Datafields');
+                throw new ODRBadRequestException('Unable to remove the "can_view_datafield" permission on public Datafields');
 
 
             // Make the requested change to this group's permissions

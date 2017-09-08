@@ -381,24 +381,42 @@ function initPage() {
         if ( $("#datafield_" + datafield_id + "_public").val() == 0 )
             datafield_is_public = false;
 
+        // Store whether this datafield is markdown or not
+        var is_markdown = false;
+        if ( $(this).parent().hasClass('ODRMarkdownField') )
+            is_markdown = true;
+
 
         if ( $(this).hasClass('ODREditableDatafield') ) {
-            // switch from view/edit to view/no-edit
+            // Switch from view/edit to view/no-edit
             updateDatafieldPermissions(overlay_id, 'ODRVisibleDatafield');
         }
         else if ( $(this).hasClass('ODRVisibleDatafield') ) {
-            if (datafield_is_public) {
-                // switch from view/no-edit to view/edit...since datafield is public and viewable by everybody, it makes no sense to go to no-view/no-edit
-                updateDatafieldPermissions(overlay_id, 'ODREditableDatafield');
+            if (is_markdown) {
+                // Markdown fields can't be edited...only switch to no-view/no-edit if it's not public
+                if (!datafield_is_public)
+                    updateDatafieldPermissions(overlay_id, 'ODRBlockedDatafield');
             }
             else {
-                // switch from view/no-edit to no-view/no-edit
-                updateDatafieldPermissions(overlay_id, 'ODRBlockedDatafield');
+                if (datafield_is_public) {
+                    // Switch from view/no-edit to view/edit...since datafield is public and viewable by everybody, it makes no sense to go to no-view/no-edit
+                    updateDatafieldPermissions(overlay_id, 'ODREditableDatafield');
+                }
+                else {
+                    // Switch from view/no-edit to no-view/no-edit
+                    updateDatafieldPermissions(overlay_id, 'ODRBlockedDatafield');
+                }
             }
         }
         else if ( $(this).hasClass('ODRBlockedDatafield') ) {
-            // switch from no-view/no-edit to view/edit
-            updateDatafieldPermissions(overlay_id, 'ODREditableDatafield');
+            if (!is_markdown) {
+                // Switch from no-view/no-edit to view/edit
+                updateDatafieldPermissions(overlay_id, 'ODREditableDatafield');
+            }
+            else {
+                // Can't edit markdown fields by design, skip to view/no-edit
+                updateDatafieldPermissions(overlay_id, 'ODRVisibleDatafield');
+            }
         }
     });
 {% endif %}  {# {% if not prevent_all_changes %} #}

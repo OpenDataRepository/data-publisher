@@ -172,10 +172,10 @@
 
     {% elseif field_typename == "Markdown" %}
         <fieldset>
+            {% if is_datatype_admin == true %}
+                <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="ODRPublicStatusIndicator Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+            {% endif %}
             <div class="ODRMarkdownContent" title="{{ datafield.dataFieldMeta.description }}">
-                {% if is_datatype_admin == true %}
-                    <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="ODRPublicStatusIndicator Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
-                {% endif %}
                 {% if datafield.dataFieldMeta.markdownText != null %}{{ datafield.dataFieldMeta.markdownText|markdown }}{% endif %}
             </div>
         </fieldset>

@@ -15,23 +15,23 @@
             {% if theme_datafield.dataField is defined %}
                 {% set datafield = theme_datafield.dataField %}
 
-                <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datafield.id }}" >
+                {% set is_markdown = false %}
+                {% if datafield.dataFieldMeta.fieldType.typeName == 'Markdown' %}
+                    {% set is_markdown = true %}
+                {% endif %}
 
-                    {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
-                        {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
-                    {% else %}
-                        {% include 'ODRAdminBundle:ODRGroup:permissions_datafield.html.twig' with {
-                            'group': group,
-                            'theme_datafield': theme_datafield,
-                            'datafield': datafield,
-                            'datatype': datatype,
+                <div class="ODRDataField{% if is_markdown %} ODRMarkdownField{% endif %} pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datafield.id }}" >
+                    {% include 'ODRAdminBundle:ODRGroup:permissions_datafield.html.twig' with {
+                        'group': group,
+                        'theme_datafield': theme_datafield,
+                        'datafield': datafield,
+                        'datatype': datatype,
 
-                            'datatype_permissions': datatype_permissions,
-                            'datafield_permissions': datafield_permissions,
+                        'datatype_permissions': datatype_permissions,
+                        'datafield_permissions': datafield_permissions,
 
-                            'prevent_all_changes': prevent_all_changes,
-                        } %}
-                    {% endif %}
+                        'prevent_all_changes': prevent_all_changes,
+                    } %}
                 </div>
             {% endif %}
         {% endfor %}
