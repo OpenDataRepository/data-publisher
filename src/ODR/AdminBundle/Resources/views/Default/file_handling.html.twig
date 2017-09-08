@@ -301,15 +301,15 @@
     }
 
     var zip_archive_timeouts = {};
-    function createZipArchiveProgressCheck(archive_filename, archive_size, form_id) {
+    function createZipArchiveProgressCheck(archive_filename, archive_size, form_id, dialog_id) {
         // Ensure that at most a single timeout is running for a given zip archive at any given time
         if ( zip_archive_timeouts[ archive_filename ] == null || zip_archive_timeouts[ archive_filename ] == undefined ) {
             zip_archive_timeouts[ archive_filename ] = 1;
-            window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + form_id + "');", decrypt_check_timeout );
+            window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + form_id + "','" + dialog_id + "');", decrypt_check_timeout );
         }
     }
 
-    function checkZipArchiveProgress(archive_filename, archive_size, form_id) {
+    function checkZipArchiveProgress(archive_filename, archive_size, form_id, dialog_id) {
         // Get progress of zip archive from server
         var url = "{{ path('odr_get_zip_archive_progress', {'archive_filename': 0}) }}";
         url = url.substr(0, url.length-1);
@@ -326,15 +326,14 @@
                 var archive_filecount = parseInt(data.d.archive_filecount);
 
                 // Update the progress indicator
-                var element = $('#' + form_id);
-                $(element).find('#FileDownloadForm_current').html(archive_filecount);
+                $('#ODRFileDownloadForm_current').html(archive_filecount);
 
 
                 if ( archive_size == archive_filecount ) {
                     // Reset and close the file download dialog form
-                    $(element).find('#FileDownloadForm_progress').hide();
-                    $(element).find('#FileDownloadForm_build').show();
-                    $(element).dialog('close');
+                    $('#ODRFileDownloadForm_progress').hide();
+                    var inst = $('[data-remodal-id=' + dialog_id + ']').remodal();
+                    inst.close();
 
                     // Construct the URL to download the archive
                     var download_url = "{{ path('odr_download_zip_archive', {'archive_filename': 0}) }}";
@@ -365,13 +364,17 @@
                     });
                 }
                 else {
-                    window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + form_id + "');", decrypt_check_timeout );
+                    window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + form_id + "','" + dialog_id + "');", decrypt_check_timeout );
                 }
             },
             error: function (jqXHR, textStatus, errorThrown) {
-                // Handle errors
                 zip_archive_timeouts[ archive_filename ] = null;
-                $("#dialog_file_downloads").dialog('close');
+                // Close modal
+                var inst = $('[data-remodal-id=' + dialog_id + ']').remodal();
+                inst.close();
+                // Show growl
+                var response = $.parseJSON(jqXHR.responseText);
+                createJGrowlError(response);
             },
             complete: function (jqXHR, textStatus) {
                 // Get the xdebugToken from response headers

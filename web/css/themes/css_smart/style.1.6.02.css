@@ -1026,3 +1026,40 @@ h3.ODRThemeVisibleHiddenElement {
 .ODRShortResults .ODRThemeElement:first-of-type {
     margin-bottom: 0px;
 }
+
+
+/* jGrowl Styling */
+.jGrowl {
+    font-family: "Lato-Reg", sans-serif;
+}
+.jGrowl .ui-state-highlight {
+    height: auto;
+}
+
+.jGrowl-notification {
+    max-width: 400px;
+    font-size: 12px;
+    background: #b8e8fa none repeat scroll 0 0;
+    color: #3b8bba;
+    -webkit-box-shadow: 2px 1px 10px 0px rgba(50, 50, 50, 0.3);
+    -moz-box-shadow:    2px 1px 10px 0px rgba(50, 50, 50, 0.3);
+    box-shadow:         2px 1px 10px 0px rgba(50, 50, 50, 0.3);
+    border: 1px solid white;
+    opacity: 1;
+}
+.jGrowl-closer {
+    background-color: #6fa5c7;
+    color: white;
+    -webkit-box-shadow: 2px 1px 10px 0px rgba(50, 50, 50, 0.3);
+    -moz-box-shadow:    2px 1px 10px 0px rgba(50, 50, 50, 0.3);
+    box-shadow:         2px 1px 10px 0px rgba(50, 50, 50, 0.3);
+    border: 1px solid white;
+    opacity: 1;
+}
+
+.jGrowl-notification > .jGrowl-close {
+    font-size: 12px;
+    margin-top: -8px;
+    margin-right: -8px;
+}
+/* END jGrowl Styling */

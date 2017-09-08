@@ -3231,19 +3231,6 @@ form .row {
      */
     min-height: 50px;
 }
-
-
-/* jGrowl overriding */
-.jGrowl-notification {
-    width: 400px;
-    font-size: 16px;
-    height: auto;
-}
-
-.jGrowl-notification > .jGrowl-close {
-    font-size: 2em;
-}
-
 .ODRNotificationHeader {
     font-weight: bold;
 }
@@ -3253,16 +3240,21 @@ form .row {
 
 #ODRFileDownloadFormWrapper {
     display: none;
-    max-height: 80%;
-    overflow: scroll;
     text-align: left;
     font-size: 0.8em;
     color: #444;
     font-family: "Lato-Reg", sans-serif;
 }
 #ODRFileDownloadForm_loading {
-    padding: 10px 10px 10px 10px;
+    padding: 100px 10px 100px 10px;
     color: #3b8bba;
+}
+#ODRFileDownloadForm_submit {
+    margin: 10px 10px 10px 10px;
+}
+#ODRFileDownloadForm_progress {
+    font-size: 20px;
+    margin: 100px 10px 100px -10px;
 }
 #ODRFileDownloadFormWrapper li {
     white-space: nowrap;
@@ -3272,10 +3264,10 @@ form .row {
     max-width: 90%;
     border: 1px solid #7fb9d8;
     border-radius: 4px;
-    color: sandybrown;
+    color: #3b8bba;
+    padding: 0 0 0 0;
+    overflow: hidden;
 }
-
-
 .ODRRemodal h3 {
     font-size: 16px;
     font-weight: bold;
@@ -3284,23 +3276,58 @@ form .row {
     position: absolute;
     line-height: 35px;
     top: 0;
-    margin: 0px 0px 0px -35px;
+    margin: 0px 0px 0px 0px;
     overflow: visible;
     text-align: center;
     width: 100%;
 }
-.ODRRemodalButtons {
-    display: block;
+#ODRRemodalButtons {
+    /* display: block; */
     position: relative;
     bottom: 0px;
-    padding-bottom: 10px;
-    padding-top: 10px;
     background: white;
     width: 100%;
+    box-sizing: border-box;
+    border-top: 1px solid #b8e8fa;
+    -webkit-box-shadow: 0px -1px 8px 0px rgba(50, 50, 50, 0.2);
+    -moz-box-shadow:    0px -1px 8px 0px rgba(50, 50, 50, 0.2);
+    box-shadow:         0px -1px 8px 0px rgba(50, 50, 50, 0.2);
+}
+#ODRRemodalTitle {
+    -webkit-box-shadow: 0px 1px 10px 0px rgba(50, 50, 50, 0.3);
+    -moz-box-shadow:    0px 1px 10px 0px rgba(50, 50, 50, 0.3);
+    box-shadow:         0px 1px 10px 0px rgba(50, 50, 50, 0.3);
+}
+.ODRRemodalCancel {
+    position: relative;
+    display: inline;
+    margin-top: 10px;
+    padding-top: 10px;
+    vertical-align: middle;
+    top: -5px;
+}
+#ODRRemodalLoading {
+    margin-top: 100px;
+    margin-bottom: 100px;
+    margin-left: -10px;
 }
 #ODRRemodalInner {
-    overflow: scroll;
+    overflow: hidden;
     margin-top: 35px;
+    margin-left: 10px;
+    height: 10px;
+    /* -webkit-transition: max-height 2s;
+    -moz-transition: max-height 2s;
+    -ms-transition: max-height 2s;
+    -o-transition: max-height 2s;
+    transition: max-height 2s; */
+}
+#ODRRemodalInnerContent {
+    overflow: scroll;
+    /* max-height: 1px; */
+}
+.remodal-close {
+    z-index: 100;
 }
 /* Media Queries */
 /* pure-hidden-xs */
@@ -3311,21 +3338,9 @@ form .row {
         overflow: scroll;
     }
     #ODRRemodalButtons {
-        display: block;
+        /* display: block; */
         position: absolute;
         bottom: 0px;
-        padding-bottom: 10px;
-        padding-top: 10px;
-        background: white;
-        width: 100%;
-    }
-    .ODRRemodalCancel {
-        position: relative;
-        display: inline;
-        margin-top: 10px;
-        padding-top: 10px;
-        vertical-align: middle;
-        top: -5px;
     }
     .ODRRemodal {
         max-width: 100%;
@@ -3343,32 +3358,151 @@ form .row {
 }
 /* pure-hidden-sm */
 @media screen and (min-width:568px) and (max-width:767px) {
-    .ODRRemodal {
-        max-width: 100%;
-        color: blue;
-    }
 }
 /* pure-hidden-md */
 @media screen and (min-width:768px) and (max-width:1023px) {
-    .ODRRemodal {
-        max-width: 90%;
-        color: magenta;
-    }
 }
 /* pure-hidden-lg */
 @media screen and (min-width:1024px) and (max-width:1279px) {
-    .ODRRemodal {
-        max-width: 90%;
-        color: lemonchiffon;
-    }
 }
 /* pure-hidden-xl */
 @media screen and (min-width:1280px) {
-    .ODRRemodal {
-        max-width: 90%;
-        color: darkseagreen;
-    }
 }
-.remodal-close {
-    z-index: 100;
+
+
+
+
+
+
+/** BEGIN CSS **/
+/* End Loading CSS Widget */
+/*
+
+Dom Sammut 2013
+***************
+Web: www.domsammut.com
+Twitter: www.twitter.com/domsammut
+
+View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-animation
+
+*/
+@keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
 }
+
+@-moz-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-webkit-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-o-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-moz-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-webkit-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-o-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@keyframes loading-text-opacity {
+    0%  {opacity: 0}
+    20% {opacity: 0}
+    50% {opacity: 1}
+    100%{opacity: 0}
+}
+
+@-moz-keyframes loading-text-opacity {
+    0%  {opacity: 0}
+    20% {opacity: 0}
+    50% {opacity: 1}
+    100%{opacity: 0}
+}
+
+@-webkit-keyframes loading-text-opacity {
+    0%  {opacity: 0}
+    20% {opacity: 0}
+    50% {opacity: 1}
+    100%{opacity: 0}
+}
+
+@-o-keyframes loading-text-opacity {
+    0%  {opacity: 0}
+    20% {opacity: 0}
+    50% {opacity: 1}
+    100%{opacity: 0}
+}
+.loading-container,
+.loading {
+    height: 120px;
+    position: relative;
+    width: 120px;
+    border-radius: 100%;
+}
+
+
+.loading-container { margin: 40px auto }
+
+.loading {
+    border: 2px solid transparent;
+    border-color: transparent #fff transparent #FFF;
+    -moz-animation: rotate-loading 1.5s linear 0s infinite normal;
+    -moz-transform-origin: 50% 50%;
+    -o-animation: rotate-loading 1.5s linear 0s infinite normal;
+    -o-transform-origin: 50% 50%;
+    -webkit-animation: rotate-loading 1.5s linear 0s infinite normal;
+    -webkit-transform-origin: 50% 50%;
+    animation: rotate-loading 1.5s linear 0s infinite normal;
+    transform-origin: 50% 50%;
+}
+
+.loading-container .loading {
+    border-color: transparent #b8e8fa transparent #b8e8fa;
+}
+.loading-container:hover .loading,
+.loading-container .loading {
+    -webkit-transition: all 0.5s ease-in-out;
+    -moz-transition: all 0.5s ease-in-out;
+    -ms-transition: all 0.5s ease-in-out;
+    -o-transition: all 0.5s ease-in-out;
+    transition: all 0.5s ease-in-out;
+}
+
+#loading-text {
+    -moz-animation: loading-text-opacity 2s linear 0s infinite normal;
+    -o-animation: loading-text-opacity 2s linear 0s infinite normal;
+    -webkit-animation: loading-text-opacity 2s linear 0s infinite normal;
+    animation: loading-text-opacity 2s linear 0s infinite normal;
+    color: #3b8bba;
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 52px;
+    opacity: 0;
+    position: absolute;
+    text-align: center;
+    /* text-transform: uppercase; */
+    top: 0;
+    width: 120px;
+}
+/* End Loading CSS Widget */
