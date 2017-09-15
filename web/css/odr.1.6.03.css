@@ -3238,28 +3238,6 @@ form .row {
     margin-top: 5px;
 }
 
-#ODRFileDownloadFormWrapper {
-    display: none;
-    text-align: left;
-    font-size: 0.8em;
-    color: #444;
-    font-family: "Lato-Reg", sans-serif;
-}
-#ODRFileDownloadForm_loading {
-    padding: 100px 10px 100px 10px;
-    color: #3b8bba;
-}
-#ODRFileDownloadForm_submit {
-    margin: 10px 10px 10px 10px;
-}
-#ODRFileDownloadForm_progress {
-    font-size: 20px;
-    margin: 100px 10px 100px -10px;
-}
-#ODRFileDownloadFormWrapper li {
-    white-space: nowrap;
-    list-style-type: none;
-}
 .ODRRemodal {
     max-width: 90%;
     border: 1px solid #7fb9d8;
@@ -3281,7 +3259,7 @@ form .row {
     text-align: center;
     width: 100%;
 }
-#ODRRemodalButtons {
+.ODRRemodalButtons {
     /* display: block; */
     position: relative;
     bottom: 0px;
@@ -3293,7 +3271,7 @@ form .row {
     -moz-box-shadow:    0px -1px 8px 0px rgba(50, 50, 50, 0.2);
     box-shadow:         0px -1px 8px 0px rgba(50, 50, 50, 0.2);
 }
-#ODRRemodalTitle {
+.ODRRemodalTitle {
     -webkit-box-shadow: 0px 1px 10px 0px rgba(50, 50, 50, 0.3);
     -moz-box-shadow:    0px 1px 10px 0px rgba(50, 50, 50, 0.3);
     box-shadow:         0px 1px 10px 0px rgba(50, 50, 50, 0.3);
@@ -3306,15 +3284,15 @@ form .row {
     vertical-align: middle;
     top: -5px;
 }
-#ODRRemodalLoading {
-    margin-top: 100px;
-    margin-bottom: 100px;
+.ODRRemodalLoading {
+    padding-top: 100px;
+    padding-bottom: 100px;
     margin-left: -10px;
 }
-#ODRRemodalInner {
-    overflow: hidden;
+.ODRRemodalInner {
+    overflow: scroll;
     margin-top: 35px;
-    margin-left: 10px;
+    /* margin-left: 10px; */
     height: 10px;
     /* -webkit-transition: max-height 2s;
     -moz-transition: max-height 2s;
@@ -3322,12 +3300,16 @@ form .row {
     -o-transition: max-height 2s;
     transition: max-height 2s; */
 }
-#ODRRemodalInnerContent {
-    overflow: scroll;
+.ODRRemodalInnerContent {
+    /* overflow: scroll; */
     /* max-height: 1px; */
 }
 .remodal-close {
     z-index: 100;
+}
+.ODRRemodalBody > div {
+    padding-top: 20px;
+    padding-bottom: 20px;
 }
 /* Media Queries */
 /* pure-hidden-xs */
@@ -3337,7 +3319,7 @@ form .row {
         padding: 0;
         overflow: scroll;
     }
-    #ODRRemodalButtons {
+    .ODRRemodalButtons {
         /* display: block; */
         position: absolute;
         bottom: 0px;
@@ -3370,6 +3352,28 @@ form .row {
 }
 
 
+#ODRFileDownloadFormWrapper {
+    display: none;
+    text-align: left;
+    font-size: 0.8em;
+    color: #444;
+    font-family: "Lato-Reg", sans-serif;
+}
+#ODRFileDownloadForm_loading {
+    padding: 100px 10px 100px 10px;
+    color: #3b8bba;
+}
+#ODRFileDownloadForm_submit {
+    margin: 10px 10px 10px 10px;
+}
+#ODRFileDownloadForm_progress {
+    font-size: 20px;
+    padding: 100px 10px 100px 10px;
+}
+#ODRFileDownloadFormWrapper li {
+    white-space: nowrap;
+    list-style-type: none;
+}
 
 
 
@@ -3489,7 +3493,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     transition: all 0.5s ease-in-out;
 }
 
-#loading-text {
+.loading-text {
     -moz-animation: loading-text-opacity 2s linear 0s infinite normal;
     -o-animation: loading-text-opacity 2s linear 0s infinite normal;
     -webkit-animation: loading-text-opacity 2s linear 0s infinite normal;

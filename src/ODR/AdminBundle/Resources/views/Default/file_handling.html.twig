@@ -5,14 +5,6 @@
     var encrypt_check_timeout = 1500;
 
     var pending_file_decryptions = {};
-{#
-    $(window).unload(function() {
-        jQuery.each(pending_file_decryptions, function(file_id, download) {
-            if (download != null)
-                cancelFileDecryption(download, file_id);
-        });
-    });
-#}
     function handleFileDownload(event, file_id, href, short_form, can_cancel) {
         // Prevent a normal file download
         event.preventDefault();
@@ -20,16 +12,12 @@
         if (short_form)
             event.stopImmediatePropagation();
 
-//console.log(pending_file_decryptions);
-//console.log(file_decrypt_timeouts);
-
         // Don't start a new download if one is already in progress
         if ( pending_file_decryptions[file_id] != null || pending_file_decryptions[file_id] != undefined || file_decrypt_timeouts[file_id] != null || file_decrypt_timeouts[file_id] != undefined) {
             //alert('download in progress already');
             return false;
         }
 
-        {#var cancel_button = $("#ODRFileDownload_" + file_id + "_cancel");#}
         var download_div = $("#ODRFileDecrypt_" + file_id + "_overlay");
         var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress");
 
@@ -37,7 +25,6 @@
         url = url.substring(0, (url.length-1));
         url += file_id;
 
-        pending_file_decryptions[ file_id ] = 1;
 
         $.ajax({
             cache: false,
@@ -54,7 +41,6 @@
 
                     // File exists and is ready to download
                     window.setTimeout( "downloadFile(" + file_id + ");", initial_decrypt_check_timeout );
-//console.log('file already exists');
                 }
                 else if (status_code == 202) {
                     // Show div for decryption progress
@@ -63,12 +49,9 @@
 
                     // File needs to be decrypted first
                     window.setTimeout( "createFileDecryptProgressCheck(" + file_id + ", 1);", initial_decrypt_check_timeout );  // download the file after it finishes decrypting
-//console.log('creating initial file decrypt check');
                 }
-//console.log('some other success');
             },
             error: function (jqXHR, textStatus, errorThrown) {
-//console.log('some error');
                 // Handle errors
                 pending_file_decryptions[ file_id ] = null;
                 file_decrypt_timeouts[ file_id ] = null;
@@ -301,15 +284,15 @@
     }
 
     var zip_archive_timeouts = {};
-    function createZipArchiveProgressCheck(archive_filename, archive_size, form_id, dialog_id) {
+    function createZipArchiveProgressCheck(archive_filename, archive_size, form_id) {
         // Ensure that at most a single timeout is running for a given zip archive at any given time
         if ( zip_archive_timeouts[ archive_filename ] == null || zip_archive_timeouts[ archive_filename ] == undefined ) {
             zip_archive_timeouts[ archive_filename ] = 1;
-            window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + form_id + "','" + dialog_id + "');", decrypt_check_timeout );
+            window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + form_id + "');", decrypt_check_timeout );
         }
     }
 
-    function checkZipArchiveProgress(archive_filename, archive_size, form_id, dialog_id) {
+    function checkZipArchiveProgress(archive_filename, archive_size, form_id) {
         // Get progress of zip archive from server
         var url = "{{ path('odr_get_zip_archive_progress', {'archive_filename': 0}) }}";
         url = url.substr(0, url.length-1);
@@ -332,7 +315,7 @@
                 if ( archive_size == archive_filecount ) {
                     // Reset and close the file download dialog form
                     $('#ODRFileDownloadForm_progress').hide();
-                    var inst = $('[data-remodal-id=' + dialog_id + ']').remodal();
+                    var inst = $('[data-remodal-id=ODRRemodal]').remodal();
                     inst.close();
 
                     // Construct the URL to download the archive
@@ -364,7 +347,7 @@
                     });
                 }
                 else {
-                    window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + form_id + "','" + dialog_id + "');", decrypt_check_timeout );
+                    window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + form_id + "');", decrypt_check_timeout );
                 }
             },
             error: function (jqXHR, textStatus, errorThrown) {

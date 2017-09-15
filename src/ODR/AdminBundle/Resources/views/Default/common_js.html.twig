@@ -445,16 +445,17 @@
     }
 
     function resetRemodalInnerHeight() {
-        var modal = $("#ODRRemodalInner");
-        var modal_content = $("#ODRRemodalInnerContent");
+        var modal = $("#ODRRemodal");
+        var modal_inner = modal.find(".ODRRemodalInner");
+        var modal_inner_content = modal.find(".ODRRemodalInnerContent");
 
         // Get Scroll height of inner
-        var content_height = modal_content.prop('scrollHeight');
+        var content_height = modal_inner_content.prop('scrollHeight');
         console.log('h1: ' + content_height);
 
         var modal_height =  $(window).height()
-            - $("#ODRRemodalButtons").height()
-            - $("#ODRRemodalTitle").height();
+            - modal.find(".ODRRemodalButtons").height()
+            - modal.find(".ODRRemodalTitle").height();
 
         if($(window).width() >= 568) {
             modal_height -= 30;
@@ -468,7 +469,12 @@
 
         console.log('mh1: ' + modal_height);
 
-        modal.animate(
+        // Ensure it looks okay
+        if(modal_height < 100) {
+            modal_height =  100;
+        }
+
+        modal_inner.animate(
             {height: modal_height},
             {
                 duration: 400,

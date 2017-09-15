@@ -19,7 +19,7 @@
             <button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }},'edit');">Edit DataRecord</button>
         {% endif %}
 
-        <button type="button" class="pure-button pure-button-primary" onclick="openFileDownloadDialog( {{ datarecord.id }} );">Download Files...</button>
+        <button type="button" class="pure-button pure-button-primary" onclick="openFileDownloadDialog( {{ datarecord.id }}, 0, 0 );">Download Files...</button>
     </div>
 
     {% if search_key != '' %}

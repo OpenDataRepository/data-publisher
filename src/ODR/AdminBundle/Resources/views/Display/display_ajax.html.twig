@@ -8,7 +8,6 @@
     <a id="page_settings" name="page_settings"><i class="fa fa-md fa-fw fa-cog"></i></a>
 </h1>
 {# Record View Menu #}
-{# include 'ODRAdminBundle:Display:display_area.html.twig' #}
     <div id="page_settings_menu" class="pure-menu pure-menu-horizontal" style="display:none;">
         <ul class="pure-menu-list">
             <li class="pure-menu-item">
@@ -17,18 +16,10 @@
             <li class="pure-menu-item">
                 <a name="CustomizeView" id="CustomizeView" class="pure-menu-link">Customize View</a>
             </li>
-            <!-- <li class="pure-menu-item">
-                <div class="pure-menu-link">
-                    <label for="state">State</label>
-                    <select id="state" class="pure-input-1-2">
-                        <option>AL</option>
-                        <option>CA</option>
-                        <option>IL</option>
-                    </select>
-                </div>
-            </li> -->
         </ul>
     </div>
+
+
 
 {# End Record View Menu #}
 {% endif %}
@@ -45,9 +36,7 @@
 } %}
 
 {% if record_display_view == "single" %}
-<div id="download_files_dialog_wrapper">
-    {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
-</div>
+    {%  include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
 {% endif %}
 
 {% if record_display_view == "single" %}
@@ -57,14 +46,15 @@
     var record_theme_id = {{ theme_id }};
     function initPage() {
 
+        // TODO What is this for?
         // Resize all elements dependent on window size
         $(window).unbind('resize').resize(function() {
-            WindowResizeInterval = window.clearInterval(WindowResizeInterval);      // WindowResizeInterval variable defined in common.js
-            WindowResizeInterval = window.setInterval("onWindowResize()", 500);
+            // WindowResizeInterval = window.clearInterval(WindowResizeInterval);      // WindowResizeInterval variable defined in common.js
+            // WindowResizeInterval = window.setInterval("onWindowResize()", 500);
         });
 
         // Resize everything prior to divs being hidden
-        onWindowResize();
+        // onWindowResize();
 
         // Set up image galleries
         setupImageGalleries();
@@ -72,14 +62,23 @@
         // Hide divs for accordion purposes
         setupAccordions();
 
+        // Setup Theme System
+        setupThemeSystem();
+
+        // Setup File Downloader
+        setupFileDownloader();
+
         $("#page_settings").unbind('click').click(function(event) {
             // Load content after reveal...
             $("#page_settings_menu").toggle('fast');
-        })
+        });
+    }
+
+    function setupFileDownloader() {
 
         $(".ODRFileDownloadProgress").hide();
 
-        $("a.ODRFileDownload").unbind('click').click(function(event) {
+        $("a.ODRFileDownload").click(function(event) {
             // Grab necessary attributes
             var file_id = $(this).attr('rel');
             var href = $(this).attr('href');
@@ -90,7 +89,7 @@
             handleFileDownload(event, file_id, href, short_form, can_cancel);    // defined in Default::file_handling.html.twig
         });
 
-        $(".ODRDownloadAllFiles").unbind('click').click(function() {
+        $(".ODRDownloadAllFiles").click(function() {
 
             if ( $(this).hasClass('fa-muted') )
                 return;
@@ -102,9 +101,72 @@
             var datarecord_id = id_data[1];
             var datafield_id = id_data[2];
 
-            $("#dialog_file_downloads").dialog( "open" );
-            locateFileIds({{ initial_datarecord_id }}, datarecord_id, datafield_id);      // defined in ODRAdminBundle:Default:file_download_dialog.html.twig
+            openFileDownloadDialog({{ initial_datarecord_id }}, datarecord_id, datafield_id);      // defined in ODRAdminBundle:Default:file_download_dialog.html.twig
         });
+
+
+    }
+
+    function setupThemeSystem() {
+        // Init the choose view button
+        $("#ChooseView").click(function(event) {
+            modal_options = {
+                title: "Choose from available views:",
+                // body: "<div>Loading will not display if body is set.</div>",
+                // loading: true,  // Force loading to display
+                buttons: [
+                    {
+                        id: 'ODRApplyView',
+                        text: 'Apply View',
+                        // secondary: true, // Secondary button style
+                        disabled: true, // Set button style disabled
+                        title: 'Click to apply the selected view..',
+                        click: function() {
+                        }
+                    }
+                ]
+            };
+            openODRRemodal(modal_options)
+            /*
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function (data, textStatus, jqXHR) {
+                    $("#ODRRemodalBody").html( data.d );
+                    // Init using callback
+                    callback();
+                    $("#ODRRemodalLoading").fadeOut('150', function() {
+                        $("#ODRFileDownloadFormWrapper").show();
+                        $("#ODRRemodalButtons").show();
+                        resetRemodalInnerHeight()
+                    });
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // Don't need to create a jGrowl...close the dialog so it's not in some half-initialized state
+                    var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+                    inst.close();
+                },
+                complete: function (jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+            */
+        })
+    }
+
+    function chooseView() {
 
     }
 

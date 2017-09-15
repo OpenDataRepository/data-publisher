@@ -17,7 +17,8 @@
     <meta name="author" content="Open Data Repository (opendatarepository.org)">
 
     <!-- Mobile viewport optimized: h5bp.com/viewport -->
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
+
     <!-- iPhone: Don't render numbers as call links -->
     <meta name="format-detection" content="telephone=no">
 
@@ -179,6 +180,7 @@
     -->
     <!-- <script src="/js/mylibs/remodal-master/dist/remodal.min.js"></script> -->
     <script src="/js/mylibs/remodal-master/dist/remodal.js"></script>
+    <script src="/js/mylibs/iscroll-master/build/iscroll.js"></script>
 
     <!-- App JS -->
     <script src="/js/app.js"></script>
@@ -348,6 +350,10 @@
     <span>Loading...</span>
 </div>
 <!-- End of loading box -->
+
+<!-- ODR Modal based on Remodal -->
+{% include 'ODRAdminBundle:Default:odr_remodal.html.twig' %}
+<!-- END ODR Modal based on Remodal -->
 
 <!-- Spawn $$.loaded -->
 <script>
