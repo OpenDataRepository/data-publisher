@@ -3510,3 +3510,44 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     width: 120px;
 }
 /* End Loading CSS Widget */
+
+
+#ODRChooseView {
+    list-style-type: none;
+    -webkit-margin-before: 0;
+    -webkit-margin-after: 0;
+    -webkit-margin-start: 0;
+    -webkit-margin-end: 0;
+    -webkit-padding-start: 0;
+}
+
+#ODRChooseView > li {
+    background-color: rgba(184, 232, 250, 0.25);
+    border-radius: 8px;
+    padding-bottom: 1.3em;
+}
+#ODRChooseView h4 {
+    -webkit-margin-before: 0;
+    -webkit-margin-after: 0;
+    -webkit-margin-start: 0;
+    -webkit-margin-end: 0;
+    margin-top: 1.0em;
+}
+
+.ODRViewOptions {
+    list-style-type: none;
+    -webkit-margin-before: 0;
+    -webkit-margin-after: 0;
+    -webkit-margin-start: 0;
+    -webkit-margin-end: 0;
+    -webkit-padding-start: 0;
+    margin-top: 1.0em;
+}
+
+.ODRChooseViewDescription {
+    margin-top: 1.0em;
+    color: #888;
+    font-size: 1.0em;
+    text-align: left;
+    margin-left: 1em;
+}

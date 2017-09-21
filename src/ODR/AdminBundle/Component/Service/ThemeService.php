@@ -161,7 +161,7 @@ class ThemeService
                 }
                 else if(
                     $user != "anon."
-                    && $theme->getCreatedBy() != $user->getId()
+                    && $theme->getCreatedBy()->getId() != $user->getId()
                 ) {
                     // Check if user has access
                     $add_theme = true;
@@ -170,7 +170,6 @@ class ThemeService
                     // Check if is default theme for datatype and theme type
                     $add_theme = true;
                 }
-                // TODO - What to do if user is admin for datatype
 
                 if($add_theme){
                     $theme_record = array();
@@ -248,8 +247,11 @@ class ThemeService
     }
 
     public function getUserDefaultTheme($datatype_id, $theme_type) {
-        $user_theme = "default";
+        $user_theme = self::getDefaultTheme($datatype_id, $theme_type);
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
+        if($user === "anon.") {
+            return $user_theme;
+        }
 
         // Get user's default theme for datatype and theme type
         $qb = $this->em->createQueryBuilder();
@@ -306,6 +308,7 @@ class ThemeService
                 $theme = $user_themes[$datatype_id][$theme_type];
             }
             else {
+                // We set the session theme to default if user doesn't have one already.
                 $theme = self::getUserDefaultTheme($datatype_id, $theme_type);
 
                 // Set session themes
@@ -351,13 +354,17 @@ class ThemeService
      * and sets their source theme id as well as parent id.
      *
      * @param $datatype_id
-     * @param $from_theme_type
-     * @param $to_theme_type
+     * @param $theme_id
      * @param $user_id
+     * @param $to_theme_type
      * @return string
      */
-    public function cloneThemesForDatatype($datatype_id, $from_theme_type, $to_theme_type, $user_id)
-    {
+    public function cloneThemeById(
+        $datatype_id,
+        $theme_id,
+        $user_id,
+        $to_theme_type = null
+    ) {
         try {
 
             $user_manager = $this->container->get('fos_user.user_manager');
@@ -376,8 +383,16 @@ class ThemeService
             // Get the Master Datatype to Clone
             $associated_datatypes = $datatype_info_service->getAssociatedDatatypes(array($datatype->getId()));
 
+            $repo_theme = $this->em->getRepository('ODRAdminBundle:Theme');
+            $original_theme = $repo_theme->find($theme_id);
+
             // Clone datatype theme
-            $theme = self::cloneDatatypeTheme($datatype, $from_theme_type, $to_theme_type);
+            $theme = self::cloneDatatypeTheme(
+                $datatype,
+                $original_theme->getThemeType(),
+                $to_theme_type,
+                $original_theme
+            );
 
             // Set new theme to have parent_theme_id = itself
             $theme->setParentTheme($theme);
@@ -388,7 +403,62 @@ class ThemeService
             foreach($associated_datatypes as $dt_id) {
                 $assoc_datatype = $repo_datatype->find($dt_id);
                 if($dt_id != $datatype->getId() && $assoc_datatype != null) {
-                    self::cloneDatatypeTheme($assoc_datatype, $from_theme_type, $to_theme_type, $theme);
+                    self::cloneDatatypeTheme($assoc_datatype, $original_theme->getThemeType(), $to_theme_type, $theme);
+                }
+            }
+
+            return "Clone datatype complete.";
+        }
+        catch (\Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    public function cloneThemeByType(
+        $datatype_id,
+        $theme_id,
+        $user_id,
+        $to_theme_type = null
+    ) {
+        try {
+
+            $user_manager = $this->container->get('fos_user.user_manager');
+            $this->user = $user_manager->findUserBy(array('id' => $user_id));
+
+            $datatype_info_service = $this->container->get('odr.datatype_info_service');
+
+            // Get the DataType to work with
+            $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
+            $datatype = $repo_datatype->find($datatype_id);
+
+            if($datatype == null) {
+                throw new \Exception("Datatype is null.");
+            }
+
+            // Get the Master Datatype to Clone
+            $associated_datatypes = $datatype_info_service->getAssociatedDatatypes(array($datatype->getId()));
+
+            $repo_theme = $this->em->getRepository('ODRAdminBundle:Theme');
+            $original_theme = $repo_theme->find($theme_id);
+
+            // Clone datatype theme
+            $theme = self::cloneDatatypeTheme(
+                $datatype,
+                $original_theme->getThemeType(),
+                $to_theme_type,
+                $original_theme
+            );
+
+            // Set new theme to have parent_theme_id = itself
+            $theme->setParentTheme($theme);
+
+            // Clone Associated Datatypes
+            // The parent theme id is the "Custom" theme id to tie all the
+            // related child themes to the same custom theme instance
+            foreach($associated_datatypes as $dt_id) {
+                $assoc_datatype = $repo_datatype->find($dt_id);
+                if($dt_id != $datatype->getId() && $assoc_datatype != null) {
+                    self::cloneDatatypeTheme($assoc_datatype, $original_theme->getThemeType(), $to_theme_type, $theme);
                 }
             }
 
@@ -583,8 +653,10 @@ class ThemeService
      * datatype. If parent_datatype is not null, the function is used to
      * create a copy of parent_datatype's theme and assign it to datatype.
      * @param DataType $datatype
-     * @param String $theme_type
-     * @param Int $cloned_theme_id
+     * @param Theme $source_theme
+     * @param String $to_theme_type
+     * @param Theme $cloned_theme - this is the theme parent
+     * @param
      */
     protected function cloneDatatypeTheme(
         DataType $datatype,

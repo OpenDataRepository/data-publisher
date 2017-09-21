@@ -29,12 +29,13 @@
             <label for="remember">
                 <input id="remember" type="checkbox"> {{ 'security.login.remember_me'|trans({}, 'FOSUserBundle') }}
             </label>
-
-            <input class="pure-button pure-button-secondary" type="submit" id="_submit" name="_submit" value="{{ 'security.login.submit'|trans({}, 'FOSUserBundle') }}" />
+        </div>
+        <div>
+            <button class="pure-button pure-button-primary"><input type="submit" id="_submit" name="_submit" value="{{ 'security.login.submit'|trans({}, 'FOSUserBundle') }}" /></button>
         </div>
     {% if not app.user %}
         <div class="pure-controls">
-            <a class="address pure-button" href="{{ path('fos_user_resetting_request') }}" >Forgot Password?</a>
+            <a class="address pure-button-secondary" href="{{ path('fos_user_resetting_request') }}" >Forgot Password?</a>
         </div>
     {% endif %}
     </fieldset>
@@ -45,7 +46,6 @@
         // If a URL fragment exists, then notify ODR of its existence so the user can be properly redirected afterwards
         if ( window.location.href.indexOf('#') !== -1 ) {
             var fragment = (window.location.href.split('#'))[1];
-//            console.log(fragment);
             var url = "{{ path('odr_save_fragment') }}";
 
             $.ajax({

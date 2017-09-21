@@ -1,4 +1,16 @@
-
+{% spaceless %}
+<h5>Or login with:</h5>
 {% for owner in hwi_oauth_resource_owners() %}
-    <a class="odr_oauth_{{ owner }} pure-button" href="{{ hwi_oauth_login_url(owner) }}">Log in using {{ owner }}</a>
+    <div class="pure-u-1 pure-u-md-1-2">
+        <a class="odr_oauth_{{ owner }} pure-button" href="{{ hwi_oauth_login_url(owner) }}">
+            {% if owner == "Google" %}
+                <i class="fa fa-md fa-fw fa-google"></i>
+            {% elseif owner == "GitHub" %}
+                <i class="fa fa-md fa-fw fa-github"></i>
+            {% else %}
+            {% endif %}
+            {{ owner }} Login
+        </a>
+    </div>
 {% endfor %}
+{% endspaceless %}

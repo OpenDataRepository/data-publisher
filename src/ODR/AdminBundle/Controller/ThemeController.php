@@ -62,9 +62,87 @@ use Symfony\Component\Yaml\Exception\ParseException;
 class ThemeController extends ODRCustomController
 {
 
-    public function createuserthemeAction($datatype_id, Request $request)
-    {
+    public function createuserthemeAction(
+        $datatype_id,
+        $theme_id = 0,
+        Request $request
+    ) {
 
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if($user === "anon.")
+                return parent::permissionDeniedError("edit");
+
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            // Users must have view permission
+            if (!(
+                isset($datatype_permissions[$datatype->getId()])
+                && isset($datatype_permissions[$datatype->getId()]['dt_view'])
+            ))
+                return parent::permissionDeniedError("edit");
+
+
+            // Check if this is a master template based datatype that is still
+            // in the creation process.  If so, redirect to progress system.
+            if ($datatype->getSetupStep() == "create" && $datatype->getIsMasterType() == 0) {
+                // Return creating datatype template
+                $templating = $this->get('templating');
+                $return['t'] = "html";
+                $return['d'] = array();
+                $return['d']['html'] = $templating->render(
+                    'ODRAdminBundle:Datatype:create_status_checker.html.twig',
+                    array("datatype" => $datatype)
+                );
+            }
+
+
+            // Create the theme clone
+            if ($theme == null) {
+                $theme_service = $this->container->get('odr.theme_service');
+                $theme = $theme_service->cloneThemesForDatatype(
+                    $datatype->getId(),
+                    $theme_type,
+                    $template_type,
+                    $user->getId()
+                );
+            }
+
+
+            else {
+                $return['d'] = array(
+                    'datatype_id' => $datatype->getId(),
+                    'html' => self::DisplayTheme($datatype, $theme_type, $theme_id, $request),
+                );
+            }
+        } catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x38288399 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 

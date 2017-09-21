@@ -1784,6 +1784,10 @@ exit();
 
     /**
      * Get available themes for user and datatype.
+     * This function is in display controller to automatically
+     * set the theme type.  IE: called by display = use "master" theme.
+     *
+     * Perhaps should be moved to theme controller and a theme type passed.
      *
      * @param $datatype_id
      * @param Request $request
@@ -1799,7 +1803,39 @@ exit();
         try {
             $theme_service = $this->container->get('odr.theme_service');
 
-            $return['d'] = $theme_service->getAvailableThemes($datatype_id, 'master');
+            $themes = $theme_service->getAvailableThemes($datatype_id, 'master');
+
+            // Check user permissions
+            $em = $this->getDoctrine()->getManager();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $datatype_admin = false;
+            if ( $user !== 'anon.' ) {
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+
+                if ($datatype_permissions[$datatype_id]['dt_admin'] == 1) {
+                    $datatype_admin = true;
+                }
+            }
+
+            // Need to get personal default theme id
+            $user_default_theme = $theme_service->getUserDefaultTheme($datatype_id, 'master');
+
+            // Need to get personal default theme id
+            $selected_theme = $theme_service->getSelectedTheme($datatype_id, 'master');
+
+
+            $templating = $this->get('templating');
+            $return['d'] = $templating->render(
+                'ODRAdminBundle:Default:choose_view.html.twig',
+                array(
+                    'themes' => $themes,
+                    'user_default_theme' => $user_default_theme,
+                    'selected_theme' => $selected_theme,
+                    'user' => $user,
+                    'datatype_admin' => $datatype_admin
+                )
+            );
 
             $response = new Response(json_encode($return));
             $response->headers->set('Content-Type', 'application/json');
