@@ -124,11 +124,11 @@ class DisplaytemplateController extends ODRCustomController
             // Prevent deletion of datafields if a csv import is in progress, as this could screw the importing over
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$grandparent_datatype_id, 'completed' => null) );   // TODO - not datatype_id, right?
             if ($tracked_job !== null)
-                throw new \Exception('Preventing deletion of any DataField for this DataType, because a CSV Import for this DataType is in progress...');
+                throw new ODRException('Preventing deletion of any DataField for this DataType, because a CSV Import for this DataType is in progress...');
 
             // Check that the datafield isn't being used for something else before deleting it
             if ( !self::canDeleteDatafield($em, $datafield) )
-                throw new \Exception('Datafield is in use, unable to delete');
+                throw new ODRBadRequestException('Datafield is in use, unable to delete');
 
 
             // ----------------------------------------
@@ -1250,10 +1250,10 @@ class DisplaytemplateController extends ODRCustomController
 
 
     /**
-     * Copies the layout of an existing DataField into a new DataField Entity.
+     * Clones the properties of an existing Datafield entity into a new one.
      *
-     * @param integer $theme_element_id The database id of the ThemeElement to insert the new datafield into.
-     * @param integer $datafield_id     The database id of the DataField to copy data from.
+     * @param integer $theme_element_id The database id of the ThemeElement containing the Datafield
+     * @param integer $datafield_id     The database id of the DataField to clone
      * @param Request $request
      *
      * @return Response
@@ -1287,6 +1287,17 @@ class DisplaytemplateController extends ODRCustomController
             if ($old_datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
+            /** @var ThemeDataField $old_theme_datafield */
+            $old_theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
+                array(
+                    'dataField' => $old_datafield->getId(),
+                    'themeElement' => $theme_element->getId()
+                )
+            );
+            if ($old_theme_datafield == null)
+                throw new ODRNotFoundException('ThemeDatafield');
+
+
             // --------------------
             // Determine user privileges
             /** @var User $user */
@@ -1300,55 +1311,52 @@ class DisplaytemplateController extends ODRCustomController
             // --------------------
 
 
-            // Grab objects required to create a datafield entity
-            /** @var FieldType $fieldtype */
-            $fieldtype = $em->getRepository('ODRAdminBundle:FieldType')->findOneBy( array('typeName' => 'Short Text') );
-            /** @var RenderPlugin $render_plugin */
-            $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find('1');
+            // TODO - allow cloning of radio datafields
+            if ($old_datafield->getFieldType()->getTypeClass() == 'Radio')
+                throw new ODRBadRequestException('Unable to clone a Radio Datafield.');
 
-            // Create the datafield
-            $objects = parent::ODR_addDataField($em, $user, $datatype, $fieldtype, $render_plugin);
-            /** @var DataFields $new_datafield */
-            $new_datafield = $objects['datafield'];
-            /** @var DataFieldsMeta $new_datafield_meta */
-            $new_datafield_meta = $objects['datafield_meta'];
-
-            // Tie the new datafield to the theme element
-            $new_theme_datafield = parent::ODR_addThemeDataField($em, $user, $new_datafield, $theme_element);
-            $em->flush();
+            // Datafields being used by render plugins shouldn't be cloned...
+            // TODO - allow cloning of datafields using render plugins
+            /** @var RenderPluginMap $rpm */
+            $rpm = $em->getRepository('ODRAdminBundle:RenderPluginMap')->findOneBy( array('dataField' => $old_datafield->getId()) );
+            if ($rpm != null)
+                throw new ODRBadRequestException('Unable to clone a Datafield that is using, or being used by, a Render Plugin.');
 
 
-            // TODO - copy anything else?
-            // Copy fieldtype of old datafield over to new datafield
-            $em->refresh($new_datafield_meta);
-            $properties = array(
-                'fieldType' => $old_datafield->getFieldType()->getId(),
-                'fieldName' => 'Copy of '.$old_datafield->getFieldName(),
+            // ----------------------------------------
+            // Clone the old datafield...
+            /** @var DataFields $new_df */
+            $new_df = clone $old_datafield;
 
-                'allow_multiple_uploads' => $old_datafield->getAllowMultipleUploads(),
-                'shorten_filename' => $old_datafield->getShortenFilename(),
-                'children_per_row' => $old_datafield->getChildrenPerRow(),
-                'radio_option_name_sort' => $old_datafield->getRadioOptionNameSort(),
-                'radio_option_display_unselected' => $old_datafield->getRadioOptionDisplayUnselected(),
-                'searchable' => $old_datafield->getSearchable(),
-                'publicDate' => $old_datafield->getPublicDate(),
-            );
-            parent::ODR_copyDatafieldMeta($em, $user, $new_datafield, $properties);
+            // TODO - clear other tracking/revision history properties?
+            $new_df->setMasterDataField(null);
+
+            // Ensure the "in-memory" version of $datatype knows about the new datafield
+            $datatype->addDataField($new_df);
+            self::persistObject($em, $new_df, $user);
 
 
-            // Copy widths of old datafield over to new datafield
-            $em->refresh($new_theme_datafield);
-            /** @var ThemeDataField $old_theme_datafield */
-            $old_theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataField' => $old_datafield->getId(), 'themeElement' => $theme_element->getId()) );
-            $properties = array(
-                'cssWidthMed' => $old_theme_datafield->getCssWidthMed(),
-                'cssWidthXL' => $old_theme_datafield->getCssWidthXL(),
-            );
-            parent::ODR_copyThemeDatafield($em, $user, $new_theme_datafield, $properties);
+            // Clone the old datafield's meta entry...
+            /** @var DataFieldsMeta $new_df_meta */
+            $new_df_meta = clone $old_datafield->getDataFieldMeta();
+            $new_df_meta->setDataField($new_df);
+            $new_df_meta->setFieldName('Copy of '.$old_datafield->getFieldName());
+
+            // Ensure the "in-memory" version of $new_df knows about the new meta entry
+            $new_df->addDataFieldMetum($new_df_meta);
+            self::persistObject($em, $new_df_meta, $user);
 
 
-            // Save any other changes
-            $em->flush();
+            // Clone the old datafield's theme_datafield entry...
+            /** @var ThemeDataField $new_tdf */
+            $new_tdf = clone $old_theme_datafield;
+            $new_tdf->setDataField($new_df);
+            // Intentionally not setting displayOrder...new field should appear just after the
+            //  old datafield, in theory
+
+            // Ensure the "in-memory" theme_element knows about the new theme_datafield entry
+            $theme_element->addThemeDataField($new_tdf);
+            self::persistObject($em, $new_tdf, $user);
 
             // design_ajax.html.twig calls ReloadThemeElement()
 
@@ -1372,6 +1380,31 @@ class DisplaytemplateController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Saves and reloads the provided object from the database.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param mixed $obj
+     * @param User $user
+     */
+    private function persistObject($em, $obj, $user)
+    {
+        //
+        if (method_exists($obj, "setCreated"))
+            $obj->setCreated(new \DateTime());
+        if (method_exists($obj, "setCreatedBy"))
+            $obj->setCreatedBy($user);
+        if (method_exists($obj, "setUpdated"))
+            $obj->setUpdated(new \DateTime());
+        if (method_exists($obj, "setUpdatedBy"))
+            $obj->setUpdatedBy($user);
+
+        $em->persist($obj);
+        $em->flush();
+        $em->refresh($obj);
     }
 
 
@@ -2313,9 +2346,9 @@ class DisplaytemplateController extends ODRCustomController
 
             // Perform various checks to ensure that this link request is valid
             if ($local_datatype_id == $remote_datatype_id)
-                throw new \Exception("A Datatype can't be linked to itself");
+                throw new ODRBadRequestException("A Datatype can't be linked to itself");
             if ($remote_datatype_id == $previous_remote_datatype_id)
-                throw new \Exception("Already linked to this Datatype");
+                throw new ODRBadRequestException("Already linked to this Datatype");
 
 
             if ( isset($current_datatree_array['descendant_of'][$remote_datatype_id]) && $current_datatree_array['descendant_of'][$remote_datatype_id] !== '' )
@@ -2900,7 +2933,7 @@ class DisplaytemplateController extends ODRCustomController
                         /** @var FieldType $ft */
                         $ft = $repo_fieldtype->findOneBy( array('typeClass' => $allowed_typeclass) );
                         if ($ft == null)
-                            throw new \Exception('RenderPlugin "'.$current_render_plugin->getPluginName().'" config: Invalid Fieldtype "'.$allowed_typeclass.'" in list for field "'.$field_name.'"');
+                            throw new ODRException('RenderPlugin "'.$current_render_plugin->getPluginName().'" config: Invalid Fieldtype "'.$allowed_typeclass.'" in list for field "'.$field_name.'"');
 
                         $allowed_fieldtypes[$rpf_id][] = $ft->getId();
                     }
@@ -2949,7 +2982,7 @@ class DisplaytemplateController extends ODRCustomController
                         /** @var FieldType $ft */
                         $ft = $repo_fieldtype->findOneBy(array('typeClass' => $allowed_typeclass));
                         if ($ft == null)
-                            throw new \Exception('RenderPlugin "'.$current_render_plugin->getPluginName().'" config: Invalid Fieldtype "'.$allowed_typeclass.'" in list for field "'.$field_name.'"');
+                            throw new ODRException('RenderPlugin "'.$current_render_plugin->getPluginName().'" config: Invalid Fieldtype "'.$allowed_typeclass.'" in list for field "'.$field_name.'"');
 
                         $allowed_fieldtypes[$rpf_id][] = $ft->getId();
                     }
@@ -3598,7 +3631,7 @@ class DisplaytemplateController extends ODRCustomController
      *                                     If $template_name == 'datafield', then $target_id should be a datafield id
      * @param Request $request
      *
-     * @throws \Exception
+     * @throws ODRException
      *
      * @return string
      */
@@ -3836,7 +3869,7 @@ class DisplaytemplateController extends ODRCustomController
             }
 
             if ( $datafield_array == null )
-                throw new \Exception('Unable to locate array entry for datafield '.$datafield->getId());
+                throw new ODRException('Unable to locate array entry for datafield '.$datafield->getId());
 
             $html = $templating->render(
                 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig',
@@ -3972,7 +4005,7 @@ class DisplaytemplateController extends ODRCustomController
                     // TODO - make this automatic based on contents of routing files?
                     $search_slug_blacklist = $this->getParameter('odr.search_slug_blacklist');
                     $invalid_slugs = explode('|', $search_slug_blacklist);
-                    if ( in_array($submitted_data->getSearchSlug(), $invalid_slugs) )
+                    if ( in_array(strtolower($submitted_data->getSearchSlug()), $invalid_slugs) )
                         $datatype_form->addError( new FormError('This abbreviation is reserved for use by ODR') );
 
                     // ...check that the new search slug doesn't collide with an existing search slug
@@ -5333,11 +5366,6 @@ if ($debug)
 
             // If the datatype is public, make it non-public...if datatype is non-public, make it public
             if ( $datatype->isPublic() ) {
-
-                // Don't allow the datatype to be marked as non-public if it's set as the default search
-//                if ($datatype->getIsDefaultSearchDatatype() == true)
-//                    throw new \Exception("This Datatype can't be set as non-public because it's marked as the default search datatype...");
-
                 // Make the datatype non-public
                 $properties = array(
                     'publicDate' => new \DateTime('2200-01-01 00:00:00')

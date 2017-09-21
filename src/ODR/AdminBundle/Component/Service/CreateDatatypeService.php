@@ -7,10 +7,11 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Contains the functions required to create a datatype from a "master template" (really just another datatype).
+ * Contains the functions required to create a datatype from a "master template", which really is
+ * just another datatype.
  *
- * For the most part, this is done by cloning each individual part of the master template into newly created
- * entities, and then connecting them up together again.
+ * For the most part, this is done by cloning each individual part of the master template into
+ * newly created entities, and then connecting them up together again.
  */
 
 namespace ODR\AdminBundle\Component\Service;
@@ -108,7 +109,14 @@ class CreateDatatypeService
      * @param UserManagerInterface $user_manager
      * @param Logger $logger
      */
-    public function __construct(EntityManager $entity_manager, CacheService $cache_service, DatatypeInfoService $datatype_info_service, PermissionsManagementService $permissions_service, UserManagerInterface $user_manager, Logger $logger) {
+    public function __construct(
+        EntityManager $entity_manager,
+        CacheService $cache_service,
+        DatatypeInfoService $datatype_info_service,
+        PermissionsManagementService $permissions_service,
+        UserManagerInterface $user_manager,
+        Logger $logger
+    ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->dti_service = $datatype_info_service;
@@ -124,7 +132,8 @@ class CreateDatatypeService
      * @param mixed $obj
      * @param bool $update_user_info
      */
-    private function persistObject($obj, $update_user_info = false) {
+    private function persistObject($obj, $update_user_info = false)
+    {
         //
         if ($update_user_info) {
             if (method_exists($obj, "setCreatedBy"))
@@ -141,8 +150,9 @@ class CreateDatatypeService
 
 
     /**
-     * Given the id of a datatype in the "create" phase...this function makes the provided datatype a copy of its
-     * "master template" along with all of the master template's child/linked datatypes.
+     * This function takes the id of an otherwise empty datatype in its "create" phase, and creates
+     * its datafields, render plugins, themes, child/linked datatypes, and permissions by cloning
+     * them from its "master template".
      *
      * @param integer $datatype_id
      * @param integer $user_id
@@ -193,14 +203,17 @@ class CreateDatatypeService
                 $dt_master = null;
 
                 if ($dt_id == $master_datatype->getId()) {
-                    // This is the master template datatype...the $datatype that was created back in DatatypeController::addAction() should become a copy of the master template
+                    // This is the master template datatype...the $datatype that was created back in
+                    // DatatypeController::addAction() should become a copy of this master template
                     $new_datatype = $datatype;
                     $dt_master = $master_datatype;
 
                     $this->logger->debug('CreateDatatypeService: attempting to clone master datatype '.$master_datatype->getId().' "'.$master_datatype->getShortName().'" into datatype '.$new_datatype->getId());
                 }
                 else {
-                    // This is one of the child/linked datatypes of the master template...create a new datatype based off of it
+                    // This is one of the child/linked datatypes of the master template...need to
+                    //  create a new datatype based off of it
+
                     /** @var DataType $dt_master */
                     $dt_master = $repo_datatype->find($dt_id);
                     if ($dt_master == null)
@@ -232,7 +245,7 @@ class CreateDatatypeService
             // Create all of the Group entries required for cloning permissions
             $this->logger->debug('----------------------------------------');
             foreach ($this->created_datatypes as $dt)
-                self::cloneDatatypeGroups($dt);    // The function does the check for whether $dt is top-level or not
+                self::cloneDatatypeGroups($dt);
 
             // Clone the datatype and datafield permissions for each of the created datatypes
             $this->logger->debug('----------------------------------------');
@@ -248,7 +261,8 @@ class CreateDatatypeService
 
 
             // ----------------------------------------
-            // The datatypes are now ready for viewing since they have all their datafield, theme, datatree, and permission entries
+            // The datatypes are now ready for viewing since they have all their datafield, theme,
+            //  datatree, and various permission entries
             foreach ($this->created_datatypes as $dt) {
                 $dt->setSetupStep(Datatype::STATE_INCOMPLETE);
                 self::persistObject($dt);
@@ -272,7 +286,8 @@ class CreateDatatypeService
                 $this->cache_service->delete('group_'.$created_group->getId().'_permissions');
             }
 
-            // Also wipe cached entry for all affected users (typically, just super admins and whoever created the datatype)
+            // Also wipe cached entry for all affected users...should typically just be super
+            //  admins and whoever created the datatype
             foreach ($user_list as $user_id => $num)
                 $this->cache_service->delete('user_'.$user_id.'_permissions');
 
@@ -320,13 +335,13 @@ class CreateDatatypeService
 
         $new_meta = clone $parent_meta;
         if ($existing_meta != null) {
-            // Copy the properties from the existing DatatypeMeta entry into the cloned DatatypeMeta entry
+            // Copy the properties from the existing DatatypeMeta entry into the cloned entry
             $new_meta->setShortName($existing_meta->getShortName());
             $new_meta->setSearchSlug('data_' . $new_datatype->getId());
             $new_meta->setLongName($existing_meta->getLongName());
             $new_meta->setDescription($existing_meta->getDescription());
 
-            // Ensure the "in-memory" version of $new_datatype no longer references the old meta entry
+            // Ensure the "in-memory" version of $new_datatype doesn't references the old meta entry
             $new_datatype->removeDataTypeMetum($existing_meta);
 
             // Delete the existing DatatypeMeta entry
@@ -379,9 +394,7 @@ class CreateDatatypeService
             // Process Meta Records
             $parent_df_meta = $parent_df->getDataFieldMeta();
             if ($parent_df_meta) {
-                // TODO This should always exist.  Likely issue was caused by
-                // the fact that a previous test failed. It's bad news that these
-                // things can fail and now warn the user...
+                // TODO - why does this not exist sometimes?  failed migration?  error elsewhere?
                 $new_df_meta = clone $parent_df_meta;
                 $new_df_meta->setDataField($new_df);
                 $new_df_meta->setMasterRevision(0);
@@ -400,7 +413,7 @@ class CreateDatatypeService
             $parent_ro_array = $parent_df->getRadioOptions();
             if ( count($parent_ro_array) > 0 ) {
                 foreach($parent_ro_array as $parent_ro) {
-                    // Copy over all the radio options for this datafield, and their associated meta entries
+                    // Clone all the radio options for this datafield
                     $new_ro = clone $parent_ro;
                     $new_ro->setDataField($new_df);
 
@@ -408,6 +421,7 @@ class CreateDatatypeService
                     $new_df->addRadioOption($new_ro);
                     self::persistObject($new_ro, true);
 
+                    // Also clone the radio option's meta entry
                     $parent_ro_meta = $parent_ro->getRadioOptionMeta();
                     $new_ro_meta = clone $parent_ro_meta;
                     $new_ro_meta->setRadioOption($new_ro);
@@ -420,18 +434,19 @@ class CreateDatatypeService
                 }
             }
 
-            // If the datafield in the master template has a render plugin, copy its settings for the new datafield
+            // Copy any render plugin settings for this datafield from the master template
             self::cloneRenderPluginSettings($parent_df->getRenderPlugin(), null, $new_df);
         }
 
-        // Now that the datafields are created...if the parent datatype has a render plugin, copy its settings as well
+        // The datafields are now created...
+        // If the parent datatype has a render plugin, copy its settings as well
         self::cloneRenderPluginSettings($parent_datatype->getRenderPlugin(), $new_datatype);
     }
 
 
     /**
-     * Once the theme stuff from the master template and its children are fully cloned, the datatree entries describing
-     * parent/child datatype relations also need to be cloned...
+     * Once the theme stuff from the master template and its children are fully cloned, the
+     * datatree entries describing parent/child datatype relations also need to be cloned...
      *
      * @param DataType $parent_datatype
      */
@@ -454,11 +469,11 @@ class CreateDatatypeService
             foreach ($this->created_datatypes as $datatype) {
                 // ...if this newly-created datatype should be the given datatype's child...
                 if ($datatree->getDescendant()->getId() == $datatype->getMasterDataType()->getId()) {
-                    // ...create a Datatree entry to make this datatype a child of the given datatype
+                    // ...create a Datatree entry to set up the relationship
                     $new_dt = new DataTree();
                     $new_dt->setAncestor($current_ancestor);
                     $new_dt->setDescendant($datatype);
-                    self::persistObject($new_dt, true);     // apparently doesn't clone createdBy by default?
+                    self::persistObject($new_dt, true);     // doesn't clone createdBy by default?
 
                     // Clone the datatree's meta entry
                     $new_meta = clone $datatree->getDataTreeMeta();
@@ -480,14 +495,15 @@ class CreateDatatypeService
 
 
     /**
-     * Clones all Group entries for top-level datatypes.  Datatree entries are assumed to already exist.
+     * Clones all Group entries for top-level datatypes for the purposes of permissions.
+     * Datatree entries are assumed to already exist.
      *
      * @param Datatype $datatype
      */
     private function cloneDatatypeGroups($datatype)
     {
-        // Ensure this is a top-level datatype before doing anything...child datatypes don't have their own groups since
-        // they're connected to their grandparent's groups through GroupDatatypePermission entries
+        // Ensure this is a top-level datatype before doing anything...child datatypes use their
+        //  grandparent datatype's groups instead of having their own
 
         /** @var DataTree[] $datatree_array */
         $datatree_array = $this->em->getRepository('ODRAdminBundle:DataTree')->findBy( array('descendant' => $datatype->getId()) );
@@ -542,33 +558,38 @@ class CreateDatatypeService
                         $this->pm_service->createUserGroup($u, $new_group, $this->user);
                         $this->logger->debug('-- added user '.$u->getId().' to admin group');
 
-                        // Don't bother deleting their cached permissions here...there's no guarantee they won't access the datatype before their permissions are ready anyways
+                        // Don't bother deleting this user's cached permissions here...
+                        // There's no guarantee they won't access the datatype before all the
+                        //  permissions are ready anyways.
                     }
                 }
 
-                // If the user isn't a super-admin, then he needs to be added to the admin group as well...
-                // ...otherwise, he won't be able to see the new datatype either
+                // If the user isn't a super-admin, then add them to the admin group as well...
+                // ...otherwise, they won't be able to see the new datatype either
                 if (!$this->user->hasRole('ROLE_SUPER_ADMIN')) {
                     $this->pm_service->createUserGroup($this->user, $new_group, $this->user);
                     $this->logger->debug('-- added user '.$this->user->getId().' to admin group');
 
-                    // Don't bother deleting their cached permissions here...they'll likely attempt to access the datatype before the permissions are ready, and get a stale version
+                    // If the user's cached permissions were deleted here, the user would likely
+                    //  get a stale/incomplete version when accessing the datatype later on
                 }
             }
 
-            // Don't need to delete cached versions of any other users or groups...these groups are brand-new
+            // Don't need to delete cached permissions for any other users or groups...nobody
+            //  belongs to them yet
         }
     }
 
 
     /**
-     * Clones all permission entries from $datatype's master datatype.  Group entries are assumed to already exist.
+     * Clones all GroupDatatype permission entries from $datatype's master template.
+     * The Group entries are assumed to already exist.
      *
      * @param Datatype $datatype
      */
     private function cloneDatatypePermissions($datatype)
     {
-        // Pull up all the datatype permission entries for all the groups this datatype's master template belongs to
+        // Load all datatype permission entries for this datatype's master template
         $master_datatype = $datatype->getMasterDataType();
         $this->logger->debug('CreateDatatypeService: attempting to clone datatype permission entries for datatype '.$datatype->getId().' "'.$datatype->getShortName().'" from master datatype '.$master_datatype->getId().'...');
 
@@ -578,8 +599,11 @@ class CreateDatatypeService
             throw new ODRException('CreateDatatypeService: Master Datatype '.$master_datatype->getId().' has no permission entries to clone.');
 
 
+        // NOTE - can't use $this->dti_service->getGrandparentDatatypeId() for this...the functions
+        //  that rely on that service assume that they're only dealing with datatypes that are
+        //  functional, and this datatype is currently still incomplete
+
         // Going to need this datatype's grandparent...
-        // NOTE - can't use $this->dti_service->getGrandparentDatatypeId() for this...the new datatypes are still in the "initial" state, and will be ignored by that function
         $repo_datatree = $this->em->getRepository('ODRAdminBundle:DataTree');
         $grandparent_datatype_id = $datatype->getId();
 
@@ -597,7 +621,8 @@ class CreateDatatypeService
                 }
             }
 
-            // If this datatype is linked to from somewhere, then $datatree_array will never be empty...exit the loop
+            // If a datatype links to this datatype, then $datatree_array will never be empty...
+            // ...exit the loop so it doesn't continue infinitely
             if (!$is_child)
                 break;
 
@@ -623,7 +648,8 @@ class CreateDatatypeService
                     $new_permission->setGroup($group);
                     $new_permission->setDataType($datatype);
 
-                    // Ensure the "in-memory" versions of both the group and the new datatype know about this new permission
+                    // Ensure the "in-memory" versions of both the group and the new datatype know
+                    // about this new permission entry
                     $group->addGroupDatatypePermission($new_permission);
                     $datatype->addGroupDatatypePermission($new_permission);
                     self::persistObject($new_permission, true);
@@ -636,7 +662,8 @@ class CreateDatatypeService
 
 
     /**
-     * Clones all permission entries from $datafield's master datafield.  Group entries are already assumed to exist.
+     * Clones all GroupDatafield permission entries from $datafield's master datafield.
+     * Group entries are already assumed to exist.
      *
      * @param DataFields $datafield
      */
@@ -651,8 +678,12 @@ class CreateDatatypeService
         if ($master_gdf_permissions == null)
             throw new ODRException('CreateDatatypeService: Master Datafield '.$master_datafield->getId().' has no permission entries to clone.');
 
-        // Going to need this datafield's datatype's grandparent...
-        // NOTE - can't use $this->dti_service->getGrandparentDatatypeId() for this...the new datatypes are still in the "initial" state, and will be ignored by that function
+
+        // NOTE - can't use $this->dti_service->getGrandparentDatatypeId() for this...the functions
+        //  that rely on that service assume that they're only dealing with datatypes that are
+        //  functional, and this datatype is currently still incomplete
+
+        // Going to need this datatype's grandparent...
         $datatype = $datafield->getDataType();
         $repo_datatree = $this->em->getRepository('ODRAdminBundle:DataTree');
         $grandparent_datatype_id = $datatype->getId();
@@ -671,7 +702,8 @@ class CreateDatatypeService
                 }
             }
 
-            // If this datatype is linked to from somewhere, then $datatree_array will never be empty...exit the loop
+            // If a datatype links to this datatype, then $datatree_array will never be empty...
+            // ...exit the loop so it doesn't continue infinitely
             if (!$is_child)
                 break;
 
@@ -697,7 +729,8 @@ class CreateDatatypeService
                     $new_permission->setGroup($group);
                     $new_permission->setDataField($datafield);
 
-                    // Ensure the "in-memory" versions of both the group and the new datafield know about this new permission
+                    // Ensure the "in-memory" versions of both the group and the new datafield know
+                    //  about this new permission
                     $group->addGroupDatafieldPermission($new_permission);
                     $datafield->addGroupDatafieldPermission($new_permission);
                     self::persistObject($new_permission, true);
@@ -710,8 +743,8 @@ class CreateDatatypeService
 
 
     /**
-     * Given a Datatype or Datafield, completely clone all the relevant information for that entity's render plugin
-     * if it's currently using one.
+     * Given a Datatype or Datafield, completely clone all the relevant information for its
+     * render plugin, assuming it's currently using one.
      *
      * @param RenderPlugin|null $parent_render_plugin
      * @param DataType|null $datatype
@@ -738,7 +771,7 @@ class CreateDatatypeService
         /** @var RenderPluginInstance $parent_rpi */
 
         if ($parent_rpi != null) {
-            // If the parent datatype/datafield is using a render plugin, then clone that instance of the render plugin
+            // If the parent datatype/datafield is using a render plugin, then clone that instance
             $new_rpi = clone $parent_rpi;
             $new_rpi->setDataType($datatype);
             $new_rpi->setDataField($datafield);
@@ -767,7 +800,8 @@ class CreateDatatypeService
                 else
                     $datatype = $datafield->getDataType();
 
-                // This rpm entry refers to a datafield in the master template...find the analogous datafield in the new (cloned) datatype
+                // This rpm entry refers to a datafield in the master template...
+                // Find the analogous datafield in the new (cloned) datatype
                 /** @var DataFields $matching_df */
                 $matching_df = $repo_datafield->findOneBy( array('dataType' => $datatype->getId(), 'masterDatafield' => $parent_rpm->getDataField()) );
                 $new_rpm->setDataField($matching_df);
@@ -780,8 +814,8 @@ class CreateDatatypeService
 
 
     /**
-     * Clones the theme, theme_meta, theme elements, theme datafields, and theme datatype entries associated with a
-     * master template, and assigns all of them to the given datatype.
+     * Clones the theme, theme_meta, theme elements, theme datafields, and theme datatype entries
+     * associated with a the provided datatype's master template.
      *
      * @param DataType $datatype
      */
@@ -872,7 +906,7 @@ class CreateDatatypeService
                     if ($datafield->getMasterDataField()->getId() == $parent_tdf->getDataField()->getId()) {
                         $new_tdf->setDataField($datafield);
 
-                        // Ensure the "in-memory" version of $new_te knows about the new theme_datafield entry
+                        // Ensure the "in-memory" version knows about the new theme_datafield entry
                         $new_te->addThemeDataField($new_tdf);
                         self::persistObject($new_tdf);
 
@@ -893,7 +927,7 @@ class CreateDatatypeService
                     if ($created_datatype->getMasterDataType()->getId() == $parent_tdt->getDataType()->getId()) {
                         $new_tdt->setDataType($created_datatype);
 
-                        // Ensure the "in-memory" version of $new_te knows about the new theme_datatype entry
+                        // Ensure the "in-memory" version of knows about the new theme_datatype entry
                         $new_te->addThemeDataType($new_tdt);
                         self::persistObject($new_tdt);
 

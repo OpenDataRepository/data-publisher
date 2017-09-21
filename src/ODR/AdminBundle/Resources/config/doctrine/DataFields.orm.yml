@@ -96,6 +96,10 @@ ODR\AdminBundle\Entity\DataFields:
                     referencedColumnName: id
             orphanRemoval: false
 
+        # This property is only defined because of Doctrine ORM limitations...
+        # The Datafield needs to be able to record a history of which RenderPlugin it has used, but
+        # the RenderPlugin needs to reference a static datafield_id
+        # This property SHOULD NOT be changed, use the one in DataFieldsMeta should be used instead
         renderPlugin:
             targetEntity: RenderPlugin
             cascade: {  }
