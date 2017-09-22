@@ -2489,7 +2489,7 @@ form .row {
 
 .ODRDesign .ODRFieldLabel {
     font-weight: bold;
-    /* margin-left 0.6em; */
+    cursor: default;
 }
 
 .ODRShortResults .ODRFieldLabel {

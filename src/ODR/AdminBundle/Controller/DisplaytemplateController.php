@@ -554,12 +554,7 @@ class DisplaytemplateController extends ODRCustomController
                 parent::ODR_copyRadioOptionsMeta($em, $user, $radio_option, $properties);
             }
 
-/*
             // Schedule the cache for an update
-            $options = array();
-            $options['mark_as_updated'] = true;
-            parent::updateDatatypeCache($datatype->getId(), $options);
-*/
             $update_datatype = true;
             parent::tmp_updateThemeCache($em, $theme, $user, $update_datatype);
         }
@@ -1360,12 +1355,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // design_ajax.html.twig calls ReloadThemeElement()
 
-/*
             // Schedule the cache for an update
-            $options = array();
-            $options['mark_as_updated'] = true;
-            parent::updateDatatypeCache($datatype->getId(), $options);
-*/
             $update_datatype = true;
             parent::tmp_updateThemeCache($em, $theme, $user, $update_datatype);
         }
@@ -3772,7 +3762,7 @@ class DisplaytemplateController extends ODRCustomController
                     'initial_datatype_id' => $datatype->getId(),
                     'theme_id' => $theme->getId(),
 
-                    'is_datatype_admin' => $is_datatype_admin,
+                    'datatype_permissions' => $datatype_permissions,
 
                     'fieldtype_array' => $fieldtype_array,
                     'has_datarecords' => $has_datarecords,
@@ -3802,6 +3792,7 @@ class DisplaytemplateController extends ODRCustomController
                     'target_datatype_id' => $target_datatype_id,
                     'theme_id' => $theme->getId(),
 
+                    'datatype_permissions' => $datatype_permissions,
                     'is_datatype_admin' => $is_datatype_admin,
 
                     'is_link' => $is_link,
@@ -3840,6 +3831,7 @@ class DisplaytemplateController extends ODRCustomController
                     'target_datatype_id' => $target_datatype_id,
                     'theme_id' => $theme->getId(),
 
+                    'datatype_permissions' => $datatype_permissions,
                     'is_datatype_admin' => $is_datatype_admin,
 
                     'is_top_level' =>  $is_top_level,

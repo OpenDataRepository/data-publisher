@@ -71,11 +71,17 @@
             </div>
         </div>
         <div id="ThemeDesignArea">
+            {% set is_datatype_admin = false %}
+            {% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+                {% set is_datatype_admin = true %}
+            {% endif %}
+
             {% include 'ODRAdminBundle:Displaytemplate:design_area.html.twig' with {
                 'datatype_array': datatype_array,
                 'initial_datatype_id': initial_datatype_id,
                 'theme_id': theme_id,
 
+                'datatype_permissions': datatype_permissions,
                 'is_datatype_admin': is_datatype_admin,
             } %}
         </div>
@@ -105,7 +111,7 @@
         $.jGrowl('SAVED');
     }
 
-    // TODO - test this
+    // TODO - test this?
     function SubmitThemeDesignForm() {
         jQuery.ajax({
             type: "POST",
@@ -118,7 +124,7 @@
         });
     }
 
-    // TODO - test this
+    // TODO - test this?
     function LoadThemeElementForm(theme_element_id) {
 //        console.log('load theme element form')
         var url = "{{ path('odr_design_get_theme_element_properties', {'theme_element_id': 0}) }}";
@@ -132,7 +138,7 @@
         )
     }
 
-    // TODO - test this
+    // TODO - test this?
     function LoadDatafieldForm(theme_element_id, datafield_id) {
         var url = "{{ path('odr_design_load_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}";
         url = url.substr(0, url.length-3);
@@ -165,7 +171,7 @@
 
     function initResizeables() {
         // Setup resizable for all ThemeElements
-        jQuery(".ODRThemeElement").each(function() {
+        $(".ODRThemeElement").each(function() {
             // Only attach this event to theme elements in the design area
             if ( $(this).parents(".ODRFieldArea").length === 0 )
                 return;
@@ -247,7 +253,7 @@
         });
 
         // Setup resizable for all DataFields
-        jQuery(".ODRThemeElement .ODRInnerBox .ODRDataField").each(function() {
+        $(".ODRThemeElement .ODRInnerBox .ODRDataField").each(function() {
             // Only attach this event to datafields in the design area
             if ( $(this).parents(".ODRFieldArea").length === 0 )
                 return;
@@ -326,6 +332,10 @@
                 }
             });
         });
+
+        // Prevent resizing of theme_elements and datafields inside linked datatypes the user can't modify
+        $(".ODRThemeElement.ODRForbidden").resizable("destroy");
+        $(".ODRDataField.ODRForbidden").resizable("destroy");
     }
 
 
@@ -585,12 +595,14 @@
                 parent_datatype_id = id_data[1];
             }
 
-            // Load form for current datafield if not already loaded
+            // Don't load the properties form if this is a linked datatype the user can't modify
             $("#ThemeDesignForm").hide().html("");
+            if ( $(this).hasClass("ODRForbidden") )
+                return;
+
             var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0, 'parent_datatype_id': 0 } ) }}';
             url = url.substring(0, (url.length - 3));
             url += datatype_id;
-
             if (parent_datatype_id != '')
                 url += '/' + parent_datatype_id;
 
@@ -640,6 +652,8 @@
                 url: url,
                 dataType: "json",
                 success: function(data) {
+                    notifySaved();
+
                     // Toggle muted status
                     var icons = {};
                     if ( $(element).hasClass('ODRActiveIcon') )
@@ -682,6 +696,8 @@
                 url: url,
                 dataType: "json",
                 success: function(data) {
+                    notifySaved();
+
                     // Toggle muted status
                     var icons = {};
                     if ( $(element).hasClass('ODRActiveIcon') ) {
@@ -869,7 +885,7 @@
                         SaveThemeElementOrder($(ui.item).parent());
                     }
                     else {
-                        $(".ODRFieldArea").sortable('cancel');
+                        $(this).sortable("cancel");
                     }
 
                     // Unhide the object that was being dragged around
@@ -882,7 +898,7 @@
         $(".ODRFieldArea").disableSelection();
 
         // Setup sortable for all DataFields
-        jQuery(".ODRThemeElement .ODRInnerBox").each(function() {
+        $(".ODRThemeElement .ODRInnerBox").each(function() {
             // Only attach this event to datafields in the design area
             if ( $(this).parents(".ODRFieldArea").length === 0 )
                 return;
@@ -902,9 +918,6 @@
                     starting_fieldarea = $(ui.helper).parent().parent().parent().attr('id');
 
 //                    console.log('sort version 2');
-                    // Hide the div that is being dragged around
-                    // TODO (WHY?)
-                    // $(ui.helper).hide();
                     // Style the placeholder to more closely match the datafield being drug around
                     $(ui.placeholder).addClass( $(ui.helper).attr('class') );
                     $(ui.placeholder).css( 'height', $(ui.helper).height() );
@@ -927,7 +940,7 @@
                     else {
                         // ...if not, don't save the change and revert the layout
 //                        console.log('canceling');
-                        $(".ODRInnerBox").sortable('cancel');
+                        $(this).sortable("cancel");
                     }
 
                     // Unhide the object that was being dragged around
@@ -944,13 +957,10 @@
             });
         });
 
-        // Prevent re-ordering of theme_elements and datafields inside Linked Datatypes
-/*
-        $(".ODRLinkedType").find(".ODRFieldArea").sortable("destroy");
-        $(".ODRLinkedType").find(".ODRInnerBox").sortable("destroy");
-        $(".ODRThemeElement > .ODRInnerBox > .ODRDataType").parent().sortable("destroy");    // prevent sortable datafields attaching before/after datatypes
-        $("#ThemeDesignForm").parent(".ODRInnerBox").sortable("destroy");                        // prevent sortable datafields from attaching to the right slideout
-*/
+        // Prevent re-ordering of theme_elements and datafields belonging to linked datatypes that the user can't modify
+        $(".ODRThemeElement.ODRForbidden").parent().sortable("destroy");
+        $(".ODRDataField.ODRForbidden").parent().sortable("destroy");
+
         // Don't want to call disabledSelection() on the object properties panel
         $("#content").find(".ODRInnerBox").disableSelection();
     }
@@ -1067,7 +1077,6 @@
 
 
     function SetupDataFields() {
-
         $(".ODRDataField").unbind('click').click(function(event) {
             // The icon to open RadioOption properties will be overriden by this click event unless this if statement is active
             if ( event.target.className.indexOf('ODRRadioOptions') !== -1 )
@@ -1096,7 +1105,12 @@
 
             // Load form for current datafield if not already loaded
             if (form_id != datafield_id) {
-                $("#ThemeDesignForm").hide().html("");
+                // Don't attempt to load the properties form for a datafield the user can't view
+                // This will prevent an unecessary error message from popping up...
+                $("#ThemeDesignForm").html('').fadeIn('fast');
+                if ( $(this).hasClass('ODRForbidden') )
+                    return;
+
                 var url = '{{ path('odr_design_get_datafield_properties', { 'datafield_id': 0 } ) }}';
                 url = url.substring(0, (url.length - 1));
                 url += datafield_id;
@@ -1112,7 +1126,7 @@
                     url: url,
                     dataType: "json",
                     success: function(data) {
-                         $("#ThemeDesignForm").html(data.d.html).fadeIn('fast');
+                        $("#ThemeDesignForm").html(data.d.html).fadeIn('fast');
                         InitDatafieldPropertiesForm();
                     },
                     error: function(jqXHR, textStatus, errorThrown) {
@@ -1137,10 +1151,6 @@
                 });
             }
         });
-
-        // Don't want to be able to modify datafields from a linked datatype
-        // TODO Review if this causes problems.  Allowing linked data types to be edited through source linked type.
-        // $(".ODRLinkedType").find(".ODRDataField").unbind('click');
     }
 
 
@@ -1573,6 +1583,8 @@
             url: url,
             dataType: "json",
             success: function(data) {
+                notifySaved();
+
                 // Don't reload a ThemeElement div unless a DataField got moved between different ThemeElements
                 if ( initial_theme_element_id != ending_theme_element_id ) {
                     // Reload starting ThemeElement if all datafields got moved out of it

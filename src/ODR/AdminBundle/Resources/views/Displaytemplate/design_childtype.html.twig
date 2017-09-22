@@ -1,20 +1,20 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
-{#{% set theme = datatype.themes[theme_id] %}#}
 
-<div class="ODRDataType{% if is_link == 1 %} ODRLinkedType{% endif %}{% if is_top_level == 0 %} ODRAccordionWrapper ODRFormAccordion{% endif %} pure-u-1" id="DataType_{{ datatype.id }}" {#rel="{{ datatype_tree.theme_datatype.id }}"#}>
+<div class="ODRDataType{% if is_link == 1 %} ODRLinkedType{% endif %}{% if is_top_level == 0 %} ODRAccordionWrapper ODRFormAccordion{% endif %} pure-u-1" id="DataType_{{ datatype.id }}">
 
     {% if is_top_level == 0 %}
         {# current datatype is a child or linked datatype #}
         <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-            <a id="Datatype_{{ datatype.id }}_ShortName" class="ODRDatatypeProperties Pointer tooltip" title="Click to display properties." rel="{{ datatype.id }}">
+            <a id="Datatype_{{ datatype.id }}_ShortName" class="ODRDatatypeProperties tooltip{% if not is_datatype_admin %} ODRForbidden{% endif %}" title="Click to display properties." rel="{{ datatype.id }}">
                 {{ datatype.dataTypeMeta.shortName }}
             </a>
         </h3>
             {% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {
                 'datatype': datatype,
                 'theme_id': theme_id,
+
                 'is_top_level': is_top_level,
                 'is_link': is_link,
             } %}
@@ -24,7 +24,10 @@
                 'datatype_array': datatype_array,
                 'target_datatype_id': target_datatype_id,
                 'theme_id': theme_id,
+
+                'datatype_permissions': datatype_permissions,
                 'is_datatype_admin': is_datatype_admin,
+
                 'is_top_level': is_top_level,
                 'is_link': is_link
             } %}
@@ -33,13 +36,14 @@
 
         <div class="ODRThemeElement pure-u-1">
             <div class="ODRInnerBox pure-u-1">
-                <h3 id="Datatype_{{ datatype.id }}_ShortName" rel="{{ datatype.id }}" class="ODRHeader ODRDatatypeProperties Pointer tooltip" title="Click to display properties.">
+                <h3 id="Datatype_{{ datatype.id }}_ShortName" rel="{{ datatype.id }}" class="ODRHeader ODRDatatypeProperties tooltip{% if not is_datatype_admin %} ODRForbidden{% endif %}" title="Click to display properties.">
                     {{ datatype.dataTypeMeta.shortName }}
                 </h3>
                 {# current datatype is top-level #}
                 {% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {
                     'datatype': datatype,
                     'theme_id': theme_id,
+
                     'is_top_level': is_top_level,
                     'is_link': is_link,
                 } %}
@@ -51,7 +55,10 @@
                 'datatype_array': datatype_array,
                 'target_datatype_id': target_datatype_id,
                 'theme_id': theme_id,
+
+                'datatype_permissions': datatype_permissions,
                 'is_datatype_admin': is_datatype_admin,
+
                 'is_top_level': is_top_level,
                 'is_link': is_link
             } %}
