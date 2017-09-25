@@ -120,7 +120,7 @@ function initPage() {
     // Hide all theme elements without input fields
     $(".ODRThemeElement").each(function() {
         var found = false;
-        $(this).find("input").each(function() {
+        $(this).find("input,select,textarea").each(function() {
             found = true;
             return false;
         });
