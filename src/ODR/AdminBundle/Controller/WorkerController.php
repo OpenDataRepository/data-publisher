@@ -939,7 +939,7 @@ $ret .= '  Set current to '.$count."\n";
         catch (\Exception $e) {
             $source = 0xaa016ab8;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1005,7 +1005,7 @@ $ret .= '  Set current to '.$count."\n";
         catch (\Exception $e) {
             $source = 0xc178ea4b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1042,7 +1042,7 @@ $ret .= '  Set current to '.$count."\n";
         catch (\Exception $e) {
             $source = 0xcb3e7952;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1105,7 +1105,7 @@ $ret .= '  Set current to '.$count."\n";
         catch (\Exception $e) {
             $source = 0x2afc476b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

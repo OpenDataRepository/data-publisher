@@ -100,8 +100,13 @@ class DatatypeInfoService
             JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
             JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE dtm.is_link = 0 AND ancestor.setup_step IN (:setup_steps) AND descendant.setup_step IN (:setup_steps)
-            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+            WHERE dtm.is_link = 0 
+            AND ancestor.setup_step IN (:setup_steps) 
+            AND descendant.setup_step IN (:setup_steps)
+            AND dt.deletedAt IS NULL 
+            AND dtm.deletedAt IS NULL 
+            AND ancestor.deletedAt IS NULL 
+            AND descendant.deletedAt IS NULL'
         )->setParameters( array('setup_steps' => DataType::STATE_VIEWABLE) );
 
         $results = $query->getArrayResult();
@@ -152,6 +157,9 @@ class DatatypeInfoService
      */
     public function getDatatreeArray($force_rebuild = false)
     {
+        // TODO This is a tremendous waste of resources.  It should restrict to a datatype.
+        // TODO Need to check. This cache should be flushed when a datatype is added.
+        // TODO Also needs to update after a setup step change.
         // If datatree data exists in cache and user isn't demanding a fresh version, return that
         $datatree_array = $this->cache_service->get('cached_datatree_array');
         if ( $datatree_array !== false && count($datatree_array) > 0 && !$force_rebuild)
@@ -311,13 +319,8 @@ class DatatypeInfoService
      *
      * @return array
      */
-    public function getDatatypeArray($datatype_ids, $parent_theme_id = null)
+    public function getDatatypeArray($datatype_ids, $parent_theme_id = null, $force_rebuild = false)
     {
-        // Always bypass cache if in dev mode?
-        $force_rebuild = false;
-        //if ($this->environment == 'dev')
-            //$force_rebuild = true;
-
         $datatype_array = array();
         foreach ($datatype_ids as $num => $dt_id) {
             if($parent_theme_id == null) {
@@ -349,6 +352,9 @@ class DatatypeInfoService
      */
     private function buildDatatypeData($datatype_id, $force_rebuild = false, $parent_theme_id = null)
     {
+        // TODO this function needs to have $force_rebuild last and needs to be reconfigured to not call
+        // get datatree array over and over with force rebuild each time. Really, getDatatree needs to take a
+        // datatype id parameter and then this would make sense.
 /*
         $timing = true;
         $timing = false;
@@ -421,7 +427,9 @@ class DatatypeInfoService
         if($parent_theme_id == null) {
             // These are the default/system themes for the datatype
             // TODO All default themes must be public.  Need to refactor for this change.
-            $query_txt .= ' AND (pt.id IS NULL OR (tm.isDefault = 1 and (tm.public IS NOT NULL AND tm.public < CURRENT_TIMESTAMP())) ) ';
+            // $query_txt .= ' AND (pt.id IS NULL OR (tm.isDefault = 1 and (tm.public IS NOT NULL AND tm.public < CURRENT_TIMESTAMP())) ) ';
+            // Only MASTER Themes can have empty parents
+            $query_txt .= " AND pt.id IS NULL AND t.themeType = 'master'";
         }
         else {
             // Note: two themes could have the same source theme, but no two top-level

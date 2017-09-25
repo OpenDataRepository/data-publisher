@@ -294,6 +294,13 @@ odr_add_types:
 
 #-----------------------------------------
 # Theme Controller
+odr_clone_theme:
+    path:  /design/view/{datatype_id}/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:userclonetheme }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+
 odr_design_derivative_themes:
     path:  /design/searchtemplate/{datatype_id}
     defaults: { _controller:ODRAdminBundle:Theme:design }

@@ -17,14 +17,16 @@ class ODRBadRequestException extends ODRException
 {
 
     /**
+     * ODRBadRequestException constructor.
      * @param string $message
+     * @param int $source
      */
-    public function __construct($message = '')
+    public function __construct($message = '', $source = 0)
     {
         if ($message == '')
             $message = 'Malformed request syntax';
 
-        parent::__construct($message, self::getStatusCode());
+        parent::__construct($message, self::getStatusCode(), $source);
     }
 
 

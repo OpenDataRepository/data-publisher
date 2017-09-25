@@ -19,9 +19,9 @@ class ODRMethodNotAllowedException extends ODRException
     /**
      * @param string $message
      */
-    public function __construct($message)
+    public function __construct($message, $source = 0)
     {
-        parent::__construct($message, self::getStatusCode());
+        parent::__construct($message, self::getStatusCode(), $source);
     }
 
 

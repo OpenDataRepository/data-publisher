@@ -194,7 +194,7 @@ class DatatypeController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x24d5aae9;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -268,7 +268,7 @@ class DatatypeController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x72002e34;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -360,7 +360,7 @@ class DatatypeController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xeaff78ff;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -615,7 +615,7 @@ class DatatypeController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x6151265b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

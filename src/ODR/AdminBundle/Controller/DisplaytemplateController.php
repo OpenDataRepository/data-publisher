@@ -301,7 +301,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4fc66d72;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -450,7 +450,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x00b86c51;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -566,7 +566,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x5567b2f9;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -938,7 +938,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xa6304ef8;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1009,7 +1009,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8ae875b2;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1144,7 +1144,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x43a5ff6f;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1238,7 +1238,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x6f6cfd5d;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1364,7 +1364,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x3db4c5ca;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1437,7 +1437,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x71d2cc47;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1531,7 +1531,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xdf4e2574;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1640,7 +1640,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x89f8d46f;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1766,7 +1766,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x33ef7d94;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1910,6 +1910,7 @@ class DisplaytemplateController extends ODRCustomController
             $child_theme = new Theme();
             $child_theme->setDataType($child_datatype);
             $child_theme->setThemeType('master');
+            // $child_theme->setParentTheme($theme);
             $child_theme->setCreatedBy($user);
             $child_theme->setUpdatedBy($user);
 
@@ -1976,7 +1977,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xe1cadbac;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2198,7 +2199,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xf8083699;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2474,7 +2475,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xa1ee8e79;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2671,7 +2672,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x9a07165b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3002,7 +3003,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x001bf2cc;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3359,7 +3360,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x75fbef09;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3428,7 +3429,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x940ecdfe;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3501,7 +3502,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xf0be4790;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3575,7 +3576,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xe45c0214;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3615,8 +3616,8 @@ class DisplaytemplateController extends ODRCustomController
 
 
         // Going to need this a lot...
-        $datatree_array = $dti_service->getDatatreeArray();
-//print '<pre>'.print_r($datatree_array, true).'</pre>';  exit();
+        // Need force rebuild = true
+        $datatree_array = $dti_service->getDatatreeArray(true);
 
         // ----------------------------------------
         // Load required objects based on parameters
@@ -3699,8 +3700,9 @@ class DisplaytemplateController extends ODRCustomController
         $associated_datatypes = $dti_service->getAssociatedDatatypes( array($datatype->getId()), $include_links );
 //print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
 
-        // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $datatype_array = $dti_service->getDatatypeArray($associated_datatypes);
+        // Grab the cached versions of all of the associated datatypes, and store
+        // them all at the same level in a single array.  Force rebuild should be true.
+        $datatype_array = $dti_service->getDatatypeArray($associated_datatypes, null, true);
 //print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
         // TODO - should $datatype_array get filtered or stacked?
@@ -4175,7 +4177,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x52de9520;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -4688,7 +4690,7 @@ class DisplaytemplateController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xa7c7c3ae;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -5019,7 +5021,7 @@ class DisplaytemplateController extends ODRCustomController
 
             $source = 0xf9e63ad1;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -5286,7 +5288,7 @@ if ($debug)
 
             $source = 0xf3b47c90;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -5361,7 +5363,7 @@ if ($debug)
         catch (\Exception $e) {
             $source = 0xe2231afc;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -5437,7 +5439,7 @@ if ($debug)
         catch (\Exception $e) {
             $source = 0xbd3dc347;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

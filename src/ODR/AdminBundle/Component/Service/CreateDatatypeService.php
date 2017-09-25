@@ -784,6 +784,7 @@ class CreateDatatypeService
      * master template, and assigns all of them to the given datatype.
      *
      * @param DataType $datatype
+     * @Deprecated
      */
     private function cloneDatatypeThemeFromMaster($datatype)
     {

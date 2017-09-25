@@ -1797,6 +1797,7 @@ class ODRCustomController extends Controller
 
     /**
      * @todo - move to the permissions service?
+     * @deprecated
      *
      * Gets and returns the permissions array for the given group.
      *

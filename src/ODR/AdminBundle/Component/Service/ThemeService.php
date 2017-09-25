@@ -2,63 +2,25 @@
 
 namespace ODR\AdminBundle\Component\Service;
 
-// Controllers/Classes
-use ODR\OpenRepository\SearchBundle\Controller\DefaultController as SearchController;
-use ODR\AdminBundle\Controller\ODRCustomController as ODRCustomController;
-// Entities
-use ODR\AdminBundle\Entity\Boolean AS ODRBoolean;
-use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataFieldsMeta;
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataRecordFields;
-use ODR\AdminBundle\Entity\DataRecordMeta;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\DataTreeMeta;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTypeMeta;
-use ODR\AdminBundle\Entity\DatetimeValue;
-use ODR\AdminBundle\Entity\DecimalValue;
-use ODR\AdminBundle\Entity\FieldType;
-use ODR\AdminBundle\Entity\File;
-use ODR\AdminBundle\Entity\FileChecksum;
-use ODR\AdminBundle\Entity\FileMeta;
-use ODR\AdminBundle\Entity\Group;
-use ODR\AdminBundle\Entity\GroupDatafieldPermissions;
-use ODR\AdminBundle\Entity\GroupDatatypePermissions;
-use ODR\AdminBundle\Entity\GroupMeta;
-use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\ImageChecksum;
-use ODR\AdminBundle\Entity\ImageMeta;
-use ODR\AdminBundle\Entity\ImageSizes;
-use ODR\AdminBundle\Entity\IntegerValue;
-use ODR\AdminBundle\Entity\LinkedDataTree;
-use ODR\AdminBundle\Entity\LongText;
-use ODR\AdminBundle\Entity\LongVarchar;
-use ODR\AdminBundle\Entity\MediumVarchar;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RadioOptionsMeta;
-use ODR\AdminBundle\Entity\RadioSelection;
-use ODR\AdminBundle\Entity\RenderPlugin;
-use ODR\AdminBundle\Entity\RenderPluginFields;
-use ODR\AdminBundle\Entity\RenderPluginInstance;
-use ODR\AdminBundle\Entity\RenderPluginMap;
-use ODR\AdminBundle\Entity\RenderPluginOptions;
-use ODR\AdminBundle\Entity\ShortVarchar;
-use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeElementMeta;
-use ODR\AdminBundle\Entity\ThemeMeta;
-use ODR\AdminBundle\Entity\TrackedError;
-use ODR\OpenRepository\UserBundle\Entity\User;
-use ODR\AdminBundle\Entity\UserGroup;
-// Forms
-// Symfony
 
+// Symfony
 use Symfony\Component\DependencyInjection\ContainerInterface as Container;
 use Doctrine\ORM\EntityManager;
+
+// Exceptions
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+// use ODR\AdminBundle\Exception\ODRForbiddenException;
+// use ODR\AdminBundle\Exception\ODRNotFoundException;
+// use ODR\AdminBundle\Exception\ODRNotImplementedException;
+
+// Entities
+use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\RenderPlugin;
+use ODR\AdminBundle\Entity\Theme;
+
+// Forms
 
 
 /**
@@ -91,6 +53,11 @@ class ThemeService
     private $container;
 
     /**
+     * @var EntityManager
+     */
+    private $em;
+
+    /**
      * CreateDatatypeService constructor.
      * @param Container $container
      * @param EntityManager $entity_manager
@@ -110,17 +77,13 @@ class ThemeService
      *
      * @param $datatype_id
      * @param string $theme_type
-     * @param null $user_id
      * @return array
      * @throws \Exception
      */
     public function getAvailableThemes(
         $datatype_id,
-        $theme_type = 'master',
-        $user_id = null
+        $theme_type = 'master'
     ) {
-
-        $datatype_info_service = $this->container->get('odr.datatype_info_service');
 
         // Get the DataType to work with
         $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
@@ -154,7 +117,7 @@ class ThemeService
 
                 $add_theme = false;
                 if($theme->getThemeMeta()->getPublic() != null
-                   && $theme->getThemeMeta()->getPublic() <= date()
+                   && $theme->getThemeMeta()->getPublic() <= time()
                 ) {
                     // Check if theme is public
                     $add_theme = true;
@@ -192,6 +155,7 @@ class ThemeService
     /**
      * @param $datatype_id
      * @param $theme_type
+     * @param bool $flush
      * @return mixed
      */
     public function getDefaultTheme($datatype_id, $theme_type, $flush = false) {
@@ -227,12 +191,7 @@ class ThemeService
         return $theme;
     }
 
-    /**
-     * Check current session variables for Datatype
-     *
-     * @param $datatype_id
-     * @param $theme_id
-     */
+    /*
     public function setSessionTheme($datatype_id, $theme_id) {
         // Ensure theme is cached
         foreach($session_themes as $theme_datatype_id => $theme) {
@@ -245,6 +204,7 @@ class ThemeService
             }
         }
     }
+    */
 
     public function getUserDefaultTheme($datatype_id, $theme_type) {
         $user_theme = self::getDefaultTheme($datatype_id, $theme_type);
@@ -353,119 +313,138 @@ class ThemeService
      * Clone a theme for a particular datatype.  Automatically recurses through related themes
      * and sets their source theme id as well as parent id.
      *
-     * @param $datatype_id
-     * @param $theme_id
+     * Always produces the same theme type as original.
+     *
+     * @param $datatype
+     * @param $original_theme
      * @param $user_id
-     * @param $to_theme_type
      * @return string
      */
-    public function cloneThemeById(
-        $datatype_id,
-        $theme_id,
-        $user_id,
-        $to_theme_type = null
+    public function cloneTheme (
+        DataType $datatype,
+        Theme $original_theme,
+        $user_id
     ) {
-        try {
 
+        $theme = "";
+        try {
             $user_manager = $this->container->get('fos_user.user_manager');
             $this->user = $user_manager->findUserBy(array('id' => $user_id));
 
             $datatype_info_service = $this->container->get('odr.datatype_info_service');
 
-            // Get the DataType to work with
-            $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
-            $datatype = $repo_datatype->find($datatype_id);
-
-            if($datatype == null) {
-                throw new \Exception("Datatype is null.");
-            }
-
             // Get the Master Datatype to Clone
             $associated_datatypes = $datatype_info_service->getAssociatedDatatypes(array($datatype->getId()));
-
-            $repo_theme = $this->em->getRepository('ODRAdminBundle:Theme');
-            $original_theme = $repo_theme->find($theme_id);
 
             // Clone datatype theme
             $theme = self::cloneDatatypeTheme(
                 $datatype,
                 $original_theme->getThemeType(),
-                $to_theme_type,
-                $original_theme
+                $original_theme->getThemeType()
             );
 
             // Set new theme to have parent_theme_id = itself
             $theme->setParentTheme($theme);
+            self::persistObject($theme);
 
             // Clone Associated Datatypes
             // The parent theme id is the "Custom" theme id to tie all the
             // related child themes to the same custom theme instance
+            $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
             foreach($associated_datatypes as $dt_id) {
                 $assoc_datatype = $repo_datatype->find($dt_id);
                 if($dt_id != $datatype->getId() && $assoc_datatype != null) {
-                    self::cloneDatatypeTheme($assoc_datatype, $original_theme->getThemeType(), $to_theme_type, $theme);
+                    self::cloneDatatypeTheme(
+                        $assoc_datatype,
+                        $original_theme->getThemeType(),
+                        $original_theme->getThemeType(),
+                        $theme
+                    );
                 }
             }
 
-            return "Clone datatype complete.";
+            return $theme;
         }
-        catch (\Exception $e) {
-            return $e->getMessage();
+        catch(\Exception $e) {
+            // If we had an error, delete newly created parent theme
+            if($theme != "") {
+                $this->em->remove($theme);
+                $this->em->flush();
+            }
+            throw new ODRBadRequestException("Error cloning theme/view.", 8238298);
         }
     }
 
-    public function cloneThemeByType(
-        $datatype_id,
-        $theme_id,
-        $user_id,
-        $to_theme_type = null
+    /*
+     * This should only be used for cloning Master Themes - everything else will start
+     * with a theme id.  Is this different from clone from master?
+     */
+    public function cloneThemesForDatatype(
+        DataType $datatype,
+        $to_theme_type = null,
+        $user_id
     ) {
+
+        $theme = "";
+
         try {
+
+            if($to_theme_type == null) {
+                throw new ODRBadRequestException("A theme type must be passed",0x238219);
+            }
 
             $user_manager = $this->container->get('fos_user.user_manager');
             $this->user = $user_manager->findUserBy(array('id' => $user_id));
 
             $datatype_info_service = $this->container->get('odr.datatype_info_service');
 
-            // Get the DataType to work with
-            $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
-            $datatype = $repo_datatype->find($datatype_id);
-
-            if($datatype == null) {
-                throw new \Exception("Datatype is null.");
-            }
-
             // Get the Master Datatype to Clone
             $associated_datatypes = $datatype_info_service->getAssociatedDatatypes(array($datatype->getId()));
-
-            $repo_theme = $this->em->getRepository('ODRAdminBundle:Theme');
-            $original_theme = $repo_theme->find($theme_id);
 
             // Clone datatype theme
             $theme = self::cloneDatatypeTheme(
                 $datatype,
-                $original_theme->getThemeType(),
-                $to_theme_type,
-                $original_theme
+                'master',
+                $to_theme_type
             );
 
             // Set new theme to have parent_theme_id = itself
             $theme->setParentTheme($theme);
+            self::persistObject($theme);
 
             // Clone Associated Datatypes
             // The parent theme id is the "Custom" theme id to tie all the
             // related child themes to the same custom theme instance
+            $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
             foreach($associated_datatypes as $dt_id) {
                 $assoc_datatype = $repo_datatype->find($dt_id);
                 if($dt_id != $datatype->getId() && $assoc_datatype != null) {
-                    self::cloneDatatypeTheme($assoc_datatype, $original_theme->getThemeType(), $to_theme_type, $theme);
+                    self::cloneDatatypeTheme(
+                        $assoc_datatype,
+                       'master',
+                        $to_theme_type,
+                        $theme
+                    );
                 }
             }
 
-            return "Clone datatype complete.";
+            return $theme;
         }
-        catch (\Exception $e) {
-            return $e->getMessage();
+        catch(\Exception $e) {
+            // If we had an error, delete newly created parent theme
+            if($theme != "") {
+                $this->em->remove($theme);
+                $this->em->flush();
+            }
+            if ($e instanceof ODRException) {
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+            }
+            else {
+                throw new ODRBadRequestException(
+                    "Error cloning theme/view. Please try again.",
+                    0x123884
+                );
+            }
         }
     }
 
@@ -482,10 +461,10 @@ class ThemeService
                 $obj->setUpdatedBy($this->user);
             }
             if(method_exists($obj, "setCreated")) {
-                // $obj->setCreated(new DateTime(time()));
+                $obj->setCreated(new \DateTime(time()));
             }
             if(method_exists($obj, "setUpdated")) {
-                // $obj->setUpdated(new DateTime(time()));
+                $obj->setUpdated(new \DateTime(time()));
             }
         }
         $this->em->persist($obj);
@@ -564,10 +543,11 @@ class ThemeService
      * associated with a master datatype and assign it to the cloned
      * datatype. If parent_datatype is not null, the function is used to
      * create a copy of parent_datatype's theme and assign it to datatype.
+     *
      * @param DataType $datatype
      */
     protected function cloneDatatypeThemeFromMaster(
-        DataType $datatype
+        $datatype
     ) {
         // Get Themes
         $repo_theme = $this->em->getRepository('ODRAdminBundle:Theme');
@@ -652,14 +632,16 @@ class ThemeService
      * associated with a master datatype and assign it to the cloned
      * datatype. If parent_datatype is not null, the function is used to
      * create a copy of parent_datatype's theme and assign it to datatype.
+     *
      * @param DataType $datatype
-     * @param Theme $source_theme
+     * @param String $from_theme_type
      * @param String $to_theme_type
      * @param Theme $cloned_theme - this is the theme parent
-     * @param
+     *
+     * @return Theme $new_theme - the newly created theme clone.
      */
     protected function cloneDatatypeTheme(
-        DataType $datatype,
+        $datatype,
         $from_theme_type = "master",
         $to_theme_type = "search_results",
         $cloned_theme = null
@@ -693,9 +675,6 @@ class ThemeService
         $new_theme_meta->setTheme($new_theme);
         self::persistObject($new_theme_meta);
 
-        // Get the DataFields
-        $datafields = $datatype->getDataFields();
-
         // Get Theme Elements
         $parent_te_array = $datatype_theme->getThemeElements();
         foreach($parent_te_array as  $parent_te) {
@@ -714,14 +693,8 @@ class ThemeService
             foreach($parent_theme_df_array as $parent_tdf) {
                 $new_tdf = clone $parent_tdf;
                 $new_tdf->setThemeElement($new_te);
-                // foreach($datafields as $datafield) {
-                    // if($datafield->getMasterDataField()->getId() == $parent_tdf->getDataField()->getId()) {
-                //         $new_tdf->setDataField($datafield);
                 $new_tdf->setDataField($parent_tdf->getDataField());
                 self::persistObject($new_tdf);
-                        // break;
-                    // }
-                // }
             }
 
             // Theme Data Type
@@ -729,7 +702,6 @@ class ThemeService
             foreach($parent_theme_dt_array as $parent_tdt) {
                 $new_tdt = clone $parent_tdt;
                 $new_tdt->setThemeElement($new_te);
-                // $new_tdt->setDataType($created_datatype);
                 self::persistObject($new_tdt);
             }
         }
