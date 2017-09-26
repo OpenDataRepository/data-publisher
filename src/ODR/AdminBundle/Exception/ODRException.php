@@ -44,7 +44,10 @@ class ODRException extends HttpException
         parent::__construct($statusCode, $message, $previous_exception, array(), $source_code);
     }
 
-    public function getSourceCode() {
+    public function getSourceCode($code = null) {
+        if($this->source_code == 0 && $code != null) {
+            return $code;
+        }
         return $this->source_code;
     }
 

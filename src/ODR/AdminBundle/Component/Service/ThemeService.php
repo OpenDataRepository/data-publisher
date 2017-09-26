@@ -436,14 +436,14 @@ class ThemeService
                 $this->em->remove($theme);
                 $this->em->flush();
             }
+            $code = 0x12834;
             if ($e instanceof ODRException) {
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode($code), $e->getSourceCode());
             }
             else {
                 throw new ODRBadRequestException(
                     "Error cloning theme/view. Please try again.",
-                    0x123884
-                );
+                    $code
             }
         }
     }
