@@ -113,6 +113,9 @@ class PermissionsManagementService
      * @return bool
      */
     public function checkDatatypePermission($user, $datatype_id, $permission, $force_rebuild = false) {
+        if($user === "anon.") {
+            return false;
+        }
         $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
         $datatype_permissions = $user_permissions['datatypes'];
 
@@ -133,6 +136,9 @@ class PermissionsManagementService
      * @return bool
      */
     public function checkDatafieldPermission($user, $datafield_id, $permission, $force_rebuild = false) {
+        if($user === "anon.") {
+            return false;
+        }
         $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
         $datafield_permissions = $user_permissions['datafields'];
 

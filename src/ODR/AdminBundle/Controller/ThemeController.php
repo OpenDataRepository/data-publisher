@@ -1214,7 +1214,7 @@ class ThemeController extends ODRCustomController
 
 
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $datatype_array = $dti_service->getDatatypeArray($associated_datatypes, null, true);
+        $datatype_array = $dti_service->getDatatypeArray($associated_datatypes, $theme->getId(), true);
 
         // ----------------------------------------
         // Going to need an array of fieldtype ids and fieldtype typenames for notifications about changing fieldtypes
