@@ -444,7 +444,7 @@ class ThemeService
                 throw new ODRBadRequestException(
                     "Error cloning theme/view. Please try again.",
                     $code
-                )
+                );
             }
         }
     }
