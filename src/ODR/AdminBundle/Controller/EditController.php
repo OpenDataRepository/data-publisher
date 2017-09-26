@@ -3471,7 +3471,19 @@ if ($debug)
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datafield_permissions = $pm_service->getDatafieldPermissions($user);
             $can_edit_datarecord = $pm_service->checkDatatypePermission($user, $datatype_id, 'dr_edit');
+
+            // Ensure user has permissions to be doing this
+            // TODO Confirm that can_edit_record supersedes all others.
+            /*
+            if (
+                !($datatype->isPublic() || $can_view_datatype)
+                || !($datarecord->isPublic() || $can_view_datarecord)
+                || !$can_edit_datarecord
+            )
+                throw new ODRForbiddenException();
+            */
 
             // Ensure user has permissions to be doing this
             if (!$can_edit_datarecord)
