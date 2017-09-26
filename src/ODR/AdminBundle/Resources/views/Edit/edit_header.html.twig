@@ -187,10 +187,6 @@
     }
 {% endif %}
 
-    function openFileDownloadDialog() {
-        $("#dialog_file_downloads").dialog( "open" );
-        locateFileIds({{ datarecord.id }}, 0, 0);      // defined in ODRAdminBundle:Default:file_download_dialog.html.twig
-    }
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}

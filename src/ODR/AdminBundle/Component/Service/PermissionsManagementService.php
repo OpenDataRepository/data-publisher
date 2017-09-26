@@ -79,6 +79,189 @@ class PermissionsManagementService
         $this->logger = $logger;
     }
 
+    /**
+     * @param $user
+     * @param bool $force_rebuild
+     * @return mixed
+     */
+    public function getDatatypePermissions($user, $force_rebuild = false) {
+        if($user === "anon.") {
+            return array();
+        }
+        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        return $user_permissions['datatypes'];
+    }
+
+    /**
+     * @param $user
+     * @param bool $force_rebuild
+     * @return mixed
+     */
+    public function getDatafieldPermissions($user, $force_rebuild = false) {
+        if($user === "anon.") {
+            return array();
+        }
+        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        return $user_permissions['datafields'];
+    }
+
+    /**
+     * @param $user
+     * @param $datatype_id
+     * @param $permission
+     * @param bool $force_rebuild
+     * @return bool
+     */
+    public function checkDatatypePermission($user, $datatype_id, $permission, $force_rebuild = false) {
+        if($user === "anon.") {
+            return false;
+        }
+        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $datatype_permissions = $user_permissions['datatypes'];
+
+        $has_permission = false;
+        if ( isset($datatype_permissions[$datatype_id])
+            && isset($datatype_permissions[$datatype_id][$permission]) ) {
+            $has_permission = true;
+        }
+
+        return $has_permission;
+    }
+
+    /**
+     * @param $user
+     * @param $datafield_id
+     * @param $permission
+     * @param bool $force_rebuild
+     * @return bool
+     */
+    public function checkDatafieldPermission($user, $datafield_id, $permission, $force_rebuild = false) {
+        if($user === "anon.") {
+            return false;
+        }
+        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $datafield_permissions = $user_permissions['datafields'];
+
+        $has_permission = false;
+        if ( isset($datafield_permissions[$datafield_id])
+            && isset($datafield_permissions[$datafield_id][$permission]) ) {
+            $has_permission = true;
+        }
+
+        return $has_permission;
+    }
+
+    /**
+     * Gets and returns the permissions array for the given group.
+     *
+     * @param integer $user_id
+     * @param boolean $force_rebuild
+     *
+     * @throws ODRException
+     *
+     * @return array
+     */
+    public function getUserPermissionsArray($user_id, $force_rebuild = false)
+    {
+        try {
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->cache_service;
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->dti_service;
+
+            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
+            $user_permissions = $cache_service->get('user_'.$user_id.'_permissions');
+            if ( !$force_rebuild && $user_permissions != false )
+                return $user_permissions;
+
+
+            // ----------------------------------------
+            // ...otherwise, get which groups the user belongs to
+            $query = $this->em->createQuery(
+                'SELECT g.id AS group_id
+                FROM ODRAdminBundle:UserGroup AS ug
+                JOIN ODRAdminBundle:Group AS g WITH ug.group = g
+                WHERE ug.user = :user_id
+                AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
+            )->setParameters( array('user_id' => $user_id) );
+            $results = $query->getArrayResult();
+
+            $user_groups = array();
+            foreach ($results as $result)
+                $user_groups[] = $result['group_id'];
+
+
+            // ----------------------------------------
+            // For each group the user belongs to, attempt to load that group's permissions from the cache
+            $group_permissions = array();
+            foreach ($user_groups as $num => $group_id) {
+                // Attempt to load the permissions for this group
+                $permissions = $cache_service->get('group_'.$group_id.'_permissions');
+
+                if ( $force_rebuild || $permissions == false ) {
+                    $permissions = self::rebuildGroupPermissionsArray($this->em, $group_id);
+                    $cache_service->set('group_'.$group_id.'_permissions', $permissions);
+                }
+
+                $group_permissions[$group_id] = $permissions;
+            }
+
+
+            // ----------------------------------------
+            // Merge these group permissions into a single array for this user
+            $user_permissions = array('datatypes' => array(), 'datafields' => array());
+            foreach ($group_permissions as $group_id => $group_permission) {
+                // TODO - datarecord restriction?
+
+                foreach ($group_permission['datatypes'] as $dt_id => $dt_permissions) {
+                    foreach ($dt_permissions as $permission => $num)
+                        $user_permissions['datatypes'][$dt_id][$permission] = 1;
+
+                    // If the user is an admin for the datatype, ensure they're allowed to edit datarecords of the datatype
+                    if ( isset($user_permissions['datatypes'][$dt_id]['dt_admin']) )
+                        $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
+                }
+
+                foreach ($group_permission['datafields'] as $dt_id => $datafields) {
+                    foreach ($datafields as $df_id => $df_permissions) {
+                        if ( isset($df_permissions['view']) ) {
+                            $user_permissions['datafields'][$df_id]['view'] = 1;
+                        }
+
+                        if ( isset($df_permissions['edit']) ) {
+                            $user_permissions['datafields'][$df_id]['edit'] = 1;
+
+                            $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
+                        }
+                    }
+                }
+            }
+
+            // If child datatypes have the "dr_edit" permission, ensure their parents do as well
+            $datatree_array = $dti_service->getDatatreeArray();
+
+            foreach ($user_permissions['datatypes'] as $dt_id => $dt_permissions) {
+                if ( isset($dt_permissions['dr_edit']) ) {
+
+                    $parent_datatype_id = $dt_id;
+                    while( isset($datatree_array['descendant_of'][$parent_datatype_id]) && $datatree_array['descendant_of'][$parent_datatype_id] !== '' ) {
+                        $parent_datatype_id = $datatree_array['descendant_of'][$parent_datatype_id];
+                        $user_permissions['datatypes'][$parent_datatype_id]['dr_edit'] = 1;
+                    }
+                }
+            }
+
+            // Store that array in the cache
+            $cache_service->set('user_'.$user_id.'_permissions', $user_permissions);
+
+            // ----------------------------------------
+            // Return the permissions for all groups this user belongs to
+            return $user_permissions;
+        }
+        catch (\Exception $e) {
+            throw new ODRException( $e->getMessage() );
+        }
+    }
 
     /**
      * Given a group's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.

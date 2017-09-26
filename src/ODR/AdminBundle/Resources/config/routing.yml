@@ -294,6 +294,13 @@ odr_add_types:
 
 #-----------------------------------------
 # Theme Controller
+odr_clone_theme:
+    path:  /design/view/{datatype_id}/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:userclonetheme }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+
 odr_design_derivative_themes:
     path:  /design/searchtemplate/{datatype_id}
     defaults: { _controller:ODRAdminBundle:Theme:design }
@@ -739,6 +746,13 @@ odr_file_download:
     requirements:
         file_id:  \d+
 
+odr_get_available_themes:
+    path:  /view/getthemes/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Display:availablethemes }
+    requirements:
+        datatype_id:  \d+
+
+# deprecated
 # deprecated
 #odr_cancel_file_decrypt:
 #    path:  /view/downloadfile_cancel/{file_id}

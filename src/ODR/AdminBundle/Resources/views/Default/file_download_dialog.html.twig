@@ -1,63 +1,55 @@
 {% spaceless %}
     <!-- File Download Dialog -->
-    <div class="pure-form pure-g" style="display: none;" id="dialog_file_downloads" title="File Download Selector Dialog">
-        <div class="form_contents pure-u-1">
-            <div id="FileDownloadForm_build">
-                <div id="FileDownloadForm_loading" class="pure-u-1" style="font-weight:bold; text-align:center;">Loading...</div>
 
-                <div style="max-height: 700px; overflow:auto;">
-                    <form id="FileDownloadForm" method="POST"></form>
-                </div>
+    <script>
+    var file_download_body = '<div id="ODRFileDownloadFormWrapper" class="Hide"> ' +
+            '<form id="ODRFileDownloadForm" method="POST"></form> ' +
+        '</div> ' +
+        '<div id="ODRFileDownloadForm_progress" class="Hide"> ' +
+            '<div>Creating archive:</div> ' +
+            '<div> ' +
+                '<span id="ODRFileDownloadForm_current"></span> / ' +
+                '<span id="ODRFileDownloadForm_total"></span> files added. ' +
+            '</div> ' +
+        '</div>';
 
-                <button id="FileDownloadForm_cancel" class="pure-button ODRCancelButton">Cancel</button>
-                <button id="FileDownloadForm_submit" class="pure-button pure-button-primary ODRSubmitButton" disabled>Download Selected Files</button>
-            </div>
 
-            <div id="FileDownloadForm_progress" style="display:none; font-size:1.2em;">
-                Processing... <span id="FileDownloadForm_current"></span> of <span id="FileDownloadForm_total"></span> files added to archive...
-            </div>
-        </div>
-    </div>
-    <!--  End of File Download Dialog -->
+    function openFileDownloadDialog(grandparent_datarecord_id, datarecord_id, datafield_id) {
+        // open dialog
+        modal_options = {
+            title: "Select files to download:",
+            loading: true,
+            body: file_download_body,
+            buttons: [
+                {
+                    id: 'ODRFileDownloadFormSubmit',
+                    text: 'Download Files',
+                    // secondary: true,
+                    disabled: true,
+                    title: 'You must select one or more files before this button becomes active.',
+                    click: function() {
+                        // Create/send a POST request of file ids
+                        submitForm( "#ODRFileDownloadForm" );
+                    }
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
 
-<script>
-    $(function() {
-        var dialog_form = $("#dialog_file_downloads");
+        // set innerhtml
+        loadFileData(grandparent_datarecord_id, datarecord_id, datafield_id);
 
-        $(dialog_form).dialog({
-            autoOpen: false,
-            modal: true,
-            width: 900,
-            open: function() {
-                $(this).parent().css('overflow', 'visible');
-            }
-        });
-        $(dialog_form).find('.ODRSubmitButton').click(function() {
-            var $el = $(this).parents('.ui-dialog-content');
+    }
 
-            // Create/send a POST request of file ids
-            submitForm( $el.attr('id') );
 
-            $el.find('form')[0].reset();
-//            $el.dialog('close');
-        });
-        $(dialog_form).find('.ODRCancelButton').click(function() {
-            var $el = $(this).parents('.ui-dialog-content');
 
-            $el.find('form')[0].reset();
-            $el.dialog('close');
-        });
-    });
-
-    function locateFileIds(grandparent_datarecord_id, datarecord_id, datafield_id) {
-        $("#FileDownloadForm").html('');
-        $("#FileDownloadForm_loading").show();
-
+    function loadFileData(grandparent_datarecord_id, datarecord_id, datafield_id) {
         var url = '{{ path('odr_get_file_list', {'grandparent_datarecord_id': 0}) }}';
         url = url.substring(0, (url.length-1));
         url += grandparent_datarecord_id;
-        if (datarecord_id != 0 || datafield_id != 0)
+        if (datarecord_id != 0 || datafield_id != 0) {
             url += '/' + datarecord_id + '/' + datafield_id;
+        }
 
         $.ajax({
             cache: false,
@@ -65,15 +57,28 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                $("#FileDownloadForm_loading").hide();
-                $("#FileDownloadForm").html( data.d );
-
-                $("#dialog_file_downloads").dialog({ position: { my: "center", at: "center", of: window } });
+                $("#ODRFileDownloadForm").html( data.d );
                 initFileDownloadDialogForm(datarecord_id, datafield_id);
+                // remove loading
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    $(".ODRRemodalButtons").show();
+                    $("#ODRFileDownloadFormWrapper").show();
+                    // Resize ODRFileDownloadModal to take up full height
+                    resetRemodalInnerHeight();
+
+                    // Setup submit handler
+                    $('#ODRFileDownloadFormSubmit').click(function() {
+                        var $el = $(this).parent().parent();
+                        // Create/send a POST request of file ids
+                        submitForm( $el.attr('id') );
+                    });
+                });
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to create a jGrowl...close the dialog so it's not in some half-initialized state
-                $("#dialog_file_downloads").dialog('close');
+                var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+                inst.close();
             },
             complete: function (jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -128,10 +133,10 @@
             applyToParents( $(this) );
 
             // If no files/images selected for download, disable the submit button
-            if ( $("#FileDownloadForm").find('.fa.fa-check').length > 0 )
-                $("#FileDownloadForm_submit").removeAttr('disabled');
+            if ( $("#ODRFileDownloadForm").find('.fa.fa-check').length > 0 )
+                $("#ODRFileDownloadFormSubmit").removeAttr('disabled');
             else
-                $("#FileDownloadForm_submit").attr('disabled', 'disabled');
+                $("#ODRFileDownloadFormSubmit").attr('disabled', 'disabled');
         });
 
         if (target_datarecord_id != 0 && target_datafield_id != 0) {
@@ -166,21 +171,36 @@
     }
 
     function submitForm(form_id) {
-        $("#FileDownloadForm").find('.binary').each(function() {
+        var file_count = 0;
+        $("#ODRFileDownloadForm").find('.binary').each(function() {
             if ( $(this).children('.fa').first().hasClass('fa-check') ) {
                 $(this).children('input').removeProp('disabled');
+                file_count++;
             }
         });
 
-        var id_data = $("#FileDownloadForm > ul").attr('id').split(/_/);
+        var id_data = $("#ODRFileDownloadForm > ul").attr('id').split(/_/);
         var grandparent_datarecord_id = id_data[1];
 
         var url = '{{ path('odr_start_zip_archive_download', {'grandparent_datarecord_id': 0}) }}';
         url = url.substring(0, (url.length-1));
         url += grandparent_datarecord_id;
 
-        var file_list = $("#FileDownloadForm").serialize();
-        $("#FileDownloadForm_submit").attr('disabled', 'disabled');
+        console.log($("#ODRFileDownloadForm"));
+
+        var file_list = $("#ODRFileDownloadForm").serialize();
+        $("#ODRFileDownloadFormSubmit").attr('disabled', 'disabled');
+
+        // Init display of progress
+        $('#ODRFileDownloadForm_current').html("0");
+        $('#ODRFileDownloadForm_total').html(file_count);
+
+        // Hide before ajax stuff
+        $('#ODRFileDownloadFormWrapper').hide();
+        $("#ODRFileDownloadForm").html("");
+        $('#ODRFileDownloadForm_progress').show();
+        // Resize ODRFileDownloadModal to take up full height
+        resetRemodalInnerHeight();
 
         $.ajax({
             type: 'POST',
@@ -190,14 +210,6 @@
             success: function(data, textStatus, jqXHR) {
                 var archive_filename = data.d.archive_filename;
                 var archive_size = data.d.archive_size;
-
-                var element = $('#' + form_id);
-                $(element).find('#FileDownloadForm_build').hide();
-
-                $(element).find('#FileDownloadForm_current').html("0");
-                $(element).find('#FileDownloadForm_total').html(archive_size);
-                $(element).find('#FileDownloadForm_progress').show();
-
                 createZipArchiveProgressCheck(archive_filename, archive_size, form_id);
             },
             error: function (jqXHR, textStatus, errorThrown) {

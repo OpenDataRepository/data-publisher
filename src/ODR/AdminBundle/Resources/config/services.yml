@@ -46,7 +46,7 @@ services:
         class: ODR\OpenRepository\SearchBundle\Controller\DefaultController
 
 
-    #
+    # Services for improved data retrieval model
     odr.cache_service:
         class: ODR\AdminBundle\Component\Service\CacheService
         arguments:

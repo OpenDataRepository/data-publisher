@@ -123,7 +123,7 @@ class XSDController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xd6c39f82;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

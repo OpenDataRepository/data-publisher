@@ -218,7 +218,7 @@ class APIController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x5dc89429;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -525,7 +525,7 @@ class APIController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xd12ec6ee;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -789,7 +789,7 @@ class APIController extends ODRCustomController
 
             $source = 0xbbaafae5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

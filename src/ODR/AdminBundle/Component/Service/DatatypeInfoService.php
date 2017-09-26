@@ -71,8 +71,8 @@ class DatatypeInfoService
         // ----------------------------------------
         // Always bypass cache if in dev mode?
         $force_rebuild = false;
-        if ($this->environment == 'dev')
-            $force_rebuild = true;
+        //if ($this->environment == 'dev')
+            //$force_rebuild = true;
 
         // If list of top level datatypes exists in cache and user isn't demanding a fresh version, return that
         $top_level_datatypes = $this->cache_service->get('top_level_datatypes');
@@ -100,8 +100,13 @@ class DatatypeInfoService
             JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
             JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE dtm.is_link = 0 AND ancestor.setup_step IN (:setup_steps) AND descendant.setup_step IN (:setup_steps)
-            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+            WHERE dtm.is_link = 0 
+            AND ancestor.setup_step IN (:setup_steps) 
+            AND descendant.setup_step IN (:setup_steps)
+            AND dt.deletedAt IS NULL 
+            AND dtm.deletedAt IS NULL 
+            AND ancestor.deletedAt IS NULL 
+            AND descendant.deletedAt IS NULL'
         )->setParameters( array('setup_steps' => DataType::STATE_VIEWABLE) );
 
         $results = $query->getArrayResult();
@@ -152,6 +157,9 @@ class DatatypeInfoService
      */
     public function getDatatreeArray($force_rebuild = false)
     {
+        // TODO This is a tremendous waste of resources.  It should restrict to a datatype.
+        // TODO Need to check. This cache should be flushed when a datatype is added.
+        // TODO Also needs to update after a setup step change.
         // If datatree data exists in cache and user isn't demanding a fresh version, return that
         $datatree_array = $this->cache_service->get('cached_datatree_array');
         if ( $datatree_array !== false && count($datatree_array) > 0 && !$force_rebuild)
@@ -269,12 +277,12 @@ class DatatypeInfoService
      *
      * @return array
      */
-    public function getDatatypeArrayByDatarecords($datarecord_array)
+    public function getDatatypeArrayByDatarecords($datarecord_array, $parent_theme_id = null)
     {
         // Always bypass cache if in dev mode?
         $force_rebuild = false;
-        if ($this->environment == 'dev')
-            $force_rebuild = true;
+        //if ($this->environment == 'dev')
+            //$force_rebuild = true;
 
 
         // ----------------------------------------
@@ -292,7 +300,7 @@ class DatatypeInfoService
         foreach ($associated_datatypes as $num => $dt_id) {
             $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id);
             if ($force_rebuild || $datatype_data == false)
-                $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild);
+                $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild, $parent_theme_id);
 
             foreach ($datatype_data as $local_dt_id => $data)
                 $datatype_array[$local_dt_id] = $data;
@@ -311,18 +319,18 @@ class DatatypeInfoService
      *
      * @return array
      */
-    public function getDatatypeArray($datatype_ids)
+    public function getDatatypeArray($datatype_ids, $parent_theme_id = null, $force_rebuild = false)
     {
-        // Always bypass cache if in dev mode?
-        $force_rebuild = false;
-        if ($this->environment == 'dev')
-            $force_rebuild = true;
-
         $datatype_array = array();
         foreach ($datatype_ids as $num => $dt_id) {
-            $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id);
+            if($parent_theme_id == null) {
+                $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id.'_default');
+            }
+            else {
+                $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id.'_'.$parent_theme_id);
+            }
             if ($force_rebuild || $datatype_data == false)
-                $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild);
+                $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild, $parent_theme_id);
 
             foreach ($datatype_data as $dt_id => $data)
                 $datatype_array[$dt_id] = $data;
@@ -334,14 +342,19 @@ class DatatypeInfoService
 
     /**
      * Gets all layout information required for the given datatype in array format
+     * These should only store default themes when no theme parameter is sent.  When a
+     * theme id is sent, a specific theme should be loaded.
      *
      * @param integer $datatype_id
      * @param boolean $force_rebuild
      *
      * @return array
      */
-    private function buildDatatypeData($datatype_id, $force_rebuild = false)
+    private function buildDatatypeData($datatype_id, $force_rebuild = false, $parent_theme_id = null)
     {
+        // TODO this function needs to have $force_rebuild last and needs to be reconfigured to not call
+        // get datatree array over and over with force rebuild each time. Really, getDatatree needs to take a
+        // datatype id parameter and then this would make sense.
 /*
         $timing = true;
         $timing = false;
@@ -351,7 +364,12 @@ class DatatypeInfoService
             $t0 = microtime(true);
 */
         // If datatype data exists in cache and user isn't demanding a fresh version, return that
-        $cached_datatype_data = $this->cache_service->get('cached_datatype_'.$datatype_id);
+        if($parent_theme_id == null) {
+            $cached_datatype_data = $this->cache_service->get('cached_datatype_'.$datatype_id.'_default');
+        }
+        else {
+            $cached_datatype_data = $this->cache_service->get('cached_datatype_'.$datatype_id.'_'.$parent_theme_id);
+        }
         if ( $cached_datatype_data !== false && count($cached_datatype_data) > 0 && !$force_rebuild)
             return $cached_datatype_data;
 
@@ -360,8 +378,7 @@ class DatatypeInfoService
         $datatree_array = self::getDatatreeArray($force_rebuild);
 
         // Get all non-layout data for the requested datatype
-        $query = $this->em->createQuery(
-            'SELECT
+        $query_txt = 'SELECT
                 t, pt, st, tm,
                 dt, dtm, dt_cb, dt_ub, dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
                 te, tem,
@@ -408,9 +425,30 @@ class DatatypeInfoService
 
             WHERE
                 dt.id = :datatype_id
-                AND t.deletedAt IS NULL AND dt.deletedAt IS NULL AND te.deletedAt IS NULL
-            ORDER BY dt.id, t.id, tem.displayOrder, te.id, tdf.displayOrder, df.id, rom.displayOrder, ro.id'
-        )->setParameters( array('datatype_id' => $datatype_id) );
+                AND t.deletedAt IS NULL AND dt.deletedAt IS NULL AND te.deletedAt IS NULL';
+
+        if($parent_theme_id == null) {
+            // These are the default/system themes for the datatype
+            // TODO All default themes must be public.  Need to refactor for this change.
+            // $query_txt .= ' AND (pt.id IS NULL OR (tm.isDefault = 1 and (tm.public IS NOT NULL AND tm.public < CURRENT_TIMESTAMP())) ) ';
+            // Only MASTER Themes can have empty parents
+            $query_txt .= " AND pt.id IS NULL AND t.themeType = 'master'";
+        }
+        else {
+            // Note: two themes could have the same source theme, but no two top-level
+            // themes could have the same parent.  Only child themes could have the same
+            // parent theme
+            $query_txt .= " AND pt.id = :parent_theme_id";
+        }
+
+        $query_txt .= ' ORDER BY dt.id, t.id, tem.displayOrder, te.id, tdf.displayOrder, df.id, rom.displayOrder, ro.id';
+
+        if($parent_theme_id == null) {
+            $query = $this->em->createQuery($query_txt)->setParameters(array('datatype_id' => $datatype_id));
+        }
+        else {
+            $query = $this->em->createQuery($query_txt)->setParameters(array('datatype_id' => $datatype_id, 'parent_theme_id' => $parent_theme_id));
+        }
 
         $datatype_data = $query->getArrayResult();
 /*
@@ -502,7 +540,12 @@ class DatatypeInfoService
         }
 */
         // Save the formatted datarecord data back in the cache, and return it
-        $this->cache_service->set('cached_datatype_'.$datatype_id, $formatted_datatype_data);
+        if($parent_theme_id == null) {
+            $this->cache_service->set('cached_datatype_'.$dt_id.'_default', $formatted_datatype_data);
+        }
+        else {
+            $this->cache_service->set('cached_datatype_'.$dt_id.'_'.$parent_theme_id, $formatted_datatype_data);
+        }
         return $formatted_datatype_data;
     }
 

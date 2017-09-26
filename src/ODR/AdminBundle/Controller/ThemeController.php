@@ -19,34 +19,26 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
+
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataFieldsMeta;
-use ODR\AdminBundle\Entity\DataRecordFields;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioOptionsMeta;
-use ODR\AdminBundle\Entity\RenderPlugin;
-use ODR\AdminBundle\Entity\RenderPluginFields;
-use ODR\AdminBundle\Entity\RenderPluginInstance;
-use ODR\AdminBundle\Entity\RenderPluginMap;
-use ODR\AdminBundle\Entity\RenderPluginOptions;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
-use ODR\AdminBundle\Entity\ThemeMeta;
-use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
-use ODR\AdminBundle\Form\UpdateDataTreeForm;
 use ODR\AdminBundle\Form\UpdateThemeElementForm;
 use ODR\AdminBundle\Form\UpdateThemeDatafieldForm;
 use ODR\AdminBundle\Form\UpdateThemeDatatypeForm;
@@ -62,9 +54,94 @@ use Symfony\Component\Yaml\Exception\ParseException;
 class ThemeController extends ODRCustomController
 {
 
-    public function createuserthemeAction($datatype_id, Request $request)
-    {
+    public function userclonethemeAction(
+        $datatype_id,
+        $theme_id = 0,
+        Request $request
+    ) {
 
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Database');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if($user === "anon.")
+                throw new ODRForbiddenException('View');
+
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            // Users must have view permission
+            if (!(
+                isset($datatype_permissions[$datatype->getId()])
+                && isset($datatype_permissions[$datatype->getId()]['dt_view'])
+            ))
+                throw new ODRForbiddenException('View');
+
+
+            // Check if this is a master template based datatype that is still
+            // in the creation process.  If so, ask user to try again later.
+            if ($datatype->getSetupStep() != DataType::STATE_OPERATIONAL) {
+                // Return creating datatype template
+                $templating = $this->get('templating');
+                $return['t'] = "html";
+                $return['d'] = array();
+                $return['d']['html'] = $templating->render(
+                    'ODRAdminBundle:Datatype:create_status_checker.html.twig',
+                    array("datatype" => $datatype)
+                );
+            }
+
+            $repo_theme = $this->em->getRepository('ODRAdminBundle:Theme');
+            $original_theme = $repo_theme->find($theme_id);
+
+            if($original_theme != null) {
+                $theme_service = $this->container->get('odr.theme_service');
+                $theme = $theme_service->cloneTheme(
+                    $datatype,
+                    $original_theme,
+                    $user->getId()
+                );
+            }
+            else {
+                throw new ODRNotFoundException('View');
+            }
+
+
+            $return['d'] = array(
+                'datatype_id' => $datatype->getId(),
+                'html' => self::DisplayTheme($datatype, $original_theme->getThemeType(), $original_theme->getId(), $request),
+            );
+
+        } catch (\Exception $e) {
+            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
+                $request->setRequestFormat('json');
+
+            $source = 0x823cadf213;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
@@ -995,6 +1072,9 @@ class ThemeController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -1002,24 +1082,26 @@ class ThemeController extends ODRCustomController
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
+                throw new ODRNotFoundException("Datatype");
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
-            if (!(isset($datatype_permissions[$datatype->getId()]) && isset($datatype_permissions[$datatype->getId()]['dt_admin'])))
-                return parent::permissionDeniedError("edit");
+            // TODO Alternate settings for individual users to create their own themes...
+            if (!(isset($datatype_permissions[$datatype->getId()])
+                && isset($datatype_permissions[$datatype->getId()]['dt_admin'])))
+                throw new ODRForbiddenExceptions("edit");
             // --------------------
 
 
             // Check if this is a master template based datatype that is still
             // in the creation process.  If so, redirect to progress system.
-            if ($datatype->getSetupStep() == "create" && $datatype->getIsMasterType() == 0) {
+            if ($datatype->getSetupStep() == DataType::STATE_INITIAL
+                && $datatype->getIsMasterType() == 0) {
                 // Return creating datatype template
                 $templating = $this->get('templating');
                 $return['t'] = "html";
@@ -1031,13 +1113,16 @@ class ThemeController extends ODRCustomController
             } else {
                 $return['d'] = array(
                     'datatype_id' => $datatype->getId(),
-                    'html' => self::DisplayTheme($datatype, $theme_type, $theme_id, $request),
+                    'html' => self::DisplayTheme($datatype, $theme_type, $theme_id)
                 );
             }
         } catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x38288399 ' . $e->getMessage();
+            if ($e instanceof ODRException) {
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+            }
+            else {
+                throw new ODRException($e->getMessage(), 500,0x288399, $e);
+            }
         }
 
         $response = new Response(json_encode($return));
@@ -1059,31 +1144,21 @@ class ThemeController extends ODRCustomController
      */
     private function DisplayTheme($datatype, $template_type, $theme_id)
     {
-        // Don't need to check permissions
+        /** @var PermissionsManagementService $pm_service */
+        $pm_service = $this->container->get('odr.permissions_management_service');
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
 
         // Required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
         $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
-        $redis = $this->container->get('snc_redis.default');
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        // Always bypass cache in dev mode?
-        $bypass_cache = false;
-        if ($this->container->getParameter('kernel.environment') === 'dev')
-            $bypass_cache = true;
-
-        // Going to need this a lot...
-        $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
 
         // ----------------------------------------
-        // Load required objects based on parameters
         /** @var Theme $theme */
         $theme = null;
 
-        // Don't need to check whether these entities are deleted or not
         if ($theme_id > 0) {
             $theme = $repo_theme->find($theme_id);
         } else {
@@ -1099,43 +1174,47 @@ class ThemeController extends ODRCustomController
         // Determine whether the user is an admin of this datatype
         /** @var User $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
-        $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-        $datatype_permissions = $user_permissions['datatypes'];
+
+        // Anonymous users can not design their own themes.
+        if($user === "anon.")
+            throw new ODRForbiddenException("Access denied.");
+
+        $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
         $is_datatype_admin = false;
-        if (isset($datatype_permissions[$datatype->getId()]) && isset($datatype_permissions[$datatype->getId()]['dt_admin']))
+        if (isset($datatype_permissions[$datatype->getId()])
+            && isset($datatype_permissions[$datatype->getId()]['dt_admin'])
+        )
             $is_datatype_admin = true;
 
 
         // If theme is null, we need to create them cloning master.
-        // TODO Determine if master clone is always appropriate.
         // Create Datatype Service....
         if ($theme == null) {
             $theme_service = $this->container->get('odr.theme_service');
             $theme = $theme_service->cloneThemesForDatatype(
-                $datatype->getId(),
-                'master',
+                $datatype,
                 $template_type,
                 $user->getId()
             );
+            // If state is "incomplete" this makes it operational
+            if($datatype->getSetupStep() != DataType::STATE_OPERATIONAL) {
+                $datatype->setSetupStep(DataType::STATE_OPERATIONAL);
+                $em->persist($datatype);
+                $em->flush();
+            }
         }
 
         // ----------------------------------------
         // Determine which datatypes/childtypes to load from the cache
         $include_links = true;
-        $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype->getId()), $include_links);
+        $associated_datatypes = $dti_service->getAssociatedDatatypes(
+            array($datatype->getId()), $include_links
+        );
 
 
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $datatype_array = array();
-        foreach ($associated_datatypes as $num => $dt_id) {
-            $datatype_data = parent::getRedisData(($redis->get($redis_prefix . '.cached_datatype_' . $dt_id)));
-            if ($bypass_cache || $datatype_data == null)
-                $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
-
-            foreach ($datatype_data as $dt_id => $data)
-                $datatype_array[$dt_id] = $data;
-        }
+        $datatype_array = $dti_service->getDatatypeArray($associated_datatypes, $theme->getId(), true);
 
         // ----------------------------------------
         // Going to need an array of fieldtype ids and fieldtype typenames for notifications about changing fieldtypes
@@ -1431,8 +1510,11 @@ class ThemeController extends ODRCustomController
      *
      * @return Response
      */
-    public function savethemedatafieldAction($theme_element_id, $datafield_id, Request $request)
-    {
+    public function savethemedatafieldAction(
+        $theme_element_id,
+        $datafield_id,
+        Request $request
+    ) {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -1453,7 +1535,14 @@ class ThemeController extends ODRCustomController
 //            if ($theme_element == null)
 
             /** @var ThemeDataField $theme_datafield */
-            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(array('themeElement' => $theme_element_id, 'dataField' => $datafield_id));
+            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')
+                ->findOneBy(
+                    array(
+                        'themeElement' => $theme_element_id,
+                        'dataField' => $datafield_id
+                    )
+                );
+
             if ($theme_datafield == null)
                 return parent::deletedEntityError('ThemeDatafield');
 
@@ -1481,12 +1570,13 @@ class ThemeController extends ODRCustomController
             $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if (!(isset($datatype_permissions[$datatype->getId()]) && isset($datatype_permissions[$datatype->getId()]['dt_admin'])))
+            if (!(isset($datatype_permissions[$datatype->getId()])
+                && isset($datatype_permissions[$datatype->getId()]['dt_admin']))
+            ) {
                 return parent::permissionDeniedError("edit");
+            }
             // --------------------
 
-
-            //
             if ($theme->getThemeType() == 'table')
                 throw new \Exception('Unable to change properties of a Table theme');
 

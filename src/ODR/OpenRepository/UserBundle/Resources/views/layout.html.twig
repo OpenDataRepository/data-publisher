@@ -42,7 +42,7 @@
                 {% endfor %}
             {% endif %}
 
-            <div class="ODRContentWrapper pure-u-1">
+            <div class="ODRContentWrapper pure-u-1 pure-u-sm-1-2 pure-u-lg-1-3">
                 <div class="ODRThemeElement pure-u-1">
                     <div class="ODRInnerBox pure-u-1">
                         <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i>
@@ -59,14 +59,14 @@
                             {% block fos_user_content %}
                             {% endblock fos_user_content %}
                         </div>
+                        <div class="ODROAuthProviderList">
+                            {% include "ODROpenRepositoryOAuthClientBundle:Connect:login.html.twig" %}
+                        </div>
                     </div>
                 </div>
             </div>
 
         </div>
 
-        <div class="ODROAuthProviderList">
-            {% include "ODROpenRepositoryOAuthClientBundle:Connect:login.html.twig" %}
-        </div>
     </section>
 {% endblock body %}

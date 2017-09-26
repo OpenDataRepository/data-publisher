@@ -162,7 +162,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x2d4d92e6;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -268,7 +268,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x3d2835d5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -358,8 +358,6 @@ class EditController extends ODRCustomController
             foreach ($results as $result)
                 $affected_datarecords[] = $result['dr_id'];
 
-//print '<pre>'.print_r($affected_datarecords, true).'</pre>';  exit();
-
             // Grab all datarecords that link to any of the affected datarecords...don't really care about the other direction
             $query = $em->createQuery(
                'SELECT ancestor.id AS ancestor_id
@@ -374,19 +372,7 @@ class EditController extends ODRCustomController
             foreach ($results as $result)
                 $ancestor_datarecord_ids[] = $result['ancestor_id'];
 
-//print '<pre>'.print_r($ancestor_datarecord_ids, true).'</pre>';  exit();
 
-            // ----------------------------------------
-            // Perform a series of DQL mass updates to immediately remove everything that could break if it wasn't deleted...
-/*
-            // ...datarecordfield entries
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecordFields AS drf
-                SET drf.deletedAt = :now
-                WHERE drf.dataRecord IN (:datarecord_ids) AND drf.deletedAt IS NULL'
-            )->setParameters( array('now' => new \DateTime(), 'datarecord_ids' => $affected_datarecords) );
-            $rows = $query->execute();
-*/
             // ...linked_datatree entries
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:LinkedDataTree AS ldt
@@ -472,7 +458,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x2fb5590f;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -596,19 +582,6 @@ class EditController extends ODRCustomController
             foreach ($results as $result)
                 $ancestor_datarecord_ids[] = $result['ancestor_id'];
 
-//print '<pre>'.print_r($ancestor_datarecord_ids, true).'</pre>';  exit();
-
-            // ----------------------------------------
-            // Perform a series of DQL mass updates to immediately remove everything that could break if it wasn't deleted...
-/*
-            // ...datarecordfield entries
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecordFields AS drf
-                SET drf.deletedAt = :now
-                WHERE drf.dataRecord IN (:datarecord_ids) AND drf.deletedAt IS NULL'
-            )->setParameters( array('now' => new \DateTime(), 'datarecord_ids' => $affected_datarecords) );
-            $rows = $query->execute();
-*/
             // ...linked_datatree entries
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:LinkedDataTree AS ldt
@@ -672,7 +645,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x82bb1bb6;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -788,7 +761,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x08e2fe10;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -982,7 +955,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x5201b0cd;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1119,7 +1092,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xf051d2f4;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1246,7 +1219,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xee8e8649;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1485,7 +1458,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4093b173;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1612,7 +1585,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8b01c7e4;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1718,7 +1691,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x3df683c4;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1883,7 +1856,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x01019cfb;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2104,7 +2077,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x294a59c5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2460,7 +2433,7 @@ exit();
         catch (\Exception $e) {
             $source = 0x30878efd;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2726,7 +2699,7 @@ if ($debug)
         catch (\Exception $e) {
             $source = 0xdd047dcd;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2825,7 +2798,7 @@ if ($debug)
         catch (\Exception $e) {
             $source = 0xb61ecefa;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2918,7 +2891,7 @@ if ($debug)
         catch (\Exception $e) {
             $source = 0xc28be446;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3042,19 +3015,15 @@ if ($debug)
         // ----------------------------------------
         // Grab all datarecords "associated" with the desired datarecord...
         $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
-//print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 
         // Grab all datatypes associated with the desired datarecord
         // NOTE - specifically doing it this way because $dti_service->getDatatypeArrayByDatarecords() won't load datatype entries if datarecord doesn't have child/linked datatypes
         $include_links = true;
         $associated_datatypes = $dti_service->getAssociatedDatatypes(array($datatype->getId()), $include_links);
         $datatype_array = $dti_service->getDatatypeArray($associated_datatypes);
-//print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
 
         // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
         $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-//print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
-//print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 
 
         // ----------------------------------------
@@ -3069,9 +3038,6 @@ if ($debug)
             $stacked_datarecord_array[ $initial_datarecord_id ] = $dri_service->stackDatarecordArray($datarecord_array, $initial_datarecord_id);
             $stacked_datatype_array[ $child_datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $child_datatype->getId(), $theme->getId());
         }
-//print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
-//print '<pre>'.print_r($stacked_datatype_array, true).'</pre>';  exit();
-
 
         // ----------------------------------------
         // Render the requested version of this page
@@ -3435,7 +3401,7 @@ if ($debug)
         catch (\Exception $e) {
             $source = 0xe33cd134;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3471,6 +3437,8 @@ if ($debug)
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
 
             // Get Record In Question
@@ -3491,6 +3459,7 @@ if ($debug)
 
             // Grab the theme to use to display this
             // TODO - alternate themes?
+            // Currently only Master themes are used for Edit.
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
             if ($theme == null)
@@ -3501,24 +3470,23 @@ if ($debug)
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
-
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
-                $can_edit_datarecord = true;
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datafield_permissions = $pm_service->getDatafieldPermissions($user);
+            $can_edit_datarecord = $pm_service->checkDatatypePermission($user, $datatype_id, 'dr_edit');
 
             // Ensure user has permissions to be doing this
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datarecord )
+            // TODO Confirm that can_edit_record supersedes all others.
+            /*
+            if (
+                !($datatype->isPublic() || $can_view_datatype)
+                || !($datarecord->isPublic() || $can_view_datarecord)
+                || !$can_edit_datarecord
+            )
+                throw new ODRForbiddenException();
+            */
+
+            // Ensure user has permissions to be doing this
+            if (!$can_edit_datarecord)
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -3601,12 +3569,16 @@ if ($debug)
 
 
             // Build an array of values to use for navigating the search result list, if it exists
-            $search_header = parent::getSearchHeaderValues($datarecord_list, $datarecord->getId(), $request);
+            $search_header = parent::getSearchHeaderValues(
+                $datarecord_list,
+                $datarecord->getId(),
+                $request
+            );
 
             $router = $this->get('router');
             $templating = $this->get('templating');
 
-            $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));    // blank path
+            $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));
             $record_header_html = $templating->render(
                 'ODRAdminBundle:Edit:edit_header.html.twig',
                 array(
@@ -3641,7 +3613,7 @@ if ($debug)
         catch (\Exception $e) {
             $source = 0x409f64ee;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
