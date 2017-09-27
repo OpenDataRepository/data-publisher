@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * Open Data Repository Data Publisher
+ * ThemePreferences Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The ThemePreferences Entity is automatically generated from
+ * ./Resources/config/doctrine/ThemePreferences.orm.yml
+ *
+ */
+
 namespace ODR\AdminBundle\Entity;
 
 /**
@@ -38,9 +50,9 @@ class ThemePreferences
     private $theme;
 
     /**
-     * @var \ODR\AdminBundle\Entity\Datatype
+     * @var \ODR\AdminBundle\Entity\DataType
      */
-    private $datatype;
+    private $dataType;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -184,27 +196,27 @@ class ThemePreferences
     }
 
     /**
-     * Set datatype
+     * Set dataType
      *
-     * @param \ODR\AdminBundle\Entity\Datatype $datatype
+     * @param \ODR\AdminBundle\Entity\DataType $dataType
      *
      * @return ThemePreferences
      */
-    public function setDatatype(\ODR\AdminBundle\Entity\Datatype $datatype = null)
+    public function setDataType(\ODR\AdminBundle\Entity\Datatype $dataType = null)
     {
-        $this->datatype = $datatype;
+        $this->dataType = $dataType;
 
         return $this;
     }
 
     /**
-     * Get datatype
+     * Get dataType
      *
-     * @return \ODR\AdminBundle\Entity\Datatype
+     * @return \ODR\AdminBundle\Entity\DataType
      */
-    public function getDatatype()
+    public function getDataType()
     {
-        return $this->datatype;
+        return $this->dataType;
     }
 
     /**
@@ -254,10 +266,4 @@ class ThemePreferences
     {
         return $this->updatedBy;
     }
-    /**
-     * @var \ODR\AdminBundle\Entity\DataType
-     */
-    private $dataType;
-
-
 }

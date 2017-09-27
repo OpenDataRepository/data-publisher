@@ -57,6 +57,11 @@ class Theme
     private $themeElements;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $themePreferences;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
     private $dataType;
@@ -103,6 +108,7 @@ class Theme
     {
         $this->themeMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeElements = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->themePreferences = new \Doctrine\Common\Collections\ArrayCollection();
         $this->relatedThemes = new \Doctrine\Common\Collections\ArrayCollection();
         $this->relatedSourceThemes = new \Doctrine\Common\Collections\ArrayCollection();
     }
@@ -273,6 +279,39 @@ class Theme
     public function getThemeElements()
     {
         return $this->themeElements;
+    }
+
+    /**
+     * Add themePreferences
+     *
+     * @param \ODR\AdminBundle\Entity\ThemePreferences $themePreferences
+     * @return Theme
+     */
+    public function addThemePreference(\ODR\AdminBundle\Entity\ThemePreferences $themePreferences)
+    {
+        $this->themePreferences[] = $themePreferences;
+
+        return $this;
+    }
+
+    /**
+     * Remove themePreferences
+     *
+     * @param \ODR\AdminBundle\Entity\ThemePreferences $themePreferences
+     */
+    public function removeThemePreference(\ODR\AdminBundle\Entity\ThemePreferences $themePreferences)
+    {
+        $this->themePreferences->removeElement($themePreferences);
+    }
+
+    /**
+     * Get themePreferences
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getThemePreferences()
+    {
+        return $this->themePreferences;
     }
 
     /**

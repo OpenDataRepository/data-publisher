@@ -49,6 +49,13 @@ ODR\AdminBundle\Entity\Theme:
             inversedBy: null
             orphanRemoval: false
 
+        themePreferences:
+            targetEntity: ThemePreferences
+            cascade: { }
+            mappedBy: theme
+            inversedBy: null
+            orphanRemoval: false
+
         relatedThemes:
             targetEntity: Theme
             mappedBy: parentTheme
