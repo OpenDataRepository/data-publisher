@@ -28,6 +28,11 @@ class DataFields
     private $id;
 
     /**
+     * @var boolean
+     */
+    private $is_master_field;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -36,6 +41,11 @@ class DataFields
      * @var \DateTime
      */
     private $deletedAt;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $relatedMasterFields;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
@@ -63,6 +73,11 @@ class DataFields
     private $groupDatafieldPermissions;
 
     /**
+     * @var \ODR\AdminBundle\Entity\DataFields
+     */
+    private $masterDataField;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
     private $dataType;
@@ -88,6 +103,7 @@ class DataFields
      */
     public function __construct()
     {
+        $this->relatedMasterFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataRecordFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeDataFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->radioOptions = new \Doctrine\Common\Collections\ArrayCollection();
@@ -103,6 +119,30 @@ class DataFields
     public function getId()
     {
         return $this->id;
+    }
+
+    /**
+     * Set isMasterField
+     *
+     * @param boolean $isMasterField
+     *
+     * @return DataFields
+     */
+    public function setIsMasterField($isMasterField)
+    {
+        $this->is_master_field = $isMasterField;
+
+        return $this;
+    }
+
+    /**
+     * Get isMasterField
+     *
+     * @return boolean
+     */
+    public function getIsMasterField()
+    {
+        return $this->is_master_field;
     }
 
     /**
@@ -149,6 +189,40 @@ class DataFields
     public function getDeletedAt()
     {
         return $this->deletedAt;
+    }
+
+    /**
+     * Add relatedMasterField
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $relatedMasterField
+     *
+     * @return DataFields
+     */
+    public function addRelatedMasterField(\ODR\AdminBundle\Entity\DataFields $relatedMasterField)
+    {
+        $this->relatedMasterFields[] = $relatedMasterField;
+
+        return $this;
+    }
+
+    /**
+     * Remove relatedMasterField
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $relatedMasterField
+     */
+    public function removeRelatedMasterField(\ODR\AdminBundle\Entity\DataFields $relatedMasterField)
+    {
+        $this->relatedMasterFields->removeElement($relatedMasterField);
+    }
+
+    /**
+     * Get relatedMasterFields
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRelatedMasterFields()
+    {
+        return $this->relatedMasterFields;
     }
 
     /**
@@ -332,6 +406,30 @@ class DataFields
     public function getGroupDatafieldPermissions()
     {
         return $this->groupDatafieldPermissions;
+    }
+
+    /**
+     * Set masterDataField
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $masterDataField
+     *
+     * @return DataFields
+     */
+    public function setMasterDataField(\ODR\AdminBundle\Entity\DataFields $masterDataField = null)
+    {
+        $this->masterDataField = $masterDataField;
+
+        return $this;
+    }
+
+    /**
+     * Get masterDataField
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields
+     */
+    public function getMasterDataField()
+    {
+        return $this->masterDataField;
     }
 
     /**
@@ -599,130 +697,34 @@ class DataFields
     {
         return $this->getDataFieldMeta()->getRenderPlugin();
     }
-    /**
-     * @var boolean
-     */
-    private $is_master_field;
 
     /**
-     * @var integer
-     */
-    private $master_published_revision;
-
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $relatedMasterFields;
-
-    /**
-     * @var \ODR\AdminBundle\Entity\DataFields
-     */
-    private $masterDataField;
-
-
-    /**
-     * Set isMasterField
+     * Get master_published_revision
      *
-     * @param boolean $isMasterField
-     *
-     * @return DataFields
-     */
-    public function setIsMasterField($isMasterField)
-    {
-        $this->is_master_field = $isMasterField;
-
-        return $this;
-    }
-
-    /**
-     * Get isMasterField
-     *
-     * @return boolean
-     */
-    public function getIsMasterField()
-    {
-        return $this->is_master_field;
-    }
-
-    /**
-     * Set masterPublishedRevision
-     *
-     * @param integer $masterPublishedRevision
-     *
-     * @return DataFields
-     */
-    public function setMasterPublishedRevision($masterPublishedRevision)
-    {
-        $this->master_published_revision = $masterPublishedRevision;
-
-        return $this;
-    }
-
-    /**
-     * Get masterPublishedRevision
-     *
-     * @return integer
+     * @return int
      */
     public function getMasterPublishedRevision()
     {
-        return $this->master_published_revision;
+        return $this->getDataFieldMeta()->getMasterPublishedRevision();
     }
 
     /**
-     * Add relatedMasterField
+     * Get master_revision
      *
-     * @param \ODR\AdminBundle\Entity\DataFields $relatedMasterField
-     *
-     * @return DataFields
+     * @return int
      */
-    public function addRelatedMasterField(\ODR\AdminBundle\Entity\DataFields $relatedMasterField)
+    public function getMasterRevision()
     {
-        $this->relatedMasterFields[] = $relatedMasterField;
-
-        return $this;
+        return $this->getDataFieldMeta()->getMasterRevision();
     }
 
     /**
-     * Remove relatedMasterField
+     * Get tracking_master_revision
      *
-     * @param \ODR\AdminBundle\Entity\DataFields $relatedMasterField
+     * @return int
      */
-    public function removeRelatedMasterField(\ODR\AdminBundle\Entity\DataFields $relatedMasterField)
+    public function getTrackingMasterRevision()
     {
-        $this->relatedMasterFields->removeElement($relatedMasterField);
-    }
-
-    /**
-     * Get relatedMasterFields
-     *
-     * @return \Doctrine\Common\Collections\Collection
-     */
-    public function getRelatedMasterFields()
-    {
-        return $this->relatedMasterFields;
-    }
-
-    /**
-     * Set masterDataField
-     *
-     * @param \ODR\AdminBundle\Entity\DataFields $masterDataField
-     *
-     * @return DataFields
-     */
-    public function setMasterDataField(\ODR\AdminBundle\Entity\DataFields $masterDataField = null)
-    {
-        $this->masterDataField = $masterDataField;
-
-        return $this;
-    }
-
-    /**
-     * Get masterDataField
-     *
-     * @return \ODR\AdminBundle\Entity\DataFields
-     */
-    public function getMasterDataField()
-    {
-        return $this->masterDataField;
+        return $this->getDataFieldMeta()->getTrackingMasterRevision();
     }
 }

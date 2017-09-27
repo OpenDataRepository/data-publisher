@@ -135,6 +135,12 @@ class CreateDatatypeService
     private function persistObject($obj, $update_user_info = false)
     {
         //
+        if (method_exists($obj, "setCreated"))
+            $obj->setCreated(new \DateTime());
+        if (method_exists($obj, "setUpdated"))
+            $obj->setUpdated(new \DateTime());
+
+        //
         if ($update_user_info) {
             if (method_exists($obj, "setCreatedBy"))
                 $obj->setCreatedBy($this->user);

@@ -83,7 +83,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 
-//3456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
 
 class ODRCustomController extends Controller
 {
@@ -1916,6 +1915,7 @@ class ODRCustomController extends Controller
 
     /**
      * @todo - move to the permissions service?
+     * @deprecated
      *
      * Rebuilds the cached version of a group's datatype/datafield permissions array
      *

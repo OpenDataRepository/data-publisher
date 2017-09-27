@@ -18,6 +18,7 @@ namespace ODR\AdminBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\GroupMeta;
@@ -70,8 +71,13 @@ class PermissionsManagementService
      * @param UserManagerInterface $user_manager
      * @param Logger $logger
      */
-    public function __construct(EntityManager $entity_manager, CacheService $cache_service, DatatypeInfoService $datatype_info_service, UserManagerInterface $user_manager, Logger $logger)
-    {
+    public function __construct(
+        EntityManager $entity_manager,
+        CacheService $cache_service,
+        DatatypeInfoService $datatype_info_service,
+        UserManagerInterface $user_manager,
+        Logger $logger
+    ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->dti_service = $datatype_info_service;
@@ -79,80 +85,308 @@ class PermissionsManagementService
         $this->logger = $logger;
     }
 
+
     /**
-     * @param $user
+     * @param ODRUser $user
      * @param bool $force_rebuild
-     * @return mixed
+     *
+     * @return array
      */
-    public function getDatatypePermissions($user, $force_rebuild = false) {
-        if($user === "anon.") {
+    public function getDatatypePermissions($user, $force_rebuild = false)
+    {
+        if ($user === "anon.")
             return array();
-        }
+
         $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
         return $user_permissions['datatypes'];
     }
 
+
     /**
-     * @param $user
+     * @param ODRUser $user
      * @param bool $force_rebuild
-     * @return mixed
+     *
+     * @return array
      */
-    public function getDatafieldPermissions($user, $force_rebuild = false) {
-        if($user === "anon.") {
+    public function getDatafieldPermissions($user, $force_rebuild = false)
+    {
+        if ($user === "anon.")
             return array();
-        }
+
         $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
         return $user_permissions['datafields'];
     }
 
+
     /**
-     * @param $user
-     * @param $datatype_id
-     * @param $permission
+     * Returns whether the given user can view the given Datatype.
+     *
+     * @param ODRUser $user
+     * @param DataType $datatype
      * @param bool $force_rebuild
+     *
      * @return bool
      */
-    public function checkDatatypePermission($user, $datatype_id, $permission, $force_rebuild = false) {
-        if($user === "anon.") {
+    public function canViewDatatype($user, $datatype, $force_rebuild = false)
+    {
+        // If the datatype is public, then it can always be viewed
+        if ($datatype->isPublic())
+            return true;
+
+        // Otherwise, the datatype is non-public
+        // If the user isn't logged in, they can't view the datatype
+        if ($user === "anon.")
             return false;
-        }
+
+        // Otherwise, the user is logged in
         $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
         $datatype_permissions = $user_permissions['datatypes'];
 
-        $has_permission = false;
-        if ( isset($datatype_permissions[$datatype_id])
-            && isset($datatype_permissions[$datatype_id][$permission]) ) {
-            $has_permission = true;
+        if ( isset($datatype_permissions[ $datatype->getId() ])
+            && isset($datatype_permissions[ $datatype->getId() ]['dt_view']) ) {
+            // User has the can_view_datatype permission
+            return true;
         }
-
-        return $has_permission;
-    }
-
-    /**
-     * @param $user
-     * @param $datafield_id
-     * @param $permission
-     * @param bool $force_rebuild
-     * @return bool
-     */
-    public function checkDatafieldPermission($user, $datafield_id, $permission, $force_rebuild = false) {
-        if($user === "anon.") {
+        else {
+            // User does not have the can_view_datatype permission
             return false;
         }
+    }
+
+
+    /**
+     * Returns whether the given user can view the given Datarecord.
+     *
+     * @param ODRUser $user
+     * @param DataRecord $datarecord
+     * @param bool $force_rebuild
+     *
+     * @return bool
+     */
+    public function canViewDatarecord($user, $datarecord, $force_rebuild = false)
+    {
+        // If the datarecord is public, then it can always be viewed
+        if ($datarecord->isPublic())
+            return true;
+
+        // Otherwise, the datarecord is non-public
+        // If the user isn't logged in, they can't view the datarecord
+        if ($user === "anon.")
+            return false;
+
+        // Otherwise, the user is logged in
+        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $datatype_permissions = $user_permissions['datatypes'];
+
+        $datatype = $datarecord->getDatatype();
+        if ( isset($datatype_permissions[ $datatype->getId() ])
+            && isset($datatype_permissions[ $datatype->getId() ]['dr_view']) ) {
+            // User has the can_view_datarecord permission
+            return true;
+        }
+        else {
+            // User does not have the can_view_datarecord permission
+            return false;
+        }
+    }
+
+
+    /**
+     * Returns whether the given user can create a new Datarecord.
+     *
+     * @param ODRUser $user
+     * @param DataType $datatype
+     * @param bool $force_rebuild
+     *
+     * @return bool
+     */
+    public function canAddDatarecord($user, $datatype, $force_rebuild = false)
+    {
+        // If the user isn't logged in, they can't add new datarecords
+        if ($user === "anon.")
+            return false;
+
+        // Otherwise, the user is logged in
+        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $datatype_permissions = $user_permissions['datatypes'];
+
+        if ( isset($datatype_permissions[ $datatype->getId() ])
+            && isset($datatype_permissions[ $datatype->getId() ]['dr_add']) ) {
+            // User has the can_add_datarecord permission
+            return true;
+        }
+        else {
+            // User does not have the can_add_datarecord permission
+            return false;
+        }
+    }
+
+
+    /**
+     * Returns whether the given user can edit this Datarecord.
+     *
+     * @param ODRUser $user
+     * @param DataRecord $datarecord
+     * @param bool $force_rebuild
+     *
+     * @return bool
+     */
+    public function canEditDatarecord($user, $datarecord, $force_rebuild = false)
+    {
+        // If the user isn't logged in, they can't add edit datarecords
+        if ($user === "anon.")
+            return false;
+
+        // Otherwise, the user is logged in
+        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $datatype_permissions = $user_permissions['datatypes'];
+
+        $datatype = $datarecord->getDataType();
+        if ( isset($datatype_permissions[ $datatype->getId() ])
+            && isset($datatype_permissions[ $datatype->getId() ]['dr_edit']) ) {
+            // User has the can_edit_datarecord permission
+            return true;
+        }
+        else {
+            // User does not have the can_edit_datarecord permission
+            return false;
+        }
+    }
+
+
+    /**
+     * Returns whether the given user can delete the given Datarecord.
+     *
+     * @param ODRUser $user
+     * @param DataType $datatype
+     * @param bool $force_rebuild
+     *
+     * @return bool
+     */
+    public function canDeleteDatarecord($user, $datatype, $force_rebuild = false)
+    {
+        // If the user isn't logged in, they can't delete any datarecords
+        if ($user === "anon.")
+            return false;
+
+        // Otherwise, the user is logged in
+        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $datatype_permissions = $user_permissions['datatypes'];
+
+        if ( isset($datatype_permissions[ $datatype->getId() ])
+            && isset($datatype_permissions[ $datatype->getId() ]['dr_delete']) ) {
+            // User has the can_delete_datarecord permission
+            return true;
+        }
+        else {
+            // User does not have the can_delete_datarecord permission
+            return false;
+        }
+    }
+
+
+    // TODO - add the can_design_datatype permission?  it's ignored due to is_datatype_admin permission...
+
+
+    /**
+     * Returns whether the given user is considered an admin of the given Datatype.
+     *
+     * @param ODRUser $user
+     * @param DataType $datatype
+     * @param bool $force_rebuild
+     *
+     * @return bool
+     */
+    public function isDatatypeAdmin($user, $datatype, $force_rebuild = false)
+    {
+        // If the user isn't logged in, they aren't considered a datatype admin
+        if ($user === "anon.")
+            return false;
+
+        // Otherwise, the user is logged in
+        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $datatype_permissions = $user_permissions['datatypes'];
+
+        if ( isset($datatype_permissions[ $datatype->getId() ])
+            && isset($datatype_permissions[ $datatype->getId() ]['dt_admin']) ) {
+            // User has the is_datatype_admin permission
+            return true;
+        }
+        else {
+            // User does not have the is_datatype_admin permission
+            return false;
+        }
+    }
+
+
+    /**
+     * Returns whether the given user can view the given Datafield.
+     *
+     * @param ODRUser $user
+     * @param DataFields $datafield
+     * @param bool $force_rebuild
+     *
+     * @return bool
+     */
+    public function canViewDatafield($user, $datafield, $force_rebuild = false)
+    {
+        // If the datafield is public, then it can always be viewed
+        if ($datafield->isPublic())
+            return true;
+
+        // If the user isn't logged in, they can't view a non-public Datafield
+        if ($user === "anon.")
+            return false;
+
+        // Otherwise, the user is logged in
         $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
         $datafield_permissions = $user_permissions['datafields'];
 
-        $has_permission = false;
-        if ( isset($datafield_permissions[$datafield_id])
-            && isset($datafield_permissions[$datafield_id][$permission]) ) {
-            $has_permission = true;
+        if ( isset($datafield_permissions[ $datafield->getId() ])
+            && isset($datafield_permissions[ $datafield->getId() ]['view']) ) {
+            // User has the can_view_datafield permission
+            return true;
         }
-
-        return $has_permission;
+        else {
+            // User does not have the can_view_datafield permission
+            return false;
+        }
     }
 
+
     /**
-     * Gets and returns the permissions array for the given group.
+     * Returns whether the given user can edit the given Datafield.
+     *
+     * @param ODRUser $user
+     * @param DataFields $datafield
+     * @param bool $force_rebuild
+     *
+     * @return bool
+     */
+    public function canEditDatafield($user, $datafield, $force_rebuild = false)
+    {
+        // If the user isn't logged in, they can't edit any Datafield
+        if ($user === "anon.")
+            return false;
+
+        // Otherwise, the user is logged in
+        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $datafield_permissions = $user_permissions['datafields'];
+
+        if ( isset($datafield_permissions[ $datafield->getId() ])
+            && isset($datafield_permissions[ $datafield->getId() ]['edit']) ) {
+            // User has the can_view_datafield permission
+            return true;
+        }
+        else {
+            // User does not have the can_view_datafield permission
+            return false;
+        }
+    }
+
+
+    /**
+     * Gets and returns the permissions array for the given user.
      *
      * @param integer $user_id
      * @param boolean $force_rebuild
@@ -178,7 +412,7 @@ class PermissionsManagementService
             // ----------------------------------------
             // ...otherwise, get which groups the user belongs to
             $query = $this->em->createQuery(
-                'SELECT g.id AS group_id
+               'SELECT g.id AS group_id
                 FROM ODRAdminBundle:UserGroup AS ug
                 JOIN ODRAdminBundle:Group AS g WITH ug.group = g
                 WHERE ug.user = :user_id
@@ -199,7 +433,7 @@ class PermissionsManagementService
                 $permissions = $cache_service->get('group_'.$group_id.'_permissions');
 
                 if ( $force_rebuild || $permissions == false ) {
-                    $permissions = self::rebuildGroupPermissionsArray($this->em, $group_id);
+                    $permissions = self::rebuildGroupPermissionsArray($group_id);
                     $cache_service->set('group_'.$group_id.'_permissions', $permissions);
                 }
 
@@ -263,12 +497,95 @@ class PermissionsManagementService
         }
     }
 
+
+    /**
+     * Rebuilds the cached version of a group's datatype/datafield permissions array
+     *
+     * @param integer $group_id
+     *
+     * @return array
+     */
+    private function rebuildGroupPermissionsArray($group_id)
+    {
+        // Load all permission entities from the database for the given group
+        $query = $this->em->createQuery(
+           'SELECT g, gm, gdtp, dt, gdfp, df, df_dt
+            FROM ODRAdminBundle:Group AS g
+            JOIN g.groupMeta AS gm
+            LEFT JOIN g.groupDatatypePermissions AS gdtp
+            LEFT JOIN gdtp.dataType AS dt
+            LEFT JOIN g.groupDatafieldPermissions AS gdfp
+            LEFT JOIN gdfp.dataField AS df
+            LEFT JOIN df.dataType AS df_dt
+            WHERE g.id = :group_id
+            AND g.deletedAt IS NULL AND gm.deletedAt IS NULL AND gdtp.deletedAt IS NULL AND gdfp.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND df_dt.deletedAt IS NULL'
+        )->setParameters( array('group_id' => $group_id) );
+        $results = $query->getArrayResult();
+//exit( '<pre>'.print_r($results, true).'</pre>' );
+
+        // Read the query result to find...
+        $datarecord_restriction = '';
+        $datatype_permissions = array();
+        $datafield_permissions = array();
+
+        foreach ($results as $group) {
+            // Extract datarecord restriction first
+            $datarecord_restriction = $group['groupMeta'][0]['datarecord_restriction'];
+
+            // Build the permissions list for datatypes
+            foreach ($group['groupDatatypePermissions'] as $num => $permission) {
+                if ( !isset($permission['dataType']['id']) )
+                    continue;
+
+                $dt_id = $permission['dataType']['id'];
+                $datatype_permissions[$dt_id] = array();
+
+                if ($permission['can_view_datatype'])
+                    $datatype_permissions[$dt_id]['dt_view'] = 1;
+                if ($permission['can_view_datarecord'])
+                    $datatype_permissions[$dt_id]['dr_view'] = 1;
+                if ($permission['can_add_datarecord'])
+                    $datatype_permissions[$dt_id]['dr_add'] = 1;
+                if ($permission['can_delete_datarecord'])
+                    $datatype_permissions[$dt_id]['dr_delete'] = 1;
+//                if ($permission['can_design_datatype'])
+//                    $datatype_permissions[$dt_id]['dt_design'] = 1;
+                if ($permission['is_datatype_admin'])
+                    $datatype_permissions[$dt_id]['dt_admin'] = 1;
+            }
+
+            // Build the permissions list for datafields
+            foreach ($group['groupDatafieldPermissions'] as $num => $permission) {
+                $dt_id = $permission['dataField']['dataType']['id'];
+                if ( !isset($datafield_permissions[$dt_id]) )
+                    $datafield_permissions[$dt_id] = array();
+
+                $df_id = $permission['dataField']['id'];
+                $datafield_permissions[$dt_id][$df_id] = array();
+
+                if ($permission['can_view_datafield'])
+                    $datafield_permissions[$dt_id][$df_id]['view'] = 1;
+                if ($permission['can_edit_datafield'])
+                    $datafield_permissions[$dt_id][$df_id]['edit'] = 1;
+            }
+        }
+
+        // ----------------------------------------
+        // Return the final array
+        return array(
+            'datarecord_restriction' => $datarecord_restriction,
+            'datatypes' => $datatype_permissions,
+            'datafields' => $datafield_permissions,
+        );
+    }
+
+
     /**
      * Given a group's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.
      *
      * @param array &$datatype_array    @see DatatypeInfoService::getDatatypeArray()
      * @param array &$datarecord_array  @see DatarecordInfoService::getDatarecordArray()
-     * @param array $permissions_array  @see TODO
+     * @param array $permissions_array  @see self::getUserPermissionsArray()
      */
     public function filterByGroupPermissions(&$datatype_array, &$datarecord_array, $permissions_array)
     {

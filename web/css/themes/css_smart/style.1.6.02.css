@@ -1031,7 +1031,6 @@ h3.ODRThemeVisibleHiddenElement {
     margin-bottom: 0px;
 }
 
-<<<<<<< HEAD
 .ODRMarkdownContent {
     min-height: 50px;
     cursor: default;
@@ -1039,7 +1038,6 @@ h3.ODRThemeVisibleHiddenElement {
 .ODRMarkdownContent > p {
     margin: 5px 5px 10px;
 }
-=======
 
 /* jGrowl Styling */
 .jGrowl {
@@ -1076,4 +1074,3 @@ h3.ODRThemeVisibleHiddenElement {
     margin-right: -8px;
 }
 /* END jGrowl Styling */
->>>>>>> feature-theme_switcher

@@ -372,6 +372,9 @@ class EditController extends ODRCustomController
             foreach ($results as $result)
                 $ancestor_datarecord_ids[] = $result['ancestor_id'];
 
+            // ----------------------------------------
+            // Perform a series of DQL mass updates to immediately remove everything that could break if it wasn't deleted...
+            // TODO - datarecordfield entries?
 
             // ...linked_datatree entries
             $query = $em->createQuery(
@@ -581,6 +584,10 @@ class EditController extends ODRCustomController
             $ancestor_datarecord_ids = array();
             foreach ($results as $result)
                 $ancestor_datarecord_ids[] = $result['ancestor_id'];
+
+            // ----------------------------------------
+            // Perform a series of DQL mass updates to immediately remove everything that could break if it wasn't deleted...
+            // TODO - datarecordfield entries?
 
             // ...linked_datatree entries
             $query = $em->createQuery(
@@ -3437,9 +3444,8 @@ if ($debug)
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-
-
 
             // Get Record In Question
             /** @var DataRecord $datarecord */
@@ -3472,21 +3478,13 @@ if ($debug)
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
             $datafield_permissions = $pm_service->getDatafieldPermissions($user);
-            $can_edit_datarecord = $pm_service->checkDatatypePermission($user, $datatype_id, 'dr_edit');
+
+            $can_view_datatype = $pm_service->canViewDatatype($user, $datatype);
+            $can_view_datarecord = $pm_service->canViewDatarecord($user, $datarecord);
+            $can_edit_datarecord = $pm_service->canEditDatarecord($user, $datarecord);
 
             // Ensure user has permissions to be doing this
-            // TODO Confirm that can_edit_record supersedes all others.
-            /*
-            if (
-                !($datatype->isPublic() || $can_view_datatype)
-                || !($datarecord->isPublic() || $can_view_datarecord)
-                || !$can_edit_datarecord
-            )
-                throw new ODRForbiddenException();
-            */
-
-            // Ensure user has permissions to be doing this
-            if (!$can_edit_datarecord)
+            if (!$can_view_datatype || !$can_view_datarecord || !$can_edit_datarecord)
                 throw new ODRForbiddenException();
             // --------------------
 
