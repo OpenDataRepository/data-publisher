@@ -724,6 +724,7 @@ if ($debug)
     /**
      * When passed the array version of a User entity, this function will scrub the private/non-essential information
      * from that array and return it.
+     * @deprecated Use ODR\AdminBundle\Component\Utility\UserUtility instead.
      *
      * @param array $user_data
      *

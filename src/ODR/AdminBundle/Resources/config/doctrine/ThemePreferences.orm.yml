@@ -37,7 +37,7 @@ ODR\AdminBundle\Entity\ThemePreferences:
             targetEntity: Theme
             cascade: {  }
             mappedBy: null
-            inversedBy: themeMeta
+            inversedBy: null
             joinColumns:
                 theme_id:
                     referencedColumnName: id
@@ -47,7 +47,7 @@ ODR\AdminBundle\Entity\ThemePreferences:
             targetEntity: DataType
             cascade: {  }
             mappedBy: null
-            inversedBy: themePreferences
+            inversedBy: null
             joinColumns:
                 data_type_id:
                     referencedColumnName: id

@@ -40,6 +40,8 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+// Utility
+use ODR\AdminBundle\Component\Utility\UserUtility;
 
 
 class DatatypeController extends ODRCustomController
@@ -116,8 +118,8 @@ class DatatypeController extends ODRCustomController
 
                 $dt = $result;
                 $dt['dataTypeMeta'] = $result['dataTypeMeta'][0];
-                $dt['createdBy'] = $pm_service->cleanUserData($result['createdBy']);
-                $dt['updatedBy'] = $pm_service->cleanUserData($result['updatedBy']);
+                $dt['createdBy'] = UserUtility::cleanUserData($result['createdBy']);
+                $dt['updatedBy'] = UserUtility::cleanUserData($result['updatedBy']);
 
                 $datatypes[$dt_id] = $dt;
             }

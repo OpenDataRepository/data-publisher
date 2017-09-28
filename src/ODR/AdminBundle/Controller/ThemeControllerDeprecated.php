@@ -35,6 +35,8 @@ use ODR\AdminBundle\Form\UpdateThemeForm;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+// Utility
+use ODR\AdminBundle\Component\Utility\UserUtility;
 
 
 class ThemeController extends ODRCustomController
@@ -185,7 +187,7 @@ class ThemeController extends ODRCustomController
             foreach ($results as $num => $result) {
                 $theme_list[$num] = $result;
                 $theme_list[$num]['themeMeta'] = $theme_list[$num]['themeMeta'][0];
-                $theme_list[$num]['createdBy'] = parent::cleanUserData( $theme_list[$num]['createdBy'] );
+                $theme_list[$num]['createdBy'] = UserUtility::cleanUserData( $theme_list[$num]['createdBy'] );
             }
 
 //print_r($theme_list);  exit();

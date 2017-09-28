@@ -15,6 +15,8 @@ namespace ODR\AdminBundle\Component\Service;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 
+// Utility
+use ODR\AdminBundle\Component\Utility\UserUtility;
 
 class DatarecordInfoService
 {
@@ -296,8 +298,8 @@ class DatarecordInfoService
             // Flatten datarecord_meta
             $drm = $dr['dataRecordMeta'][0];
             $datarecord_data[$dr_num]['dataRecordMeta'] = $drm;
-            $datarecord_data[$dr_num]['createdBy'] = $this->pm_service->cleanUserData( $dr['createdBy'] );
-            $datarecord_data[$dr_num]['updatedBy'] = $this->pm_service->cleanUserData( $dr['updatedBy'] );
+            $datarecord_data[$dr_num]['createdBy'] = UserUtility::cleanUserData( $dr['createdBy'] );
+            $datarecord_data[$dr_num]['updatedBy'] = UserUtility::cleanUserData( $dr['updatedBy'] );
 
             // Store which datafields are used for the datatype's external_id_datafield, name_datafield, and sort_datafield
             $external_id_field = null;
@@ -359,7 +361,7 @@ class DatarecordInfoService
                     $drf['file'][$file_num]['fileMeta'] = $fm;
 
                     // Get rid of all private/non-essential information in the createdBy association
-                    $drf['file'][$file_num]['createdBy'] = $this->pm_service->cleanUserData( $drf['file'][$file_num]['createdBy'] );
+                    $drf['file'][$file_num]['createdBy'] = UserUtility::cleanUserData( $drf['file'][$file_num]['createdBy'] );
                 }
 
                 // Flatten image metadata, get rid of both the thumbnail's and the parent's encrypt keys, and sort appropriately
@@ -381,7 +383,7 @@ class DatarecordInfoService
                     $image['parent']['imageMeta'] = $im;
 
                     // Get rid of all private/non-essential information in the createdBy association
-                    $image['parent']['createdBy'] = $this->pm_service->cleanUserData( $image['parent']['createdBy'] );
+                    $image['parent']['createdBy'] = UserUtility::cleanUserData( $image['parent']['createdBy'] );
 
                     if ($sort_by_image_id) {
                         // Store by parent id
@@ -400,7 +402,7 @@ class DatarecordInfoService
                 $keys = array('boolean', 'integerValue', 'decimalValue', 'longText', 'longVarchar', 'mediumVarchar', 'shortVarchar', 'datetimeValue');
                 foreach ($keys as $typeclass) {
                     if ( count($drf[$typeclass]) > 0 ) {
-                        $drf[$typeclass][0]['createdBy'] = $this->pm_service->cleanUserData( $drf[$typeclass][0]['createdBy'] );
+                        $drf[$typeclass][0]['createdBy'] = UserUtility::cleanUserData( $drf[$typeclass][0]['createdBy'] );
 
                         // Store the value from this storage entity if it's the one being used for external_id/name/sort datafields
                         if ($external_id_field !== null && $external_id_field == $df_id) {
@@ -426,7 +428,7 @@ class DatarecordInfoService
                 // Organize radio selections by radio option id
                 $new_rs_array = array();
                 foreach ($drf['radioSelection'] as $rs_num => $rs) {
-                    $rs['createdBy'] = $this->pm_service->cleanUserData( $rs['createdBy'] );
+                    $rs['createdBy'] = UserUtility::cleanUserData( $rs['createdBy'] );
 
                     $ro_id = $rs['radioOption']['id'];
                     $new_rs_array[$ro_id] = $rs;

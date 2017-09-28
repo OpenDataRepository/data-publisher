@@ -44,6 +44,8 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+// Utility
+use ODR\AdminBundle\Component\Utility\UserUtility;
 
 
 class ODRGroupController extends ODRCustomController
@@ -567,7 +569,7 @@ class ODRGroupController extends ODRCustomController
 
                 // Never display a super-admin as a member of the group...it's effectively assumed they belong to all groups
                 if ( !in_array('ROLE_SUPER_ADMIN', $roles) ) {
-                    $user_data = $pm_service->cleanUserData($result);
+                    $user_data = UserUtility::cleanUserData($result);
                     $user_list[$user_id] = $user_data;
                 }
             }
@@ -671,7 +673,7 @@ class ODRGroupController extends ODRCustomController
                             $user_id = $ug['user']['id'];
 
                             if ( $ug['user']['enabled'] == 1 && !in_array('ROLE_SUPER_ADMIN', $ug['user']['roles']) ) {
-                                $user = $pm_service->cleanUserData($ug['user']);
+                                $user = UserUtility::cleanUserData($ug['user']);
                                 $group_list[$group_id]['users'][$user_id] = $user;
                             }
                         }
@@ -784,7 +786,7 @@ class ODRGroupController extends ODRCustomController
 
                 if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_admin']) ) {
                     $dt['dataTypeMeta'] = $dt['dataTypeMeta'][0];
-                    $dt['createdBy'] = $pm_service->cleanUserData( $dt['createdBy'] );
+                    $dt['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );
                     $datatypes[$dt_id] = $dt;
 
                     // Categorize groups by the original purpose of the group if stated, or by group id if a custom group
@@ -793,7 +795,7 @@ class ODRGroupController extends ODRCustomController
                         $group_id = $g['id'];
                         $purpose = $g['purpose'];
 
-                        $g['createdBy'] = $pm_service->cleanUserData( $g['createdBy'] );
+                        $g['createdBy'] = UserUtility::cleanUserData( $g['createdBy'] );
                         $g['groupMeta'] = $g['groupMeta'][0];
 
                         if ($purpose !== '')
