@@ -79,7 +79,7 @@
                     button_html += '>' + button.text + '</button>';
                 }
 
-                console.log(button_html)
+//                console.log(button_html)
                 modal.find(".ODRRemodalButtons").prepend(button_html);
 
                 // Setup click handler
@@ -106,7 +106,17 @@
 
         // Reset modal to display content.
         resetRemodalInnerHeight();
+    }
 
+    // Apparently calling the close() function on a remodal that isn't "opened" will fail silently
+    function closeODRRemodal() {
+        var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+
+        var state = inst.getState();
+        if (state === 'opened')
+            inst.close();
+        else if (state === 'opening')
+            setTimeout(closeODRRemodal, 100);
     }
 
 </script>

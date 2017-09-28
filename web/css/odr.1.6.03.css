@@ -3551,3 +3551,16 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     text-align: left;
     margin-left: 1em;
 }
+
+#ODRRenderPluginSettingsForm fieldset {
+    margin: 5px;
+    font-size: 1.2em;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 4px;
+}
+.ODRRenderPlugin_option_description {
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0px 5px;
+}

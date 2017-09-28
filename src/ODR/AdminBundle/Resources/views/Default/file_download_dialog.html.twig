@@ -29,7 +29,7 @@
                     title: 'You must select one or more files before this button becomes active.',
                     click: function() {
                         // Create/send a POST request of file ids
-                        submitForm( "#ODRFileDownloadForm" );
+                        submitFileDownloadForm( "#ODRFileDownloadForm" );
                     }
                 }
             ]
@@ -71,14 +71,13 @@
                     $('#ODRFileDownloadFormSubmit').click(function() {
                         var $el = $(this).parent().parent();
                         // Create/send a POST request of file ids
-                        submitForm( $el.attr('id') );
+                        submitFileDownloadForm( $el.attr('id') );
                     });
                 });
             },
             error: function (jqXHR, textStatus, errorThrown) {
-                // Don't need to create a jGrowl...close the dialog so it's not in some half-initialized state
-                var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-                inst.close();
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
             },
             complete: function (jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -170,7 +169,7 @@
         applyToParents(parent_checkbox_element);
     }
 
-    function submitForm(form_id) {
+    function submitFileDownloadForm(form_id) {
         var file_count = 0;
         $("#ODRFileDownloadForm").find('.binary').each(function() {
             if ( $(this).children('.fa').first().hasClass('fa-check') ) {
