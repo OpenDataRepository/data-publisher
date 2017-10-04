@@ -16,6 +16,7 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use Doctrine\ORM\EntityManager;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Controllers/Classes
@@ -39,6 +40,7 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeService;
 // Symfony
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
@@ -1779,6 +1781,103 @@ exit();
 
             $source = 0x81fad8c3;
             if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+    /**
+     *
+     * Determines a users options for customizing a theme.
+     *
+     * @param $datatype_id
+     * @param $theme_id
+     * @param Request $request
+     */
+    public function customize_theme_dialogAction($datatype_id, $theme_id, Request $request) {
+
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'json';
+        $return['d'] = '';
+
+        try {
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ($user === "anon.") {
+                throw new ODRForbiddenException(
+                    'Only logged in users can customize views.',
+                    8201929
+                );
+            }
+
+            // Permissions management service
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            // Entity manager
+            $em = $this->getDoctrine()->getManager();
+
+            // Datatype repository
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            /** @var DataType $datatype */
+            $datatype = $repo_datatype->find($datatype_id);
+
+            // Datatype must be public or you must have "view" access.
+            if($datatype->getDatatypeMeta()->getPublicDate() == null
+                || (
+                    $datatype->getDatatypeMeta()->getPublicDate() != null
+                    && $datatype->getDatatypeMeta()->getPublicDate() >= new \DateTime()
+                )
+            ) {
+                // Not Public so we need to check permissions Not Public so we need to check permissions Not Public so we need to check permissions Not Public so we need to check permissions Not Public so we need to check permissions Not Public so we need to check permissions Not Public so we need to check permissions Not Public so we need to check permissions Not Public so we need to check permissions
+                $can_view_datatype = $pm_service->canViewDatatype($user, $datatype);
+
+                // Ensure user has permissions to be doing this
+                if (!$can_view_datatype) {
+                    throw new ODRForbiddenException('', 8234928);
+                }
+            }
+
+
+            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+            $theme = $repo_theme->find($theme_id);
+            if($theme->getThemeMeta()->getPublic() == null
+                || (
+                    $theme->getThemeMeta()->getPublic() != null
+                    && $theme->getThemeMeta()->getPublic() >= new \DateTime()
+                )
+            ) {
+                // Theme is not public so you must be owner
+                if($theme->getCreatedBy()->getId() != $user->getId()) {
+                    throw new ODRForbiddenException('',12348208);
+                }
+            }
+
+            $templating = $this->get('templating');
+            $return['d'] = $templating->render(
+                'ODRAdminBundle:Default:customize_view_dialog.html.twig',
+                array(
+                    'theme' => $theme,
+                    'user' => $user
+                )
+            );
+
+            $response = new Response(json_encode($return));
+            $response->headers->set('Content-Type', 'application/json');
+            return $response;
+        }
+        catch (\Exception $e)
+        {
+            // Usually this'll be called via the jQuery fileDownload plugin, and therefore need a json-format error
+            // But in the off-chance it's a direct link, then the error format needs to remain html
+            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
+                $request->setRequestFormat('json');
+
+            $source = 0x823482;
+            if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
@@ -1794,9 +1893,9 @@ exit();
      *
      * @param $datatype_id
      * @param Request $request
-     * @return array
+     * @return Response $response
      */
-    public function availablethemesAction($datatype_id, Request $request) {
+    public function available_themesAction($datatype_id, Request $request) {
 
         $return = array();
         $return['r'] = 0;
@@ -1804,29 +1903,33 @@ exit();
         $return['d'] = '';
 
         try {
+            /** @var EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ThemeService $theme_service */
             $theme_service = $this->container->get('odr.theme_service');
 
+            /** @var Theme $theme */
             $themes = $theme_service->getAvailableThemes($datatype_id, 'master');
 
-            // Check user permissions
-            $em = $this->getDoctrine()->getManager();
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_admin = false;
-            if ( $user !== 'anon.' ) {
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
+            // Datatype repository
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            /** @var DataType $datatype */
+            $datatype = $repo_datatype->find($datatype_id);
 
-                if ($datatype_permissions[$datatype_id]['dt_admin'] == 1) {
-                    $datatype_admin = true;
-                }
-            }
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            // Check user permissions
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
 
             // Need to get personal default theme id
             $user_default_theme = $theme_service->getUserDefaultTheme($datatype_id, 'master');
 
             // Need to get personal default theme id
             $selected_theme = $theme_service->getSelectedTheme($datatype_id, 'master');
-
 
             $templating = $this->get('templating');
             $return['d'] = $templating->render(

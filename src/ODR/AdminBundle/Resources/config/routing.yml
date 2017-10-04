@@ -293,10 +293,31 @@ odr_add_types:
 #-----------------------------------------
 
 #-----------------------------------------
+
 # Theme Controller
+odr_apply_theme:
+    path:  /design/apply_view/{datatype_id}/{theme_id}/{session}
+    defaults: { _controller:ODRAdminBundle:Theme:modify_theme }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+
+odr_modify_theme:
+    path:  /design/modify_view/{datatype_id}/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:modify_theme }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+
+odr_check_clone_theme:
+    path:  /design/copy_view_check/{tracked_job_id}
+    defaults: { _controller:ODRAdminBundle:Theme:check_theme_progress }
+    requirements:
+        tracked_job_id:  \d+
+
 odr_clone_theme:
-    path:  /design/view/{datatype_id}/{theme_id}
-    defaults: { _controller:ODRAdminBundle:Theme:userclonetheme }
+    path:  /design/copy_view/{datatype_id}/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:clone_theme }
     requirements:
         datatype_id:  \d+
         theme_id:  \d+
@@ -748,10 +769,15 @@ odr_file_download:
 
 odr_get_available_themes:
     path:  /view/getthemes/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Display:availablethemes }
+    defaults: { _controller: ODRAdminBundle:Display:available_themes }
     requirements:
         datatype_id:  \d+
 
+odr_customize_view_dialog:
+    path:  /view/customize/{datatype_id}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Display:customize_theme_dialog }
+    requirements:
+        datatype_id:  \d+
 # deprecated
 # deprecated
 #odr_cancel_file_decrypt:

@@ -506,12 +506,16 @@ class DatatypeInfoService
                     foreach ($te['themeDataType'] as $tdt_num => $tdt) {
                         $child_datatype_id = $tdt['dataType']['id'];
 
-                        if ( isset($datatree_array['linked_from'][$child_datatype_id]) && in_array($datatype_id, $datatree_array['linked_from'][$child_datatype_id]) )
+                        if ( isset($datatree_array['linked_from'][$child_datatype_id])
+                            && in_array($datatype_id, $datatree_array['linked_from'][$child_datatype_id])
+                        )
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 1;
                         else
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 0;
 
-                        if ( isset($datatree_array['multiple_allowed'][$child_datatype_id]) && in_array($datatype_id, $datatree_array['multiple_allowed'][$child_datatype_id]) )
+                        if ( isset($datatree_array['multiple_allowed'][$child_datatype_id])
+                            && in_array($datatype_id, $datatree_array['multiple_allowed'][$child_datatype_id])
+                        )
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['multiple_allowed'] = 1;
                         else
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['multiple_allowed'] = 0;

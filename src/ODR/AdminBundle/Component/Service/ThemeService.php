@@ -4,6 +4,13 @@ namespace ODR\AdminBundle\Component\Service;
 
 
 // Symfony
+// use ODR\AdminBundle\Entity\RadioOptions;
+use ODR\AdminBundle\Entity\RenderPluginMap;
+use ODR\AdminBundle\Entity\RenderPluginOptions;
+use ODR\AdminBundle\Entity\ThemeElement;
+use ODR\AdminBundle\Entity\ThemeMeta;
+use ODR\AdminBundle\Entity\ThemePreferences;
+use ODR\OpenRepository\UserBundle\Entity\User;
 use Symfony\Component\DependencyInjection\ContainerInterface as Container;
 use Doctrine\ORM\EntityManager;
 
@@ -69,8 +76,28 @@ class ThemeService
         $this->logger = $logger;
     }
 
-    // availableThemes($datatype_id)
-    //    - restricted to current user
+    /**
+     * Gets a cached theme.
+     *
+     * I think this is probably not needed.
+     *
+     * @param $theme_id
+     * @param bool $force_rebuild
+    public function getTheme($theme_id, $force_rebuild = false) {
+        $theme = null;
+
+        $cache_service = $this->container->get('odr.cache_service');
+        $theme = $cache_service->get('default_theme_'.$datatype_id.'_'.$theme_type);
+
+        if($theme == false || $flush) {
+            // Get default theme for datatype and theme type
+            $repo_theme = $this->em->getRepository('ODRAdminBundle:Theme');
+            $theme = $repo_theme->find($theme_id);
+        }
+
+        return $theme;
+    }
+    */
 
     /**
      * Finds available themes for the selected datatype.
@@ -89,7 +116,7 @@ class ThemeService
         $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
         $datatype = $repo_datatype->find($datatype_id);
 
-        if($datatype == null) {
+        if ($datatype == null) {
             throw new \Exception("Datatype is null.");
         }
 
@@ -97,13 +124,21 @@ class ThemeService
         $qb->select('t')
             ->from('ODRAdminBundle:Theme', 't')
             ->leftJoin('t.themeMeta', 'tm')
-            ->where('t.dataType = :datatype_id')
-            ->andWhere('t.themeType like :theme_type')
-            ->addOrderBy('tm.displayOrder', 'ASC')
+            ->where('t.dataType = :datatype_id');
+
+        if ($theme_type == "master") {
+            // Custom views should also pull for master view lists
+            $qb->andWhere("t.themeType like :theme_type OR t.themeType like 'custom_view'");
+        }
+        else {
+            $qb->andWhere('t.themeType like :theme_type');
+        }
+
+        $qb->addOrderBy('tm.displayOrder', 'ASC')
             ->addOrderBy('tm.templateName', 'ASC')
             ->setParameters(array(
                 'datatype_id' => $datatype_id,
-                'theme_type' => $theme_type
+                'theme_type' => $theme_type,
             ));
 
         $query = $qb->getQuery();
@@ -112,7 +147,9 @@ class ThemeService
         $filtered_themes = array();
         if(count($available_themes) > 0) {
 
+            /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            /** @var Theme $theme */
             foreach($available_themes as $theme){
 
                 $add_theme = false;
@@ -170,12 +207,20 @@ class ThemeService
             $qb->select('t')
                 ->from('ODRAdminBundle:Theme', 't')
                 ->leftJoin('t.themeMeta', 'tm')
-                ->where('t.dataType = :datatype_id')
-                ->andWhere('t.themeType like :theme_type')
-                ->andWhere('tm.isDefault = 1')
+                ->where('t.dataType = :datatype_id');
+
+            if ($theme_type == "master") {
+                // Custom views should also pull for master view lists
+                $qb->andWhere("t.themeType like :theme_type OR t.themeType like 'custom_view'");
+            }
+            else {
+                $qb->andWhere('t.themeType like :theme_type');
+            }
+
+            $qb->andWhere('tm.isDefault = 1')
                 ->setParameters(array(
                     'datatype_id' => $datatype_id,
-                    'theme_type' => $theme_type
+                    'theme_type' => $theme_type,
                 ));
 
             $query = $qb->getQuery();
@@ -191,23 +236,77 @@ class ThemeService
         return $theme;
     }
 
-    /*
-    public function setSessionTheme($datatype_id, $theme_id) {
-        // Ensure theme is cached
-        foreach($session_themes as $theme_datatype_id => $theme) {
-            if($datatype_id == $theme_datatype_id) {
-                // Redis Key
-                $session_theme = "user_session_theme_" . $theme_preference['id'] . "_" . $theme['id'];
+    /**
+     * @param DataType $datatype
+     * @param Theme $theme
+     */
+    public function setSessionTheme($datatype, $theme) {
 
-                // Store theme in REDIS for user (short expiry).
-
-            }
+        $theme_type = $theme->getThemeType();
+        if($theme->getThemeType() == "custom_view") {
+            $theme_type = "master";
         }
-    }
-    */
+        if($theme->getThemeType() == "custom_search_results") {
+            $theme_type = "search_results";
+        }
 
+        $session = $this->container->get('session');
+        $session_themes = array();
+        if ($session->has("session_themes")) {
+            $session_themes = $session->get("session_themes");
+        }
+
+        // Set the theme
+        $session_themes[$datatype->getId()][$theme_type] = $theme;
+
+        // Assign array to session
+        $session->set("session_themes", $session_themes);
+
+    }
+
+    public function setUserDefaultTheme($datatype, $theme) {
+
+        $theme_type = $theme->getThemeType();
+
+        //
+        // Get user's default theme for datatype and theme type
+        $qb = $this->em->createQueryBuilder();
+        $qb->select('tp, t')
+            ->from('ODRAdminBundle:ThemePreferences', 'tp')
+            ->leftJoin('tp.theme', 't')
+            ->leftJoin('t.themeMeta', 'tm')
+            ->where('t.dataType = :datatype_id')
+            ->andWhere('tp.createdBy = :user_id')
+            ->andWhere('tp.isDefault = 1');
+
+        // Custom views should also pull for master view lists
+        $qb->andWhere("t.themeType like :theme_type OR t.themeType like 'custom_view'");
+
+        $qb->setParameters(array(
+                'datatype_id' => $datatype_id,
+                'theme_type' => $theme_type,
+                'user_id' => $user->getId(),
+            ));
+
+        $query = $qb->getQuery();
+        $user_themes_result = $query->getResult();
+
+        if(count($user_themes_result) > 0) {
+            /** @var ThemePreferences $user_theme_preference */
+            $user_theme_preference = $user_themes_result[0];
+            $user_theme = $user_theme_preference->getTheme();
+        }
+
+        return $user_theme;
+    }
+    /**
+     * @param $datatype_id
+     * @param $theme_type
+     * @return mixed|Theme
+     */
     public function getUserDefaultTheme($datatype_id, $theme_type) {
         $user_theme = self::getDefaultTheme($datatype_id, $theme_type);
+        /** @var User $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
         if($user === "anon.") {
             return $user_theme;
@@ -220,21 +319,32 @@ class ThemeService
             ->leftJoin('tp.theme', 't')
             ->leftJoin('t.themeMeta', 'tm')
             ->where('t.dataType = :datatype_id')
-            ->andWhere('t.themeType like :theme_type')
             ->andWhere('tp.createdBy = :user_id')
-            ->andWhere('tp.isDefault = 1')
+            ->andWhere('tp.isDefault = 1');
+
+        if ($theme_type == "master") {
+            // Custom views should also pull for master view lists
+            $qb->andWhere("t.themeType like :theme_type OR t.themeType like 'custom_view'");
+        }
+        else {
+            $qb->andWhere('t.themeType like :theme_type');
+        }
+
+        $qb->addOrderBy('tm.displayOrder', 'ASC')
             ->addOrderBy('tm.templateName', 'ASC')
             ->setParameters(array(
                 'datatype_id' => $datatype_id,
                 'theme_type' => $theme_type,
-                'user_id' => $user->getId()
+                'user_id' => $user->getId(),
             ));
 
         $query = $qb->getQuery();
         $user_themes_result = $query->getResult();
 
         if(count($user_themes_result) > 0) {
-            $user_theme = $user_themes_result[0]->getTheme();
+            /** @var ThemePreferences $user_theme_preference */
+            $user_theme_preference = $user_themes_result[0];
+            $user_theme = $user_theme_preference->getTheme();
         }
 
         return $user_theme;
@@ -318,12 +428,15 @@ class ThemeService
      * @param $datatype
      * @param $original_theme
      * @param $user_id
+     * @param $tracked_job_id
      * @return string
      */
     public function cloneTheme (
         DataType $datatype,
         Theme $original_theme,
-        $user_id
+        $user_id,
+        $tracked_job_id = 0
+
     ) {
 
         $theme = "";
@@ -336,13 +449,29 @@ class ThemeService
             // Get the Master Datatype to Clone
             $associated_datatypes = $datatype_info_service->getAssociatedDatatypes(array($datatype->getId()));
 
+
+            $to_type = $original_theme->getThemeType();
+            if ($original_theme->getThemeType() == "master") {
+                $to_type = "custom_view";
+            } else {
+                if (!preg_match("/^custom_/", $original_theme->getThemeType())) {
+                    $to_type = "custom_".$original_theme->getThemeType();
+                }
+            }
+
             // Clone datatype theme
             $theme = self::cloneDatatypeTheme(
                 $datatype,
                 $original_theme->getThemeType(),
-                $original_theme->getThemeType()
+                $to_type
             );
 
+            // Update tracked job if id given
+            if ($tracked_job_id > 0) {
+                /** @var TrackedJobService $tracked_job_service */
+                $tracked_job_service = $this->container->get('odr.tracked_job_service');
+                $tracked_job_service->incrementJobProgress($tracked_job_id, (count($associated_datatypes) + 1));
+            }
             // Set new theme to have parent_theme_id = itself
             $theme->setParentTheme($theme);
             self::persistObject($theme);
@@ -351,18 +480,30 @@ class ThemeService
             // The parent theme id is the "Custom" theme id to tie all the
             // related child themes to the same custom theme instance
             $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
-            foreach($associated_datatypes as $dt_id) {
+            /** @var DataType $assoc_datatype */
+            foreach ($associated_datatypes as $dt_id) {
                 $assoc_datatype = $repo_datatype->find($dt_id);
-                if($dt_id != $datatype->getId() && $assoc_datatype != null) {
+                if ($dt_id != $datatype->getId() && $assoc_datatype != null) {
                     self::cloneDatatypeTheme(
                         $assoc_datatype,
                         $original_theme->getThemeType(),
-                        $original_theme->getThemeType(),
+                        $to_type,
                         $theme
                     );
                 }
+                if ($tracked_job_id > 0) {
+                    /** @var TrackedJobService $tracked_job_service */
+                    $tracked_job_service->incrementJobProgress($tracked_job_id);
+                }
             }
 
+            if ($tracked_job_id > 0) {
+                if (!isset($tracked_job_service)) {
+                    $tracked_job_service = $this->container->get('odr.tracked_job_service');
+                }
+                $additional_data = array("theme_id" => $theme->getId());
+                $tracked_job_service->setAdditionalData($tracked_job_id, json_encode($additional_data));
+            }
             return $theme;
         }
         catch(\Exception $e) {
@@ -417,6 +558,7 @@ class ThemeService
             // related child themes to the same custom theme instance
             $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
             foreach($associated_datatypes as $dt_id) {
+                /** @var DataType $assoc_datatype */
                 $assoc_datatype = $repo_datatype->find($dt_id);
                 if($dt_id != $datatype->getId() && $assoc_datatype != null) {
                     self::cloneDatatypeTheme(
@@ -438,7 +580,7 @@ class ThemeService
             }
             $code = 0x12834;
             if ($e instanceof ODRException) {
-                throw new ODRException($e->getMessage(), $e->getStatusCode($code), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($code));
             }
             else {
                 throw new ODRBadRequestException(
@@ -487,7 +629,7 @@ class ThemeService
             $parent_rpi = $repo_rpi->findOneBy(
                 array(
                     'dataType' => $datatype->getId(),
-                    'renderPlugin' => $parent_render_plugin->getId()
+                    'renderPlugin' => $parent_render_plugin->getId(),
                 )
             );
         }
@@ -495,7 +637,7 @@ class ThemeService
             $parent_rpi = $repo_rpi->findOneBy(
                 array(
                     'dataField' => $datafield->getId(),
-                    'renderPlugin' => $parent_render_plugin->getId()
+                    'renderPlugin' => $parent_render_plugin->getId(),
                 )
             );
         }
@@ -508,6 +650,7 @@ class ThemeService
 
             //  LEFT JOIN dt_rpi.renderPluginOptions AS dt_rpo
             $parent_rpo_array = $parent_rpi->getRenderPluginOptions();
+            /** @var RenderPluginOptions $parent_rpo */
             foreach ($parent_rpo_array as $parent_rpo) {
                 $new_rpo = clone $parent_rpo;
                 $new_rpo->setRenderPluginInstance($new_rpi);
@@ -516,6 +659,7 @@ class ThemeService
 
             //  LEFT JOIN dt_rpi.renderPluginMap AS dt_rpm
             $parent_rpm_array = $parent_rpi->getRenderPluginMap();
+            /** @var RenderPluginMap $parent_rpm */
             foreach ($parent_rpm_array as $parent_rpm) {
                 $new_rpm = clone $parent_rpm;
                 $new_rpm->setRenderPluginInstance($new_rpi);
@@ -529,7 +673,7 @@ class ThemeService
                 $matching_df = $repo_df->findOneBy(
                     array(
                         'dataType' => $datatype->getId(),
-                        'masterDatafield' => $parent_rpm->getDataField()
+                        'masterDatafield' => $parent_rpm->getDataField(),
                     )
                 );
                 $new_rpm->setDataField($matching_df);
@@ -556,7 +700,7 @@ class ThemeService
         $parent_theme = $repo_theme->findOneBy(
             array(
                 'dataType' => $parent_datatype->getId(),
-                'themeType' => 'master'
+                'themeType' => 'master',
             )
         );
 
@@ -564,7 +708,7 @@ class ThemeService
         $datatype_theme = $repo_theme->findOneBy(
             array(
                 'dataType' => $datatype->getId(),
-                'themeType' => 'master'
+                'themeType' => 'master',
             )
         );
 
@@ -574,11 +718,13 @@ class ThemeService
             $this->em->flush();
         }
 
+        /** @var Theme $new_theme */
         $new_theme = clone $parent_theme;
         $new_theme->setDataType($datatype);
         self::persistObject($new_theme);
 
         // Theme Meta
+        /** @var ThemeMeta $new_theme_meta */
         $new_theme_meta = clone $parent_theme->getThemeMeta();
         $new_theme_meta->setTheme($new_theme);
         self::persistObject($new_theme_meta);
@@ -588,7 +734,9 @@ class ThemeService
 
         // Get Theme Elements
         $parent_te_array = $parent_theme->getThemeElements();
+        /** @var ThemeElement $parent_te */
         foreach($parent_te_array as  $parent_te) {
+            /** @var ThemeElement $new_te */
             $new_te = clone $parent_te;
             $new_te->setTheme($new_theme);
             self::persistObject($new_te);
@@ -618,6 +766,7 @@ class ThemeService
             foreach($parent_theme_dt_array as $parent_tdt) {
                 $new_tdt = clone $parent_tdt;
                 $new_tdt->setThemeElement($new_te);
+                /** @var DataType $created_datatype */
                 foreach($this->created_datatypes as $created_datatype) {
                     if($created_datatype->getMasterDataType()->getId() == $parent_tdt->getDataType()->getId()) {
                         $new_tdt->setDataType($created_datatype);
@@ -652,10 +801,11 @@ class ThemeService
         $datatype_theme = $repo_theme->findOneBy(
             array(
                 'dataType' => $datatype->getId(),
-                'themeType' => $from_theme_type
+                'themeType' => $from_theme_type,
             )
         );
 
+        /** @var Theme $new_theme */
         $new_theme = clone $datatype_theme;
         if($cloned_theme != null) {
             $new_theme->setParentTheme($cloned_theme);
@@ -672,13 +822,16 @@ class ThemeService
         self::persistObject($new_theme);
 
         // Theme Meta
+        /** @var ThemeMeta $new_theme_meta */
         $new_theme_meta = clone $datatype_theme->getThemeMeta();
         $new_theme_meta->setTheme($new_theme);
         self::persistObject($new_theme_meta);
 
         // Get Theme Elements
         $parent_te_array = $datatype_theme->getThemeElements();
+        /** @var ThemeElement $parent_te */
         foreach($parent_te_array as  $parent_te) {
+            /** @var ThemeElement $new_te */
             $new_te = clone $parent_te;
             $new_te->setTheme($new_theme);
             self::persistObject($new_te);

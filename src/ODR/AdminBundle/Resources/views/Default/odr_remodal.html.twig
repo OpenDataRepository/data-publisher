@@ -83,7 +83,7 @@
                 modal.find(".ODRRemodalButtons").prepend(button_html);
 
                 // Setup click handler
-                $("#" + button.id).click(button.click);
+                $("#" + button.id).unbind('click').click(button.click);
             }
         }
 

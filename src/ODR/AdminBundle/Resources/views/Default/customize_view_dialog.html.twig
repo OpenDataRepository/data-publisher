@@ -1,0 +1,80 @@
+{% spaceless %}
+
+    <div id="ODRChooseView" class="pure-u-1">
+        <div class="pure-u-1">
+            <h4>
+                Customization Options:
+            </h4>
+        </div>
+        <div class="pure-u-1 pure-u-md-24-24">
+            <h4>{% if theme.themeMeta.templateName != "" %}
+                    {{ theme.themeMeta.templateName }}
+                {% elseif theme.themeMeta.templateName == "" and theme.themeMeta.isDefault == 1 %}
+                    Default View
+                {% else %}
+                    Unnamed View.
+                {% endif %}
+            </h4>
+            <div class="pure-u-1">
+                Description:
+                {% if theme.themeMeta.templateDescription != "" %}
+                    {{ theme.themeMeta.templateDescription }}
+                {% elseif theme.themeMeta.templateName == "" and theme.themeMeta.isDefault == 1 %}
+                    Default view for selected database.
+                {% else %}
+                    No description.
+                {% endif %}
+            </div>
+        </div>
+        <div class="pure-u-1 pure-u-md-4-24"></div>
+        <div class="pure-u-1 pure-u-md-16-24 ODRChooseViewDescription">
+            <div class="pure-u-1">
+            {% if theme.createdby.id == user.id  and theme.themeType != "master" %}
+                <div class="pure-u-1">
+                    As the creator of this view, you may modify the existing view or create
+                    a copy of this view and modify the copy.
+                </div>
+                <div class="pure-u-1">
+                    Please select "copy and modify" or "modify" from the action buttons below, and
+                    you will be redirected to the view editor.
+                </div>
+            {% elseif theme.createdby.id == user.id  and theme.themeType == "master" %}
+                <div class="pure-u-1">
+                    Master themes can not be directly edited except through the master template editor.
+                    The master theme controls the edit layout as well as the view layout.  To create a new
+                    view, a copy must be made first.
+                </div>
+                <div class="pure-u-1">
+                    Please select "copy and modify" below, and
+                    you will be redirected to the view editor.
+                </div>
+            {% else %}
+                <div class="pure-u-1">
+                    Since you are not the original creator of this view, you must create a copy of
+                    the view before making modifications.
+                </div>
+                <div class="pure-u-1">
+                    Please select "copy and modify" below.  The view will be copied and
+                    you will be redirected to the view editor.
+                </div>
+            {% endif %}
+            </div>
+        </div>
+        <div class="pure-u-1 pure-u-md-4-24"></div>
+    </div>
+
+
+    <script>
+        $(function() {
+            var modify_button = $("#ODRButtonCustomizeView");
+            var copy_modify_button = $("#ODRButtonCopyModifyView");
+            {% if theme.createdby.id == user.id and theme.themeType != "master" %}
+                modify_button.show();
+                copy_modify_button.show();
+            {% else %}
+                modify_button.hide();
+                copy_modify_button.show();
+            {% endif %}
+        })
+    </script>
+{% endspaceless %}
