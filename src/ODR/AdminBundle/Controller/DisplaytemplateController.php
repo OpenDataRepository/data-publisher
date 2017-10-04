@@ -2891,9 +2891,11 @@ class DisplaytemplateController extends ODRCustomController
                     unset($required_fields[$plugin_id]);
                 }
             }
-//print_r($required_fields);
-//print_r($available_options);
-
+/*
+print '<pre>'.print_r($required_fields, true).'</pre>';
+print '<pre>'.print_r($available_options, true).'</pre>';
+exit();
+*/
 
             // Ensure the config file and the database are synched in regards to required fields for this render plugin
             $allowed_fieldtypes = array();
@@ -3640,7 +3642,7 @@ class DisplaytemplateController extends ODRCustomController
 
         // Going to need this a lot...
         // Need force rebuild = true
-        $datatree_array = $dti_service->getDatatreeArray(true);
+        $datatree_array = $dti_service->getDatatreeArray(true);     // TODO - don't let this reach master branch
 
         // ----------------------------------------
         // Load required objects based on parameters
@@ -5554,5 +5556,40 @@ if ($debug)
 
         // Didn't find a duplicate, return true
         return true;
+    }
+
+
+    /**
+     * This otherwise trivial controller action is needed in order to work with the modal dialog...
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function markdownhelpAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $return['d'] = array(
+                'html' => $this->get('templating')->render(
+                    'ODRAdminBundle:Displaytemplate:markdown_help_dialog_form.html.twig'
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x6c5fbda1;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 }

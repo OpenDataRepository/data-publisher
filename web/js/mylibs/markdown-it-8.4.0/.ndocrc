@@ -1,0 +1,25 @@
+#
+# Common nodeca config
+################################################################################
+
+--index         "./support/api_header.md"
+--package       "./package.json"
+--gh-ribbon     "https://github.com/{package.repository}"
+--output        "apidoc"
+--render        "html"
+--link-format   "https://github.com/{package.repository}/blob/master/{file}#L{line}"
+--broken-links  "show"
+
+
+#
+# Paths with sources
+################################################################################
+
+lib
+
+
+#
+# Project specific configuration
+################################################################################
+
+--show-all

@@ -157,11 +157,10 @@
     {% elseif field_typename == "DateTime" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1{% if is_datatype_admin %} Pointer{% endif %}">
-            <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
-
             {% if is_datatype_admin == true %}
                 <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="ODRPublicStatusIndicator Pointer fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
             {% endif %}
+            <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
         </label>
         <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
             <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly />

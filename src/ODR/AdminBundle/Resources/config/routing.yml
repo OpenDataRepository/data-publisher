@@ -576,6 +576,10 @@ odr_design_public_datafield:
     requirements:
         datafield_id:  \d+
 
+odr_markdown_help_dialog:
+    path:  /design/displaytemplate/markdownhelp
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:markdownhelp }
+
 #-----------------------------------------
 
 #-----------------------------------------

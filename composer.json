@@ -29,6 +29,7 @@
         "jms/di-extra-bundle": "1.4.*",
         "dterranova/crypto-bundle": "dev-master",
         "knplabs/knp-markdown-bundle": "~1.3",
+        "league/commonmark": "~0.15",
         "symfony/filesystem": "2.3.*",
         "ddeboer/data-import": "@stable",
         "phpunit/phpunit": "^4.8",

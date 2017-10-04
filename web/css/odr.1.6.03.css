@@ -975,12 +975,12 @@ pre,
 code {
     font-family: Consolas, 'Liberation Mono', Courier, monospace;
     color: #333;
-    background: rgb(250, 250, 250);
+    background: rgb(230, 230, 230);
 }
 
 code {
     padding: 0.2em 0.4em;
-    white-space: nowrap;
+    white-space: pre;
 }
 .content p code {
     font-size: 90%;

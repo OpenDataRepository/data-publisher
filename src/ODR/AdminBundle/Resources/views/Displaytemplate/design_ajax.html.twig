@@ -93,9 +93,15 @@
     <div id="plugin_settings_dialog_wrapper">
         {% include 'ODRAdminBundle:Displaytemplate:plugin_settings_dialog.html.twig' %}
     </div>
+    <div id="markdown_help_dialog_wrapper">
+        {% include 'ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig' %}
+    </div>
+
+{#  TODO - get this working again...
     <div id="deleted_fields_dialog_wrapper">
         {% include 'ODRAdminBundle:Displaytemplate:undelete_fields_dialog.html.twig' %}
     </div>
+#}
 
 {% endspaceless %}
 
@@ -1157,6 +1163,11 @@
 
     function InitDatafieldPropertiesForm() {
         // Init Field Properties forms
+        $(".ODRMarkdownHelp").unbind('click').click(function() {
+            {# defined in ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig #}
+            openMarkdownHelpDialog();
+        });
+
         $("#ThemeDesignForm").find(".ODRDeleteField").each(function() {
             var datafield_id_data = $(this).attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
@@ -1228,7 +1239,11 @@
                 // Want to update markdown fields immediately
                 if ( $(this).hasClass('ODRDatafieldMarkdown') ) {
                     var text = $(this).val();
-                    var markdown_text = window.Markdown(text);
+
+                    var md = window.markdownit();
+                    md.disable(['table', 'strikethrough', 'blockquote']);
+                    var markdown_text = md.render(text);
+
                     $("#Field_" + datafield_id).find(".ODRMarkdownContent").html(markdown_text);
                 }
 

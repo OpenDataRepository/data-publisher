@@ -1034,9 +1034,11 @@ h3.ODRThemeVisibleHiddenElement {
 .ODRMarkdownContent {
     min-height: 50px;
     cursor: default;
+    padding: 5px;
 }
-.ODRMarkdownContent > p {
-    margin: 5px 5px 10px;
+
+.ODRMarkdownContent p {
+    margin: 5px 10px;
 }
 
 /* jGrowl Styling */

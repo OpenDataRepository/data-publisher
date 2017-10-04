@@ -87,6 +87,9 @@
         <div class="pure-control-group">
             <label for="{{ datafield_form.markdown_text.vars.id }}">
                 <strong>{{ datafield_form.markdown_text.vars.label }}</strong>
+                <span class="ODRMarkdownHelp Pointer" title="Click here for a brief explanation of Markdown...">
+                    &nbsp;<i class="fa fa-question-circle fa-lg"></i>
+                </span>
             </label>
             {{ form_errors(datafield_form.markdown_text) }}
             {{ form_widget(datafield_form.markdown_text, { 'attr': {'class': 'ODRDatafieldMarkdown pure-u-23-24', 'style': 'min-height:300px;'} }) }}
