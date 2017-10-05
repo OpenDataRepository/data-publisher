@@ -297,10 +297,11 @@ odr_add_types:
 # Theme Controller
 odr_apply_theme:
     path:  /design/apply_view/{datatype_id}/{theme_id}/{session}
-    defaults: { _controller:ODRAdminBundle:Theme:modify_theme }
+    defaults: { _controller:ODRAdminBundle:Theme:apply_theme }
     requirements:
         datatype_id:  \d+
         theme_id:  \d+
+        session: 0|1
 
 odr_modify_theme:
     path:  /design/modify_view/{datatype_id}/{theme_id}

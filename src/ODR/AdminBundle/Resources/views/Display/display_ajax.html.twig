@@ -108,13 +108,73 @@
         });
     }
 
-    function applyView() {
+    function applyView(theme_id, redirect, session) {
+        if(redirect === undefined) {
+            redirect = true;
+        }
+        if(session === undefined) {
+            session = 1;
+        }
 
+        var url = '{{ path('odr_apply_theme', { 'datatype_id': datatype.id, 'theme_id': 0, 'session': 0   }) }}';
+        url = url.substr(0, (url.length - 3)) + theme_id + "/" + session;
+
+        // set view
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                if(redirect) {
+                    url = window.location.hash.substr(1);
+                    // Load the URL as usual
+                    var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+                    inst.close();
+                    LoadContentFullAjax( url );
+                }
+                // Without redirect, this just sets the view preference
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // TODO figure out why this is firing early...
+                // Probably need a promise
+                // Don't need to create a jGrowl because exception
+                // handlers will automatically display. Close the dialog
+                // so it's not in some half-initialized state.
+                var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+                inst.close();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
     }
 
     function modifyView(event) {
-        // Hash change event will load theme
+        var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+        inst.close();
         window.location.hash = '{{ path('odr_modify_theme', { 'datatype_id': datatype.id, 'theme_id': theme_id }) }}';
+    }
+
+    function openModifyThemeEditor(theme_id) {
+        // Close the modal
+        var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+        inst.close();
+
+        var url = '{{ path('odr_modify_theme', { 'datatype_id': datatype.id, 'theme_id': 0 }) }}';
+        url = url.substr(0,(url.length - 1)) + theme_id;
+        // Hash change event will load theme
+        window.location.hash = url
     }
 
     function checkCopyProgress(tracked_job_id, ) {
@@ -130,20 +190,19 @@
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
                 if(data.d.completed !== null) {
-                    $(".ODRRemodalBody").html( '<div class="pure-u-1"><h4>Copying Theme</h4><p>' +
-                        Math.floor(data.d.current/data.d.total * 100) + '%</p></div>' + data.d.current + " " + data.d.total );
+                    $(".ODRCopyViewProgress").html(Math.floor(data.d.current/data.d.total * 100) + '%');
                     // show complete
-                    var url = '{{ path('odr_modify_theme', { 'datatype_id': datatype.id, 'theme_id': 0 }) }}';
-                    url = url.substr(0,(url.length - 1)) + data.d.additional_data.theme_id;
-                    // Hash change event will load theme
-                    window.location.hash = url;
 
-                    var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-                    inst.close();
+                    // Set copied theme preferred view for session
+                    applyView(data.d.additonal_data.theme_id, 0, 1);
+
+                    // Hash change event will load theme
+                    // TODO This should probably be a callback.
+                    openModifyThemeEditor(data.d.additonal_data.theme_id);
+
                 }
                 else {
-                    $(".ODRRemodalBody").html( '<div class="pure-u-1"><h4>Copying Theme</h4><p>' +
-                        Math.floor(data.d.current/data.d.total * 100) + '%</p></div>' + data.d.current + " " + data.d.total );
+                    $(".ODRCopyViewProgress").html(Math.floor(data.d.current/data.d.total * 100) + '%');
 
                     // TODO This needs to be a cancelable interval
                     setTimeout("checkCopyProgress(" + tracked_job_id + ")", 1000);
@@ -185,8 +244,8 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                $(".ODRRemodalBody").html( '<div class="pure-u-1"><h4>Copying Theme</h4><p>' +
-                    Math.floor(data.d.current/data.d.total) + '%</p></div>' );
+                $(".ODRRemodalBody").html( '<div class="pure-u-1"><h4>Copying View</h4><div class="pure-u-1 ODRCopyViewProgress loading-text">' +
+                    Math.floor(data.d.current/data.d.total * 100) + '%</div></div>');
 
                 // Call Checker
                 checkCopyProgress(data.d.id)
@@ -298,6 +357,23 @@
         });
     }
 
+    function initChooseViewButtons() {
+        $(".ODRDefaultPersonal").click(function() {
+            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            console.log('Apply personal default theme: ' + theme_id);
+            applyView(theme_id, 1, 0);
+        });
+        $(".ODRMakeCurrentView").click(function() {
+            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            console.log('Apply theme: ' + theme_id);
+            applyView(theme_id, 1, 1);
+        });
+        // .ODRMakeViewPublic,
+        // .ODRDefaultDatabase,
+        // .ODREditThemeName,
+        // .ODRDeleteTheme
+    }
+
     function chooseView() {
         modal_options = {
             title: "Choose from available views:",
@@ -310,7 +386,7 @@
                     // secondary: true, // Secondary button style
                     disabled: true, // Set button style disabled
                     title: 'Click to apply the selected view..',
-                    click: applyView,
+                    click: applyView
                 }
             ]
         };
@@ -326,7 +402,8 @@
                 $(".ODRRemodalLoading").fadeOut('150', function() {
                     $(".ODRRemodalBody").show();
                     $(".ODRRemodalButtons").show();
-                    resetRemodalInnerHeight()
+                    resetRemodalInnerHeight();
+                    initChooseViewButtons();
                 });
 
                 // Check theme count

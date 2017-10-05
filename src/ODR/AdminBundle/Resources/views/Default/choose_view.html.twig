@@ -29,7 +29,10 @@
                         No description.
                     {% endif %}
                     {% if theme.id == selected_theme.id %}
-                        <div class="ODRViewNote">[ This is your currently selected view. ]</div>
+                        <div class="ODRViewNote">[ Currently selected view. ]</div>
+                    {% endif %}
+                    {% if theme.id == user_default_theme.id %}
+                        <div class="ODRViewNote">[ Personal default view. ]</div>
                     {% endif %}
                 </div>
                 <div class="pure-u-1 pure-u-md-5-24">

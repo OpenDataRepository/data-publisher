@@ -114,6 +114,7 @@ class ThemeService
 
         // Get the DataType to work with
         $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
+        /** @var DataType $datatype */
         $datatype = $repo_datatype->find($datatype_id);
 
         if ($datatype == null) {
@@ -161,7 +162,7 @@ class ThemeService
                 }
                 else if(
                     $user != "anon."
-                    && $theme->getCreatedBy()->getId() != $user->getId()
+                    && $theme->getCreatedBy()->getId() == $user->getId()
                 ) {
                     // Check if user has access
                     $add_theme = true;
@@ -190,6 +191,59 @@ class ThemeService
     }
 
     /**
+     * Sets a user's personal default theme for a given datatype.
+     * @param DataType $datatype
+     * @param Theme $theme
+     * @return ThemePreferences
+     */
+    public function setUserDefaultTheme($datatype, $theme) {
+
+        $repo_theme_preferences = $this->em->getRepository('ODRAdminBundle:ThemePreferences');
+        $theme_preferences = $repo_theme_preferences->findBy(array(
+            'datatype' => $datatype->getId()
+        ));
+
+        // Check if we have a type match
+        /** @var ThemePreferences $theme_preference */
+        $theme_preference = null;
+        /** @var ThemePreferences $tp */
+        foreach($theme_preferences as $tp) {
+            if($tp->getTheme()->getThemeType() == $theme->getThemeType()) {
+                $theme_preference = $tp;
+            }
+            else if(
+                $theme->getThemeType() == "custom_view"
+                && $tp->getTheme()->getThemeType() == "master"
+            ) {
+                $theme_preference = $tp;
+            }
+        }
+
+
+        /** @var User $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+        if($theme_preference == null) {
+            $theme_preference = new ThemePreferences();
+            $theme_preference->setCreatedBy($user);
+            $theme_preference->setDatatype($datatype);
+        }
+
+        // Modify preferences
+        $theme_preference->setTheme($theme);
+        $theme_preference->setIsDefault(1);
+        $theme_preference->setUpdatedBy($user);
+
+        $this->em->persist($theme_preference);
+        $this->em->flush();
+
+        return $theme_preference;
+    }
+
+    /**
+     * @param DataType $datatype
+     * @param Theme $theme
+     */
+    /**
      * @param $datatype_id
      * @param $theme_type
      * @param bool $flush
@@ -197,8 +251,9 @@ class ThemeService
      */
     public function getDefaultTheme($datatype_id, $theme_type, $flush = false) {
 
+        /** @var CacheService $cache_service */
         $cache_service = $this->container->get('odr.cache_service');
-
+        /** @var Theme $theme */
         $theme = $cache_service->get('default_theme_'.$datatype_id.'_'.$theme_type);
 
         if($theme == false || $flush) {
@@ -264,41 +319,6 @@ class ThemeService
 
     }
 
-    public function setUserDefaultTheme($datatype, $theme) {
-
-        $theme_type = $theme->getThemeType();
-
-        //
-        // Get user's default theme for datatype and theme type
-        $qb = $this->em->createQueryBuilder();
-        $qb->select('tp, t')
-            ->from('ODRAdminBundle:ThemePreferences', 'tp')
-            ->leftJoin('tp.theme', 't')
-            ->leftJoin('t.themeMeta', 'tm')
-            ->where('t.dataType = :datatype_id')
-            ->andWhere('tp.createdBy = :user_id')
-            ->andWhere('tp.isDefault = 1');
-
-        // Custom views should also pull for master view lists
-        $qb->andWhere("t.themeType like :theme_type OR t.themeType like 'custom_view'");
-
-        $qb->setParameters(array(
-                'datatype_id' => $datatype_id,
-                'theme_type' => $theme_type,
-                'user_id' => $user->getId(),
-            ));
-
-        $query = $qb->getQuery();
-        $user_themes_result = $query->getResult();
-
-        if(count($user_themes_result) > 0) {
-            /** @var ThemePreferences $user_theme_preference */
-            $user_theme_preference = $user_themes_result[0];
-            $user_theme = $user_theme_preference->getTheme();
-        }
-
-        return $user_theme;
-    }
     /**
      * @param $datatype_id
      * @param $theme_type
@@ -358,9 +378,10 @@ class ThemeService
      *
      * @param $datatype_id
      * @param $theme_type
+     * @param boolean $flush
      * @return mixed
      */
-    public function getSelectedTheme($datatype_id, $theme_type){
+    public function getSelectedTheme($datatype_id, $theme_type, $flush = false){
         $theme = "default";
         if($this->container->get('session')->isStarted()) {
             $session = $this->container->get('session');
@@ -374,6 +395,7 @@ class ThemeService
             if(count($user_themes) > 0
                 && isset($user_themes[$datatype_id])
                 && isset($user_themes[$datatype_id][$theme_type])
+                && !$flush
                 ) {
                 $theme = $user_themes[$datatype_id][$theme_type];
             }
@@ -392,6 +414,8 @@ class ThemeService
                 $session_themes = $session->get("session_themes");
             }
 
+            // These don't need to be flushed because the array is directly modified
+            // by set sesion theme.
             if(count($session_themes) > 0
                 && isset($session_themes[$datatype_id])
                 && isset($session_themes[$datatype_id][$theme_type])
@@ -449,7 +473,6 @@ class ThemeService
             // Get the Master Datatype to Clone
             $associated_datatypes = $datatype_info_service->getAssociatedDatatypes(array($datatype->getId()));
 
-
             $to_type = $original_theme->getThemeType();
             if ($original_theme->getThemeType() == "master") {
                 $to_type = "custom_view";
@@ -475,6 +498,14 @@ class ThemeService
             // Set new theme to have parent_theme_id = itself
             $theme->setParentTheme($theme);
             self::persistObject($theme);
+
+            // Unset "is_default" since all user copied themes must be
+            // explicitly set to default by an admin or selected as the
+            // user's personal default.
+            $theme_meta = $theme->getThemeMeta();
+            $theme_meta->setIsDefault(0);
+            self::persistObject($theme_meta);
+
 
             // Clone Associated Datatypes
             // The parent theme id is the "Custom" theme id to tie all the
@@ -696,7 +727,9 @@ class ThemeService
     ) {
         // Get Themes
         $repo_theme = $this->em->getRepository('ODRAdminBundle:Theme');
+        /** @var DataType $parent_datatype */
         $parent_datatype = $datatype->getMasterDataType();
+        /** @var Theme $parent_theme */
         $parent_theme = $repo_theme->findOneBy(
             array(
                 'dataType' => $parent_datatype->getId(),

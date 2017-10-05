@@ -49,7 +49,7 @@ ODR\AdminBundle\Entity\ThemePreferences:
             mappedBy: null
             inversedBy: null
             joinColumns:
-                data_type_id:
+                datatype_id:
                     referencedColumnName: id
             orphanRemoval: false
 

@@ -140,13 +140,23 @@ class ThemeController extends ODRCustomController
                )
             ) {
 
+                /** @var ThemeService $theme_service */
+                $theme_service = $this->container->get('odr.theme_service');
                 if($session) {
-                    /** @var ThemeService $theme_service */
-                    $theme_service = $this->container->get('odr.theme_service');
                     $theme_service->setSessionTheme($datatype, $theme);
                 }
                 else {
+                    // Set selected theme to session theme
+                    $theme_service->setSessionTheme($datatype, $theme);
                     // Set as User Default for Datatype...
+                    $theme_service->setUserDefaultTheme($datatype, $theme);
+
+                    // Flush theme for user.
+                    $theme_type = $theme->getThemeType();
+                    if($theme_type == "choose_view") {
+                        $theme_type = "master";
+                    }
+                    $theme_service->getSelectedTheme($datatype->getId(), $theme_type, true);
                 }
 
                 $return['d'] = "success";
@@ -287,6 +297,7 @@ class ThemeController extends ODRCustomController
      * TODO - This should be in a tracked job controller...
      *
      * @param $tracked_job_id
+     * @return TrackedJob array
      */
     public function check_theme_progressAction(
         $tracked_job_id
@@ -2463,7 +2474,8 @@ class ThemeController extends ODRCustomController
             // ----------------------------------------
             // Ensure there's not a child or linked datatype in the ending theme_element before actually moving this datafield into it
             /** @var ThemeDataType[] $theme_datatypes */
-            $theme_datatypes = $em->getRepository('ODRAdminBundle:ThemeDataType')->findBy( array('themeElement' => $ending_theme_element_id) );
+            $theme_datatypes = $em->getRepository('ODRAdminBundle:ThemeDataType')
+                ->findBy( array('themeElement' => $ending_theme_element_id) );
             if ( count($theme_datatypes) > 0 )
                 throw new \Exception('Unable to move a Datafield into a ThemeElement that already has a child/linked Datatype');
 

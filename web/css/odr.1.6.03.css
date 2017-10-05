@@ -3352,7 +3352,6 @@ form .row {
 @media screen and (min-width:1280px) {
 }
 
-
 #ODRFileDownloadFormWrapper {
     display: none;
     text-align: left;
@@ -3562,3 +3561,22 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     font-size: 1.0em;
     text-align: left;
 }
+
+.ODRCopyViewProgress {
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 0px;
+    width: auto;
+    position: relative;
+}
+.ODRDefaultPersonal,
+.ODRMakeCurrentView,
+.ODRMakeViewPublic,
+.ODRDefaultDatabase,
+.ODREditThemeName,
+.ODRDeleteTheme {
+    cursor: pointer;
+}
+
+
