@@ -854,4 +854,43 @@ class DataType
     {
         return $this->getDataTypeMeta()->getRenderPlugin();
     }
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $themePreferences;
+
+
+    /**
+     * Add themePreference
+     *
+     * @param \ODR\AdminBundle\Entity\ThemePreferences $themePreference
+     *
+     * @return DataType
+     */
+    public function addThemePreference(\ODR\AdminBundle\Entity\ThemePreferences $themePreference)
+    {
+        $this->themePreferences[] = $themePreference;
+
+        return $this;
+    }
+
+    /**
+     * Remove themePreference
+     *
+     * @param \ODR\AdminBundle\Entity\ThemePreferences $themePreference
+     */
+    public function removeThemePreference(\ODR\AdminBundle\Entity\ThemePreferences $themePreference)
+    {
+        $this->themePreferences->removeElement($themePreference);
+    }
+
+    /**
+     * Get themePreferences
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getThemePreferences()
+    {
+        return $this->themePreferences;
+    }
 }

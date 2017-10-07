@@ -18,6 +18,7 @@
 namespace ODR\AdminBundle\Controller;
 
 use ODR\AdminBundle\Component\Service\ThemeService;
+use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Form\Type\DatafieldType;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
@@ -61,6 +62,162 @@ use ODR\AdminBundle\Component\Service\TrackedJobService;
 
 class ThemeController extends ODRCustomController
 {
+
+    /**
+     * Deletes a user's custom view.  Will not delete
+     * master views.
+     *
+     * @param $datatype_id
+     * @param $theme_id
+     * @param Request $request
+     * @return Response
+     */
+    public function delete_custom_themeAction(
+        $datatype_id,
+        $theme_id,
+        Request $request
+    ) {
+
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        // Check permissions
+        try {
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null) {
+                throw new ODRNotFoundException('Database', false, 0x823756);
+            }
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ($user === "anon.") {
+                throw new ODRForbiddenException('View', 0x237528);
+            }
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            // Ensure user has permissions to be doing this
+            // Users must have view permission
+            if (!$pm_service->canViewDatatype($user, $datatype)) {
+                throw new ODRForbiddenException(
+                    'You must have "view" permissions on this database to create or delete a custom view.',
+                    0x239223
+                );
+            }
+
+            // Check if this is a master template based datatype that is still
+            // in the creation process.  If so, ask user to try again later.
+            if ($datatype->getSetupStep() != DataType::STATE_OPERATIONAL) {
+                // Throw error and ask user to wait
+                throw new ODRForbiddenException(
+                    'Please try again later.  This database is not yet fully created.',
+                    0x2918239
+                );
+            }
+
+            /** @var Theme $original_theme */
+            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+            /** @var Theme $theme */
+            $theme = $repo_theme->find($theme_id);
+
+            // Is user the creator of theme
+            if($theme->getCreatedBy()->getId() == $user->getId()
+                && $theme->getThemeType() != "master"
+            ) {
+
+                /** @var ThemeService $theme_service */
+                $theme_service = $this->container->get('odr.theme_service');
+
+                // If is datatype default, set "master" as default
+                if(
+                    $theme->getThemeType() == 'custom_view'
+                    && $theme->getThemeMeta()->getIsDefault() > 0
+                ) {
+                    // Find master theme and set as default
+
+                    /** @var Theme $master_theme */
+                    $master_theme = $repo_theme->findOneBy(
+                        array(
+                            'dataType' => $datatype->getId(),
+                            'themeType' => 'master'
+                        )
+                    );
+
+                    // TODO determine if datatype admin is needed to restore as default.
+                    /** @var ThemeMeta $master_theme_meta */
+                    $master_theme_meta = $master_theme->getThemeMeta();
+                    $new_theme_meta = clone $master_theme_meta;
+                    $new_theme_meta->setCreated(new \DateTime());
+                    $new_theme_meta->setUpdated(new \DateTime());
+                    $new_theme_meta->setIsDefault(1);
+
+                    $em->persist($new_theme_meta);
+                    $em->remove($master_theme_meta);
+
+                    // Flush default theme cache.
+                    $em->flush();
+                    $theme_service->getDefaultTheme(
+                        $datatype->getId(), 'master', true
+                    );
+                }
+
+                // Check user session theme and assign default
+                $theme_type = $theme->getThemeType();
+                if($theme_type == "custom_view") {
+                    $theme_type = 'master';
+                }
+                else {
+                    $theme_type = preg_replace('/^custom_/','', $theme_type);
+                }
+                $user_session_theme = $theme_service->getSessionTheme(
+                    $datatype->getId(),
+                    $theme_type
+                );
+                // if user was using this as default.
+                if($user_session_theme != null
+                    && $user_session_theme->getId() == $theme->getId()) {
+                    $theme_service->resetSessionTheme($datatype, $theme_type);
+                }
+
+                // Delete theme
+                $em->remove($theme);
+                $em->flush();
+
+                $return['d'] = "success";
+            }
+            else {
+                throw new ODRForbiddenException(
+                    "You do not have permissions to use or modify this view.",
+                    0x8192392
+                );
+            }
+        } catch (\Exception $e) {
+            if ( $request->query->has('error_type')
+                && $request->query->get('error_type') == 'json'
+            )
+                $request->setRequestFormat('json');
+
+            $source = 0x2392933;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 
     /**
      * Sets the user theme and returns acknowledgement

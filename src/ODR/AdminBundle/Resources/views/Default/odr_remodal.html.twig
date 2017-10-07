@@ -22,6 +22,16 @@
 
 <script>
 
+    function setODRRemodalLoadingText(message) {
+        var loading_text = $(".ODRRemodalLoading").find("loading-text");
+        loading_text.html(message);
+    }
+
+    function resetODRRemodalLoadingText() {
+        var loading_text = $(".ODRRemodalLoading").find("loading-text");
+        loading_text.html("loading");
+    }
+
     function openODRRemodal(options, remodal_options) {
         if(remodal_options === undefined
             || !_.isObject(remodal_options)

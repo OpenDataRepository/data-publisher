@@ -200,7 +200,7 @@ class ThemeService
 
         $repo_theme_preferences = $this->em->getRepository('ODRAdminBundle:ThemePreferences');
         $theme_preferences = $repo_theme_preferences->findBy(array(
-            'datatype' => $datatype->getId()
+            'dataType' => $datatype->getId()
         ));
 
         // Check if we have a type match
@@ -292,6 +292,41 @@ class ThemeService
     }
 
     /**
+     * Removes the session setting for a particular datatype and
+     * theme type.
+     *
+     * @param DataType $datatype
+     * @param Theme $theme
+     */
+    public function resetSessionTheme($datatype, $theme_type) {
+
+        if($theme_type == "custom_view") {
+            $theme_type = "master";
+        }
+        else {
+            $theme_type = preg_replace('/^custom_/','', $theme_type);
+        }
+
+        $session = $this->container->get('session');
+        $session_themes = array();
+        if ($session->has("session_themes")) {
+            $session_themes = $session->get("session_themes");
+        }
+
+        // Unset the theme
+        if(
+            isset($session_themes[$datatype->getId()])
+            && isset($session_themes[$datatype->getId()][$theme_type])
+        ) {
+            unset($session_themes[$datatype->getId()][$theme_type]);
+        }
+
+        // Assign array to session
+        $session->set("session_themes", $session_themes);
+
+    }
+
+    /**
      * @param DataType $datatype
      * @param Theme $theme
      */
@@ -333,10 +368,11 @@ class ThemeService
         }
 
         // Get user's default theme for datatype and theme type
+        // Using Join to only pull non-deleted themes and theme preferences.
         $qb = $this->em->createQueryBuilder();
         $qb->select('tp, t')
             ->from('ODRAdminBundle:ThemePreferences', 'tp')
-            ->leftJoin('tp.theme', 't')
+            ->Join('tp.theme', 't')
             ->leftJoin('t.themeMeta', 'tm')
             ->where('t.dataType = :datatype_id')
             ->andWhere('tp.createdBy = :user_id')
@@ -371,6 +407,37 @@ class ThemeService
     }
 
     /**
+     * Returns the user's selected session theme
+     *
+     * @param $datatype_id
+     * @param $theme_type
+     * @return mixed|Theme|string
+     */
+    public function getSessionTheme($datatype_id, $theme_type) {
+        $theme = null;
+        if($this->container->get('session')->isStarted()) {
+            $session = $this->container->get('session');
+
+            // Session themes are temporary and apply only to a single tab?
+            $session_themes = array();
+            if ($session->has("session_themes")) {
+                $session_themes = $session->get("session_themes");
+            }
+
+            // These don't need to be flushed because the array is directly modified
+            // by set session theme.
+            if(count($session_themes) > 0
+                && isset($session_themes[$datatype_id])
+                && isset($session_themes[$datatype_id][$theme_type])
+            ) {
+                $theme = $session_themes[$datatype_id][$theme_type];
+            }
+        }
+
+        return $theme;
+    }
+
+    /**
      * Determines the current theme choice for the user for the
      * selected datatype and theme type.
      *
@@ -392,14 +459,13 @@ class ThemeService
                 $user_themes = $session->get("user_themes");
             }
 
-            if(count($user_themes) > 0
+            if (count($user_themes) > 0
                 && isset($user_themes[$datatype_id])
                 && isset($user_themes[$datatype_id][$theme_type])
                 && !$flush
-                ) {
+            ) {
                 $theme = $user_themes[$datatype_id][$theme_type];
-            }
-            else {
+            } else {
                 // We set the session theme to default if user doesn't have one already.
                 $theme = self::getUserDefaultTheme($datatype_id, $theme_type);
 
@@ -409,18 +475,10 @@ class ThemeService
             }
 
             // Session themes are temporary and apply only to a single tab?
-            $session_themes = array();
-            if ($session->has("session_themes")) {
-                $session_themes = $session->get("session_themes");
-            }
+            $session_theme = self::getSessionTheme($datatype_id, $theme_type);
 
-            // These don't need to be flushed because the array is directly modified
-            // by set sesion theme.
-            if(count($session_themes) > 0
-                && isset($session_themes[$datatype_id])
-                && isset($session_themes[$datatype_id][$theme_type])
-            ) {
-                $theme = $session_themes[$datatype_id][$theme_type];
+            if ($session_theme != null) {
+                $theme = $session_theme;
             }
         }
 
