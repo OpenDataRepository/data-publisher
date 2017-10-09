@@ -13,9 +13,6 @@
             <li class="pure-menu-item">
                 <a name="ChooseView" id="ChooseView" class="pure-menu-link">Choose View</a>
             </li>
-            <li class="pure-menu-item">
-                <a name="CustomizeView" id="CustomizeView" class="pure-menu-link">Customize View</a>
-            </li>
         </ul>
     </div>
 
@@ -248,9 +245,10 @@
         // Redirect to view editor if complete
     }
 
-    function copyAndModifyView() {
-        console.log('copy and modify: {{ theme_id }}')
-        var url = '{{ path('odr_clone_theme', { 'datatype_id': datatype.id, 'theme_id': theme_id }) }}';
+    function copyAndModifyView(theme_id) {
+        console.log('copy and modify: {{ theme_id }}');
+        var url = '{{ path('odr_clone_theme', { 'datatype_id': datatype.id, 'theme_id': 0 }) }}';
+        url = url.substr(0, (url.length - 1)) + theme_id;
         $.ajax({
             cache: false,
             type: 'GET',
@@ -292,10 +290,6 @@
         // Init the choose view button
         $("#ChooseView").click(function(event) {
             chooseView();
-        });
-
-        $("#CustomizeView").click(function(event) {
-            customizeView();
         });
     }
 
@@ -393,6 +387,16 @@
             var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
             console.log('Apply theme: ' + theme_id);
             applyView(theme_id, 1, 1);
+        });
+        $(".ODRCopyModifyTheme").click(function() {
+            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            console.log('Apply theme: ' + theme_id);
+            copyAndModifyView(theme_id);
+        });
+        $(".ODRModifyTheme").click(function() {
+            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            console.log('Apply theme: ' + theme_id);
+            openModifyThemeEditor(theme_id);
         });
         // .ODRMakeViewPublic,
         // .ODRDefaultDatabase,

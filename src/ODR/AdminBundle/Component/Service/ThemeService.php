@@ -181,6 +181,7 @@ class ThemeService
                     $theme_record['is_default'] = $theme->getThemeMeta()->getIsDefault();
                     $theme_record['created_by'] = $theme->getCreatedBy()->getId();
                     $theme_record['display_order'] = $theme->getThemeMeta()->getDisplayOrder();
+                    $theme_record['theme_type'] = $theme->getThemeType();
                     array_push($filtered_themes, $theme_record);
                 }
             }

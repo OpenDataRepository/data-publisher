@@ -1,69 +1,27 @@
 {% spaceless %}
 
     <ul id="ODRChooseView" class="pure-u-1">
-        <li>
-            <div class="pure-u-1">
-                <h4>
-                    Click view title to select view.
-                </h4>
-            </div>
-        </li>
         {%  for theme in themes %}
-            <li data-theme-id="{{ theme.id }}">
-                <div class="pure-u-1 pure-u-md-6-24">
-                    <h4>{% if theme.name != "" %}
-                            {{ theme.name }}
-                        {% elseif theme.name == "" and theme.is_default == 1 %}
-                            Default View
-                        {% else %}
-                            Unnamed View.
-                        {% endif %}
-                    </h4>
-                </div>
-                <div class="pure-u-1 pure-u-md-12-24 ODRChooseViewDescription">
-                    {% if theme.description != "" %}
-                        {{ theme.description }}
-                    {% elseif theme.name == "" and theme.is_default == 1 %}
-                        Default view for selected database.
-                    {% else %}
-                        No description.
-                    {% endif %}
-                    {% if theme.id == selected_theme.id %}
-                        <div class="ODRViewNote">[ Currently selected view. ]</div>
-                    {% endif %}
-                    {% if theme.id == user_default_theme.id %}
-                        <div class="ODRViewNote">[ Personal default view. ]</div>
-                    {% endif %}
-                </div>
-                <div class="pure-u-1 pure-u-md-5-24">
-                    <ul class="ODRViewOptions">
-                        {% if theme.is_default == 0 and theme.id != user_default_theme.id %}
-                            <li class="ODRDefaultPersonal">make personal default</li>
-                        {% endif %}
-                        {% if theme.id != selected_theme.id %}
-                            <li class="ODRMakeCurrentView">apply view (current session)</li>
-                        {% endif %}
-
-                        {# admin tools #}
-                        {% if datatype_admin and user.id != "anon." %}
-                            {% if theme.created_by == user.id %}
-                                <li class="ODRDefaultDatabase">make default for database</li>
-                            {%  endif %}
-                        {% endif %}
-                        {% if datatype_admin and theme.is_default == 1 %}
-                            <li class="ODREditThemeName">edit name and description</li>
-                        {% elseif datatype_admin and theme.is_default != 1 %}
-                            <li class="ODRDeleteTheme">delete view</li>
-                        {% endif %}
-                        {# any person can make their view public #}
-                        {% if user != "anon." %}
-                            {% if theme.created_by == user.id %}
-                                <li class="ODRMakeViewPublic">make view available to others</li>
-                            {% endif %}
-                        {% endif %}
-                    </ul>
-                </div>
-            </li>
+            {% if theme.id == selected_theme.id %}
+            {% include 'ODRAdminBundle:Default:choose_view_details.html.twig' with {
+                'user': user,
+                'datatype_admin': datatype_admin,
+                'theme': theme,
+                'selected_theme': selected_theme,
+                'user_defautl_theme': user_default_theme
+            } %}
+            {% endif %}
+        {% endfor %}
+        {%  for theme in themes %}
+            {% if theme.id != selected_theme.id %}
+                {% include 'ODRAdminBundle:Default:choose_view_details.html.twig' with {
+                    'user': user,
+                    'datatype_admin': datatype_admin,
+                    'theme': theme,
+                    'selected_theme': selected_theme,
+                    'user_defautl_theme': user_default_theme
+                } %}
+            {% endif %}
         {% endfor %}
     </ul>
 

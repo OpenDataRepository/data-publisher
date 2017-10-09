@@ -1,0 +1,73 @@
+{% spaceless %}
+    <li data-theme-id="{{ theme.id }}">
+        <div class="pure-u-1 pure-u-md-6-24">
+            <h4>{% if theme.name != "" %}
+                    {{ theme.name }}
+                {% elseif theme.name == "" and theme.is_default == 1 %}
+                    Default View
+                {% else %}
+                    Unnamed View.
+                {% endif %}
+            </h4>
+        </div>
+        <div class="pure-u-1 pure-u-md-12-24 ODRChooseViewDescription">
+            {% if theme.description != "" %}
+                {{ theme.description }}
+            {% elseif theme.name == "" and theme.is_default == 1 %}
+                Default view for selected database.
+            {% else %}
+                No description.
+            {% endif %}
+            {% if theme.id == selected_theme.id %}
+                <div class="ODRViewNote">[ Currently selected view. ]</div>
+            {% endif %}
+            {% if theme.id == user_default_theme.id %}
+                <div class="ODRViewNote">[ Personal default view. ]</div>
+            {% endif %}
+            {% if theme.name == "" and theme.is_default == 1 %}
+                <div class="ODRViewNote">[ Database default view. ]</div>
+            {% endif %}
+        </div>
+        <div class="pure-u-1 pure-u-md-5-24">
+            <ul class="ODRViewOptions">
+                {% if theme.is_default == 0 and theme.id != user_default_theme.id %}
+                    <li class="ODRDefaultPersonal">make personal default</li>
+                {% endif %}
+                {% if theme.id != selected_theme.id %}
+                    <li class="ODRMakeCurrentView">apply view (current session)</li>
+                {% endif %}
+                {# any person can make their view public #}
+                {% if user != "anon." %}
+                    {% if theme.created_by == user.id %}
+                        <li class="ODRMakeViewPublic">make view available to others</li>
+                    {% endif %}
+                {% endif %}
+
+                {# admin tools #}
+                {% if datatype_admin and user.id != "anon." %}
+                    {% if theme.created_by == user.id and theme.is_default == 0 %}
+                        <li class="ODRDefaultDatabase">make default for database</li>
+                    {%  endif %}
+                {% endif %}
+
+                {% if (datatype_admin and theme.theme_type == 'master')
+                or theme.created_by == user.id %}
+                    <li class="ODREditThemeName">edit name and description</li>
+                {% endif %}
+                {% if theme.created_by == user.id  and theme.theme_type != "master" %}
+                    <li class="ODRModifyTheme">modify view</li>
+                    <li class="ODRCopyModifyTheme">copy and modify view</li>
+                {% elseif theme.created_by == user.id  and theme.theme_type == "master" %}
+                    <li class="ODRCopyModifyTheme">copy and modify view</li>
+                {% else %}
+                    <li class="ODRCopyModifyTheme">copy and modify view</li>
+                {% endif %}
+
+                {% if datatype_admin and theme.is_default != 1 and theme.theme_type != "master" %}
+                    {# can't delete the master theme #}
+                    <li class="ODRDeleteTheme">delete view</li>
+                {% endif %}
+            </ul>
+        </div>
+    </li>
+{% endspaceless %}
