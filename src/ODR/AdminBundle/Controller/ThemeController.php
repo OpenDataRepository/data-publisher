@@ -63,6 +63,246 @@ use ODR\AdminBundle\Component\Service\TrackedJobService;
 class ThemeController extends ODRCustomController
 {
 
+    public function toggle_publicAction(
+        $datatype_id,
+        $theme_id,
+        Request $request
+    ) {
+
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        // Check permissions
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null) {
+                throw new ODRNotFoundException('Database', false, 0x3289428);
+            }
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ($user === "anon.") {
+                throw new ODRForbiddenException('View', 0x1723999);
+            }
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            // Ensure user has permissions to be doing this
+            // Users must have view permission
+            if (!$pm_service->canViewDatatype($user, $datatype)) {
+                throw new ODRForbiddenException(
+                    'You must have view permission on this database to make a view public.',
+                    0x8923248
+                );
+            }
+
+            // Check if this is a master template based datatype that is still
+            // in the creation process.  If so, ask user to try again later.
+            if ($datatype->getSetupStep() != DataType::STATE_OPERATIONAL) {
+                // Throw error and ask user to wait
+                throw new ODRForbiddenException(
+                    'Please try again later.  This database is not yet fully created.',
+                    0x2932008
+                );
+            }
+
+            /** @var Theme $original_theme */
+            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+            /** @var Theme $new_default_theme */
+            $theme = $repo_theme->find($theme_id);
+
+            if ($theme->getCreatedBy()->getId() != $user->getId()) {
+                throw new ODRForbiddenException(
+                    'You must the owner of the view to make it public.',
+                    0x2382429
+                );
+            }
+
+            // Clone New Default Meta
+            /** @var ThemeMeta $theme_meta */
+            $return['d'] = array();
+            $theme_meta = clone $theme->getThemeMeta();
+            if($theme_meta->getPublic() != null
+                && $theme_meta->getPublic() <= new \DateTime()) {
+                $return['d']['public'] = false;
+                $theme_meta->setPublic(null);
+            }
+            else {
+                $return['d']['public'] = true;
+                $theme_meta->setPublic(new \DateTime());
+            }
+            $theme_meta->setCreatedBy($user);
+            $theme_meta->setUpdatedBy($user);
+            $theme_meta->setCreated(new \DateTime());
+            $theme_meta->setUpdated(new \DateTime());
+            $em->persist($theme_meta);
+            $em->remove($theme->getThemeMeta());
+            $em->flush();
+
+        } catch (\Exception $e) {
+            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
+                $request->setRequestFormat('json');
+
+            $source = 0x1823313;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+    /**
+     * Sets a view to be the database master view.  User must be owner of new view
+     * and an admin on the database.
+     *
+     * @param $datatype_id
+     * @param $theme_id
+     * @param Request $request
+     * @return Response
+     */
+    public function make_defaultAction(
+        $datatype_id,
+        $theme_id,
+        Request $request
+    ) {
+
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        // Check permissions
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null) {
+                throw new ODRNotFoundException('Database', false, 0x3289428);
+            }
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ($user === "anon.") {
+                throw new ODRForbiddenException('View', 0x1723999);
+            }
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            // Ensure user has permissions to be doing this
+            // Users must have view permission
+            if (!$pm_service->isDatatypeAdmin($user, $datatype)) {
+                throw new ODRForbiddenException(
+                    'You must be an administrator on this database to set the default view.',
+                    0x8923248
+                );
+            }
+
+            // Check if this is a master template based datatype that is still
+            // in the creation process.  If so, ask user to try again later.
+            if ($datatype->getSetupStep() != DataType::STATE_OPERATIONAL) {
+                // Throw error and ask user to wait
+                throw new ODRForbiddenException(
+                    'Please try again later.  This database is not yet fully created.',
+                    0x2932008
+                );
+            }
+
+            /** @var Theme $original_theme */
+            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+            /** @var Theme $new_default_theme */
+            $new_default_theme = $repo_theme->find($theme_id);
+
+            if ($new_default_theme->getCreatedBy()->getId() != $user->getId()) {
+                throw new ODRForbiddenException(
+                    'You must the owner of the new theme to set it as the database default.',
+                    0x2382429
+                );
+            }
+
+            $theme_types = array();
+            if($new_default_theme->getThemeType() == "master"
+                || $new_default_theme->getThemeType() == "custom_view"
+            ) {
+                array_push($theme_types, "master");
+                array_push($theme_types, "custom_view");
+            }
+            else {
+                array_push($theme_types, $new_default_theme->getThemeType());
+            }
+            // Unset all other default themes....
+            $default_themes = $repo_theme->findBy(array(
+                'dataType' => $datatype,
+                'themeType' => $theme_types
+            ));
+
+            // Set this as default for database (themeMeta.is_default)
+            /** @var Theme $default_theme */
+            foreach($default_themes as $default_theme) {
+                if($default_theme->getThemeMeta()->getIsDefault()) {
+                    // clone meta
+                    /** @var ThemeMeta $default_theme_meta_clone */
+                    $default_theme_meta_clone = clone $default_theme->getThemeMeta();
+                    $default_theme_meta_clone->setIsDefault(0);
+                    $default_theme_meta_clone->setCreatedBy($user);
+                    $default_theme_meta_clone->setUpdatedBy($user);
+                    $default_theme_meta_clone->setCreated(new \DateTime);
+                    $default_theme_meta_clone->setUpdated(new \DateTime);
+                    $em->persist($default_theme_meta_clone);
+                    $em->remove($default_theme->getThemeMeta());
+                }
+            }
+
+            // Clone New Default Meta
+            $new_default_theme_meta = clone $new_default_theme->getThemeMeta();
+            $new_default_theme_meta->setIsDefault(1);
+            $new_default_theme_meta->setPublic(new \DateTime);
+            $new_default_theme_meta->setCreatedBy($user);
+            $new_default_theme_meta->setUpdatedBy($user);
+            $new_default_theme_meta->setCreated(new \DateTime);
+            $new_default_theme_meta->setUpdated(new \DateTime);
+            $em->persist($new_default_theme_meta);
+            $em->remove($new_default_theme->getThemeMeta());
+
+
+            $em->flush();
+
+            $return['d'] = "success";
+
+        } catch (\Exception $e) {
+            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
+                $request->setRequestFormat('json');
+
+            $source = 0x1823313;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
     /**
      * Deletes a user's custom view.  Will not delete
      * master views.
@@ -412,26 +652,15 @@ class ThemeController extends ODRCustomController
                 );
             }
 
-            if ($datatype->getSetupStep() == DataType::STATE_INITIAL
-                && $datatype->getIsMasterType() == 0) {
-                // Return creating datatype template
-                $templating = $this->get('templating');
-                $return['t'] = "html";
-                $return['d'] = array();
-                $return['d']['html'] = $templating->render(
-                    'ODRAdminBundle:Datatype:create_status_checker.html.twig',
-                    array("datatype" => $datatype)
-                );
-            } else {
-                $return['d'] = array(
-                    'datatype_id' => $datatype->getId(),
-                    'html' => self::DisplayTheme(
-                        $datatype,
-                        $original_theme->getThemeType(),
-                        $theme_id
-                    )
-                );
-            }
+            $return['d'] = array(
+                'datatype_id' => $datatype->getId(),
+                'html' => self::DisplayTheme(
+                    $datatype,
+                    $original_theme->getThemeType(),
+                    $theme_id,
+                    'edit'
+                )
+            );
 
         } catch (\Exception $e) {
             if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
@@ -1619,12 +1848,13 @@ class ThemeController extends ODRCustomController
      * @param DataType $datatype The datatype that originally requested this Theme rendering
      * @param string $template_type One of 'master','custom'
      * @param integer $theme_id If > 0, load this theme to operate on.
+     * @param string $display_mode Determines what messaging to display in editor.
      *
      * @throws \Exception
      *
      * @return string
      */
-    private function DisplayTheme($datatype, $template_type, $theme_id)
+    private function DisplayTheme($datatype, $template_type, $theme_id, $display_mode = "wizard")
     {
         /** @var PermissionsManagementService $pm_service */
         $pm_service = $this->container->get('odr.permissions_management_service');
@@ -1735,6 +1965,7 @@ class ThemeController extends ODRCustomController
 
                 'fieldtype_array' => $fieldtype_array,
                 'has_datarecords' => $has_datarecords,
+                'display_mode' => $display_mode,
             )
         );
 

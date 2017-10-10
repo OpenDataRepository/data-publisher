@@ -295,8 +295,22 @@ odr_add_types:
 #-----------------------------------------
 
 # Theme Controller
+odr_toggle_theme_public:
+    path:  /design/togglepublic/{datatype_id}/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:toggle_public }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+
+odr_make_default_theme:
+    path:  /design/makedefault/{datatype_id}/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:make_default }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+
 odr_delete_custom_theme:
-    path:  /design/delete_view/{datatype_id}{theme_id}
+    path:  /design/delete_view/{datatype_id}/{theme_id}
     defaults: { _controller:ODRAdminBundle:Theme:delete_custom_theme }
     requirements:
         datatype_id:  \d+

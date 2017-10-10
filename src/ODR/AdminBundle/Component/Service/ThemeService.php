@@ -155,7 +155,7 @@ class ThemeService
 
                 $add_theme = false;
                 if($theme->getThemeMeta()->getPublic() != null
-                   && $theme->getThemeMeta()->getPublic() <= time()
+                   && $theme->getThemeMeta()->getPublic() <= new \DateTime()
                 ) {
                     // Check if theme is public
                     $add_theme = true;
@@ -177,7 +177,13 @@ class ThemeService
                     $theme_record['id'] = $theme->getId();
                     $theme_record['name'] = $theme->getThemeMeta()->getTemplateName();
                     $theme_record['description'] = $theme->getThemeMeta()->getTemplateDescription();
-                    $theme_record['public'] = $theme->getThemeMeta()->getPublic();
+                    if($theme->getThemeMeta()->getPublic() != null
+                        && $theme->getThemeMeta()->getPublic() <= new \DateTime()) {
+                        $theme_record['public'] = true;
+                    }
+                    else {
+                        $theme_record['public'] = false;
+                    }
                     $theme_record['is_default'] = $theme->getThemeMeta()->getIsDefault();
                     $theme_record['created_by'] = $theme->getCreatedBy()->getId();
                     $theme_record['display_order'] = $theme->getThemeMeta()->getDisplayOrder();

@@ -6,7 +6,7 @@
         <span>Search Template Design &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
     </h1>
 
-    {%  if datatype.setup_step != "complete" %}
+    {%  if datatype.setup_step != "complete" and display_mode == "wizard" %}
         <ul id="wizardStatus">
             <li class="completed">Step 1. <span class="wizardStatusText">Choose a template.</span></li>
             <li class="completed">Step 2. <span class="wizardStatusText">Database information.</span></li>
@@ -18,12 +18,34 @@
         <div class="ODRContentWrapper pure-u-1">
             <div class="ODRThemeElement pure-u-1">
                 <div class="ODRInnerBox pure-u-1">
-                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Configure search view..</h3>
+                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Configure search view.</h3>
                         <div class="ODRBodyContent">
                             <p>
                                 Click a field to bring up its configurable properties.  To view hidden fields, toggle the "show hidden elements" checkbox below.
                             </p>
                         </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if display_mode == "edit" %}
+        <div class="ODRContentWrapper pure-u-1">
+            <div class="ODRThemeElement pure-u-1">
+                <div class="ODRInnerBox pure-u-1">
+                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Edit View</h3>
+                    <div class="ODRBodyContent">
+                        <p>
+                            Edit the view and then click the "return to previous page" button below to see
+                            the edited view in action.
+                        </p>
+                        <p>
+                            Click a field to bring up its configurable properties.  To view hidden fields, toggle the "show hidden elements" checkbox below.
+                        </p>
+                        <p>
+                            <button type="button" class="pure-button pure-button-primary" onclick="window.history.back()">Return to previous page</button>
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>

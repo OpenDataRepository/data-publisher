@@ -3571,12 +3571,25 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     position: relative;
 }
 .ODRDefaultPersonal,
+.ODRDefaultDatabase,
 .ODRMakeCurrentView,
 .ODRMakeViewPublic,
-.ODRDefaultDatabase,
 .ODREditThemeName,
+.ODRModifyTheme,
+.ODRCopyModifyTheme,
 .ODRDeleteTheme {
     cursor: pointer;
+}
+
+.ODRDefaultPersonal:hover,
+.ODRDefaultDatabase:hover,
+.ODRMakeCurrentView:hover,
+.ODRMakeViewPublic:hover,
+.ODREditThemeName:hover,
+.ODRModifyTheme:hover,
+.ODRCopyModifyTheme:hover,
+.ODRDeleteTheme:hover {
+    color: #2ca02c;
 }
 
 

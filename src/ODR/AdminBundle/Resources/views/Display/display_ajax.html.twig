@@ -124,12 +124,8 @@
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
                 if(redirect) {
-                    var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-                    inst.close();
-
-                    // Reload the window
-                    url = window.location.hash.substr(1);
-                    LoadContentFullAjax( url );
+                    closeODRRemodal();
+                    reloadPage();
                 }
                 // Without redirect, this just sets the view preference
             },
@@ -139,8 +135,7 @@
                 // Don't need to create a jGrowl because exception
                 // handlers will automatically display. Close the dialog
                 // so it's not in some half-initialized state.
-                var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-                inst.close();
+                closeODRRemodal();
             },
             complete: function (jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -158,33 +153,106 @@
         });
     }
 
-    function setModalMessage(message, message_type) {
-        if(message_type === undefined) {
-            $(".ODRRemodalBody").html(
-                '<h4>' + message + '<h4>'
-            );
-        }
-        else if (message_type == "raw") {
-            $(".ODRRemodalBody").html( message );
-        }
-        resetRemodalInnerHeight()
-    }
-
     function modifyView(event) {
-        var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-        inst.close();
+        closeODRRemodal();
         window.location.hash = '{{ path('odr_modify_theme', { 'datatype_id': datatype.id, 'theme_id': theme_id }) }}';
     }
 
     function openModifyThemeEditor(theme_id) {
-        // Close the modal
-        var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-        inst.close();
+        // Set view for session
+        applyView(theme_id, 0, 1);
 
+        closeODRRemodal();
+
+        // Open View Editor
         var url = '{{ path('odr_modify_theme', { 'datatype_id': datatype.id, 'theme_id': 0 }) }}';
         url = url.substr(0,(url.length - 1)) + theme_id;
         // Hash change event will load theme
         window.location.hash = url
+    }
+
+    function makeViewPublic(theme_id) {
+        var url = '{{ path('odr_toggle_theme_public', { 'datatype_id': datatype.id, 'theme_id': 0}) }}';
+        url = url.substr(0, (url.length - 1)) + theme_id;
+
+        // set view
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // Apply view for session and redirect.
+                if(data.d.public) {
+                    setModalMessage("View set to public. Other users will be able to select and use your view.");
+                }
+                else {
+                    setModalMessage("View set to private. Only you select and use this view.");
+                }
+
+                // Close modal and reload page
+                setTimeout("closeODRRemodal()","1400");
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // TODO figure out why this is firing early...
+                // Probably need a promise
+                // Don't need to create a jGrowl because exception
+                // handlers will automatically display. Close the dialog
+                // so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    function makeDatabaseDefault(theme_id) {
+        var url = '{{ path('odr_make_default_theme', { 'datatype_id': datatype.id, 'theme_id': 0}) }}';
+        url = url.substr(0, (url.length - 1)) + theme_id;
+
+        // set view
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // Apply view for session and redirect.
+                applyView(theme_id);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // TODO figure out why this is firing early...
+                // Probably need a promise
+                // Don't need to create a jGrowl because exception
+                // handlers will automatically display. Close the dialog
+                // so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
     }
 
     function checkCopyProgress(tracked_job_id, ) {
@@ -224,8 +292,7 @@
                 // Don't need to create a jGrowl because exception
                 // handlers will automatically display. Close the dialog
                 // so it's not in some half-initialized state.
-                var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-                inst.close();
+                closeODRRemodal();
             },
             complete: function (jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -267,8 +334,7 @@
                 // Don't need to create a jGrowl because exception
                 // handlers will automatically display. Close the dialog
                 // so it's not in some half-initialized state.
-                var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-                inst.close();
+                closeODRRemodal();
             },
             complete: function (jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -345,8 +411,7 @@
                 // Don't need to create a jGrowl because exception
                 // handlers will automatically display. Close the dialog
                 // so it's not in some half-initialized state.
-                var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-                inst.close();
+                closeODRRemodal();
             },
             complete: function (jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -368,11 +433,11 @@
         $(".ODRDeleteTheme").click(function() {
             // Show loading with "Deleting" text
             setODRRemodalLoadingText("deleting");
-            $(".ODRRemodalBody").show();
+            $(".ODRRemodalBody").hide();
             $(".ODRRemodalLoading").show();
             resetRemodalInnerHeight();
 
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
             console.log('Deleting personal default theme: ' + theme_id);
             deleteView(theme_id);
         });
@@ -389,18 +454,27 @@
             applyView(theme_id, 1, 1);
         });
         $(".ODRCopyModifyTheme").click(function() {
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
             console.log('Apply theme: ' + theme_id);
             copyAndModifyView(theme_id);
         });
         $(".ODRModifyTheme").click(function() {
-            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
             console.log('Apply theme: ' + theme_id);
             openModifyThemeEditor(theme_id);
         });
-        // .ODRMakeViewPublic,
-        // .ODRDefaultDatabase,
-        // .ODREditThemeName,
+        $(".ODRDefaultDatabase").click(function() {
+            setModalMessage("Setting view as database default.");
+            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            console.log('Make database default: ' + theme_id);
+            makeDatabaseDefault(theme_id);
+        });
+        $(".ODRMakeViewPublic").click(function() {
+            setModalMessage("Setting view as database default.");
+            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            console.log('Make view public: ' + theme_id);
+            makeViewPublic(theme_id);
+        });
     }
 
     function chooseView() {
@@ -409,14 +483,14 @@
             // body: "<div>Loading will not display if body is set.</div>",
             // loading: true,  // Force loading to display
             buttons: [
-                {
+                /* {
                     id: 'ODRApplyView',
                     text: 'Apply View',
                     // secondary: true, // Secondary button style
                     disabled: true, // Set button style disabled
                     title: 'Click to apply the selected view..',
                     click: applyView
-                }
+                } */
             ]
         };
         openODRRemodal(modal_options);
@@ -434,21 +508,12 @@
                     resetRemodalInnerHeight();
                     initChooseViewButtons();
                 });
-
-                // Check theme count
-                // Check if current theme is selected
-                // Offer to delete if user-owned and not default
-                // Indicate user owned
-                // Indicate system owned
-                // Offer create new theme if no options
-
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to create a jGrowl because exception
                 // handlers will automatically display. Close the dialog
                 // so it's not in some half-initialized state.
-                var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-                inst.close();
+                closeODRRemodal();
             },
             complete: function (jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -475,22 +540,19 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                resetODRRemodalLoadingText();
                 $(".ODRRemodalLoading").hide();
+                resetODRRemodalLoadingText();
+                setModalMessage("View deleted.");
 
-                var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-                inst.close();
-
-                // Reload the window
-                url = window.location.hash.substr(1);
-                LoadContentFullAjax( url );
+                // Close modal and reload page
+                reloadPage();
+                setTimeout("closeODRRemodal()","1400");
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to create a jGrowl because exception
                 // handlers will automatically display. Close the dialog
                 // so it's not in some half-initialized state.
-                var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-                inst.close();
+                closeODRRemodal();
             },
             complete: function (jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
