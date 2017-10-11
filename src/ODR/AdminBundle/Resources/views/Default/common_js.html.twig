@@ -444,6 +444,13 @@
         });
     }
 
+    function reloadPage() {
+        // Reload the window
+        var url = window.location.hash.substr(1);
+        // TODO need to check if URL has hash value...
+        LoadContentFullAjax( url );
+    }
+
     function resetRemodalInnerHeight() {
         var modal = $("#ODRRemodal");
         var modal_inner = modal.find(".ODRRemodalInner");

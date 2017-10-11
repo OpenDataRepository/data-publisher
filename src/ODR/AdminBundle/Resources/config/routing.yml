@@ -293,10 +293,45 @@ odr_add_types:
 #-----------------------------------------
 
 #-----------------------------------------
+
 # Theme Controller
+odr_toggle_theme_public:
+    path:  /design/togglepublic/{datatype_id}/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:toggle_public }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+
+odr_make_default_theme:
+    path:  /design/makedefault/{datatype_id}/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:make_default }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+
+odr_delete_custom_theme:
+    path:  /design/delete_view/{datatype_id}/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:delete_custom_theme }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+
+odr_modify_theme:
+    path:  /design/modify_view/{datatype_id}/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:modify_theme }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+
+odr_check_clone_theme:
+    path:  /design/copy_view_check/{tracked_job_id}
+    defaults: { _controller:ODRAdminBundle:Theme:check_theme_progress }
+    requirements:
+        tracked_job_id:  \d+
+
 odr_clone_theme:
-    path:  /design/view/{datatype_id}/{theme_id}
-    defaults: { _controller:ODRAdminBundle:Theme:userclonetheme }
+    path:  /design/copy_view/{datatype_id}/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:clone_theme }
     requirements:
         datatype_id:  \d+
         theme_id:  \d+
@@ -427,6 +462,20 @@ odr_design_save_theme_datatype:
 
 #-----------------------------------------
 # Displaytemplate Controller
+odr_set_theme_properties:
+    path:  /view/theme_properties/{theme_meta_id}
+    defaults: { _controller:ODRAdminBundle:Display:theme_properties }
+    requirements:
+        theme_meta_id: \d+
+
+odr_apply_theme:
+    path:  /view/apply/{datatype_id}/{theme_id}/{session}
+    defaults: { _controller:ODRAdminBundle:Display:apply_theme }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+        session: 0|1
+
 odr_design_master_theme:
     path:  /design/displaytemplate/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:design }
@@ -575,6 +624,10 @@ odr_design_public_datafield:
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldpublic }
     requirements:
         datafield_id:  \d+
+
+odr_markdown_help_dialog:
+    path:  /design/displaytemplate/markdownhelp
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:markdownhelp }
 
 #-----------------------------------------
 
@@ -747,11 +800,17 @@ odr_file_download:
         file_id:  \d+
 
 odr_get_available_themes:
-    path:  /view/getthemes/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Display:availablethemes }
+    path:  /view/getthemes/{datatype_id}/{page_type}
+    defaults: { _controller: ODRAdminBundle:Display:available_themes }
     requirements:
         datatype_id:  \d+
+        page_type:  'display|search_results'
 
+odr_customize_view_dialog:
+    path:  /view/customize/{datatype_id}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Display:customize_theme_dialog }
+    requirements:
+        datatype_id:  \d+
 # deprecated
 # deprecated
 #odr_cancel_file_decrypt:

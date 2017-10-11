@@ -1,0 +1,92 @@
+{% spaceless %}
+
+    <!-- Markdown Help Dialog Form -->
+
+<script>
+
+    var markdown_help_body = '<div id="ODRMarkdownHelpDialogWrapper" class="Hide"> </div>';
+
+    function openMarkdownHelpDialog() {
+        // open dialog
+        modal_options = {
+            title: 'Markdown Help',
+            loading: true,
+            body: markdown_help_body,
+        };
+        openODRRemodal(modal_options);
+
+        loadMarkdownHelpDialog();
+    }
+
+    function loadMarkdownHelpDialog() {
+
+        var url  = '{{ path('odr_markdown_help_dialog') }}';
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                $("#ODRMarkdownHelpDialogWrapper").html( data.d.html );
+
+                var md = window.markdownit();
+                md.disable(['table', 'strikethrough', 'blockquote']);
+                var markdown_text = md.render( $("#ODRMarkdown_source").val() );
+
+                $("#ODRMarkdown_result").html(markdown_text);
+
+                // remove loading spinner
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    $(".ODRRemodalButtons").show();
+                    $("#ODRMarkdownHelpDialogWrapper").show();
+
+                    // Resize ODRFileDownloadModal to take up full height
+                    resetRemodalInnerHeight();
+
+                    $("#ODRMarkdown_source").scrollTo(0);
+                    $("#ODRMarkdown_result").scrollTo(0);
+
+                    setupScrollHandler("#ODRMarkdown_source", "#ODRMarkdown_result");
+                    setupScrollHandler("#ODRMarkdown_result", "#ODRMarkdown_source");
+                });
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function setupScrollHandler(source, dest) {
+        $(source).unbind('scroll').scroll(function() {
+            // Ignore the scroll event if this isn't the element currently being scrolled
+            if ( !$(source).is(":hover") )
+                return;
+
+            // Do a rough calculation of how far down the dest element should be scrolled
+            var percentage = $(source).prop('scrollTop') / ( $(source).prop('scrollHeight') - $(source).prop('offsetHeight') );
+            var dest_scrolltop = percentage * ( $(dest).prop('scrollHeight') - $(dest).prop('offsetHeight') );
+
+            $(dest).scrollTo(dest_scrolltop);
+        });
+    }
+</script>
+
+    <!-- End of Markdown Help Dialog Form -->
+
+{% endspaceless %}

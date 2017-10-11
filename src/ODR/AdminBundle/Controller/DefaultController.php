@@ -135,7 +135,18 @@ class DefaultController extends ODRCustomController
                     $can_view_datarecord = true;
 
                 $datatype_data = $dti_service->getDatatypeArray( array($datatype_id) );
-                $public_date = $datatype_data[$datatype_id]['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s');
+                if(
+                    !isset($datatype_data[$datatype_id])
+                    || !isset($datatype_data[$datatype_id]['dataTypeMeta'])
+                    || !isset($datatype_data[$datatype_id]['dataTypeMeta']['publicDate'])
+                    || $datatype_data[$datatype_id]['dataTypeMeta']['publicDate'] == null
+                ) {
+                    continue;
+                }
+
+                $public_date  = $datatype_data[$datatype_id]['dataTypeMeta']['publicDate']
+                    ->format('Y-m-d H:i:s');
+
                 if ($public_date == '2200-01-01 00:00:00' && !$can_view_datatype)
                     continue;
 
@@ -198,7 +209,7 @@ class DefaultController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4406ae1a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

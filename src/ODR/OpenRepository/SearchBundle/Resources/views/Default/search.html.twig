@@ -452,7 +452,10 @@
         $("#search_form .ODRInput").each(function() {
             var name = $(this).attr('name');
             var type = $(this).attr('type');
-            var value = $(this).attr('value').trim();
+            var value = '';
+            if($(this).attr('value') !== undefined) {
+                value = $(this).attr('value').trim();
+            }
 
             if ( $(this).hasClass('ODRFileDatafieldName') ) {
                 var df_id_data = $(this).attr('id').split(/_/);

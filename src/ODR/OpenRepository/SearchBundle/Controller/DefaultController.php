@@ -850,15 +850,7 @@ exit();
             // TODO Update to use new theme system.
             // Check user theme preferences for this datatype.
             // Could be using a custom default or a session theme (instantaneous).
-            if ( $user === 'anon.' ) {
-                // Use default theme
-                /** @var Theme $theme */
-                $theme = $theme_service->getDefaultTheme($datatype->getId(), 'search_results');
-            }
-            else {
-                // Get theme choice of user
-                $theme = $theme_service->getSelectedTheme($datatype->getId(), 'search_results');
-            }
+            $theme = $theme_service->getSelectedTheme($datatype->getId(), 'search_results');
 
             // Lets just use master if theme is null....
             if ($theme == null) {
@@ -872,24 +864,44 @@ exit();
 
             // -----------------------------------
             // Render and return the page
-            $path_str = $this->generateUrl('odr_search_render', array('search_key' => $encoded_search_key) );   // this will double-encode the search key, mostly
+            $path_str = $this->generateUrl(
+                'odr_search_render',
+                array('search_key' => $encoded_search_key)
+            );   // this will double-encode the search key, mostly
             $path_str = urldecode($path_str);   // decode the resulting string so search-key is only single-encoded
 
             $target = 'results';
             if ($source == 'linking')
                 $target = $source;
 
-            $html = $odrcc->renderList($datarecords, $datatype, $theme, $user, $path_str, $target, $encoded_search_key, $offset, $request);
+            $html = $odrcc->renderList(
+                $datarecords,
+                $datatype,
+                $theme,
+                $user,
+                $path_str,
+                $target,
+                $encoded_search_key,
+                $offset,
+                $request
+            );
 
              $return['d'] = array(
                 'html' => $html,
             );
+        } catch (\Exception $e) {
+            // Usually this'll be called via the jQuery fileDownload plugin, and therefore need a json-format error
+            // But in the off-chance it's a direct link, then the error format needs to remain html
+            if ($request->query->has('error_type') && $request->query->get('error_type') == 'json') {
+                $request->setRequestFormat('json');
+            }
 
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x14168352 ' . $e->getMessage();
+            $source = 0x81fad8c3;
+            if ($e instanceof ODRException) {
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+            } else {
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+            }
         }
 
         $response = new Response(json_encode($return));

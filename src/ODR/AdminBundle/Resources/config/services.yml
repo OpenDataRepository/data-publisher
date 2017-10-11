@@ -38,6 +38,9 @@ services:
         tags:
             - { name: twig.extension }
 
+    odr.markdown.parser:
+        class: ODR\AdminBundle\Component\Service\ODRMarkdownParserService
+
     odr.custom_controller_service:
         class: ODR\OpenRepository\AdminBundle\Controller\ODRCustomController
         arguments: ['@doctrine.orm.entity_manager']

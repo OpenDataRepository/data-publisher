@@ -19,7 +19,7 @@ class ODRNotImplementedException extends ODRException
     /**
      * @param string $message
      */
-    public function __construct($message = '', $source)
+    public function __construct($message = '', $source = 0)
     {
         if ($message == '')
             $message = 'Not Implemented';

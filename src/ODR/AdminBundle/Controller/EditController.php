@@ -61,7 +61,8 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Form\FormError;
-
+// Utility
+use ODR\AdminBundle\Component\Utility\UserUtility;
 
 class EditController extends ODRCustomController
 {
@@ -3386,7 +3387,7 @@ if ($debug)
             foreach ($results as $num => $result) {
                 $file = $result;
                 $file['fileMeta'] = $result['fileMeta'][0];
-                $file['createdBy'] = $pm_service->cleanUserData($result['createdBy']);
+                $file['createdBy'] = UserUtility::cleanUserData($result['createdBy']);
 
                 $file_list[$num] = $file;
             }

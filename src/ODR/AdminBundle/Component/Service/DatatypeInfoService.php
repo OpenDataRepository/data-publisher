@@ -19,6 +19,9 @@ use ODR\AdminBundle\Entity\DataType;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 
+// Utility
+use ODR\AdminBundle\Component\Utility\UserUtility;
+
 
 class DatatypeInfoService
 {
@@ -46,14 +49,17 @@ class DatatypeInfoService
 
     /**
      * DatatypeInfoService constructor.
-     *
-     * @param string $environment
+     * @param $environment
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param Logger $logger
      */
-    public function __construct($environment, EntityManager $entity_manager, CacheService $cache_service, Logger $logger)
-    {
+    public function __construct(
+        $environment,
+        EntityManager $entity_manager,
+        CacheService $cache_service,
+        Logger $logger
+    ) {
         $this->environment = $environment;
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
@@ -465,8 +471,8 @@ class DatatypeInfoService
             // Flatten datatype meta
             $dtm = $dt['dataTypeMeta'][0];
             $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
-            $datatype_data[$dt_num]['createdBy'] = self::cleanUserData( $dt['createdBy'] );
-            $datatype_data[$dt_num]['updatedBy'] = self::cleanUserData( $dt['updatedBy'] );
+            $datatype_data[$dt_num]['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );
+            $datatype_data[$dt_num]['updatedBy'] = UserUtility::cleanUserData( $dt['updatedBy'] );
 
             // Flatten theme_meta of each theme, and organize by theme id instead of a random number
             $new_theme_array = array();
@@ -485,7 +491,7 @@ class DatatypeInfoService
                     foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
                         $dfm = $tdf['dataField']['dataFieldMeta'][0];
                         $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['dataFieldMeta'] = $dfm;
-                        $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['createdBy'] = self::cleanUserData( $tdf['dataField']['createdBy'] );
+                        $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['createdBy'] = UserUtility::cleanUserData( $tdf['dataField']['createdBy'] );
 
                         // Flatten radio options if it exists
                         foreach ($tdf['dataField']['radioOptions'] as $ro_num => $ro) {
@@ -500,12 +506,16 @@ class DatatypeInfoService
                     foreach ($te['themeDataType'] as $tdt_num => $tdt) {
                         $child_datatype_id = $tdt['dataType']['id'];
 
-                        if ( isset($datatree_array['linked_from'][$child_datatype_id]) && in_array($datatype_id, $datatree_array['linked_from'][$child_datatype_id]) )
+                        if ( isset($datatree_array['linked_from'][$child_datatype_id])
+                            && in_array($datatype_id, $datatree_array['linked_from'][$child_datatype_id])
+                        )
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 1;
                         else
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 0;
 
-                        if ( isset($datatree_array['multiple_allowed'][$child_datatype_id]) && in_array($datatype_id, $datatree_array['multiple_allowed'][$child_datatype_id]) )
+                        if ( isset($datatree_array['multiple_allowed'][$child_datatype_id])
+                            && in_array($datatype_id, $datatree_array['multiple_allowed'][$child_datatype_id])
+                        )
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['multiple_allowed'] = 1;
                         else
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['multiple_allowed'] = 0;
@@ -541,10 +551,10 @@ class DatatypeInfoService
 */
         // Save the formatted datarecord data back in the cache, and return it
         if($parent_theme_id == null) {
-            $this->cache_service->set('cached_datatype_'.$dt_id.'_default', $formatted_datatype_data);
+            $this->cache_service->set('cached_datatype_'.$datatype_id.'_default', $formatted_datatype_data);
         }
         else {
-            $this->cache_service->set('cached_datatype_'.$dt_id.'_'.$parent_theme_id, $formatted_datatype_data);
+            $this->cache_service->set('cached_datatype_'.$datatype_id.'_'.$parent_theme_id, $formatted_datatype_data);
         }
         return $formatted_datatype_data;
     }
@@ -610,27 +620,6 @@ class DatatypeInfoService
 
         return $current_datatype;
     }
-
-    /**
-     * When passed the array version of a User entity, this function will scrub the private/non-essential information
-     * from that array and return it.
-     *
-     * Ideally, the one in the PermissionsManagementService would be used, but that creates circular reference issues.
-     *
-     * @param array $user_data
-     *
-     * @return array
-     */
-    private function cleanUserData($user_data)
-    {
-        foreach ($user_data as $key => $value) {
-            if ($key !== 'username' && $key !== 'email' && $key !== 'firstName' && $key !== 'lastName'/* && $key !== 'institution' && $key !== 'position'*/)
-                unset( $user_data[$key] );
-        }
-
-        return $user_data;
-    }
-
 
     /**
      * Uses the contents of the given datatype's sorting datafield to sort datarecords of that datatype.

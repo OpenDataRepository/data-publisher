@@ -19,8 +19,9 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 // Symfony Form classes
-use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
+use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 
 
 class UpdateThemeForm extends AbstractType
@@ -42,7 +43,7 @@ class UpdateThemeForm extends AbstractType
 
         $builder->add(
             'templateDescription',
-            TextType::class,
+            TextareaType::class,
             array(
                 'required' => true,
                 'label' => 'Theme Description',
@@ -51,12 +52,9 @@ class UpdateThemeForm extends AbstractType
 
         $builder->add(
             'isDefault',
-            CheckboxType::class,
-            array(
-                'label'  => 'Is Default?',
-                'required' => false
-            )
+            HiddenType::class
         );
+
     }
 
 
