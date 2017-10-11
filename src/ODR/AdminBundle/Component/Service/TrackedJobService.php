@@ -55,6 +55,7 @@ class TrackedJobService
         'csv_export',
         'csv_import_validate',
         'csv_import',
+        'clone_theme',
 //        'xml_import',
 //        'xml_import_validate',
         'mass_edit',
@@ -364,15 +365,30 @@ class TrackedJobService
      *
      * @return TrackedJob
      */
-    public function getTrackedJob($user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing = false)
+    public function getTrackedJob(
+        $user,
+        $job_type,
+        $target_entity,
+        $additional_data,
+        $restrictions,
+        $total,
+        $reuse_existing = false)
     {
         $tracked_job = null;
 
         // TODO - more flexible way of doing this?
         if ($reuse_existing)
-            $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity) );
+            $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')
+                ->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity) );
         else
-            $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity, 'completed' => null) );
+            $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')
+                ->findOneBy(
+                    array(
+                        'job_type' => $job_type,
+                        'target_entity' => $target_entity,
+                        'completed' => null
+                    )
+                );
 
         if ($tracked_job == null) {
             $tracked_job = new TrackedJob();
@@ -405,11 +421,11 @@ class TrackedJobService
      * Updates the progress of a specified tracked job
      *
      * @param integer $job_id
-     * @param integer $progress
+     * @param integer $total
      *
      * @throws ODRNotFoundException
      */
-    public function incrementJobProgress($job_id)
+    public function incrementJobProgress($job_id, $total = 0)
     {
         // Ensure the tracked job exists first
         /** @var TrackedJob $tracked_job */
@@ -417,15 +433,22 @@ class TrackedJobService
         if ($tracked_job == null)
             throw new ODRNotFoundException('Tracked Job');
 
-        $total = $tracked_job->getTotal();
+        if($total > 0) {
+            // Set new total
+            $tracked_job->setTotal($total);
+            $this->em->persist($tracked_job);
+            $this->em->flush();
+            $this->em->refresh($tracked_job);
+        }
         $count = $tracked_job->incrementCurrent($this->em);
 
-        if ($count >= $total)
+        if ($count >= $tracked_job->getTotal()) {
             $tracked_job->setCompleted( new \DateTime() );
 
-        $this->em->persist($tracked_job);
-        $this->em->flush();
-        $this->em->refresh($tracked_job);
+            $this->em->persist($tracked_job);
+            $this->em->flush();
+            $this->em->refresh($tracked_job);
+        }
     }
 
 
@@ -450,6 +473,24 @@ class TrackedJobService
         }
     }
 
+    /**
+     * Sets the additional data for a tracked job.
+     *
+     * @param $tracked_job_id
+     * @param $additional_data
+     */
+    public function setAdditionalData($tracked_job_id, $additional_data) {
+        /** @var TrackedJob $tracked_job */
+        $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+        if ($tracked_job == null)
+            throw new ODRNotFoundException('TrackedJob');
+
+        $tracked_job->setAdditionalData($additional_data);
+
+        $this->em->persist($tracked_job);
+        $this->em->flush();
+        $this->em->refresh($tracked_job);
+    }
 
     /**
      * Gets an array of TrackedError entities for a specified TrackedJob

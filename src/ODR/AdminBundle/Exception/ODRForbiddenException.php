@@ -23,7 +23,7 @@ class ODRForbiddenException extends ODRException
     public function __construct($message = '', $source = 0)
     {
         if ($message == '')
-            $message = "You don't have the permissions to do this.";
+            $message = "Insufficient permissions.";
 
         parent::__construct($message, self::getStatusCode(), $source);
     }

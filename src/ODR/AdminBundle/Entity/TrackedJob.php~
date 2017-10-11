@@ -431,6 +431,22 @@ class TrackedJob
     }
 
     /**
+     * Converts object to a simple array
+     */
+    public function toArray() {
+        $tracked_job = array();
+
+        $tracked_job['id'] = $this->getId();
+        $tracked_job['total'] = $this->getTotal();
+        $tracked_job['current'] = $this->getCurrent();
+        $tracked_job['completed'] = $this->getCompleted();
+        $tracked_job['started'] = $this->getStarted();
+        $tracked_job['additional_data'] = json_decode($this->getAdditionalData());
+
+        return $tracked_job;
+    }
+
+    /**
      * Increment current
      * Gets mysql to directly update the 'current' field, bypassing the caching mechanisms in the persist()/flush()/refresh() call chain in an attempt to ensure synchronization
      *

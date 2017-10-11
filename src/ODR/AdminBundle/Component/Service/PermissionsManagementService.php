@@ -403,7 +403,7 @@ class PermissionsManagementService
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->dti_service;
 
-            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
+            // Permissions are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
             $user_permissions = $cache_service->get('user_'.$user_id.'_permissions');
             if ( !$force_rebuild && $user_permissions != false )
                 return $user_permissions;
@@ -724,6 +724,7 @@ if ($debug)
     /**
      * When passed the array version of a User entity, this function will scrub the private/non-essential information
      * from that array and return it.
+     * @deprecated Use ODR\AdminBundle\Component\Utility\UserUtility instead.
      *
      * @param array $user_data
      *

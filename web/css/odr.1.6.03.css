@@ -3261,6 +3261,7 @@ form .row {
 }
 .ODRRemodalButtons {
     /* display: block; */
+    cursor: pointer;
     position: relative;
     bottom: 0px;
     background: white;
@@ -3350,7 +3351,6 @@ form .row {
 /* pure-hidden-xl */
 @media screen and (min-width:1280px) {
 }
-
 
 #ODRFileDownloadFormWrapper {
     display: none;
@@ -3524,14 +3524,22 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 #ODRChooseView > li {
     background-color: rgba(184, 232, 250, 0.25);
     border-radius: 8px;
-    padding-bottom: 1.3em;
+    padding-bottom: 0.6em;
+    margin-bottom: 0.8em;
+    margin-left: 0.4em;
+    margin-right: 0.4em;
+    border: 1px solid #ddd;
+}
+#ODRChooseView:first-child {
+    padding-bottom: 0.6em;
+    margin-top: 0.6em;
 }
 #ODRChooseView h4 {
     -webkit-margin-before: 0;
     -webkit-margin-after: 0;
     -webkit-margin-start: 0;
     -webkit-margin-end: 0;
-    margin-top: 1.0em;
+    margin-top: 0.4em;
 }
 
 .ODRViewOptions {
@@ -3545,11 +3553,13 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 .ODRChooseViewDescription {
-    margin-top: 1.0em;
+    box-sizing: border-box; /* 1 */
+    margin-top: 0.4em;
+    padding-left: 0.8em;
+    padding-right: 0.8em;
     color: #888;
     font-size: 1.0em;
     text-align: left;
-    margin-left: 1em;
 }
 
 #ODRRenderPluginSettingsForm fieldset {
@@ -3564,3 +3574,34 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     text-decoration: underline;
     padding: 0px 5px;
 }
+
+.ODRCopyViewProgress {
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 0px;
+    width: auto;
+    position: relative;
+}
+.ODRDefaultPersonal,
+.ODRDefaultDatabase,
+.ODRMakeCurrentView,
+.ODRMakeViewPublic,
+.ODREditThemeName,
+.ODRModifyTheme,
+.ODRCopyModifyTheme,
+.ODRDeleteTheme {
+    cursor: pointer;
+}
+
+.ODRDefaultPersonal:hover,
+.ODRDefaultDatabase:hover,
+.ODRMakeCurrentView:hover,
+.ODRMakeViewPublic:hover,
+.ODREditThemeName:hover,
+.ODRModifyTheme:hover,
+.ODRCopyModifyTheme:hover,
+.ODRDeleteTheme:hover {
+    color: #2ca02c;
+}
+

@@ -47,9 +47,9 @@ ODR\AdminBundle\Entity\ThemePreferences:
             targetEntity: DataType
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: relatedDatatypes
             joinColumns:
-                data_type_id:
+                datatype_id:
                     referencedColumnName: id
             orphanRemoval: false
 
