@@ -316,14 +316,6 @@ odr_delete_custom_theme:
         datatype_id:  \d+
         theme_id:  \d+
 
-odr_apply_theme:
-    path:  /design/apply_view/{datatype_id}/{theme_id}/{session}
-    defaults: { _controller:ODRAdminBundle:Theme:apply_theme }
-    requirements:
-        datatype_id:  \d+
-        theme_id:  \d+
-        session: 0|1
-
 odr_modify_theme:
     path:  /design/modify_view/{datatype_id}/{theme_id}
     defaults: { _controller:ODRAdminBundle:Theme:modify_theme }
@@ -470,6 +462,20 @@ odr_design_save_theme_datatype:
 
 #-----------------------------------------
 # Displaytemplate Controller
+odr_set_theme_properties:
+    path:  /view/theme_properties/{theme_meta_id}
+    defaults: { _controller:ODRAdminBundle:Display:theme_properties }
+    requirements:
+        theme_meta_id: \d+
+
+odr_apply_theme:
+    path:  /view/apply/{datatype_id}/{theme_id}/{session}
+    defaults: { _controller:ODRAdminBundle:Display:apply_theme }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+        session: 0|1
+
 odr_design_master_theme:
     path:  /design/displaytemplate/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:design }
@@ -790,10 +796,11 @@ odr_file_download:
         file_id:  \d+
 
 odr_get_available_themes:
-    path:  /view/getthemes/{datatype_id}
+    path:  /view/getthemes/{datatype_id}/{page_type}
     defaults: { _controller: ODRAdminBundle:Display:available_themes }
     requirements:
         datatype_id:  \d+
+        page_type:  'display|search_results'
 
 odr_customize_view_dialog:
     path:  /view/customize/{datatype_id}/{theme_id}

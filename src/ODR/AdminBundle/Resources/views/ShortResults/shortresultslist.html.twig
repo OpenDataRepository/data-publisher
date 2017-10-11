@@ -26,13 +26,22 @@
 {% if count > 0 %}
     <div class="ODRShortResultWrapper">
         {{ pagination_html | raw }}
+
+        {# Page/ View Options#}
+        {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
+            'datatype_array': datatype_array,
+            'datarecord_array': datarecord_array,
+            'theme_id': theme_id,
+            'datatype': datatype,
+            'page_type': 'search_results',
+        } %}
+
         {% include 'ODRAdminBundle:ShortResults:shortresults_ajax.html.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': datarecord_array,
             'theme_id': theme_id,
             'initial_datatype_id': initial_datatype_id,
             'offset': offset,
-
             'can_edit_datarecord': can_edit_datarecord,
         } %}
     </div>

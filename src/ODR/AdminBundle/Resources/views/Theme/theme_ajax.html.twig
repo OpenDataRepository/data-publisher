@@ -34,7 +34,7 @@
             <div class="ODRThemeElement pure-u-1">
                 <div class="ODRInnerBox pure-u-1">
                     <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Edit View</h3>
-                    <div class="ODRBodyContent">
+                    <div class="ODRBodyContent pure-u-1">
                         <p>
                             Edit the view and then click the "return to previous page" button below to see
                             the edited view in action.
@@ -42,9 +42,15 @@
                         <p>
                             Click a field to bring up its configurable properties.  To view hidden fields, toggle the "show hidden elements" checkbox below.
                         </p>
-                        <p>
+                        <p>Edit the name and description of the view below:</p>
+                        {% include 'ODRAdminBundle:Theme:theme_properties_form.html.twig' with {
+                            'datatype': theme_datatype,
+                            'theme': theme,
+                            'theme_form': theme_form,
+                        } %}
+                        <div>
                             <button type="button" class="pure-button pure-button-primary" onclick="window.history.back()">Return to previous page</button>
-                        </p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -132,18 +138,21 @@
         jQuery(function() {
 
             // Setup IntroJS Walkthrough
-            jQuery("#ExampleInput").attr('data-step', "1");
-            jQuery("#ExampleInput").attr('data-intro', "Hover over the lower right-hand corner of a field to start resizing a field.  A drag arrow will appear and you can drag left or right to resize.");
-            jQuery("#FieldHeading").attr('data-step', "2");
-            jQuery("#FieldHeading").attr('data-intro', "Click any field or heading to display user-configurable options in the Theme Styling panel.");
-            jQuery("#ThemeDesignForm").attr('data-step', "3");
-            jQuery("#ThemeDesignForm").attr('data-intro', "User-configurable options for fields and headers will appear in this area.");
-            jQuery("#ExampleElement").attr('data-step', "4");
-            jQuery("#ExampleElement").attr('data-intro', "Drag any field in front or behind any other field to re-order the fields.");
-            jQuery("#ThemeDesignKey").attr('data-step', "5");
-            jQuery("#ThemeDesignKey").attr('data-intro', "Hidden fields or headings are highlighted to show their visibility state.");
-            jQuery("#ODRThemeShowHidden").attr('data-step', "6");
-            jQuery("#ODRThemeShowHidden").attr('data-intro', "Visiblity of hidden elements can be changed using this toggle.");
+            jQuery("#ExampleInput")
+                .attr('data-step', "1")
+                .attr('data-intro', "Hover over the lower right-hand corner of a field to start resizing a field.  A drag arrow will appear and you can drag left or right to resize.");
+            jQuery("#FieldHeading")
+                .attr('data-step', "2")
+                .attr('data-intro', "Click any field or heading to display user-configurable options in the Theme Styling panel.");
+            jQuery("#ThemeDesignForm")
+                .attr('data-step', "3")
+                .attr('data-intro', "User-configurable options for fields and headers will appear in this area.");
+            jQuery("#ExampleElement")
+                .attr('data-step', "4")
+                .attr('data-intro', "Drag any field in front or behind any other field to re-order the fields.");
+            jQuery("#ThemeDesignKey")
+                .attr('data-step', "5")
+                .attr('data-intro', "Hidden fields or headings are highlighted to show their visibility state.");
 
             // Initialize the help button
             jQuery("#ODRHelpButton").unbind('click').click(function() {
@@ -151,7 +160,10 @@
             });
 
             // Initialize the theme options
-            jQuery("#ODRThemeShowHidden").unbind('click').click(function() {
+            jQuery("#ODRThemeShowHidden")
+                .attr('data-step', "6") // Don't really like putting this separate
+                .attr('data-intro', "Visiblity of hidden elements can be changed using this toggle.")
+                .unbind('click').click(function() {
                 if(jQuery(this).is(":checked")) {
                     jQuery(".ODRThemeHiddenElement")
                         .addClass("ODRThemeVisibleHiddenElement")
@@ -164,126 +176,37 @@
                 }
             });
 
+            $("#ThemePropertiesForm input").keyup(function() {
+                window.clearInterval(interval);
+                interval = window.setInterval(
+                    "saveThemeMeta()",
+                    3000
+                );
+            });
+            $("#ThemePropertiesForm textarea").keyup(function() {
+                window.clearInterval(interval);
+                interval = window.setInterval(
+                    "saveThemeMeta()",
+                    3000
+                );
+            });
+
             // Initialize DataFields
-            jQuery(".ODRThemeElement .ODRInnerBox .ODRDataField").unbind('click').click(function() {
+            jQuery("#ThemeDesignArea .ODRThemeElement .ODRInnerBox .ODRDataField").unbind('click').click(function() {
                 var datafield_id = jQuery(this).attr('id').replace('Field_', '');
                 var theme_element_id = jQuery(this).parent().parent().attr('id').replace('ThemeElement_', '');
                 LoadDatafieldForm(theme_element_id, datafield_id);
             });
 
             // Initialize DataType Headers
-            jQuery(".ODRThemeElement .ODRInnerBox .ODRDataType h3").unbind('click').click(function() {
+            jQuery("#ThemeDesignArea .ODRThemeElement .ODRInnerBox .ODRDataType h3").unbind('click').click(function() {
                 var datatype_id = jQuery(this).parent().attr('id').replace('DataType_', '');
                 var theme_element_id = jQuery(this).parent().parent().parent().attr('id').replace('ThemeElement_', '');
                 LoadDatatypeForm(theme_element_id, datatype_id);
             });
 
-            // Display or hide data type (this is a theme element change
-            function LoadDatatypeForm(theme_element_id, datatype_id) {
-                var url = "{{ path('odr_design_load_theme_datatype', {'theme_element_id': 0, 'datatype_id': 0}) }}";
-                url = url.substr(0, url.length-3);
-                jQuery.getJSON(
-                    url + theme_element_id + "/" + datatype_id,
-                    function(data) {
-                        jQuery("#ThemeDesignForm").html(data.d)
-                        // Save changes to the visibility
-                        jQuery("#UpdateThemeDatatypeForm_hidden").unbind('change').change(function() {
-                            var datatype_id = jQuery("#UpdateThemeDatatypeForm_dataType").val()
-                            if(jQuery("#UpdateThemeDatatypeForm_hidden").find(":selected").val() == 1) {
-                                if(jQuery("#ODRThemeShowHidden").is(":checked")) {
-                                    jQuery("#DataType_" + datatype_id).parent().parent().addClass("ODRThemeVisibleHiddenElement")
-                                }
-                                else {
-                                    jQuery("#DataType_" + datatype_id).parent().parent().addClass("ODRThemeHiddenElement")
-                                }
-                            }
-                            else {
-                                jQuery("#DataType_" + datatype_id).parent().parent()
-                                    .removeClass("ODRThemeVisibleHiddenElement")
-                                    .removeClass("ODRThemeHiddenElement")
-                            }
-                            // Submit State Change
-                            SubmitThemeDesignForm()
-                        })
-                        // Save changes to the display type
-                        jQuery("#UpdateThemeDatatypeForm_display_type").unbind('change').change(function() {
-                            var datatype_id = jQuery("#UpdateThemeDatatypeForm_dataType").val()
-                            if(jQuery("#UpdateThemeDatatypeForm_display_type").find(":selected").val() == 1) {
-                                if(jQuery("#ODRThemeShowHidden").is(":checked")) {
-                                    jQuery("#DataType_" + datatype_id + " h3:first").addClass("ODRThemeVisibleHiddenElement")
-                                }
-                                else {
-                                    jQuery("#DataType_" + datatype_id + " h3:first").addClass("ODRThemeHiddenElement")
-                                }
-                            }
-                            else {
-                                jQuery("#DataType_" + datatype_id + " h3:first")
-                                    .removeClass("ODRThemeVisibleHiddenElement")
-                                    .removeClass("ODRThemeHiddenElement")
-                            }
-                            // Submit State Change
-                            SubmitThemeDesignForm()
-                        })
-                    }
-                )
-            }
 
 
-            function LoadDatafieldForm(theme_element_id, datafield_id) {
-                var url = "{{ path('odr_design_load_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}";
-                url = url.substr(0, url.length-3);
-                jQuery.getJSON(
-                    url + theme_element_id + "/" + datafield_id,
-                    function(data) {
-                        jQuery("#ThemeDesignForm").html(data.d)
-                        jQuery("#UpdateThemeDatafieldForm_hidden").unbind('change')
-                        jQuery("#UpdateThemeDatafieldForm_hidden").change(function() {
-                            var datafield_id = jQuery("#UpdateThemeDatafieldForm_dataField").val()
-                            if(jQuery("#UpdateThemeDatafieldForm_hidden").find(":selected").val() == 1) {
-                                if(jQuery("#ODRThemeShowHidden").is(":checked")) {
-                                    jQuery("#Field_" + datafield_id).addClass("ODRThemeVisibleHiddenElement")
-                                }
-                                else {
-                                    jQuery("#Field_" + datafield_id).addClass("ODRThemeHiddenElement")
-                                }
-                            }
-                            else {
-                                jQuery("#Field_" + datafield_id)
-                                    .removeClass("ODRThemeVisibleHiddenElement")
-                                    .removeClass("ODRThemeHiddenElement")
-                            }
-                            // Submit State Change
-                            SubmitThemeDesignForm()
-
-                        })
-                    }
-                )
-            }
-
-            function LoadThemeElementForm(theme_element_id) {
-//                console.log('load theme element form')
-                var url = "{{ path('odr_design_get_theme_element_properties', {'theme_element_id': 0}) }}";
-                url = url.substr(0, url.length-1);
-//                console.log(url + theme_element_id)
-                jQuery.getJSON(
-                    url + theme_element_id,
-                    function(data) {
-                        jQuery("#ThemeDesignForm").html(data.d)
-                    }
-                )
-            }
-
-            function SubmitThemeDesignForm() {
-                jQuery.ajax({
-                    type: "POST",
-                    url: jQuery("#ThemeDesignForm form").attr('action'),
-                    data: jQuery("#ThemeDesignForm form").serialize(),
-                    dataType: 'json',
-                    success: function(data) {
-                        console.log(data)
-                    }
-                });
-            }
 
             // Setup resizable for all ThemeElements
             jQuery(".ODRThemeElement").each(function() {
@@ -553,175 +476,243 @@
                 });
             });
 
-            // Prevent re-ordering of theme_elements and datafields inside Linked Datatypes
-/*
-             $(".ODRLinkedType").find(".ODRFieldArea").sortable("destroy");
-             $(".ODRLinkedType").find(".ODRInnerBox").sortable("destroy");
-             $(".ODRThemeElement > .ODRInnerBox > .ODRDataType").parent().sortable("destroy");    // prevent sortable datafields attaching before/after datatypes
-             $("#ThemeDesignForm").parent(".ODRInnerBox").sortable("destroy");                        // prevent sortable datafields from attaching to the right slideout
-*/
             // Don't want to call disabledSelection() on the object properties panel
             $("#content").find(".ODRInnerBox").disableSelection();
 
-{#
-            // Store new sort order
-            jQuery(".ODRThemeElement .ODRInnerBox").sortable({
-                // placeholder: "ui-state-highlight",
-                // forcePlaceholderSize: true,
-                start: function( event, ui ) {
-                    var datafield_id = ui.item.attr('id').replace('Field_', '');
-                    var theme_element_id = ui.item.parent().parent().attr('id').replace('ThemeElement_', '');
-                    LoadDatafieldForm(theme_element_id, datafield_id)
+
+
+        });
+
+        function SaveThemeElementOrder(container) {
+
+            var i = 0;
+            var theme_element_ids = {};
+            $(container).children(".ODRThemeElement").each(function() {
+                var id_data = $(this).attr('id').split(/_/);
+                theme_element_ids[i] = id_data[1];
+                i++;
+            });
+
+            var url = '{{ path('odr_design_save_theme_element_order') }}';
+
+            $.ajax({
+                cache: false,
+                type: 'POST',
+                data: theme_element_ids,
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+                    }
+                    else {
+                        // An error has occurred.
+                        // Show Error message dialog
+                        alert(data.d);
+                    }
                 },
-                stop: function( event, ui ) {
-                    var datafield_ids = "";
-                    ui.item.parent().find(".ODRDataField").each(function() {
-                        datafield_ids += $( this ).attr('id').replace('Field_','') + ','
-                    });
-                    datafield_ids = datafield_ids.replace(/,$/,'');
-                    var theme_element_id = ui.item.parent().parent().attr('id').replace('ThemeElement_','');
-                    console.log('sort stop ' + datafield_ids + " -- " + theme_element_id)
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
                 }
             });
-#}
+        }
 
-{#
-            jQuery(".ODRDataField label").prepend('<i class="fa fa-lg fa-minus-square ToggleHidden Pointer" style="margin-left: 2px" title="Click to hide this field."></i>')
-            jQuery(".ODRDataField label .ToggleHidden").unbind('click')
-            jQuery(".ODRDataField label .ToggleHidden").click(function() {
-                var datafield_id = $(this).parent().parent().parent().parent().attr('id').replace('Field_','')
-                var theme_element_id = $(this).parent().parent().parent().parent().parent().parent().attr('id').replace('ThemeElement_','')
-                console.log('field click ' + datafield_id + " -- " + theme_element_id)
-            })
-            // Toggle hide value
+        function SaveDatafieldOrder(container, initial_theme_element_id, ending_theme_element_id) {
 
-            jQuery(".ODRDataType h3").append('<i class="FRight fa fa-lg fa-minus-square ToggleHidden Pointer" style="margin-left: 2px" title="Click to hide this field."></i>')
-            jQuery(".ODRDataType h3 .ToggleHidden").unbind('click')
-            jQuery(".ODRDataType h3 .ToggleHidden").click(function() {
-                console.log('header click')
-            })
-#}
+            var i = 0;
+            var datafield_ids = {};
+            $(container).children(".ODRDataField").each(function() {
+                var id_data = $(this).attr('id').split(/_/);
+                datafield_ids[i] = id_data[1];
+                i++;
+            });
 
-            function SaveThemeElementOrder(container) {
+            // Get the id numbers of the passed-in theme elements
+            var theme_element = initial_theme_element_id.split(/_/);
+            initial_theme_element_id = theme_element[1];
+            var theme_element = ending_theme_element_id.split(/_/);
+            ending_theme_element_id = theme_element[1];
 
-                var i = 0;
-                var theme_element_ids = {};
-                $(container).children(".ODRThemeElement").each(function() {
-                    var id_data = $(this).attr('id').split(/_/);
-                    theme_element_ids[i] = id_data[1];
-                    i++;
-                });
+            // Theme ID
+            var url = '{{ path('odr_design_save_datafield_order', {'initial_theme_element_id': 0, 'ending_theme_element_id' : 0} ) }}';
+            url = url.substring(0, url.length-3);
+            url += initial_theme_element_id + '/' + ending_theme_element_id;
 
-                var url = '{{ path('odr_design_save_theme_element_order') }}';
-
-//alert( url );
-//alert( theme_element_ids );
-//return;
-
-                $.ajax({
-                    cache: false,
-                    type: 'POST',
-                    data: theme_element_ids,
-                    url: url,
-                    dataType: "json",
-                    success: function(data, textStatus, jqXHR) {
-                        if(data.r == 0) {
-                        }
-                        else {
-                            // An error has occurred.
-                            // Show Error message dialog
-                            alert(data.d);
-                        }
-                    },
-                    complete: function(jqXHR, textStatus) {
-                        // Get the xdebugToken from response headers
-                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                        // If the Sfjs object exists
-                        if (typeof Sfjs !== "undefined") {
-
-                            // Grab the toolbar element
-                            var currentElement = $('.sf-toolbar')[0];
-
-                            // Load the data of the given xdebug token into the current toolbar wrapper
-                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            $.ajax({
+                cache: false,
+                type: 'POST',
+                data: datafield_ids,
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+                        // Don't reload a ThemeElement div unless a DataField got moved between different ThemeElements
+                        if ( initial_theme_element_id != ending_theme_element_id ) {
+                            // Reload starting ThemeElement if all datafields got moved out of it
+                            if ( $("#ThemeElement_"+initial_theme_element_id).children(".ODRDataField").length == 0 ) {
+                            }
                         }
                     }
-                });
-            }
+                    else {
+                        // An error has occurred.
+                        // Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
-            function SaveDatafieldOrder(container, initial_theme_element_id, ending_theme_element_id) {
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
 
-                var i = 0;
-                var datafield_ids = {};
-                $(container).children(".ODRDataField").each(function() {
-                    var id_data = $(this).attr('id').split(/_/);
-                    datafield_ids[i] = id_data[1];
-                    i++;
-                });
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
 
-                // Get the id numbers of the passed-in theme elements
-                var theme_element = initial_theme_element_id.split(/_/);
-                initial_theme_element_id = theme_element[1];
-                var theme_element = ending_theme_element_id.split(/_/);
-                ending_theme_element_id = theme_element[1];
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        }
 
-                // Theme ID
-                var url = '{{ path('odr_design_save_datafield_order', {'initial_theme_element_id': 0, 'ending_theme_element_id' : 0} ) }}';
-                url = url.substring(0, url.length-3);
-                url += initial_theme_element_id + '/' + ending_theme_element_id;
+        var interval = "";
+        function saveThemeMeta() {
+            // Clear the save interval for this specific datafield...interval itself is defined by the variable "SaveTimeout" in this file
+            window.clearInterval(interval);
 
-                $.ajax({
-                    cache: false,
-                    type: 'POST',
-                    data: datafield_ids,
-                    url: url,
-                    dataType: "json",
-                    success: function(data, textStatus, jqXHR) {
-                        if(data.r == 0) {
-                            // Don't reload a ThemeElement div unless a DataField got moved between different ThemeElements
-                            if ( initial_theme_element_id != ending_theme_element_id ) {
-                                // Reload starting ThemeElement if all datafields got moved out of it
-                                if ( $("#ThemeElement_"+initial_theme_element_id).children(".ODRDataField").length == 0 ) {
-{#
-                                    ReloadThemeElement(initial_theme_element_id);
-                                    var icons = {"ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
-                                    setThemeElementIcons(initial_theme_element_id, icons);
-#}
-                                }
-{#
-                                // Reload ending ThemeElement if it now posesses a single datafield (would have been empty before)
-                                if ( $("#ThemeElement_"+ending_theme_element_id).children(".ODRDataField").length == 1 ) {
+            console.log('saving now');
 
-                                    var icons = {"ODRAddChildtype": 0, "ODRLinkDatatype": 0, "ODRDeleteThemeElement": 0};
-                                    setThemeElementIcons(ending_theme_element_id, icons);
-                                }
-#}
+            var prop_form = $("#ThemePropertiesForm");
+            jQuery.ajax({
+                type: "POST",
+                url: prop_form.attr('action'),
+                data: prop_form.serialize(),
+                dataType: 'json',
+                success: function(data) {
+                    console.log(data.d);
+                    var action = prop_form.attr('action');
+                    action = action.replace(/\d+$/, data.d);
+                    prop_form.attr('action', action);
+                    $.jGrowl('Name and description saved.');
+                }
+            });
+        }
+
+        function LoadThemeElementForm(theme_element_id) {
+            var url = "{{ path('odr_design_get_theme_element_properties', {'theme_element_id': 0}) }}";
+            url = url.substr(0, url.length-1);
+            jQuery.getJSON(
+                url + theme_element_id,
+                function(data) {
+                    jQuery("#ThemeDesignForm").html(data.d)
+                }
+            )
+        }
+
+        function SubmitThemeDesignForm() {
+            jQuery.ajax({
+                type: "POST",
+                url: jQuery("#ThemeDesignForm form").attr('action'),
+                data: jQuery("#ThemeDesignForm form").serialize(),
+                dataType: 'json',
+                success: function(data) {
+                    console.log(data)
+                }
+            });
+        }
+
+        // Display or hide data type (this is a theme element change
+        function LoadDatatypeForm(theme_element_id, datatype_id) {
+            var url = "{{ path('odr_design_load_theme_datatype', {'theme_element_id': 0, 'datatype_id': 0}) }}";
+            url = url.substr(0, url.length-3);
+            jQuery.getJSON(
+                url + theme_element_id + "/" + datatype_id,
+                function(data) {
+                    jQuery("#ThemeDesignForm").html(data.d);
+                    // Save changes to the visibility
+                    jQuery("#UpdateThemeDatatypeForm_hidden").unbind('change').change(function() {
+                        var datatype_id = jQuery("#UpdateThemeDatatypeForm_dataType").val()
+                        if(jQuery("#UpdateThemeDatatypeForm_hidden").find(":selected").val() == 1) {
+                            if(jQuery("#ODRThemeShowHidden").is(":checked")) {
+                                jQuery("#DataType_" + datatype_id).parent().parent().addClass("ODRThemeVisibleHiddenElement")
+                            }
+                            else {
+                                jQuery("#DataType_" + datatype_id).parent().parent().addClass("ODRThemeHiddenElement")
                             }
                         }
                         else {
-                            // An error has occurred.
-                            // Show Error message dialog
-                            alert(data.d);
+                            jQuery("#DataType_" + datatype_id).parent().parent()
+                                .removeClass("ODRThemeVisibleHiddenElement")
+                                .removeClass("ODRThemeHiddenElement")
                         }
-                    },
-                    complete: function(jqXHR, textStatus) {
-                        // Get the xdebugToken from response headers
-                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                        // If the Sfjs object exists
-                        if (typeof Sfjs !== "undefined") {
-
-                            // Grab the toolbar element
-                            var currentElement = $('.sf-toolbar')[0];
-
-                            // Load the data of the given xdebug token into the current toolbar wrapper
-                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        // Submit State Change
+                        SubmitThemeDesignForm()
+                    });
+                    // Save changes to the display type
+                    jQuery("#UpdateThemeDatatypeForm_display_type").unbind('change').change(function() {
+                        var datatype_id = jQuery("#UpdateThemeDatatypeForm_dataType").val()
+                        if(jQuery("#UpdateThemeDatatypeForm_display_type").find(":selected").val() == 1) {
+                            if(jQuery("#ODRThemeShowHidden").is(":checked")) {
+                                jQuery("#DataType_" + datatype_id + " h3:first").addClass("ODRThemeVisibleHiddenElement")
+                            }
+                            else {
+                                jQuery("#DataType_" + datatype_id + " h3:first").addClass("ODRThemeHiddenElement")
+                            }
                         }
-                    }
-                });
-            }
-        });
+                        else {
+                            jQuery("#DataType_" + datatype_id + " h3:first")
+                                .removeClass("ODRThemeVisibleHiddenElement")
+                                .removeClass("ODRThemeHiddenElement")
+                        }
+                        // Submit State Change
+                        SubmitThemeDesignForm()
+                    })
+                }
+            )
+        }
+
+
+        function LoadDatafieldForm(theme_element_id, datafield_id) {
+            var url = "{{ path('odr_design_load_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}";
+            url = url.substr(0, url.length-3);
+            jQuery.getJSON(
+                url + theme_element_id + "/" + datafield_id,
+                function(data) {
+                    jQuery("#ThemeDesignForm").html(data.d)
+                    jQuery("#UpdateThemeDatafieldForm_hidden").unbind('change')
+                    jQuery("#UpdateThemeDatafieldForm_hidden").change(function() {
+                        var datafield_id = jQuery("#UpdateThemeDatafieldForm_dataField").val()
+                        if(jQuery("#UpdateThemeDatafieldForm_hidden").find(":selected").val() == 1) {
+                            if(jQuery("#ODRThemeShowHidden").is(":checked")) {
+                                jQuery("#Field_" + datafield_id).addClass("ODRThemeVisibleHiddenElement")
+                            }
+                            else {
+                                jQuery("#Field_" + datafield_id).addClass("ODRThemeHiddenElement")
+                            }
+                        }
+                        else {
+                            jQuery("#Field_" + datafield_id)
+                                .removeClass("ODRThemeVisibleHiddenElement")
+                                .removeClass("ODRThemeHiddenElement")
+                        }
+                        // Submit State Change
+                        SubmitThemeDesignForm()
+
+                    })
+                }
+            )
+        }
     </script>
 
 {% endspaceless %}

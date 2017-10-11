@@ -10,6 +10,7 @@
                 {% else %}
                     Unnamed View.
                 {% endif %}
+                <!-- {{ theme.theme_type }} -->
             </h4>
         </div>
         <div class="pure-u-1 pure-u-md-12-24 ODRChooseViewDescription">
@@ -23,7 +24,7 @@
             {% if theme.id == selected_theme.id %}
                 <div class="ODRViewNote">[ Currently selected view. ]</div>
             {% endif %}
-            {% if theme.id == user_default_theme.id %}
+            {% if user != "anon." and theme.id == user_default_theme.id %}
                 <div class="ODRViewNote">[ Personal default view. ]</div>
             {% endif %}
             {% if theme.is_default == 1 %}
@@ -35,16 +36,16 @@
         </div>
         <div class="pure-u-1 pure-u-md-5-24">
             <ul class="ODRViewOptions">
-                {% if theme.id != user_default_theme.id %}
+                {% if user != "anon." and theme.id != user_default_theme.id %}
                     <li class="ODRDefaultPersonal">make personal default</li>
                 {% endif %}
                 {% if theme.id != selected_theme.id %}
                     <li class="ODRMakeCurrentView">apply view (current session)</li>
                 {% endif %}
                 {# any person can make their view public #}
-                {% if theme.created_by == user.id and not theme.public %}
-                    <li class="ODRMakeViewPublic">make view available to others</li>
-                {%  elseif theme.created_by == user.id %}
+                {% if user != "anon." and theme.created_by == user.id and not theme.public %}
+                    <li class="ODRMakeViewPublic">make view public (usable by others)</li>
+                {%  elseif user != "anon." and theme.created_by == user.id and theme.is_default == 0 %}
                     <li class="ODRMakeViewPublic">make view private</li>
                 {% endif %}
 
@@ -56,12 +57,12 @@
                 {% endif %}
 
                 <li>
-                {% if theme.created_by == user.id and theme.theme_type != "master" %}
+                {% if user != "anon." and theme.created_by == user.id and theme.theme_type != "master" %}
                     <span class="ODRModifyTheme">edit view</span> |
                     <span class="ODRCopyModifyTheme">copy view</span>
-                {% elseif theme.created_by == user.id  and theme.theme_type == "master" %}
+                {% elseif user != "anon." and theme.created_by == user.id  and theme.theme_type == "master" %}
                     <span class="ODRCopyModifyTheme">copy view</span>
-                {% else %}
+                {% elseif user != "anon." %}
                     <span class="ODRCopyModifyTheme">copy view</span>
                 {% endif %}
                 {% if datatype_admin and theme.is_default != 1 and theme.theme_type != "master" %}

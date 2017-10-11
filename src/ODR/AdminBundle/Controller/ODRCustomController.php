@@ -220,7 +220,8 @@ class ODRCustomController extends Controller
 
         // -----------------------------------
         $final_html = '';
-        if ( $theme->getThemeType() == 'search_results' || $theme->getThemeType() == 'master' ) {
+        // All theme types other than table
+        if ( $theme->getThemeType() != 'table' ) {
             // -----------------------------------
             // Ensure offset exists for shortresults list
             if ( (($offset-1) * $page_length) > count($datarecords) )
@@ -253,7 +254,11 @@ class ODRCustomController extends Controller
             }
 
             // Get datatypes of all related datarecords
-            $datatype_array = $dti_service->getDatatypeArrayByDatarecords($related_datarecord_array);
+            $parent_theme_id = null;
+            if($theme->getParentTheme() != null) {
+                $parent_theme_id = $theme->getParentTheme()->getId();
+            }
+            $datatype_array = $dti_service->getDatatypeArrayByDatarecords($related_datarecord_array, $parent_theme_id);
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $related_datarecord_array, $user_permissions);

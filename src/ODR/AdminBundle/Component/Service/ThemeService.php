@@ -132,15 +132,30 @@ class ThemeService
             $qb->andWhere("t.themeType like :theme_type OR t.themeType like 'custom_view'");
         }
         else {
-            $qb->andWhere('t.themeType like :theme_type');
+            // All theme types also have a "custom" version
+            $qb->andWhere('t.themeType like :theme_type OR t.themeType like :theme_type_custom');
         }
 
         $qb->addOrderBy('tm.displayOrder', 'ASC')
-            ->addOrderBy('tm.templateName', 'ASC')
-            ->setParameters(array(
-                'datatype_id' => $datatype_id,
-                'theme_type' => $theme_type,
-            ));
+            ->addOrderBy('tm.templateName', 'ASC');
+
+        if ($theme_type == "master") {
+            $qb->setParameters(
+                array(
+                    'datatype_id' => $datatype_id,
+                    'theme_type' => $theme_type,
+                )
+            );
+        }
+        else {
+            $qb->setParameters(
+                array(
+                    'datatype_id' => $datatype_id,
+                    'theme_type' => $theme_type,
+                    'theme_type_custom' => "custom_" . $theme_type,
+                )
+            );
+        }
 
         $query = $qb->getQuery();
         $available_themes = $query->getResult();
@@ -215,7 +230,10 @@ class ThemeService
         $theme_preference = null;
         /** @var ThemePreferences $tp */
         foreach($theme_preferences as $tp) {
-            if($tp->getTheme()->getThemeType() == $theme->getThemeType()) {
+            if(
+                preg_replace('/^custom_/','',$tp->getTheme()->getThemeType())
+                == preg_replace('/^custom_/', '', $theme->getThemeType())
+            ) {
                 $theme_preference = $tp;
             }
             else if(
@@ -343,8 +361,8 @@ class ThemeService
         if($theme->getThemeType() == "custom_view") {
             $theme_type = "master";
         }
-        if($theme->getThemeType() == "custom_search_results") {
-            $theme_type = "search_results";
+        else {
+            $theme_type = preg_replace('/^custom_/','', $theme_type);
         }
 
         $session = $this->container->get('session');
@@ -389,17 +407,34 @@ class ThemeService
             // Custom views should also pull for master view lists
             $qb->andWhere("t.themeType like :theme_type OR t.themeType like 'custom_view'");
         }
+
         else {
-            $qb->andWhere('t.themeType like :theme_type');
+            // All theme types also have a "custom" version
+            $qb->andWhere('t.themeType like :theme_type OR t.themeType like :theme_type_custom');
         }
 
         $qb->addOrderBy('tm.displayOrder', 'ASC')
-            ->addOrderBy('tm.templateName', 'ASC')
-            ->setParameters(array(
-                'datatype_id' => $datatype_id,
-                'theme_type' => $theme_type,
-                'user_id' => $user->getId(),
-            ));
+            ->addOrderBy('tm.templateName', 'ASC');
+
+        if ($theme_type == "master") {
+            $qb->setParameters(
+                array(
+                    'datatype_id' => $datatype_id,
+                    'theme_type' => $theme_type,
+                    'user_id' => $user->getId(),
+                )
+            );
+        }
+        else {
+            $qb->setParameters(
+                array(
+                    'datatype_id' => $datatype_id,
+                    'theme_type' => $theme_type,
+                    'theme_type_custom' => "custom_" . $theme_type,
+                    'user_id' => $user->getId(),
+                )
+            );
+        }
 
         $query = $qb->getQuery();
         $user_themes_result = $query->getResult();
