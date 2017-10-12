@@ -545,7 +545,7 @@ class ThemeController extends ODRCustomController
             if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
                 $request->setRequestFormat('json');
 
-            $source = 0x823238213;
+            $source = 0x134752347;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else

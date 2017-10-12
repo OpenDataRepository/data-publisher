@@ -221,6 +221,7 @@ class ThemeService
     public function setUserDefaultTheme($datatype, $theme) {
 
         $repo_theme_preferences = $this->em->getRepository('ODRAdminBundle:ThemePreferences');
+        // TODO Refactor to join with Theme to filter deleted themes from ThemePrefrences
         $theme_preferences = $repo_theme_preferences->findBy(array(
             'dataType' => $datatype->getId()
         ));
