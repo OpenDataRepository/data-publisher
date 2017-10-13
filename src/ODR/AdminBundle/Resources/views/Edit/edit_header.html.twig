@@ -122,22 +122,8 @@
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     // Don't need to do anything specific on an error
-                },
-{#    success redirects user away from page, don't need this
-                complete: function(jqXHR, textStatus) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
                 }
-#}
+                {# success redirects user away from page, don't need a complete function #}
             });
         }
     }

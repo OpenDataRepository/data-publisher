@@ -7,38 +7,40 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Due to HWIOAuthBundle effectively assuming it's the only bundle being used to log a user into a Symfony site, this
- * controller exists so users can be properly redirected back to their originally requested URLs after authentication.
+ * Due to HWIOAuthBundle effectively assuming it's the only bundle being used to log a user into
+ * a Symfony site, this controller exists so users can be properly redirected back to their
+ * originally requested URLs after authentication.
  */
-
 
 namespace ODR\OpenRepository\UserBundle\Controller;
 
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 
 
 class UtilityController extends Controller
 {
 
     /**
-     * This action is called when the "Login" button in the upper-right corner of the screen is clicked...the page
-     * provides the current baseurl for this action to save in the user's session.  Symfony won't automatically set the
-     * session key because the user typically isn't directly accessing a "secured" area of the firewall.
+     * This action is called when the "Login" button in the upper-right corner of the screen is
+     * clicked...the page provides the current baseurl for this action to save in the user's
+     * session.  Symfony won't automatically set the session key because the user typically isn't
+     * directly accessing a "secured" area of the firewall.
      *
      * @param Request $request
+     *
      * @throws \Exception
      *
-     * @return Response
+     * @return JsonResponse
      */
     public function saveurlAction(Request $request)
     {
         // Going to need these...
         $session = $request->getSession();
-        $router = $this->get('router');
+//        $router = $this->get('router');
 
         // Ensure query was correctly formed
         if (!$request->query->has('url') )
@@ -56,18 +58,19 @@ class UtilityController extends Controller
 
          // No issues, save the URL base
         $session->set('_security.main.target_path', $url);
-        return new Response();
+        return new JsonResponse();
     }
 
 
     /**
-     * This action is called by the login page to store any existing URL fragment, otherwise logins handled by the
-     * HWIOAuthBundle can't be redirected back to the original URL.
+     * This action is called by the login page to store any existing URL fragment, otherwise
+     * logins handled by the HWIOAuthBundle can't be redirected back to the original URL.
      *
      * @param Request $request
+     *
      * @throws \Exception
      *
-     * @return Response
+     * @return JsonResponse
      */
     public function savefragmentAction(Request $request)
     {
@@ -79,7 +82,8 @@ class UtilityController extends Controller
         if (!$request->query->has('fragment') )
             throw new \Exception('Invalid query string');
 
-        // If the fragment starts with  "/app_dev.php", temporarily get rid of it...route matching will fail otherwise
+        // If the fragment starts with  "/app_dev.php", temporarily get rid of it...
+        //  route matching will fail otherwise
         $fragment = $request->query->get('fragment');
         $has_appdev = false;
         if ( strpos($fragment, '/app_dev.php') !== false ) {
@@ -87,11 +91,12 @@ class UtilityController extends Controller
             $fragment = substr($fragment, 12);
         }
 
-        // The fragment should be an actual route...not bothering to catch any exception that arises, would just rethrow it anyways
+        // The fragment should be an actual route...
+        // Not bothering to catch any exception that arises, would just rethrow it anyways
         $route = $router->match($fragment);
 
-        // Ensure most target paths are cleared before saving
-        // Don't want to clear "_security.main.target_path", because users will always get redirected to the dashboard in that case
+        // Ensure target paths except for "_security.main.target_path" are cleared before saving
+        // If that path was cleared, users would always get redirected to the dashboard
         self::clearTargetPaths($request, false);
 
         // No issues, save the URL fragment
@@ -99,15 +104,17 @@ class UtilityController extends Controller
             $fragment = '/app_dev.php'.$fragment;
 
         $session->set('_security.url_fragment', $fragment);
-        return new Response();
+        return new JsonResponse();
     }
 
 
     /**
-     * This action exists primarily to deal with HWIOAuthBundle redirecting to the homepage upon successful login.
+     * This action exists primarily to deal with HWIOAuthBundle redirecting to the homepage upon
+     * successful login.
      *
-     * Fortunately, most of the Symfony firewalls store the desired target path in the user's session...this
-     * action locates and redirects the user to those URLs after they successfully authenticate themselves.
+     * Fortunately, most of the Symfony firewalls store the desired target path in the user's
+     * session...this action locates and redirects the user to those URLs after they successfully
+     * authenticate themselves.
      *
      * @param Request $request
      *
@@ -120,16 +127,19 @@ class UtilityController extends Controller
 //        exit( '<pre>'.print_r($session, true).'</pre>' );
         $url = '';
 
+        // If linking an ODR account with an external OAuth provider...
         if ( $session->has('_security.oauth_connect.redirect_path') ) {
-            // If linking an ODR account with an external OAuth provider, redirect back to finish the linking process
+            // ...redirect back to finish the linking process
             $url = $session->get('_security.oauth_connect.redirect_path');
         }
+        // If the "oauth_authorize" firewall (apps using ODR as an OAuth provider) is active...
         else if ( $session->has('_security.oauth_authorize.target_path') ) {
-            // If the "oauth_authorize" firewall (apps using ODR as an OAuth provider) specified a redirect target, then preferentially redirect to that
+            // ...then preferentially redirect to the specified target
             $url = $session->get('_security.oauth_authorize.target_path');
         }
+        // If the "main" firewall specified a redirect target...
         else if ( $session->has('_security.main.target_path') ) {
-            // If the "main" firewall specified a redirect target, then redirect to that
+            // ...then redirect to that
             $url = $session->get('_security.main.target_path');
 
             // If a URL fragment was specified, append that to the end of this url
@@ -150,14 +160,14 @@ class UtilityController extends Controller
             return new RedirectResponse($url);
         }
         else {
-            // Otherwise, no information about a desired redirect found...just redirect to the dashboard
+            // Otherwise, no desired redirect found...just redirect to the dashboard
             return new RedirectResponse($this->get('router')->generate('odr_admin_homepage'));
         }
     }
 
 
     /**
-     * Utility function to ensure the user's session doesn't somehow redirect to a path when it shouldn't.
+     * Utility function to ensure the user's session doesn't store a target path it shouldn't.
      *
      * @param Request $request
      * @param boolean $clear_all_paths

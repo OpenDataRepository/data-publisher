@@ -1,5 +1,6 @@
 {% spaceless %}
-    <!-- File Download Dialog -->
+
+<!-- ODR Modal Dialog -->
 <div class="ODRRemodal" data-remodal-id="ODRRemodal" id="ODRRemodal">
     <button data-remodal-action="close" class="remodal-close"></button>
     <h3 class="ODRRemodalTitle"></h3>
@@ -19,9 +20,9 @@
         <button data-remodal-action="close" class="ODRRemodalCancel remodal-close"></button>
     </div>
 </div>
+<!-- End ODR Modal Dialog -->
 
 <script>
-
     function setODRRemodalLoadingText(message) {
         var loading_text = $(".ODRRemodalLoading").find(".loading-text");
         loading_text.html(message);
@@ -32,16 +33,20 @@
         loading_text.html("loading");
     }
 
+    // Apparently calling the close() function on a remodal that isn't "opened" will fail silently
     function closeODRRemodal() {
-        var modal = $('[data-remodal-id=ODRRemodal]');
-        var inst = modal.remodal();
-        inst.close();
+        var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+
+        var state = inst.getState();
+        if (state === 'opened')
+            inst.close();
+        else if (state === 'opening')
+            setTimeout(closeODRRemodal, 100);
     }
 
     function setModalMessage(message, message_type) {
-
         var modal_body = $(".ODRRemodalBody");
-        if(message_type === undefined) {
+        if (message_type === undefined) {
             modal_body.html(
                 '<h4>' + message + '<h4>'
             );
@@ -54,7 +59,7 @@
     }
 
     function openODRRemodal(options, remodal_options) {
-        if(remodal_options === undefined
+        if (remodal_options === undefined
             || !_.isObject(remodal_options)
             || _.isEmpty(remodal_options)
         ) {
@@ -76,7 +81,7 @@
         // Clear buttons
         modal.find(".ODRRemodalButtons").hide();
         modal.find(".ODRRemodalButtons button").each(function() {
-            if(!$(this).hasClass("ODRRemodalCancel")) {
+            if (!$(this).hasClass("ODRRemodalCancel")) {
                 $(this).remove();
             }
         });
@@ -84,31 +89,26 @@
         // Set title
         modal.find(".ODRRemodalTitle").html(options.title);
         // Set buttons
-        if(!_.isEmpty(options.buttons)) {
-            for(var i = (options.buttons.length - 1); i >= 0; i--) {
+        if (!_.isEmpty(options.buttons)) {
+            for (var i = (options.buttons.length - 1); i >= 0; i--) {
                 var button = options.buttons[i];
 
                 var button_html = '<button ' +
                     'id="' + button.id +'" ' +
                     'class="pure-button ODRSubmitButton ';
 
-                if(button.secondary !== undefined && button.secondary) {
+                if (button.secondary !== undefined && button.secondary)
                     button_html += ' pure-button-secondary"';
-                }
-                else {
+                else
                     button_html += ' pure-button-primary"';
-                }
 
-                if(button.title) {
+                if (button.title)
                     button_html += ' title="' + button.title + '"';
-                }
 
-                if(button.disabled) {
+                if (button.disabled)
                     button_html += 'disabled>' + button.text + '</button>';
-                }
-                else {
+                else
                     button_html += '>' + button.text + '</button>';
-                }
 
 //                console.log(button_html)
                 modal.find(".ODRRemodalButtons").prepend(button_html);
@@ -118,12 +118,11 @@
             }
         }
 
-        if(options.body) {
+        if (options.body)
             modal.find(".ODRRemodalBody").html(options.body);
-        }
 
         // Set body
-        if(options.loading || !options.body) {
+        if (options.loading || !options.body) {
             // Set the loading screen (if body empty)
             modal.find(".ODRRemodalButtons").hide();
             modal.find(".ODRRemodalLoading").show();
@@ -138,17 +137,6 @@
         // Reset modal to display content.
         resetRemodalInnerHeight();
     }
-
-    // Apparently calling the close() function on a remodal that isn't "opened" will fail silently
-    function closeODRRemodal() {
-        var inst = $('[data-remodal-id=ODRRemodal]').remodal();
-
-        var state = inst.getState();
-        if (state === 'opened')
-            inst.close();
-        else if (state === 'opening')
-            setTimeout(closeODRRemodal, 100);
-    }
-
 </script>
+
 {% endspaceless %}
