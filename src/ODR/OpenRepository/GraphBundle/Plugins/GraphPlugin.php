@@ -15,54 +15,41 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
-// Controllers/Classes
 
-// Libraries
+// Other
 use Ramsey\Uuid\Uuid;
-use Ramsey\Uuid\Exception\UnsatisfiedDependencyException;
-
-// Symfony components
+// Symfony
+use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\DependencyInjection\ContainerInterface as Container;
-// use Doctrine\ORM\EntityManager;
+use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
-/**
- * Class GraphPlugin
- * @package ODR\OpenRepository\GraphBundle\Plugins
- */
+
 class GraphPlugin
 {
-
-
     /**
-     * @var mixed
+     * @var EngineInterface
      */
     private $templating;
 
-
     /**
-     * @var mixed
+     * @var Logger
      */
     private $logger;
 
-
     /**
-     * @var array
+     * @var Container
      */
-    // private $line_colors;
-
-    /**
-     * @var array
-     */
-    // private $jpgraph_line_colors;
+    private $container;
 
 
     /**
      * GraphPlugin constructor.
      *
-     * @param $templating
-     * @param $logger
+     * @param EngineInterface $templating
+     * @param Logger $logger
+     * @param Container $container
      */
-    public function __construct($templating, $logger, Container $container) {
+    public function __construct(EngineInterface $templating, Logger $logger, Container $container) {
         $this->templating = $templating;
 	    $this->logger = $logger;
         $this->container = $container;
@@ -70,90 +57,21 @@ class GraphPlugin
 
 
     /**
-     * TODO
-     *
-     * @param $string
-     *
-     * @return bool
-     */
-    private function is_all_multibyte($string)
-    {
-        // check if the string doesn't contain invalid byte sequence
-        if (mb_check_encoding($string, 'UTF-8') === false)
-            return false;
-
-        $length = mb_strlen($string, 'UTF-8');
-        for ($i = 0; $i < $length; $i += 1) {
-
-            $char = mb_substr($string, $i, 1, 'UTF-8');
-
-            // check if the string doesn't contain single character
-            if (mb_check_encoding($char, 'ASCII'))
-                return false;
-        }
-
-        return true;
-    }
-
-
-    /**
-     * TODO - delete this?
-     *
-     * @param $string
-     *
-     * @return bool
-     */
-/*
-    private function contains_any_multibyte($string)
-    {
-        return !mb_check_encoding($string, 'ASCII') && mb_check_encoding($string, 'UTF-8');
-    }
-*/
-
-    /**
-     * TODO - delete this?
-     *
-     * @param $str
-     *
-     * @return string
-     */
-/*
-    private function convert_to_utf8($str) {
-        $encoding =  mb_detect_encoding($content, $enclist, true);
-        // $this->logger->info('GraphPlugin :: ' . $encoding);
-
- 	    static $enclist = array(
-            'UTF-16', 'UTF-16LE', 'UTF-16BE', 'UTF-8', 'ASCII', 
-            'ISO-8859-1', 'ISO-8859-2', 'ISO-8859-3', 'ISO-8859-4', 'ISO-8859-5', 
-            'ISO-8859-6', 'ISO-8859-7', 'ISO-8859-8', 'ISO-8859-9', 'ISO-8859-10', 
-            'ISO-8859-13', 'ISO-8859-14', 'ISO-8859-15', 'ISO-8859-16', 
-            'Windows-1251', 'Windows-1252', 'Windows-1254', 
-        );
-        // $content = file_get_contents($fn); 
-        return mb_convert_encoding(
-                   $str, 
-                   'UTF-8', 
-                   mb_detect_encoding($str, $enclist, true)); 
-    }
-*/
-
-    /**
      * Executes the Graph Plugin on the provided datarecords
      *
      * @param array $datarecords
      * @param array $datatype
      * @param array $render_plugin
-     * @param array $theme
+     * @param array $theme_array
      * @param array $rendering_options
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme, $rendering_options)
+    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options)
     {
 
         try {
-
             // ----------------------------------------
             // Grab various properties from the render plugin array
             $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
@@ -182,22 +100,9 @@ class GraphPlugin
                 $rpf = $rpm['renderPluginFields'];
                 $df_id = $rpm['dataField']['id'];
 
-                // Want the full-fledged datafield entry...the one in $rpm['dataField'] has no render plugin or meta data
-                // Unfortunately, the desired one is buried inside the $theme array somewhere...
                 $df = null;
-                foreach ($theme['themeElements'] as $te) {
-                    if ( isset($te['themeDataFields']) ) {
-                        foreach ($te['themeDataFields'] as $tdf) {
-                            if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $df_id ) {
-                                $df = $tdf['dataField'];
-                                break;
-                            }
-                        }
-                    }
-
-                    if ($df !== null)
-                        break;
-                }
+                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$df_id]) )
+                    $df = $datatype['dataFields'][$df_id];
 
                 if ($df == null)
                     throw new \Exception('Unable to locate array entry for the field "'.$rpf['fieldName'].'", mapped to df_id '.$df_id);
@@ -309,7 +214,7 @@ class GraphPlugin
             $page_data = array(
                 'datatype_array' => array($datatype['id'] => $datatype),
                 'datarecord_array' => $datarecords,
-                'theme_id' => $theme['id'],
+                'theme_array' => $theme_array,
                 'target_datatype_id' => $datatype['id'],
 
                 // TODO - figure out what these do

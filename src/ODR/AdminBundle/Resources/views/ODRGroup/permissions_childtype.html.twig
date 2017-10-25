@@ -1,7 +1,6 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
-{% set theme = datatype.themes[theme_id] %}
 
 <div class="ODRDataType{% if is_top_level == 0 %} ODRAccordionWrapper ODRFormAccordion{% endif %} pure-u-1" id="DataType_{{ datatype.id }}">
 
@@ -34,7 +33,7 @@
 
                 'datatype_array': datatype_array,
                 'target_datatype_id': target_datatype_id,
-                'theme_id': theme_id,
+                'theme_array': theme_array,
 
                 'is_top_level': is_top_level,
                 'prevent_all_changes': prevent_all_changes,
@@ -52,7 +51,7 @@
 
                 'datatype_array': datatype_array,
                 'target_datatype_id': target_datatype_id,
-                'theme_id': theme_id,
+                'theme_array': theme_array,
 
                 'is_top_level': is_top_level,
                 'prevent_all_changes': prevent_all_changes,

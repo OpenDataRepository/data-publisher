@@ -25,7 +25,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
     {% include 'ODRAdminBundle:Edit:edit_childtype.html.twig' with {
         'datatype_array': datatype_array,
         'datarecord_array': datarecord_array,
-        'theme_id': theme_id,
+        'theme_array': theme_array,
 
         'target_datatype_id': target_datatype_id,
         'parent_datarecord_id': parent_datarecord.id,
@@ -56,7 +56,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
     {% include 'ODRAdminBundle:Display:display_childtype.html.twig' with {
         'datatype_array': datatype_array,
         'datarecord_array': datarecord_array,
-        'theme_id': theme_id,
+        'theme_array': theme_array,
 
         'target_datatype_id': target_datatype_id,
         'parent_datarecord_id': datarecord.id,

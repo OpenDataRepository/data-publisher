@@ -293,20 +293,17 @@ odr_add_types:
 #-----------------------------------------
 
 #-----------------------------------------
-
 # Theme Controller
 odr_toggle_theme_public:
-    path:  /design/togglepublic/{datatype_id}/{theme_id}
-    defaults: { _controller:ODRAdminBundle:Theme:toggle_public }
+    path:  /design/togglepublic/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:themepublic }
     requirements:
-        datatype_id:  \d+
         theme_id:  \d+
 
 odr_make_default_theme:
-    path:  /design/makedefault/{datatype_id}/{theme_id}
-    defaults: { _controller:ODRAdminBundle:Theme:make_default }
+    path:  /design/makedefault/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:themedefault }
     requirements:
-        datatype_id:  \d+
         theme_id:  \d+
 
 odr_delete_custom_theme:
@@ -316,18 +313,12 @@ odr_delete_custom_theme:
         datatype_id:  \d+
         theme_id:  \d+
 
-odr_modify_theme:
+odr_modify_theme:    # TODO - ...doesn't this clash with designAction()?
     path:  /design/modify_view/{datatype_id}/{theme_id}
     defaults: { _controller:ODRAdminBundle:Theme:modify_theme }
     requirements:
         datatype_id:  \d+
         theme_id:  \d+
-
-odr_check_clone_theme:
-    path:  /design/copy_view_check/{tracked_job_id}
-    defaults: { _controller:ODRAdminBundle:Theme:check_theme_progress }
-    requirements:
-        tracked_job_id:  \d+
 
 odr_clone_theme:
     path:  /design/copy_view/{datatype_id}/{theme_id}
@@ -336,45 +327,45 @@ odr_clone_theme:
         datatype_id:  \d+
         theme_id:  \d+
 
-odr_design_derivative_themes:
+odr_design_derivative_themes:    # TODO - ...doesn't this clash with modify_themeAction()?
     path:  /design/searchtemplate/{datatype_id}
     defaults: { _controller:ODRAdminBundle:Theme:design }
     requirements:
         datatype_id:  \d+
 
-odr_design_load_theme_list:
+odr_design_load_theme_list:    # TODO - this no longer exists in ThemeController...
     path:  /design/theme/load_all/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Theme:loadThemeList }
     requirements:
         datatype_id:  \d+
 
-odr_design_add_theme:
+odr_design_add_theme:    # TODO - this no longer exists in ThemeController...
     path:  /design/theme/add/{datatype_id}/{theme_type}
     defaults: { _controller: ODRAdminBundle:Theme:addtheme }
     requirements:
         datatype_id:  \d+
         theme_type: 'derivative|search_results|table|'
 
-odr_design_load_theme:
+odr_design_load_theme:    # TODO - this no longer exists in ThemeController...
     path:  /design/theme/load/{theme_id}
     defaults: { _controller: ODRAdminBundle:Theme:loadtheme }
     requirements:
         theme_id:  \d+
 
-odr_derivative_reload_theme_element:
+odr_derivative_reload_theme_element:    # TODO - this no longer exists in ThemeController...
     path: /design/searchtemplate/themeelementreload/{source_datatype_id}/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Theme:reloadthemeelement }
     requirements:
         source_datatype_id: \d+
         theme_element_id: \d+
 
-odr_design_delete_theme:
+odr_design_delete_theme:    # TODO - this no longer exists in ThemeController...
     path:  /design/theme/delete/{theme_id}
     defaults: { _controller: ODRAdminBundle:Theme:deletetheme }
     requirements:
         theme_id:  \d+
 
-odr_design_get_theme_properties:
+odr_design_get_theme_properties:    # TODO - this no longer exists in ThemeController...
     path:  /design/theme/properties/{theme_id}
     defaults: { _controller: ODRAdminBundle:Theme:themeproperties }
     requirements:
@@ -403,20 +394,6 @@ odr_design_save_theme_element_order:
     path:  /design/themeelement/order
     defaults: { _controller: ODRAdminBundle:Theme:themeelementorder }
     methods: [ POST ]
-
-odr_design_attach_datafield:
-    path:  /design/theme/attachdatafield/{datafield_id}/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Theme:attachdatafield }
-    requirements:
-        datafield_id: \d+
-        theme_element_id: \d+
-
-odr_design_detach_datafield:
-    path:  /design/theme/detachdatafield/{datafield_id}/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Theme:detachdatafield }
-    requirements:
-        datafield_id: \d+
-        theme_element_id: \d+
 
 odr_design_save_datafield_order:
     path:  /design/theme/datafieldorder/{initial_theme_element_id}/{ending_theme_element_id}
@@ -801,7 +778,7 @@ odr_file_download:
 
 odr_get_available_themes:
     path:  /view/getthemes/{datatype_id}/{page_type}
-    defaults: { _controller: ODRAdminBundle:Display:available_themes }
+    defaults: { _controller: ODRAdminBundle:Display:getavailablethemes }
     requirements:
         datatype_id:  \d+
         page_type:  'display|search_results'
@@ -811,8 +788,8 @@ odr_customize_view_dialog:
     defaults: { _controller: ODRAdminBundle:Display:customize_theme_dialog }
     requirements:
         datatype_id:  \d+
-# deprecated
-# deprecated
+
+# deprecated?
 #odr_cancel_file_decrypt:
 #    path:  /view/downloadfile_cancel/{file_id}
 #    defaults: { _controller: ODRAdminBundle:Display:cancelfiledecrypt }
@@ -1191,6 +1168,12 @@ odr_get_zip_archive_progress:
     requirements:
         archive_filename: 0|[0-9a-zA-Z\-\_]{12}.zip
 
+odr_check_clone_theme:
+    path:  /design/copy_view_check/{tracked_job_id}
+    defaults: { _controller:ODRAdminBundle:Theme:getthemeprogress }
+    requirements:
+        tracked_job_id:  \d+
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -1200,16 +1183,19 @@ odr_dt_clear:
     defaults: { _controller: ODRAdminBundle:Worker:dtclear, datatype_id: 0 }
     requirements:
         datatype_id: \d+
+odr_theme_clear:
+    path: /admin/theme_clear/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Worker:themeclear, datatype_id: 0 }
+    requirements:
+        datatype_id: \d+
 odr_dr_clear:
     path: /admin/dr_clear/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Worker:drclear, datatype_id: 0 }
     requirements:
         datatype_id: \d+
-
 odr_search_clear:
     path: /admin/search_clear
     defaults: { _controller: ODRAdminBundle:Worker:searchclear }
-
 odr_permissions_clear:
     path: /admin/permissions_clear
     defaults: { _controller: ODRAdminBundle:Worker:permissionsclear }
@@ -1234,18 +1220,14 @@ odr_fix_database_dates:
     path: /admin/fix_dates
     defaults: { _controller: ODRAdminBundle:Worker:fixdatabasedates }
 
-#-----------------------------------------
+odr_datatype_migrate:
+    path:  /admin/datatype_migrate
+    defaults: { _controller: ODRAdminBundle:Worker:datatypemigrate }
+odr_theme_migrate:
+    path: /admin/theme_migrate
+    defaults: { _controller: ODRAdminBundle:Worker:thememigrate }
 
 #-----------------------------------------
-#build_group_data:
-#    path:  /admin/build_group_data
-#    defaults: { _controller:ODRAdminBundle:Worker:startbuildgroupdata }
-
-#odr_group_metadata:
-#    path:  /beanstalk/build_group_data
-#    defaults: { _controller:ODRAdminBundle:Worker:buildgroupdata }
-#    requirements: { methods: POST }
-
 
 #-----------------------------------------
 # API Controller

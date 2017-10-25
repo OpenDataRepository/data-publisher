@@ -19,11 +19,11 @@
             {% include 'ODRAdminBundle:Display:display_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
                 'datarecord': datarecord,
+                'theme_array': theme_array,
 
                 'target_datatype_id': target_datatype_id,
                 'parent_datarecord_id': parent_datarecord_id,
                 'target_datarecord_id': datarecord.id,
-                'theme_id': theme_id,
 
                 'is_top_level': is_top_level,
                 'is_link': is_link,

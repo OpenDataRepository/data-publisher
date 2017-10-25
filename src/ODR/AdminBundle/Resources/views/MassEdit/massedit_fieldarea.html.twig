@@ -1,7 +1,7 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
-{% set theme = datatype.themes[theme_id] %}
+{% set theme = theme_array[datatype.id] %}
 
 {% for theme_element in theme.themeElements %}
 
@@ -11,10 +11,12 @@
     {% if theme_element.themeDataFields is defined %}
 
         {% for theme_datafield in theme_element.themeDataFields %}
-            {% if theme_datafield.dataField is not defined %}
+            {% set datafield_id = theme_datafield.dataField.id %}
+
+            {% if datatype['dataFields'][datafield_id] is not defined %}
                 <div class="pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"></div>    {# user doesn't have permissions to see this datafield #}
             {% else %}
-                {% set datafield = theme_datafield.dataField %}
+                {% set datafield = datatype['dataFields'][datafield_id] %}
 
                 {% set can_edit_datafield = false %}
                 {% if datafield_permissions[ datafield.id ] is defined and datafield_permissions[ datafield.id ][ 'edit' ] is defined %}
@@ -38,21 +40,17 @@
 
     {% elseif theme_element.themeDataType is defined %}
 
-        {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
-            {% set child_datatype = theme_datatype.dataType %}
+        {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
+        {% for theme_datatype in theme_element.themeDataType %}
+            {% set child_datatype_id = theme_datatype.dataType.id %}
 
-            {% if datatype_array[ child_datatype.id ] is defined %}
-                {% set child_theme_id = 0 %}
-                {% for theme in datatype_array[ child_datatype.id ].themes %}
-                    {% if theme.themeType == 'master' %}
-                        {% set child_theme_id = theme.id %}
-                    {% endif %}
-                {% endfor %}
+            {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
+            {% if datatype['descendants'][child_datatype_id] is defined and datatype_array[child_datatype_id] is defined %}
 
                 {% include 'ODRAdminBundle:MassEdit:massedit_childtype.html.twig' with {
                     'datatype_array': datatype_array,
-                    'target_datatype_id': child_datatype.id,
-                    'theme_id': child_theme_id,
+                    'target_datatype_id': child_datatype_id,
+                    'theme_array': theme_array,
 
                     'datatype_permissions': datatype_permissions,
                     'datafield_permissions': datafield_permissions,

@@ -58,19 +58,18 @@ class PlugExtension extends \Twig_Extension
      * @param array $datarecords
      * @param array $datatype
      * @param array $render_plugin
-     * @param array $theme
+     * @param array $theme_array
      * @param array $rendering_options
      *
      * @return string
      * @throws \Exception
      */
-    public function datatypePluginFilter($datarecords, $datatype, $render_plugin, $theme, $rendering_options)
+    public function datatypePluginFilter($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options)
     {
         try {
             // Load and execute the render plugin
             $svc = $this->container->get($render_plugin['pluginClassName']);
-            // return $svc->execute($datarecord_array, $datatype, $render_plugin, $theme, $rendering_options);
-            return $svc->execute($datarecords, $datatype, $render_plugin, $theme, $rendering_options);
+            return $svc->execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options);
         }
         catch (\Exception $e) {
             return 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage();
@@ -244,16 +243,15 @@ class PlugExtension extends \Twig_Extension
      *
      * @param array $theme_element
      * @param array $datarecord
+     * @param array $datatype
      * @param string $mode  'display' or 'edit'
      *
      * @return bool
      * @throws \Exception
      */
-    public function isEmptyFilter($theme_element, $datarecord, $mode)
+    public function isEmptyFilter($theme_element, $datarecord, $datatype, $mode)
     {
         try {
-//            print '<pre>'.print_r($theme_element, true).'</pre>';
-
             if ( !isset($theme_element['themeElementMeta']) )
                 throw new \Exception('Array does not describe a theme_element');
 
@@ -262,7 +260,9 @@ class PlugExtension extends \Twig_Extension
 
                 // ...it is not considered empty if at least one of those datafields has not been filtered out, and is not hidden
                 foreach ($theme_element['themeDataFields'] as $num => $tdf) {
-                    if ( $tdf['hidden'] == 0 && isset($tdf['dataField']) && count($tdf['dataField']) > 0 )
+                    $df_id = $tdf['dataField']['id'];
+
+                    if ( $tdf['hidden'] == 0 && isset($datatype['dataFields']) && isset($datatype['dataFields'][$df_id]) )
                         return false;
                 }
             }
@@ -283,9 +283,7 @@ class PlugExtension extends \Twig_Extension
                         }
                         else {
                             // This theme element contains a linked datatype...
-                            $child_datatype_id = '';
-                            foreach ($tdt['dataType'] as $cdt_id => $cdt)
-                                $child_datatype_id = $cdt['id'];
+                            $child_datatype_id = $tdt['dataType']['id'];
 
                             // ...it's only considered empty when there are no linked datarecords of this linked datatype
                             if ( isset($datarecord['children']) && isset($datarecord['children'][$child_datatype_id]) && count($datarecord['children'][$child_datatype_id]) > 0 )

@@ -267,4 +267,3 @@ class ThemePreferences
         return $this->updatedBy;
     }
 }
-

@@ -1,6 +1,7 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[initial_datatype_id] %}
+{% set theme = theme_array[datatype.id] %}
 
 {% set can_edit_datarecord = false %}
 {% set is_datatype_admin = false %}
@@ -29,17 +30,16 @@
 
         {# Page/ View Options#}
         {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
-            'datatype_array': datatype_array,
-            'datarecord_array': datarecord_array,
-            'theme_id': theme_id,
             'datatype': datatype,
+            'theme': theme,
             'page_type': 'search_results',
         } %}
 
         {% include 'ODRAdminBundle:ShortResults:shortresults_ajax.html.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': datarecord_array,
-            'theme_id': theme_id,
+            'theme_array': theme_array,
+
             'initial_datatype_id': initial_datatype_id,
             'offset': offset,
             'can_edit_datarecord': can_edit_datarecord,
@@ -83,17 +83,6 @@
     </div>
 </div>
 {% endif %}
-
-{#
-<style type="text/css">
-    .ShortResults_offset {
-        min-height: 10px;
-    }
-    .ODREditLink {
-        float: right;
-    }
-</style>
-#}
 
 <script>
 
@@ -190,20 +179,6 @@
 
         // Set up image galleries
         setupImageGalleries();
-
-{#
-{% if not can_edit_datarecord %}
-        // Remove links to edit mode
-        $(".ODREditLink").remove();
-{% else %}
-        $(".ODREditLink").unbind('click').click(function(event) {
-            // Don't load view mode for Datarecord
-            event.stopImmediatePropagation();
-            // Load edit mode of Datarecord instead
-            loadDataRecord( $(this).attr('rel'), 'edit' );
-        });
-{% endif %}
-#}
 
         $(".ODRFileDownloadProgress").hide();
 

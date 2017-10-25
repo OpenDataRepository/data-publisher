@@ -17,11 +17,14 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
+// Symfony
+use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+
 
 class LinkPlugin
 {
     /**
-     * @var mixed
+     * @var EngineInterface
      */
     private $templating;
 
@@ -29,9 +32,9 @@ class LinkPlugin
     /**
      * LinkPlugin constructor.
      *
-     * @param $templating
+     * @param EngineInterface $templating
      */
-    public function __construct($templating) {
+    public function __construct(EngineInterface $templating) {
         $this->templating = $templating;
     }
 
@@ -42,13 +45,13 @@ class LinkPlugin
      * @param array $datarecords
      * @param array $datatype
      * @param array $render_plugin
-     * @param array $theme
+     * @param array $theme_array
      * @param array $rendering_options
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme, $rendering_options)
+    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options)
     {
 
         try {
@@ -121,7 +124,7 @@ class LinkPlugin
                         'target_datatype_id' => $datatype['id'],
                         'parent_datarecord_id' => $parent_datarecord_id,
                         'target_datarecord_id' => $target_datarecord_id,
-                        'theme_id' => $theme['id'],
+                        'theme_array' => $theme_array,
 
                         'is_top_level' => $rendering_options['is_top_level'],
                         'is_link' => $rendering_options['is_link'],

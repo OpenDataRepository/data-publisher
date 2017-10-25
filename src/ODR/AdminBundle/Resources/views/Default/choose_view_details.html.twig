@@ -21,10 +21,10 @@
             {% else %}
                 No description.
             {% endif %}
-            {% if theme.id == selected_theme.id %}
+            {% if theme.id == selected_theme_id %}
                 <div class="ODRViewNote">[ Currently selected view. ]</div>
             {% endif %}
-            {% if user != "anon." and theme.id == user_default_theme.id %}
+            {% if user != "anon." and user_default_theme is not null and theme.id == user_default_theme.id %}
                 <div class="ODRViewNote">[ Personal default view. ]</div>
             {% endif %}
             {% if theme.is_default == 1 %}
@@ -36,10 +36,10 @@
         </div>
         <div class="pure-u-1 pure-u-md-5-24">
             <ul class="ODRViewOptions">
-                {% if user != "anon." and theme.id != user_default_theme.id %}
+                {% if user != "anon." and (user_default_theme is null or theme.id != user_default_theme.id) %}
                     <li class="ODRDefaultPersonal">make personal default</li>
                 {% endif %}
-                {% if theme.id != selected_theme.id %}
+                {% if theme.id != selected_theme_id %}
                     <li class="ODRMakeCurrentView">apply view (current session)</li>
                 {% endif %}
                 {# any person can make their view public #}

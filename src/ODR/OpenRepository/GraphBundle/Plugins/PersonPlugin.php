@@ -14,11 +14,14 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
+// Symfony
+use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+
 
 class PersonPlugin
 {
     /**
-     * @var mixed
+     * @var EngineInterface mixed
      */
     private $templating;
 
@@ -26,9 +29,9 @@ class PersonPlugin
     /**
      * URLPlugin constructor.
      *
-     * @param $templating
+     * @param EngineInterface $templating
      */
-    public function __construct($templating) {
+    public function __construct(EngineInterface $templating) {
         $this->templating = $templating;
     }
 
@@ -39,13 +42,13 @@ class PersonPlugin
      * @param array $datarecords
      * @param array $datatype
      * @param array $render_plugin
-     * @param array $theme
+     * @param array $theme_array
      * @param array $rendering_options
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme, $rendering_options)
+    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options)
     {
         // This render plugin does not override any part of the rendering, and therefore this function will never be called.
         return '';

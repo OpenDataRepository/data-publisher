@@ -7,11 +7,11 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * This service stores most of the code related to permission arrays for users/groups, as well as the DQL to
- * to create new groups for datatypes/datafields.
+ * This service stores most of the code related to permission arrays for users/groups, as well as
+ * the DQL to to create new groups for datatypes/datafields.
  *
- * Creation of groups when datatypes/datafields are being copied from a master template are handled inside
- * the CreateDatatypeService.
+ * Creation of groups when datatypes/datafields are being copied from a master template are handled
+ * inside the CreateDatatypeService.
  */
 
 namespace ODR\AdminBundle\Component\Service;
@@ -87,33 +87,35 @@ class PermissionsManagementService
 
 
     /**
+     * Returns the provided user's cached datatype permissions array.
+     *
      * @param ODRUser $user
-     * @param bool $force_rebuild
      *
      * @return array
      */
-    public function getDatatypePermissions($user, $force_rebuild = false)
+    public function getDatatypePermissions($user)
     {
         if ($user === "anon.")
             return array();
 
-        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $user_permissions = self::getUserPermissionsArray($user);
         return $user_permissions['datatypes'];
     }
 
 
     /**
+     * Returns the provided user's cached datafield permissions array.
+     *
      * @param ODRUser $user
-     * @param bool $force_rebuild
      *
      * @return array
      */
-    public function getDatafieldPermissions($user, $force_rebuild = false)
+    public function getDatafieldPermissions($user)
     {
         if ($user === "anon.")
             return array();
 
-        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $user_permissions = self::getUserPermissionsArray($user);
         return $user_permissions['datafields'];
     }
 
@@ -123,11 +125,10 @@ class PermissionsManagementService
      *
      * @param ODRUser $user
      * @param DataType $datatype
-     * @param bool $force_rebuild
      *
      * @return bool
      */
-    public function canViewDatatype($user, $datatype, $force_rebuild = false)
+    public function canViewDatatype($user, $datatype)
     {
         // If the datatype is public, then it can always be viewed
         if ($datatype->isPublic())
@@ -139,11 +140,12 @@ class PermissionsManagementService
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $user_permissions = self::getUserPermissionsArray($user);
         $datatype_permissions = $user_permissions['datatypes'];
 
         if ( isset($datatype_permissions[ $datatype->getId() ])
-            && isset($datatype_permissions[ $datatype->getId() ]['dt_view']) ) {
+            && isset($datatype_permissions[ $datatype->getId() ]['dt_view'])
+        ) {
             // User has the can_view_datatype permission
             return true;
         }
@@ -155,32 +157,33 @@ class PermissionsManagementService
 
 
     /**
-     * Returns whether the given user can view the given Datarecord.
+     * Returns whether the given user can view the given Datarecord.  If the user has this
+     * permission, then they automatically have permission to view the Datatype.
      *
      * @param ODRUser $user
      * @param DataRecord $datarecord
-     * @param bool $force_rebuild
      *
      * @return bool
      */
-    public function canViewDatarecord($user, $datarecord, $force_rebuild = false)
+    public function canViewDatarecord($user, $datarecord)
     {
-        // If the datarecord is public, then it can always be viewed
+        // If the datarecord is public, then it can be viewed (assuming user can also view datatype)
         if ($datarecord->isPublic())
             return true;
 
         // Otherwise, the datarecord is non-public
-        // If the user isn't logged in, they can't view the datarecord
+        // ...if the user isn't logged in, they can't view the datarecord
         if ($user === "anon.")
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $user_permissions = self::getUserPermissionsArray($user);
         $datatype_permissions = $user_permissions['datatypes'];
 
-        $datatype = $datarecord->getDatatype();
+        $datatype = $datarecord->getDataType();
         if ( isset($datatype_permissions[ $datatype->getId() ])
-            && isset($datatype_permissions[ $datatype->getId() ]['dr_view']) ) {
+            && isset($datatype_permissions[ $datatype->getId() ]['dr_view'])
+        ) {
             // User has the can_view_datarecord permission
             return true;
         }
@@ -192,26 +195,27 @@ class PermissionsManagementService
 
 
     /**
-     * Returns whether the given user can create a new Datarecord.
+     * Returns whether the given user can create a new Datarecord for this Datatype.  If the user
+     * has this permission, then they automatically have permission to view the Datatype.
      *
      * @param ODRUser $user
      * @param DataType $datatype
-     * @param bool $force_rebuild
      *
      * @return bool
      */
-    public function canAddDatarecord($user, $datatype, $force_rebuild = false)
+    public function canAddDatarecord($user, $datatype)
     {
         // If the user isn't logged in, they can't add new datarecords
         if ($user === "anon.")
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $user_permissions = self::getUserPermissionsArray($user);
         $datatype_permissions = $user_permissions['datatypes'];
 
         if ( isset($datatype_permissions[ $datatype->getId() ])
-            && isset($datatype_permissions[ $datatype->getId() ]['dr_add']) ) {
+            && isset($datatype_permissions[ $datatype->getId() ]['dr_add'])
+        ) {
             // User has the can_add_datarecord permission
             return true;
         }
@@ -223,27 +227,29 @@ class PermissionsManagementService
 
 
     /**
-     * Returns whether the given user can edit this Datarecord.
+     * Returns whether the given user can edit this Datarecord.  If the user has this permission,
+     * then they automatically have permission to view the Datatype.
+     * TODO - Eventually need the ability to allow/deny based on a search result...
      *
      * @param ODRUser $user
      * @param DataRecord $datarecord
-     * @param bool $force_rebuild
      *
      * @return bool
      */
-    public function canEditDatarecord($user, $datarecord, $force_rebuild = false)
+    public function canEditDatarecord($user, $datarecord)
     {
         // If the user isn't logged in, they can't add edit datarecords
         if ($user === "anon.")
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $user_permissions = self::getUserPermissionsArray($user);
         $datatype_permissions = $user_permissions['datatypes'];
 
         $datatype = $datarecord->getDataType();
         if ( isset($datatype_permissions[ $datatype->getId() ])
-            && isset($datatype_permissions[ $datatype->getId() ]['dr_edit']) ) {
+            && isset($datatype_permissions[ $datatype->getId() ]['dr_edit'])
+        ) {
             // User has the can_edit_datarecord permission
             return true;
         }
@@ -255,26 +261,28 @@ class PermissionsManagementService
 
 
     /**
-     * Returns whether the given user can delete the given Datarecord.
+     * Returns whether the given user can delete a Datarecord in the given Datatype.  If the user
+     * has this permission, then they automatically have permission to view the Datatype.
+     * TODO - Eventually need the ability to allow/deny based on a search result...
      *
      * @param ODRUser $user
      * @param DataType $datatype
-     * @param bool $force_rebuild
      *
      * @return bool
      */
-    public function canDeleteDatarecord($user, $datatype, $force_rebuild = false)
+    public function canDeleteDatarecord($user, $datatype)
     {
         // If the user isn't logged in, they can't delete any datarecords
         if ($user === "anon.")
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $user_permissions = self::getUserPermissionsArray($user);
         $datatype_permissions = $user_permissions['datatypes'];
 
         if ( isset($datatype_permissions[ $datatype->getId() ])
-            && isset($datatype_permissions[ $datatype->getId() ]['dr_delete']) ) {
+            && isset($datatype_permissions[ $datatype->getId() ]['dr_delete'])
+        ) {
             // User has the can_delete_datarecord permission
             return true;
         }
@@ -289,26 +297,27 @@ class PermissionsManagementService
 
 
     /**
-     * Returns whether the given user is considered an admin of the given Datatype.
+     * Returns whether the given user is considered an admin of the given Datatype.  If the user
+     * has this permission, then they automatically have permission to view the Datatype.
      *
      * @param ODRUser $user
      * @param DataType $datatype
-     * @param bool $force_rebuild
      *
      * @return bool
      */
-    public function isDatatypeAdmin($user, $datatype, $force_rebuild = false)
+    public function isDatatypeAdmin($user, $datatype)
     {
         // If the user isn't logged in, they aren't considered a datatype admin
         if ($user === "anon.")
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $user_permissions = self::getUserPermissionsArray($user);
         $datatype_permissions = $user_permissions['datatypes'];
 
         if ( isset($datatype_permissions[ $datatype->getId() ])
-            && isset($datatype_permissions[ $datatype->getId() ]['dt_admin']) ) {
+            && isset($datatype_permissions[ $datatype->getId() ]['dt_admin'])
+        ) {
             // User has the is_datatype_admin permission
             return true;
         }
@@ -320,15 +329,15 @@ class PermissionsManagementService
 
 
     /**
-     * Returns whether the given user can view the given Datafield.
+     * Returns whether the given user can view the given Datafield.  The caller MUST check whether
+     * the user is permitted to view the Datarecord as well.
      *
      * @param ODRUser $user
      * @param DataFields $datafield
-     * @param bool $force_rebuild
      *
      * @return bool
      */
-    public function canViewDatafield($user, $datafield, $force_rebuild = false)
+    public function canViewDatafield($user, $datafield)
     {
         // If the datafield is public, then it can always be viewed
         if ($datafield->isPublic())
@@ -339,11 +348,12 @@ class PermissionsManagementService
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        $user_permissions = self::getUserPermissionsArray($user);
         $datafield_permissions = $user_permissions['datafields'];
 
         if ( isset($datafield_permissions[ $datafield->getId() ])
-            && isset($datafield_permissions[ $datafield->getId() ]['view']) ) {
+            && isset($datafield_permissions[ $datafield->getId() ]['view'])
+        ) {
             // User has the can_view_datafield permission
             return true;
         }
@@ -355,31 +365,36 @@ class PermissionsManagementService
 
 
     /**
-     * Returns whether the given user can edit the given Datafield.
+     * Returns whether the given user can edit the given Datafield for the given Datarecord.
      *
      * @param ODRUser $user
      * @param DataFields $datafield
-     * @param bool $force_rebuild
+     * @param DataRecord $datarecord
      *
      * @return bool
      */
-    public function canEditDatafield($user, $datafield, $force_rebuild = false)
+    public function canEditDatafield($user, $datafield, $datarecord)
     {
         // If the user isn't logged in, they can't edit any Datafield
         if ($user === "anon.")
             return false;
 
-        // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user->getId(), $force_rebuild);
+        // The user is only allowed to edit this Datafield if they can also edit the Datarecord
+        if ( !self::canEditDatarecord($user, $datarecord) )
+            return false;
+
+        // Otherwise, the user is logged in and able to edit the Datarecord
+        $user_permissions = self::getUserPermissionsArray($user);
         $datafield_permissions = $user_permissions['datafields'];
 
         if ( isset($datafield_permissions[ $datafield->getId() ])
-            && isset($datafield_permissions[ $datafield->getId() ]['edit']) ) {
-            // User has the can_view_datafield permission
+            && isset($datafield_permissions[ $datafield->getId() ]['edit'])
+        ) {
+            // User has the can_edit_datafield permission
             return true;
         }
         else {
-            // User does not have the can_view_datafield permission
+            // User does not have the can_edit_datafield permission
             return false;
         }
     }
@@ -388,29 +403,30 @@ class PermissionsManagementService
     /**
      * Gets and returns the permissions array for the given user.
      *
-     * @param integer $user_id
-     * @param boolean $force_rebuild
+     * @param ODRUser $user
      *
      * @throws ODRException
      *
      * @return array
      */
-    public function getUserPermissionsArray($user_id, $force_rebuild = false)
+    public function getUserPermissionsArray($user)
     {
         try {
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->cache_service;
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->dti_service;
+            // Users that aren't logged in don't have permissions
+            if ($user === 'anon.')
+                return array();
 
-            // Permissions are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
-            $user_permissions = $cache_service->get('user_'.$user_id.'_permissions');
-            if ( !$force_rebuild && $user_permissions != false )
+            // Permissions are cached per user to allow other parts of ODR can force a rebuild
+            //  whenever they make a change that would invalidate the user's permissions
+            $user_id = $user->getId();
+            $user_permissions = $this->cache_service->get('user_'.$user_id.'_permissions');
+            if ($user_permissions != false)
                 return $user_permissions;
 
 
             // ----------------------------------------
-            // ...otherwise, get which groups the user belongs to
+            // If this point is reached, the user's permissions arrays need to be rebuilt
+            // Determine which groups the user belongs to
             $query = $this->em->createQuery(
                'SELECT g.id AS group_id
                 FROM ODRAdminBundle:UserGroup AS ug
@@ -426,15 +442,14 @@ class PermissionsManagementService
 
 
             // ----------------------------------------
-            // For each group the user belongs to, attempt to load that group's permissions from the cache
+            // Attempt to load the cached permissions for each group the user belongs to
             $group_permissions = array();
             foreach ($user_groups as $num => $group_id) {
                 // Attempt to load the permissions for this group
-                $permissions = $cache_service->get('group_'.$group_id.'_permissions');
-
-                if ( $force_rebuild || $permissions == false ) {
+                $permissions = $this->cache_service->get('group_'.$group_id.'_permissions');
+                if ($permissions == false) {
                     $permissions = self::rebuildGroupPermissionsArray($group_id);
-                    $cache_service->set('group_'.$group_id.'_permissions', $permissions);
+                    $this->cache_service->set('group_'.$group_id.'_permissions', $permissions);
                 }
 
                 $group_permissions[$group_id] = $permissions;
@@ -442,8 +457,9 @@ class PermissionsManagementService
 
 
             // ----------------------------------------
-            // Merge these group permissions into a single array for this user
+            // The permissions need to be combined into a single array per datatype or datafield
             $user_permissions = array('datatypes' => array(), 'datafields' => array());
+
             foreach ($group_permissions as $group_id => $group_permission) {
                 // TODO - datarecord restriction?
 
@@ -452,19 +468,20 @@ class PermissionsManagementService
                         $user_permissions['datatypes'][$dt_id][$permission] = 1;
 
                     // If the user is an admin for the datatype, ensure they're allowed to edit datarecords of the datatype
+                    // TODO - shouldn't ODRGroupController ensure this check is unnecessary?
                     if ( isset($user_permissions['datatypes'][$dt_id]['dt_admin']) )
                         $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
                 }
 
                 foreach ($group_permission['datafields'] as $dt_id => $datafields) {
                     foreach ($datafields as $df_id => $df_permissions) {
-                        if ( isset($df_permissions['view']) ) {
+                        if ( isset($df_permissions['view']) )
                             $user_permissions['datafields'][$df_id]['view'] = 1;
-                        }
 
                         if ( isset($df_permissions['edit']) ) {
                             $user_permissions['datafields'][$df_id]['edit'] = 1;
 
+                            // TODO - shouldn't ODRGroupController ensure this check is unnecessary?
                             $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
                         }
                     }
@@ -472,21 +489,24 @@ class PermissionsManagementService
             }
 
             // If child datatypes have the "dr_edit" permission, ensure their parents do as well
-            $datatree_array = $dti_service->getDatatreeArray();
+            $datatree_array = $this->dti_service->getDatatreeArray();
 
             foreach ($user_permissions['datatypes'] as $dt_id => $dt_permissions) {
                 if ( isset($dt_permissions['dr_edit']) ) {
 
                     $parent_datatype_id = $dt_id;
-                    while( isset($datatree_array['descendant_of'][$parent_datatype_id]) && $datatree_array['descendant_of'][$parent_datatype_id] !== '' ) {
+                    while(
+                        isset($datatree_array['descendant_of'][$parent_datatype_id])
+                        && $datatree_array['descendant_of'][$parent_datatype_id] !== ''
+                    ) {
                         $parent_datatype_id = $datatree_array['descendant_of'][$parent_datatype_id];
                         $user_permissions['datatypes'][$parent_datatype_id]['dr_edit'] = 1;
                     }
                 }
             }
 
-            // Store that array in the cache
-            $cache_service->set('user_'.$user_id.'_permissions', $user_permissions);
+            // Store the final permissions array back in the cache
+            $this->cache_service->set('user_'.$user_id.'_permissions', $user_permissions);
 
             // ----------------------------------------
             // Return the permissions for all groups this user belongs to
@@ -505,7 +525,7 @@ class PermissionsManagementService
      *
      * @return array
      */
-    private function rebuildGroupPermissionsArray($group_id)
+    public function rebuildGroupPermissionsArray($group_id)
     {
         // Load all permission entities from the database for the given group
         $query = $this->em->createQuery(
@@ -530,6 +550,7 @@ class PermissionsManagementService
 
         foreach ($results as $group) {
             // Extract datarecord restriction first
+            // TODO - actually implement this...
             $datarecord_restriction = $group['groupMeta'][0]['datarecord_restriction'];
 
             // Build the permissions list for datatypes
@@ -581,7 +602,8 @@ class PermissionsManagementService
 
 
     /**
-     * Given a group's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.
+     * Given a group's permission arrays, filter the provided datarecord/datatype arrays so twig
+     * doesn't end up rendering anything they're not supposed to see.
      *
      * @param array &$datatype_array    @see DatatypeInfoService::getDatatypeArray()
      * @param array &$datarecord_array  @see DatarecordInfoService::getDatarecordArray()
@@ -603,22 +625,34 @@ if ($debug)
         if ( isset($permissions_array['datafields']) )
             $datafield_permissions = $permissions_array['datafields'];
 
+
         $can_view_datatype = array();
         $can_view_datarecord = array();
         $datafields_to_remove = array();
         foreach ($datatype_array as $dt_id => $dt) {
-            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dt_view' ]) )
+            // Store whether the user can view each of the datatypes
+            if ( isset($datatype_permissions[$dt_id])
+                && isset($datatype_permissions[$dt_id]['dt_view'])
+            ) {
                 $can_view_datatype[$dt_id] = true;
-            else
+            }
+            else {
                 $can_view_datatype[$dt_id] = false;
+            }
 
-            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dr_view' ]) )
+            // Store whether the user can view non-public datarecords of each datatype
+            if ( isset($datatype_permissions[$dt_id])
+                && isset($datatype_permissions[ $dt_id ][ 'dr_view' ])
+            ) {
                 $can_view_datarecord[$dt_id] = true;
-            else
+            }
+            else {
                 $can_view_datarecord[$dt_id] = false;
+            }
         }
 
 
+        // ----------------------------------------
         // For each datatype in the provided array...
         foreach ($datatype_array as $dt_id => $dt) {
 
@@ -626,13 +660,16 @@ if ($debug)
             if ( !isset($can_view_datatype[$dt_id]) )
                 $can_view_datatype[$dt_id] = false;
 
-            // If datatype is non-public and user does not have the 'can_view_datatype' permission, then remove the datatype from the array
-            if ( $dt['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datatype[$dt_id] ) {
+            // If datatype is non-public and user does not have the 'can_view_datatype' permission...
+            if ( $dt['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00'
+                && !$can_view_datatype[$dt_id]
+            ) {
+                // ...then remove the datatype from the list of things for twig to render
                 unset( $datatype_array[$dt_id] );
 if ($debug)
     print 'removed non-public datatype '.$dt_id."\n";
 
-                // Also remove all datarecords of that datatype
+                // ...also pre-emptively remove all datarecords of that datatype
                 foreach ($datarecord_array as $dr_id => $dr) {
                     if ($dt_id == $dr['dataType']['id'])
                         unset( $datarecord_array[$dr_id] );
@@ -644,30 +681,34 @@ if ($debug)
                 continue;
             }
 
-            // Otherwise, the user is allowed to see this datatype...
-            foreach ($dt['themes'] as $theme_id => $theme) {
-                foreach ($theme['themeElements'] as $te_num => $te) {
+            // Otherwise, the user is allowed to see this datatype
+            // Need to filter out datafields the user isn't allowed to view...
+            foreach ($dt['dataFields'] as $df_id => $df) {
+                // Determine whether the user can view the datafield or not
+                $can_view_datafield = false;
+                if ( isset($datafield_permissions[$df_id])
+                    && isset($datafield_permissions[$df_id]['view'])
+                ) {
+                    $can_view_datafield = true;
+                }
 
-                    // For each datafield in this theme element...
-                    if ( isset($te['themeDataFields']) ) {
-                        foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                            $df_id = $tdf['dataField']['id'];
-
-                            // If the user doesn't have the 'can_view_datafield' permission for that datafield...
-                            if ( $tdf['dataField']['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !(isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) ) ) {
-                                // ...remove it from the layout
-                                unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry on purpose
-                                $datafields_to_remove[$df_id] = 1;
+                // If the user doesn't have the 'can_view_datafield' permission for that datafield...
+                if ( $df['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00'
+                    && !$can_view_datafield
+                ) {
+                    // ...then remove it from the layout
+                    unset( $datatype_array[$dt_id]['dataFields'][$df_id] );
+                    $datafields_to_remove[$df_id] = 1;
 if ($debug)
-    print 'removed datafield '.$df_id.' from theme_element '.$te['id'].' datatype '.$dt_id.' theme '.$theme_id.' ('.$theme['themeType'].')'."\n";
-                            }
-                        }
-                    }
+    print 'removed datafield '.$df_id.' from datatype '.$dt_id."\n";
                 }
             }
         }
 
-        // Also need to go through the datarecord array and remove both datarecords and datafields that the user isn't allowed to see
+
+        // ----------------------------------------
+        // Also need to go through the datarecord array and remove all datarecords and datafields
+        //  that the user isn't allowed to see
         foreach ($datarecord_array as $dr_id => $dr) {
             // Save datatype id of this datarecord
             $dt_id = $dr['dataType']['id'];
@@ -676,8 +717,11 @@ if ($debug)
             if ( !isset($can_view_datarecord[$dt_id]) )
                 $can_view_datarecord[$dt_id] = false;
 
-            // If the datarecord is non-public and user doesn't have the 'can_view_datarecord' permission, then remove the datarecord from the array
-            if ( $dr['dataRecordMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
+            // If the datarecord is non-public and user doesn't have the 'can_view_datarecord' permission...
+            if ( $dr['dataRecordMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00'
+                && !$can_view_datarecord[$dt_id]
+            ) {
+                // ...then remove the datarecord from the array
                 unset( $datarecord_array[$dr_id] );
 if ($debug)
     print 'removed non-public datarecord '.$dr_id."\n";
@@ -686,10 +730,11 @@ if ($debug)
                 continue;
             }
 
-            // The user is allowed to view this datarecord...
+            // Otherwise, the user is allowed to view this datarecord
+            // Iterate through this datarecords datafield entries...
             foreach ($dr['dataRecordFields'] as $df_id => $drf) {
 
-                // Remove the datafield if needed
+                // ...and remove the datafield if the user doesn't have the ability to view it
                 if ( isset($datafields_to_remove[$df_id]) ) {
                     unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
 if ($debug)
@@ -699,18 +744,22 @@ if ($debug)
                     continue;
                 }
 
-                // ...remove the files the user isn't allowed to see
+                // ...also need to remove files the user isn't allowed to see
                 foreach ($drf['file'] as $file_num => $file) {
-                    if ( $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
+                    if ( $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00'
+                        && !$can_view_datarecord[$dt_id]
+                    ) {
                         unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['file'][$file_num] );
 if ($debug)
     print 'removed non-public file '.$file['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
                     }
                 }
 
-                // ...remove the images the user isn't allowed to see
+                // ...also need to remove images the user isn't allowed to see
                 foreach ($drf['image'] as $image_num => $image) {
-                    if ( $image['parent']['imageMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
+                    if ( $image['parent']['imageMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00'
+                        && !$can_view_datarecord[$dt_id]
+                    ) {
                         unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['image'][$image_num] );
 if ($debug)
     print 'removed non-public image '.$image['parent']['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
@@ -718,26 +767,6 @@ if ($debug)
                 }
             }
         }
-    }
-
-
-    /**
-     * When passed the array version of a User entity, this function will scrub the private/non-essential information
-     * from that array and return it.
-     * @deprecated Use ODR\AdminBundle\Component\Utility\UserUtility instead.
-     *
-     * @param array $user_data
-     *
-     * @return array
-     */
-    public function cleanUserData($user_data)
-    {
-        foreach ($user_data as $key => $value) {
-            if ($key !== 'username' && $key !== 'email' && $key !== 'firstName' && $key !== 'lastName'/* && $key !== 'institution' && $key !== 'position'*/)
-                unset( $user_data[$key] );
-        }
-
-        return $user_data;
     }
 
 
@@ -854,8 +883,18 @@ if ($debug)
         $top_level_datatypes = $this->dti_service->getTopLevelDatatypes();
 
         // Create the initial datatype permission entries
-        $include_links = false;
-        $associated_datatypes = $this->dti_service->getAssociatedDatatypes(array($datatype->getId()), $include_links);   // TODO - if datatypes are eventually going to be undeleteable, then this needs to also return deleted child datatypes
+        $query = $this->em->createQuery(
+           'SELECT dt.id AS dt_id
+            FROM ODRAdminBundle:DataType AS dt
+            WHERE dt.grandparent = :datatype_id
+            AND dt.deletedAt IS NULL'    // TODO - if datatypes are eventually going to be undeleteable, then this needs to also return deleted child datatypes
+        )->setParameters( array('datatype_id' => $datatype->getId()) );
+        $results = $query->getArrayResult();
+
+        // Flatten the array
+        $associated_datatypes = array();
+        foreach ($results as $result)
+            $associated_datatypes[] = $result['dt_id'];
 //print_r($associated_datatypes);
 
         // Build a single INSERT INTO query to add GroupDatatypePermissions entries for this top-level datatype and for each of its children
@@ -972,7 +1011,7 @@ if ($debug)
     {
         // Store whether this is a top-level datatype or not
         $datatype_id = $datatype->getId();
-        $grandparent_datatype_id = $this->dti_service->getGrandparentDatatypeId($datatype_id);
+        $grandparent_datatype_id = $datatype->getGrandparent()->getId();
 
         $is_top_level = true;
         if ($datatype_id != $grandparent_datatype_id)
@@ -1116,7 +1155,7 @@ if ($debug)
         // ----------------------------------------
         // Locate this datafield's datatype's grandparent
         $datatype_id = $datafield->getDataType()->getId();
-        $grandparent_datatype_id = $this->dti_service->getGrandparentDatatypeId($datatype_id);
+        $grandparent_datatype_id = $datafield->getDataType()->getGrandparent()->getId();
 
         // Locate all groups for this datatype's grandparent
         /** @var Group[] $groups */

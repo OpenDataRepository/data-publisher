@@ -18,6 +18,7 @@ class ODRBadRequestException extends ODRException
 
     /**
      * ODRBadRequestException constructor.
+     *
      * @param string $message
      * @param int $source
      */

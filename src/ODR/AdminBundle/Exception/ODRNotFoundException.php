@@ -17,8 +17,11 @@ class ODRNotFoundException extends ODRException
 {
 
     /**
+     * ODRNotFoundException constructor.
+     *
      * @param string $message
-     * @param boolean $exact  If true, print out $message exactly as given
+     * @param bool $exact      If true, print out $message exactly as given
+     * @param int $source
      */
     public function __construct($message, $exact = false, $source = 0)
     {

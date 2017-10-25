@@ -31,6 +31,8 @@ use ODR\AdminBundle\Exception\ODRException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -59,8 +61,10 @@ class DefaultController extends Controller
 
         $html = '';
 
-        try
-        {
+        try {
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             // Grab user and their permissions if possible
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
@@ -86,17 +90,7 @@ class DefaultController extends Controller
             }
             else {
                 // Grab user permissions if possible
-                $datatype_permissions = array();
-                if ($logged_in) {
-                    /** @var ODRCustomController $odrcc */
-                    $odrcc = $this->get('odr_custom_controller', $request);
-                    $odrcc->setContainer($this->container);
-
-                    /** @var \Doctrine\ORM\EntityManager $em */
-                    $em = $this->getDoctrine()->getManager();
-                    $user_permissions = $odrcc->getUserPermissionsArray($em, $user->getId());
-                    $datatype_permissions = $user_permissions['datatypes'];
-                }
+                $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
                 $site_baseurl = $this->container->getParameter('site_baseurl');
                 if ($this->container->getParameter('kernel.environment') === 'dev')
@@ -151,6 +145,7 @@ class DefaultController extends Controller
 
     /**
      * Returns a list of all datatypes which are either children or linked to an optional target datatype, minus the ones a user doesn't have permissions to see
+     * TODO - this can probably be done much easier now since datatype has a grandparent property
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $target_datatype_id      If set, which top-level datatype to save child/linked datatypes for
@@ -365,9 +360,12 @@ exit();
         $html = '';
 
         try {
-
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var ODRCustomController $odrcc */
             $odrcc = $this->get('odr_custom_controller', $request);
@@ -624,6 +622,10 @@ exit();
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var ODRCustomController $odrcc */
             $odrcc = $this->get('odr_custom_controller', $request);
             $odrcc->setContainer($this->container);
@@ -638,7 +640,8 @@ exit();
             // Grab user and their permissions if possible
             /** @var User $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = $odrcc->getUserPermissionsArray($em, $admin_user->getId());
+
+            $user_permissions = $pm_service->getUserPermissionsArray($admin_user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
@@ -768,8 +771,11 @@ exit();
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var ThemeService $theme_service */
-            $theme_service = $this->container->get('odr.theme_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
+
 
 //            $templating = $this->get('templating');
 
@@ -781,11 +787,11 @@ exit();
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
             $datatype_permissions = array();
             $datafield_permissions = array();
 
             if ($user !== 'anon.') {
-                $user_permissions = $odrcc->getUserPermissionsArray($em, $user->getId());
                 $datatype_permissions = $user_permissions['datatypes'];
                 $datafield_permissions = $user_permissions['datafields'];
             }
@@ -847,15 +853,16 @@ exit();
             // TODO - better error handling, likely need more options as well...going to need a way to get which theme the user wants to use too
             // Grab the desired theme to use for rendering search results
             $theme_type = null;
-            // TODO Update to use new theme system.
+
             // Check user theme preferences for this datatype.
             // Could be using a custom default or a session theme (instantaneous).
-            $theme = $theme_service->getSelectedTheme($datatype->getId(), 'search_results');
+            $theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
 
             // Lets just use master if theme is null....
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
             if ($theme == null) {
                 $theme_type = 'master';
-                $theme = $theme_service->getDefaultTheme($datatype->getId(), $theme_type);
+                $theme = $theme_service->getDatatypeDefaultTheme($datatype->getId(), $theme_type);
             }
 
             if ($theme == null)
@@ -877,7 +884,7 @@ exit();
             $html = $odrcc->renderList(
                 $datarecords,
                 $datatype,
-                $theme,
+                $theme,     // TODO - under the newer theme system, this should probably be "theme_type" instead of a Theme object
                 $user,
                 $path_str,
                 $target,
@@ -890,15 +897,9 @@ exit();
                 'html' => $html,
             );
         } catch (\Exception $e) {
-            // Usually this'll be called via the jQuery fileDownload plugin, and therefore need a json-format error
-            // But in the off-chance it's a direct link, then the error format needs to remain html
-            if ($request->query->has('error_type') && $request->query->get('error_type') == 'json') {
-                $request->setRequestFormat('json');
-            }
-
             $source = 0x81fad8c3;
             if ($e instanceof ODRException) {
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             } else {
                 throw new ODRException($e->getMessage(), 500, $source, $e);
             }

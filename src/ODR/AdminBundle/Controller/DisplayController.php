@@ -16,7 +16,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use Doctrine\ORM\EntityManager;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Controllers/Classes
@@ -43,10 +42,12 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
-use ODR\AdminBundle\Component\Service\ThemeService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
+use Doctrine\ORM\EntityManager;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -77,10 +78,7 @@ class DisplayController extends ODRCustomController
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-
-            // Set up the user information
             $session = $request->getSession();
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
@@ -88,8 +86,8 @@ class DisplayController extends ODRCustomController
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeService $theme_service */
-            $theme_service = $this->container->get('odr.theme_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
 
 
             // ----------------------------------------
@@ -102,17 +100,9 @@ class DisplayController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            // Check user theme preferences for this datatype.
-            /** @var Theme $theme */
-            $theme = $theme_service->getSelectedTheme($datatype->getId(), 'master');
-
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
-
             // Save in case the user requested a child datarecord
             $requested_datarecord = $datarecord;
             $requested_datatype = $datatype;
-            $requested_theme = $theme;
 
             // Want the grandparent datarecord and datatype for everything else
             $is_top_level = 1;
@@ -126,59 +116,18 @@ class DisplayController extends ODRCustomController
                 $datatype = $datarecord->getDataType();
                 if ($datatype->getDeletedAt() != null)
                     throw new ODRNotFoundException('Datatype');
-
-                /** @var Theme $theme */
-                // Need to get user's chosen theme for this child datatype
-                if ( $user === 'anon.' ) {
-                    // Use default theme
-                    /** @var Theme $theme */
-                    $theme = $theme_service->getDefaultTheme($datatype->getId(), 'master');
-                }
-                else {
-                    // Get theme choice of user
-                    $theme = $theme_service->getSelectedTheme($datatype->getId(), 'master');
-                }
-
-                if ($theme == null)
-                    throw new ODRNotFoundException('Theme');
             }
 
             // ----------------------------------------
             // Determine user privileges
             /** @var User $user */
-            $user_permissions = array();
-            $datatype_permissions = array();
-            $datafield_permissions = array();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
-            if ( $user === 'anon.' ) {
-                if ( $datatype->isPublic() && $datarecord->isPublic() ) {
-                    /* anonymous users aren't restricted from a public datarecord that belongs to a public datatype */
-                }
-                else {
-                    // ...if either the datatype is non-public or the datarecord is non-public, return false
-                    throw new ODRForbiddenException();
-                }
-            }
-            else {
-                // Grab user's permissions
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-//                $datarecord_restriction = $user_permissions['datarecord_restriction'];  // TODO
-
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $requested_datatype->getId() ]) && isset($datatype_permissions[ $requested_datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $requested_datatype->getId() ]) && isset($datatype_permissions[ $requested_datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                // TODO - should this check block viewing of a public child datarecord if the user isn't allowed to see its parent?
-                // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
-                if ( !($requested_datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) )
-                    throw new ODRForbiddenException();
-            }
+            if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canViewDatarecord($user, $datarecord) )
+                throw new ODRForbiddenException();
             // ----------------------------------------
 
 
@@ -279,36 +228,26 @@ class DisplayController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Get all Datarecords and Datatypes that are associated with the datarecord to render
-            $datarecord_array = $dri_service->getDatarecordArray($requested_datarecord->getId());
+            // Load the cached versions of all datarecords, datatypes, and themes that will be
+            //  needed for rendering this datarecord
+            $datarecord_array = $dri_service->getDatarecordArray($datarecord->getId());
+            $datatype_array = $dti_service->getDatatypeArray($datatype->getId());
+            $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user);
 
-            // Set parent theme if there is one
-            // If there isn't one, requested theme is used.
-            $parent_theme_id = null;
-            if($requested_theme->getParentTheme() != null) {
-                $parent_theme_id = $requested_theme->getParentTheme()->getId();
-            }
-            $datatype_array = $dti_service->getDatatypeArrayByDatarecords($datarecord_array, $parent_theme_id);
 
+            // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
+            // Intentionally leaving the theme array alone
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
-            // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
+
+            // "Inflate" the currently flattened $datarecord_array and $datatype_array...
+            // This is required so that render plugins for a datatype can also correctly render
+            //  that datatype's child/linked datatypes
             $stacked_datarecord_array[ $requested_datarecord->getId() ] =
                 $dri_service->stackDatarecordArray($datarecord_array, $requested_datarecord->getId());
-
-
-            // Need to set theme here...
-            // set the actual theme id for the template
-            if($requested_theme->getParentTheme() != null) {
-                $template_theme_id = $requested_theme->getParentTheme()->getId();
-            }
-            else {
-                $template_theme_id = $requested_theme->getId();
-            }
-
             $stacked_datatype_array[ $requested_datatype->getId() ] =
-                $dti_service->stackDatatypeArray($datatype_array, $requested_datatype->getId(), $template_theme_id);
+                $dti_service->stackDatatypeArray($datatype_array, $requested_datatype->getId());
 
 
             // ----------------------------------------
@@ -319,9 +258,11 @@ class DisplayController extends ODRCustomController
                 array(
                     'datatype_array' => $stacked_datatype_array,
                     'datarecord_array' => $stacked_datarecord_array,
-                    'theme_id' => $template_theme_id,
+                    'theme_array' => $theme_array,
+
                     'initial_datatype_id' => $requested_datatype->getId(),
                     'initial_datarecord_id' => $requested_datarecord->getId(),
+
                     'is_top_level' => $is_top_level,
                     'search_key' => $search_key,
                     'user' => $user,
@@ -340,130 +281,6 @@ class DisplayController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8f465413;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Allows a user to set their session or default theme.
-     *
-     * @param $datatype_id
-     * @param $theme_id
-     * @param bool $session
-     * @param Request $request
-     * @return Response
-     */
-    public function apply_themeAction(
-        $datatype_id,
-        $theme_id,
-        $session = false,
-        Request $request
-    ) {
-
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        // Check permissions
-
-        try {
-
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ($datatype == null) {
-                throw new ODRNotFoundException('Database', false, 0x8238888);
-            }
-
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if ($user === "anon." && !$session) {
-                throw new ODRForbiddenException('View', 0x1238193);
-            }
-
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
-            // Ensure user has permissions to be doing this
-            // Users must have view permission
-            if (!$pm_service->canViewDatatype($user, $datatype) && !$session) {
-                throw new ODRForbiddenException(
-                    'You must have "view" permissions on this database to set a personal default view.',
-                    0x4328483
-                );
-            }
-
-
-            // Check if this is a master template based datatype that is still
-            // in the creation process.  If so, ask user to try again later.
-            if ($datatype->getSetupStep() != DataType::STATE_OPERATIONAL) {
-                // Throw error and ask user to wait
-                throw new ODRForbiddenException(
-                    'Please try again later.  This database is not yet fully created.',
-                    0x2918239
-                );
-            }
-
-            /** @var Theme $original_theme */
-            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-            /** @var Theme $theme */
-            $theme = $repo_theme->find($theme_id);
-
-            // Is user the creator of theme or is theme public
-            if(
-                ($user != "anon." && $theme->getCreatedBy()->getId() == $user->getId())
-                || (
-                    $theme->getThemeMeta()->getPublic() != null
-                    && $theme->getThemeMeta()->getPublic() < new \DateTime()
-                )
-            ) {
-                /** @var ThemeService $theme_service */
-                $theme_service = $this->container->get('odr.theme_service');
-                if($session) {
-                    $theme_service->setSessionTheme($datatype, $theme);
-                }
-                else if($user != "anon.") {
-                    // Set selected theme to session theme
-                    $theme_service->setSessionTheme($datatype, $theme);
-                    // Set as User Default for Datatype...
-                    $theme_service->setUserDefaultTheme($datatype, $theme);
-
-                    // Flush theme for user.
-                    $theme_type = $theme->getThemeType();
-                    if($theme_type == "custom_view") {
-                        $theme_type = "master";
-                    }
-                    else {
-                        $theme_type = preg_replace('/^custom_/','', $theme_type);
-                    }
-                    $theme_service->getSelectedTheme($datatype->getId(), $theme_type, true);
-                }
-                $return['d'] = "success";
-            }
-            else {
-                throw new ODRForbiddenException(
-                    "You do not have permissions to use this view.",
-                    0x823282
-                );
-            }
-        } catch (\Exception $e) {
-            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
-                $request->setRequestFormat('json');
-
-            $source = 0x823238213;
-            if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
@@ -474,9 +291,11 @@ class DisplayController extends ODRCustomController
         return $response;
     }
 
+
     /**
      * Given a datarecord and datafield, re-render and return the html for that datafield.
      * TODO - I believe the old version of file handling was the only thing that used this...
+     * @deprecated
      *
      * @param integer $datarecord_id
      * @param integer $datafield_id
@@ -585,7 +404,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Get all Datarecords and Datatypes that are associated with the datarecord to render
             $datarecord_array = $dri_service->getDatarecordArray($datarecord->getId());
-            $datatype_array = $dti_service->getDatatypeArrayByDatarecords($datarecord_array);
+            $datatype_array = $dti_service->getDatatypeArray($datatype->getId());
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
@@ -594,19 +413,8 @@ class DisplayController extends ODRCustomController
 
             // Extract datafield and theme_datafield from datatype_array
             $datafield = null;
-            foreach ($datatype_array[ $original_datatype->getId() ]['themes'][$theme_id]['themeElements'] as $te_num => $te) {
-                if ( isset($te['themeDataFields']) ) {
-                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-
-                        if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $datafield_id ) {
-                            $datafield = $tdf['dataField'];
-                            break;
-                        }
-                    }
-                    if ($datafield !== null)
-                        break;
-                }
-            }
+            if ( isset($datatype_array['dataFields']) && isset($datatype_array['dataFields'][$datafield_id]) )
+                $datafield = $datatype_array['dataFields'][$datafield_id];
 
             if ( $datafield == null )
                 throw new ODRException('Unable to locate array entry for datafield '.$datafield_id);
@@ -630,7 +438,7 @@ class DisplayController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xb667f28f;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -661,10 +469,12 @@ class DisplayController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
-            $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
 
             // Locate the file in the database
@@ -692,36 +502,12 @@ class DisplayController extends ODRCustomController
             // First, ensure user is permitted to download
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if ($user === 'anon.') {
-                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() && $file->isPublic() ) {
-                    // user is allowed to download this file
-                }
-                else {
-                    // something is non-public, therefore an anonymous user isn't allowed to download this file
-                    throw new ODRForbiddenException();
-                }
-            }
-            else {
-                // Grab the user's permission list
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
 
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                $can_view_datafield = false;
-                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                    $can_view_datafield = true;
-
-                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
-                    throw new ODRForbiddenException();
+            if (!$pm_service->canViewDatatype($user, $datatype)
+                || !$pm_service->canViewDatarecord($user, $datarecord)
+                || !$pm_service->canViewDatafield($user, $datafield)
+            ) {
+                throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
@@ -845,7 +631,7 @@ class DisplayController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x9afc6f73;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -873,6 +659,10 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             // Locate the file in the database
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
@@ -898,39 +688,12 @@ class DisplayController extends ODRCustomController
             // First, ensure user is permitted to download
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if ($user === 'anon.') {
-                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() && $file->isPublic() ) {
-                    // user is allowed to download this file
-                }
-                else {
-                    // something is non-public, therefore an anonymous user isn't allowed to download this file
-                    throw new ODRForbiddenException();
-                }
-            }
-            else {
-                // Grab the user's permission list
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
 
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                $can_view_datafield = false;
-                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                    $can_view_datafield = true;
-
-                if (!$datatype->isPublic() && !$can_view_datatype)
-                    throw new ODRForbiddenException();
-                if (!$datarecord->isPublic() && !$can_view_datarecord)
-                    throw new ODRForbiddenException();
-                if (!$datafield->isPublic() && !$can_view_datafield)
-                    throw new ODRForbiddenException();
+            if (!$pm_service->canViewDatatype($user, $datatype)
+                || !$pm_service->canViewDatarecord($user, $datarecord)
+                || !$pm_service->canViewDatafield($user, $datafield)
+            ) {
+                throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
@@ -961,7 +724,7 @@ class DisplayController extends ODRCustomController
 
             $source = 0xe3de488a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1149,6 +912,10 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             // Locate the image object in the database
             /** @var Image $image */
             $image = $em->getRepository('ODRAdminBundle:Image')->find($image_id);
@@ -1175,36 +942,11 @@ class DisplayController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ($user === 'anon.') {
-                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() && $image->isPublic() ) {
-                    // user is allowed to download this image
-                }
-                else {
-                    // something is non-public, therefore an anonymous user isn't allowed to download this image
-                    throw new ODRForbiddenException();
-                }
-            }
-            else {
-                // Grab the user's permission list
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                $can_view_datafield = false;
-                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                    $can_view_datafield = true;
-
-                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
-                    throw new ODRForbiddenException();
+            if (!$pm_service->canViewDatatype($user, $datatype)
+                || !$pm_service->canViewDatarecord($user, $datarecord)
+                || !$pm_service->canViewDatafield($user, $datafield)
+            ) {
+                throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
@@ -1273,7 +1015,7 @@ class DisplayController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xc2fbf062;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1320,12 +1062,13 @@ class DisplayController extends ODRCustomController
             if ($grandparent_datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Grandparent Datarecord');
 
-
             if ( ($datarecord_id === 0 && $datafield_id !== 0) || ($datarecord_id !== 0 && $datafield_id === 0) )
                 throw new ODRBadRequestException();
 
-            /** @var DataType|null $datatype */
+
+            /** @var DataType $datatype */
             $datatype = null;
+
             /** @var DataRecord|null $datarecord */
             $datarecord = null;
             if ($datarecord_id !== 0) {
@@ -1344,6 +1087,10 @@ class DisplayController extends ODRCustomController
                 $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
                 if ($datafield == null)
                     throw new ODRNotFoundException('Datafield');
+
+                $datatype = $datafield->getDataType();
+                if ($datatype->getDeletedAt() != null)
+                    throw new ODRNotFoundException('Datatype');
             }
 
 
@@ -1351,73 +1098,33 @@ class DisplayController extends ODRCustomController
             // Ensure user has permissions to be doing this
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
 
-            $user_permissions = array();
-
-            if ($user === 'anon.') {
-                if ( !$grandparent_datatype->isPublic() || !$grandparent_datarecord->isPublic() )
-                    throw new ODRForbiddenException();
-
-                // Check permissions on the specified datarecord if it exists
-                if ( $datarecord != null && !$datarecord->isPublic() )
-                    throw new ODRForbiddenException();
-
-                // Check permissions on the specified datafield if it exists
-                if ( $datafield != null && !$datafield->isPublic() )
-                    throw new ODRForbiddenException();
-            }
-            else {
-                // Grab the user's permission list
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-
-                $can_view_grandparent_datatype = false;
-                if ( isset($datatype_permissions[ $grandparent_datatype->getId() ]) && isset($datatype_permissions[ $grandparent_datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_grandparent_datatype = true;
-
-                $can_view_grandparent_datarecord = false;
-                if ( isset($datatype_permissions[ $grandparent_datatype->getId() ]) && isset($datatype_permissions[ $grandparent_datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_grandparent_datarecord = true;
-
-                // If grandparent datatype is not public and user doesn't have permissions to view anything other than public sections of the grandparent datarecord, then don't allow them to view
-                if ( !($grandparent_datatype->isPublic() || $can_view_grandparent_datatype)  || !($grandparent_datarecord->isPublic() || $can_view_grandparent_datarecord) )
-                    throw new ODRForbiddenException();
-
-
-                // Check permissions on the specified datarecord if it exists
-                if ($datarecord != null) {
-                    $can_view_datatype = false;
-                    if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                        $can_view_datatype = true;
-
-                    $can_view_datarecord = false;
-                    if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                        $can_view_datarecord = true;
-
-                    // If datatype is not public and user doesn't have permissions to view anything other than public sections of the grandparent datarecord, then don't allow them to view
-                    if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) )
-                        throw new ODRForbiddenException();
-                }
-
-                // Check permissions on the specified datafield if it exists
-                if ($datafield != null) {
-                    $can_view_datafield = false;
-                    if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ]['view']) )
-                        $can_view_datafield = true;
-
-                    if ( !($datafield->isPublic() || $can_view_datafield) )
-                        throw new ODRForbiddenException();
-                }
+            // Ensure the user can view the grandparent datarecord/datatype first...
+            if ( !$pm_service->canViewDatatype($user, $grandparent_datatype)
+                || !$pm_service->canViewDatarecord($user, $grandparent_datarecord)
+            ) {
+                throw new ODRForbiddenException();
             }
 
+            // If they requested all files in a datarecord, ensure they can view the datarecord
+            if ($datarecord != null) {
+                if ( !$pm_service->canViewDatarecord($user, $datarecord) )
+                    throw new ODRForbiddenException();
+            }
+
+            // If they requested all files in a datafield, ensure they can view the datafield
+            if ($datafield != null) {
+                if ( !$pm_service->canViewDatafield($user, $datafield) )
+                    throw new ODRForbiddenException();
+            }
             // ----------------------------------------
 
 
             // ----------------------------------------
             // Get all Datarecords and Datatypes that are associated with the datarecord...need to render an abbreviated view in order to select files
             $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
-            $datatype_array = $dti_service->getDatatypeArrayByDatarecords($datarecord_array);
+            $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId());
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
@@ -1477,7 +1184,8 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-            $stacked_datarecord_array[ $grandparent_datarecord->getId() ] = $dri_service->stackDatarecordArray($datarecord_array, $grandparent_datarecord->getId());
+            $stacked_datarecord_array[ $grandparent_datarecord->getId() ]
+                = $dri_service->stackDatarecordArray($datarecord_array, $grandparent_datarecord->getId());
 //print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
 
             $ret = self::locateFilesforDownloadAll($stacked_datarecord_array, $grandparent_datarecord->getId());
@@ -1506,7 +1214,7 @@ class DisplayController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xce2c6ae9;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1600,6 +1308,7 @@ class DisplayController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
@@ -1607,7 +1316,6 @@ class DisplayController extends ODRCustomController
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
 
 
             /** @var DataRecord $grandparent_datarecord */
@@ -1623,23 +1331,16 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = array();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
 
-            if ($user === 'anon.') {
-                // No permissions for an anonymous user...
-            }
-            else {
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-
-                // Don't need to check whether user has permissions to view grandparent datarecord/datatype...the filter will take care of that
-            }
+            // Don't need to verify any permissions, filterByGroupPermissions() will take care of it
             // ----------------------------------------
 
 
             // ----------------------------------------
             // Easier/faster to just load the entire datarecord/datatype arrays...
             $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
-            $datatype_array = $dti_service->getDatatypeArrayByDatarecords($datarecord_array);
+            $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId());
 
             // ...so the permissions service can prevent the user from downloading files/images they're not allowed to see
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
@@ -1771,7 +1472,7 @@ exit();
         catch (\Exception $e) {
             $source = 0xc31d45b5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1782,91 +1483,6 @@ exit();
         return $response;
     }
 
-
-    /**
-     * @param Request $request
-     * @return Response
-     */
-    public function theme_propertiesAction($theme_meta_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Grab objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            /*
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-            */
-
-
-            // Populate new Theme form
-            $submitted_data = new ThemeMeta();
-            $theme_form = $this->createForm(UpdateThemeForm::class, $submitted_data);
-            $theme_form->handleRequest($request);
-
-            $theme_meta = $em->getRepository('ODRAdminBundle:ThemeMeta')->find($theme_meta_id);
-            if ($theme_meta == null)
-                throw new ODRNotFoundException('ThemeMeta');
-
-            // --------------------
-            if ($theme_form->isSubmitted()) {
-                if ($theme_form->isValid()) {
-                    // Deal with changes to default status...
-                    $new_theme_meta = clone $theme_meta;
-                    $new_theme_meta->setTemplateName($submitted_data->getTemplateName());
-                    $new_theme_meta->setTemplateDescription($submitted_data->getTemplateDescription());
-                    $new_theme_meta->setCreated(new \DateTime());
-                    $new_theme_meta->setCreatedBy($user);
-                    $new_theme_meta->setUpdated(new \DateTime());
-                    $new_theme_meta->setUpdatedBy($user);
-
-                    $em->persist($new_theme_meta);
-                    $em->flush();
-                    $em->refresh($new_theme_meta);
-                    $em->remove($theme_meta);
-                    $em->flush();
-
-                    // TODO Update theme cache probably...
-                    $return['d'] = $new_theme_meta->getId();
-                }
-                else {
-                    // Form validation failed
-                    $error_str = parent::ODR_getErrorMessages($theme_form);
-                    throw new \Exception($error_str);
-                }
-            }
-        } catch (\Exception $e) {
-            // Usually this'll be called via the jQuery fileDownload plugin, and therefore need a json-format error
-            // But in the off-chance it's a direct link, then the error format needs to remain html
-            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
-                $request->setRequestFormat('json');
-
-            $source = 0x2ab832c3;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
 
     /**
      * Downloads a zip archive constructed by self::startdownloadarchiveAction()
@@ -1944,60 +1560,116 @@ exit();
 
             $source = 0xc953bbf3;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-    }
-
-    /**
-     * Get the user's preferred theme for this datatype
-     *
-     * @param $datatype_id
-     * @param Request $request
-     * @return array
-     */
-    public function userthemesAction($datatype_id, Request $request) {
-
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = 'json';
-        $return['d'] = '';
-
-        try {
-            $theme_service = $this->container->get('odr.theme_service');
-
-            $return['d'] = $theme_service->getAvailableThemes($datatype_id, 'master');
-
-            $response = new Response(json_encode($return));
-            $response->headers->set('Content-Type', 'application/json');
-            return $response;
-        }
-        catch (\Exception $e)
-        {
-            // Usually this'll be called via the jQuery fileDownload plugin, and therefore need a json-format error
-            // But in the off-chance it's a direct link, then the error format needs to remain html
-            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
-                $request->setRequestFormat('json');
-
-            $source = 0x81fad8c3;
-            if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
+
     /**
+     * Get available themes for user and datatype.
+     * This function is in display controller to automatically set the theme type.
+     * IE: called by display = use "master" theme.
      *
+     * TODO - Perhaps should be moved to theme controller and a theme type passed.
+     *
+     * @param integer $datatype_id
+     * @param string $page_type     'display' or 'search_results'
+     * @param Request $request
+     *
+     * @return Response $response
+     */
+    public function getavailablethemesAction($datatype_id, $page_type, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'json';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // --------------------
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
+            // --------------------
+
+
+            // We will eventually use master only for 'edit'
+            if ($page_type == "display")
+                $page_type = "master";
+
+
+            // Get all available themes for this datatype that the user can view
+            $themes = $theme_service->getAvailableThemes($user, $datatype, $page_type);
+
+            // Get the user's default theme for this datatype, if they have one
+            $user_default_theme = $theme_service->getUserDefaultTheme($user, $datatype_id, $page_type);
+            $selected_theme_id = $theme_service->getPreferredTheme($user, $datatype_id, $page_type);
+
+
+            // Render and return the theme chooser dialog
+            $templating = $this->get('templating');
+            $return['d'] = $templating->render(
+                'ODRAdminBundle:Default:choose_view.html.twig',
+                array(
+                    'themes' => $themes,
+                    'user_default_theme' => $user_default_theme,
+                    'selected_theme_id' => $selected_theme_id,
+
+                    'user' => $user,
+                    'datatype_admin' => $is_datatype_admin
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x81fad8c3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /*
+     * ----------------------------------------
+     * CHECK EVERYTHING BELOW THIS LINE
+     * ----------------------------------------
+     */
+
+
+    /**
+     * TODO - fix this
      * Determines a users options for customizing a theme.
      *
      * @param $datatype_id
      * @param $theme_id
      * @param Request $request
+     *
+     * @return Response
      */
-    public function customize_theme_dialogAction($datatype_id, $theme_id, Request $request) {
-
+    public function customize_theme_dialogAction($datatype_id, $theme_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'json';
@@ -2037,9 +1709,8 @@ exit();
                 $can_view_datatype = $pm_service->canViewDatatype($user, $datatype);
 
                 // Ensure user has permissions to be doing this
-                if (!$can_view_datatype) {
-                    throw new ODRForbiddenException('', 8234928);
-                }
+                if (!$can_view_datatype)
+                    throw new ODRForbiddenException();
             }
 
 
@@ -2052,9 +1723,8 @@ exit();
                 )
             ) {
                 // Theme is not public so you must be owner
-                if($theme->getCreatedBy()->getId() != $user->getId()) {
-                    throw new ODRForbiddenException('',12348208);
-                }
+                if ( $theme->getCreatedBy()->getId() != $user->getId() )
+                    throw new ODRForbiddenException();
             }
 
             $templating = $this->get('templating');
@@ -2065,108 +1735,224 @@ exit();
                     'user' => $user
                 )
             );
-
-            $response = new Response(json_encode($return));
-            $response->headers->set('Content-Type', 'application/json');
-            return $response;
         }
-        catch (\Exception $e)
-        {
-            // Usually this'll be called via the jQuery fileDownload plugin, and therefore need a json-format error
-            // But in the off-chance it's a direct link, then the error format needs to remain html
-            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
-                $request->setRequestFormat('json');
-
+        catch (\Exception $e) {
             $source = 0x823482;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
     /**
-     * Get available themes for user and datatype.
-     * This function is in display controller to automatically
-     * set the theme type.  IE: called by display = use "master" theme.
-     *
-     * Perhaps should be moved to theme controller and a theme type passed.
+     * TODO - fix this
+     * Allows a user to set their session or default theme.
      *
      * @param $datatype_id
-     * @param $page_type  - 'display' or 'search_results'
+     * @param $theme_id
+     * @param bool $session
      * @param Request $request
-     * @return Response $response
+     * @return Response
      */
-    public function available_themesAction($datatype_id, $page_type, Request $request) {
+    public function apply_themeAction(
+        $datatype_id,
+        $theme_id,
+        $session = false,
+        Request $request
+    ) {
 
         $return = array();
         $return['r'] = 0;
-        $return['t'] = 'json';
+        $return['t'] = '';
         $return['d'] = '';
 
-        try {
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+        // Check permissions
 
-            /** @var EntityManager $em */
+        try {
+
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var ThemeService $theme_service */
-            $theme_service = $this->container->get('odr.theme_service');
-
-            // We will eventually use master only for 'edit'
-            if($page_type == "display") {
-                $page_type = "master";
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null) {
+                throw new ODRNotFoundException('Database', false, 0x8238888);
             }
 
-            /** @var Theme $theme */
-            $themes = $theme_service->getAvailableThemes($datatype_id, $page_type);
-
-            // Datatype repository
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            /** @var DataType $datatype */
-            $datatype = $repo_datatype->find($datatype_id);
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ($user === "anon." && !$session) {
+                throw new ODRForbiddenException('View', 0x1238193);
+            }
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
-            // Is user an admin for this datatype?
-            $datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
+            // Ensure user has permissions to be doing this
+            // Users must have view permission
+            if (!$pm_service->canViewDatatype($user, $datatype) && !$session) {
+                throw new ODRForbiddenException(
+                    'You must have "view" permissions on this database to set a personal default view.',
+                    0x4328483
+                );
+            }
 
-            // Need to get personal default theme id
-            $user_default_theme = $theme_service->getUserDefaultTheme($datatype_id, $page_type);
 
-            // Need to get personal default theme id
-            $selected_theme = $theme_service->getSelectedTheme($datatype_id, $page_type);
+            // Check if this is a master template based datatype that is still
+            // in the creation process.  If so, ask user to try again later.
+            if ($datatype->getSetupStep() != DataType::STATE_OPERATIONAL) {
+                // Throw error and ask user to wait
+                throw new ODRForbiddenException(
+                    'Please try again later.  This database is not yet fully created.',
+                    0x2918239
+                );
+            }
 
-            $templating = $this->get('templating');
-            $return['d'] = $templating->render(
-                'ODRAdminBundle:Default:choose_view.html.twig',
-                array(
-                    'themes' => $themes,
-                    'user_default_theme' => $user_default_theme,
-                    'selected_theme' => $selected_theme,
-                    'user' => $user,
-                    'datatype_admin' => $datatype_admin
+            /** @var Theme $original_theme */
+            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+            /** @var Theme $theme */
+            $theme = $repo_theme->find($theme_id);
+
+            // Is user the creator of theme or is theme public
+            if(
+                ($user != "anon." && $theme->getCreatedBy()->getId() == $user->getId())
+                || (
+                $theme->getIsShared()
+                    /*
+                                        $theme->getThemeMeta()->getPublic() != null
+                                        && $theme->getThemeMeta()->getPublic() < new \DateTime()
+                    */
                 )
-            );
+            ) {
+                /** @var ThemeInfoService $theme_service */
+                $theme_service = $this->container->get('odr.theme_info_service');
+                if($session) {
+                    $theme_service->setSessionTheme($datatype, $theme);
+                }
+                else if($user != "anon.") {
+                    // Set selected theme to session theme
+                    $theme_service->setSessionTheme($datatype, $theme);
+                    // Set as User Default for Datatype...
+                    $theme_service->setUserDefaultTheme($datatype, $theme);
 
-            $response = new Response(json_encode($return));
-            $response->headers->set('Content-Type', 'application/json');
-            return $response;
-        }
-        catch (\Exception $e)
-        {
-            // Usually this'll be called via the jQuery fileDownload plugin, and therefore need a json-format error
-            // But in the off-chance it's a direct link, then the error format needs to remain html
-            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
-                $request->setRequestFormat('json');
-
-            $source = 0x81fad8c3;
+                    // Flush theme for user.
+                    $theme_type = $theme->getThemeType();
+                    if($theme_type == "custom_view") {
+                        $theme_type = "master";
+                    }
+                    else {
+                        $theme_type = preg_replace('/^custom_/','', $theme_type);
+                    }
+                    // TODO - third parameter being set to true seems to have forced a rebuild of the user's session key for storing themes
+                    //$theme_service->getSelectedTheme($datatype->getId(), $theme_type, true);
+                }
+                $return['d'] = "success";
+            }
+            else {
+                throw new ODRForbiddenException(
+                    "You do not have permissions to use this view.",
+                    0x823282
+                );
+            }
+        } catch (\Exception $e) {
+            $source = 0x823238213;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * TODO - fix this
+     * @param Request $request
+     * @return Response
+     */
+    public function theme_propertiesAction($theme_meta_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            /*
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+            */
+
+
+            // Populate new Theme form
+            $submitted_data = new ThemeMeta();
+            $theme_form = $this->createForm(UpdateThemeForm::class, $submitted_data);
+            $theme_form->handleRequest($request);
+
+            $theme_meta = $em->getRepository('ODRAdminBundle:ThemeMeta')->find($theme_meta_id);
+            if ($theme_meta == null)
+                throw new ODRNotFoundException('ThemeMeta');
+
+            // --------------------
+            if ($theme_form->isSubmitted()) {
+                if ($theme_form->isValid()) {
+                    // Deal with changes to default status...
+                    $new_theme_meta = clone $theme_meta;
+                    $new_theme_meta->setTemplateName($submitted_data->getTemplateName());
+                    $new_theme_meta->setTemplateDescription($submitted_data->getTemplateDescription());
+                    $new_theme_meta->setCreated(new \DateTime());
+                    $new_theme_meta->setCreatedBy($user);
+                    $new_theme_meta->setUpdated(new \DateTime());
+                    $new_theme_meta->setUpdatedBy($user);
+
+                    $em->persist($new_theme_meta);
+                    $em->flush();
+                    $em->refresh($new_theme_meta);
+                    $em->remove($theme_meta);
+                    $em->flush();
+
+                    // TODO Update theme cache probably...
+                    $return['d'] = $new_theme_meta->getId();
+                }
+                else {
+                    // Form validation failed
+                    $error_str = parent::ODR_getErrorMessages($theme_form);
+                    throw new \Exception($error_str);
+                }
+            }
+        } catch (\Exception $e) {
+            $source = 0x2ab832c3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 }

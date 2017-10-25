@@ -18,7 +18,10 @@ class ODRForbiddenException extends ODRException
 {
 
     /**
-     * @param string|null $message
+     * ODRForbiddenException constructor.
+     *
+     * @param string $message
+     * @param int $source
      */
     public function __construct($message = '', $source = 0)
     {

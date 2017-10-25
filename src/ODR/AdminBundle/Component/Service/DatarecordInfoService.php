@@ -12,19 +12,18 @@
 
 namespace ODR\AdminBundle\Component\Service;
 
+// Entities
+use ODR\AdminBundle\Entity\DataRecord;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
-
 // Utility
 use ODR\AdminBundle\Component\Utility\UserUtility;
 
+
 class DatarecordInfoService
 {
-
-    /**
-     * @var string
-     */
-    private $environment;
 
     /**
      * @var EntityManager
@@ -50,15 +49,17 @@ class DatarecordInfoService
     /**
      * DatarecordInfoService constructor.
      *
-     * @param string $environment
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param PermissionsManagementService $permissions_service
      * @param Logger $logger
      */
-    public function __construct($environment, EntityManager $entity_manager, CacheService $cache_service, PermissionsManagementService $permissions_service, Logger $logger)
-    {
-        $this->environment = $environment;
+    public function __construct(
+        EntityManager $entity_manager,
+        CacheService $cache_service,
+        PermissionsManagementService $permissions_service,
+        Logger $logger
+    ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->pm_service = $permissions_service;
@@ -67,40 +68,42 @@ class DatarecordInfoService
 
 
     /**
-     * Loads and returns the cached data array for the requested datarecord.  The array also contains entries for all
-     * child/grandchild (and usually linked) datarecords, with every datarecord being stored on the same array level
-     * as the requested datarecord.  Use self::stackDatarecordArray() to get an array structure where child/linked
-     * datarecords are stored "underneath" their parent datarecords.
+     * Loads and returns the cached data array for the requested datarecord.  The returned array
+     * contains data of all datarecords with the requested datarecord as their grandparent, as
+     * well as any datarecords that are linked to by the requested datarecord or its children.
+     *
+     * Use self::stackDatarecordArray() to get an array structure where child/linked datarecords
+     * are stored "underneath" their parent datarecords.
      *
      * @param integer $grandparent_datarecord_id
-     * @param boolean $include_links
+     * @param bool $include_links  If true, then the returned array will also contain linked datarecords
      *
      * @return array
      */
     public function getDatarecordArray($grandparent_datarecord_id, $include_links = true)
     {
-        // Always bypass cache if in dev mode?
-        $force_rebuild = false;
-        if ($this->environment == 'dev')
-            $force_rebuild = true;
+        $associated_datarecords = array();
+        if ($include_links) {
+            // Need to locate all linked datarecords for the provided datarecord
+            $associated_datarecords = $this->cache_service->get('associated_datarecords_for_'.$grandparent_datarecord_id);
+            if ($associated_datarecords == false) {
+                $associated_datarecords = self::getAssociatedDatarecords(array($grandparent_datarecord_id));
 
-
-        // ----------------------------------------
-        // Need to locate all child and linked datarecords for the provided datarecord
-        $associated_datarecords = $this->cache_service->get('associated_datarecords_for_'.$grandparent_datarecord_id);
-        if ($force_rebuild || $associated_datarecords == false) {
-            $associated_datarecords = self::getAssociatedDatarecords( array($grandparent_datarecord_id), $include_links );
-
-            // Save the list of associated datarecords back into the cache
-            $this->cache_service->set('associated_datarecords_for_'.$grandparent_datarecord_id, $associated_datarecords);
+                // Save the list of associated datarecords back into the cache
+                $this->cache_service->set('associated_datarecords_for_'.$grandparent_datarecord_id, $associated_datarecords);
+            }
+        }
+        else {
+            // Don't want any datarecords that are linked to from the given grandparent datarecord
+            $associated_datarecords[] = $grandparent_datarecord_id;
         }
 
         // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
         $datarecord_array = array();
         foreach ($associated_datarecords as $num => $dr_id) {
             $datarecord_data = $this->cache_service->get('cached_datarecord_'.$dr_id);
-            if ($force_rebuild || $datarecord_data == false)
-                $datarecord_data = self::buildDatarecordData($dr_id, $force_rebuild);
+            if ($datarecord_data == false)
+                $datarecord_data = self::buildDatarecordData($dr_id);
 
             foreach ($datarecord_data as $dr_id => $data)
                 $datarecord_array[$dr_id] = $data;
@@ -111,24 +114,28 @@ class DatarecordInfoService
 
 
     /**
-     * Builds and returns a list of all child datarecords (and optionally linked datarecords) of the given datarecord ids.
-     * Due to recursive interaction with self::getLinkedDatarecords(), this function doesn't attempt to store results in the cache.
+     * This function locates all datarecords whose grandparent id is in $grandparent_datarecord_ids,
+     * then calls self::getLinkedDatarecords() to locate all datarecords linked to by these datarecords,
+     * which calls this function again to locate any datarecords that are linked to by those
+     * linked datarecords...
      *
-     * @param int[] $grandparent_ids
-     * @param boolean $include_links
+     * The end result is an array of top-level datarecord ids.  Due to recursive shennanigans,
+     * these functions don't attempt to cache the results.
+     *
+     * @param int[] $grandparent_datarecord_ids
      *
      * @return int[]
      */
-    public function getAssociatedDatarecords($grandparent_ids, $include_links = true)
+    public function getAssociatedDatarecords($grandparent_datarecord_ids)
     {
-        // Locate all datarecords that are children of the datarecords listed in $grandparent_ids
+        // Locate all datarecords that are children of the datarecords listed in $grandparent_datarecord_ids
         $query = $this->em->createQuery(
            'SELECT dr.id AS id
             FROM ODRAdminBundle:DataRecord AS dr
             LEFT JOIN dr.grandparent AS grandparent
             WHERE grandparent.id IN (:grandparent_ids)
             AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-        )->setParameters( array('grandparent_ids' => $grandparent_ids) );
+        )->setParameters( array('grandparent_ids' => $grandparent_datarecord_ids) );
         $results = $query->getArrayResult();
 
         // Flatten the results array
@@ -136,13 +143,11 @@ class DatarecordInfoService
         foreach ($results as $result)
             $datarecord_ids[] = $result['id'];
 
-        // Get all children and datarecords linked to all the datarecords in $datarecord_ids
-        $linked_datarecord_ids = array();
-        if ($include_links)
-            $linked_datarecord_ids = self::getLinkedDatarecords($datarecord_ids);
+        // Locate all datarecords that are linked to by the datarecords listed in $grandparent_datarecord_ids
+        $linked_datarecord_ids = self::getLinkedDatarecords($datarecord_ids);
 
         // Don't want any duplicate datarecord ids...
-        $associated_datarecord_ids = array_unique( array_merge($grandparent_ids, $linked_datarecord_ids) );
+        $associated_datarecord_ids = array_unique( array_merge($grandparent_datarecord_ids, $linked_datarecord_ids) );
 
         return $associated_datarecord_ids;
     }
@@ -189,11 +194,10 @@ class DatarecordInfoService
      * Runs a single database query to get all non-layout data for a given grandparent datarecord.
      *
      * @param integer $grandparent_datarecord_id
-     * @param boolean $force_rebuild
      *
      * @return array
      */
-    private function buildDatarecordData($grandparent_datarecord_id, $force_rebuild = false)
+    private function buildDatarecordData($grandparent_datarecord_id)
     {
 /*
         $timing = true;
@@ -203,11 +207,7 @@ class DatarecordInfoService
         if ($timing)
             $t0 = microtime(true);
 */
-        // If datarecord data exists in cache and user isn't demanding a fresh version, return that
-        $cached_datarecord_data = $this->cache_service->get('cached_datarecord_'.$grandparent_datarecord_id);
-        if ( $cached_datarecord_data !== false && count($cached_datarecord_data) > 0 && !$force_rebuild)
-            return $cached_datarecord_data;
-
+        // This function is only called when the cache entry doesn't exist
 
         // Otherwise...get all non-layout data for the requested grandparent datarecord
         $query = $this->em->createQuery(
@@ -291,9 +291,10 @@ class DatarecordInfoService
         }
 */
 
-        // The entity -> entity_metadata relationships have to be one -> many from a database perspective,
-        // even though there's only supposed to be a single non-deleted entity_metadata object for each entity
-        // Therefore, the preceding query generates an array that needs to be slightly flattened in a few places
+        // The entity -> entity_metadata relationships have to be one -> many from a database
+        //  perspective, even though there's only supposed to be a single non-deleted entity_metadata
+        //  object for each entity.  Therefore, the preceding query generates an array that needs
+        //  to be slightly flattened in a few places.
         foreach ($datarecord_data as $dr_num => $dr) {
             // Flatten datarecord_meta
             $drm = $dr['dataRecordMeta'][0];
@@ -326,7 +327,8 @@ class DatarecordInfoService
                 $cdr_id = $cdr['id'];
                 $cdr_dt_id = $cdr['dataType']['id'];
 
-                // A top-level datarecord is listed as its own parent in the database...don't want to store it in the list of children
+                // A top-level datarecord is listed as its own parent in the database
+                // Don't store it as its own child
                 if ( $cdr_id == $dr['id'] )
                     continue;
 
@@ -346,7 +348,8 @@ class DatarecordInfoService
             unset( $datarecord_data[$dr_num]['linkedDatarecords'] );
 
 
-            // Flatten datafield_meta of each datarecordfield, and organize by datafield id instead of some random number
+            // Flatten datafield_meta of each datarecordfield, and organize by datafield id instead
+            //  of some random number
             $new_drf_array = array();
             foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
 
@@ -355,7 +358,7 @@ class DatarecordInfoService
 
                 // Flatten file metadata and get rid of encrypt_key
                 foreach ($drf['file'] as $file_num => $file) {
-                    unset( $drf['file'][$file_num]['encrypt_key'] ); // TODO - should encrypt_key actually remain in the array?
+                    unset( $drf['file'][$file_num]['encrypt_key'] );
 
                     $fm = $file['fileMeta'][0];
                     $drf['file'][$file_num]['fileMeta'] = $fm;
@@ -364,7 +367,7 @@ class DatarecordInfoService
                     $drf['file'][$file_num]['createdBy'] = UserUtility::cleanUserData( $drf['file'][$file_num]['createdBy'] );
                 }
 
-                // Flatten image metadata, get rid of both the thumbnail's and the parent's encrypt keys, and sort appropriately
+                // Flatten image metadata
                 $sort_by_image_id = true;
                 foreach ($drf['image'] as $image_num => $image) {
                     if ($image['parent']['imageMeta'][0]['displayorder'] != 0) {
@@ -375,8 +378,9 @@ class DatarecordInfoService
 
                 $ordered_images = array();
                 foreach ($drf['image'] as $image_num => $image) {
+                    // Get rid of both the thumbnail's and the parent's encrypt keys
                     unset( $image['encrypt_key'] );
-                    unset( $image['parent']['encrypt_key'] ); // TODO - should encrypt_key actually remain in the array?
+                    unset( $image['parent']['encrypt_key'] );
 
                     unset( $image['imageMeta'] );   // This is a phantom meta entry created for this image's thumbnail
                     $im = $image['parent']['imageMeta'][0];
@@ -442,7 +446,7 @@ class DatarecordInfoService
             $datarecord_data[$dr_num]['dataRecordFields'] = $new_drf_array;
         }
 
-        // Organize by datarecord id...don't attenpt to make this array recursive here, it'll be done later if needed
+        // Organize by datarecord id...it's intetionally left flat
         $formatted_datarecord_data = array();
         foreach ($datarecord_data as $num => $dr_data) {
             $dr_id = $dr_data['id'];
@@ -469,8 +473,8 @@ class DatarecordInfoService
 
 
     /**
-     * Recursively "inflates" a flattened $datarecord_array so that child/linked datarecords are stored "underneath"
-     * their parents/grandparents.
+     * Recursively "inflates" a flattened $datarecord_array so that child/linked datarecords are
+     * stored "underneath" their parents/grandparents.
      *
      * @see self::getDatarecordArray()
      *
@@ -508,5 +512,45 @@ class DatarecordInfoService
         }
 
         return $current_datarecord;
+    }
+
+
+    /**
+     * Marks the specified datarecord (and all its parents) as updated by the given user.
+     *
+     * @param DataRecord $datarecord
+     * @param ODRUser $user
+     */
+    public function updateDatarecordCacheEntry($datarecord, $user)
+    {
+        // Whenever an edit is made to a datarecord, each of its parents (if it has any) also need
+        //  to be marked as updated
+        $dr = $datarecord;
+        while ($dr->getId() !== $dr->getParent()->getId()) {
+            // Mark this (non-top-level) datarecord as updated by this user
+            $dr->setUpdatedBy($user);
+            $dr->setUpdated(new \DateTime());
+            $this->em->persist($dr);
+
+            // Continue locating parent datarecords...
+            $dr = $dr->getParent();
+        }
+
+        // $dr is now the grandparent of $datarecord
+        $dr->setUpdatedBy($user);
+        $dr->setUpdated(new \DateTime());
+        $this->em->persist($dr);
+
+        // Save all changes made
+        $this->em->flush();
+
+
+        // Child datarecords don't have their own cached entries, it's all contained within the
+        //  cache entry for their top-level datarecord
+        $this->cache_service->delete('cached_datarecord_'.$dr->getId());
+
+        // Delete the filtered list of data meant specifically for table themes
+        // TODO - table theme rework may render this obsolete
+        $this->cache_service->delete('datarecord_table_data_'.$dr->getId());
     }
 }

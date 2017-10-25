@@ -432,6 +432,8 @@ class TrackedJob
 
     /**
      * Converts object to a simple array
+     *
+     * @return array
      */
     public function toArray() {
         $tracked_job = array();

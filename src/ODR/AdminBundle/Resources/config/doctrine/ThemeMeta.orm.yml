@@ -36,10 +36,10 @@ ODR\AdminBundle\Entity\ThemeMeta:
             nullable: true
             column: display_order
 
-        public:
-            type: datetime
-            nullable: true
-            default: '1980-01-01 01:01:01'
+        shared:
+            type: boolean
+            nullable: false
+            default: false
 
         sourceSyncCheck:
             type: datetime

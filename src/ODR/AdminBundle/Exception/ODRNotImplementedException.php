@@ -17,7 +17,10 @@ class ODRNotImplementedException extends ODRException
 {
 
     /**
+     * ODRNotImplementedException constructor.
+     *
      * @param string $message
+     * @param int $source
      */
     public function __construct($message = '', $source = 0)
     {

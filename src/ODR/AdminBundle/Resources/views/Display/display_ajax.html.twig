@@ -1,25 +1,27 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[initial_datatype_id] %}
+{% set theme = theme_array[datatype.id] %}
 
 {% if record_display_view == "single" %}
+
     {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
-        'datatype_array': datatype_array,
-        'datarecord_array': datarecord_array,
-        'theme_id': theme_id,
         'datatype': datatype,
-        'is_top_level': is_top_level,
+        'theme': theme,
         'page_type': 'display',
     } %}
+
 {# End Record View Menu #}
 {% endif %}
 
 {% include 'ODRAdminBundle:Display:display_area.html.twig' with {
     'datatype_array': datatype_array,
     'datarecord_array': datarecord_array,
-    'theme_id': theme_id,
+    'theme_array': theme_array,
+
     'initial_datatype_id': initial_datatype_id,
     'initial_datarecord_id': initial_datarecord_id,
+
     'is_top_level': is_top_level,
 } %}
 
@@ -87,8 +89,7 @@
         });
     }
 
-
-
+{#
     function ReloadDatafield(datarecord_id, datafield_id) {
 
         var datafield_div = $("#Field_" + datarecord_id + "_" + datafield_id);
@@ -132,6 +133,7 @@
             }
         });
     }
+#}
 
     $(function() {
         initPage();

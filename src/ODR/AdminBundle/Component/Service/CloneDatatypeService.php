@@ -2,7 +2,7 @@
 
 /**
  * Open Data Repository Data Publisher
- * Create Datatype Service
+ * Clone Datatype Service
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
@@ -44,7 +44,7 @@ use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 
 
-class CreateDatatypeService
+class CloneDatatypeService
 {
 
     /**

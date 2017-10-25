@@ -57,6 +57,7 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -64,11 +65,12 @@ use Symfony\Component\Form\FormError;
 // Utility
 use ODR\AdminBundle\Component\Utility\UserUtility;
 
+
 class EditController extends ODRCustomController
 {
 
     /**
-     * Creates a new DataRecord.
+     * Creates a new top-level DataRecord.
      * 
      * @param integer $datatype_id The database id of the DataType this DataRecord will belong to.
      * @param Request $request
@@ -91,6 +93,9 @@ class EditController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -102,19 +107,8 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_add_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_add']) )
-                $can_add_datarecord = true;
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
-            if ( !($datatype->isPublic() || $can_view_datatype) || !$can_add_datarecord )
+            if ( $pm_service->canAddDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -144,7 +138,7 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Delete the cached string containing the ordered list of datarecords for this datatype
-            $cache_service->delete('data_type_'.$datatype->getId().'_record_order');
+            $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
 
             // See if any cached search results need to be deleted...
             $cached_searches = $cache_service->get('cached_search_results');
@@ -159,11 +153,13 @@ class EditController extends ODRCustomController
                 // Save the collection of cached searches back to memcached
                 $cache_service->set('cached_search_results', $cached_searches);
             }
+
+            // Since this is a new top-level datarecord, there's nothing to mark as updated
         }
         catch (\Exception $e) {
             $source = 0x2d4d92e6;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -195,8 +191,13 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             // Grab needed Entities from the repository
             /** @var DataType $datatype */
@@ -204,13 +205,13 @@ class EditController extends ODRCustomController
             if ( $datatype == null )
                 throw new ODRNotFoundException('Datatype');
 
-            /** @var DataRecord $parent */
-            $parent = $em->getRepository('ODRAdminBundle:DataRecord')->find($parent_id);
-            if ( $parent == null )
+            /** @var DataRecord $parent_datarecord */
+            $parent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($parent_id);
+            if ($parent_datarecord == null)
                 throw new ODRNotFoundException('DataRecord');
 
-            $grandparent = $parent->getGrandparent();
-            if ( $grandparent->getDeletedAt() != null )
+            $grandparent_datarecord = $parent_datarecord->getGrandparent();
+            if ($grandparent_datarecord->getDeletedAt() != null)
                 throw new ODRNotFoundException('Grandparent DataRecord');
 
 
@@ -218,23 +219,8 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_add_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_add']) )
-                $can_add_datarecord = true;
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($grandparent->isPublic() || $can_view_datarecord) || !$can_add_datarecord )
+            if ( !$pm_service->canAddDatarecord($user, $datatype) || !$pm_service->canEditDatarecord($user, $parent_datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -247,8 +233,8 @@ class EditController extends ODRCustomController
             // Create new Data Record
             $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
 
-            $datarecord->setGrandparent($grandparent);
-            $datarecord->setParent($parent);
+            $datarecord->setGrandparent($grandparent_datarecord);
+            $datarecord->setParent($parent_datarecord);
 
             // Datarecord is ready, remove provisioned flag
             $datarecord->setProvisioned(false);
@@ -260,16 +246,16 @@ class EditController extends ODRCustomController
             $return['d'] = array(
                 'new_datarecord_id' => $datarecord->getId(),
                 'datatype_id' => $datatype_id,
-                'parent_id' => $parent->getId(),
+                'parent_id' => $parent_datarecord->getId(),
             );
 
-            // Refresh the cache entries for this datarecord
-            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+            // Refresh the cache entries for the new datarecord's parent
+            $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
         }
         catch (\Exception $e) {
             $source = 0x3d2835d5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -303,6 +289,9 @@ class EditController extends ODRCustomController
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             // Grab the necessary entities
             /** @var DataRecord $datarecord */
@@ -320,23 +309,8 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_delete_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_delete']) )
-                $can_delete_datarecord = true;
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_delete_datarecord )
+            if ( !$pm_service->canDeleteDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -415,7 +389,7 @@ class EditController extends ODRCustomController
             $cache_service->delete('datarecord_table_data_'.$datarecord_id);
 
             // Delete the sorted list of datarecords for this datatype
-            $cache_service->delete('data_type_'.$datatype->getId().'_record_order');
+            $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
 
 
             // ----------------------------------------
@@ -462,7 +436,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x2fb5590f;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -495,12 +469,21 @@ class EditController extends ODRCustomController
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             // Grab the necessary entities
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('DataRecord');
+
+            $parent_datarecord = $datarecord->getParent();
+            if ($parent_datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Parent Datarecord');
 
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
@@ -512,23 +495,8 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_delete_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_delete']) )
-                $can_delete_datarecord = true;
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_delete_datarecord )
+            if ( !$pm_service->canDeleteDatarecord($user, $datatype) || !$pm_service->canEditDatarecord($user, $parent_datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -536,10 +504,9 @@ class EditController extends ODRCustomController
             if ($datarecord->getId() == $datarecord->getGrandparent()->getId())
                 throw new ODRBadRequestException('EditController::deletechildrecordAction() called on a Datarecord that is top-level');
 
-            $parent = $datarecord->getParent();
-            $grandparent = $datarecord->getGrandparent();
-            $grandparent_id = $grandparent->getId();
-            $grandparent_datatype_id = $grandparent->getDataType()->getId();
+
+            $grandparent_datarecord = $datarecord->getGrandparent();
+            $grandparent_datatype_id = $grandparent_datarecord->getDataType()->getId();
 
 
             // ----------------------------------------
@@ -549,7 +516,6 @@ class EditController extends ODRCustomController
 
             $affected_datarecords = array();
             $affected_datarecords[] = $datarecord->getId();
-
 
             while ( count($parent_ids) > 0 ) {
                 $query = $em->createQuery(
@@ -619,16 +585,9 @@ class EditController extends ODRCustomController
 
 
             // -----------------------------------
-            // Delete the list of associated datarecords for the datarecords that linked to this now-deleted datarecord
-            foreach ($ancestor_datarecord_ids as $num => $ancestor_id)
-                $cache_service->delete('associated_datarecords_for_'.$ancestor_id);
+            // Mark this now-deleted datarecord's parent (and all its parents) as updated
+            $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
 
-            // Delete the cached entries for this datarecord's grandparent
-            $cache_service->delete('associated_datarecords_for_'.$grandparent_id);
-            parent::tmp_updateDatarecordCache($em, $grandparent, $user);
-
-
-            // ----------------------------------------
             // See if any cached search results need to be deleted...
             $cached_searches = $cache_service->get('cached_search_results');
             if ( $cached_searches !== false && isset($cached_searches[$grandparent_datatype_id]) ) {
@@ -647,13 +606,13 @@ class EditController extends ODRCustomController
             // Get record_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
-                'parent_id' => $parent->getId(),
+                'parent_id' => $grandparent_datarecord->getId(),
             );
         }
         catch (\Exception $e) {
             $source = 0x82bb1bb6;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -684,6 +643,12 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             // Grab the necessary entities
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
@@ -693,7 +658,6 @@ class EditController extends ODRCustomController
             $datafield = $file->getDataField();
             if ($datafield->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datafield');
-            $datafield_id = $datafield->getId();
 
             $datarecord = $file->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
@@ -702,7 +666,6 @@ class EditController extends ODRCustomController
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
             // Files that aren't done encrypting shouldn't be modified
             if ($file->getProvisioned() == true)
@@ -713,24 +676,8 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_edit_datafield = false;
-            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
-                $can_edit_datafield = true;
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -755,12 +702,12 @@ class EditController extends ODRCustomController
             $em->flush();
 
 
-            // Delete cached version of this datarecord
-            // TODO - directly update the cached version of the datarecord?
-            // TODO - execute graph plugin?
-            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+            // -----------------------------------
+            // Mark this file's datarecord as updated
+            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-            // TODO - update cached search results?
+            // TODO - cached search results
+            // TODO - manually execute graph plugin?
 
             // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
             if ($datafield->getAllowMultipleUploads() == "0")
@@ -769,7 +716,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x08e2fe10;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -802,8 +749,11 @@ class EditController extends ODRCustomController
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             // Grab the necessary entities
             /** @var File $file */
@@ -823,7 +773,6 @@ class EditController extends ODRCustomController
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
             // Files that aren't done encrypting shouldn't be modified
             if ($file->getProvisioned() == true)
@@ -834,24 +783,8 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_edit_datafield = false;
-            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
-                $can_edit_datafield = true;
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -935,15 +868,14 @@ class EditController extends ODRCustomController
             );
 
 
-            // Delete cached version of datarecord
-            // TODO - replace this block with code to directly update the cached version of the datarecord
-            // TODO - execute graph plugin?
-            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
-
-
             // ----------------------------------------
+            // Mark this file's datarecord as updated
+            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+
+            // TODO - manually execute graph plugin?
+
             // See if any cached search results need to be deleted...
-            $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($datatype->getId());
+            $grandparent_datatype_id = $datatype->getGrandparent()->getId();
 
             $cached_searches = $cache_service->get('cached_search_results');
             if ( $cached_searches != false && isset($cached_searches[$grandparent_datatype_id]) ) {
@@ -963,7 +895,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x5201b0cd;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -995,6 +927,14 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             // Grab the necessary entities
             /** @var Image $image */
             $image = $repo_image->find($image_id);
@@ -1013,7 +953,6 @@ class EditController extends ODRCustomController
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
             // Images that aren't done encrypting shouldn't be downloaded
             if ($image->getOriginalChecksum() == '')
@@ -1023,24 +962,8 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_edit_datafield = false;
-            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
-                $can_edit_datafield = true;
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1091,16 +1014,16 @@ class EditController extends ODRCustomController
             );
 
 
-            // Delete cached version of datarecord
-            // TODO - replace this block with code to directly update the cached version of the datarecord
-            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+            // ----------------------------------------
+            // Mark this image's datarecord as updated
+            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-            // TODO - update cached search results?
+            // TODO - cached search results
         }
         catch (\Exception $e) {
             $source = 0xf051d2f4;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1132,6 +1055,14 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             // Grab the necessary entities
             /** @var Image $image */
             $image = $repo_image->find($image_id);
@@ -1150,7 +1081,6 @@ class EditController extends ODRCustomController
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
             // Images that aren't done encrypting shouldn't be modified
             if ($image->getOriginalChecksum() == '')
@@ -1161,24 +1091,8 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_edit_datafield = false;
-            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
-                $can_edit_datafield = true;
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1213,21 +1127,21 @@ class EditController extends ODRCustomController
             $em->flush();
 
 
-            // Delete cached version of this datarecord
-            // TODO - directly update the cached version of the datarecord?
-            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
-
-
             // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
             if ($datafield->getAllowMultipleUploads() == "0")
                 $return['d'] = array('need_reload' => true);
 
-            // TODO - update cached search results?
+
+            // ----------------------------------------
+            // Mark this image's datarecord as updated
+            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+
+            // TODO - cached search results
         }
         catch (\Exception $e) {
             $source = 0xee8e8649;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1260,6 +1174,12 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             // Grab the necessary entities
             /** @var Image $image */
             $image = $repo_image->find($image_id);
@@ -1269,7 +1189,6 @@ class EditController extends ODRCustomController
             $datafield = $image->getDataField();
             if ($datafield->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datafield');
-            $datafield_id = $datafield->getId();
 
             $datarecord = $image->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
@@ -1278,7 +1197,6 @@ class EditController extends ODRCustomController
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
             // Images that aren't done encrypting shouldn't be modified
             if ($image->getOriginalChecksum() == '')
@@ -1289,24 +1207,8 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_edit_datafield = false;
-            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
-                $can_edit_datafield = true;
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1459,14 +1361,13 @@ class EditController extends ODRCustomController
             }
 
 
-            // Updated cached version of datarecord
-            // TODO - technically, only thing that *needs* updating is datarecord updatedBy property?
-            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+            // Mark this image's datarecord as updated
+            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
         }
         catch (\Exception $e) {
             $source = 0x4093b173;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1499,6 +1400,12 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             // Grab the first image just to check permissions
             $image = null;
             foreach ($post as $index => $image_id) {
@@ -1510,7 +1417,6 @@ class EditController extends ODRCustomController
             $datafield = $image->getDataField();
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
-            $datafield_id = $datafield->getId();
 
             $datarecord = $image->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
@@ -1519,31 +1425,14 @@ class EditController extends ODRCustomController
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_edit_datafield = false;
-            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
-                $can_edit_datafield = true;
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1586,14 +1475,13 @@ class EditController extends ODRCustomController
             }
 
 
-            // Delete cached version of this datarecord
-            // TODO - directly update the cached version of the datarecord?
-            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+            // Mark the image's datarecord as updated
+            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
         }
         catch (\Exception $e) {
             $source = 0x8b01c7e4;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1626,6 +1514,11 @@ class EditController extends ODRCustomController
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -1642,15 +1535,9 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-
-            $is_datatype_admin = false;
-            if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ]['dt_admin']) )     // TODO - probably shouldn't be this permission...
-                $is_datatype_admin = true;
 
             // Ensure user has permissions to be doing this
-            if ( !$is_datatype_admin )
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1671,11 +1558,11 @@ class EditController extends ODRCustomController
                 parent::ODR_copyDatarecordMeta($em, $user, $datarecord, $properties);
             }
 
-            // Refresh the cache entries for this datarecord?
-            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
-
 
             // ----------------------------------------
+            // Mark this datarecord as updated
+            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+
             // See if any cached search results need to be deleted...
             $cached_searches = $cache_service->get('cached_search_results');
             if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
@@ -1699,7 +1586,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x3df683c4;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1735,6 +1622,11 @@ class EditController extends ODRCustomController
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -1764,24 +1656,8 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_edit_datafield = false;
-            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
-                $can_edit_datafield = true;
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1842,8 +1718,8 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - replace this block with code to directly update the cached version of the datarecord?
-            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+            // Mark this datarecord as updated
+            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
             // See if any cached search results need to be deleted...
             $cached_searches = $cache_service->get('cached_search_results');
@@ -1864,7 +1740,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x01019cfb;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1900,6 +1776,11 @@ class EditController extends ODRCustomController
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -1921,24 +1802,8 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_edit_datafield = false;
-            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
-                $can_edit_datafield = true;
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -2043,20 +1908,12 @@ class EditController extends ODRCustomController
 
 
                         // ----------------------------------------
-                        // TODO - replace this block with code to directly update the cached version of the datarecord?
-                        // TODO - if cached datarecord version isn't completely wiped, then need to have code to modify external id/name/sort datafield value...
-/*
-                        $external_id_datafield = $datatype->getExternalIdField();
-                        $sort_datafield = $datatype->getSortField();
-                        $name_datafield = $datatype->getNameField();
-*/
-                        parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+                        // Mark this datarecord as updated
+                        $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-
-                        // ----------------------------------------
                         // If the datafield that got changed was the datatype's sort datafield, delete the cached datarecord order
                         if ( $datatype->getSortField() != null && $datatype->getSortField()->getId() == $datafield->getId() )
-                            $cache_service->delete('data_type_'.$datatype->getId().'_record_order');
+                            $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
 
                         // See if any cached search results need to be deleted...
                         $cached_searches = $cache_service->get('cached_search_results');
@@ -2085,7 +1942,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x294a59c5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2098,6 +1955,7 @@ class EditController extends ODRCustomController
 
     /**
      * Returns whether the provided value would violate uniqueness constraints for the given datafield.
+     * TODO - does this make more sense in a searching service?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param Datafields $datafield
@@ -2198,6 +2056,10 @@ class EditController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             // Grab the datatypes from the database
             /** @var DataRecord $local_datarecord */
             $local_datarecord = $repo_datarecord->find($local_datarecord_id);
@@ -2229,29 +2091,16 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
+            $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
-            $can_view_ancestor_datatype = false;
-            if ( isset($datatype_permissions[$ancestor_datatype_id]) && isset($datatype_permissions[$ancestor_datatype_id]['dt_view']) )
-                $can_view_ancestor_datatype = true;
-
-            $can_view_descendant_datatype = false;
-            if ( isset($datatype_permissions[$descendant_datatype_id]) && isset($datatype_permissions[$descendant_datatype_id]['dt_view']) )
-                $can_view_descendant_datatype = true;
-
-            $can_view_local_datarecord = false;
-            if ( isset($datatype_permissions[$local_datatype_id]) && isset($datatype_permissions[$local_datatype_id]['dr_view']) )
-                $can_view_local_datarecord = true;
-
-            $can_edit_ancestor_datarecord = false;
-            if ( isset($datatype_permissions[$ancestor_datatype_id]) && isset($datatype_permissions[$ancestor_datatype_id]['dr_edit']) )
-                $can_edit_ancestor_datarecord = true;
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
-            if ( !($ancestor_datatype->isPublic() || $can_view_ancestor_datatype) || !($descendant_datatype->isPublic() || $can_view_descendant_datatype) || !($local_datarecord->isPublic() || $can_view_local_datarecord) || !$can_edit_ancestor_datarecord )
+            if ( !$pm_service->canViewDatatype($user, $ancestor_datatype) )
                 throw new ODRForbiddenException();
+
+            if ( !$pm_service->canViewDatatype($user, $descendant_datatype) )
+                throw new ODRForbiddenException();
+
+            // TODO - Technically, only able to check whether the user can link to a remote datarecord from $local_datarecord
+            // TODO - ...unable to check whether the user is actually able to make $remote_datarecord link here?
             // --------------------
 
 $debug = true;
@@ -2441,7 +2290,7 @@ exit();
         catch (\Exception $e) {
             $source = 0x30878efd;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2491,8 +2340,11 @@ exit();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var DataRecord $local_datarecord */
             $local_datarecord = $repo_datarecord->find($local_datarecord_id);
@@ -2652,8 +2504,8 @@ if ($debug)
 if ($debug)
     print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
-                    // Delete the cached list of child/linked datarecords for the ancestor datarecord
-                    $cache_service->delete('associated_datarecords_for_'.$ldt->getAncestor()->getId());
+                    // Mark the ancestor datarecord as updated
+                    $dri_service->updateDatarecordCacheEntry($ldt->getAncestor(), $user);
 
                     // Remove the linked_data_tree entry
                     $ldt->setDeletedBy($user);
@@ -2691,10 +2543,8 @@ if ($debug)
                 }
 
                 // Ensure there is a link between the two datarecords
+                // This function will also take care of marking as updated and cache clearing
                 parent::ODR_linkDataRecords($em, $user, $ancestor_datarecord, $descendant_datarecord);
-
-                // Delete the cached list of child/linked datarecords for the ancestor datarecord
-                $cache_service->delete('associated_datarecords_for_'.$ancestor_datarecord->getId());
             }
 
             $em->flush();
@@ -2707,7 +2557,7 @@ if ($debug)
         catch (\Exception $e) {
             $source = 0xdd047dcd;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2741,6 +2591,9 @@ if ($debug)
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var DataType $child_datatype */
             $child_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($child_datatype_id);
@@ -2755,46 +2608,14 @@ if ($debug)
             $parent_datatype = $parent_datarecord->getDataType();
             if ($parent_datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Parent Datatype');
-            $parent_datatype_id = $parent_datatype->getId();
-
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $child_datatype->getId(), 'themeType' => 'master') );
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
 
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
-            $can_view_child_datatype = false;
-            if ( isset($datatype_permissions[$child_datatype_id]) && isset($datatype_permissions[$child_datatype_id]['dt_view']) )
-                $can_view_child_datatype = true;
-
-            $can_view_parent_datatype = false;
-            if ( isset($datatype_permissions[$parent_datatype_id]) && isset($datatype_permissions[$parent_datatype_id]['dt_view']) )
-                $can_view_parent_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$parent_datatype_id]) && isset($datatype_permissions[$parent_datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$child_datatype_id]) && isset($datatype_permissions[$child_datatype_id]['dr_edit']) )
-                $can_edit_datarecord = true;
-
-
-            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't reload the child datatype's HTML
-            if ( !($parent_datatype->isPublic() || $can_view_parent_datatype) )
-                throw new ODRForbiddenException();
-            if ( !($child_datatype->isPublic() || $can_view_child_datatype) )
-                throw new ODRForbiddenException();
-            if ( !($parent_datarecord->isPublic() || $can_view_datarecord) )
-                throw new ODRForbiddenException();
-            if ( !$can_edit_datarecord )
+            if ( !$pm_service->canEditDatarecord($user, $parent_datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -2806,7 +2627,7 @@ if ($debug)
         catch (\Exception $e) {
             $source = 0xb61ecefa;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2841,6 +2662,10 @@ if ($debug)
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
@@ -2849,45 +2674,19 @@ if ($debug)
             $datatype = $datafield->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
-
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
-                $can_edit_datarecord = true;
-
-            $can_view_datafield = false;
-            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['view']) )
-                $can_view_datafield = true;
-
-            // If the datatype/datarecord/datafield is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't reload the datafield HTML
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) || !$can_edit_datarecord )
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -2899,7 +2698,7 @@ if ($debug)
         catch (\Exception $e) {
             $source = 0xc28be446;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2930,6 +2729,8 @@ if ($debug)
         // Required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
+        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+
 
         /** @var DatatypeInfoService $dti_service */
         $dti_service = $this->container->get('odr.datatype_info_service');
@@ -2937,15 +2738,14 @@ if ($debug)
         $dri_service = $this->container->get('odr.datarecord_info_service');
         /** @var PermissionsManagementService $pm_service */
         $pm_service = $this->container->get('odr.permissions_management_service');
-
-        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-        $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+        /** @var ThemeInfoService $theme_service */
+        $theme_service = $this->container->get('odr.theme_info_service');
 
 
         // Load all permissions for this user
         /** @var User $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
-        $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+        $user_permissions = $pm_service->getUserPermissionsArray($user);
         $datatype_permissions = $user_permissions['datatypes'];
         $datafield_permissions = $user_permissions['datafields'];
 
@@ -2960,11 +2760,10 @@ if ($debug)
         /** @var DataRecord $datarecord */
         $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($initial_datarecord_id);
         $grandparent_datarecord = $datarecord->getGrandparent();
+        $grandparent_datatype = $grandparent_datarecord->getDataType();
 
         /** @var DataType $datatype */
         $datatype = null;
-        /** @var Theme $theme */
-        $theme = null;
 
         /** @var DataType|null $child_datatype */
         $child_datatype = null;
@@ -2984,25 +2783,18 @@ if ($debug)
             $grandparent_datarecord = $datarecord->getGrandparent();
             if ( $grandparent_datarecord->getId() !== $datarecord->getId() )
                 $is_top_level = 0;
-
-            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
         }
         else if ($template_name == 'child') {
             $is_top_level = 0;
 
             $child_datatype = $repo_datatype->find($target_id);
-            $theme = $repo_theme->findOneBy( array('dataType' => $child_datatype->getId(), 'themeType' => 'master') );
 
             // Need to determine the top-level datatype to be able to load all necessary data for rendering this child datatype
             if ( isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) && $datatree_array['descendant_of'][ $child_datatype->getId() ] !== '' ) {
-                $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($child_datatype->getId());
-
-                $datatype = $repo_datatype->find($grandparent_datatype_id);
+                $datatype = $child_datatype->getGrandparent();
             }
             else if ( isset($datatree_array['linked_from'][ $child_datatype->getId() ]) && in_array($datarecord->getDataType()->getId(), $datatree_array['linked_from'][ $child_datatype->getId() ]) ) {
-                $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($datarecord->getDataType()->getId());
-
-                $datatype = $repo_datatype->find($grandparent_datatype_id);
+                $datatype = $datarecord->getDataType()->getGrandparent();
             }
             else {
                 throw new ODRException('Unable to locate grandparent datatype for datatype '.$child_datatype->getId());
@@ -3013,25 +2805,23 @@ if ($debug)
             $datafield_id = $target_id;
 
             $child_datatype = $datafield->getDataType();
-            $theme = $repo_theme->findOneBy( array('dataType' => $child_datatype->getId(), 'themeType' => 'master') );
-
-            $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($datarecord->getDataType()->getId());
-            $datatype = $repo_datatype->find($grandparent_datatype_id);
+            $datatype = $child_datatype->getGrandparent();
         }
 
 
         // ----------------------------------------
         // Grab all datarecords "associated" with the desired datarecord...
-        $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
+        $include_links = true;
+        $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId(), $include_links);
 
         // Grab all datatypes associated with the desired datarecord
-        // NOTE - specifically doing it this way because $dti_service->getDatatypeArrayByDatarecords() won't load datatype entries if datarecord doesn't have child/linked datatypes
-        $include_links = true;
-        $associated_datatypes = $dti_service->getAssociatedDatatypes(array($datatype->getId()), $include_links);
-        $datatype_array = $dti_service->getDatatypeArray($associated_datatypes);
+        $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId(), $include_links);
 
         // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
         $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+        // Also need the theme array...
+        $theme_array = $theme_service->getThemesForDatatype($grandparent_datatype->getId(), $user, 'master', $include_links);
 
 
         // ----------------------------------------
@@ -3040,11 +2830,11 @@ if ($debug)
         $stacked_datatype_array = array();
         if ($template_name == 'default') {
             $stacked_datarecord_array[ $datarecord->getId() ] = $dri_service->stackDatarecordArray($datarecord_array, $datarecord->getId());
-            $stacked_datatype_array[ $datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $datatype->getId(), $theme->getId());
+            $stacked_datatype_array[ $datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
         }
         else if ($template_name == 'child') {
             $stacked_datarecord_array[ $initial_datarecord_id ] = $dri_service->stackDatarecordArray($datarecord_array, $initial_datarecord_id);
-            $stacked_datatype_array[ $child_datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $child_datatype->getId(), $theme->getId());
+            $stacked_datatype_array[ $child_datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $child_datatype->getId());
         }
 
         // ----------------------------------------
@@ -3053,6 +2843,7 @@ if ($debug)
 
         $html = '';
         if ($template_name == 'default') {
+/*
             // ----------------------------------------
             // Need to determine ids and names of datatypes this datarecord can link to
             $query = $em->createQuery(
@@ -3110,6 +2901,12 @@ if ($debug)
                     unset( $linked_datatype_ancestors[$dt_id] );
                 }
             }
+*/
+
+            // TODO - re-implement linking
+            $linked_datatype_ancestors = array();
+            $linked_datatype_descendants = array();
+            $disabled_datatype_links = array();
 
 
             // ----------------------------------------
@@ -3123,7 +2920,7 @@ if ($debug)
 
                     'datatype_array' => $stacked_datatype_array,
                     'datarecord_array' => $stacked_datarecord_array,
-                    'theme_id' => $theme->getId(),
+                    'theme_array' => $theme_array,
 
                     'initial_datatype_id' => $datatype->getId(),
                     'initial_datarecord_id' => $datarecord->getId(),
@@ -3144,24 +2941,13 @@ if ($debug)
 
             // Need to find the ThemeDatatype entry for this child datatype
             $theme_datatype = null;
-            $parent_datatype = $datarecord->getDataType();
-            $parent_theme = $repo_theme->findOneBy( array('dataType' => $parent_datatype->getId(), 'themeType' => 'master') );
+            $parent_datatype = $child_datatype->getParent();
 
-//print 'parent_datatype: '.$parent_datatype->getId();
-//print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
-
-            foreach ($datatype_array[ $parent_datatype->getId() ]['themes'][ $parent_theme->getId() ]['themeElements'] as $te_num => $te) {
-                if ( isset($te['themeDataType']) ) {
-                    foreach ($te['themeDataType'] as $tdt_num => $tdt) {
-                        if ( $tdt['dataType']['id'] == $child_datatype->getId() ) {
-                            $theme_datatype = $tdt;
-                            break;
-                        }
-                    }
-                }
-
-                if ($theme_datatype !== null)
+            foreach ($theme_array[$parent_datatype->getId()]['themeElements'] as $te_num => $te) {
+                if ( isset($te['themeDataType']) && $te['themeDataType'][0]['dataType']['id'] == $child_datatype->getId() ) {
+                    $theme_datatype = $te['themeDataType'][0];
                     break;
+                }
             }
 
             if ($theme_datatype == null)
@@ -3179,7 +2965,7 @@ if ($debug)
                 array(
                     'datatype_array' => $stacked_datatype_array,
                     'datarecord_array' => $stacked_datarecord_array,
-                    'theme_id' => $theme->getId(),
+                    'theme_array' => $theme_array,
 
                     'target_datatype_id' => $child_datatype->getId(),
                     'parent_datarecord_id' => $datarecord->getId(),
@@ -3198,31 +2984,19 @@ if ($debug)
         }
         else if ($template_name == 'datafield') {
 
-            // Generate a csrf token for each of the datarecord/datafield pairs
-            $token_list = self::generateCSRFTokens($datatype_array, $datarecord_array);
-
             // Extract all needed arrays from $datatype_array and $datarecord_array
             $datatype = $datatype_array[ $child_datatype->getId() ];
             $datarecord = $datarecord_array[ $initial_datarecord_id ];
 
             $datafield = null;
-            foreach ($datatype_array[ $child_datatype->getId() ]['themes'][ $theme->getId() ]['themeElements'] as $te_num => $te) {
-                if ( isset($te['themeDataFields']) ) {
-                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-
-                        if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $datafield_id ) {
-                            $datafield = $tdf['dataField'];
-                            break;
-                        }
-                    }
-                    if ($datafield !== null)
-                        break;
-                }
-            }
+            if ( isset($datatype['dataFields'][$datafield_id]) )
+                $datafield = $datatype['dataFields'][$datafield_id];
 
             if ( $datafield == null )
                 throw new ODRException('Unable to locate array entry for datafield '.$datafield_id);
 
+            // Generate a csrf token for each of the datarecord/datafield pairs
+            $token_list = self::generateCSRFTokens($datatype_array, $datarecord_array);
 
             $html = $templating->render(
                 'ODRAdminBundle:Edit:edit_datafield.html.twig',
@@ -3266,27 +3040,13 @@ if ($debug)
             if ( !isset($datatype_array[$dt_id]) )
                 continue;
 
-            foreach ($datatype_array[$dt_id]['themes'] as $theme_id => $theme) {
-                if ( $theme['themeType'] !== 'master' )
-                    continue;
+            foreach ($datatype_array[$dt_id]['dataFields'] as $df_id => $df) {
 
-                foreach ($theme['themeElements'] as $te_num => $te) {
-                    if ( isset($te['themeDataFields']) ) {
-                        foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                            if ( !isset($tdf['dataField']) ) {
-                                // Don't throw an exception if the datafield entry in the array doesn't exist...it just means that the user can't see that datafield, so therefore no need for a csrf token
-                            }
-                            else {
-                                $df_id = $tdf['dataField']['id'];
-                                $typeclass = $tdf['dataField']['dataFieldMeta']['fieldType']['typeClass'];
+                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
 
-                                $token_id = $typeclass.'Form_'.$dr_id.'_'.$df_id;
+                $token_id = $typeclass.'Form_'.$dr_id.'_'.$df_id;
+                $token_list[$dr_id][$df_id] = $token_generator->getToken($token_id)->getValue();
 
-                                $token_list[$dr_id][$df_id] = $token_generator->getToken($token_id)->getValue();
-                            }
-                        }
-                    }
-                }
             }
         }
 
@@ -3314,8 +3074,10 @@ if ($debug)
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -3325,45 +3087,19 @@ if ($debug)
             $datatype = $datafield->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
-
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-                $can_view_datarecord = true;
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
-                $can_edit_datarecord = true;
-
-            $can_view_datafield = false;
-            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['view']) )
-                $can_view_datafield = true;
-
-            // If the datatype/datarecord/datafield is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't reload the datafield HTML
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) || !$can_edit_datarecord )
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -3409,7 +3145,7 @@ if ($debug)
         catch (\Exception $e) {
             $source = 0xe33cd134;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3447,6 +3183,7 @@ if ($debug)
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             // Get Record In Question
             /** @var DataRecord $datarecord */
@@ -3612,7 +3349,7 @@ if ($debug)
         catch (\Exception $e) {
             $source = 0x409f64ee;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

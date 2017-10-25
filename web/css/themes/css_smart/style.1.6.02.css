@@ -618,6 +618,7 @@ footer ul li:first-child {
 .ODRDatatypeProperties {
     /* background: #7fb9d8 none; */
     padding-bottom: 0px;
+    cursor: pointer;
 }
 
 #ODRMenuLabelRight {

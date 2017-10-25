@@ -40,7 +40,10 @@ use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\TrackedError;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
-// Forms
+// Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
@@ -48,9 +51,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 // CSV Reader
-use Ddeboer\DataImport\Reader;
-use Ddeboer\DataImport\Writer;
-use Ddeboer\DataImport\Filter;
 use Ddeboer\DataImport\Reader\CsvReader;
 // ForceUTF8
 use \ForceUTF8\Encoding;
@@ -79,6 +79,9 @@ class CSVImportController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
 
             /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
@@ -114,13 +117,8 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Always bypass cache in dev mode
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
-
             // Locate any child or linked datatypes
-            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+            $datatree_array = $dti_service->getDatatreeArray();
             $childtypes = array();
             foreach ($datatree_array['descendant_of'] as $dt_id => $parent_dt_id) {
                 if ($parent_dt_id == $datatype_id) {
@@ -272,6 +270,9 @@ class CSVImportController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
             /** @var DataType $source_datatype */
             $source_datatype = $repo_datatype->find($source_datatype_id);
             if ( $source_datatype == null )
@@ -312,17 +313,12 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Always bypass cache in dev mode
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
-
             // $datatype_id is the datatype being imported into...determine whether it's the remote side of a datatype link, or a top-level datatype, or locate its parent datatype if it's a child datatype
             $linked_importing = false;
             $parent_datatype = null;
 
 
-            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+            $datatree_array = $dti_service->getDatatreeArray();
             if ( $source_datatype_id !== $target_datatype_id && isset($datatree_array['linked_from'][$target_datatype_id]) && in_array($source_datatype_id, $datatree_array['linked_from'][$target_datatype_id]) ) {
                 /* "Importing into" a linked datatype */
                 $linked_importing = true;
@@ -963,8 +959,6 @@ class CSVImportController extends ODRCustomController
             // Load symfony objects
             $session = $request->getSession();
             $pheanstalk = $this->get('pheanstalk');
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 
@@ -2093,6 +2087,9 @@ class CSVImportController extends ODRCustomController
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
             $templating = $this->get('templating');
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
 
             // ----------------------------------------
             /** @var TrackedJob $tracked_job */
@@ -2143,11 +2140,6 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Always bypass cache in dev mode
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
-
             // Load settings for import.html.twig and layout.html.twig from the data stored in the tracked job entity
             $parent_datatype_id = '';
             $parent_datatype = null;
@@ -2167,7 +2159,7 @@ class CSVImportController extends ODRCustomController
 
 
             // Also locate any child or linked datatypes for this datatype
-            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+            $datatree_array = $dti_service->getDatatreeArray();
             /** @var DataType[]|null $childtypes */
             $childtypes = null;
             if ($parent_datatype_id !== '') {
@@ -2365,6 +2357,10 @@ class CSVImportController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
+
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
@@ -2462,10 +2458,7 @@ class CSVImportController extends ODRCustomController
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
 
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-//            $session = $request->getSession();
 
 
             // Extract data from the tracked job
@@ -2569,8 +2562,8 @@ class CSVImportController extends ODRCustomController
                 // Save all changes
                 $em->flush();
 
-                // Update theme and datatype becuase new datafields were added
-                parent::tmp_updateThemeCache($em, $theme, $user, true);
+                // Update cached versions of datatype and master theme since new datafields were added
+                $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
                 // Don't need to worry about datafield permissions here, those are taken care of inside ODR_addDataField()
             }
@@ -2704,16 +2697,17 @@ print_r($new_mapping);
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $logger = $this->get('logger');
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid job data');
@@ -2734,7 +2728,7 @@ print_r($new_mapping);
 
             if ($parent_external_id_column !== '') {
                 // $datatype_id points to a child datatype
-                $datatree_array = parent::getDatatreeArray($em);
+                $datatree_array = $dti_service->getDatatreeArray();
 
                 // Locate the top-level datatype
                 $parent_datatype_id = null;
@@ -3199,27 +3193,24 @@ print_r($new_mapping);
 
             // ----------------------------------------
             // Rebuild the list of sorted datarecords, since the datarecord order may have changed
-            $redis->del($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
-            // Schedule the datarecord for an update
-            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
-/*
-            $options = array(
-                'mark_as_updated' => true,
-                'user_id' => $user->getId(),    // since this action is called via command-line, need to specify which user is doing the importing
-                'force_shortresults_recache' => true,
-                'force_textresults_recache' => true
-            );
-            parent::updateDatarecordCache($datarecord->getId(), $options);
-*/
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
+
+            // Mark this datarecord as updated...
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+
 
             // Delete all cached search results for this datatype
             // TODO - more precise deletion of cached search results...new datarecord created should delete all search results without datafields, update to a datafield should delete all search results with that datafield
-            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            $cached_searches = $cache_service->get('cached_search_results');
             if ( $cached_searches != false && isset($cached_searches[$datatype_id]) ) {
                 unset( $cached_searches[$datatype_id] );
 
                 // Save the collection of cached searches back to memcached
-                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                $cache_service->set('cached_search_results', $cached_searches);
             }
 
             $return['d'] = $status;
@@ -3352,8 +3343,12 @@ print_r($new_mapping);
 
             // ----------------------------------------
             // Ensure a link exists from the local datarecord to the remote datarecord
+            // This function will also take care of marking as updated and cache clearing
             parent::ODR_linkDataRecords($em, $user, $local_datarecord, $remote_datarecord);
             $status .= ' -- Datarecord '.$local_datarecord->getId().' (external id: "'.$local_external_id.'") is now linked to Datarecord '.$remote_datarecord->getId().' (external id: "'.$remote_external_id.'")'."\n";
+
+            // Linking/unlinking a datarecord has no effect on datarecord order
+
 
             // ----------------------------------------
             // Update the job tracker if necessary
@@ -3371,19 +3366,6 @@ print_r($new_mapping);
                 $em->flush();
 //$ret .= '  Set current to '.$count."\n";
             }
-
-
-            // ----------------------------------------
-            // Datarecord order can't change as a result of linking/unlinking
-/*
-            // Schedule the local datarecord for an update
-            $options = array(
-                'user_id' => $user->getId(),    // since this action is called via command-line, need to specify which user is doing the importing
-                'mark_as_updated' => true
-            );
-            parent::updateDatarecordCache($local_datarecord->getId(), $options);
-*/
-            parent::tmp_updateDatarecordCache($em, $local_datarecord, $user);
 
             $return['d'] = $status;
         }

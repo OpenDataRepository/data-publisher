@@ -23,6 +23,7 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -124,7 +125,7 @@ class ReportsController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x2993cf40;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -403,7 +404,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0x93aaae47;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -515,7 +516,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0x62dda448;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -621,7 +622,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0x6abcb0cc;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -757,7 +758,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0xb552e494;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -865,7 +866,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0x16cb020a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -998,7 +999,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0x10d09095;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1138,7 +1139,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0xccdb4bcb;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1186,7 +1187,47 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0xd16f3328;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Checks progress of theme job for TODO
+     *
+     * @param integer $tracked_job_id
+     *
+     * @return Response
+     */
+    public function getthemeprogressAction($tracked_job_id)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+
+            /** @var TrackedJob $tracked_job */
+            $tracked_job = $repo_tracked_job->find($tracked_job_id);
+            if ($tracked_job == null)
+                throw new ODRNotFoundException('Tracked Job');
+
+            $return['d'] = $tracked_job->toArray();
+        }
+        catch (\Exception $e) {
+            $source = 0x2f933518;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

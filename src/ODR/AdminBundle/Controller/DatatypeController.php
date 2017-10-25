@@ -78,8 +78,7 @@ class DatatypeController extends ODRCustomController
             // Grab user privileges to determine what they can do
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
             // --------------------
 
 
@@ -196,7 +195,7 @@ class DatatypeController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x24d5aae9;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -231,13 +230,14 @@ class DatatypeController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
             // --------------------
             // Grab user privileges to determine what they can do
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
             // --------------------
 
             // Grab a list of top top-level datatypes
@@ -270,7 +270,7 @@ class DatatypeController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x72002e34;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -306,13 +306,15 @@ class DatatypeController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             // --------------------
             // Grab user privileges to determine what they can do
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
             // --------------------
 
             if ($template_choice != 0 && $creating_master_template == 1)
@@ -362,7 +364,7 @@ class DatatypeController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xeaff78ff;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -467,6 +469,10 @@ class DatatypeController extends ODRCustomController
                     $em->flush();
                     $em->refresh($datatype);
 
+                    // Top level datatypes are their own parent/grandparent
+                    $datatype->setParent($datatype);
+                    $datatype->setGrandparent($datatype);
+                    $em->persist($datatype);
 
                     // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name since they're already from the form
                     $submitted_data->setDataType($datatype);
@@ -531,12 +537,18 @@ class DatatypeController extends ODRCustomController
                         $em->flush();
                         $em->refresh($theme);
 
+                        // "master" themes for top-level datatypes are considered their own parent and source
+                        $theme->setParentTheme($theme);
+                        $theme->setSourceTheme($theme);
+                        $em->persist($theme);
+
                         // ...and an associated meta entry
                         $theme_meta = new ThemeMeta();
                         $theme_meta->setTheme($theme);
                         $theme_meta->setTemplateName('');
                         $theme_meta->setTemplateDescription('');
                         $theme_meta->setIsDefault(true);
+                        $theme_meta->setShared(true);
                         $theme_meta->setCreatedBy($admin);
                         $theme_meta->setUpdatedBy($admin);
 
@@ -617,7 +629,7 @@ class DatatypeController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x6151265b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

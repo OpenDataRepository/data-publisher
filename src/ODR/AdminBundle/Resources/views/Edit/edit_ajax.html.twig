@@ -31,7 +31,7 @@
 {% include 'ODRAdminBundle:Edit:edit_area.html.twig' with {
     'datatype_array': datatype_array,
     'datarecord_array': datarecord_array,
-    'theme_id': theme_id,
+    'theme_array': theme_array,
 
     'initial_datatype_id': initial_datatype_id,
     'initial_datarecord_id': initial_datarecord_id,
@@ -113,6 +113,7 @@ function initPage() {
         locateFileIds({{ initial_datarecord_id }}, datarecord_id, datafield_id);      // defined in ODRAdminBundle:Default:file_download_dialog.html.twig
     });
 
+{#
     $(".ODRDataField").find('.ODRDatafieldHistory').unbind('click').click(function(event) {
 
         // Don't trigger whatever the click normally would have done (mostly for boolean fields)
@@ -167,8 +168,8 @@ function initPage() {
                 }
             }
         });
-        
     });
+#}
 
     $(".ODRDeleteFile").unbind('click').click(function() {
         if ( confirm("Are you certain that you want to delete this File?") ) {

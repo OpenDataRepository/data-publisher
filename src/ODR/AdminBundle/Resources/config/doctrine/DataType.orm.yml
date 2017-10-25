@@ -65,6 +65,15 @@ ODR\AdminBundle\Entity\DataType:
             nullable: true
 
     oneToMany:
+        grandchildren:
+            targetEntity: DataType
+            mappedBy: grandparent
+            fetch: EXTRA_LAZY
+        children:
+            targetEntity: DataType
+            mappedBy: parent
+            fetch: EXTRA_LAZY
+
         # TODO These will probably need to be moved to map tables
         # so that child types can be re-used across multiple master
         # data types.
@@ -126,6 +135,15 @@ ODR\AdminBundle\Entity\DataType:
             orphanRemoval: false
 
     manyToOne:
+        parent:
+            targetEntity: DataType
+            inversedBy: children
+            fetch: EXTRA_LAZY
+        grandparent:
+            targetEntity: DataType
+            fetch: EXTRA_LAZY
+            inversedBy: grandchildren
+
         # TODO These will probably need to be moved to map tables
         # so that child types can be re-used across multiple master
         # data types.

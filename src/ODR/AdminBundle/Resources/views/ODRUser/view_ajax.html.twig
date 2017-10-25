@@ -1,5 +1,6 @@
 {% spaceless %}
 
+{% set theme = theme_array[initial_datatype_id] %}
 {% set theme_name = theme.themeMeta.templateName %}
 {% if theme_name == '' %}
     {% set theme_name = 'theme_' ~ theme.id %}
@@ -15,7 +16,7 @@
     {% include 'ODRAdminBundle:ODRUser:view_childtype.html.twig' with {
         'datatype_permissions': datatype_permissions,
         'datafield_permissions': datafield_permissions,
-        'theme_id': theme.id,
+        'theme_array': theme_array,
 
         'is_top_level': 1,
 

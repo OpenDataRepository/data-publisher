@@ -45,7 +45,9 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -76,6 +78,9 @@ class MassEditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
@@ -85,7 +90,7 @@ class MassEditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
@@ -98,6 +103,7 @@ class MassEditController extends ODRCustomController
                 $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
+            // TODO - can't use $pm_service->canEditDatarecord() here because don't actually have a datarecord...
             if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
                 throw new ODRForbiddenException();
             // --------------------
@@ -171,7 +177,7 @@ class MassEditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x50ff5a99;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -203,6 +209,8 @@ class MassEditController extends ODRCustomController
         $dti_service = $this->container->get('odr.datatype_info_service');
         /** @var PermissionsManagementService $pm_service */
         $pm_service = $this->container->get('odr.permissions_management_service');
+        /** @var ThemeInfoService $theme_service */
+        $theme_service = $this->container->get('odr.theme_info_service');
 
 
         /** @var DataType $datatype */
@@ -220,29 +228,26 @@ class MassEditController extends ODRCustomController
         // Determine user privileges
         /** @var User $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
-        $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+        $user_permissions = $pm_service->getUserPermissionsArray($user);
         $datatype_permissions = $user_permissions['datatypes'];
         $datafield_permissions = $user_permissions['datafields'];
         // --------------------
 
 
         // ----------------------------------------
-        // Determine which datatypes/childtypes to load from the cache
-        $include_links = false;
-        $associated_datatypes = $dti_service->getAssociatedDatatypes(array($datatype_id), $include_links);
-//print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
-
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $datatype_array = $dti_service->getDatatypeArray($associated_datatypes);
+        $include_links = false;
+        $datatype_array = $dti_service->getDatatypeArray($datatype_id, $include_links);
 //print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
-
-        // ----------------------------------------
         // Filter by user permissions
         $datarecord_array = array();
         $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
+        $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
 
+
+        // ----------------------------------------
         // Render the MassEdit page
         $templating = $this->get('templating');
         $html = $templating->render(
@@ -250,7 +255,7 @@ class MassEditController extends ODRCustomController
             array(
                 'datatype_array' => $datatype_array,
                 'initial_datatype_id' => $datatype_id,
-                'theme_id' => $theme->getId(),
+                'theme_array' => $theme_array,
 
                 'odr_tab_id' => $odr_tab_id,
                 'datatype_permissions' => $datatype_permissions,
@@ -301,6 +306,8 @@ class MassEditController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -317,7 +324,7 @@ class MassEditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
@@ -330,6 +337,7 @@ class MassEditController extends ODRCustomController
                 $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
+            // TODO - can't use $pm_service->canEditDatarecord() here because don't actually have a datarecord...
             if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
                 throw new ODRForbiddenException();
             // --------------------
@@ -578,7 +586,7 @@ return;
         catch (\Exception $e) {
             $source = 0xf0de8b70;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -632,6 +640,8 @@ return;
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
@@ -694,10 +704,10 @@ return;
                 }
 
                 if ($updated) {
-                    // Refresh the cache entries for this datarecord
-                    parent::tmp_updateDatarecordCache($em, $datarecord, $user);
-
                     // ----------------------------------------
+                    // Mark this datarecord as updated
+                    $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+
                     // See if any cached search results need to be deleted...
                     $cached_searches = $cache_service->get('cached_search_results');
                     if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
@@ -739,7 +749,7 @@ return;
         catch (\Exception $e) {
             $source = 0xb506e43f;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -797,6 +807,8 @@ return;
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
@@ -1035,10 +1047,9 @@ $ret .= '  Set current to '.$count."\n";
 
 
                 // ----------------------------------------
-                // TODO - replace this block with code to directly update the cached version of the datarecord?
-                parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+                // Mark this datarecord as updated
+                $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-                // ----------------------------------------
                 // See if any cached search results need to be deleted...
                 $cached_searches = $cache_service->get('cached_search_results');
                 if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
@@ -1056,7 +1067,7 @@ $ret .=  "---------------\n";
         catch (\Exception $e) {
             $source = 0x99001e8b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

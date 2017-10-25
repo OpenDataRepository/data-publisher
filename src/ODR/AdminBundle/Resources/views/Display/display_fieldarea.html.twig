@@ -1,7 +1,7 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
-{% set theme = datatype.themes[theme_id] %}
+{% set theme = theme_array[ datatype.id ] %}
 
 {% if is_top_level == 0 and (display_type == 1 or display_type == 2) %}
     {# tabbed or dropdown display_type #}
@@ -15,18 +15,20 @@
 
 {% for theme_element in theme.themeElements %}
 
-    {% if not theme_element|is_empty(datarecord, 'display') %}
+    {% if not theme_element|is_empty(datarecord, datatype, 'display') %}
 
         <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
             <div class="ODRInnerBox">
 
                 {% if theme_element.themeDataFields is defined %}
                     {% for theme_datafield in theme_element.themeDataFields %}
-                        {% if theme_datafield.dataField is not defined %}
-                            <div class="pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"></div>
+                        {% set datafield_id = theme_datafield.dataField.id %}
+
+                        {% if datatype['dataFields'][datafield_id] is not defined %}
                             {# user doesn't have permissions to see this datafield #}
+                            <div class="pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"></div>
                         {% else %}
-                            {% set datafield = theme_datafield.dataField %}
+                            {% set datafield = datatype['dataFields'][datafield_id] %}
 
                             {% if theme_datafield.hidden == 0 %}
                                 <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}">
@@ -48,39 +50,21 @@
 
                     {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
                     {% for theme_datatype in theme_element.themeDataType %}
-                        {% set child_datatype = theme_datatype.dataType %}
+                        {% set child_datatype_id = theme_datatype.dataType.id %}
 
-                        {# locate the child datatype's id #}
-                        {% set child_datatype_id = '' %}
-                        {% for c_dt_id, c_dt in child_datatype %}
-                            {% set child_datatype_id = c_dt_id %}
-                        {% endfor %}
+                        {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
+                        {% if datatype['descendants'][child_datatype_id] is defined %}
+                            {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
 
-                        {% if child_datatype_id != '' and theme_datatype.hidden == 0 %}
-                            {# locate the master theme id for this child datatype #}
-                            {% set child_theme_id = '' %}
-                            {% for t_id, t in child_datatype[ child_datatype_id ]['themes'] %}
-                                {# Match the parent theme passed to this system #}
-                                {% if theme.parentTheme != null and theme.parentTheme.id > 0 %}
-                                    {% if t.parentTheme != null and t.parentTheme.id == theme.parentTheme.id %}
-                                        {% set child_theme_id = t['id'] %}
-                                    {% endif %}
-                                    {# Or just use master #}
-                                {% else %}
-                                    {% if t['themeType'] == 'master' %}
-                                        {% set child_theme_id = t['id'] %}
-                                    {% endif %}
-                                {% endif %}
-                            {% endfor %}
-
-                            {# pass all child datarecords of this child datatype to display_childtype.html.twig at once #}
-                            {% if datarecord['children'][ child_datatype_id ] is defined %}
+                            {# filtering also means there may not be anything in the datarecord array... #}
+                            {% if datarecord['children'][child_datatype_id] is defined %}
+                                {# pass all child datarecords of this child datatype to display_childtype.html.twig at once #}
                                 {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
 
                                 {% include 'ODRAdminBundle:Display:display_childtype.html.twig' with {
                                     'datatype_array': child_datatype,
                                     'datarecord_array': datarecord_array,
-                                    'theme_id': child_theme_id,
+                                    'theme_array': theme_array,
 
                                     'target_datatype_id': child_datatype_id,
                                     'parent_datarecord_id': datarecord.id,

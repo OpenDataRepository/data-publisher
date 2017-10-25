@@ -29,7 +29,8 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\OpenRepository\UserBundle\Entity\User;
-// Forms
+// Services
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -335,7 +336,10 @@ class FlowController extends ODRCustomController
                     $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
                     parent::finishUpload($em, $destination_folder, $original_filename, $user_id, $drf->getId());
 
-                    parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+                    // Mark this datarecord as updated
+                    /** @var DatarecordInfoService $dri_service */
+                    $dri_service = $this->container->get('odr.datarecord_info_service');
+                    $dri_service->updateDatarecordCacheEntry($datarecord, $user);
                 }
                 else {
                     // Upload is a file/image meant to be referenced by a later XML/CSV Import

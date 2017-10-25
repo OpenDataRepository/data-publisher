@@ -43,6 +43,21 @@ class ThemeMeta
     private $isDefault;
 
     /**
+     * @var integer
+     */
+    private $displayOrder;
+
+    /**
+     * @var boolean
+     */
+    private $shared;
+
+    /**
+     * @var \DateTime
+     */
+    private $sourceSyncCheck;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -150,6 +165,78 @@ class ThemeMeta
     public function getIsDefault()
     {
         return $this->isDefault;
+    }
+
+    /**
+     * Set displayOrder
+     *
+     * @param integer $displayOrder
+     *
+     * @return ThemeMeta
+     */
+    public function setDisplayOrder($displayOrder)
+    {
+        $this->displayOrder = $displayOrder;
+
+        return $this;
+    }
+
+    /**
+     * Get displayOrder
+     *
+     * @return integer
+     */
+    public function getDisplayOrder()
+    {
+        return $this->displayOrder;
+    }
+
+    /**
+     * Set shared
+     *
+     * @param boolean $shared
+     *
+     * @return ThemeMeta
+     */
+    public function setShared($shared)
+    {
+        $this->shared = $shared;
+
+        return $this;
+    }
+
+    /**
+     * Get shared
+     *
+     * @return boolean
+     */
+    public function getShared()
+    {
+        return $this->shared;
+    }
+
+    /**
+     * Set sourceSyncCheck
+     *
+     * @param \DateTime $sourceSyncCheck
+     *
+     * @return ThemeMeta
+     */
+    public function setSourceSyncCheck($sourceSyncCheck)
+    {
+        $this->sourceSyncCheck = $sourceSyncCheck;
+
+        return $this;
+    }
+
+    /**
+     * Get sourceSyncCheck
+     *
+     * @return \DateTime
+     */
+    public function getSourceSyncCheck()
+    {
+        return $this->sourceSyncCheck;
     }
 
     /**
@@ -288,92 +375,5 @@ class ThemeMeta
     public function getUpdatedBy()
     {
         return $this->updatedBy;
-    }
-    /**
-     * @var \DateTime
-     */
-    private $public;
-
-
-    /**
-     * Set public
-     *
-     * @param \DateTime $public
-     *
-     * @return ThemeMeta
-     */
-    public function setPublic($public)
-    {
-        $this->public = $public;
-
-        return $this;
-    }
-
-    /**
-     * Get public
-     *
-     * @return \DateTime
-     */
-    public function getPublic()
-    {
-        return $this->public;
-    }
-    /**
-     * @var \DateTime
-     */
-    private $sourceSyncCheck;
-
-
-    /**
-     * Set sourceSyncCheck
-     *
-     * @param \DateTime $sourceSyncCheck
-     *
-     * @return ThemeMeta
-     */
-    public function setSourceSyncCheck($sourceSyncCheck)
-    {
-        $this->sourceSyncCheck = $sourceSyncCheck;
-
-        return $this;
-    }
-
-    /**
-     * Get sourceSyncCheck
-     *
-     * @return \DateTime
-     */
-    public function getSourceSyncCheck()
-    {
-        return $this->sourceSyncCheck;
-    }
-    /**
-     * @var integer
-     */
-    private $displayOrder;
-
-
-    /**
-     * Set displayOrder
-     *
-     * @param integer $displayOrder
-     *
-     * @return ThemeMeta
-     */
-    public function setDisplayOrder($displayOrder)
-    {
-        $this->displayOrder = $displayOrder;
-
-        return $this;
-    }
-
-    /**
-     * Get displayOrder
-     *
-     * @return integer
-     */
-    public function getDisplayOrder()
-    {
-        return $this->displayOrder;
     }
 }

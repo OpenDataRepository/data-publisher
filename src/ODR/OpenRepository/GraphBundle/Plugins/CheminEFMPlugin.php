@@ -13,44 +13,34 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
-use Doctrine\ORM\EntityManager;
-use Symfony\Component\DependencyInjection\ContainerInterface as Container;
+// Symfony
+use Symfony\Bridge\Monolog\Logger;
+use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
 
 class CheminEFMPlugin
 {
+
     /**
-     * @var mixed
+     * @var EngineInterface
      */
     private $templating;
 
     /**
-     * @var mixed
+     * @var Logger
      */
     private $logger;
 
-    /**
-     * @var Container
-     */
-    private $container;
 
     /**
-     * @var EntityManager
-     */
-    private $entity_manager;
-
-
-    /**
-     * GraphPlugin constructor.
+     * CheminEFMPlugin constructor.
      *
-     * @param $templating
-     * @param $logger
+     * @param EngineInterface $templating
+     * @param Logger $logger
      */
-    public function __construct($templating, $logger, $container, $entity_manager) {
+    public function __construct(EngineInterface $templating, Logger $logger) {
         $this->templating = $templating;
-	    $this->logger = $logger;
-        $this->container = $container;
-        $this->em = $entity_manager;
+        $this->logger = $logger;
     }
 
 
@@ -60,13 +50,13 @@ class CheminEFMPlugin
      * @param array $datarecords
      * @param array $datatype
      * @param array $render_plugin
-     * @param array $theme
+     * @param array $theme_array
      * @param array $rendering_options
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme, $rendering_options)
+    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options)
     {
 
         try {
@@ -98,22 +88,9 @@ class CheminEFMPlugin
                 $rpf = $rpm['renderPluginFields'];
                 $df_id = $rpm['dataField']['id'];
 
-                // Want the full-fledged datafield entry...the one in $rpm['dataField'] has no render plugin or meta data
-                // Unfortunately, the desired one is buried inside the $theme array somewhere...
                 $df = null;
-                foreach ($theme['themeElements'] as $te) {
-                    if ( isset($te['themeDataFields']) ) {
-                        foreach ($te['themeDataFields'] as $tdf) {
-                            if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $df_id ) {
-                                $df = $tdf['dataField'];
-                                break;
-                            }
-                        }
-                    }
-
-                    if ($df !== null)
-                        break;
-                }
+                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$df_id]) )
+                    $df = $datatype['dataFields'][$df_id];
 
                 if ($df == null)
                     throw new \Exception('Unable to locate array entry for the field "'.$rpf['fieldName'].'", mapped to df_id '.$df_id);

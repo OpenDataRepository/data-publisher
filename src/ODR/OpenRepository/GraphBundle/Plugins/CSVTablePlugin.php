@@ -13,31 +13,23 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
-use Doctrine\ORM\EntityManager;
-use Symfony\Component\DependencyInjection\ContainerInterface as Container;
+// Symfony
+use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+use Symfony\Bridge\Monolog\Logger;
 
 
 class CSVTablePlugin
 {
+
     /**
-     * @var mixed
+     * @var EngineInterface
      */
     private $templating;
 
     /**
-     * @var mixed
+     * @var Logger
      */
     private $logger;
-
-    /**
-     * @var Container
-     */
-    private $container;
-
-    /**
-     * @var EntityManager
-     */
-    private $entity_manager;
 
 
     /**
@@ -46,11 +38,9 @@ class CSVTablePlugin
      * @param $templating
      * @param $logger
      */
-    public function __construct($templating, $logger, $container, $entity_manager) {
+    public function __construct(EngineInterface $templating, Logger $logger) {
         $this->templating = $templating;
         $this->logger = $logger;
-        $this->container = $container;
-        $this->em = $entity_manager;
     }
 
 

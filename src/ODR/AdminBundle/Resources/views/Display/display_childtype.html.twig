@@ -1,13 +1,14 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
-{% set theme = datatype.themes[theme_id] %}
+{% set theme = theme_array[ datatype.id ] %}
+
 {% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
 
 {% if render_plugin.overrideChild == 1 %}
     <!-- Start {{ render_plugin.pluginName }} override child html -->
     {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type} %}
-    {{ datarecord_array|datatype_plugin(datatype, render_plugin, theme, rendering_options)|raw }}
+    {{ datarecord_array|datatype_plugin(datatype, render_plugin, theme_array, rendering_options)|raw }}
     <!-- End {{ render_plugin.pluginName }} override child html -->
 
 {% else %}
@@ -50,7 +51,7 @@ render_plugin.overrideFields: {{ render_plugin.overrideFields }}</br>
                 {% if render_plugin.id != '1' and (render_plugin.overrideChild == 1 or render_plugin.overrideFields == 1) %}
                     <!-- html for {{ render_plugin.pluginName }} -->
                     {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type} %}
-                    {{ [datarecord]|datatype_plugin(datatype, render_plugin, theme, rendering_options)|raw }}
+                    {{ [datarecord]|datatype_plugin(datatype, render_plugin, theme_array, rendering_options)|raw }}
                     {# [datarecord] converts datarecord into a single-element array #}
 
                 {% endif %}
@@ -59,11 +60,11 @@ render_plugin.overrideFields: {{ render_plugin.overrideFields }}</br>
                     {% include 'ODRAdminBundle:Display:display_fieldarea.html.twig' with {
                         'datatype_array': datatype_array,
                         'datarecord': datarecord,
+                        'theme_array': theme_array,
 
                         'target_datatype_id': target_datatype_id,
                         'parent_datarecord_id': parent_datarecord_id,
                         'target_datarecord_id': datarecord.id,
-                        'theme_id': theme_id,
 
                         'is_top_level': is_top_level,
                         'is_link': is_link,

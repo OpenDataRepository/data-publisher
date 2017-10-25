@@ -6,7 +6,7 @@
         {% include 'ODRAdminBundle:Edit:edit_childtype.html.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': datarecord_array,
-            'theme_id': theme_id,
+            'theme_array': theme_array,
 
             'target_datatype_id': initial_datatype_id,
             'parent_datarecord_id': initial_datarecord_id,
@@ -27,7 +27,7 @@
         {% include 'ODRAdminBundle:Edit:edit_childtype.html.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': datarecord_array,
-            'theme_id': theme_id,
+            'theme_array': theme_array,
 
             'target_datatype_id': initial_datatype_id,
             'parent_datarecord_id': datarecord.parent.id,

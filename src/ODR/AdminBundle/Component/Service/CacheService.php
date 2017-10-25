@@ -103,9 +103,8 @@ class CacheService
      *
      * @param string $key
      * @param string|array $value
-     * @param integer|null $duration
      */
-    public function set($key, $value, $duration = null)
+    public function set($key, $value)
     {
         $this->cache_service->set($this->cache_prefix.'.'.$key, gzcompress(serialize($value)));
     }

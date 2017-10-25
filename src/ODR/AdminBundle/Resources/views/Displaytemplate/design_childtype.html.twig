@@ -1,6 +1,7 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = theme_array[datatype.id] %}
 
 <div class="ODRDataType{% if is_link == 1 %} ODRLinkedType{% endif %}{% if is_top_level == 0 %} ODRAccordionWrapper ODRFormAccordion{% endif %} pure-u-1" id="DataType_{{ datatype.id }}">
 
@@ -13,7 +14,7 @@
         </h3>
             {% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {
                 'datatype': datatype,
-                'theme_id': theme_id,
+                'theme_id': theme.id,
 
                 'is_top_level': is_top_level,
                 'is_link': is_link,
@@ -23,7 +24,7 @@
             {% include 'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
                 'target_datatype_id': target_datatype_id,
-                'theme_id': theme_id,
+                'theme_array': theme_array,
 
                 'datatype_permissions': datatype_permissions,
                 'is_datatype_admin': is_datatype_admin,
@@ -42,7 +43,7 @@
                 {# current datatype is top-level #}
                 {% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {
                     'datatype': datatype,
-                    'theme_id': theme_id,
+                    'theme_id': theme.id,
 
                     'is_top_level': is_top_level,
                     'is_link': is_link,
@@ -54,7 +55,7 @@
             {% include 'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
                 'target_datatype_id': target_datatype_id,
-                'theme_id': theme_id,
+                'theme_array': theme_array,
 
                 'datatype_permissions': datatype_permissions,
                 'is_datatype_admin': is_datatype_admin,

@@ -13,7 +13,6 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
-use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
 // Symfony
@@ -41,6 +40,11 @@ class DatatypeExportService
     private $pm_service;
 
     /**
+     * @var ThemeInfoService
+     */
+    private $theme_service;
+
+    /**
      * @var EngineInterface
      */
     private $templating;
@@ -52,19 +56,27 @@ class DatatypeExportService
 
 
     /**
-     * DatarecordExportService constructor.
+     * DatatypeExportService constructor.
      *
      * @param EntityManager $entity_manager
      * @param DatatypeInfoService $dti_service
      * @param PermissionsManagementService $pm_service
+     * @param ThemeInfoService $theme_service
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(EntityManager $entity_manager, DatatypeInfoService $dti_service, PermissionsManagementService $pm_service, EngineInterface $templating, Logger $logger)
-    {
+    public function __construct(
+        EntityManager $entity_manager,
+        DatatypeInfoService $dti_service,
+        PermissionsManagementService $pm_service,
+        ThemeInfoService $theme_service,
+        EngineInterface $templating,
+        Logger $logger
+    ) {
         $this->em = $entity_manager;
         $this->dti_service = $dti_service;
         $this->pm_service = $pm_service;
+        $this->theme_service = $theme_service;
         $this->templating = $templating;
         $this->logger = $logger;
     }
@@ -88,24 +100,20 @@ class DatatypeExportService
         /** @var DataType $datatype */
         $datatype = $this->em->getRepository('ODRAdminBundle:DataRecord')->find($datatype_id);
 
-        /** @var Theme $theme */
-        $theme = $this->em->getRepository('ODRAdminBundle:Theme')->findOneBy(array('dataType' => $datatype->getId(), 'themeType' => 'master'));
-
 
         // ----------------------------------------
-        // Determine which datatypes/childtypes to load from the cache
-        $include_links = true;
-        $associated_datatypes = $this->dti_service->getAssociatedDatatypes( array($datatype->getId()), $include_links );
-
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+        $include_links = true;
+
         $datarecord_array = array();
-        $datatype_array = $this->dti_service->getDatatypeArray($associated_datatypes);
+        $datatype_array = $this->dti_service->getDatatypeArray($datatype->getId(), $include_links);
+        $theme_array = $this->theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
 
         // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
         $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
         // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-        $stacked_datatype_array[ $datatype->getId() ] = $this->dti_service->stackDatatypeArray($datatype_array, $datatype->getId(), $theme->getId());
+        $stacked_datatype_array[ $datatype->getId() ] = $this->dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
 
 
         // ----------------------------------------
@@ -117,7 +125,7 @@ class DatatypeExportService
             $template,
             array(
                 'datatype_array' => $stacked_datatype_array,
-                'theme_id' => $theme->getId(),
+                'theme_array' => $theme_array,
 
                 'initial_datatype_id' => $datatype->getId(),
 

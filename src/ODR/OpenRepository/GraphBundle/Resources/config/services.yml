@@ -7,65 +7,47 @@ services:
         arguments:
             templating: "@templating"
             logger: "@logger"
-            container: "@service_container"
-            entity_manager: "@doctrine.orm.entity_manager"
     graph.cheminedaplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\CheminEDAPlugin
         arguments:
             templating: "@templating"
             logger: "@logger"
-            container: "@service_container"
-            entity_manager: "@doctrine.orm.entity_manager"
     graph.cheminedsplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\CheminEDSPlugin
         arguments:
             templating: "@templating"
             logger: "@logger"
-            container: "@service_container"
-            entity_manager: "@doctrine.orm.entity_manager"
     graph.cheminee1plugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\CheminEE1Plugin
         arguments:
             templating: "@templating"
             logger: "@logger"
-            container: "@service_container"
-            entity_manager: "@doctrine.orm.entity_manager"
     graph.chemineeaplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\CheminEEAPlugin
         arguments:
             templating: "@templating"
             logger: "@logger"
-            container: "@service_container"
-            entity_manager: "@doctrine.orm.entity_manager"
     graph.chemineesplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\CheminEESPlugin
         arguments:
             templating: "@templating"
             logger: "@logger"
-            container: "@service_container"
-            entity_manager: "@doctrine.orm.entity_manager"
     graph.cheminefmplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\CheminEFMPlugin
         arguments:
             templating: "@templating"
             logger: "@logger"
-            container: "@service_container"
-            entity_manager: "@doctrine.orm.entity_manager"
     graph.cheminetrplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\CheminETRPlugin
         arguments:
             templating: "@templating"
             logger: "@logger"
-            container: "@service_container"
-            entity_manager: "@doctrine.orm.entity_manager"
 
     graph.csvtableplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\CSVTablePlugin
         arguments:
             templating: "@templating"
             logger: "@logger"
-            container: "@service_container"
-            entity_manager: "@doctrine.orm.entity_manager"
     graph.graphplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\GraphPlugin
         arguments:

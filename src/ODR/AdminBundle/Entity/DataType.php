@@ -81,6 +81,16 @@ class DataType
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
+    private $grandchildren;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $children;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
     private $relatedMasterTypes;
 
     /**
@@ -92,6 +102,11 @@ class DataType
      * @var \Doctrine\Common\Collections\Collection
      */
     private $themeDataType;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $themePreferences;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
@@ -112,6 +127,16 @@ class DataType
      * @var \Doctrine\Common\Collections\Collection
      */
     private $groupDatatypePermissions;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $parent;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $grandparent;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataType
@@ -144,9 +169,12 @@ class DataType
      */
     public function __construct()
     {
+        $this->grandchildren = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->children = new \Doctrine\Common\Collections\ArrayCollection();
         $this->relatedMasterTypes = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataTypeMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeDataType = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->themePreferences = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themes = new \Doctrine\Common\Collections\ArrayCollection();
         $this->groups = new \Doctrine\Common\Collections\ArrayCollection();
@@ -212,6 +240,7 @@ class DataType
 
     /**
      * Set has_shortresults
+     * @deprecated
      *
      * @param boolean $hasShortresults
      * @return DataType
@@ -225,6 +254,7 @@ class DataType
 
     /**
      * Get has_shortresults
+     * @deprecated
      *
      * @return boolean 
      */
@@ -235,6 +265,7 @@ class DataType
 
     /**
      * Set has_textresults
+     * @deprecated
      *
      * @param boolean $hasTextresults
      * @return DataType
@@ -248,6 +279,7 @@ class DataType
 
     /**
      * Get has_textresults
+     * @deprecated
      *
      * @return boolean 
      */
@@ -350,6 +382,74 @@ class DataType
     }
 
     /**
+     * Add grandchild
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $grandchild
+     *
+     * @return DataType
+     */
+    public function addGrandchild(\ODR\AdminBundle\Entity\DataType $grandchild)
+    {
+        $this->grandchildren[] = $grandchild;
+
+        return $this;
+    }
+
+    /**
+     * Remove grandchild
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $grandchild
+     */
+    public function removeGrandchild(\ODR\AdminBundle\Entity\DataType $grandchild)
+    {
+        $this->grandchildren->removeElement($grandchild);
+    }
+
+    /**
+     * Get grandchildren
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getGrandchildren()
+    {
+        return $this->grandchildren;
+    }
+
+    /**
+     * Add child
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $child
+     *
+     * @return DataType
+     */
+    public function addChild(\ODR\AdminBundle\Entity\DataType $child)
+    {
+        $this->children[] = $child;
+
+        return $this;
+    }
+
+    /**
+     * Remove child
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $child
+     */
+    public function removeChild(\ODR\AdminBundle\Entity\DataType $child)
+    {
+        $this->children->removeElement($child);
+    }
+
+    /**
+     * Get children
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getChildren()
+    {
+        return $this->children;
+    }
+
+    /**
      * Add relatedMasterType
      *
      * @param \ODR\AdminBundle\Entity\DataRecord $relatedMasterType
@@ -447,6 +547,40 @@ class DataType
     public function getThemeDataType()
     {
         return $this->themeDataType;
+    }
+
+    /**
+     * Add themePreference
+     *
+     * @param \ODR\AdminBundle\Entity\ThemePreferences $themePreference
+     *
+     * @return DataType
+     */
+    public function addThemePreference(\ODR\AdminBundle\Entity\ThemePreferences $themePreference)
+    {
+        $this->themePreferences[] = $themePreference;
+
+        return $this;
+    }
+
+    /**
+     * Remove themePreference
+     *
+     * @param \ODR\AdminBundle\Entity\ThemePreferences $themePreference
+     */
+    public function removeThemePreference(\ODR\AdminBundle\Entity\ThemePreferences $themePreference)
+    {
+        $this->themePreferences->removeElement($themePreference);
+    }
+
+    /**
+     * Get themePreferences
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getThemePreferences()
+    {
+        return $this->themePreferences;
     }
 
     /**
@@ -583,6 +717,54 @@ class DataType
     public function getGroupDatatypePermissions()
     {
         return $this->groupDatatypePermissions;
+    }
+
+    /**
+     * Set parent
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $parent
+     *
+     * @return DataType
+     */
+    public function setParent(\ODR\AdminBundle\Entity\DataType $parent = null)
+    {
+        $this->parent = $parent;
+
+        return $this;
+    }
+
+    /**
+     * Get parent
+     *
+     * @return \ODR\AdminBundle\Entity\DataType
+     */
+    public function getParent()
+    {
+        return $this->parent;
+    }
+
+    /**
+     * Set grandparent
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $grandparent
+     *
+     * @return DataType
+     */
+    public function setGrandparent(\ODR\AdminBundle\Entity\DataType $grandparent = null)
+    {
+        $this->grandparent = $grandparent;
+
+        return $this;
+    }
+
+    /**
+     * Get grandparent
+     *
+     * @return \ODR\AdminBundle\Entity\DataType
+     */
+    public function getGrandparent()
+    {
+        return $this->grandparent;
     }
 
     /**
@@ -853,44 +1035,5 @@ class DataType
     public function getRenderPlugin()
     {
         return $this->getDataTypeMeta()->getRenderPlugin();
-    }
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $themePreferences;
-
-
-    /**
-     * Add themePreference
-     *
-     * @param \ODR\AdminBundle\Entity\ThemePreferences $themePreference
-     *
-     * @return DataType
-     */
-    public function addThemePreference(\ODR\AdminBundle\Entity\ThemePreferences $themePreference)
-    {
-        $this->themePreferences[] = $themePreference;
-
-        return $this;
-    }
-
-    /**
-     * Remove themePreference
-     *
-     * @param \ODR\AdminBundle\Entity\ThemePreferences $themePreference
-     */
-    public function removeThemePreference(\ODR\AdminBundle\Entity\ThemePreferences $themePreference)
-    {
-        $this->themePreferences->removeElement($themePreference);
-    }
-
-    /**
-     * Get themePreferences
-     *
-     * @return \Doctrine\Common\Collections\Collection
-     */
-    public function getThemePreferences()
-    {
-        return $this->themePreferences;
     }
 }

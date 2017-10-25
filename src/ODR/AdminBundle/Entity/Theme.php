@@ -548,8 +548,38 @@ class Theme
      *
      * @return boolean
      */
-    public function getIsDefault()
+    public function isDefault()
     {
         return $this->getThemeMeta()->getIsDefault();
+    }
+
+    /**
+     * Get displayOrder
+     *
+     * @return int
+     */
+    public function getDisplayOrder()
+    {
+        return $this->getThemeMeta()->getDisplayOrder();
+    }
+
+    /**
+     * Get shared
+     *
+     * @return bool
+     */
+    public function isShared()
+    {
+        return $this->getThemeMeta()->getShared();
+    }
+
+    /**
+     * Get sourceSyncCheck
+     *
+     * @return \DateTime
+     */
+    public function getSourceSyncCheck()
+    {
+        return $this->getThemeMeta()->getSourceSyncCheck();
     }
 }

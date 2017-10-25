@@ -7,29 +7,24 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * This service stores the code to get and rebuild the cached version of the datatype array, as well
- * as several other utility functions related to lists of datatypes.
+ * This service stores the code to get and rebuild the cached version of the datatype array, as
+ * well as several other utility functions related to lists of datatypes.
  */
 
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataType;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
-
 // Utility
 use ODR\AdminBundle\Component\Utility\UserUtility;
 
 
 class DatatypeInfoService
 {
-
-    /**
-     * @var string
-     */
-    private $environment;
 
     /**
      * @var EntityManager
@@ -49,18 +44,16 @@ class DatatypeInfoService
 
     /**
      * DatatypeInfoService constructor.
-     * @param $environment
+     *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param Logger $logger
      */
     public function __construct(
-        $environment,
         EntityManager $entity_manager,
         CacheService $cache_service,
         Logger $logger
     ) {
-        $this->environment = $environment;
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->logger = $logger;
@@ -75,14 +68,9 @@ class DatatypeInfoService
     public function getTopLevelDatatypes()
     {
         // ----------------------------------------
-        // Always bypass cache if in dev mode?
-        $force_rebuild = false;
-        //if ($this->environment == 'dev')
-            //$force_rebuild = true;
-
-        // If list of top level datatypes exists in cache and user isn't demanding a fresh version, return that
+        // If list of top level datatypes exists in cache, return that
         $top_level_datatypes = $this->cache_service->get('top_level_datatypes');
-        if ( $top_level_datatypes !== false && count($top_level_datatypes) > 0 && !$force_rebuild)
+        if ( $top_level_datatypes !== false && count($top_level_datatypes) > 0 )
             return $top_level_datatypes;
 
 
@@ -137,6 +125,7 @@ class DatatypeInfoService
 
     /**
      * Returns the id of the grandparent of the given datatype.
+     * @deprecated
      *
      * @param integer $initial_datatype_id
      *
@@ -147,8 +136,13 @@ class DatatypeInfoService
         $datatree_array = self::getDatatreeArray();
 
         $grandparent_datatype_id = $initial_datatype_id;
-        while( isset($datatree_array['descendant_of'][$grandparent_datatype_id]) && $datatree_array['descendant_of'][$grandparent_datatype_id] !== '' )
+        while (
+            isset($datatree_array['descendant_of'][$grandparent_datatype_id])
+            && $datatree_array['descendant_of'][$grandparent_datatype_id] !== ''
+        ) {
+            // This isn't a top-level datatype, so grab it's immediate parent datatype's id
             $grandparent_datatype_id = $datatree_array['descendant_of'][$grandparent_datatype_id];
+        }
 
         return $grandparent_datatype_id;
     }
@@ -157,21 +151,18 @@ class DatatypeInfoService
     /**
      * Utility function to returns the DataTree table in array format
      *
-     * @param boolean $force_rebuild
-     *
      * @return array
      */
-    public function getDatatreeArray($force_rebuild = false)
+    public function getDatatreeArray()
     {
-        // TODO This is a tremendous waste of resources.  It should restrict to a datatype.
-        // TODO Need to check. This cache should be flushed when a datatype is added.
-        // TODO Also needs to update after a setup step change.
+        // ----------------------------------------
         // If datatree data exists in cache and user isn't demanding a fresh version, return that
         $datatree_array = $this->cache_service->get('cached_datatree_array');
-        if ( $datatree_array !== false && count($datatree_array) > 0 && !$force_rebuild)
+        if ( $datatree_array !== false && count($datatree_array) > 0 )
             return $datatree_array;
 
 
+        // ----------------------------------------
         // Otherwise...get all the datatree data
         $query = $this->em->createQuery(
            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
@@ -180,7 +171,8 @@ class DatatypeInfoService
             JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
             WHERE ancestor.setup_step IN (:setup_step) AND descendant.setup_step IN (:setup_step)
-            AND ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+            AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
         )->setParameters( array('setup_step' => DataType::STATE_VIEWABLE) );
         $results = $query->getArrayResult();
 
@@ -223,120 +215,42 @@ class DatatypeInfoService
 
 
     /**
-     * Builds and returns a list of all child and linked datatype ids related to the given datatype id.
+     * Loads and returns the cached data array for the requested datatype.  The returned array
+     * contains data of all datatypes with the requested datatype as their grandparent, as
+     * well as any datatypes that are linked to by the requested datatype or its children.
      *
-     * @param int[] $datatype_ids
-     * @param boolean $include_links
-     *
-     * @return int[]
-     */
-    public function getAssociatedDatatypes($datatype_ids, $include_links = true)
-    {
-        // Locate all datatypes that are either children of or linked to the datatypes in $datatype_ids
-        $results = array();
-        if ($include_links) {
-            $query = $this->em->createQuery(
-               'SELECT descendant.id AS descendant_id
-                FROM ODRAdminBundle:DataTree AS dt
-                LEFT JOIN dt.dataTreeMeta AS dtm
-                LEFT JOIN dt.ancestor AS ancestor
-                LEFT JOIN dt.descendant AS descendant
-                WHERE ancestor.id IN (:ancestor_ids)
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-            )->setParameters( array('ancestor_ids' => $datatype_ids) );
-            $results = $query->getArrayResult();
-        }
-        else {
-            $query = $this->em->createQuery(
-               'SELECT descendant.id AS descendant_id
-                FROM ODRAdminBundle:DataTree AS dt
-                LEFT JOIN dt.dataTreeMeta AS dtm
-                LEFT JOIN dt.ancestor AS ancestor
-                LEFT JOIN dt.descendant AS descendant
-                WHERE dtm.is_link = :is_link AND ancestor.id IN (:ancestor_ids)
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-            )->setParameters( array('is_link' => 0, 'ancestor_ids' => $datatype_ids) );
-            $results = $query->getArrayResult();
-        }
-
-        // Flatten the resulting array...
-        $child_datatype_ids = array();
-        foreach ($results as $num => $result)
-            $child_datatype_ids[] = $result['descendant_id'];
-
-        // If child datatypes were found, also see if those child datatypes have children of their own
-        if ( count($child_datatype_ids) > 0 )
-            $child_datatype_ids = array_merge( $child_datatype_ids, self::getAssociatedDatatypes($child_datatype_ids, $include_links) );
-
-        // Return an array of the requested datatype ids and their children
-        $associated_datatypes = array_unique( array_merge($child_datatype_ids, $datatype_ids) );
-        return $associated_datatypes;
-    }
-
-
-    /**
-     * Loads and returns a cached data array for all datatypes of all datarecords in $datarecord array.
-     * Use self::stackDatatypeArray() to get an array structure where child datatypes are stored "underneath" their
-     * parent datatypes.
-     *
-     * @param array $datarecord_array
+     * Use self::stackDatatypeArray() to get an array structure where child/linked datatypes
+     * are stored "underneath" their parent datatypes.
+     * 
+     * @param integer $grandparent_datatype_id
+     * @param bool $include_links  If true, then the returned array will also contain linked datatypes
      *
      * @return array
      */
-    public function getDatatypeArrayByDatarecords($datarecord_array, $parent_theme_id = null)
+    public function getDatatypeArray($grandparent_datatype_id, $include_links = true)
     {
-        // Always bypass cache if in dev mode?
-        $force_rebuild = false;
-        //if ($this->environment == 'dev')
-            //$force_rebuild = true;
-
-
-        // ----------------------------------------
-        // Grab all datatypes associated with the desired datarecord
         $associated_datatypes = array();
-        foreach ($datarecord_array as $dr_id => $dr) {
-            $dt_id = $dr['dataType']['id'];
+        if ($include_links) {
+            // Need to locate all linked datatypes for the provided datatype
+            $associated_datatypes = $this->cache_service->get('associated_datatypes_for_'.$grandparent_datatype_id);
+            if ($associated_datatypes == false) {
+                $associated_datatypes = self::getAssociatedDatatypes(array($grandparent_datatype_id));
 
-            if ( !in_array($dt_id, $associated_datatypes) )
-                $associated_datatypes[] = $dt_id;
+                // Save the list of associated datatypes back into the cache
+                $this->cache_service->set('associated_datatypes_for_'.$grandparent_datatype_id, $associated_datatypes);
+            }
+        }
+        else {
+            // Don't want any datatypes that are linked to from the given grandparent datatype
+            $associated_datatypes[] = $grandparent_datatype_id;
         }
 
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
         $datatype_array = array();
         foreach ($associated_datatypes as $num => $dt_id) {
             $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id);
-            if ($force_rebuild || $datatype_data == false)
-                $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild, $parent_theme_id);
-
-            foreach ($datatype_data as $local_dt_id => $data)
-                $datatype_array[$local_dt_id] = $data;
-        }
-
-        return $datatype_array;
-    }
-
-
-    /**
-     * Loads and returns a cached data array for the specified datatype ids.
-     * Use self::stackDatatypeArray() to get an array structure where child datatypes are stored "underneath" their
-     * parent datatypes.
-     *
-     * @param int[] $datatype_ids
-     *
-     * @return array
-     */
-    public function getDatatypeArray($datatype_ids, $parent_theme_id = null, $force_rebuild = false)
-    {
-        $datatype_array = array();
-        foreach ($datatype_ids as $num => $dt_id) {
-            if($parent_theme_id == null) {
-                $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id.'_default');
-            }
-            else {
-                $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id.'_'.$parent_theme_id);
-            }
-            if ($force_rebuild || $datatype_data == false)
-                $datatype_data = self::buildDatatypeData($dt_id, $force_rebuild, $parent_theme_id);
+            if ($datatype_data == false)
+                $datatype_data = self::buildDatatypeData($dt_id);
 
             foreach ($datatype_data as $dt_id => $data)
                 $datatype_array[$dt_id] = $data;
@@ -347,20 +261,98 @@ class DatatypeInfoService
 
 
     /**
-     * Gets all layout information required for the given datatype in array format
-     * These should only store default themes when no theme parameter is sent.  When a
-     * theme id is sent, a specific theme should be loaded.
+     * This function locates all datatypes whose grandparent id is in $grandparent_datatype_ids,
+     * then calls self::getLinkedDatatypes() to locate all datatypes linked to by these datatypes,
+     * which calls this function again to locate any datatypes that are linked to by those
+     * linked datatypes...
      *
-     * @param integer $datatype_id
-     * @param boolean $force_rebuild
+     * The end result is an array of top-level datatype ids.  Due to recursive shennanigans,
+     * these functions don't attempt to cache the results.
+     *
+     * @param int[] $grandparent_datatype_ids
+     *
+     * @return int[]
+     */
+    public function getAssociatedDatatypes($grandparent_datatype_ids)
+    {
+        // TODO - convert to use the datatree array?
+
+        // Locate all datatypes that are children of the datatypes listed in $grandparent_datatype_ids
+        $query = $this->em->createQuery(
+           'SELECT dt.id AS id
+            FROM ODRAdminBundle:Datatype AS dt
+            LEFT JOIN dt.grandparent AS grandparent
+            WHERE grandparent.id IN (:grandparent_ids)
+            AND dt.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
+        )->setParameters( array('grandparent_ids' => $grandparent_datatype_ids) );
+        $results = $query->getArrayResult();
+
+        // Flatten the results array
+        $datatype_ids = array();
+        foreach ($results as $result)
+            $datatype_ids[] = $result['id'];
+
+        // Locate all datatypes that are linked to by the datatypes listed in $grandparent_datatype_ids
+        $linked_datatype_ids = self::getLinkedDatatypes($datatype_ids);
+
+        // Don't want any duplicate datatype ids...
+        $associated_datatype_ids = array_unique( array_merge($grandparent_datatype_ids, $linked_datatype_ids) );
+
+        return $associated_datatype_ids;
+    }
+
+
+    /**
+     * Builds and returns a list of all datatypes linked to from the provided datatype ids.
+     *
+     * @param int[] $ancestor_ids
+     *
+     * @return int[]
+     */
+    public function getLinkedDatatypes($ancestor_ids)
+    {
+        // TODO - convert to use the datatree array?
+
+        // Locate all datatypes that are linked to from any datatype listed in $datatype_ids
+        $query = $this->em->createQuery(
+           'SELECT descendant.id AS descendant_id
+            FROM ODRAdminBundle:DataTree AS dt
+            JOIN dt.dataTreeMeta AS dtm
+            JOIN dt.ancestor AS ancestor
+            JOIN dt.descendant AS descendant
+            WHERE ancestor.id IN (:ancestor_ids) AND dtm.is_link = 1
+            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+            AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+        )->setParameters( array('ancestor_ids' => $ancestor_ids) );
+        $results = $query->getArrayResult();
+
+        // Flatten the results array
+        $linked_datatype_ids = array();
+        foreach ($results as $result)
+            $linked_datatype_ids[] = $result['descendant_id'];
+
+        // If there were datatypes found, get all of their associated child/linked datatypes
+        $associated_datatype_ids = array();
+        if ( count($linked_datatype_ids) > 0 )
+            $associated_datatype_ids = self::getAssociatedDatatypes($linked_datatype_ids);
+
+        // Don't want any duplicate datatype ids...
+        $linked_datatype_ids = array_unique( array_merge($linked_datatype_ids, $associated_datatype_ids) );
+
+        return $linked_datatype_ids;
+    }
+    
+
+    /**
+     * Gets all datatype, datafield, and their associated render plugin information...the array
+     * is slightly modified, stored in the cache, and then returned.
+     *
+     * @param integer $grandparent_datatype_id
      *
      * @return array
      */
-    private function buildDatatypeData($datatype_id, $force_rebuild = false, $parent_theme_id = null)
+    private function buildDatatypeData($grandparent_datatype_id)
     {
-        // TODO this function needs to have $force_rebuild last and needs to be reconfigured to not call
-        // get datatree array over and over with force rebuild each time. Really, getDatatree needs to take a
-        // datatype id parameter and then this would make sense.
 /*
         $timing = true;
         $timing = false;
@@ -369,38 +361,22 @@ class DatatypeInfoService
         if ($timing)
             $t0 = microtime(true);
 */
-        // If datatype data exists in cache and user isn't demanding a fresh version, return that
-        if($parent_theme_id == null) {
-            $cached_datatype_data = $this->cache_service->get('cached_datatype_'.$datatype_id.'_default');
-        }
-        else {
-            $cached_datatype_data = $this->cache_service->get('cached_datatype_'.$datatype_id.'_'.$parent_theme_id);
-        }
-        if ( $cached_datatype_data !== false && count($cached_datatype_data) > 0 && !$force_rebuild)
-            return $cached_datatype_data;
+        // This function is only called when the cache entry doesn't exist
 
-
-        // Otherwise...going to need the datatree array
-        $datatree_array = self::getDatatreeArray($force_rebuild);
+        // Going to need the datatree array to rebuild this
+        $datatree_array = self::getDatatreeArray();
 
         // Get all non-layout data for the requested datatype
-        $query_txt = 'SELECT
-                t, pt, st, tm,
+        $query = $this->em->createQuery(
+           'SELECT
                 dt, dtm, dt_cb, dt_ub, dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
-                te, tem,
-                tdf, df, ro, rom,
-                dfm, df_cb, ft, df_rp, df_rpi, df_rpo, df_rpm,
-                tdt, c_dt
+                df, ro, rom,
+                dfm, df_cb, ft, df_rp, df_rpi, df_rpo, df_rpm
 
             FROM ODRAdminBundle:DataType AS dt
             LEFT JOIN dt.dataTypeMeta AS dtm
             LEFT JOIN dt.createdBy AS dt_cb
             LEFT JOIN dt.updatedBy AS dt_ub
-
-            LEFT JOIN dt.themes AS t
-            LEFT JOIN t.parentTheme AS pt
-            LEFT JOIN t.sourceTheme AS st
-            LEFT JOIN t.themeMeta AS tm
 
             LEFT JOIN dtm.renderPlugin AS dt_rp
             LEFT JOIN dt_rp.renderPluginInstance AS dt_rpi WITH (dt_rpi.dataType = dt)
@@ -409,11 +385,7 @@ class DatatypeInfoService
             LEFT JOIN dt_rpm.renderPluginFields AS dt_rpf
             LEFT JOIN dt_rpm.dataField AS dt_rpm_df
 
-            LEFT JOIN t.themeElements AS te
-            LEFT JOIN te.themeElementMeta AS tem
-
-            LEFT JOIN te.themeDataFields AS tdf
-            LEFT JOIN tdf.dataField AS df
+            LEFT JOIN dt.dataFields AS df
             LEFT JOIN df.radioOptions AS ro
             LEFT JOIN ro.radioOptionMeta AS rom
 
@@ -426,37 +398,14 @@ class DatatypeInfoService
             LEFT JOIN df_rpi.renderPluginOptions AS df_rpo
             LEFT JOIN df_rpi.renderPluginMap AS df_rpm
 
-            LEFT JOIN te.themeDataType AS tdt
-            LEFT JOIN tdt.dataType AS c_dt
-
             WHERE
-                dt.id = :datatype_id
-                AND t.deletedAt IS NULL AND dt.deletedAt IS NULL AND te.deletedAt IS NULL';
-
-        if($parent_theme_id == null) {
-            // These are the default/system themes for the datatype
-            // TODO All default themes must be public.  Need to refactor for this change.
-            // $query_txt .= ' AND (pt.id IS NULL OR (tm.isDefault = 1 and (tm.public IS NOT NULL AND tm.public < CURRENT_TIMESTAMP())) ) ';
-            // Only MASTER Themes can have empty parents
-            $query_txt .= " AND pt.id IS NULL AND t.themeType = 'master'";
-        }
-        else {
-            // Note: two themes could have the same source theme, but no two top-level
-            // themes could have the same parent.  Only child themes could have the same
-            // parent theme
-            $query_txt .= " AND pt.id = :parent_theme_id";
-        }
-
-        $query_txt .= ' ORDER BY dt.id, t.id, tem.displayOrder, te.id, tdf.displayOrder, df.id, rom.displayOrder, ro.id';
-
-        if($parent_theme_id == null) {
-            $query = $this->em->createQuery($query_txt)->setParameters(array('datatype_id' => $datatype_id));
-        }
-        else {
-            $query = $this->em->createQuery($query_txt)->setParameters(array('datatype_id' => $datatype_id, 'parent_theme_id' => $parent_theme_id));
-        }
+                dt.grandparent = :grandparent_datatype_id
+                AND dt.deletedAt IS NULL
+            ORDER BY dt.id, df.id, rom.displayOrder, ro.id'
+        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
 
         $datatype_data = $query->getArrayResult();
+
 /*
         if ($timing) {
             $t1 = microtime(true);
@@ -464,76 +413,72 @@ class DatatypeInfoService
             print 'buildDatatypeData('.$datatype_id.')'."\n".'query execution in: '.$diff."\n";
         }
 */
-        // The entity -> entity_metadata relationships have to be one -> many from a database perspective,
-        // even though there's only supposed to be a single non-deleted entity_metadata object for each entity
-        // Therefore, the preceding query generates an array that needs to be slightly flattened in a few places
+        // The entity -> entity_metadata relationships have to be one -> many from a database
+        // perspective, even though there's only supposed to be a single non-deleted entity_metadata
+        // object for each entity.  Therefore, the preceding query generates an array that needs
+        // to be somewhat flattened in a few places.
         foreach ($datatype_data as $dt_num => $dt) {
+            $dt_id = $dt['id'];
+
             // Flatten datatype meta
             $dtm = $dt['dataTypeMeta'][0];
             $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
+
+            // Scrub irrelevant data from the datatype's createdBy and updatedBy properties
             $datatype_data[$dt_num]['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );
             $datatype_data[$dt_num]['updatedBy'] = UserUtility::cleanUserData( $dt['updatedBy'] );
 
-            // Flatten theme_meta of each theme, and organize by theme id instead of a random number
-            $new_theme_array = array();
-            foreach ($dt['themes'] as $t_num => $theme) {
-                $theme_id = $theme['id'];
 
-                $tm = $theme['themeMeta'][0];
-                $theme['themeMeta'] = $tm;
+            // ----------------------------------------
+            // Organize the datafields by their datafield_id instead of a random number
+            $new_datafield_array = array();
+            foreach ($dt['dataFields'] as $df_num => $df) {
+                $df_id = $df['id'];
 
-                // Flatten theme_element_meta of each theme_element
-                foreach ($theme['themeElements'] as $te_num => $te) {
-                    $tem = $te['themeElementMeta'][0];
-                    $theme['themeElements'][$te_num]['themeElementMeta'] = $tem;
+                // Flatten datafield_meta of each datafield
+                $dfm = $df['dataFieldMeta'][0];
+                $df['dataFieldMeta'] = $dfm;
 
-                    // Flatten datafield_meta of each datafield
-                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                        $dfm = $tdf['dataField']['dataFieldMeta'][0];
-                        $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['dataFieldMeta'] = $dfm;
-                        $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['createdBy'] = UserUtility::cleanUserData( $tdf['dataField']['createdBy'] );
+                // Scrub irrelevant data from the datafield's createdBy property
+                $df['createdBy'] = UserUtility::cleanUserData( $df['createdBy'] );
 
-                        // Flatten radio options if it exists
-                        foreach ($tdf['dataField']['radioOptions'] as $ro_num => $ro) {
-                            $rom = $ro['radioOptionMeta'][0];
-                            $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['radioOptions'][$ro_num]['radioOptionMeta'] = $rom;
-                        }
-                        if ( count($tdf['dataField']['radioOptions']) == 0 )
-                            unset( $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['radioOptions'] );
-                    }
-
-                    // Attach the is_link property to each of the theme_datatype entries
-                    foreach ($te['themeDataType'] as $tdt_num => $tdt) {
-                        $child_datatype_id = $tdt['dataType']['id'];
-
-                        if ( isset($datatree_array['linked_from'][$child_datatype_id])
-                            && in_array($datatype_id, $datatree_array['linked_from'][$child_datatype_id])
-                        )
-                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 1;
-                        else
-                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 0;
-
-                        if ( isset($datatree_array['multiple_allowed'][$child_datatype_id])
-                            && in_array($datatype_id, $datatree_array['multiple_allowed'][$child_datatype_id])
-                        )
-                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['multiple_allowed'] = 1;
-                        else
-                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['multiple_allowed'] = 0;
-                    }
-
-                    // Easier on twig if these arrays simply don't exist if nothing is in them...
-                    if ( count($te['themeDataFields']) == 0 )
-                        unset( $theme['themeElements'][$te_num]['themeDataFields'] );
-                    if ( count($te['themeDataType']) == 0 )
-                        unset( $theme['themeElements'][$te_num]['themeDataType'] );
+                // Flatten radio options if they exist
+                // They're ordered by displayOrder, so preserve $ro_num
+                foreach ($df['radioOptions'] as $ro_num => $ro) {
+                    $rom = $ro['radioOptionMeta'][0];
+                    $df['radioOptions'][$ro_num]['radioOptionMeta'] = $rom;
                 }
+                if ( count($df['radioOptions']) == 0 )
+                    unset( $df['radioOptions'] );
 
-                $new_theme_array[$theme_id] = $theme;
+                $new_datafield_array[$df_id] = $df;
             }
 
-            unset( $datatype_data[$dt_num]['themes'] );
-            $datatype_data[$dt_num]['themes'] = $new_theme_array;
+            unset( $datatype_data[$dt_num]['dataFields'] );
+            $datatype_data[$dt_num]['dataFields'] = $new_datafield_array;
+
+
+            // ----------------------------------------
+            // Build up a list of child/linked datatypes and their basic information
+            // I don't think the 'is_link' and 'multiple_allowed' properties are used, but meh
+            $descendants = array();
+            foreach ($datatree_array['descendant_of'] as $child_dt_id => $parent_dt_id) {
+                if ($parent_dt_id == $dt_id)
+                    $descendants[$child_dt_id] = array('is_link' => 0, 'multiple_allowed' => 0);
+            }
+            foreach ($datatree_array['linked_from'] as $child_dt_id => $parents) {
+                if ( in_array($dt_id, $parents) )
+                    $descendants[$child_dt_id] = array('is_link' => 1, 'multiple_allowed' => 0);
+            }
+            foreach ($datatree_array['multiple_allowed'] as $child_dt_id => $parents) {
+                if ( isset($descendants[$child_dt_id]) && in_array($dt_id, $parents) )
+                    $descendants[$child_dt_id]['multiple_allowed'] = 1;
+            }
+
+            if ( count($descendants) > 0 )
+                $datatype_data[$dt_num]['descendants'] = $descendants;
         }
+
 
         // Organize by datatype id
         $formatted_datatype_data = array();
@@ -549,13 +494,9 @@ class DatatypeInfoService
             print 'buildDatatypeData('.$datatype_id.')'."\n".'array formatted in: '.$diff."\n";
         }
 */
+
         // Save the formatted datarecord data back in the cache, and return it
-        if($parent_theme_id == null) {
-            $this->cache_service->set('cached_datatype_'.$datatype_id.'_default', $formatted_datatype_data);
-        }
-        else {
-            $this->cache_service->set('cached_datatype_'.$datatype_id.'_'.$parent_theme_id, $formatted_datatype_data);
-        }
+        $this->cache_service->set('cached_datatype_'.$grandparent_datatype_id, $formatted_datatype_data);
         return $formatted_datatype_data;
     }
 
@@ -565,61 +506,34 @@ class DatatypeInfoService
      *
      * @param array $datatype_array
      * @param integer $initial_datatype_id
-     * @param integer $theme_id
-     * @param integer $parent_theme_id
      *
      * @return array
      */
-    public function stackDatatypeArray($datatype_array, $initial_datatype_id, $theme_id, $parent_theme_id = null)
+    public function stackDatatypeArray($datatype_array, $initial_datatype_id)
     {
         $current_datatype = array();
         if ( isset($datatype_array[$initial_datatype_id]) ) {
             $current_datatype = $datatype_array[$initial_datatype_id];
 
-            // Check if parent theme is set
-            if( isset($current_datatype['themes'][$theme_id]['parentTheme'])
-                && $current_datatype['themes'][$theme_id]['parentTheme']['id'] > 0
-            ) {
-                $parent_theme_id = $current_datatype['themes'][$theme_id]['parentTheme']['id'];
-            }
-
-            // Foreach theme element in this theme...
-            foreach ($current_datatype['themes'][$theme_id]['themeElements'] as $num => $theme_element) {
-                // ...if this theme element contains a child datatype...
-                if ( isset($theme_element['themeDataType']) ) {
-                    $theme_datatype = $theme_element['themeDataType'][0];
-                    $child_datatype_id = $theme_datatype['dataType']['id'];
+            // For each descendant this datatype has...
+            if ( isset($current_datatype['descendants']) ) {
+                foreach ($current_datatype['descendants'] as $child_datatype_id => $child_datatype) {
 
                     $tmp = array();
-                    if ( isset($datatype_array[$child_datatype_id]) ) {
-
-                        $child_theme_id = '';
-                        foreach ($datatype_array[$child_datatype_id]['themes'] as $t_id => $t) {
-                            if( isset($t['parentTheme'])
-                                && $t['parentTheme']['id'] != null
-                                && $t['parentTheme']['id'] == $parent_theme_id
-                            ) {
-                                $child_theme_id = $t_id;
-                            }
-                            else if ( $t['themeType'] == 'master'
-                                && $parent_theme_id == null
-                            ) {
-                                $child_theme_id = $t_id;
-                            }
-                        }
-
+                    if ( isset($datatype_array[$child_datatype_id])) {
                         // Stack each child datatype individually
-                        $tmp[$child_datatype_id] = self::stackDatatypeArray($datatype_array, $child_datatype_id, $child_theme_id, $parent_theme_id);
+                        $tmp[$child_datatype_id] = self::stackDatatypeArray($datatype_array, $child_datatype_id);
                     }
 
                     // ...store child datatypes under their parent
-                    $current_datatype['themes'][$theme_id]['themeElements'][$num]['themeDataType'][0]['dataType'] = $tmp;
+                    $current_datatype['descendants'][$child_datatype_id]['datatype'] = $tmp;
                 }
             }
         }
 
         return $current_datatype;
     }
+
 
     /**
      * Uses the contents of the given datatype's sorting datafield to sort datarecords of that datatype.
@@ -631,15 +545,9 @@ class DatatypeInfoService
      */
     public function getSortedDatarecordList($datatype_id, $subset_str = null)
     {
-        // Always bypass cache if in dev mode?
-        $force_rebuild = false;
-        if ($this->environment == 'dev')
-            $force_rebuild = true;
-
-
         // Attempt to grab the sorted list of datarecords for this datatype from the cache
-        $datarecord_list = $this->cache_service->get('data_type_'.$datatype_id.'_record_order');
-        if ( $force_rebuild || $datarecord_list == false || count($datarecord_list) == 0 ) {
+        $datarecord_list = $this->cache_service->get('datatype_'.$datatype_id.'_record_order');
+        if ( $datarecord_list == false || count($datarecord_list) == 0 ) {
             // Going to need the datatype's sorting datafield, if it exists
             $datarecord_list = array();
 
@@ -648,7 +556,7 @@ class DatatypeInfoService
             $sortfield = $datatype->getSortField();
 
             if ($sortfield == null) {
-                // No sort order defined, just create a query to return all of this datatype's datarecords
+                // No sort order defined, just order all of this datatype's datarecords by id
                 $query = $this->em->createQuery(
                    'SELECT dr.id AS dr_id
                     FROM ODRAdminBundle:DataRecord AS dr
@@ -663,7 +571,8 @@ class DatatypeInfoService
                     $datarecord_list[ $dr['dr_id'] ] = $dr['dr_id'];
             }
             else {
-                // Since a sort order is defined, create a query to return all of this datatype's datarecords with their sort field value
+                // Since a sort order is defined, create a query to return all of this datatype's
+                //  datarecords with their sort field value
                 $sort_datafield_fieldtype = $sortfield->getFieldType()->getTypeClass();
 
                 $query = $this->em->createQuery(
@@ -698,7 +607,7 @@ class DatatypeInfoService
             }
 
             // Store the sorted datarecord list back in the cache
-            $this->cache_service->set('data_type_'.$datatype_id.'_record_order', $datarecord_list);
+            $this->cache_service->set('datatype_'.$datatype_id.'_record_order', $datarecord_list);
         }
 
 
@@ -722,5 +631,48 @@ class DatatypeInfoService
             // Return the filtered array of sorted datarecords
             return $datarecord_list;
         }
+    }
+
+
+    /**
+     * Marks the specified datatype (and all its parents) as updated by the given user.
+     *
+     * @param DataType $datatype
+     * @param ODRUser $user
+     */
+    public function updateDatatypeCacheEntry($datatype, $user)
+    {
+        // Whenever an edit is made to a datatype, each of its parents (if it has any) also need
+        //  to be marked as updated
+        $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
+        $datatree_array = self::getDatatreeArray();
+
+        $dt = $datatype;
+        while (
+            isset($datatree_array['descendant_of'][$dt->getId()])
+            && $datatree_array['descendant_of'][$dt->getId()] !== ''
+        ) {
+            // Mark this (non-top-level) datatype as updated by this user
+            $dt->setUpdatedBy($user);
+            $dt->setUpdated(new \DateTime());
+            $this->em->persist($dt);
+
+            // Continue locating parent datatypes...
+            $parent_dt_id = $datatree_array['descendant_of'][$dt->getId()];
+            $dt = $repo_datatype->find($parent_dt_id);
+        }
+
+        // $dt is now guaranteed to be top-level
+        $dt->setUpdatedBy($user);
+        $dt->setUpdated(new \DateTime());
+        $this->em->persist($dt);
+
+        // Save all changes made
+        $this->em->flush();
+
+
+        // Child datatypes don't have their own cached entries, it's all contained within the
+        //  cache entry for their top-level datatype
+        $this->cache_service->delete('cached_datatype_'.$dt->getId());
     }
 }

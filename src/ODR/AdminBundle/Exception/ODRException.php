@@ -19,10 +19,12 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class ODRException extends HttpException
 {
 
-    protected $message;
+//    protected $message;
     protected $source_code;
 
     /**
+     * ODRException constructor.
+     *
      * @param string $message
      * @param string|null $statusCode
      * @param integer|null $source_code
@@ -34,9 +36,9 @@ class ODRException extends HttpException
         $source_code = 0,
         \Exception $previous_exception = null
     ) {
-        $this->message = $message;
-        $this->source_code = $source_code;
 
+//        $this->message = $message;
+        $this->source_code = $source_code;
 
         if ( is_null($statusCode) )
             $statusCode = 500;
@@ -44,11 +46,17 @@ class ODRException extends HttpException
         parent::__construct($statusCode, $message, $previous_exception, array(), $source_code);
     }
 
+
+    /**
+     * TODO -
+     *
+     * @param null $code
+     * @return int|null
+     */
     public function getSourceCode($code = null) {
-        if($this->source_code == 0 && $code != null) {
+        if ($this->source_code == 0 && $code != null)
             return $code;
-        }
+
         return $this->source_code;
     }
-
 }

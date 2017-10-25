@@ -40,6 +40,7 @@ use ODR\AdminBundle\Form\UpdateGroupForm;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
@@ -71,6 +72,9 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
@@ -83,11 +87,9 @@ class ODRGroupController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -105,7 +107,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4996d75a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -136,6 +138,9 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
@@ -149,11 +154,9 @@ class ODRGroupController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -190,7 +193,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xe68cb492;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -237,11 +240,9 @@ class ODRGroupController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -255,7 +256,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xf78fc1d5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -288,6 +289,8 @@ class ODRGroupController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
             /** @var Group $group */
             $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
@@ -306,11 +309,9 @@ class ODRGroupController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -379,7 +380,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8f1ef340;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -410,6 +411,9 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             /** @var Group $group */
             $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
             if ($group == null)
@@ -427,11 +431,9 @@ class ODRGroupController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -493,7 +495,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1f79b99c;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -543,11 +545,9 @@ class ODRGroupController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -588,7 +588,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xb66e0e95;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -634,11 +634,9 @@ class ODRGroupController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -697,7 +695,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1a83c7b1;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -737,8 +735,7 @@ class ODRGroupController extends ODRCustomController
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
-            $datatype_permissions = $admin_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
 
             $admin_permission_count = 0;
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
@@ -842,7 +839,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x09f55927;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -903,13 +900,11 @@ class ODRGroupController extends ODRCustomController
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
-            $datatype_permissions = $admin_permissions['datatypes'];
 
             if ( !$admin_user->hasRole('ROLE_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ]['dt_admin'])) )
+            if ( !$pm_service->isDatatypeAdmin($admin_user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -996,7 +991,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xbee40f81;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1026,6 +1021,9 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             /** @var Group $group */
             $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
             if ($group == null)
@@ -1038,11 +1036,6 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
-
             if ($datatype->getIsMasterType())
                 throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
@@ -1053,18 +1046,12 @@ class ODRGroupController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Require admin user to have at least admin role to do this...
-            if ( $user->hasRole('ROLE_ADMIN') ) {
-                // Grab permissions of both target user and admin
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-
-                // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
-                if ( !isset($datatype_permissions[$datatype_id]) || !isset($datatype_permissions[$datatype_id]['dt_admin']) )
-                    throw new ODRForbiddenException();
-            }
-            else {
+            if ( !$user->hasRole('ROLE_ADMIN') )
                 throw new ODRForbiddenException();
-            }
+
+            // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -1076,7 +1063,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xf41ca927;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1163,7 +1150,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x6995341d;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1256,7 +1243,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xcaf44744;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1292,21 +1279,21 @@ class ODRGroupController extends ODRCustomController
         $cache_service = $this->container->get('odr.cache_service');
         /** @var DatatypeInfoService $dti_service */
         $dti_service = $this->container->get('odr.datatype_info_service');
+        /** @var PermissionsManagementService $pm_service */
+        $pm_service = $this->container->get('odr.permissions_management_service');
+        /** @var ThemeInfoService $theme_service */
+        $theme_service = $this->container->get('odr.theme_info_service');
 
-        // Always bypass cache if in dev mode?
-        $bypass_cache = false;
-        if ($this->container->getParameter('kernel.environment') === 'dev')
-            $bypass_cache = true;
+        /** @var User $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
         // Load permissions for the specified group
         $permissions = $cache_service->get('group_'.$group->getId().'_permissions');
-        if ($bypass_cache || $permissions == false) {
-            $permissions = parent::rebuildGroupPermissionsArray($em, $group->getId());
+        if ($permissions == false) {
+            $permissions = $pm_service->rebuildGroupPermissionsArray($group->getId());
             $cache_service->set('group_'.$group->getId().'_permissions', $permissions);
         }
 //print '<pre>'.print_r($permissions, true).'</pre>';  exit();
-
-        $datatree_array = $dti_service->getDatatreeArray();
 
         $datatype_permissions = $permissions['datatypes'];
         $datafield_permissions = $permissions['datafields'];
@@ -1336,14 +1323,14 @@ class ODRGroupController extends ODRCustomController
             $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
         }
         else if ($template_name == 'child_datatype') {
+            throw new ODRNotImplementedException();     // to match with the rest of the controller...
+
             $child_datatype = $repo_datatype->find($target_id);
             $theme = $repo_theme->findOneBy( array('dataType' => $child_datatype->getId(), 'themeType' => 'master') );
 
             // Need to determine the top-level datatype to be able to load all necessary data for rendering this child datatype
             if ( isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) && $datatree_array['descendant_of'][ $child_datatype->getId() ] !== '' ) {
-                $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($child_datatype->getId());
-
-                $datatype = $repo_datatype->find($grandparent_datatype_id);
+                $datatype = $child_datatype->getGrandparent();
             }
             else if ( !isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) || $datatree_array['descendant_of'][ $child_datatype->getId() ] == '' ) {
                 // Was actually a re-render request for a top-level datatype...re-rendering should still work properly if various flags are set right
@@ -1351,6 +1338,8 @@ class ODRGroupController extends ODRCustomController
             }
         }
         else if ($template_name == 'theme_element') {
+            throw new ODRNotImplementedException();     // to match with the rest of the controller...
+
             $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($target_id);
             $theme = $theme_element->getTheme();
 
@@ -1358,22 +1347,18 @@ class ODRGroupController extends ODRCustomController
             $datatype = $theme->getDataType();
             if ( isset($datatree_array['descendant_of'][ $datatype->getId() ]) && $datatree_array['descendant_of'][ $datatype->getId() ] !== '' ) {
                 $child_datatype = $theme->getDataType();
-                $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($child_datatype->getId());
-
-                $datatype = $repo_datatype->find($grandparent_datatype_id);
+                $datatype = $child_datatype->getGrandparent();
             }
         }
 
 
         // ----------------------------------------
-        // Determine which datatypes/childtypes to load from the cache
-        $include_links = false;
-        $associated_datatypes = $dti_service->getAssociatedDatatypes(array($datatype->getId()), $include_links);
-//print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
-
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $datatype_array = $dti_service->getDatatypeArray($associated_datatypes);
+        $include_links = false;
+        $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
 //print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
+
+        $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
 
 
         // ----------------------------------------
@@ -1395,7 +1380,7 @@ class ODRGroupController extends ODRCustomController
 
                     'datatype_array' => $datatype_array,
                     'initial_datatype_id' => $source_datatype_id,
-                    'theme_id' => $theme->getId(),
+                    'theme_array' => $theme_array,
 
                     'prevent_all_changes' => $prevent_all_changes,
                 )
@@ -1423,7 +1408,7 @@ class ODRGroupController extends ODRCustomController
                     'group' => $group,
                     'datatype_array' => $datatype_array,
                     'target_datatype_id' => $target_datatype_id,
-                    'theme_id' => $theme->getId(),
+                    'theme_array' => $theme_array,
 
                     'datatype_permissions' => $datatype_permissions,
                     'datafield_permissions' => $datafield_permissions,
@@ -1504,6 +1489,8 @@ class ODRGroupController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -1530,12 +1517,11 @@ class ODRGroupController extends ODRCustomController
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
-            $datatype_permissions = $admin_permissions['datatypes'];
 
             if ( !$admin_user->hasRole('ROLE_ADMIN') )
                 throw new ODRForbiddenException();
-            if ( !(isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_admin'])) )
+
+            if ( !$pm_service->isDatatypeAdmin($admin_user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1709,7 +1695,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x87b4186b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1743,6 +1729,8 @@ class ODRGroupController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -1774,12 +1762,11 @@ class ODRGroupController extends ODRCustomController
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
-            $datatype_permissions = $admin_permissions['datatypes'];
 
             if ( !$admin_user->hasRole('ROLE_ADMIN') )
                 throw new ODRForbiddenException();
-            if ( !(isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_admin'])) )
+
+            if ( !$pm_service->isDatatypeAdmin($admin_user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1858,7 +1845,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xaf7407e0;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

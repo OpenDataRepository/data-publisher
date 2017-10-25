@@ -38,6 +38,7 @@ use ODR\AdminBundle\Form\ODRUserProfileForm;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
@@ -62,15 +63,16 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            // Grab necessary objects
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
-            $datatype_permissions = $admin_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
 
             $admin_permission_count = 0;
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
@@ -101,7 +103,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xeaa9d56a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -133,15 +135,15 @@ class ODRUserController extends ODRCustomController
             if ( !isset($post['email']) )
                 throw new ODRBadRequestException();
 
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
-            $datatype_permissions = $admin_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
 
             $admin_permission_count = 0;
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
@@ -168,7 +170,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4a78400f;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -207,13 +209,15 @@ class ODRUserController extends ODRCustomController
             $user_manager = $this->container->get('fos_user.user_manager');
             $router = $this->get('router');
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
-            $datatype_permissions = $admin_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
 
             $admin_permission_count = 0;
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
@@ -277,7 +281,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xc5f96e25;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -304,12 +308,11 @@ class ODRUserController extends ODRCustomController
 
         try {
             // ----------------------------------------
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
             // Grab the specified user
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Don't need to check permissions...this only returns the page to edit the user's own profile
 
             // User is doing this to his own profile, by definition
             $self_edit = true;
@@ -381,7 +384,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x97f688bd;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -412,6 +415,9 @@ class ODRUserController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ($user == null || !$user->isEnabled())
@@ -430,10 +436,8 @@ class ODRUserController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 // Grab permissions of both target user and admin
-                $admin_permissions = parent::getUserPermissionsArray($em, $admin->getId());
-                $admin_permissions = $admin_permissions['datatypes'];
-                $user_permissions = parent::getUserPermissionsArray($em, $user_id);
-                $user_permissions = $user_permissions['datatypes'];
+                $admin_permissions = $pm_service->getDatatypePermissions($admin);
+                $user_permissions = $pm_service->getDatatypePermissions($user);
 
                 $allow = false;
                 foreach ($admin_permissions as $dt_id => $permission) {
@@ -525,7 +529,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xb6a03520;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -573,7 +577,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4c69f197;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -611,6 +615,9 @@ class ODRUserController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ($user == null || !$user->isEnabled())
@@ -629,10 +636,8 @@ class ODRUserController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 // Grab permissions of both target user and admin
-                $admin_permissions = parent::getUserPermissionsArray($em, $admin->getId());
-                $admin_permissions = $admin_permissions['datatypes'];
-                $user_permissions = parent::getUserPermissionsArray($em, $user_id);
-                $user_permissions = $user_permissions['datatypes'];
+                $admin_permissions = $pm_service->getDatatypePermissions($admin);
+                $user_permissions = $pm_service->getDatatypePermissions($user);
 
                 $allow = false;
                 foreach ($admin_permissions as $dt_id => $permission) {
@@ -658,7 +663,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xc6125a86;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -720,6 +725,7 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Returns the HTML for an admin user to change another user's password
+     * TODO - this is bad practice...the user needs to be able to reset their password via email
      * 
      * @param integer $user_id The database id of the user to edit.
      * @param Request $request
@@ -737,6 +743,9 @@ class ODRUserController extends ODRCustomController
             // Grab the specified user
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
             /** @var ODRUser $target_user */
             $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
@@ -756,10 +765,8 @@ class ODRUserController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 // Grab permissions of both target user and admin
-                $admin_permissions = parent::getUserPermissionsArray($em, $admin->getId());
-                $admin_permissions = $admin_permissions['datatypes'];
-                $user_permissions = parent::getUserPermissionsArray($em, $user_id);
-                $user_permissions = $user_permissions['datatypes'];
+                $admin_permissions = $pm_service->getDatatypePermissions($admin);
+                $user_permissions = $pm_service->getDatatypePermissions($target_user);
 
                 $allow = false;
                 foreach ($admin_permissions as $dt_id => $permission) {
@@ -799,7 +806,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x6c1fc667;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -812,6 +819,7 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Saves changes an admin makes to another user's password
+     * TODO - this is bad practice...the user needs to be able to reset their password via email
      *
      * @param Request $request
      *
@@ -840,6 +848,9 @@ class ODRUserController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $user_manager = $this->container->get('fos_user.user_manager');
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             /** @var ODRUser $target_user */
             $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($target_user_id);
             if ($target_user == null)
@@ -859,10 +870,8 @@ class ODRUserController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 // Grab permissions of both target user and admin
-                $admin_permissions = parent::getUserPermissionsArray($em, $admin->getId());
-                $admin_permissions = $admin_permissions['datatypes'];
-                $user_permissions = parent::getUserPermissionsArray($em, $target_user_id);
-                $user_permissions = $user_permissions['datatypes'];
+                $admin_permissions = $pm_service->getDatatypePermissions($admin);
+                $user_permissions = $pm_service->getDatatypePermissions($target_user);
 
                 $allow = false;
                 foreach ($admin_permissions as $dt_id => $permission) {
@@ -908,7 +917,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x482172cc;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -937,12 +946,15 @@ class ODRUserController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
-            $datatype_permissions = $admin_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
 
             $admin_permission_count = 0;
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
@@ -966,8 +978,7 @@ class ODRUserController extends ODRCustomController
                 foreach ($user_list as $user) {
                     // Because the calling user is not a super admin, don't add super admins to the list of users
                     if ( !$user->hasRole('ROLE_SUPER_ADMIN') ) {
-                        $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                        $user_permissions = $user_permissions['datatypes'];
+                        $user_permissions = $pm_service->getDatatypePermissions($user);
 
                         foreach ($user_permissions as $datatype_id => $up) {
                             if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_admin']) && isset($up['dt_view']) ) {
@@ -997,7 +1008,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4f9fcf8c;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1063,7 +1074,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xaa351c38;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1157,6 +1168,7 @@ class ODRUserController extends ODRCustomController
 
                 // ----------------------------------------
                 // Remove the user from all the non-admin groups they're currently a member of...
+                // NOTE - doing it this way because doctrine doesn't support multi-table updates
                 $query_str = '
                     UPDATE odr_user_group AS ug, odr_group AS g
                     SET ug.deletedAt = NOW(), ug.deletedBy = :admin_user_id
@@ -1199,7 +1211,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xee335a24;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1238,6 +1250,9 @@ class ODRUserController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $user_manager = $this->container->get('fos_user.user_manager');
 
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ($user == null || !$user->isEnabled())
@@ -1248,6 +1263,7 @@ class ODRUserController extends ODRCustomController
 //                throw new ODRException('Unable to delete another Super-Admin user');
 
             // Remove user from all the groups they're currently a member of
+            // NOTE - doing it this way because doctrine doesn't support multi-table updates
             $query_str = '
                 UPDATE odr_user_group AS ug, odr_group AS g
                 SET ug.deletedAt = NOW(), ug.deletedBy = :admin_user_id
@@ -1265,8 +1281,6 @@ class ODRUserController extends ODRCustomController
             $user->removeRole('ROLE_SUPER_ADMIN');
 
             // Delete the user's cached permissions
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
             $cache_service->delete('user_'.$user_id.'_permissions');
 
 
@@ -1293,7 +1307,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x750059fa;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1356,12 +1370,11 @@ class ODRUserController extends ODRCustomController
                     )
                 )
             );
-
         }
         catch (\Exception $e) {
             $source = 0x79443334;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1414,7 +1427,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1cfad2a4;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1448,6 +1461,8 @@ class ODRUserController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -1472,8 +1487,7 @@ class ODRUserController extends ODRCustomController
             // Require admin user to have at least admin role to do this...
             if ( $admin_user->hasRole('ROLE_ADMIN') ) {
                 // Grab permissions of both target user and admin
-                $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
-                $datatype_permissions = $admin_permissions['datatypes'];
+                $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
 
                 // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
                 if ( !isset($datatype_permissions[$datatype_id]) || !isset($datatype_permissions[$datatype_id]['dt_admin']) )
@@ -1486,8 +1500,7 @@ class ODRUserController extends ODRCustomController
 
 
             // Load permissions of target user
-            $user_permissions = parent::getUserPermissionsArray($em, $target_user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($target_user);
 //print '<pre>'.print_r($datatype_permissions, true).'</pre>'; exit();
 
             // Also want all themes for this datatype
@@ -1512,7 +1525,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8f12f6cb;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1548,6 +1561,8 @@ class ODRUserController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var ODRUser $target_user */
@@ -1576,34 +1591,23 @@ class ODRUserController extends ODRCustomController
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Require admin user to have at least admin role to do this...
-            if ( $admin_user->hasRole('ROLE_ADMIN') ) {
-                // Grab permissions of both target user and admin
-                $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
-                $datatype_permissions = $admin_permissions['datatypes'];
-
-                // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
-                if ( !isset($datatype_permissions[$datatype_id]) || !isset($datatype_permissions[$datatype_id]['dt_admin']) )
-                    throw new ODRForbiddenException();
-            }
-            else {
+            if ( !$admin_user->hasRole('ROLE_ADMIN') )
                 throw new ODRForbiddenException();
-            }
+
+            if ( !$pm_service->isDatatypeAdmin($admin_user, $datatype) )
+                throw new ODRForbiddenException();
             // --------------------
 
 
             // ----------------------------------------
             // Load permissions for the target user
-            $user_permissions = parent::getUserPermissionsArray($em, $target_user->getId());
+            $user_permissions = $pm_service->getUserPermissionsArray($target_user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
-            // Determine which datatypes/childtypes to load from the cache
-            $include_links = true;
-            $associated_datatypes = $dti_service->getAssociatedDatatypes(array($datatype->getId()), $include_links);
-//print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
-
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            $datatype_array = $dti_service->getDatatypeArray($associated_datatypes);
+            $include_links = true;
+            $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
 //print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
             // Filter by the target user's permissions
@@ -1611,6 +1615,7 @@ class ODRUserController extends ODRCustomController
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 //print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
+            $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $admin_user, $theme->getThemeType(), $include_links);
 
             // ----------------------------------------
             // Render the datatype from the target user's point of view
@@ -1621,7 +1626,7 @@ class ODRUserController extends ODRCustomController
                     array(
                         'datatype_permissions' => $datatype_permissions,
                         'datafield_permissions' => $datafield_permissions,
-                        'theme' => $theme,
+                        'theme_array' => $theme_array,
 
                         'datatype_array' => $datatype_array,
                         'initial_datatype_id' => $datatype->getId(),
@@ -1632,7 +1637,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1206f648;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

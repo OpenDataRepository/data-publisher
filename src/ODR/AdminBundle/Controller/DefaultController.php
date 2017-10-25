@@ -26,6 +26,7 @@ use ODR\AdminBundle\Exception\ODRException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -45,17 +46,14 @@ class DefaultController extends ODRCustomController
     {
 
         try {
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             // Grab the current user
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
-            $datatype_permissions = array();
-            if ($user !== 'anon.') {
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-            }
 
             // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
             $html = $this->renderView(
@@ -73,7 +71,7 @@ class DefaultController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xe75008d8;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -104,20 +102,16 @@ class DefaultController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
 
             // ----------------------------------------
-            // No caching in dev environment
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
-
             // Only want to create dashboard html graphs for top-level datatypes...
             $datatypes = $dti_service->getTopLevelDatatypes();
 
@@ -125,7 +119,7 @@ class DefaultController extends ODRCustomController
             $dashboard_headers = array();
             $dashboard_graphs = array();
             foreach ($datatypes as $num => $datatype_id) {
-                // Don't display datatype if user isn't allowed to view it
+                // "Manually" finding permissions to avoid having to load each datatype from doctrine
                 $can_view_datatype = false;
                 if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_view' ]) )
                     $can_view_datatype = true;
@@ -134,19 +128,15 @@ class DefaultController extends ODRCustomController
                 if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dr_view' ]) )
                     $can_view_datarecord = true;
 
-                $datatype_data = $dti_service->getDatatypeArray( array($datatype_id) );
-                if(
-                    !isset($datatype_data[$datatype_id])
-                    || !isset($datatype_data[$datatype_id]['dataTypeMeta'])
-                    || !isset($datatype_data[$datatype_id]['dataTypeMeta']['publicDate'])
-                    || $datatype_data[$datatype_id]['dataTypeMeta']['publicDate'] == null
-                ) {
-                    continue;
-                }
+                // Determine whether this datatype is public
+                $include_links = false;
+                $datatype_data = $dti_service->getDatatypeArray($datatype_id, $include_links);
 
                 $public_date  = $datatype_data[$datatype_id]['dataTypeMeta']['publicDate']
                     ->format('Y-m-d H:i:s');
 
+
+                // Don't display if the datatype isn't public and the user doesn't have permission to view it
                 if ($public_date == '2200-01-01 00:00:00' && !$can_view_datatype)
                     continue;
 
@@ -161,8 +151,8 @@ class DefaultController extends ODRCustomController
                     $cache_entry .= '_public_only';
 
                 $data = $cache_service->get($cache_entry);
-                if ($bypass_cache || $data == false) {
-                    // Rebuild the cached entry
+                if ($data == false) {
+                    // Rebuild the cached entry if it doesn't exist
                     self::getDashboardHTML($em, $datatype_id);
 
                     // Cache entry should now exist, reload it
