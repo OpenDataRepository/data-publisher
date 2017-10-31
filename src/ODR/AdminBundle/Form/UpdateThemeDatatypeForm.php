@@ -110,5 +110,7 @@ class UpdateThemeDatatypeForm extends AbstractType
                 'display_choices' => null
             )
         );
+
+        $resolver->setRequired('display_choices');
     }
 }

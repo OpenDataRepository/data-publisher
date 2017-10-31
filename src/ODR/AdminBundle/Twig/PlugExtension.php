@@ -255,6 +255,12 @@ class PlugExtension extends \Twig_Extension
             if ( !isset($theme_element['themeElementMeta']) )
                 throw new \Exception('Array does not describe a theme_element');
 
+            // If the theme element itself is marked has "hidden", then don't display regardless
+            //  of contents
+            if ( $theme_element['themeElementMeta']['hidden'] == 1 )
+                return true;
+
+
             // If the theme element has datafield entries...
             if ( isset($theme_element['themeDataFields']) && count($theme_element['themeDataFields']) > 0 ) {
 

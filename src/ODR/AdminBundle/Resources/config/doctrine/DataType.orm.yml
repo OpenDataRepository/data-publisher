@@ -97,14 +97,6 @@ ODR\AdminBundle\Entity\DataType:
             fetch: EXTRA_LAZY
             orphanRemoval: false
 
-        themePreferences:
-            targetEntity: ThemePreferences
-            cascade: {  }
-            mappedBy: dataType
-            inversedBy: null
-            fetch: EXTRA_LAZY
-            orphanRemoval: false
-
         dataFields:
             targetEntity: DataFields
             cascade: {  }

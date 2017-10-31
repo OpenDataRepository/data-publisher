@@ -1667,15 +1667,7 @@ $ret .= '  Set current to '.$count."\n";
         try {
             // ----------------------------------------
             // Load required objects
-
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
 
 
             print '<pre>';
@@ -1767,6 +1759,10 @@ $ret .= '  Set current to '.$count."\n";
             foreach ($results as $num => $theme) {
                 $theme_id = $theme['id'];
                 $theme_type = $theme['themeType'];
+
+                // TODO - FIGURE OUT WHAT TO DO WITH TABLE THEMES, THIS IS A FILTHY HACK
+                if ($theme_type == 'table')
+                    $theme_type = 'search_results';
 
                 $parent_theme_id = -1;
                 if ( isset($theme['parentTheme']) && isset($theme['parentTheme']['id']) )

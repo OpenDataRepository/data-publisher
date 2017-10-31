@@ -111,6 +111,15 @@ odr_view_permissions_result:
     requirements:
         user_id:  \d+
         theme_id:  \d+
+
+
+odr_apply_theme:
+    path:  /session/apply_theme/apply/{datatype_id}/{theme_id}/{session}
+    defaults: { _controller:ODRAdminBundle:ODRUser:applytheme }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+        session: 0|1
 #-----------------------------------------
 
 #-----------------------------------------
@@ -294,6 +303,12 @@ odr_add_types:
 
 #-----------------------------------------
 # Theme Controller
+odr_save_theme_properties:
+    path:  /view/theme_properties/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:savethemeproperties }
+    requirements:
+        theme_id: \d+
+
 odr_toggle_theme_public:
     path:  /design/togglepublic/{theme_id}
     defaults: { _controller:ODRAdminBundle:Theme:themepublic }
@@ -313,61 +328,24 @@ odr_delete_custom_theme:
         datatype_id:  \d+
         theme_id:  \d+
 
-odr_modify_theme:    # TODO - ...doesn't this clash with designAction()?
-    path:  /design/modify_view/{datatype_id}/{theme_id}
-    defaults: { _controller:ODRAdminBundle:Theme:modify_theme }
-    requirements:
-        datatype_id:  \d+
-        theme_id:  \d+
-
-odr_clone_theme:
-    path:  /design/copy_view/{datatype_id}/{theme_id}
-    defaults: { _controller:ODRAdminBundle:Theme:clone_theme }
-    requirements:
-        datatype_id:  \d+
-        theme_id:  \d+
-
-odr_design_derivative_themes:    # TODO - ...doesn't this clash with modify_themeAction()?
+# This route locates the default 'search_results' theme for the datatype, and then redirects to the
+#  'odr_modify_theme' route...if the default doesn't exist, it is created
+odr_design_derivative_themes:
     path:  /design/searchtemplate/{datatype_id}
     defaults: { _controller:ODRAdminBundle:Theme:design }
     requirements:
         datatype_id:  \d+
 
-odr_design_load_theme_list:    # TODO - this no longer exists in ThemeController...
-    path:  /design/theme/load_all/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Theme:loadThemeList }
+odr_modify_theme:
+    path:  /design/modify_view/{datatype_id}/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:modifytheme }
     requirements:
         datatype_id:  \d+
-
-odr_design_add_theme:    # TODO - this no longer exists in ThemeController...
-    path:  /design/theme/add/{datatype_id}/{theme_type}
-    defaults: { _controller: ODRAdminBundle:Theme:addtheme }
-    requirements:
-        datatype_id:  \d+
-        theme_type: 'derivative|search_results|table|'
-
-odr_design_load_theme:    # TODO - this no longer exists in ThemeController...
-    path:  /design/theme/load/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Theme:loadtheme }
-    requirements:
         theme_id:  \d+
 
-odr_derivative_reload_theme_element:    # TODO - this no longer exists in ThemeController...
-    path: /design/searchtemplate/themeelementreload/{source_datatype_id}/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Theme:reloadthemeelement }
-    requirements:
-        source_datatype_id: \d+
-        theme_element_id: \d+
-
-odr_design_delete_theme:    # TODO - this no longer exists in ThemeController...
-    path:  /design/theme/delete/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Theme:deletetheme }
-    requirements:
-        theme_id:  \d+
-
-odr_design_get_theme_properties:    # TODO - this no longer exists in ThemeController...
-    path:  /design/theme/properties/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Theme:themeproperties }
+odr_clone_theme:
+    path:  /design/copy_view/{theme_id}
+    defaults: { _controller:ODRAdminBundle:Theme:clonetheme }
     requirements:
         theme_id:  \d+
 
@@ -439,20 +417,6 @@ odr_design_save_theme_datatype:
 
 #-----------------------------------------
 # Displaytemplate Controller
-odr_set_theme_properties:
-    path:  /view/theme_properties/{theme_meta_id}
-    defaults: { _controller:ODRAdminBundle:Display:theme_properties }
-    requirements:
-        theme_meta_id: \d+
-
-odr_apply_theme:
-    path:  /view/apply/{datatype_id}/{theme_id}/{session}
-    defaults: { _controller:ODRAdminBundle:Display:apply_theme }
-    requirements:
-        datatype_id:  \d+
-        theme_id:  \d+
-        session: 0|1
-
 odr_design_master_theme:
     path:  /design/displaytemplate/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:design }
@@ -783,11 +747,12 @@ odr_get_available_themes:
         datatype_id:  \d+
         page_type:  'display|search_results'
 
-odr_customize_view_dialog:
-    path:  /view/customize/{datatype_id}/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Display:customize_theme_dialog }
-    requirements:
-        datatype_id:  \d+
+# This appears to be unused?
+#odr_customize_view_dialog:
+#    path:  /view/customize/{datatype_id}/{theme_id}
+#    defaults: { _controller: ODRAdminBundle:Display:customize_theme_dialog }
+#    requirements:
+#        datatype_id:  \d+
 
 # deprecated?
 #odr_cancel_file_decrypt:

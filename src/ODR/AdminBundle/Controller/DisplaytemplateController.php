@@ -4094,7 +4094,15 @@ exit();
             if ($datatree != null && $datatree->getIsLink() == true)
                 $is_link = true;
 
-            $datatype_form = $this->createForm(UpdateDataTypeForm::class, $submitted_data, array('datatype_id' => $datatype->getId(), 'is_top_level' => $is_top_level, 'is_link' => $is_link));
+            $datatype_form = $this->createForm(
+                UpdateDataTypeForm::class,
+                $submitted_data,
+                array(
+                    'datatype_id' => $datatype->getId(),
+                    'is_top_level' => $is_top_level,
+                    'is_link' => $is_link
+                )
+            );
             $datatype_form->handleRequest($request);
 
             if ($datatype_form->isSubmitted()) {
@@ -4225,8 +4233,15 @@ exit();
             else {
                 // This is a GET request...need to create the required form objects
                 $datatype_meta = $datatype->getDataTypeMeta();
-                $datatype_form = $this->createForm(UpdateDataTypeForm::class, $datatype_meta, array('datatype_id' => $datatype->getId(), 'is_top_level' => $is_top_level, 'is_link' => $is_link));
-
+                $datatype_form = $this->createForm(
+                    UpdateDataTypeForm::class,
+                    $datatype_meta,
+                    array(
+                        'datatype_id' => $datatype->getId(),
+                        'is_top_level' => $is_top_level,
+                        'is_link' => $is_link
+                    )
+                );
 
                 // Create the form for the Datatree entity (stores whether the parent datatype is allowed to have multiple datarecords of the child datatype)
                 $force_multiple = false;
@@ -4273,11 +4288,26 @@ exit();
                 }
 
 
-                // TODO - this is no longer showing "display_type" due to changes made in ThemeController::loadthemedatatypeAction()
                 // Create the form for the ThemeDatatype entry (stores whether the child/linked datatype should use 'accordion', 'tabbed', 'dropdown', or 'list' rendering style)
                 $theme_datatype_form = null;
-                if ($theme_datatype !== null)
-                    $theme_datatype_form = $this->createForm(UpdateThemeDatatypeForm::class, $theme_datatype)->createView();
+                if ($theme_datatype !== null) {
+                    // TODO - why was this moved out of the associated form?
+                    // Allow header to be hidden for non-multiple-allowed child types
+                    $display_choices = array(
+                        'Accordion' => '0',
+                        'Tabbed' => '1',
+                        'Select Box' => '2',
+                        'List' => '3'
+                    );
+
+                    $theme_datatype_form = $this->createForm(
+                        UpdateThemeDatatypeForm::class,
+                        $theme_datatype,
+                        array(
+                            'display_choices' => $display_choices,
+                        )
+                    )->createView();
+                }
 
                 // Determine whether user can view permissions of other users
                 $can_view_permissions = false;

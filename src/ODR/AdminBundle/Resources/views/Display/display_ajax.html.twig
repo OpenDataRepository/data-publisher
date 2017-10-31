@@ -26,7 +26,7 @@
 } %}
 
 {% if record_display_view == "single" %}
-    {%  include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
+    {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
 {% endif %}
 
 {% if record_display_view == "single" %}
@@ -59,7 +59,7 @@
 
         $(".ODRFileDownloadProgress").hide();
 
-        $("a.ODRFileDownload").click(function(event) {
+        $("a.ODRFileDownload").unbind('click').click(function(event) {
             // Grab necessary attributes
             var file_id = $(this).attr('rel');
             var href = $(this).attr('href');
@@ -72,7 +72,7 @@
             handleFileDownload(event, file_id, href, short_form, can_cancel);
         });
 
-        $(".ODRDownloadAllFiles").click(function() {
+        $(".ODRDownloadAllFiles").unbind('click').click(function() {
 
             if ( $(this).hasClass('fa-muted') )
                 return;

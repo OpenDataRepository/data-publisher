@@ -43,15 +43,16 @@ ODR\AdminBundle\Entity\ThemePreferences:
                     referencedColumnName: id
             orphanRemoval: false
 
-        dataType:
-            targetEntity: DataType
-            cascade: {  }
-            mappedBy: null
-            inversedBy: themePreferences
-            joinColumns:
-                datatype_id:
-                    referencedColumnName: id
-            orphanRemoval: false
+# This is implied from the theme propery
+#        dataType:
+#            targetEntity: DataType
+#            cascade: {  }
+#            mappedBy: null
+#            inversedBy: themePreferences
+#            joinColumns:
+#                datatype_id:
+#                    referencedColumnName: id
+#            orphanRemoval: false
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User

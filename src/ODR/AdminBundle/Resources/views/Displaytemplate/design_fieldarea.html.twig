@@ -78,7 +78,7 @@
                 {% set child_datatype_id = theme_datatype.dataType.id %}
 
                 {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
-                {% if datatype['descendants'][child_datatype_id] is defined %}
+                {% if datatype['descendants'][child_datatype_id] is defined and datatype_array[child_datatype_id] is defined %}
 
                     {# Don't want the UI to permit modification of linked datatypes the user isn't allowed to modify #}
                     {% set child_is_datatype_admin = true %}

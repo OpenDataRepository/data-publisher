@@ -64,26 +64,23 @@ services:
             logger: "@logger"
 
 
-    # TODO - fix this
     odr.clone_datatype_service:
         class: ODR\AdminBundle\Component\Service\CloneDatatypeService
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
+            clone_theme_service: "@odr.clone_theme_service"
             datatype_info_service: "@odr.datatype_info_service"
             permissions_service: "@odr.permissions_management_service"
             user_manager: "@fos_user.user_manager"
             logger: "@logger"
 
-    # TODO - fix this
     odr.clone_theme_service:
         class: ODR\AdminBundle\Component\Service\CloneThemeService
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
-            datatype_info_service: "@odr.datatype_info_service"
-            permissions_service: "@odr.permissions_management_service"
-            user_manager: "@fos_user.user_manager"
+            theme_service: "@odr.theme_info_service"
             logger: "@logger"
 
 

@@ -108,7 +108,7 @@ class EditController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( $pm_service->canAddDatarecord($user, $datatype) )
+            if ( !$pm_service->canAddDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 

@@ -148,6 +148,8 @@ class ThemeInfoService
      * would prefer to use for all of the associated datatypes, and then returns their cached
      * entries back to the caller.
      *
+     * Note that the keys of the returned array are datatype_ids, not theme_ids.
+     *
      * @param integer $grandparent_datatype_id
      * @param ODRUser $user
      * @param string $theme_type
@@ -187,6 +189,7 @@ class ThemeInfoService
 
     /**
      * Attempts to return the id of the user's preferred theme for the given datatype/theme_type.
+     * TODO - this is NOT resilient to themes being deleted...
      *
      * @param ODRUser $user
      * @param integer $datatype_id
@@ -201,19 +204,30 @@ class ThemeInfoService
         if ($theme_id != null)
             return $theme_id;
 
+
         // If nothing in the user's session, then check the database for their default preferences...
-        // TODO - update the session with the preferred theme afterwards?
         if ($user !== 'anon.') {
             $theme_preference = self::getUserDefaultTheme($user, $datatype_id, $theme_type);
-            if ($theme_preference != null)
-                return $theme_preference->getTheme()->getId();
+            if ($theme_preference != null) {
+                // ...set it as their current session theme to avoid database lookups
+                $theme = $theme_preference->getTheme();
+                self::setSessionTheme($datatype_id, $theme);
+
+                // ...return the id of the theme
+                return $theme->getId();
+            }
         }
 
+
         // Otherwise, default to the datatype's default theme
-        // TODO - update the session with the preferred theme afterwards?
         $theme = self::getDatatypeDefaultTheme($datatype_id, $theme_type);
-        if ($theme != null)
+        if ($theme != null) {
+            // ...set it as their current session theme to avoid database lookups
+            self::setSessionTheme($datatype_id, $theme);
+
+            // ...return the id of the theme
             return $theme->getId();
+        }
 
         // ...If for some reason there's no default theme for this theme_type, return the datatype's master theme
         // TODO - throw an error instead?
@@ -326,9 +340,10 @@ class ThemeInfoService
         if ($user === 'anon.')
             return null;
 
-        // TODO -
+        // ----------------------------------------
+        // Get which theme_types define a "category" of themes
         $theme_types = array();
-        if ($theme_type == 'master') {
+        if ($theme_type == 'master' || $theme_type == 'custom_view') {
             $theme_types[] = 'master';
             $theme_types[] = 'custom_view';
         }
@@ -337,14 +352,15 @@ class ThemeInfoService
             $theme_types[] = 'custom_'.$theme_type;
         }
 
-        //
+        // Determine whether the user already has a preferred Theme for this "category"
         $query = $this->em->createQuery(
            'SELECT tp
             FROM ODRAdminBundle:ThemePreferences AS tp
             JOIN ODRAdminBundle:Theme AS t WITH tp.theme = t
-            WHERE tp.dataType = :datatype_id AND tp.createdBy = :user_id
+            JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
+            WHERE t.dataType = :datatype_id AND tp.createdBy = :user_id AND tp.isDefault = 1
             AND t.themeType IN (:theme_types)
-            AND tp.deletedAt IS NULL AND t.deletedAt IS NULL'
+            AND tp.deletedAt IS NULL AND t.deletedAt IS NULL AND dt.deletedAt IS NULL'
         )->setParameters(
             array(
                 'datatype_id' => $datatype_id,
@@ -357,130 +373,93 @@ class ThemeInfoService
         if ( count($result) == 0 )
             return null;
 
-        // TODO - verify this shit
+        // Should only be one...
         return $result[0];
-        /*
-                $user_theme = self::getDefaultTheme($datatype_id, $theme_type);
-
-                $user = $this->container->get('security.token_storage')->getToken()->getUser();
-                if($user === "anon.") {
-                    return $user_theme;
-                }
-
-                // Get user's default theme for datatype and theme type
-                // Using Join to only pull non-deleted themes and theme preferences.
-                $qb = $this->em->createQueryBuilder();
-                $qb->select('tp, t')
-                    ->from('ODRAdminBundle:ThemePreferences', 'tp')
-                    ->Join('tp.theme', 't')
-                    ->leftJoin('t.themeMeta', 'tm')
-                    ->where('t.dataType = :datatype_id')
-                    ->andWhere('tp.createdBy = :user_id')
-                    ->andWhere('tp.isDefault = 1');
-
-                if ($theme_type == "master") {
-                    // Custom views should also pull for master view lists
-                    $qb->andWhere("t.themeType like :theme_type OR t.themeType like 'custom_view'");
-                }
-
-                else {
-                    // All theme types also have a "custom" version
-                    $qb->andWhere('t.themeType like :theme_type OR t.themeType like :theme_type_custom');
-                }
-
-                $qb->addOrderBy('tm.displayOrder', 'ASC')
-                    ->addOrderBy('tm.templateName', 'ASC');
-
-                if ($theme_type == "master") {
-                    $qb->setParameters(
-                        array(
-                            'datatype_id' => $datatype_id,
-                            'theme_type' => $theme_type,
-                            'user_id' => $user->getId(),
-                        )
-                    );
-                }
-                else {
-                    $qb->setParameters(
-                        array(
-                            'datatype_id' => $datatype_id,
-                            'theme_type' => $theme_type,
-                            'theme_type_custom' => "custom_" . $theme_type,
-                            'user_id' => $user->getId(),
-                        )
-                    );
-                }
-
-                $query = $qb->getQuery();
-                $user_themes_result = $query->getResult();
-
-                if(count($user_themes_result) > 0) {
-                    // @var ThemePreferences $user_theme_preference
-                    $user_theme_preference = $user_themes_result[0];
-                    $user_theme = $user_theme_preference->getTheme();
-                }
-
-                return $user_theme;
-        */
     }
 
+
     /**
-     * TODO
+     * Sets the given Theme to be a default for the provided user.  Any other Themes in the same
+     * "category" are marked as "not default".
      *
      * @param ODRUser $user
-     * @param DataType $datatype
      * @param Theme $theme
+     *
+     * @throws ODRBadRequestException
      *
      * @return ThemePreferences
      */
-    public function setUserDefaultTheme($user, $datatype, $theme)
+    public function setUserDefaultTheme($user, $theme)
     {
-        throw new ODRException("DO NOT CONTINUE - setUserDefaultTheme()");
-        /*
-                $repo_theme_preferences = $this->em->getRepository('ODRAdminBundle:ThemePreferences');
-                // TODO Refactor to join with Theme to filter deleted themes from ThemePrefrences
-                $theme_preferences = $repo_theme_preferences->findBy(array(
-                    'dataType' => $datatype->getId()
-                ));
-
-                // Check if we have a type match
-                // @var ThemePreferences $theme_preference
-                $theme_preference = null;
-                // @var ThemePreferences $tp
-                foreach($theme_preferences as $tp) {
-                    if(
-                        preg_replace('/^custom_/','',$tp->getTheme()->getThemeType())
-                        == preg_replace('/^custom_/', '', $theme->getThemeType())
-                    ) {
-                        $theme_preference = $tp;
-                    }
-                    else if(
-                        $theme->getThemeType() == "custom_view"
-                        && $tp->getTheme()->getThemeType() == "master"
-                    ) {
-                        $theme_preference = $tp;
-                    }
-                }
+        // Complain if this isn't a top-level theme
+        if ($theme->getId() !== $theme->getParentTheme()->getId())
+            throw new ODRBadRequestException('This should only be called on Themes of top-level Datatypes');
 
 
-                /// @var User $user
-                $user = $this->container->get('security.token_storage')->getToken()->getUser();
-                if($theme_preference == null) {
-                    $theme_preference = new ThemePreferences();
-                    $theme_preference->setCreatedBy($user);
-                    $theme_preference->setDatatype($datatype);
-                }
+        // ----------------------------------------
+        // Get which theme_types define a "category" of themes
+        $theme_types = array();
+        if ($theme->getThemeType() == 'master' || $theme->getThemeType() == 'custom_view') {
+            $theme_types[] = 'master';
+            $theme_types[] = 'custom_view';
+        }
+        else {
+            $theme_types[] = $theme->getThemeType();
+            $theme_types[] = 'custom_'.$theme->getThemeType();
+        }
 
-                // Modify preferences
-                $theme_preference->setTheme($theme);
-                $theme_preference->setIsDefault(1);
-                $theme_preference->setUpdatedBy($user);
+        // Determine whether the user already has a preferred Theme for this "category"
+        $query = $this->em->createQuery(
+           'SELECT tp
+            FROM ODRAdminBundle:ThemePreferences AS tp
+            JOIN ODRAdminBundle:Theme AS t WITH tp.theme = t
+            JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
+            WHERE t.dataType = :datatype_id AND tp.createdBy = :user_id AND tp.isDefault = 1
+            AND t.themeType IN (:theme_types)
+            AND tp.deletedAt IS NULL AND t.deletedAt IS NULL AND dt.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'datatype_id' => $theme->getDataType()->getId(),
+                'user_id' => $user->getId(),
+                'theme_types' => $theme_types
+            )
+        );
+        $results = $query->getResult();
 
-                $this->em->persist($theme_preference);
-                $this->em->flush();
+        // If they do, then mark it as "not default", since there's going to be a new default...
+        /** @var ThemePreferences $tp */
+        foreach ($results as $tp) {
+            $tp->setIsDefault(false);
+            $this->em->persist($tp);
+        }
 
-                return $theme_preference;
-        */
+
+        // ----------------------------------------
+        // Attempt to locate the ThemePreferences entry for the given Theme/User pair
+        $tp = $this->em->getRepository('ODRAdminBundle:ThemePreferences')->findOneBy(
+            array(
+                'theme' => $theme->getId(),
+                'createdBy' => $user->getId(),
+            )
+        );
+
+        // If one doesn't exist, create it
+        if ($tp == null) {
+            $tp = new ThemePreferences();
+            $tp->setCreatedBy($user);
+            $tp->setTheme($theme);
+        }
+
+        // Mark this ThemePreference entry as the one the user wants to use
+        $tp->setIsDefault(true);
+        $tp->setUpdatedBy($user);
+
+        // Done with the modifications
+        $this->em->persist($tp);
+        $this->em->flush();
+        $this->em->refresh($tp);
+
+        return $tp;
     }
 
 
@@ -532,7 +511,9 @@ class ThemeInfoService
 
 
     /**
-     * Loads and returns a cached data array for the specified theme ids.
+     * Loads and returns a cached data array for the specified theme ids.  Note that the keys for
+     * the returned array are theme_ids, unlike in self::getThemesForDatatype() where the keys are
+     * datatype_ids.
      * 
      * @param int[] $parent_theme_ids
      * 

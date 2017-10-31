@@ -55,6 +55,20 @@ class UpdateThemeForm extends AbstractType
             HiddenType::class
         );
 
+        $builder->add(
+            'displayOrder',
+            HiddenType::class
+        );
+
+        $builder->add(
+            'shared',
+            HiddenType::class
+        );
+
+        $builder->add(
+            'sourceSyncCheck',
+            HiddenType::class
+        );
     }
 
 

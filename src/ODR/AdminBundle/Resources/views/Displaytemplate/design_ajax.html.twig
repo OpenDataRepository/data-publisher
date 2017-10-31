@@ -840,8 +840,6 @@
                     // Store where the theme element started
                     starting_fieldarea = $(ui.helper).parent().attr('id');
 
-                    // Hide the div that is being dragged around
-                    // $(ui.helper).hide();
                     // Style the placeholder to more closely match the datafield being drug around
                     $(ui.placeholder).addClass($(ui.helper).attr('class'));
                     $(ui.placeholder).css('height', $(ui.helper).height());
@@ -852,12 +850,10 @@
                     var ending_fieldarea = $(ui.item).parent().attr('id');
 
                     // If the theme element ended up in a different fieldarea, don't save the change and revert the layout
-                    if (starting_fieldarea == ending_fieldarea) {
+                    if (starting_fieldarea == ending_fieldarea)
                         SaveThemeElementOrder($(ui.item).parent());
-                    }
-                    else {
+                    else
                         $(this).sortable("cancel");
-                    }
 
                     // Unhide the object that was being dragged around
                     $(ui.item).show();
@@ -888,7 +884,6 @@
                     starting_theme_element = $(ui.helper).parent().parent().attr('id');
                     starting_fieldarea = $(ui.helper).parent().parent().parent().attr('id');
 
-//                    console.log('sort version 2');
                     // Style the placeholder to more closely match the datafield being drug around
                     $(ui.placeholder).addClass( $(ui.helper).attr('class') );
                     $(ui.placeholder).css( 'height', $(ui.helper).height() );
@@ -899,20 +894,14 @@
                     var ending_theme_element = $(ui.item).parent().parent().attr('id');
                     var ending_fieldarea = $(ui.item).parent().parent().parent().attr('id');
 
-//                    console.log("Starting TED: " + starting_theme_element + " Ending TED: " + ending_theme_element )
-//                    console.log("Starting FA: " + starting_fieldarea + " Ending FA: " + ending_fieldarea )
-
                     // If the datafield ended up in the same fieldarea...
-                    if (starting_fieldarea == ending_fieldarea) {
-//                        console.log('save field area');
+                    if (starting_fieldarea == ending_fieldarea)
                         // Just need to save the destination theme element
                         SaveDatafieldOrder($(ui.item).parent(), starting_theme_element, ending_theme_element);
-                    }
-                    else {
+                    else
                         // ...if not, don't save the change and revert the layout
-//                        console.log('canceling');
                         $(this).sortable("cancel");
-                    }
+
 
                     // Unhide the object that was being dragged around
                     $(ui.item).show();
@@ -993,7 +982,6 @@
     }
 
     // This is referencing ThemeController...
-    var starting_field_top, starting_field_left;
     function SaveThemeDatafieldProperties(theme_element_id, datafield_id) {
 
         var url = '{{ path('odr_design_save_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}';

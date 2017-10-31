@@ -280,8 +280,8 @@ class DatatypeInfoService
         // Locate all datatypes that are children of the datatypes listed in $grandparent_datatype_ids
         $query = $this->em->createQuery(
            'SELECT dt.id AS id
-            FROM ODRAdminBundle:Datatype AS dt
-            LEFT JOIN dt.grandparent AS grandparent
+            FROM ODRAdminBundle:DataType AS dt
+            JOIN ODRAdminBundle:DataType AS grandparent WITH dt.grandparent = grandparent
             WHERE grandparent.id IN (:grandparent_ids)
             AND dt.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
         )->setParameters( array('grandparent_ids' => $grandparent_datatype_ids) );

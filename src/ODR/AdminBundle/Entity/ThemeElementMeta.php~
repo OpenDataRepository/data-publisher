@@ -33,6 +33,11 @@ class ThemeElementMeta
     private $displayOrder;
 
     /**
+     * @var integer
+     */
+    private $hidden;
+
+    /**
      * @var string
      */
     private $cssWidthMed;
@@ -104,6 +109,30 @@ class ThemeElementMeta
     public function getDisplayOrder()
     {
         return $this->displayOrder;
+    }
+
+    /**
+     * Set hidden
+     *
+     * @param integer $hidden
+     *
+     * @return ThemeElementMeta
+     */
+    public function setHidden($hidden)
+    {
+        $this->hidden = $hidden;
+
+        return $this;
+    }
+
+    /**
+     * Get hidden
+     *
+     * @return integer
+     */
+    public function getHidden()
+    {
+        return $this->hidden;
     }
 
     /**

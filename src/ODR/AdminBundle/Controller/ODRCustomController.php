@@ -3162,11 +3162,9 @@ class ODRCustomController extends Controller
         // $datafield->setMasterDataField(0);
 
         // Add master flags
-        $datafield->setIsMasterField(0);
-
-        if($datatype->getIsMasterType() > 0) {
-            $datafield->setIsMasterField(1);
-        }
+        $datafield->setIsMasterField(false);
+        if ($datatype->getIsMasterType() == true)
+            $datafield->setIsMasterField(true);
 
         $em->persist($datafield);
         $em->flush();
@@ -3531,6 +3529,7 @@ class ODRCustomController extends Controller
         $theme_element_meta->setThemeElement($theme_element);
 
         $theme_element_meta->setDisplayOrder(-1);
+        $theme_element_meta->setHidden(0);
         $theme_element_meta->setCssWidthMed('1-1');
         $theme_element_meta->setCssWidthXL('1-1');
 
@@ -3567,6 +3566,7 @@ class ODRCustomController extends Controller
         $changes_made = false;
         $existing_values = array(
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
+            'hidden' => $old_meta_entry->getHidden(),
             'cssWidthMed' => $old_meta_entry->getCssWidthMed(),
             'cssWidthXL' => $old_meta_entry->getCssWidthXL(),
         );
@@ -3590,6 +3590,7 @@ class ODRCustomController extends Controller
             $theme_element_meta->setThemeElement($theme_element);
 
             $theme_element_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
+            $theme_element_meta->setHidden( $old_meta_entry->getHidden() );
             $theme_element_meta->setCssWidthMed( $old_meta_entry->getCssWidthMed() );
             $theme_element_meta->setCssWidthXL( $old_meta_entry->getCssWidthXL() );
 
@@ -3604,6 +3605,8 @@ class ODRCustomController extends Controller
         // Set any changed properties
         if ( isset($properties['displayOrder']) )
             $theme_element_meta->setDisplayOrder( $properties['displayOrder'] );
+        if ( isset($properties['hidden']) )
+            $theme_element_meta->setHidden( $properties['hidden'] );
         if ( isset($properties['cssWidthMed']) )
             $theme_element_meta->setCssWidthMed( $properties['cssWidthMed'] );
         if ( isset($properties['cssWidthXL']) )

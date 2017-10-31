@@ -6,7 +6,7 @@
         'id': 'ThemePropertiesForm',
         'class': 'ODRThemePropertiesForm pure-form pure-form-aligned',
         'rel': datatype.id,
-        'action': path('odr_set_theme_properties', {'theme_meta_id': theme.themeMeta.id}),
+        'action': path('odr_save_theme_properties', {'theme_id': theme.id}),
         'method': 'POST',
     }
 }) }}

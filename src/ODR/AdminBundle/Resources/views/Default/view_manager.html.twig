@@ -23,11 +23,12 @@
         // Setup Theme System
         setupThemeSystem();
 
-        $("#page_settings").click(function(event) {
+        $("#page_settings").unbind('click').click(function(event) {
             $("#page_settings_menu").toggle('fast');
         });
 
     }
+
 
     function setupThemeSystem() {
         // Init the choose view button
@@ -91,7 +92,6 @@
             resetRemodalInnerHeight();
 
             var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
-//            console.log('Deleting personal default theme: ' + theme_id);
             deleteView(theme_id);
         });
 
@@ -99,7 +99,6 @@
             setModalMessage("Setting view as personal default.");
 
             var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
-//            console.log('Apply personal default theme: ' + theme_id);
             applyView(theme_id, 1, 0);
         });
 
@@ -107,19 +106,16 @@
             setModalMessage("Setting view for session.");
 
             var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
-//            console.log('Apply theme: ' + theme_id);
             applyView(theme_id, 1, 1);
         });
 
         $(".ODRCopyModifyTheme").unbind('click').click(function() {
             var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
-//            console.log('Apply theme: ' + theme_id);
             copyAndModifyView(theme_id);
         });
 
         $(".ODRModifyTheme").unbind('click').click(function() {
             var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
-//            console.log('Apply theme: ' + theme_id);
             openModifyThemeEditor(theme_id);
         });
 
@@ -127,7 +123,6 @@
             setModalMessage("Setting view as database default.");
 
             var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
-//            console.log('Make database default: ' + theme_id);
             makeDatabaseDefault(theme_id);
         });
 
@@ -135,25 +130,21 @@
             setModalMessage("Setting view as database default.");
 
             var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
-//            console.log('Make view public: ' + theme_id);
             makeViewPublic(theme_id);
         });
     }
 
 
     function applyView(theme_id, redirect, session) {
-        if(redirect === undefined) {
+        if (redirect === undefined)
             redirect = true;
-        }
-        if(session === undefined) {
+
+        if (session === undefined)
             session = 1;
-        }
 
         var url = '{{ path('odr_apply_theme', { 'datatype_id': datatype.id, 'theme_id': 0, 'session': 0   }) }}';
         url = url.substr(0, (url.length - 3)) + theme_id + "/" + session;
 
-alert(url);
-return;
 
         // set view
         $.ajax({
@@ -162,10 +153,11 @@ return;
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                if(redirect) {
+                if (redirect) {
                     closeODRRemodal();
                     reloadPage();
                 }
+
                 // Without redirect, this just sets the view preference
             },
             error: function (jqXHR, textStatus, errorThrown) {
@@ -190,14 +182,41 @@ return;
     }
 
 
-    function modifyView() {
-        closeODRRemodal();
+    function copyAndModifyView(theme_id) {
+        var url = '{{ path('odr_clone_theme', { 'theme_id': 0 }) }}';
+        url = url.substr(0, (url.length - 1)) + theme_id;
 
-        var url = '{{ path('odr_modify_theme', { 'datatype_id': datatype.id, 'theme_id': theme.id }) }}';
-alert(url);
-return;
+        setModalMessage("Copying selected theme, please wait...");
 
-        window.location.hash = url;
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // Open the edit page for the new theme
+                // This will also make the new theme the user's current session theme
+                openModifyThemeEditor(data.d.new_theme_id);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
     }
 
 
@@ -211,8 +230,8 @@ return;
         var url = '{{ path('odr_modify_theme', { 'datatype_id': datatype.id, 'theme_id': 0 }) }}';
         url = url.substr(0,(url.length - 1)) + theme_id;
 
-alert(url);
-return;
+//alert(url);
+//return;
 
         // Hash change event will load theme
         window.location.hash = url
@@ -223,16 +242,13 @@ return;
         var url = '{{ path('odr_toggle_theme_public', {'theme_id': 0}) }}';
         url = url.substr(0, (url.length - 1)) + theme_id;
 
-alert(url);
-return;
-
-        // set view
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
+{#    TODO - these don't have a chance to display before the modal closes...
                 // Apply view for session and redirect.
                 if (data.d.public) {
                     setModalMessage("View set to public. Other users will be able to select and use your view.");
@@ -240,16 +256,16 @@ return;
                 else {
                     setModalMessage("View set to private. Only you select and use this view.");
                 }
-
+#}
                 // Close modal and reload page
                 closeODRRemodal()
-//                setTimeout("closeODRRemodal()","1400");
-                },
+
+            },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to create a jGrowl because exception handlers will automatically
                 //  display. Close the dialog so it's not in some half-initialized state.
                 closeODRRemodal();
-                },
+            },
             complete: function (jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
@@ -271,10 +287,6 @@ return;
         var url = '{{ path('odr_make_default_theme', {'theme_id': 0}) }}';
         url = url.substr(0, (url.length - 1)) + theme_id;
 
-alert(url);
-return;
-
-        // set view
         $.ajax({
             cache: false,
             type: 'GET',
@@ -282,7 +294,7 @@ return;
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
                 // Apply view for session and redirect.
-                applyView(theme_id);    // TODO - this doesn't seem to match other uses
+                applyView(theme_id);
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to create a jGrowl because exception handlers will automatically
@@ -305,7 +317,7 @@ return;
         });
     }
 
-
+{#
     function checkCopyProgress(tracked_job_id, ) {
 //        console.log('check: ' + tracked_job_id);
 
@@ -363,49 +375,10 @@ return;
 
         // Redirect to view editor if complete
     }
-
-    function copyAndModifyView(theme_id) {
-//        console.log('copy and modify: ' + theme_id);
-        var url = '{{ path('odr_clone_theme', { 'datatype_id': datatype.id, 'theme_id': 0 }) }}';
-        url = url.substr(0, (url.length - 1)) + theme_id;
-
-alert(url);
-return;
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function (data, textStatus, jqXHR) {
-                $(".ODRRemodalBody").html( '<div class="pure-u-1"><h4>Copying View</h4><div class="pure-u-1 ODRCopyViewProgress loading-text">' +
-                    Math.floor(data.d.current/data.d.total * 100) + '%</div></div>');
-
-                // Call Checker
-                checkCopyProgress(data.d.id)
-            },
-            error: function (jqXHR, textStatus, errorThrown) {
-                // Don't need to create a jGrowl because exception handlers will automatically
-                //  display. Close the dialog so it's not in some half-initialized state.
-                closeODRRemodal();
-            },
-            complete: function (jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
-                }
-            }
-        });
-    }
+#}
 
 
+{#
     /**
      * TODO - this appears to be unused
      *
@@ -478,7 +451,7 @@ return;
             }
         });
     }
-
+#}
 
     function deleteView(theme_id) {
         var url = '{{ path('odr_delete_custom_theme', { 'datatype_id': datatype.id, 'theme_id': 0}) }}';

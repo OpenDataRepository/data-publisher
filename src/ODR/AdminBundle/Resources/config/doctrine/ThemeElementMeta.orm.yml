@@ -18,6 +18,11 @@ ODR\AdminBundle\Entity\ThemeElementMeta:
             nullable: false
             column: display_order
 
+        hidden:
+            type: integer
+            nullable: false
+            default: 0
+
         cssWidthMed:
             type: string
             length: 32

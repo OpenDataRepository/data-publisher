@@ -50,11 +50,6 @@ class ThemePreferences
     private $theme;
 
     /**
-     * @var \ODR\AdminBundle\Entity\DataType
-     */
-    private $dataType;
-
-    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
@@ -193,30 +188,6 @@ class ThemePreferences
     public function getTheme()
     {
         return $this->theme;
-    }
-
-    /**
-     * Set dataType
-     *
-     * @param \ODR\AdminBundle\Entity\DataType $dataType
-     *
-     * @return ThemePreferences
-     */
-    public function setDataType(\ODR\AdminBundle\Entity\Datatype $dataType = null)
-    {
-        $this->dataType = $dataType;
-
-        return $this;
-    }
-
-    /**
-     * Get dataType
-     *
-     * @return \ODR\AdminBundle\Entity\DataType
-     */
-    public function getDataType()
-    {
-        return $this->dataType;
     }
 
     /**

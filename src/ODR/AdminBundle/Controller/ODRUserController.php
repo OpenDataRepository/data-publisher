@@ -1646,4 +1646,92 @@ class ODRUserController extends ODRCustomController
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
+
+
+    /**
+     * Allows a user to set their session or default theme.
+     *
+     * @param integer $datatype_id
+     * @param integer $theme_id
+     * @param bool $session If false, then save this choice to the database
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function applythemeAction($datatype_id, $theme_id, $session = false, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            if ($theme == null)
+                throw new ODRNotFoundException('Theme');
+
+            if ($theme->getDataType()->getId() !== $datatype->getId())
+                throw new ODRBadRequestException('Theme does not match Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // If the user can't view the datatype, then they shouldn't be setting themes for it
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+            if ($user === 'anon.') {
+                // If the theme isn't shared, an anon user can't use it
+                if ( !$theme->isShared() )
+                    throw new ODRForbiddenException();
+
+                // Otherwise, set it as the session theme
+                $theme_service->setSessionTheme($datatype->getId(), $theme);
+
+                // Silently ignore attempts to save this preference to the database
+            }
+            else {
+                // If the theme isn't shared, or the user doesn't own the theme, then they can't use it
+                if ( !$theme->isShared() && $theme->getCreatedBy()->getId() !== $user->getId() )
+                    throw new ODRForbiddenException();
+
+                // Otherwise, set it as the session theme
+                $theme_service->setSessionTheme($datatype->getId(), $theme);
+
+                // If the user indicated they wanted to save this as their default, do so
+                if (!$session)
+                    $theme_service->setUserDefaultTheme($user, $theme);
+            }
+
+        }
+        catch (\Exception $e) {
+            $source = 0x1aeac909;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 }

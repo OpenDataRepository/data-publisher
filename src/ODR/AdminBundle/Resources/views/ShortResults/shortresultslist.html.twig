@@ -44,6 +44,8 @@
             'offset': offset,
             'can_edit_datarecord': can_edit_datarecord,
         } %}
+
+        {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
     </div>
 {% elseif logged_in %}
     No Datarecords found
@@ -179,6 +181,9 @@
 
         // Set up image galleries
         setupImageGalleries();
+
+        // Hide divs for accordion purposes
+        setupAccordions();
 
         $(".ODRFileDownloadProgress").hide();
 
