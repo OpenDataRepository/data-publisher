@@ -38,6 +38,7 @@ use ODR\AdminBundle\Form\UpdateThemeElementForm;
 use ODR\AdminBundle\Form\UpdateThemeDatafieldForm;
 use ODR\AdminBundle\Form\UpdateThemeDatatypeForm;
 // Services
+use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -351,148 +352,108 @@ class ThemeController extends ODRCustomController
 
 
     /**
-     * TODO - fix this
+     * Deletes a Theme.  Will not delete 'master' or 'default' themes,
      *
-     * Deletes a user's custom view.  Will not delete
-     * master views.
-     *
-     * @param $datatype_id
-     * @param $theme_id
+     * @param int $theme_id
      * @param Request $request
+     *
      * @return Response
      */
-    public function delete_custom_themeAction(
-        $datatype_id,
-        $theme_id,
-        Request $request
-    ) {
-
+    public function deletethemeAction($theme_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
 
-        // Check permissions
         try {
-
-            throw new ODRNotImplementedException('NEED TO FIGURE OUT HOW TO DEAL WITH SESSIONS');
-
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ($datatype == null) {
-                throw new ODRNotFoundException('Database', false, 0x823756);
-            }
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            if ($theme == null)
+                throw new ODRNotFoundException('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
 
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if ($user === "anon.") {
-                throw new ODRForbiddenException('View', 0x237528);
-            }
+            if ($user === "anon.")
+                throw new ODRForbiddenException();
 
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
 
-            // Ensure user has permissions to be doing this
-            // Users must have view permission
-            if (!$pm_service->canViewDatatype($user, $datatype)) {
-                throw new ODRForbiddenException(
-                    'You must have "view" permissions on this database to create or delete a custom view.',
-                    0x239223
-                );
-            }
-
-            // Check if this is a master template based datatype that is still
-            // in the creation process.  If so, ask user to try again later.
-            if ($datatype->getSetupStep() != DataType::STATE_OPERATIONAL) {
-                // Throw error and ask user to wait
-                throw new ODRForbiddenException(
-                    'Please try again later.  This database is not yet fully created.',
-                    0x2918239
-                );
-            }
-
-            /** @var Theme $original_theme */
-            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-            /** @var Theme $theme */
-            $theme = $repo_theme->find($theme_id);
-
-            // Is user the creator of theme
-            if($theme->getCreatedBy()->getId() == $user->getId()
-                && $theme->getThemeType() != "master"
+            // If user is not a super admin and didn't create the theme, don't allow them to delete
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN')
+                && $theme->getCreatedBy()->getId() !== $user->getId()
             ) {
-
-                /** @var ThemeInfoService $theme_service */
-                $theme_service = $this->container->get('odr.theme_info_service');
-
-                // If is datatype default, set "master" as default
-                if(
-                    $theme->getThemeType() == 'custom_view'
-                    && $theme->getThemeMeta()->getIsDefault() > 0
-                ) {
-                    // Find master theme and set as default
-
-                    /** @var Theme $master_theme */
-                    $master_theme = $repo_theme->findOneBy(
-                        array(
-                            'dataType' => $datatype->getId(),
-                            'themeType' => 'master'
-                        )
-                    );
-
-                    // TODO determine if datatype admin is needed to restore as default.
-                    /** @var ThemeMeta $master_theme_meta */
-                    $master_theme_meta = $master_theme->getThemeMeta();
-                    $new_theme_meta = clone $master_theme_meta;
-                    $new_theme_meta->setCreated(new \DateTime());
-                    $new_theme_meta->setUpdated(new \DateTime());
-                    $new_theme_meta->setIsDefault(1);
-
-                    $em->persist($new_theme_meta);
-                    $em->remove($master_theme_meta);
-
-                    // Flush default theme cache.
-                    $em->flush();
-                    $theme_service->getDatatypeDefaultTheme($datatype->getId(), 'master');
-                }
-
-                // Check user session theme and assign default
-                $theme_type = $theme->getThemeType();
-                if($theme_type == "custom_view") {
-                    $theme_type = 'master';
-                }
-                else {
-                    $theme_type = preg_replace('/^custom_/','', $theme_type);
-                }
-                $user_session_theme = $theme_service->getSessionTheme(
-                    $datatype->getId(),
-                    $theme_type
-                );
-                // if user was using this as default.
-                if($user_session_theme != null
-                    && $user_session_theme->getId() == $theme->getId()) {
-                    $theme_service->resetSessionTheme($datatype, $theme_type);
-                }
-
-                // Delete theme
-                $em->remove($theme);
-                $em->flush();
-
-                $return['d'] = "success";
+                throw new ODRForbiddenException();
             }
-            else {
-                throw new ODRForbiddenException(
-                    "You do not have permissions to use or modify this view.",
-                    0x8192392
-                );
-            }
+            // --------------------
+
+            // If the theme is a 'master' theme, then nobody is allowed to delete it
+            if ($theme->getThemeType() == 'master')
+                throw new ODRBadRequestException('Unable to delete a "master" Theme');
+
+            // If the theme is currently marked as a default for the datatype, don't delete it
+            if ($theme->isDefault())
+                throw new ODRBadRequestException('Unable to delete a Theme marked as "default"');
+
+            // Don't delete themes for child datatypes
+            if ($theme->getParentTheme()->getId() !== $theme->getId())
+                throw new ODRBadRequestException('Unable to delete a Theme for a child datatype');
+
+
+            // ----------------------------------------
+            // Delete all ThemePreferences that reference this Theme
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:ThemePreferences AS tp
+                SET tp.deletedAt = :now
+                WHERE tp.theme = :theme_id
+                AND tp.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'theme_id' => $theme->getId(),
+                )
+            );
+            $rows = $query->execute();
+
+            // Delete this Theme and all its "children"
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:Theme AS t
+                SET t.deletedAt = :now
+                WHERE t.parentTheme = :theme_id
+                AND t.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'theme_id' => $theme->getId(),
+                )
+            );
+            $rows = $query->execute();
+
+
+            // ----------------------------------------
+            // Delete the relevant cached theme entries
+            $cache_service->delete('cached_theme_'.$theme_id);
+            $cache_service->delete('top_level_themes');
         }
         catch (\Exception $e) {
-            $source = 0x2392933;
+            $source = 0x06c0bb40;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
@@ -600,6 +561,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var CloneThemeService $clone_theme_service */
             $clone_theme_service = $this->container->get('odr.clone_theme_service');
             /** @var PermissionsManagementService $pm_service */
@@ -636,8 +599,8 @@ class ThemeController extends ODRCustomController
             // For now, just directly clone the theme...
             $source_theme_type = $theme->getThemeType();
             $dest_theme_type = 'custom_view';
-            if ($source_theme_type == 'search_results' || $source_theme_type == 'custom_search_results')
-                $dest_theme_type = 'custom_search_results';
+            if ($source_theme_type == 'search_results')
+                $dest_theme_type = 'search_results';
 
             $new_theme = $clone_theme_service->cloneThemeFromParent($user, $theme, $dest_theme_type);
 
@@ -646,9 +609,89 @@ class ThemeController extends ODRCustomController
             $return['d'] = array(
                 'new_theme_id' => $new_theme->getId()
             );
+
+            // Delete the cached list of top-level themes
+            $cache_service->delete('top_level_themes');
         }
         catch (\Exception $e) {
-            $source = 0x823cadf213;
+            $source = 0x4391891a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Syncs the provided theme with its source.
+     *
+     * @param int $theme_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function syncthemeAction($theme_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CloneThemeService $clone_theme_service */
+            $clone_theme_service = $this->container->get('odr.clone_theme_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            if ($theme == null)
+                throw new ODRNotFoundException('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ($user === 'anon.')
+                throw new ODRForbiddenException();
+
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Don't run this on themes that are their own source
+            if ($theme->getSourceTheme()->getId() == $theme->getId())
+                throw new ODRBadRequestException('Not allowed to sync a Theme with itself');
+
+            // Don't run this on themes for child datatypes
+            if ($theme->getId() !== $theme->getParentTheme()->getId())
+                throw new ODRBadRequestException('Not allowed to clone a Theme for a child Datatype');
+
+
+            $changes_made = $clone_theme_service->syncThemeWithSource($user, $theme);
+
+            // TODO - Save theme element order?
+
+            $return['d'] = array('changes_made' => $changes_made);
+        }
+        catch (\Exception $e) {
+            $source = 0xd48bcb98;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
             else
@@ -684,6 +727,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
@@ -739,6 +784,9 @@ class ThemeController extends ODRCustomController
                         'isDefault' => true,
                     );
                     parent::ODR_copyThemeMeta($em, $user, $theme, $properties);
+
+                    // Delete the cached list of top-level themes
+                    $cache_service->delete('top_level_themes');
                 }
 
                 // Redirect to the correct URL to edit the default 'search_results' theme

@@ -3435,6 +3435,7 @@ class ODRCustomController extends Controller
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
             'shared' => $old_meta_entry->getShared(),
             'sourceSyncCheck' => $old_meta_entry->getSourceSyncCheck(),
+            'isTableTheme' => $old_meta_entry->getIsTableTheme(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -3461,6 +3462,7 @@ class ODRCustomController extends Controller
             $new_theme_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
             $new_theme_meta->setShared( $old_meta_entry->getShared() );
             $new_theme_meta->setSourceSyncCheck( $old_meta_entry->getSourceSyncCheck() );
+            $new_theme_meta->setIsTableTheme( $old_meta_entry->getIsTableTheme() );
 
             $new_theme_meta->setCreatedBy($user);
         }
@@ -3483,6 +3485,8 @@ class ODRCustomController extends Controller
             $new_theme_meta->setShared( $properties['shared'] );
         if ( isset($properties['sourceSyncCheck']) )
             $new_theme_meta->setSourceSyncCheck( $properties['sourceSyncCheck'] );
+        if ( isset($properties['isTableTheme']) )
+            $new_theme_meta->setIsTableTheme( $properties['isTableTheme'] );
 
         $new_theme_meta->setUpdatedBy($user);
 

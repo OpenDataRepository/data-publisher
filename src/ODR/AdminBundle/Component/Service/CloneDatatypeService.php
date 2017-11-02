@@ -321,6 +321,8 @@ class CloneDatatypeService
 
             $this->em->flush();
 
+            // Delete the cached list of top-level themes
+            $this->cache_service->delete('top_level_themes');
 
             // ----------------------------------------
             // Clone Datatree and DatatreeMeta entries

@@ -2023,6 +2023,7 @@ class DisplaytemplateController extends ODRCustomController
             $theme_meta->setTemplateDescription('');
             $theme_meta->setIsDefault(true);
             $theme_meta->setShared(true);
+            $theme_meta->setIsTableTheme(false);
             $theme_meta->setCreatedBy($user);
             $theme_meta->setUpdatedBy($user);
 

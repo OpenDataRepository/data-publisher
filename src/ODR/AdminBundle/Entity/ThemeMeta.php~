@@ -58,6 +58,11 @@ class ThemeMeta
     private $sourceSyncCheck;
 
     /**
+     * @var boolean
+     */
+    private $isTableTheme;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -237,6 +242,30 @@ class ThemeMeta
     public function getSourceSyncCheck()
     {
         return $this->sourceSyncCheck;
+    }
+
+    /**
+     * Set isTableTheme
+     *
+     * @param boolean $isTableTheme
+     *
+     * @return ThemeMeta
+     */
+    public function setIsTableTheme($isTableTheme)
+    {
+        $this->isTableTheme = $isTableTheme;
+
+        return $this;
+    }
+
+    /**
+     * Get isTableTheme
+     *
+     * @return boolean
+     */
+    public function getIsTableTheme()
+    {
+        return $this->isTableTheme;
     }
 
     /**

@@ -94,7 +94,7 @@ odr_undelete_user:
 
 odr_session_pagelength:
     path:  /session/pagelength/{length}
-    defaults: { _controller:ODRAdminBundle:ODRUser:pagelength }
+    defaults: { _controller: ODRAdminBundle:ODRUser:pagelength }
     requirements:
         length: 10|25|50|100
 
@@ -115,7 +115,7 @@ odr_view_permissions_result:
 
 odr_apply_theme:
     path:  /session/apply_theme/apply/{datatype_id}/{theme_id}/{session}
-    defaults: { _controller:ODRAdminBundle:ODRUser:applytheme }
+    defaults: { _controller: ODRAdminBundle:ODRUser:applytheme }
     requirements:
         datatype_id:  \d+
         theme_id:  \d+
@@ -305,47 +305,52 @@ odr_add_types:
 # Theme Controller
 odr_save_theme_properties:
     path:  /view/theme_properties/{theme_id}
-    defaults: { _controller:ODRAdminBundle:Theme:savethemeproperties }
+    defaults: { _controller: ODRAdminBundle:Theme:savethemeproperties }
     requirements:
         theme_id: \d+
 
 odr_toggle_theme_public:
     path:  /design/togglepublic/{theme_id}
-    defaults: { _controller:ODRAdminBundle:Theme:themepublic }
+    defaults: { _controller: ODRAdminBundle:Theme:themepublic }
     requirements:
         theme_id:  \d+
 
 odr_make_default_theme:
     path:  /design/makedefault/{theme_id}
-    defaults: { _controller:ODRAdminBundle:Theme:themedefault }
+    defaults: { _controller: ODRAdminBundle:Theme:themedefault }
     requirements:
         theme_id:  \d+
 
 odr_delete_custom_theme:
-    path:  /design/delete_view/{datatype_id}/{theme_id}
-    defaults: { _controller:ODRAdminBundle:Theme:delete_custom_theme }
+    path:  /design/delete_view/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:deletetheme }
     requirements:
-        datatype_id:  \d+
         theme_id:  \d+
 
 # This route locates the default 'search_results' theme for the datatype, and then redirects to the
 #  'odr_modify_theme' route...if the default doesn't exist, it is created
 odr_design_derivative_themes:
     path:  /design/searchtemplate/{datatype_id}
-    defaults: { _controller:ODRAdminBundle:Theme:design }
+    defaults: { _controller: ODRAdminBundle:Theme:design }
     requirements:
         datatype_id:  \d+
 
 odr_modify_theme:
     path:  /design/modify_view/{datatype_id}/{theme_id}
-    defaults: { _controller:ODRAdminBundle:Theme:modifytheme }
+    defaults: { _controller: ODRAdminBundle:Theme:modifytheme }
     requirements:
         datatype_id:  \d+
         theme_id:  \d+
 
 odr_clone_theme:
     path:  /design/copy_view/{theme_id}
-    defaults: { _controller:ODRAdminBundle:Theme:clonetheme }
+    defaults: { _controller: ODRAdminBundle:Theme:clonetheme }
+    requirements:
+        theme_id:  \d+
+
+odr_sync_source_theme:
+    path:  /design/sync_view/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:synctheme }
     requirements:
         theme_id:  \d+
 
@@ -747,13 +752,6 @@ odr_get_available_themes:
         datatype_id:  \d+
         page_type:  'display|search_results'
 
-# This appears to be unused?
-#odr_customize_view_dialog:
-#    path:  /view/customize/{datatype_id}/{theme_id}
-#    defaults: { _controller: ODRAdminBundle:Display:customize_theme_dialog }
-#    requirements:
-#        datatype_id:  \d+
-
 # deprecated?
 #odr_cancel_file_decrypt:
 #    path:  /view/downloadfile_cancel/{file_id}
@@ -1132,12 +1130,6 @@ odr_get_zip_archive_progress:
     defaults: { _controller: ODRAdminBundle:Reports:getziparchiveprogress }
     requirements:
         archive_filename: 0|[0-9a-zA-Z\-\_]{12}.zip
-
-odr_check_clone_theme:
-    path:  /design/copy_view_check/{tracked_job_id}
-    defaults: { _controller:ODRAdminBundle:Theme:getthemeprogress }
-    requirements:
-        tracked_job_id:  \d+
 
 #-----------------------------------------
 

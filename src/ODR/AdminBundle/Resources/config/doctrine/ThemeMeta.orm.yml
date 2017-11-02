@@ -47,6 +47,11 @@ ODR\AdminBundle\Entity\ThemeMeta:
             default: '1980-01-01 01:01:01'
             column: source_sync_check
 
+        isTableTheme:
+            type: boolean
+            nullable: false
+            default: false
+
         created:
             type: datetime
             gedmo:

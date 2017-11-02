@@ -549,6 +549,7 @@ class DatatypeController extends ODRCustomController
                         $theme_meta->setTemplateDescription('');
                         $theme_meta->setIsDefault(true);
                         $theme_meta->setShared(true);
+                        $theme_meta->setIsTableTheme(false);
                         $theme_meta->setCreatedBy($admin);
                         $theme_meta->setUpdatedBy($admin);
 
@@ -563,6 +564,7 @@ class DatatypeController extends ODRCustomController
                         // Delete the cached version of the datatree array and the list of top-level datatypes
                         $cache_service->delete('cached_datatree_array');
                         $cache_service->delete('top_level_datatypes');
+                        $cache_service->delete('top_level_themes');
 
                         // Create the groups for the new datatype here so the datatype can be viewed
                         $pm_service->createGroupsForDatatype($admin, $datatype);

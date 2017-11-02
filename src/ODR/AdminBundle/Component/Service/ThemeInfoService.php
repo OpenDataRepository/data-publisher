@@ -176,10 +176,11 @@ class ThemeInfoService
         }
 
         // Now that there's a list of the datatypes that we need themes for...
+        $top_level_themes = self::getTopLevelThemes();
         $parent_theme_ids = array();
         foreach ($associated_datatypes as $num => $dt_id) {
             // ...figure out which theme the user is using for this datatype
-            $parent_theme_ids[] = self::getPreferredTheme($user, $dt_id, $theme_type);
+            $parent_theme_ids[] = self::getPreferredTheme($user, $dt_id, $theme_type, $top_level_themes);
         }
 
         // Now that the themes are known, return the cached theme array entries for those themes
@@ -189,20 +190,34 @@ class ThemeInfoService
 
     /**
      * Attempts to return the id of the user's preferred theme for the given datatype/theme_type.
-     * TODO - this is NOT resilient to themes being deleted...
      *
      * @param ODRUser $user
      * @param integer $datatype_id
      * @param string $theme_type
+     * @param array $top_level_themes
      *
      * @return int|null
      */
-    public function getPreferredTheme($user, $datatype_id, $theme_type = 'master')
+    public function getPreferredTheme($user, $datatype_id, $theme_type, $top_level_themes = null)
     {
         // Look in the user's session first...
         $theme_id = self::getSessionTheme($datatype_id, $theme_type);
-        if ($theme_id != null)
-            return $theme_id;
+        if ($theme_id != null) {
+
+            if ($top_level_themes == null)
+                $top_level_themes = self::getTopLevelThemes();
+
+            if ( in_array($theme_id, $top_level_themes) ) {
+                // If the theme isn't deleted, return its id
+                return $theme_id;
+            }
+            else {
+                // Otherwise, user shouldn't be using it as their session theme
+                self::resetSessionTheme($datatype_id, $theme_type);
+
+                // Continue looking for the next-best theme to use
+            }
+        }
 
 
         // If nothing in the user's session, then check the database for their default preferences...
@@ -721,5 +736,44 @@ class ThemeInfoService
 
         // Delete the cached version of this theme
         $this->cache_service->delete('cached_theme_'.$theme->getParentTheme()->getId());
+    }
+
+
+    /**
+     * This function is currently only used to verify that a user isn't currently preferring a
+     * deleted theme in their session...
+     *
+     * @return int[]
+     */
+    public function getTopLevelThemes()
+    {
+        // ----------------------------------------
+        // If list of top level themes exists in cache, return that
+        $top_level_themes = $this->cache_service->get('top_level_themes');
+        if ( $top_level_themes !== false && count($top_level_themes) > 0 )
+            return $top_level_themes;
+
+
+        // ----------------------------------------
+        // Otherwise, rebuild the list of top-level themes
+        $top_level_datatypes = $this->dti_service->getTopLevelDatatypes();
+
+        $query = $this->em->createQuery(
+           'SELECT t.id AS theme_id
+            FROM ODRAdminBundle:Theme AS t
+            WHERE t.dataType IN (:datatype_ids)
+            AND t.deletedAt IS NULL'
+        )->setParameters( array('datatype_ids' => $top_level_datatypes) );
+        $results = $query->getArrayResult();
+
+        $top_level_themes = array();
+        foreach ($results as $result)
+            $top_level_themes[] = $result['theme_id'];
+
+
+        // ----------------------------------------
+        // Store the list in the cache and return
+        $this->cache_service->set('top_level_themes', $top_level_themes);
+        return $top_level_themes;
     }
 }

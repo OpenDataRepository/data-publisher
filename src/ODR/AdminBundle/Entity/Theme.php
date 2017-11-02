@@ -582,4 +582,14 @@ class Theme
     {
         return $this->getThemeMeta()->getSourceSyncCheck();
     }
+
+    /**
+     * Get isTableTheme
+     *
+     * @return bool
+     */
+    public function getIsTableTheme()
+    {
+        return $this->getThemeMeta()->getIsTableTheme();
+    }
 }

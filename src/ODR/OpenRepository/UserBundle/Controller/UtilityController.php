@@ -193,5 +193,10 @@ class UtilityController extends Controller
                     $session->remove('_security.url_fragment');
             }
         }
+
+        // Don't want to preserve any default session_themes picked up when browsing prior to
+        //  logging into the site...
+        if ( $session->has('session_themes') )
+            $session->remove('session_themes');
     }
 }

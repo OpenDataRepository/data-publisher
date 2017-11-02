@@ -1692,17 +1692,45 @@ $ret .= '  Set current to '.$count."\n";
             $rows = $query->execute();
             print 'Deleted '.$rows.' themes where theme_type == "derivative"'."\n";
 
-            // TODO - what to do about table themes?
 
-            // TODO - Ensure nothing is "default" or "shared" to begin with?  Or do the opposite and ensure everything is shared/default?
-/*
+            // ----------------------------------------
+            // Get a list of all table themes, even deleted ones
+            $em->getFilters()->disable('softdeleteable');
+
+            $query = $em->createQuery(
+               'SELECT t.id AS id
+                FROM ODRAdminBundle:Theme AS t
+                WHERE t.themeType = :theme_type'
+            )->setParameters( array('theme_type' => 'table') );
+            $results = $query->getArrayResult();
+
+            $table_theme_ids = array();
+            foreach ($results as $num => $theme)
+                $table_theme_ids[] = $theme['id'];
+
+
+            // Store the 'table' flag in the themeMeta entry...
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:ThemeMeta AS tm
-                SET tm.shared = 0, tm.isDefault = 0'
-            );
+                SET tm.isTableTheme = :is_table_theme
+                WHERE tm.theme IN (:theme_ids)'
+            )->setParameters( array('is_table_theme' => true, 'theme_ids' => $table_theme_ids) );
             $rows = $query->execute();
-            print 'All themes marked as not shared and not default'."\n";
-*/
+            print 'Updated "isTableTheme" property for '.$rows.' theme meta entries'."\n";
+
+
+            // Change all of these themes to be a 'search_results' theme instead
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:Theme AS t
+                SET t.themeType = :new_theme_type
+                WHERE t.themeType = :old_theme_type'
+            )->setParameters( array('old_theme_type' => 'table', 'new_theme_type' => 'search_results') );
+            $rows = $query->execute();
+            print 'Changed themeType property for '.$rows.' theme entries from "table" into "search_results"'."\n";
+
+            $em->getFilters()->enable('softdeleteable');
+
+
             print "\n";
 
             // ----------------------------------------
@@ -1759,10 +1787,6 @@ $ret .= '  Set current to '.$count."\n";
             foreach ($results as $num => $theme) {
                 $theme_id = $theme['id'];
                 $theme_type = $theme['themeType'];
-
-                // TODO - FIGURE OUT WHAT TO DO WITH TABLE THEMES, THIS IS A FILTHY HACK
-                if ($theme_type == 'table')
-                    $theme_type = 'search_results';
 
                 $parent_theme_id = -1;
                 if ( isset($theme['parentTheme']) && isset($theme['parentTheme']['id']) )
@@ -1917,10 +1941,6 @@ $ret .= '  Set current to '.$count."\n";
                             $em->persist($search_results_theme);
                     }
                 }
-
-
-                // ----------------------------------------
-                // TODO - Deal with table themes?
 
                 print "\n";
             }

@@ -69,6 +69,11 @@
                             </label>
                             <input type="checkbox" value="0" id="ODRThemeShowHidden" name="ODRThemeShowHidden">
                         </div>
+                        <div>
+                            <button id="ODRCheckSourceTheme" class="pure-button pure-button-active" rel="{{ theme.id }}">
+                                Sync with Source Theme
+                            </button>
+                        </div>
                     </div>
                     <div class="pure-u-1"></div>
                     <div class="pure-u-24-24"><h3 class="ODRHeader">Element Settings</h3></div>
@@ -220,6 +225,43 @@
 
                 LoadThemeElementForm(theme_element_id);
             });
+
+            $("#ODRCheckSourceTheme").unbind('click').click(function() {
+                var theme_id = $(this).attr('rel');
+
+                var url = '{{ path('odr_sync_source_theme', {'theme_id': 0}) }}';
+                url = url.substring(0, (url.length - 1));
+                url += theme_id;
+
+                $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: "json",
+                    success: function(data) {
+                        // Reload page
+                        if (data.d.changes_made == true)
+                            window.location.reload();
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Don't need to do anything specific on an error
+                    },
+                    complete: function(jqXHR) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+                    }
+                });
+            });
+
 
             // Setup resizable for all ThemeElements
             jQuery(".ODRThemeElement").each(function() {
