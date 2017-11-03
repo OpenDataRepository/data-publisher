@@ -351,7 +351,7 @@ class CloneDatatypeService
             // The datatypes are now ready for viewing since they have all their datafield, theme,
             //  datatree, and various permission entries
             foreach ($this->created_datatypes as $dt) {
-                $dt->setSetupStep(Datatype::STATE_INCOMPLETE);
+                $dt->setSetupStep('incomplete');
                 self::persistObject($dt);
             }
 

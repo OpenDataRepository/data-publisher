@@ -487,6 +487,7 @@ class DatatypeInfoService
 
             $formatted_datatype_data[$dt_id] = $dt_data;
         }
+
 /*
         if ($timing) {
             $t1 = microtime(true);

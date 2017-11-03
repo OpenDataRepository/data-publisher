@@ -29,6 +29,16 @@ use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
+
+use ODR\AdminBundle\Entity\DataFieldsMeta;
+use ODR\AdminBundle\Entity\DataRecordMeta;
+use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\FileMeta;
+use ODR\AdminBundle\Entity\ImageMeta;
+use ODR\AdminBundle\Entity\RadioOptionsMeta;
+use ODR\AdminBundle\Entity\RenderPlugin;
+use ODR\AdminBundle\Entity\ThemeElementMeta;
+use ODR\AdminBundle\Entity\ThemeMeta;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -796,17 +806,19 @@ $ret .= '  Set current to '.$count."\n";
                 $keys_to_delete[] = 'associated_datatypes_for_'.$dt_id;
             }
 
+            print '<pre>';
             foreach ($keys_to_delete as $key) {
                 if ($cache_service->exists($key) ) {
                     $cache_service->delete($key);
                     print '"'.$key.'" deleted'."\n";
                 }
             }
+            print '</pre>';
         }
         catch (\Exception $e) {
             $source = 0xaa016ab8;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -878,17 +890,19 @@ $ret .= '  Set current to '.$count."\n";
                 $keys_to_delete[] = 'cached_theme_'.$t_id;
             }
 
+            print '<pre>';
             foreach ($keys_to_delete as $key) {
                 if ($cache_service->exists($key) ) {
                     $cache_service->delete($key);
                     print '"'.$key.'" deleted'."\n";
                 }
             }
+            print '</pre>';
         }
         catch (\Exception $e) {
             $source = 0xe4e80e34;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -934,7 +948,9 @@ $ret .= '  Set current to '.$count."\n";
                 // Locate all existing datarecord ids
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr'
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
+                    WHERE dr.id = grandparent.id'
                 );
             }
             else {
@@ -947,26 +963,41 @@ $ret .= '  Set current to '.$count."\n";
             }
             $results = $query->getArrayResult();
 
-            $keys_to_delete = array();
+            print '<pre>';
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
 
-                $keys_to_delete[] = 'associated_datarecords_for_'.$dr_id;
-                $keys_to_delete[] = 'cached_datarecord_'.$dr_id;
-                $keys_to_delete[] = 'datarecord_table_data_'.$dr_id;
-            }
-
-            foreach ($keys_to_delete as $num => $key) {
-                if ($cache_service->exists($key) ) {
+                $key = 'associated_datarecords_for_'.$dr_id;
+                if ($cache_service->exists($key)) {
                     $cache_service->delete($key);
                     print '"'.$key.'" deleted'."\n";
                 }
             }
+            foreach ($results as $result) {
+                $dr_id = $result['dr_id'];
+
+                $key = 'cached_datarecord_'.$dr_id;
+                if ($cache_service->exists($key)) {
+                    $cache_service->delete($key);
+                    print '"'.$key.'" deleted'."\n";
+                }
+            }
+            foreach ($results as $result) {
+                $dr_id = $result['dr_id'];
+
+                $key = 'datarecord_table_data_'.$dr_id;
+                if ($cache_service->exists($key)) {
+                    $cache_service->delete($key);
+                    print '"'.$key.'" deleted'."\n";
+                }
+            }
+            print '</pre>';
+
         }
         catch (\Exception $e) {
             $source = 0xc178ea4b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1007,7 +1038,7 @@ $ret .= '  Set current to '.$count."\n";
         catch (\Exception $e) {
             $source = 0xcb3e7952;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1075,7 +1106,7 @@ $ret .= '  Set current to '.$count."\n";
         catch (\Exception $e) {
             $source = 0x2afc476b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1438,6 +1469,428 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
+     * Looks for and creates any missing meta entries
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function fixmissingmetaentriesAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        try {
+            // ----------------------------------------
+            // Load required objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
+            $repo_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin');
+            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_file = $em->getRepository('ODRAdminBundle:File');
+            $repo_image = $em->getRepository('ODRAdminBundle:Image');
+            $repo_radio_options = $em->getRepository('ODRAdminBundle:RadioOptions');
+            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
+
+            /** @var RenderPlugin $default_render_plugin */
+            $default_render_plugin = $repo_render_plugin->find(1);
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
+
+
+            // Load everything regardless of deleted status
+            $em->getFilters()->disable('softdeleteable');
+
+            // Going to run native SQL queries for this, doctrine doesn't do subqueries well
+            $conn = $em->getConnection();
+            print '<pre>';
+
+            // ----------------------------------------
+            // Datafields
+            $query =
+                'SELECT df.id AS df_id
+                 FROM odr_data_fields AS df
+                 WHERE df.id NOT IN (
+                     SELECT DISTINCT(dfm.data_field_id)
+                     FROM odr_data_fields_meta AS dfm
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_datafields = array();
+            foreach ($results as $result)
+                $missing_datafields[] = $result['df_id'];
+
+            print 'missing datafield meta entries: '."\n";
+            print_r($missing_datafields);
+
+            if ($save) {
+                foreach ($missing_datafields as $num => $df_id) {
+                    $df = $repo_datafield->find($df_id);
+
+                    $dfm = new DataFieldsMeta();
+                    $dfm->setDataField($df);
+                    $dfm->setFieldType( $repo_fieldtype->find(9) );     // shortvarchar
+                    $dfm->setRenderPlugin($default_render_plugin);
+
+                    $dfm->setMasterRevision(0);
+                    $dfm->setTrackingMasterRevision(0);
+                    $dfm->setMasterPublishedRevision(0);
+
+                    $dfm->setFieldName('New Field');
+                    $dfm->setDescription('Field description');
+                    $dfm->setXmlFieldName('');
+                    $dfm->setRegexValidator('');
+                    $dfm->setPhpValidator('');
+
+                    $dfm->setMarkdownText('');
+                    $dfm->setIsUnique(false);
+                    $dfm->setRequired(false);
+                    $dfm->setSearchable(0);
+                    $dfm->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
+
+                    $dfm->setChildrenPerRow(1);
+                    $dfm->setRadioOptionNameSort(0);
+                    $dfm->setRadioOptionDisplayUnselected(0);
+                    $dfm->setAllowMultipleUploads(0);
+                    $dfm->setShortenFilename(0);
+
+                    $dfm->setCreatedBy($user);
+                    $dfm->setUpdatedBy($user);
+
+                    $em->persist($dfm);
+                }
+            }
+
+
+            // ----------------------------------------
+            // Datarecords
+            $query =
+                'SELECT dr.id AS dr_id
+                 FROM odr_data_record AS dr
+                 WHERE dr.id NOT IN (
+                     SELECT DISTINCT(drm.data_record_id)
+                     FROM odr_data_record_meta AS drm
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_datarecords = array();
+            foreach ($results as $result)
+                $missing_datarecords[] = $result['dr_id'];
+
+            print 'missing datarecord meta entries: '."\n";
+            print_r($missing_datarecords);
+
+            if ($save) {
+                foreach ($missing_datarecords as $num => $dr_id) {
+                    $dr = $repo_datarecord->find($dr_id);
+
+                    $drm = new DataRecordMeta();
+                    $drm->setDataRecord($dr);
+                    $drm->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
+
+                    $drm->setCreatedBy($user);
+                    $drm->setUpdatedBy($user);
+
+                    $em->persist($drm);
+                }
+            }
+
+
+            // ----------------------------------------
+            // Datatree
+            $query =
+                'SELECT dt.id AS dt_id
+                 FROM odr_data_tree AS dt
+                 WHERE dt.id NOT IN (
+                     SELECT DISTINCT(dtm.data_tree_id)
+                     FROM odr_data_tree_meta AS dtm
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_datatrees = array();
+            foreach ($results as $result)
+                $missing_datatrees[] = $result['dt_id'];
+
+            print 'missing datatree meta entries:  **NO ACTION TAKEN**'."\n";
+            print_r($missing_datatrees);
+
+
+            // ----------------------------------------
+            // Datatypes
+            $query =
+                'SELECT dt.id AS dt_id
+                 FROM odr_data_type AS dt
+                 WHERE dt.id NOT IN (
+                     SELECT DISTINCT(dtm.data_type_id)
+                     FROM odr_data_type_meta AS dtm
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_datatypes = array();
+            foreach ($results as $result)
+                $missing_datatypes[] = $result['dt_id'];
+
+            print 'missing datatype meta entries: '."\n";
+            print_r($missing_datatypes);
+
+            if ($save) {
+                foreach ($missing_datatypes as $num => $dt_id) {
+                    $dt = $repo_datatype->find($dt_id);
+
+                    $dtm = new DataTypeMeta();
+                    $dtm->setDataType($dt);
+                    $dtm->setRenderPlugin($default_render_plugin);
+
+                    $dtm->setSearchSlug($dt_id);
+                    $dtm->setShortName("New Datatype");
+                    $dtm->setLongName("New Datatype");
+                    $dtm->setDescription("New DataType Description");
+                    $dtm->setXmlShortName('');
+
+                    $dtm->setUseShortResults(true);
+                    $dtm->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+
+                    $dtm->setExternalIdField(null);
+                    $dtm->setNameField(null);
+                    $dtm->setSortField(null);
+                    $dtm->setBackgroundImageField(null);
+
+                    $dtm->setMasterPublishedRevision(0);
+                    $dtm->setMasterRevision(0);
+                    $dtm->setTrackingMasterRevision(0);
+
+                    $dtm->setCreatedBy($user);
+                    $dtm->setUpdatedBy($user);
+
+                    $em->persist($dtm);
+                }
+            }
+
+
+            // ----------------------------------------
+            // Files
+            $query =
+                'SELECT f.id AS f_id
+                 FROM odr_file AS f
+                 WHERE f.id NOT IN (
+                     SELECT DISTINCT(fm.file_id)
+                     FROM odr_file_meta AS fm
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_files = array();
+            foreach ($results as $result)
+                $missing_files[] = $result['f_id'];
+
+            print 'missing file meta entries: '."\n";
+            print_r($missing_files);
+
+            if ($save) {
+                foreach ($missing_files as $num => $f_id) {
+                    $file = $repo_file->find($f_id);
+
+                    $fm = new FileMeta();
+                    $fm->setFile($file);
+                    $fm->setOriginalFileName('file_name');
+                    $fm->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+
+                    $fm->setCreatedBy($user);
+                    $fm->setUpdatedBy($user);
+
+                    $em->persist($fm);
+                }
+            }
+
+
+            // ----------------------------------------
+            // Images
+            $query =
+                'SELECT i.id AS i_id
+                 FROM odr_image AS i
+                 WHERE i.id NOT IN (
+                     SELECT DISTINCT(im.image_id)
+                     FROM odr_image_meta AS im
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_images = array();
+            foreach ($results as $result)
+                $missing_images[] = $result['i_id'];
+
+            print 'missing image meta entries: '."\n";
+            print_r($missing_images);
+
+            if ($save) {
+                foreach ($missing_images as $num => $i_id) {
+                    $image = $repo_image->find($i_id);
+
+                    $im = new ImageMeta();
+                    $im->setImage($image);
+                    $im->setDisplayorder(0);
+                    $im->setOriginalFileName('image name');
+                    $im->setCaption('image caption');
+                    $im->setExternalId('');
+                    $im->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+
+                    $im->setCreatedBy($user);
+                    $im->setUpdatedBy($user);
+
+                    $em->persist($im);
+                }
+            }
+
+
+            // ----------------------------------------
+            // RadioOptions
+            $query =
+                'SELECT ro.id AS ro_id
+                 FROM odr_radio_options AS ro
+                 WHERE ro.id NOT IN (
+                     SELECT DISTINCT(rom.radio_option_id)
+                     FROM odr_radio_options_meta AS rom
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_radio_options = array();
+            foreach ($results as $result)
+                $missing_radio_options[] = $result['ro_id'];
+
+            print 'missing radio option meta entries: '."\n";
+            print_r($missing_radio_options);
+
+            if ($save) {
+                foreach ($missing_radio_options as $num => $ro_id) {
+                    $ro = $repo_radio_options->find($ro_id);
+
+                    $rom = new RadioOptionsMeta();
+                    $rom->setRadioOption($ro);
+                    $rom->setOptionName('Option Name');
+                    $rom->setXmlOptionName('');
+                    $rom->setDisplayOrder(0);
+                    $rom->setIsDefault(false);
+
+                    $rom->setCreatedBy($user);
+                    $rom->setUpdatedBy($user);
+
+                    $em->persist($rom);
+                }
+            }
+
+
+            // ----------------------------------------
+            // Themes
+            $query =
+                'SELECT t.id AS t_id
+                 FROM odr_theme AS t
+                 WHERE t.id NOT IN (
+                     SELECT DISTINCT(tm.theme_id)
+                     FROM odr_theme_meta AS tm
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_themes = array();
+            foreach ($results as $result)
+                $missing_themes[] = $result['t_id'];
+
+            print 'missing theme meta entries: '."\n";
+            print_r($missing_themes);
+
+            if ($save) {
+                foreach ($missing_themes as $num => $t_id) {
+                    $theme = $repo_theme->find($t_id);
+
+                    $tm = new ThemeMeta();
+                    $tm->setTheme($theme);
+                    $tm->setTemplateName('');
+                    $tm->setTemplateDescription('');
+                    $tm->setIsDefault(false);
+                    $tm->setDisplayOrder(0);
+                    $tm->setShared(false);
+                    $tm->setIsTableTheme(false);
+
+                    $tm->setCreatedBy($user);
+                    $tm->setUpdatedBy($user);
+
+                    $em->persist($tm);
+                }
+            }
+
+
+            // ----------------------------------------
+            // ThemeElements
+            $query =
+                'SELECT te.id AS te_id
+                 FROM odr_theme_element AS te
+                 WHERE te.id NOT IN (
+                     SELECT DISTINCT(tem.theme_element_id)
+                     FROM odr_theme_element_meta AS tem
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_theme_elements = array();
+            foreach ($results as $result)
+                $missing_theme_elements[] = $result['te_id'];
+
+            print 'missing theme element meta entries: '."\n";
+            print_r($missing_theme_elements);
+
+            if ($save) {
+                foreach ($missing_theme_elements as $num => $te_id) {
+                    $te = $repo_theme_element->find($te_id);
+
+                    $tem = new ThemeElementMeta();
+                    $tem->setThemeElement($te);
+                    $tem->setDisplayOrder(999);
+                    $tem->setCssWidthMed('1-1');
+                    $tem->setCssWidthXL('1-1');
+                    $tem->setHidden(0);
+
+                    $tem->setCreatedBy($user);
+                    $tem->setUpdatedBy($user);
+
+                    $em->persist($tem);
+                }
+            }
+
+            // ----------------------------------------
+            if ($save)
+                $em->flush();
+
+            print '</pre>';
+            // Turn the deleted filter back on
+            $em->getFilters()->enable('softdeleteable');
+        }
+        catch (\Exception $e) {
+            $em->getFilters()->enable('softdeleteable');
+
+            $source = 0xabcdef00;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Migration function, fills in parent/grandparent property of the datatype.
      *
      * @param Request $request
@@ -1475,6 +1928,15 @@ $ret .= '  Set current to '.$count."\n";
 
             // Load all datatypes, deleted or not
             $em->getFilters()->disable('softdeleteable');
+
+            // Force all datatypes into a state of "incomplete"
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataType AS dt
+                SET dt.setup_step = :setup_step'
+            )->setParameters( array('setup_step' => 'incomplete') );
+            $rows = $query->execute();
+
+            print 'Updated '.$rows.' to have the "incomplete" setup step'."\n";
 
             $query = $em->createQuery(
                'SELECT dt.id, dt.deletedAt
@@ -1642,7 +2104,7 @@ $ret .= '  Set current to '.$count."\n";
 
             $source = 0xabcdef00;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1976,7 +2438,7 @@ $ret .= '  Set current to '.$count."\n";
 
             $source = 0xabcdef11;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
