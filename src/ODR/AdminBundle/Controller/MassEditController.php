@@ -44,6 +44,7 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -805,8 +806,10 @@ return;
             $repo_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions');
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
-            /** @var CacheService $cache_service*/
+            /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
 
@@ -920,7 +923,7 @@ return;
                                     parent::ODR_copyFileMeta($em, $user, $file, $properties);
 
                                     // Delete the decrypted version of the file, if it exists
-                                    $file_upload_path = dirname(__FILE__).'/../../../../web/uploads/files/';
+                                    $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
                                     $filename = 'File_'.$file->getId().'.'.$file->getExt();
                                     $absolute_path = realpath($file_upload_path).'/'.$filename;
 
@@ -934,8 +937,9 @@ return;
                                     $properties = array('publicDate' => new \DateTime());
                                     parent::ODR_copyFileMeta($em, $user, $file, $properties);
 
-                                    // Immediately decrypt the file
-                                    parent::decryptObject($file->getId(), 'file');
+                                    // Immediately decrypt the file...don't need to specify a
+                                    //  filename because the file is guaranteed to be public
+                                    $crypto_service->decryptFile($file->getId());
 
                                     $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
                                 }
@@ -965,7 +969,7 @@ return;
                                     parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
                                     // Delete the decrypted version of the file, if it exists
-                                    $image_upload_path = dirname(__FILE__).'/../../../../web/uploads/images/';
+                                    $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
                                     $filename = 'Image_'.$image->getId().'.'.$image->getExt();
                                     $absolute_path = realpath($image_upload_path).'/'.$filename;
 
@@ -979,8 +983,9 @@ return;
                                     $properties = array('publicDate' => new \DateTime());
                                     parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
-                                    // Immediately decrypt the image
-                                    parent::decryptObject($image->getId(), 'image');
+                                    // Immediately decrypt the image...don't need to specify a
+                                    //  filename because the image is guaranteed to be public
+                                    $crypto_service->decryptImage($image->getId());
 
                                     $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
                                 }

@@ -59,7 +59,10 @@ services:
     odr.crypto_service:
         class: ODR\AdminBundle\Component\Service\CryptoService
         arguments:
-            container: "@service_container"
+            cache_service: "@odr.cache_service"
+            crypto_adapter: "@dterranova_crypto.crypto_adapter"
+            crypto_dir: "%dterranova_crypto.temp_folder%"
+            odr_web_dir: "%odr_web_directory%"
             entity_manager: "@doctrine.orm.entity_manager"
             logger: "@logger"
 

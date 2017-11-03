@@ -154,7 +154,6 @@ class GraphController extends ODRCustomController
 
 
             // Render the static graph
-            // TODO - FIX THIS - doesn't work because apparently files are unable to be downloaded
             $filename = $svc->execute($datarecord_array, $datatype, $render_plugin, $theme_array, $rendering_options);
             return $this->redirect("/uploads/files/graphs/" . $filename);
         }

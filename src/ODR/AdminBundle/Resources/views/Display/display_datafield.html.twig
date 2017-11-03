@@ -103,7 +103,7 @@
                                     </div>
                                 </span>
                             </span>
-                            <a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="ODRFileDownload" title="{{ filename }}" rel="{{ file.id }}">{{ filename }}</a>
+                            <a {#href="{{ path('odr_file_download', { 'file_id': file.id } ) }}"#} class="ODRFileDownload" title="{{ filename }}" rel="{{ file.id }}">{{ filename }}</a>
                         </span>
 
                         <span id="ODRFileDecrypt_{{ file.id }}_overlay" class="ODRFakeProgressBar_overlay" {% if file.original_checksum != '' %}style="visibility:hidden;"{% endif %}>

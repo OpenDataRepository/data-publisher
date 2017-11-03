@@ -54,6 +54,7 @@ use ODR\AdminBundle\Form\MediumVarcharForm;
 use ODR\AdminBundle\Form\ShortVarcharForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -683,7 +684,7 @@ class EditController extends ODRCustomController
 
 
             // Delete the decrypted version of this file from the server, if it exists
-            $file_upload_path = dirname(__FILE__).'/../../../../web/uploads/files/';
+            $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
             $filename = 'File_'.$file_id.'.'.$file->getExt();
             $absolute_path = realpath($file_upload_path).'/'.$filename;
 
@@ -799,7 +800,7 @@ class EditController extends ODRCustomController
                 parent::ODR_copyFileMeta($em, $user, $file, $properties);
 
                 // Delete the decrypted version of the file, if it exists
-                $file_upload_path = dirname(__FILE__).'/../../../../web/uploads/files/';
+                $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
                 $filename = 'File_'.$file_id.'.'.$file->getExt();
                 $absolute_path = realpath($file_upload_path).'/'.$filename;
 
@@ -927,8 +928,8 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -985,7 +986,7 @@ class EditController extends ODRCustomController
 
                 // Delete the decrypted version of the image and all of its children, if any of them exist
                 foreach ($all_images as $img) {
-                    $image_upload_path = dirname(__FILE__).'/../../../../web/uploads/images/';
+                    $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
                     $filename = 'Image_'.$img->getId().'.'.$img->getExt();
                     $absolute_path = realpath($image_upload_path).'/'.$filename;
 
@@ -1000,9 +1001,10 @@ class EditController extends ODRCustomController
                 $properties = array('publicDate' => $public_date);
                 parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
-                // Immediately decrypt the image and all of its children
+                // Immediately decrypt the image and all of its children...don't need to specify
+                //  a filename because the images are guaranteed to be public
                 foreach ($all_images as $img)
-                    parent::decryptObject($img->getId(), 'image');
+                    $crypto_service->decryptImage($img->getId());
             }
 
 
@@ -1102,7 +1104,7 @@ class EditController extends ODRCustomController
             $images = $repo_image->findBy( array('parent' => $image->getId()) );
             foreach ($images as $img) {
                 // Ensure no decrypted version of any of the thumbnails exist on the server
-                $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
+                $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
                 if ( file_exists($local_filepath) )
                     unlink($local_filepath);
 
@@ -1111,7 +1113,7 @@ class EditController extends ODRCustomController
             }
 
             // Ensure no decrypted version of the original image exists on the server
-            $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$image->getId().'.'.$image->getExt();
+            $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$image->getId().'.'.$image->getExt();
             if ( file_exists($local_filepath) )
                 unlink($local_filepath);
 
@@ -1174,6 +1176,8 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -1220,17 +1224,18 @@ class EditController extends ODRCustomController
 
             // TODO - duration in which image can be rotated without creating new entry?
             // TODO - change to use parent::createNewMetaEntry() ?
-            // If the image has existed on the server for less than 30 minutes
+            // Replace existing image if it has existed on the server for less than 30 minutes
             $replace_existing = false;
             if ($interval->days == 0 && $interval->h == 0 && $interval->i <= 30)
                 $replace_existing = true;
 
 
             // ----------------------------------------
-            // Image is going to be rotated, so clear the original checksum for the original image and its thumbnails
-            $image_path = parent::decryptObject($image_id, 'image');
+            // Image is going to be rotated, so its contents will change...clear the original
+            //  checksum for the original image and its thumbnails
+            $image_path = $crypto_service->decryptImage($image_id);
             if ($replace_existing) {
-                $image->setOriginalChecksum('');    // checksum of the image will be replaced after rotation
+                $image->setOriginalChecksum('');    // checksum will be updated after rotation
                 $em->persist($image);
             }
 
@@ -1238,12 +1243,12 @@ class EditController extends ODRCustomController
             $images = $repo_image->findBy( array('parent' => $image->getId()) );
             foreach ($images as $img) {
                 // Ensure no decrypted version of any of the thumbnails exist on the server
-                $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
+                $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
                 if ( file_exists($local_filepath) )
                     unlink($local_filepath);
 
                 if ($replace_existing) {
-                    $img->setOriginalChecksum('');    // checksum of the thumbnail will be replaced after rotation
+                    $img->setOriginalChecksum('');    // checksum will be replaced after rotation
                     $em->persist($img);
                 }
             }
@@ -1257,8 +1262,10 @@ class EditController extends ODRCustomController
             $dest_path = $image_path;
             if (!$replace_existing) {
                 // ...otherwise, determine the path to the user's upload folder
-                // The image rotation function will save the rotated image there so it can be "uploaded again"...this is the easiest way to ensure everything neccessary exists
-                $dest_path = dirname(__FILE__).'/../../../../web/uploads/files';
+
+                // The image rotation function will save the rotated image there so it can be
+                //  "uploaded again"...this is the easiest way to ensure everything neccessary exists
+                $dest_path = $this->getParameter('odr_web_directory').'/uploads/files';
                 if ( !file_exists($dest_path) )
                     mkdir( $dest_path );
                 $dest_path .= '/chunks';
@@ -1274,7 +1281,8 @@ class EditController extends ODRCustomController
                 $dest_path.= '/'.$image->getOriginalFileName();
             }
 
-            // Rotate and save image back to server...apparently positive degrees mean counter-clockwise rotation with imagerotate()
+            // Rotate and save image back to server...apparently a positive number means
+            //  counter-clockwise rotation with imagerotate()
             $degrees = 90;
             if ($direction == 1)
                 $degrees = -90;
@@ -1314,7 +1322,7 @@ class EditController extends ODRCustomController
                 self::encryptObject($image_id, 'image');
 
                 // Set original checksum for original image
-                $filepath = self::decryptObject($image_id, 'image');
+                $filepath = $crypto_service->decryptImage($image_id);
                 $original_checksum = md5_file($filepath);
                 $image->setOriginalChecksum($original_checksum);
 
@@ -1345,7 +1353,7 @@ class EditController extends ODRCustomController
 
 
                 // Ensure no decrypted version of the original image exists on the server
-                $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$image->getId().'.'.$image->getExt();
+                $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$image->getId().'.'.$image->getExt();
                 if ( file_exists($local_filepath) )
                     unlink($local_filepath);
 

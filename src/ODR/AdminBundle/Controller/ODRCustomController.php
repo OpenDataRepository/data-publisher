@@ -871,6 +871,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated
+     *
      * Utility function that does the work of decrypting a given File/Image entity.
      * Note that the filename of the decrypted file/image is determined solely by $object_id and $object_type because of constraints in the $crypto->decryptFile() function
      *

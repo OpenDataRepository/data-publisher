@@ -725,14 +725,6 @@ odr_display_view:
         search_key: '[^\/]*'
         offset: \d+
 
-odr_display_reload_datafield:
-    path: /view/datafieldreload/{datarecord_id}/{datafield_id}/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Display:reloaddatafield }
-    requirements:
-        datarecord_id: \d+
-        datafield_id: \d+
-        theme_id: \d+
-
 odr_file_download_start:
     path:  /view/downloadfilestart/{file_id}
     defaults: { _controller: ODRAdminBundle:Display:filedownloadstart }

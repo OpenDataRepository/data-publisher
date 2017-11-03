@@ -5,12 +5,9 @@
     var encrypt_check_timeout = 1500;
 
     var pending_file_decryptions = {};
-    function handleFileDownload(event, file_id, href, short_form, can_cancel) {
+    function handleFileDownload(event, file_id, can_cancel) {
         // Prevent a normal file download
         event.preventDefault();
-        // If using ShortResults, this click will trigger a load of the datarecord this file belongs to...prevent that
-        if (short_form)
-            event.stopImmediatePropagation();
 
         // Don't start a new download if one is already in progress
         if ( pending_file_decryptions[file_id] != null || pending_file_decryptions[file_id] != undefined || file_decrypt_timeouts[file_id] != null || file_decrypt_timeouts[file_id] != undefined) {

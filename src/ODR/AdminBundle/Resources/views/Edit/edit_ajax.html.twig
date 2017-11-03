@@ -89,12 +89,8 @@ function initPage() {
     $("a.ODRFileDownload").unbind('click').click(function(event) {
         // Grab necessary attributes
         var file_id = $(this).attr('rel');
-        var href = $(this).attr('href');
 
-        var short_form = false;
-//        var can_cancel = true;
-        var can_cancel = false;
-        handleFileDownload(event, file_id, href, short_form, can_cancel);    // defined in Default::file_handling.html.twig
+        handleFileDownload(event, file_id);    // defined in Default::file_handling.html.twig
     });
 
     $(".ODRDownloadAllFiles").unbind('click').click(function() {

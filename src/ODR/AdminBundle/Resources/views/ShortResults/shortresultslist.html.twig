@@ -121,54 +121,8 @@
         });
 {% endif %}
     });
-{#
-    function ReloadDatafield(datarecord_id, datafield_id) {
 
-        var datafield_div = $("#Field_" + datarecord_id + "_" + datafield_id);
-        var theme_id = $(datafield_div).attr('rel');
 
-        var url = '{{ path('odr_display_reload_datafield', { 'datarecord_id': 0, 'datafield_id': 0, 'theme_id': 0 }) }}';
-        url = url.substring(0, (url.length - 5));
-        url += datarecord_id + '/' + datafield_id + '/' + theme_id;
-
-//alert( url );
-//return;
-
-        $(datafield_div).children('form').each(function () {
-            $(this).fadeOut();
-            $(this).remove();
-        });
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function (data, textStatus, jqXHR) {
-                if (data.r == 0) {
-                    $(datafield_div).append(data.d.html);
-                    initPage();
-                }
-                else {
-                    alert(data.d);
-                }
-            },
-            complete: function (jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
-                }
-            }
-        });
-    }
-#}
     function ShortResults_initPage(prevent_scroll) {
         // Resize all elements dependent on window size
         $(window).unbind('resize').resize(function() {
@@ -190,12 +144,8 @@
         $("a.ODRFileDownload").unbind('click').click(function(event) {
             // Grab necessary attributes
             var file_id = $(this).attr('rel');
-            var href = $(this).attr('href');
 
-            // Prevent the click handler for <tr> elements from firing if a file download href is clicked
-            var short_form = true;
-            var can_cancel = true;
-            handleFileDownload(event, file_id, href, short_form, can_cancel);    // defined in Default::file_handling.html.twig
+            handleFileDownload(event, file_id);    // defined in Default::file_handling.html.twig
         });
 
 {#

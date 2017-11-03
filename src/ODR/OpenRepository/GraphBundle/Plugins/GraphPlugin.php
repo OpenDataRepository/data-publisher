@@ -10,18 +10,18 @@
  * The graph plugin plots a line graph out of data files uploaded
  * to a File DataField, and labels them using a "legend" field
  * selected when the graph plugin is created...
- *
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
-
-// Other
-use Ramsey\Uuid\Uuid;
+// Services
+use ODR\AdminBundle\Component\Service\CryptoService;
 // Symfony
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\DependencyInjection\ContainerInterface as Container;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+// Other
+use Ramsey\Uuid\Uuid;
 
 
 class GraphPlugin
@@ -236,7 +236,7 @@ class GraphPlugin
             );
 
 
-            if(isset($rendering_options['build_graph'])) {
+            if (isset($rendering_options['build_graph'])) {
 
                 // Determine file name
                 $graph_filename = "";
@@ -254,24 +254,30 @@ class GraphPlugin
                 }
 
                 // We need to know if this is a rollup or direct record request here...
-                if (file_exists(dirname(__FILE__).'/../../../../../web/uploads/files/graphs/'.$graph_filename)) {
+                if (file_exists($this->container->getParameter('odr_web_directory').'/uploads/files/graphs/'.$graph_filename)) {
                     /* Pre-rendered graph file exists, do nothing */
                     return $graph_filename;
                 }
                 else {
                     // In this case, we should be building a single graph (either rollup or individual datarecord)
+                    /** @var CryptoService $crypto_service */
                     $crypto_service = $this->container->get('odr.crypto_service');
 
                     $files_to_delete = array();
-                    if(isset($options['use_rollup']) && $options['use_rollup'] == "yes") {
-                        // Decrypt any non-public files (if needed - filter by target datarecord if not rollup)
+                    if (isset($options['use_rollup']) && $options['use_rollup'] == "yes") {
+                        // For each of the files that will be used in the graph...
                         foreach ($odr_chart_files as $dr_id => $file) {
-                            $public_date = new \DateTime($file['fileMeta']['publicDate']->date);
-                            $now = new \DateTime();
-                            if ($now < $public_date) {
-                                // File is encrypted and must be decrypted temporarily to graph.
-                                $file_path = $crypto_service->decryptObject($file['id'], 'file');
-                                array_push($files_to_delete, $file_path);
+                            // ...ensure that it exists
+                            $filepath = $this->container->getParameter('odr_web_directory').'/'.$file['localFileName'];
+                            if ( !file_exists($filepath) ) {
+                                // File does not exist, decrypt it
+                                $file_path = $crypto_service->decryptFile($file['id']);
+
+                                // If file is not public, make sure it gets deleted later
+                                $public_date = $file['fileMeta']['publicDate'];
+                                $now = new \DateTime();
+                                if ($now < $public_date)
+                                    array_push($files_to_delete, $file_path);
                             }
                         }
 
@@ -282,26 +288,29 @@ class GraphPlugin
                         // Only a single file will be needed.  Check if it needs to be decrypted.
                         $dr_id = $rendering_options['datarecord_id'];
                         $file = $odr_chart_files[$dr_id];
-                        $public_date = new \DateTime($file['fileMeta']['publicDate']->date);
-                        $now = new \DateTime();
-                        if ($now < $public_date) {
-                            // File is encrypted and must be decrypted temporarily to graph.
-                            $file_path = $crypto_service->decryptObject($file['id'], 'file');
-                            array_push($files_to_delete, $file_path);
+
+                        $filepath = $this->container->getParameter('odr_web_directory').'/'.$file['localFileName'];
+                        if ( !file_exists($filepath) ) {
+                            // File does not exist, decrypt it
+                            $file_path = $crypto_service->decryptFile($file['id']);
+
+                            // If file is not public, make sure it gets deleted later
+                            $public_date = $file['fileMeta']['publicDate'];
+                            $now = new \DateTime();
+                            if ($now < $public_date)
+                                array_push($files_to_delete, $file_path);
                         }
 
                         // Set the chart id
                         $page_data['odr_chart_id'] = $odr_chart_ids[$dr_id];
                     }
 
-
                     // Pre-rendered graph file does not exist...need to create it
                     $output_filename = self::buildGraph($page_data, $filename);
 
                     // Delete previously encrypted non-public files
-                    foreach($files_to_delete as $file_path) {
+                    foreach ($files_to_delete as $file_path)
                         unlink($file_path);
-                    }
 
                     // File has been created.  Now can return it.
                     return $output_filename;
@@ -343,7 +352,7 @@ class GraphPlugin
         $file_id_list = implode('_', $page_data['odr_chart_file_ids']);
 
         // Path to writeable files in web folder
-        $files_path = dirname(__FILE__) . "/../../../../../web/uploads/files/";
+        $files_path = $this->container->getParameter('odr_web_directory').'/uploads/files/';
 
         $fs = new \Symfony\Component\Filesystem\Filesystem();
 

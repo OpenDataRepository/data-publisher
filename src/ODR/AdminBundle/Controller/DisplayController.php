@@ -26,7 +26,6 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\File;
-use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -36,6 +35,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -45,6 +45,7 @@ use Doctrine\ORM\EntityManager;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -291,163 +292,6 @@ class DisplayController extends ODRCustomController
 
 
     /**
-     * Given a datarecord and datafield, re-render and return the html for that datafield.
-     * TODO - I believe the old version of file handling was the only thing that used this...
-     * @deprecated
-     *
-     * @param integer $datarecord_id
-     * @param integer $datafield_id
-     * @param integer $theme_id
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function reloaddatafieldAction($datarecord_id, $datafield_id, $theme_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = 'html';
-        $return['d'] = '';
-
-        try {
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
-
-            /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if ($datarecord == null)
-                throw new ODRNotFoundException('Datarecord');
-
-            /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-            if ($datafield == null)
-                throw new ODRNotFoundException('Datafield');
-            $datatype = $datafield->getDataType();
-            if ($datatype->getDeletedAt() != null)
-                throw new ODRNotFoundException('Datatype');
-
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
-
-
-            // Save incase the user originally requested a re-render of a datafield from a child datarecord
-            $original_datarecord = $datarecord;
-            $original_datatype = $datatype;
-
-            // ...want the grandparent datarecord and datatype for everything else, however
-            if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() ) {
-                $datarecord = $datarecord->getGrandparent();
-                if ($datarecord->getDeletedAt() != null)
-                    throw new ODRNotFoundException('Datarecord');
-
-                $datatype = $datarecord->getDataType();
-                if ($datatype->getDeletedAt() != null)
-                    throw new ODRNotFoundException('Datatype');
-            }
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = array();
-            $datarecord_restriction = '';
-
-            if ( $user === 'anon.' ) {
-                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() ) {
-                    /* anonymous users aren't restricted from a public datafield in a public datarecord that belongs to a public datatype */
-                }
-                else {
-                    // ...if any of the relevant entities are non-public, return false
-                    throw new ODRForbiddenException();
-                }
-            }
-            else {
-                // Grab user's permissions
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-//                $datarecord_restriction = $user_permissions['datarecord_restriction'];      // TODO
-
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                $can_view_datafield = false;
-                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                    $can_view_datafield = true;
-
-                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !($original_datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
-                    throw new ODRForbiddenException();
-            }
-            // --------------------
-
-
-            // ----------------------------------------
-            // Get all Datarecords and Datatypes that are associated with the datarecord to render
-            $datarecord_array = $dri_service->getDatarecordArray($datarecord->getId());
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getId());
-
-            // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-            // Don't need to stack these two arrays, it'll just make finding the datafield harder
-
-            // Extract datafield and theme_datafield from datatype_array
-            $datafield = null;
-            if ( isset($datatype_array['dataFields']) && isset($datatype_array['dataFields'][$datafield_id]) )
-                $datafield = $datatype_array['dataFields'][$datafield_id];
-
-            if ( $datafield == null )
-                throw new ODRException('Unable to locate array entry for datafield '.$datafield_id);
-
-
-            // ----------------------------------------
-            // Render and return the HTML for this datafield
-            $templating = $this->get('templating');
-            $html = $templating->render(
-                'ODRAdminBundle:Display:display_datafield.html.twig',
-                array(
-                    'datarecord' => $datarecord_array[ $original_datarecord->getId() ],
-                    'datafield' => $datafield,
-
-                    'image_thumbnails_only' => false,
-                )
-            );
-
-            $return['d'] = array('html' => $html);
-        }
-        catch (\Exception $e) {
-            $source = 0xb667f28f;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
      * Starts the process of downloading a file from the server.
      *
      * @param integer $file_id The database id of the file to download.
@@ -518,6 +362,7 @@ class DisplayController extends ODRCustomController
             $url .= $router->generate('odr_crypto_request');
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
+
             $file_decryptions = $cache_service->get('file_decryptions');
 
 
@@ -525,7 +370,7 @@ class DisplayController extends ODRCustomController
             // Slightly different courses of action depending on the public status of the file
             if ( $file->isPublic() ) {
                 // Check that the file exists...
-                $local_filepath = realpath( dirname(__FILE__).'/../../../../web/'.$file->getLocalFileName() );
+                $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getLocalFileName() );
                 if (!$local_filepath) {
                     // File does not exist for some reason...see if it's getting decrypted right now
                     $target_filename = 'File_'.$file_id.'.'.$file->getExt();
@@ -569,7 +414,7 @@ class DisplayController extends ODRCustomController
                         $download_url = $this->generateUrl('odr_file_download', array('file_id' => $file_id));
 
                         // Return a link to the download URL
-                        $response = new Response();
+                        $response = new JsonResponse(array());
                         $response->setStatusCode(200);
                         $response->headers->set('Location', $download_url);
 
@@ -620,7 +465,7 @@ class DisplayController extends ODRCustomController
             // Return a URL to monitor decryption progress
             $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', array('file_id' => $file_id));
 
-            $response = new Response();
+            $response = new JsonResponse(array());
             $response->setStatusCode(202);
             $response->headers->set('Location', $monitor_url);
 
@@ -657,6 +502,8 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -687,8 +534,7 @@ class DisplayController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if (!$pm_service->canViewDatatype($user, $datatype)
-                || !$pm_service->canViewDatarecord($user, $datarecord)
+            if (!$pm_service->canViewDatarecord($user, $datarecord)
                 || !$pm_service->canViewDatafield($user, $datafield)
             ) {
                 throw new ODRForbiddenException();
@@ -702,7 +548,7 @@ class DisplayController extends ODRCustomController
             if ( !$file->isPublic() )
                 $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
 
-            $local_filepath = realpath( dirname(__FILE__).'/../../../../web/'.$file->getUploadDir().'/'.$filename );
+            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
             if (!$local_filepath)
                 throw new FileNotFoundException($local_filepath);
 
@@ -910,6 +756,8 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -940,19 +788,22 @@ class DisplayController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if (!$pm_service->canViewDatatype($user, $datatype)
-                || !$pm_service->canViewDatarecord($user, $datarecord)
+            if (!$pm_service->canViewDatarecord($user, $datarecord)
                 || !$pm_service->canViewDatafield($user, $datafield)
             ) {
                 throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
+            // Ensure file exists before attempting to download it
+            $filename = 'Image_'.$image_id.'.'.$image->getExt();
+            if ( !$image->isPublic() )
+                $filename = md5($image->getOriginalChecksum().'_'.$image_id.'_'.$user->getId()).'.'.$image->getExt();
 
             // Ensure the image exists in decrypted format
-            $image_path = realpath( dirname(__FILE__).'/../../../../web/'.$image->getLocalFileName() );     // realpath() returns false if file does not exist
+            $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
             if ( !$image->isPublic() || !$image_path )
-                $image_path = parent::decryptObject($image->getId(), 'image');
+                $image_path = $crypto_service->decryptImage($image_id, $filename);
 
             $handle = fopen($image_path, 'r');
             if ($handle === false)
@@ -1423,7 +1274,7 @@ exit();
                 $random_id = substr($tokenGenerator->generateToken(), 0, 12);
 
                 $archive_filename = $random_id.'.zip';
-                $archive_filepath = dirname(__FILE__).'/../../../../web/uploads/files/'.$archive_filename;
+                $archive_filepath = $this->getParameter('odr_web_directory').'/uploads/files/'.$archive_filename;
 
                 $archive_size = count($file_list) + count($image_list);
 
@@ -1504,7 +1355,7 @@ exit();
             if ($archive_filename == '0')
                 throw new ODRBadRequestException();
 
-            $archive_filepath = dirname(__FILE__).'/../../../../web/uploads/files/'.$archive_filename;
+            $archive_filepath = $this->getParameter('odr_web_directory').'/uploads/files/'.$archive_filename;
             if ( !file_exists($archive_filepath) )
                 throw new FileNotFoundException($archive_filename);
 

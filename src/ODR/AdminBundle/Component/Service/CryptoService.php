@@ -1,238 +1,260 @@
 <?php
 
+/**
+ * Open Data Repository Data Publisher
+ * Crypto Service
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * Contains the functions to encrypt/decrypt files and images.
+ */
+
 namespace ODR\AdminBundle\Component\Service;
 
+// Entities
 use ODR\AdminBundle\Entity\File;
-use ODR\AdminBundle\Entity\FileChecksum;
 use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\ImageChecksum;
-
-// use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
-use Symfony\Component\DependencyInjection\ContainerInterface as Container;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+// Other
 use Doctrine\ORM\EntityManager;
+use dterranova\Bundle\CryptoBundle\Crypto\CryptoAdapter;
+use Symfony\Bridge\Monolog\Logger;
 
 
-/**
- * Created by PhpStorm.
- * User: nate
- * Date: 10/14/16
- * Time: 11:59 AM
- */
 class CryptoService
 {
 
+    /**
+     * @var CacheService
+     */
+    private $cache_service;
 
     /**
-     * @var mixed
+     * @var CryptoAdapter
+     */
+    private $crypto_adapter;
+
+    /**
+     * @var string
+     */
+    private $crypto_dir;
+
+    /**
+     * @var string
+     */
+    private $odr_web_dir;
+
+    /**
+     * @var EntityManager
+     */
+    private $em;
+
+    /**
+     * @var Logger
      */
     private $logger;
 
 
     /**
-     * @var mixed
+     * CryptoService constructor.
+     *
+     * @param CacheService $cache_service
+     * @param CryptoAdapter $crypto_adapter
+     * @param string $crypto_dir
+     * @param string $odr_web_dir
+     * @param EntityManager $entity_manager
+     * @param Logger $logger
      */
-    private $container;
-
-    public function __construct(Container $container, EntityManager $entity_manager, $logger) {
-        $this->container = $container;
+    public function __construct(
+        CacheService $cache_service,
+        CryptoAdapter $crypto_adapter,
+        $crypto_dir,
+        $odr_web_dir,
+        EntityManager $entity_manager,
+        Logger $logger
+    ) {
+        $this->cache_service = $cache_service;
+        $this->crypto_adapter = $crypto_adapter;
+        $this->crypto_dir = realpath($crypto_dir);
+        $this->odr_web_dir = realpath($odr_web_dir);
         $this->em = $entity_manager;
         $this->logger = $logger;
     }
 
 
+    /**
+     * Wrapper function to set up decryption of a specific File.  If this File is not public, then
+     * whatever is calling this function needs to delete the decrypted version of this File off the
+     * server when it's finished with the File.
+     *
+     * @param int $file_id
+     * @param string $target_filename
+     *
+     * @throws ODRNotFoundException
+     *
+     * @return string The path to the decrypted File
+     */
+    public function decryptFile($file_id, $target_filename = '')
+    {
+        // Load the file that needs decrypting
+        /** @var File $file */
+        $file = $this->em->getRepository('ODRAdminBundle:File')->find($file_id);
+        if ($file == null)
+            throw new ODRNotFoundException('File');
+
+        if ($target_filename == '')
+            $target_filename = 'File_'.$file->getId().'.'.$file->getExt();
+
+        // Determine where the encrypted file is stored
+        $crypto_chunk_dir = $this->crypto_dir.'/File_'.$file_id;
+
+        // Determine where the decrypted file is supposed to go
+        $base_filepath = $this->odr_web_dir.'/'.$file->getUploadDir();
+
+        // Decrypt the file
+        return self::decryptworker($crypto_chunk_dir, $file->getEncryptKey(), $base_filepath, $target_filename);
+    }
+
 
     /**
-     * Utility function that does the work of encrypting a given File/Image entity.
+     * Decrypts a specific File, and stores it in the specified zip archive.
      *
-     * @throws \Exception
+     * @param $file_id
+     * @param $target_filename
+     * @param string $desired_filename The name the file should have in the archive
+     * @param string $archive_filepath The full path to the archive to store this file in
      *
-     * @param integer $object_id The id of the File/Image to encrypt
-     * @param string $object_type "File" or "Image"
-     *
+     * @throws ODRException
      */
-    public function encryptObject($object_id, $object_type)
+    public function decryptFileForArchive($file_id, $target_filename, $desired_filename, $archive_filepath)
     {
-        try {
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->em;
-            $generator = $this->container->get('security.secure_random');
-            $crypto = $this->container->get("dterranova_crypto.crypto_adapter");
+        // Attempt to open the specified zip archive
+        $handle = fopen($archive_filepath, 'c');    // create file if it doesn't exist, otherwise do not fail and position pointer at beginning of file
+        if (!$handle)
+            throw new ODRException('unable to open "'.$archive_filepath.'" for writing');
 
-            $repo_filechecksum = $em->getRepository('ODRAdminBundle:FileChecksum');
-            $repo_imagechecksum = $em->getRepository('ODRAdminBundle:ImageChecksum');
+        // Decrypt the specified file prior to acquiring a lock on the archive
+        $local_filepath = self::decryptFile($file_id, $target_filename);
 
+        // Attempt to acquire a lock on the zip archive so only one process is adding to it at a time
+        $lock = false;
+        while (!$lock) {
+            $lock = flock($handle, LOCK_EX);
+            if (!$lock)
+                usleep(200000);     // sleep for a fifth of a second to try to acquire a lock...
+        }
 
-            $absolute_path = '';
-            $base_obj = null;
-            $object_type = strtolower($object_type);
-            if ($object_type == 'file') {
-                // Grab the file and associated information
-                /** @var File $base_obj */
-                $base_obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
-                $file_upload_path = dirname(__FILE__).'/../../../../../web/uploads/files/';
-                $filename = 'File_'.$object_id.'.'.$base_obj->getExt();
+        // Open the archive for appending, or create if it doesn't exist
+        $zip_archive = new \ZipArchive();
+        $zip_archive->open($archive_filepath, \ZipArchive::CREATE);
 
-                if ( !file_exists($file_upload_path.$filename) )
-                    throw new \Exception("File does not exist");
+        // Add the specified file to the zip archive
+        $zip_archive->addFile($local_filepath, $desired_filename);
+        $zip_archive->close();
 
-                // crypto bundle requires an absolute path to the file to encrypt/decrypt
-                $absolute_path = realpath($file_upload_path.$filename);
-            }
-            else if ($object_type == 'image') {
-                // Grab the image and associated information
-                /** @var Image $base_obj */
-                $base_obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
-                $image_upload_path = dirname(__FILE__).'/../../../../../web/uploads/images/';
-                $imagename = 'Image_'.$object_id.'.'.$base_obj->getExt();
+        // Delete decrypted version of non-public files off the server
+//        if ( !$base_obj->isPublic() )
+        if ( strpos($target_filename, 'File_'.$file_id) === false )    // TODO - better way of doing this?
+            unlink($local_filepath);
 
-                if ( !file_exists($image_upload_path.$imagename) )
-                    throw new \Exception("Image does not exist");
-
-                // crypto bundle requires an absolute path to the file to encrypt/decrypt
-                $absolute_path = realpath($image_upload_path.$imagename);
-            }
-            /** @var File|Image $base_obj */
-
-            // Generate a random number for encryption purposes
-            $bytes = $generator->nextBytes(16); // 128-bit random number
-//print 'bytes ('.gettype($bytes).'): '.$bytes."\n";
-
-            // Convert the binary key into a hex string for db storage
-            $hexEncoded_num = bin2hex($bytes);
-
-            // Save the encryption key
-            $base_obj->setEncryptKey($hexEncoded_num);
-            $em->persist($base_obj);
+        // Release the lock on the zip archive
+        flock($handle, LOCK_UN);
+        fclose($handle);
+    }
 
 
-            // Locate the directory where the encrypted files exist
-            $encrypted_basedir = $this->container->getParameter('dterranova_crypto.temp_folder');
-            if ($object_type == 'file')
-                $encrypted_basedir .= '/File_'.$object_id.'/';
-            else if ($object_type == 'image')
-                $encrypted_basedir .= '/Image_'.$object_id.'/';
+    /**
+     * Wrapper function to set up decryption of a specific Image.  If this File is not public, then
+     * whatever is calling this function needs to delete the decrypted version of this Image off the
+     * server when it's finished with the Image.
+     *
+     * @param int $image_id
+     * @param string $target_filename
+     *
+     * @throws ODRNotFoundException
+     *
+     * @return string The path to the decrypted Image
+     */
+    public function decryptImage($image_id, $target_filename = '')
+    {
+        // Load the image that needs decrypting
+        /** @var Image $image */
+        $image = $this->em->getRepository('ODRAdminBundle:Image')->find($image_id);
+        if ($image == null)
+            throw new ODRNotFoundException('Image');
 
-            // Remove all previously encrypted chunks of this object if the directory exists
-            if ( file_exists($encrypted_basedir) )
-                self::deleteEncryptionDir($encrypted_basedir);
+        if ($target_filename == '')
+            $target_filename = 'Image_'.$image->getId().'.'.$image->getExt();
+
+        // Determine where the encrypted file is stored
+        $crypto_chunk_dir = $this->crypto_dir.'/Image_'.$image_id;
+
+        // Determine where the decrypted file is supposed to go
+        $base_filepath = $this->odr_web_dir.'/'.$image->getUploadDir();
+
+        // Decrypt the image
+        return self::decryptworker($crypto_chunk_dir, $image->getEncryptKey(), $base_filepath, $target_filename);
+    }
 
 
-            // Encrypt the file
-            $crypto->encryptFile($absolute_path, $bytes);
+    /**
+     * Does the work of decrypting a File or Image.
+     *
+     * @param string $crypto_chunk_dir The directory containing the encoded chunk files
+     * @param string $key The hex string representation that the file was encrypted with
+     * @param string $base_filepath The directory to store the decrypted file in
+     * @param string $target_filename The filename of the decrypted file
+     *
+     * @throws ODRException
+     *
+     * @return string
+     */
+    private function decryptworker($crypto_chunk_dir, $key, $base_filepath, $target_filename)
+    {
+        // Store where to decrypt the File/Image to
+        $local_filepath = $base_filepath.'/'.$target_filename;
 
-            // Create an md5 checksum of all the pieces of that encrypted file
+        // Don't decrypt the file if it already exists on the server
+        if ( !file_exists($local_filepath) ) {
+            // Convert the hex string representation to binary...current version of php doesn't
+            //  have hex2bin().  Apparently, php has had a function to go from bin->hex for at
+            //  least 7 years, but hasn't had the reverse function until just recently?
+            $key = pack("H*", $key);
+
+            // Open the target file
+            $handle = fopen($local_filepath, "wb");
+            if (!$handle)
+                throw new ODRException('Unable to open "'.$local_filepath.'" for writing');
+
+            // Decrypt each chunk and write to target file
             $chunk_id = 0;
-            while ( file_exists($encrypted_basedir.'enc.'.$chunk_id) ) {
-                $checksum = md5_file($encrypted_basedir.'enc.'.$chunk_id);
+            while (file_exists($crypto_chunk_dir.'/'.'enc.'.$chunk_id)) {
+                if (!file_exists($crypto_chunk_dir.'/'.'enc.'.$chunk_id))
+                    throw new ODRException('Encrypted chunk not found: '.$crypto_chunk_dir.'/'.'enc.'.$chunk_id);
 
-                // Attempt to load a checksum object
-                $obj = null;
-                if ($object_type == 'file')
-                    $obj = $repo_filechecksum->findOneBy( array('file' => $object_id, 'chunk_id' => $chunk_id) );
-                else if ($object_type == 'image')
-                    $obj = $repo_imagechecksum->findOneBy( array('image' => $object_id, 'chunk_id' => $chunk_id) );
-                /** @var FileChecksum|ImageChecksum $obj */
-
-                // Create a checksum entry if it doesn't exist
-                if ($obj == null) {
-                    if ($object_type == 'file') {
-                        $obj = new FileChecksum();
-                        $obj->setFile($base_obj);
-                    }
-                    else if ($object_type == 'image') {
-                        $obj = new ImageChecksum();
-                        $obj->setImage($base_obj);
-                    }
-                }
-
-                // Save the checksum entry
-                $obj->setChunkId($chunk_id);
-                $obj->setChecksum($checksum);
-
-                $em->persist($obj);
-
-                // Look for any more encrypted chunks
+                $data = file_get_contents($crypto_chunk_dir.'/'.'enc.'.$chunk_id);
+                fwrite($handle, $this->crypto_adapter->decrypt($data, $key));
                 $chunk_id++;
             }
+        }
 
-            // Save all changes
-            $em->flush();
+        $file_decryptions = $this->cache_service->get('file_decryptions');
+        if ( isset($file_decryptions[$target_filename]) ) {
+            unset( $file_decryptions[$target_filename] );
+            $this->cache_service->set('file_decryptions', $file_decryptions);
         }
-        catch (\Exception $e) {
-            throw new \Exception($e->getMessage());
-        }
+
+        return $local_filepath;
     }
 
 
     /**
-     * Utility function that does the work of decrypting a given File/Image entity.
-     * Note that the filename of the decrypted file/image is determined solely by $object_id and $object_type because of constraints in the $crypto->decryptFile() function
-     *
-     * @param integer $object_id  The id of the File/Image to decrypt
-     * @param string $object_type "File" or "Image"
-     *
-     * @return string The absolute path to the newly decrypted file/image
-     */
-    public function decryptObject($object_id, $object_type)
-    {
-        // Grab necessary objects
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->em; // $this->getDoctrine()->getManager();
-        $crypto = $this->container->get("dterranova_crypto.crypto_adapter");
-
-        // TODO: auto-check the checksum?
-//        $repo_filechecksum = $em->getRepository('ODRAdminBundle:FileChecksum');
-//        $repo_imagechecksum = $em->getRepository('ODRAdminBundle:ImageChecksum');
-
-
-        $absolute_path = '';
-        $base_obj = null;
-        $object_type = strtolower($object_type);
-        if ($object_type == 'file') {
-            // Grab the file and associated information
-            /** @var File $base_obj */
-            $base_obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
-            $file_upload_path = dirname(__FILE__).'/../../../../../web/uploads/files/';
-            $filename = 'File_'.$object_id.'.'.$base_obj->getExt();
-
-            // crypto bundle requires an absolute path to the file to encrypt/decrypt
-            $absolute_path = realpath($file_upload_path).'/'.$filename;
-        }
-        else if ($object_type == 'image') {
-            // Grab the image and associated information
-            /** @var Image $base_obj */
-            $base_obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
-            $image_upload_path = dirname(__FILE__).'/../../../../../web/uploads/images/';
-            $imagename = 'Image_'.$object_id.'.'.$base_obj->getExt();
-
-            // crypto bundle requires an absolute path to the file to encrypt/decrypt
-            $absolute_path = realpath($image_upload_path).'/'.$imagename;
-        }
-        /** @var File|Image $base_obj */
-
-        // Apparently files/images can decrypt to a zero length file sometimes...check for and deal with this
-        if ( file_exists($absolute_path) && filesize($absolute_path) == 0 )
-            unlink($absolute_path);
-
-        // Since errors apparently don't cascade from the CryptoBundle through to here...
-        if ( !file_exists($absolute_path) ) {
-            // Grab the hex string representation that the file was encrypted with
-            $key = $base_obj->getEncryptKey();
-            // Convert the hex string representation to binary...php had a function to go bin->hex, but didn't have a function for hex->bin for at least 7 years?!?
-            $key = pack("H*", $key);   // don't have hex2bin() in current version of php...this appears to work based on the "if it decrypts to something intelligible, you did it right" theory
-
-            // Decrypt the file (do NOT delete the encrypted version)
-            $crypto->decryptFile($absolute_path, $key, false);
-        }
-
-        return $absolute_path;
-    }
-
-    /**
-     * Since calling mkdir() when a directory already exists apparently causes a warning, and because the
-     * dterranova Crypto bundle doesn't automatically handle it...this function deletes the specified directory
-     * and all its contents off the server
+     * Since calling mkdir() when a directory already exists apparently causes a warning, and
+     * because the dterranova Crypto bundle doesn't automatically handle it...this function deletes
+     * the specified directory and all its contents off the server.
      *
      * @param string $basedir
      */

@@ -37,6 +37,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -427,11 +428,12 @@ $ret .= '  Set current to '.$count."\n";
                 throw new \Exception('Invalid Form');
 
             // ----------------------------------------
-            // Ensure the full-size image exists
-            parent::decryptObject($object_id, $object_type);
-
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
+
 
             /** @var Image $img */
             $img = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
@@ -441,6 +443,8 @@ $ret .= '  Set current to '.$count."\n";
             /** @var User $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find(2);    // TODO - need an actual system user...
 
+            // Ensure the full-size image exists on the server
+            $crypto_service->decryptImage($object_id);
 
             // Ensure an ImageSizes entity exists for this image
             /** @var ImageSizes[] $image_sizes */
@@ -524,6 +528,7 @@ $ret .= '  Set current to '.$count."\n";
 
     /**
      * Performs an asynchronous encrypt or decrypt on a specified file.  Also has the option
+     * @deprecated
      *
      * @param Request $request
      *
