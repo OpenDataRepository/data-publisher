@@ -127,7 +127,7 @@
     {% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel {% if is_datatype_admin %} Pointer{% endif %}">
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel{% if is_datatype_admin %} Pointer{% endif %}">
                 <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
             </label>
 

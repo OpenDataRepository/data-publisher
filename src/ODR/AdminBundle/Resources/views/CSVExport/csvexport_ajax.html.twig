@@ -52,7 +52,11 @@
     <button class="pure-button" type="button" onclick="deselectAll();">Deselect All</button>
 </div>
 
-{% include 'ODRAdminBundle:CSVExport:csvexport_area.html.twig' with {'datatype_array': datatype_array, 'initial_datatype_id': initial_datatype_id, 'theme_id': theme_id} %}
+{% include 'ODRAdminBundle:CSVExport:csvexport_area.html.twig' with {
+    'datatype_array': datatype_array,
+    'initial_datatype_id': initial_datatype_id,
+    'theme_array': theme_array
+} %}
 
 <div style="margin: 10px;">
     <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Export</button>
@@ -105,8 +109,7 @@ function initPage() {
         $(this).attr('title', "This datafield will not be exported");
     });
 
-    $(".ODRCSVExport").unbind('click');
-    $(".ODRCSVExport").click(function() {
+    $(".ODRCSVExport").unbind('click').click(function() {
         if ( $(this).hasClass('ODRUnselectedDatafield') ) {
             $(this).attr('title', 'This datafield will be exported');
             $(this).removeClass('ODRUnselectedDatafield').addClass('ODRSelectedDatafield');
@@ -121,8 +124,12 @@ function initPage() {
             $(this).addClass('ODRUnselectedDatafield').removeClass('ODRSelectedDatafield');
 
             if ( $(this).hasClass('ODRSecondaryDelimiter') ) {
-                $("#secondary_delimiter_select").attr('disabled', 'disabled');
-                $("#secondary_delimiter_select").attr('title', 'This delimiter is not needed because no multiple radio/select field are selected for export');
+                // Don't want to disable the secondary delimiter field if another datafield that use
+                //  a secondary delimiter is still selected
+                if ( $(".ODRSecondaryDelimiter.ODRSelectedDatafield").length === 0) {
+                    $("#secondary_delimiter_select").attr('disabled', 'disabled');
+                    $("#secondary_delimiter_select").attr('title', 'This delimiter is not needed because no multiple radio/select field are selected for export');
+                }
             }
         }
     });

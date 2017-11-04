@@ -1,10 +1,16 @@
 {% spaceless %}
+
 {% set datatype = datatype_array[target_datatype_id] %}
 
 <div class="ODRDataType pure-u-1 {% if is_top_level == 0 %} ODRAccordionWrapper ODRFormAccordion{% endif %}" id="DataType_{{ datatype.id }}">
 
     <div class="ODRFieldArea pure-u-1" id="FieldArea_{{ datatype.id }}">
-        {% include 'ODRAdminBundle:CSVExport:csvexport_fieldarea.html.twig' with {'datatype_array': datatype_array, 'target_datatype_id': target_datatype_id, 'theme_id': theme_id, 'is_top_level': is_top_level} %}
+        {% include 'ODRAdminBundle:CSVExport:csvexport_fieldarea.html.twig' with {
+            'datatype_array': datatype_array,
+            'target_datatype_id': target_datatype_id,
+            'theme_array': theme_array,
+            'is_top_level': is_top_level
+        } %}
     </div><!-- End of #FieldArea_{{ datatype.id }} -->
 
 </div><!-- End of #DataType_{{ datatype.id }} -->

@@ -866,10 +866,10 @@ odr_migrate_field:
 #    requirements:
 #        datatype_id: \d+
 
-odr_rebuild_thumbnails:
-    path: /beanstalk/rebuild_thumbnails
-    defaults: { _controller: ODRAdminBundle:Worker:rebuildthumbnails }
-    methods: [ POST ]
+#odr_rebuild_thumbnails:
+#    path: /beanstalk/rebuild_thumbnails
+#    defaults: { _controller: ODRAdminBundle:Worker:rebuildthumbnails }
+#    methods: [ POST ]
 
 odr_crypto_request:
     path: /beanstalk/crypto_request

@@ -95,9 +95,6 @@ class WorkerController extends ODRCustomController
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 //            $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -112,7 +109,7 @@ class WorkerController extends ODRCustomController
             $dri_service = $this->container->get('odr.datarecord_info_service');
 
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException('Invalid Form');
 
             $ret = '';
 
@@ -134,9 +131,9 @@ class WorkerController extends ODRCustomController
 
             // Ensure datarecord/datafield pair exist
             if ($datarecord == null)
-                throw new \Exception('Datarecord '.$datarecord_id.' is deleted');
+                throw new ODRException('Datarecord '.$datarecord_id.' is deleted');
             if ($datafield == null)
-                throw new \Exception('Datafield '.$datafield_id.' is deleted');
+                throw new ODRException('Datafield '.$datafield_id.' is deleted');
 
 
             // Radio options need typename to distinguish...
@@ -282,11 +279,11 @@ $ret .= '  Set current to '.$count."\n";
             $return['d'] = $ret;
         }
         catch (\Exception $e) {
-            // TODO - increment tracked job counter on error?
-
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x6642397856: '.$e->getMessage()."\n".$ret;
+            $source = 0x5e17488a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -311,6 +308,9 @@ $ret .= '  Set current to '.$count."\n";
         $return['d'] = '';
 
         try {
+
+            throw new ODRNotImplementedException();
+
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -394,9 +394,11 @@ $ret .= '  Set current to '.$count."\n";
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x38472782 ' . $e->getMessage();
+            $source = 0xb115dc04;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -422,6 +424,9 @@ $ret .= '  Set current to '.$count."\n";
         $tracked_job_id = -1;
 
         try {
+
+            throw new ODRNotImplementedException();
+
             $post = $_POST;
             if ( !isset($post['tracked_job_id']) || !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid Form');

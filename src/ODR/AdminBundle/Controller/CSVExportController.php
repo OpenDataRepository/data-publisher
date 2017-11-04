@@ -34,6 +34,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
@@ -68,6 +69,10 @@ class CSVExportController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
@@ -77,20 +82,11 @@ class CSVExportController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
-
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
-                $can_edit_datarecord = true;
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
             // Ensure user has permissions to be doing this
-            if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
+            if ( !$user->hasRole('ROLE_ADMIN') || !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -143,9 +139,9 @@ class CSVExportController extends ODRCustomController
             $return['d'] = array( 'html' => $header_html.$page_html );
         }
         catch (\Exception $e) {
-            $source = 0xc953bbf3;
+            $source = 0x8647bcc3;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -175,31 +171,36 @@ class CSVExportController extends ODRCustomController
         $dti_service = $this->container->get('odr.datatype_info_service');
         /** @var PermissionsManagementService $pm_service */
         $pm_service = $this->container->get('odr.permissions_management_service');
+        /** @var ThemeInfoService $theme_service */
+        $theme_service = $this->container->get('odr.theme_info_service');
 
 
         // All of these should already exist
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
         /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+//        $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
 
 
         // --------------------
         // Determine user privileges
         /** @var User $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
-        $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+        $user_permissions = $pm_service->getUserPermissionsArray($user);
         // --------------------
 
 
         // ----------------------------------------
         // Grab the cached version of the desired datatype
-        $datatype_data = $dti_service->getDatatypeArray( array($datatype_id) );
+        $include_links = false;
+        $datatype_data = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
 //print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();
 
         // Filter by user permissions
         $datarecord_data = array();
         $pm_service->filterByGroupPermissions($datatype_data, $datarecord_data, $user_permissions);
+
+        $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
 
 
         // ----------------------------------------
@@ -210,7 +211,7 @@ class CSVExportController extends ODRCustomController
             array(
                 'datatype_array' => $datatype_data,
                 'initial_datatype_id' => $datatype_id,
-                'theme_id' => $theme->getId(),
+                'theme_array' => $theme_array,
 
                 'odr_tab_id' => $odr_tab_id,
             )
@@ -255,6 +256,10 @@ class CSVExportController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
@@ -272,19 +277,9 @@ class CSVExportController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
-                $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
-            if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
+            if ( !$user->hasRole('ROLE_ADMIN') || !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -441,7 +436,7 @@ return;
         catch (\Exception $e) {
             $source = 0x86acf50b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -682,7 +677,7 @@ return;
         catch (\Exception $e) {
             $source = 0x5bd2c168;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -757,18 +752,18 @@ return;
 
 
             // Ensure directories exists
-            $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/csv_export/';
+            $csv_export_path = $this->getParameter('odr_web_directory').'/uploads/csv_export/';
             if ( !file_exists($csv_export_path) )
                 mkdir( $csv_export_path );
 
-            $csv_export_path .= 'tmp/';
-            if ( !file_exists($csv_export_path) )
-                mkdir( $csv_export_path );
+            $tmp_csv_export_path = $csv_export_path.'tmp/';
+            if ( !file_exists($tmp_csv_export_path) )
+                mkdir( $tmp_csv_export_path );
 
 
             // Open the indicated file
             $filename = 'f_'.$random_key.'.csv';
-            $handle = fopen($csv_export_path.$filename, 'a');
+            $handle = fopen($tmp_csv_export_path.$filename, 'a');
             if ($handle !== false) {
                 // Write the line given to the file
                 // https://github.com/ddeboer/data-import/blob/master/src/Ddeboer/DataImport/Writer/CsvWriter.php
@@ -884,7 +879,7 @@ return;
 
                 // Make a "final" file for the export, and insert the header line
                 $final_filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
-                $final_file = fopen($csv_export_path.$final_filename, 'w');
+                $final_file = fopen($csv_export_path.$final_filename, 'w');     // this should be created in the web/uploads/csv_export/ directory, not the web/uploads/csv_export/tmp/ directory
 
                 if ($final_file !== false) {
 //                    $delimiter = "\t";
@@ -932,7 +927,7 @@ return;
         catch (\Exception $e) {
             $source = 0xc0abdfce;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -989,8 +984,10 @@ return;
 
             // -----------------------------------------
             // Append the contents of one of the temporary files to the final file
-            $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/csv_export/';
+            $csv_export_path = $this->getParameter('odr_web_directory').'/uploads/csv_export/';
             $final_file = fopen($csv_export_path.$final_filename, 'a');
+            if (!$final_file)
+                throw new ODRException('Unable to open csv export finalize file');
 
             // Go through and append the contents of each of the temporary files to the "final" file
             $tracked_csv_export_id = null;
@@ -1061,7 +1058,7 @@ return;
         catch (\Exception $e) {
             $source = 0xa9285db8;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1093,6 +1090,10 @@ return;
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var TrackedJob $tracked_job */
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
             if ($tracked_job == null)
@@ -1108,30 +1109,19 @@ return;
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find( $tmp[1] );
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
-                $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
-            if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
+            if ( !$user->hasRole('ROLE_ADMIN') || !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
 
-            $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/csv_export/';
+            $csv_export_path = $this->getParameter('odr_web_directory').'/uploads/csv_export/';
             $filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
 
             $handle = fopen($csv_export_path.$filename, 'r');
@@ -1165,7 +1155,7 @@ return;
         catch (\Exception $e) {
             $source = 0x86a6eb3a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
