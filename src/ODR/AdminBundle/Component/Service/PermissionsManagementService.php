@@ -413,7 +413,7 @@ class PermissionsManagementService
     {
         try {
             // Users that aren't logged in don't have permissions
-            if ($user === 'anon.')
+            if ($user == null || $user === 'anon.')
                 return array();
 
             // Permissions are cached per user to allow other parts of ODR can force a rebuild

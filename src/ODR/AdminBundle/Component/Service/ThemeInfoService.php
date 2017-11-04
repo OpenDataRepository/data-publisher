@@ -95,13 +95,12 @@ class ThemeInfoService
     {
         // TODO -
         $theme_types = array();
-        if ($theme_type == 'master') {
+        if ($theme_type == 'master' || $theme_type == 'custom_view') {
             $theme_types[] = 'master';
             $theme_types[] = 'custom_view';
         }
         else {
             $theme_types[] = $theme_type;
-            $theme_types[] = 'custom_'.$theme_type;
         }
 
         // Get all themes for this datatype that fulfill the previous criteria
@@ -294,8 +293,8 @@ class ThemeInfoService
         $theme_type = $theme->getThemeType();
         if ($theme->getThemeType() == "custom_view")
             $theme_type = "master";
-        else
-            $theme_type = preg_replace('/^custom_/','', $theme_type);
+//        else
+//            $theme_type = preg_replace('/^custom_/','', $theme_type);
 
         // Load any existing session themes
         $session_themes = array();
@@ -319,8 +318,8 @@ class ThemeInfoService
         // TODO
         if ($theme_type == "custom_view")
             $theme_type = "master";
-        else
-            $theme_type = preg_replace('/^custom_/','', $theme_type);
+//        else
+//            $theme_type = preg_replace('/^custom_/','', $theme_type);
 
         // Load any existing session themes
         $session_themes = array();
@@ -364,7 +363,7 @@ class ThemeInfoService
         }
         else {
             $theme_types[] = $theme_type;
-            $theme_types[] = 'custom_'.$theme_type;
+//            $theme_types[] = 'custom_'.$theme_type;
         }
 
         // Determine whether the user already has a preferred Theme for this "category"
@@ -420,7 +419,7 @@ class ThemeInfoService
         }
         else {
             $theme_types[] = $theme->getThemeType();
-            $theme_types[] = 'custom_'.$theme->getThemeType();
+//            $theme_types[] = 'custom_'.$theme->getThemeType();
         }
 
         // Determine whether the user already has a preferred Theme for this "category"
@@ -490,7 +489,7 @@ class ThemeInfoService
     {
         // TODO
         $theme_types = array();
-        if ($theme_type == 'master') {
+        if ($theme_type == 'master' || $theme_type == 'custom_view') {
             $theme_types[] = 'master';
             $theme_types[] = 'custom_view';
         }
@@ -544,7 +543,7 @@ class ThemeInfoService
 
             // If the requested entry doesn't exist, rebuild it
             if ($theme_data == false)
-                $theme_data = self::buildthemeData($parent_theme_id);
+                $theme_data = self::buildThemeData($parent_theme_id);
 
             // Organize by theme id
             foreach ($theme_data as $parent_theme_id => $data)

@@ -34,7 +34,9 @@
     <tbody>
     {% for datatype in datatypes %}
 
-        {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) %}
+        {% set datatype_meta = datatype.dataTypeMeta %}
+
+        {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype_meta.searchSlug } ) %}
 
         {# Pre-determine which permissions user has for this datatype... #}
         {% set is_datatype_admin = false %}
@@ -57,19 +59,19 @@
                             <b>Created By: </b>{{ datatype.createdBy|user_string }}<b> on </b>{{ datatype.created|date('Y-m-d') }}
                         </div>
                         <div>
-                            <b>Description: </b>{{ datatype.dataTypeMeta.description }}
+                            <b>Description: </b>{{ datatype_meta.description }}
                         </div>
                     </span>
                 </span>
             </td>
-            <td id="ODRDatatypeList_{{ datatype.id }}_name">{{ datatype.dataTypeMeta.shortName }}</td>
+            <td id="ODRDatatypeList_{{ datatype.id }}_name">{{ datatype_meta.shortName }}</td>
 
             {# master layout designer link #}
             <td>
-            {% if datatype.dataTypeMeta.searchSlug == '' %}
-                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
+            {% if datatype_meta.searchSlug == '' %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
             {% else %}
-                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
+                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
             {% endif %}
             </td>
 
@@ -83,7 +85,7 @@
             {% if datarecord_count == 0 %}
                 <a id="ODRDatarecordList_{{ datatype.id }}_add" class="Pointer" onclick="addDataRecord('{{ datatype_baseurl }}',{{ datatype.id }});"><i class="fa fa-lg fa-plus-circle"></i>&nbsp;Create Test Record</a>
             {% else %}
-                <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_search_render', {'search_key': 'dt_id='~datatype.id} ) }}" title="View {{ datatype.dataTypeMeta.shortName }} DataRecords"><i class="fa fa-lg fa-list"></i>&nbsp;View Test Record</a>
+                <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_search_render', {'search_key': 'dt_id='~datatype.id} ) }}" title="View {{ datatype_meta.shortName }} DataRecords"><i class="fa fa-lg fa-list"></i>&nbsp;View Test Record</a>
             {% endif %}
             </td>
         </tr>

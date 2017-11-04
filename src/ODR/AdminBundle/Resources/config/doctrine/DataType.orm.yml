@@ -30,18 +30,6 @@ ODR\AdminBundle\Entity\DataType:
             default: ''
             column: setup_step
 
-        has_shortresults:
-            type: boolean
-            nullable: false
-            default: false
-            column: has_shortresults
-
-        has_textresults:
-            type: boolean
-            nullable: false
-            default: false
-            column: has_textresults
-
         is_master_type:
             type: boolean
             nullable: false

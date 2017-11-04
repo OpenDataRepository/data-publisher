@@ -351,9 +351,23 @@ class CloneDatatypeService
             // The datatypes are now ready for viewing since they have all their datafield, theme,
             //  datatree, and various permission entries
             foreach ($this->created_datatypes as $dt) {
-                $dt->setSetupStep('incomplete');
+
+                $has_search_result_theme = false;
+                foreach ($dt->getThemes() as $theme) {
+                    if ($theme->getThemeType() == 'search_results') {
+                        $has_search_result_theme = true;
+                        break;
+                    }
+                }
+
+                if ($has_search_result_theme)
+                    $dt->setSetupStep(DataType::STATE_OPERATIONAL);
+                else
+                    $dt->setSetupStep(DataType::STATE_INCOMPLETE);
+
                 self::persistObject($dt);
             }
+
 
             // ----------------------------------------
             // Delete the cached versions of the top-level datatypes and the datatree array
@@ -410,7 +424,7 @@ class CloneDatatypeService
         // $new_datatype is based off a "master template" datatype
         $new_datatype->setIsMasterType(false);
         $new_datatype->setMasterDataType($parent_datatype);
-        $new_datatype->setSetupStep('initial');
+        $new_datatype->setSetupStep(DataType::STATE_INITIAL);
         self::persistObject($new_datatype);
         array_push($this->created_datatypes, $new_datatype);
 

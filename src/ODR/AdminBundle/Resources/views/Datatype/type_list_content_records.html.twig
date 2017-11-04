@@ -26,8 +26,10 @@
     {% set hidden_datatype_count = 0 %}
     {% for datatype in datatypes %}
 
-        {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) %}
-        {% if datatype.dataTypeMeta.searchSlug == '' %}
+        {% set datatype_meta = datatype.dataTypeMeta %}
+
+        {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype_meta.searchSlug } ) %}
+        {% if datatype_meta.searchSlug == '' %}
             {% set datatype_baseurl = path('odr_admin_homepage') %}
         {% endif %}
 
@@ -67,7 +69,7 @@
             {% set hidden_datatype_count = hidden_datatype_count + 1 %}
         {% endif %}
 
-        {% if can_view_datatype == true or datatype.dataTypeMeta.publicDate|is_public == true %}
+        {% if can_view_datatype == true or datatype_meta.publicDate|is_public == true %}
         <tr {% if hidden_datatype %}class="ODRPublicDatatype ODRHidden"{% endif %}>
             <td>{{ datatype.id }}</td>
             <td>
@@ -78,12 +80,12 @@
                             <b>Created By: </b>{{ datatype.createdBy|user_string }}<b> on </b>{{ datatype.created|date('Y-m-d') }}
                         </div>
                         <div>
-                            <b>Description: </b>{{ datatype.dataTypeMeta.description }}
+                            <b>Description: </b>{{ datatype_meta.description }}
                         </div>
                     </span>
                 </span>
             </td>
-            <td id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype.dataTypeMeta.longName }}</td>
+            <td id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype_meta.longName }}</td>
 
 
             {# number of datarecords for this datatype #}
@@ -96,14 +98,18 @@
 
             {# link to search this datatype #}
             <td>
-            {% if datatype.dataTypeMeta.searchSlug != '' and datarecord_count > 0 %}
-                <a id="ODRDatarecordList_{{ datatype.id }}_search" href="{{ datatype_baseurl }}" title="Search {{ datatype.dataTypeMeta.shortName }} DataRecords"><i class="fa fa-lg fa-search"></i>&nbsp;Search Records</a>
-            {% elseif datarecord_count == 0 %}
-                {# don't display link, nothing to search #}
-            {% elseif is_datatype_admin == false %}
-                <i class="fa fa-lg fa-exclamation-triangle Cursor"></i>&nbsp;No Search Abbreviation!
+            {% if datarecord_count == 0 %}
+                {# don't display link, nothing to view #}
+            {% elseif datatype.setup_step == 'operational' and datatype_meta.searchSlug != '' %}
+                <a id="ODRDatarecordList_{{ datatype.id }}_search" href="{{ datatype_baseurl }}" title="Search {{ datatype_meta.shortName }} DataRecords"><i class="fa fa-lg fa-search"></i>&nbsp;Search Records</a>
+            {% elseif is_datatype_admin == true %}
+                {% if datatype.setup_step != 'operational' %}
+                    <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Search Results Theme not designed!</a>
+                {% else %}
+                    <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
+                {% endif %}
             {% else %}
-                <a id="ODRDatarecordList_{{ datatype.id }}_search" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
+                {# missing templates to display search results, and user doesn't have permission to make any...do nothing #}
             {% endif %}
             </td>
 
@@ -112,22 +118,16 @@
             <td>
             {% if datarecord_count == 0 %}
                 {# don't display link, nothing to view #}
-            {% elseif datatype.dataTypeMeta.searchSlug == '' %}
-                {% if is_datatype_admin == true %}
-                    <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
+            {% elseif datatype.setup_step == 'operational' and datatype_meta.searchSlug != '' %}
+                <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_search_render', {'search_key': 'dt_id='~datatype.id} ) }}" title="View {{ datatype_meta.shortName }} DataRecords"><i class="fa fa-lg fa-list"></i>&nbsp;List Records</a>
+            {% elseif is_datatype_admin == true %}
+                {% if datatype.setup_step != 'operational' %}
+                    <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Search Results Theme not designed!</a>
+                {% else %}
+                    <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
                 {% endif %}
             {% else %}
-                {% if (datatype.dataTypeMeta.useShortResults == 1 and datatype.has_shortresults == true) or (datatype.dataTypeMeta.useShortResults == 0 and datatype.has_textresults == true) %}
-                    <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_search_render', {'search_key': 'dt_id='~datatype.id} ) }}" title="View {{ datatype.dataTypeMeta.shortName }} DataRecords"><i class="fa fa-lg fa-list"></i>&nbsp;List Records</a>
-                {% elseif is_datatype_admin == true %}
-                    {% if datatype.dataTypeMeta.useShortResults == 1 and datatype.has_shortresults == false %}
-                        <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Search Results Theme not designed!</a>
-                    {% elseif datatype.dataTypeMeta.useShortResults == 0 and datatype.has_textresults == false %}
-                        <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Table Theme not designed!</a>
-                    {% endif %}
-                {% else %}
-                    {# missing templates to display search results,and user doesn't have permission to make any...do nothing #}
-                {% endif %}
+                {# missing templates to display search results, and user doesn't have permission to make any...do nothing #}
             {% endif %}
             </td>
 
@@ -150,8 +150,6 @@
     </tbody>
 </table>
 </div>
-
-
 
 <script>
     $(function() {

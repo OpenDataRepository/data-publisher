@@ -24,10 +24,11 @@ use ODR\AdminBundle\Controller\ODRCustomController;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
-use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
@@ -367,31 +368,20 @@ exit();
             $pm_service = $this->container->get('odr.permissions_management_service');
 
 
-            /** @var ODRCustomController $odrcc */
-            $odrcc = $this->get('odr_custom_controller', $request);
-            $odrcc->setContainer($this->container);
-
             $cookies = $request->cookies;
+
 
             // ------------------------------
             // Grab user and their permissions if possible
             /** @var User $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $datatype_permissions = array();
-            $datafield_permissions = array();
+            $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
+            $datafield_permissions = $pm_service->getDatafieldPermissions($admin_user);
 
             // Store if logged in or not
             $logged_in = true;
-            if ($admin_user === 'anon.') {
-                $admin_user = null;
+            if ($admin_user === 'anon.')
                 $logged_in = false;
-            }
-            else {
-                // Grab user permissions
-                $user_permissions = $odrcc->getUserPermissionsArray($em, $admin_user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-            }
             // ------------------------------
 
 
@@ -419,10 +409,11 @@ exit();
                 /** @var DataTypeMeta $meta_entry */
                 $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('searchSlug' => $search_slug) );
                 if ($meta_entry == null)
-                    return self::searchPageError("Page not found", $request, 404);
+                    throw new ODRNotFoundException('Datatype');
+
                 $target_datatype = $meta_entry->getDataType();
                 if ($target_datatype == null)
-                    return self::searchPageError("Page not found", $request, 404);
+                    throw new ODRNotFoundException('Datatype');
             }
             /** @var DataType $target_datatype */
 
@@ -430,26 +421,23 @@ exit();
             // Check if user has permission to view datatype
             $target_datatype_id = $target_datatype->getId();
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[ $target_datatype_id ]) && isset($datatype_permissions[ $target_datatype_id ][ 'dt_view' ]) )
-                $can_view_datatype = true;
-
             $can_view_datarecord = false;
             if ( isset($datatype_permissions[ $target_datatype_id ]) && isset($datatype_permissions[ $target_datatype_id ][ 'dr_view' ]) )
                 $can_view_datarecord = true;
 
-            if ( !$target_datatype->isPublic() && !$can_view_datatype )
-                return self::searchPageError("You don't have permission to access this DataType.", $request, 403);
+            if ( !$pm_service->canViewDatatype($admin_user, $target_datatype) )
+                throw new ODRForbiddenException();
 
-
-            // Need to grab all searchable datafields for the target_datatype and its descendants
 
             // ----------------------------------------
+            // Need to grab all searchable datafields for the target_datatype and its descendants
+
             // Grab ids of all datatypes related to the requested datatype that the user can view
             $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $datatype_permissions);
 
             // Grab all searchable datafields
             $searchable_datafields = self::getSearchableDatafields($em, $related_datatypes, $logged_in, $datatype_permissions, $datafield_permissions);
+
 
             // ----------------------------------------
             // Grab a random background image if one exists and the user is allowed to see it
@@ -466,7 +454,7 @@ exit();
                 if ( $df->isPublic() || $can_view_datafield ) {
                     $query = null;
                     if ($can_view_datarecord) {
-                        // Users without the $can_view_datarecord permission can only all images in all datarecords of this datatype
+                        // Users with the $can_view_datarecord permission can view all images in all datarecords of this datatype
                         $query = $em->createQuery(
                            'SELECT i.id AS image_id
                             FROM ODRAdminBundle:Image as i
@@ -515,7 +503,7 @@ exit();
                 }
             }
 
-            if ( $admin_user == null || count($admin_permissions) == 0 ) {
+            if ( $admin_user == 'anon.' || count($admin_permissions) == 0 ) {
                 // Not logged in, or has none of the required permissions
                 $user_list = array();
             }
@@ -590,8 +578,13 @@ exit();
             $session->set('scroll_target', '');
         }
         catch (\Exception $e) {
-            // This and ODRAdminBundle:Default:indexAction() are currently the only two controller actions that make Symfony handle the errors instead of AJAX popups
-            throw new HttpException( 500, 'Error 0x81286282', $e );
+            $source = 0xd75fa46d;
+            if ($e instanceof ODRException)
+//                return self::searchPageError($e->getMessage(), $request, $e->getStatusCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+//                return self::searchPageError($e->getMessage(), $request, 500);
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response($html);
@@ -899,7 +892,7 @@ exit();
         } catch (\Exception $e) {
             $source = 0x81fad8c3;
             if ($e instanceof ODRException) {
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             } else {
                 throw new ODRException($e->getMessage(), 500, $source, $e);
             }

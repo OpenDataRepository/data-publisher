@@ -195,7 +195,7 @@ class DatatypeController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x24d5aae9;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -270,7 +270,7 @@ class DatatypeController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x72002e34;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -364,7 +364,7 @@ class DatatypeController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xeaff78ff;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -434,15 +434,12 @@ class DatatypeController extends ODRCustomController
                     // Create a new Datatype entity
                     $datatype = new DataType();
                     $datatype->setRevision(0);
-                    // Set to true so we can default to master if needed
-                    $datatype->setHasShortresults(true);
-                    $datatype->setHasTextresults(true);
 
                     // Top-level datatypes exist in one of three three states...TODO - should there be more states?
                     // initial - datatype isn't ready for anything really...it shouldn't be displayed to the user
                     // incomplete - datatype can be viewed and modified as usual, but it's missing search result templates
                     // operational - datatype should work perfectly
-                    $datatype->setSetupStep('initial');
+                    $datatype->setSetupStep(DataType::STATE_INITIAL);
 
                     // Is this a Master Type?
                     $datatype->setIsMasterType(false);
@@ -458,7 +455,7 @@ class DatatypeController extends ODRCustomController
                         if ($master_datatype == null)
                             throw new ODRNotFoundException('Master Datatype');
 
-                        $datatype->setMasterDatatype($master_datatype);
+                        $datatype->setMasterDataType($master_datatype);
                     }
 
                     $datatype->setCreatedBy($admin);
@@ -503,7 +500,6 @@ class DatatypeController extends ODRCustomController
                         $submitted_data->setMasterRevision(1);
                     }
 
-                    $submitted_data->setUseShortResults(true);
                     $submitted_data->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 
                     $submitted_data->setExternalIdField(null);
@@ -557,7 +553,7 @@ class DatatypeController extends ODRCustomController
 
                         // This dataype is now technically viewable since it has basic theme data...
                         // Nobody is able to view it however, since it has no permission entries
-                        $datatype->setSetupStep('incomplete');
+                        $datatype->setSetupStep(DataType::STATE_INCOMPLETE);
                         $em->persist($datatype);
                         $em->flush();
 
@@ -631,7 +627,7 @@ class DatatypeController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x6151265b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

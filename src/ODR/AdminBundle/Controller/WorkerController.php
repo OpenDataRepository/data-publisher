@@ -1661,7 +1661,6 @@ $ret .= '  Set current to '.$count."\n";
                     $dtm->setDescription("New DataType Description");
                     $dtm->setXmlShortName('');
 
-                    $dtm->setUseShortResults(true);
                     $dtm->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
 
                     $dtm->setExternalIdField(null);
@@ -1929,15 +1928,6 @@ $ret .= '  Set current to '.$count."\n";
             // Load all datatypes, deleted or not
             $em->getFilters()->disable('softdeleteable');
 
-            // Force all datatypes into a state of "incomplete"
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataType AS dt
-                SET dt.setup_step = :setup_step'
-            )->setParameters( array('setup_step' => 'incomplete') );
-            $rows = $query->execute();
-
-            print 'Updated '.$rows.' to have the "incomplete" setup step'."\n";
-
             $query = $em->createQuery(
                'SELECT dt.id, dt.deletedAt
                 FROM ODRAdminBundle:DataType AS dt
@@ -2057,10 +2047,50 @@ $ret .= '  Set current to '.$count."\n";
 
                 print "\n";
             }
-            print '</pre>';
+
+
+            // ----------------------------------------
+            // Force all datatypes into a setup_state of "incomplete"
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataType AS dt
+                SET dt.setup_step = :setup_step'
+            )->setParameters( array('setup_step' => DataType::STATE_INCOMPLETE) );
+            $rows = $query->execute();
+
+            print 'Updated '.$rows.' datatypes to have the "incomplete" setup step'."\n";
+
+
+            // Locate all datatypes that have a search_results theme
+            $query = $em->createQuery(
+               'SELECT DISTINCT(dt.id) AS dt_id
+                FROM ODRAdminBundle:Theme AS t
+                JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
+                WHERE t.themeType = :theme_type
+                AND t.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            )->setParameters( array('theme_type' => 'search_results') );
+            $results = $query->getArrayResult();
+
+            $datatype_ids = array();
+            foreach ($results as $result)
+                $datatype_ids[] = $result['dt_id'];
+
+
+            // All datatypes that have a "search_results" theme are considered "operational
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataType AS dt
+                SET dt.setup_step = :setup_step
+                WHERE dt.id IN (:datatype_ids)'
+            )->setParameters( array('setup_step' => DataType::STATE_OPERATIONAL, 'datatype_ids' => $datatype_ids) );
+            $rows = $query->execute();
+
+            print 'Updated '.$rows.' datatypes to have the "operational" setup step'."\n";
+
 
             $em->getFilters()->enable('softdeleteable');
+            print '</pre>';
 
+
+            // ----------------------------------------
             $cache_service->delete('cached_datatree_array');
             $datatree_array = $dti_service->getDatatreeArray();
 
@@ -2097,7 +2127,6 @@ $ret .= '  Set current to '.$count."\n";
                 }
             }
             print '</pre>';
-
         }
         catch (\Exception $e) {
             $em->getFilters()->enable('softdeleteable');

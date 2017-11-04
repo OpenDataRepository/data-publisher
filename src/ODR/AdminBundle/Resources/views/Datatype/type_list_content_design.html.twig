@@ -38,8 +38,10 @@
     <tbody>
     {% for datatype in datatypes %}
 
-        {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) %}
-        {% if datatype.dataTypeMeta.searchSlug == '' %}
+        {% set datatype_meta = datatype.dataTypeMeta %}
+
+        {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype_meta.searchSlug } ) %}
+        {% if datatype_meta.searchSlug == '' %}
             {% set datatype_baseurl = path('odr_admin_homepage') %}
         {% endif %}
 
@@ -64,12 +66,12 @@
                             <b>Created By: </b>{{ datatype.createdBy|user_string }}<b> on </b>{{ datatype.created|date('Y-m-d') }}
                         </div>
                         <div>
-                            <b>Description: </b>{{ datatype.dataTypeMeta.description }}
+                            <b>Description: </b>{{ datatype_meta.description }}
                         </div>
                     </span>
                 </span>
             </td>
-            <td id="ODRDatatypeList_{{ datatype.id }}_name">{{ datatype.dataTypeMeta.shortName }}</td>
+            <td id="ODRDatatypeList_{{ datatype.id }}_name">{{ datatype_meta.shortName }}</td>
 
 
             {# number of datarecords for this datatype #}
@@ -82,19 +84,21 @@
 
             {# master layout designer link #}
             <td>
-            {% if datatype.dataTypeMeta.searchSlug == '' %}
-                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
+            {% if datatype_meta.searchSlug == '' %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
             {% else %}
-                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
+                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
             {% endif %}
             </td>
 
             {# derivative layout designer link #}
             <td>
-            {% if datatype.dataTypeMeta.searchSlug == '' %}
-                <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
+            {% if datatype.setup_step == 'incomplete' %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Search Results Theme not designed!</a>
+            {% elseif datatype_meta.searchSlug == '' %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
             {% else %}
-                <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a>
+                <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a>
             {% endif %}
             </td>
 
@@ -107,8 +111,8 @@
 
             {# CSV import link for this datatype #}
             <td>
-            {% if datatype.dataTypeMeta.searchSlug == '' %}
-                <a id="ODRDatatypeList_{{ datatype.id }}_csv_import" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
+            {% if datatype_meta.searchSlug == '' %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_csv_import" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
             {% else %}
                 <a class="address" href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-upload"></i>&nbsp;Import</a>
             {% endif %}

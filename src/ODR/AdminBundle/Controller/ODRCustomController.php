@@ -2979,7 +2979,6 @@ class ODRCustomController extends Controller
             'description' => $old_meta_entry->getDescription(),
             'xml_shortName' => $old_meta_entry->getXmlShortName(),
 
-            'useShortResults' => $old_meta_entry->getUseShortResults(),
             'publicDate' => $old_meta_entry->getPublicDate(),
             'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
             'master_revision' => $old_meta_entry->getMasterRevision(),
@@ -3038,7 +3037,6 @@ class ODRCustomController extends Controller
             $new_datatype_meta->setDescription( $old_meta_entry->getDescription() );
             $new_datatype_meta->setXmlShortName( $old_meta_entry->getXmlShortName() );
 
-            $new_datatype_meta->setUseShortResults( $old_meta_entry->getUseShortResults() );
             $new_datatype_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
             $new_datatype_meta->setMasterRevision( $old_meta_entry->getMasterRevision() );
@@ -3093,8 +3091,6 @@ class ODRCustomController extends Controller
         if ( isset($properties['xml_shortName']) )
             $new_datatype_meta->setXmlShortName( $properties['xml_shortName'] );
 
-        if ( isset($properties['useShortResults']) )
-            $new_datatype_meta->setUseShortResults( $properties['useShortResults'] );
         if ( isset($properties['publicDate']) )
             $new_datatype_meta->setPublicDate( $properties['publicDate'] );
 

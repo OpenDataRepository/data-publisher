@@ -3,7 +3,7 @@
 {# set variables used by the parent template...http://stackoverflow.com/questions/17244162/symfony2-twig-how-can-i-send-parameters-to-the-parent-template #}
 
 {% set current_user = '' %}
-{% if user != null %}
+{% if user != 'anon.' %}
     {% set current_user = user.getuserstring %}
 {% endif %}
 
@@ -35,7 +35,7 @@
 {% block title %}{{ window_title }}{% endblock %}
 
 {% set use_navigation_block = false %}
-{% if user != null %}
+{% if user != 'anon.' %}
     {% set use_navigation_block = true %}
 {% endif %}
 

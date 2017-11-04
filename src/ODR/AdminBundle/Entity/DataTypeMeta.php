@@ -68,11 +68,6 @@ class DataTypeMeta
     private $xml_shortName;
 
     /**
-     * @var boolean
-     */
-    private $useShortResults;
-
-    /**
      * @var \DateTime
      */
     private $publicDate;
@@ -328,29 +323,6 @@ class DataTypeMeta
     public function getXmlShortName()
     {
         return $this->xml_shortName;
-    }
-
-    /**
-     * Set useShortResults
-     *
-     * @param boolean $useShortResults
-     * @return DataTypeMeta
-     */
-    public function setUseShortResults($useShortResults)
-    {
-        $this->useShortResults = $useShortResults;
-
-        return $this;
-    }
-
-    /**
-     * Get useShortResults
-     *
-     * @return boolean 
-     */
-    public function getUseShortResults()
-    {
-        return $this->useShortResults;
     }
 
     /**

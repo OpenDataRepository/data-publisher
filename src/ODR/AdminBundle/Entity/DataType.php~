@@ -51,16 +51,6 @@ class DataType
     /**
      * @var boolean
      */
-    private $has_shortresults;
-
-    /**
-     * @var boolean
-     */
-    private $has_textresults;
-
-    /**
-     * @var boolean
-     */
     private $is_master_type;
 
     /**
@@ -236,56 +226,6 @@ class DataType
     public function getSetupStep()
     {
         return $this->setup_step;
-    }
-
-    /**
-     * Set has_shortresults
-     * @deprecated
-     *
-     * @param boolean $hasShortresults
-     * @return DataType
-     */
-    public function setHasShortresults($hasShortresults)
-    {
-        $this->has_shortresults = $hasShortresults;
-
-        return $this;
-    }
-
-    /**
-     * Get has_shortresults
-     * @deprecated
-     *
-     * @return boolean 
-     */
-    public function getHasShortresults()
-    {
-        return $this->has_shortresults;
-    }
-
-    /**
-     * Set has_textresults
-     * @deprecated
-     *
-     * @param boolean $hasTextresults
-     * @return DataType
-     */
-    public function setHasTextresults($hasTextresults)
-    {
-        $this->has_textresults = $hasTextresults;
-
-        return $this;
-    }
-
-    /**
-     * Get has_textresults
-     * @deprecated
-     *
-     * @return boolean 
-     */
-    public function getHasTextresults()
-    {
-        return $this->has_textresults;
     }
 
     /**
@@ -931,16 +871,6 @@ class DataType
     public function getXmlShortName()
     {
         return $this->getDataTypeMeta()->getXmlShortName();
-    }
-
-    /**
-     * Get useShortResults
-     *
-     * @return boolean
-     */
-    public function getUseShortResults()
-    {
-        return $this->getDataTypeMeta()->getUseShortResults();
     }
 
     /**

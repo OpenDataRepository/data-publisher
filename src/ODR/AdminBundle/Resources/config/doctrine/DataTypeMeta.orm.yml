@@ -64,12 +64,6 @@ ODR\AdminBundle\Entity\DataTypeMeta:
             nullable: false
             column: xml_short_name
 
-        useShortResults:
-            type: boolean
-            nullable: false
-            default: true
-            column: use_short_results
-
         publicDate:
             type: datetime
             nullable: false
