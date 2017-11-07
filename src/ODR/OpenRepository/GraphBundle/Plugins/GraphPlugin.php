@@ -171,7 +171,7 @@ class GraphPlugin
             // Or create rollup name for rollup chart
             foreach ($datarecords as $dr_id => $dr) {
                 $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
-                if(isset($dr['dataRecordFields'][$graph_datafield_id])) {
+                if ( isset($dr['dataRecordFields'][$graph_datafield_id]) ) {
                     foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
                         // File ID list is used only by rollup
                         $odr_chart_file_ids[] = $file['id'];
@@ -236,16 +236,17 @@ class GraphPlugin
             );
 
 
-            if (isset($rendering_options['build_graph'])) {
-
+            if ( isset($rendering_options['build_graph']) ) {
                 // Determine file name
                 $graph_filename = "";
-                if(isset($options['use_rollup']) && $options['use_rollup'] == "yes") {
+                if ( isset($options['use_rollup']) && $options['use_rollup'] == "yes" ) {
                     $graph_filename = $odr_chart_output_files['rollup'];
                 }
                 else {
                     // Determine target datarecord
-                    if(isset($rendering_options['datarecord_id']) && preg_match("/^\d+$/", trim($rendering_options['datarecord_id']))) {
+                    if ( isset($rendering_options['datarecord_id'])
+                        && preg_match("/^\d+$/", trim($rendering_options['datarecord_id']))
+                    ) {
                         $graph_filename = $odr_chart_output_files[$rendering_options['datarecord_id']];
                     }
                     else {
@@ -253,8 +254,9 @@ class GraphPlugin
                     }
                 }
 
+
                 // We need to know if this is a rollup or direct record request here...
-                if (file_exists($this->container->getParameter('odr_web_directory').'/uploads/files/graphs/'.$graph_filename)) {
+                if ( file_exists($this->container->getParameter('odr_web_directory').$graph_filename) ) {
                     /* Pre-rendered graph file exists, do nothing */
                     return $graph_filename;
                 }
@@ -264,7 +266,7 @@ class GraphPlugin
                     $crypto_service = $this->container->get('odr.crypto_service');
 
                     $files_to_delete = array();
-                    if (isset($options['use_rollup']) && $options['use_rollup'] == "yes") {
+                    if ( isset($options['use_rollup']) && $options['use_rollup'] == "yes" ) {
                         // For each of the files that will be used in the graph...
                         foreach ($odr_chart_files as $dr_id => $file) {
                             // ...ensure that it exists
@@ -323,7 +325,7 @@ class GraphPlugin
                 );
             }
 
-            if(!isset($rendering_options['build_graph'])) {
+            if (!isset($rendering_options['build_graph'])) {
                 return $output;
             }
         }
@@ -340,11 +342,15 @@ class GraphPlugin
     }
 
     /**
-     * Builds the static graphs for the server
-     * @param $page_data - A Map holding all the data that is needed for creating the graph html, and for the phantomjs
-     *      js server to render it.
-     * @param $filename - The name that the svg file should have.
-     * @throws \Exception  - Standard PHP exception.
+     * Builds the static graphs for the server.
+     *
+     * @param array $page_data A Map holding all the data that is needed for creating the graph
+     *                          html, and for the phantomjs js server to render it.
+     * @param string $filename The name that the svg file should have.
+     *
+     * @throws \Exception
+     *
+     * @return string
      */
     private function buildGraph($page_data, $filename)
     {
@@ -393,7 +399,7 @@ class GraphPlugin
         curl_close($ch);
 
         // Parse output to fix CamelCase in SVG element
-        if (file_exists($output_tmp_svg)) {
+        if ( file_exists($output_tmp_svg) ) {
             $created_file = file_get_contents($output_tmp_svg);
             $fixed_file = str_replace('viewbox', 'viewBox', $created_file);
             $fixed_file = str_replace('preserveaspectratio', 'preserveAspectRatio', $fixed_file);
@@ -402,38 +408,13 @@ class GraphPlugin
             // Remove the HTML file
             unlink($files_path . "Chart__" . $file_id_list . '.html');
             return $filename;
-        } else {
-            if(strlen($output_svg) > 40) {
+        }
+        else {
+            if ( strlen($output_svg) > 40 ) {
                 $output_svg = "..." . substr($output_svg,(strlen($output_svg) - 40), strlen($output_svg));
             }
+
             throw new \Exception('The file "'. $output_svg .'" does not exist');
         }
-
     }
-
-    /**
-     * Returns the power set of a one dimensional array, a 2-D array.
-     * [a,b,c] -> [ [a], [b], [c], [a, b], [a, c], [b, c], [a, b, c] ]
-     *
-     * PowerSet - Used to build all possible combinations of static graphs.
-     */
-    private function powerSet($in,$minLength = 1) {
-        $count = count($in);
-        $members = pow(2,$count);
-        $return = array();
-        for ($i = 0; $i < $members; $i++) {
-            $b = sprintf("%0".$count."b",$i);
-            $out = array();
-            for ($j = 0; $j < $count; $j++) {
-                $testval = $b[$j];
-                $inval = $in[$j];
-                if ($b[$j] == '1') $out[] = $in[$j];
-            }
-            if (count($out) >= $minLength) {
-                $return[] = $out;
-            }
-        }
-        return $return;
-    }
-
 }

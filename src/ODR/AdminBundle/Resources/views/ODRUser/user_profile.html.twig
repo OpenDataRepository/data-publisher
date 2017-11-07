@@ -14,20 +14,19 @@
         </div>
 
         {% if has_oauth_providers or has_oauth_clients %}
-        <div class="ODRInnerBox pure-u-1 pure-u-md-1-2" style="border:none;">
+        <div class="ODRTabAccordion ODRInnerBox pure-u-1 pure-u-md-1-2" style="border:none;">
             <h3 class="ODRHeader">
                 OAuth Management
             </h3>
 
-            <div class="ODRBodyContent">
-                {% if has_oauth_providers %}
-                    {% include 'ODROpenRepositoryOAuthClientBundle:Default:oauth_provider_list.html.twig' with {'user': target_user, 'connected_oauth_resources': connected_oauth_resources} %}
-                {% endif %}
-
-                {% if has_oauth_clients %}
-                    {% include 'ODROpenRepositoryOAuthServerBundle:Clients:owned_clients.html.twig' with {'owned_clients': owned_clients, 'site_baseurl': site_baseurl} %}
-                {% endif %}
+            <div class="ODRTabButtonHeader">
+                <button class="pure-button pure-button-primary ODRTabButton" rel="ODROAuthProviderList">OAuth Providers</button>
+                <button class="pure-button pure-button-primary ODRTabButton" rel="ODROwnedClientsList">OAuth Clients</button>
             </div>
+
+            {% include 'ODROpenRepositoryOAuthClientBundle:Default:oauth_provider_list.html.twig' with {'user': target_user, 'connected_oauth_resources': connected_oauth_resources} %}
+
+            {% include 'ODROpenRepositoryOAuthServerBundle:Clients:owned_clients.html.twig' with {'owned_clients': owned_clients, 'site_baseurl': site_baseurl} %}
         </div>
         {% endif %}
     </div>
@@ -50,6 +49,15 @@
         $("#ODRUserProfileForm_{{ target_user.id }}").submit(function(event) {
             event.preventDefault();
         });
+
+        $(".ODRTabButton").unbind('click').click(function() {
+            var rel = $(this).attr('rel');
+
+            $(".ODRTabContent").hide();
+            $("#" + rel).show();
+        });
+        $("#ODROAuthProviderList").show();
+        $("#ODROwnedClientsList").hide();
     });
 
     function saveProfileForm() {

@@ -1,6 +1,16 @@
 {% spaceless %}
 
-<div id="ODROAuthProviderList" style="margin-top: 25px;">
+<div id="ODROAuthProviderList" class="ODRTabContent" style="margin-top: 25px;">
+    <div>
+        {% if hwi_oauth_resource_owners() | length == 0 %}
+        <div class="ODROAuthIndent">No OAuth providers have been configured by the system administrator.</div>
+        {% else %}
+        <div class="ODROAuthIndent">Each of the websites listed below can be "connected" to your ODR account if you already have an account with that website.  Clicking a "Connect" button will redirect you to that website's login page and ask you to sign in.</div>
+        <div class="ODROAuthIndent">After the connection is created, you can then use the equivalent button on ODR's login page to log into your ODR account.</div>
+        {% endif %}
+    </div>
+
+    <div style="margin-top: 10px;">
     {% for owner in hwi_oauth_resource_owners() %}
         {% if owner|lower in connected_oauth_resources %}
             <a class="odr_oauth_{{ owner }} pure-button" href="{{ path('odr_oauth_account_link_disconnect', {'resource': owner}) }}">Disconnect from {{ owner }}</a>
@@ -8,6 +18,7 @@
             <a class="odr_oauth_{{ owner }} pure-button" href="{{ path('odr_oauth_account_link_connect', {'resource': owner}) }}">Connect to {{ owner }}</a>
         {% endif %}
     {% endfor %}
+    </div>
 </div>
 
 {% endspaceless %}
