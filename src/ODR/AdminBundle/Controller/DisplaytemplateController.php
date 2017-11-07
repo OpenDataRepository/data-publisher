@@ -4194,12 +4194,15 @@ exit();
                     );
 
                     // These properties can be null...
+                    $update_sort_order = false;
                     if ( $submitted_data->getExternalIdField() !== null )
                         $properties['externalIdField'] = $submitted_data->getExternalIdField()->getId();
                     if ( $submitted_data->getNameField() !== null )
                         $properties['nameField'] = $submitted_data->getNameField()->getId();
-                    if ( $submitted_data->getSortField() !== null )
+                    if ( $submitted_data->getSortField() !== null ) {
                         $properties['sortField'] = $submitted_data->getSortField()->getId();
+                        $update_sort_order = true;
+                    }
                     if ( $submitted_data->getBackgroundImageField() !== null )
                         $properties['backgroundImageField'] = $submitted_data->getBackgroundImageField()->getId();
 
@@ -4220,6 +4223,18 @@ exit();
                     $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
                     // Don't need to update cached versions of datarecords or themes
+
+
+                    // If the sort datafield changed, then cached search results need to be updated as well
+                    if ($update_sort_order) {
+                        $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
+
+                        $cached_searches = $cache_service->get('cached_search_results');
+                        if ( isset($cached_searches[$datatype->getId()]) ) {
+                            unset( $cached_searches[$datatype->getId()] );
+                            $cache_service->set('cached_search_results', $cached_searches);
+                        }
+                    }
                 }
                 else {
                     // Form validation failed

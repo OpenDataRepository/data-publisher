@@ -413,7 +413,7 @@ exit();
 
                 $target_datatype = $meta_entry->getDataType();
                 if ($target_datatype == null)
-                    throw new ODRNotFoundException('Datatype');
+                    throw new ODRNotFoundException('Datatype');     // TODO - this just dumps out an error page
             }
             /** @var DataType $target_datatype */
 
@@ -426,7 +426,7 @@ exit();
                 $can_view_datarecord = true;
 
             if ( !$pm_service->canViewDatatype($admin_user, $target_datatype) )
-                throw new ODRForbiddenException();
+                throw new ODRForbiddenException();      // TODO - this doesn't redirect to a login page
 
 
             // ----------------------------------------
@@ -1149,6 +1149,7 @@ if (isset($debug['timing'])) {
             $datarecord_ids = implode(',', $datarecord_ids);
         }
 
+        $sorted_grandparent_ids = '';
         $public_grandparent_ids = '';
         if (strpos($grandparent_ids, ',') !== false) {
             /** @var DatatypeInfoService $dti_service */
@@ -1156,6 +1157,12 @@ if (isset($debug['timing'])) {
 
             $grandparent_ids = substr($grandparent_ids, 0, -1);
             $grandparent_ids_as_array = $dti_service->getSortedDatarecordList($target_datatype->getId(), $grandparent_ids);
+
+            // Convert the sorted list of grandparent ids back into a string
+            $sorted_grandparent_ids = '';
+            foreach ($grandparent_ids_as_array as $dr_id => $sort_value)
+                $sorted_grandparent_ids .= $dr_id.',';
+            $sorted_grandparent_ids = substr($sorted_grandparent_ids, 0, -1);
 
             // Need to figure out which of these grandparent datarecords are viewable to people without the 'dr_view' permission
             $query = $em->createQuery(
@@ -1183,6 +1190,7 @@ if (isset($debug['timing'])) {
 if (isset($debug['basic'])) {
     print '$datarecord_ids: '.print_r($datarecord_ids, true)."\n";
     print '$grandparent_ids: '.print_r($grandparent_ids, true)."\n";
+    print '$sorted_grandparent_ids: '.$sorted_grandparent_ids."\n";
 
     if ($datarecord_ids == '') {
         print 'count($datarecord_ids): 0'."\n";
@@ -1254,7 +1262,7 @@ if (isset($debug['timing'])) {
 
         // Store the data in the memcached entry
         $cached_searches[$target_datatype_id][$search_checksum]['complete_datarecord_list'] = $datarecord_ids;
-        $cached_searches[$target_datatype_id][$search_checksum]['datarecord_list'] = array('all' => $grandparent_ids, 'public' => $public_grandparent_ids);
+        $cached_searches[$target_datatype_id][$search_checksum]['datarecord_list'] = array('all' => $sorted_grandparent_ids, 'public' => $public_grandparent_ids);
 
         $cache_service->set('cached_search_results', $cached_searches);
 

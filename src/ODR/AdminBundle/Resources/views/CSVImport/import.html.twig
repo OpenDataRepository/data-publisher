@@ -70,14 +70,30 @@
 
         {% if upload_type == 'csv' %}
         <div id="file_upload_div">
-            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': 'csv_import', 'single_file': true, 'upload_type': 'csv', 'datatype_id': datatype.id, 'datarecord_id': 0, 'datafield_id': 0, 'callback': 'loadLayout();'} %}
+            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {
+                'target': 'csv_import',
+                'single_file': true,
+                'upload_type': 'csv',
+                'datatype_id': datatype.id,
+                'datarecord_id': 0,
+                'datafield_id': 0,
+                'callback': 'loadLayout();'
+            } %}
         </div>
         {% endif %}
     </form>
 
     <div id="layout_content">
     {% if presets != null %}
-        {% include 'ODRAdminBundle:CSVImport:layout.html.twig' with {'columns': columns, 'datatype': datatype, 'datafields': datafields, 'fieldtypes': fieldtypes, 'allowed_fieldtypes': allowed_fieldtypes, 'presets': presets, 'file_encoding_converted': file_encoding_converted} %}
+        {% include 'ODRAdminBundle:CSVImport:layout.html.twig' with {
+            'columns': columns,
+            'datatype': datatype,
+            'datafields': datafields,
+            'fieldtypes': fieldtypes,
+            'allowed_fieldtypes': allowed_fieldtypes,
+            'presets': presets,
+            'file_encoding_converted': file_encoding_converted
+        } %}
     {% endif %}
     </div>
 </div>
@@ -112,8 +128,7 @@
         $("#invalid_linked_datatype_warning").hide();
 
     {% if presets == null %}
-        $("#delimiter_select").unbind('change');
-        $("#delimiter_select").change(function() {
+        $("#delimiter_select").unbind('change').change(function() {
             delimiterChanged( $(this).val() );
             if ( $(this).val() == "" || $("#target_datatype").children(':selected').attr('rel') == 'invalid link' )
                 $("#file_upload_div").hide();
@@ -121,8 +136,7 @@
                 $("#file_upload_div").show();
         });
 
-        $("#target_datatype").unbind('change');
-        $("#target_datatype").change(function() {
+        $("#target_datatype").unbind('change').change(function() {
             // Hide both warnings...they'll get shown if required
             $("#childtype_import_warning").hide();
             $("#invalid_linked_datatype_warning").hide();
@@ -176,8 +190,7 @@
 
         $(".ODRCSVImportHeader").next().hide();
 
-        $(".ODRCSVImportHeader").unbind('click');
-        $(".ODRCSVImportHeader").click(function() {
+        $(".ODRCSVImportHeader").unbind('click').click(function() {
             if ( $(this).next().is(':hidden') ) {
                 $(this).next().show();
 
@@ -195,7 +208,7 @@
     });
 
 
-    {% if upload_type == 'csv' %}
+{% if upload_type == 'csv' %}
     function loadLayout() {
 
 //        $("#delimiter_select").attr('disabled', 'disabled');
@@ -217,16 +230,13 @@
             url: url,
             dataType: dataType,
             success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
-                    $("#csvUploadForm").remove();
-                    $("#layout_content").append( data.d.html );
+                $("#csvUploadForm").remove();
+                $("#layout_content").append( data.d.html );
 
-                    $("#target_datatype_name").html( datatype_name );
-                }
-                else {
-                    alert( data.d );
-//                    cancelCSVUpload(true);
-                }
+                $("#target_datatype_name").html( datatype_name );
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -256,11 +266,10 @@
             url: url,
             dataType: dataType,
             success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
-                }
-                else {
-                    alert( data.d );
-                }
+                // Don't need to do anything specific on success
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -277,7 +286,7 @@
             }
         });
     }
-    {% endif %} {# if upload_type == 'csv' #}
+{% endif %} {# if upload_type == 'csv' #}
 
     function cancelCSVUpload(force) {
 
@@ -300,16 +309,14 @@
             url: url,
             dataType: dataType,
             success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
-//                    alert('csv import cancelled');
-//                    window.location.reload();
+//                alert('csv import cancelled');
+//                window.location.reload();
 
-                    var url = '{{ path('odr_csv_import', {'datatype_id': datatype.id}) }}';
-                    UpdateURL(url);
-                }
-                else {
-                    alert( data.d );
-                }
+                var url = '{{ path('odr_csv_import', {'datatype_id': datatype.id}) }}';
+                UpdateURL(url);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -327,7 +334,7 @@
         });
     }
 
-    {% if allow_import == true %}
+{% if allow_import == true %}
     function doImport() {
 
         var url = '{{ path('odr_csv_import_start_worker', {'job_id': tracked_job_id}) }}';
@@ -345,17 +352,13 @@
             url: url,
             dataType: dataType,
             success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
-                    // ...
-                    alert('Beginning CSV Import...');
-                    var url = '{{ path('odr_job_list') }}';
-                    UpdateURL(url);
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert( data.d );
-                }
+                alert('Beginning CSV Import...');
+
+                var url = '{{ path('odr_job_list') }}';
+                UpdateURL(url);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -372,7 +375,7 @@
             }
         });
     }
-    {% endif %} {# if allow_import == true #}
+{% endif %} {# if allow_import == true #}
 
 </script>
 

@@ -40,10 +40,17 @@ use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\TrackedError;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
@@ -82,22 +89,25 @@ class CSVImportController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )    // TODO - less restrictive permissions?
-                return parent::permissionDeniedError("edit");
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )    // TODO - less restrictive permissions?
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -106,14 +116,14 @@ class CSVImportController extends ODRCustomController
             // Block csv imports if there's already one in progress for this datatype
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             // Also block if there's a datafield migration in place
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
 
 
             // ----------------------------------------
@@ -174,9 +184,11 @@ class CSVImportController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x468215567 ' . $e->getMessage();
+            $source = 0xc37afbaf;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -227,7 +239,7 @@ class CSVImportController extends ODRCustomController
                     break;
 /*
                 default:
-                    throw new \Exception('Select a delimiter');
+                    throw new ODRException('Select a delimiter');
                     break;
 */
             }
@@ -235,9 +247,11 @@ class CSVImportController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x821135537 ' . $e->getMessage();
+            $source = 0x99d8cc4b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -247,7 +261,8 @@ class CSVImportController extends ODRCustomController
 
 
     /**
-     * Reads the previously uploaded CSV file to extract column names, and renders a form to let the user decide what data to import and which DataFields to import it to.
+     * Reads the previously uploaded CSV file to extract column names, and renders a form to let
+     * the user decide what data to import and which DataFields to import it to.
      *
      * @param integer $source_datatype_id  The top-level datatype that user started this CSV import from
      * @param integer $target_datatype_id  Which datatype the CSV data is being imported into.
@@ -272,28 +287,29 @@ class CSVImportController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var DataType $source_datatype */
             $source_datatype = $repo_datatype->find($source_datatype_id);
-            if ( $source_datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($source_datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
             /** @var DataType $target_datatype */
             $target_datatype = $repo_datatype->find($target_datatype_id);
-            if ( $target_datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($target_datatype == null)
+                throw new ODRNotFoundException('Datatype');
 
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-//            $datafield_permissions = $user_permissions['datafields'];     // TODO - eventually need to use this alongside the less restrictive permissions?
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $source_datatype_id ]) && isset($datatype_permissions[ $source_datatype_id ][ 'dt_admin' ])) )    // TODO - less restrictive permissions?
-                return parent::permissionDeniedError("edit");
+            if ( !$pm_service->isDatatypeAdmin($user, $source_datatype) )    // TODO - less restrictive permissions?
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -302,14 +318,14 @@ class CSVImportController extends ODRCustomController
             // Block csv imports if there's already one in progress for this datatype
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$target_datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$target_datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             // Also block if there's a datafield migration in place
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$target_datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
 
 
             // ----------------------------------------
@@ -325,11 +341,11 @@ class CSVImportController extends ODRCustomController
                 $parent_datatype = $repo_datatype->find($datatree_array['linked_from'][$target_datatype_id]);
 
                 if ($parent_datatype == null)
-                    throw new \Exception('Invalid Target Datatype');
+                    throw new ODRBadRequestException('Invalid Target Datatype');
 
                 // User should not have had the option to link to a datatype that lacks an external ID field...
                 if ($target_datatype->getExternalIdField() == null)
-                    throw new \Exception('Invalid Target Datatype');
+                    throw new ODRBadRequestException('Invalid Target Datatype');
             }
             else if ( !isset($datatree_array['descendant_of'][$target_datatype_id]) || $datatree_array['descendant_of'][$target_datatype_id] == '' ) {
                 /* Importing into top-level datatype, do nothing */
@@ -343,11 +359,11 @@ class CSVImportController extends ODRCustomController
 
                     // User shouldn't have had the option to select a child datatype if the parent had no external ID field...
                     if ($parent_datatype->getExternalIdField() == null)
-                        throw new \Exception('Invalid Target Datatype');
+                        throw new ODRBadRequestException('Invalid Target Datatype');
                 }
                 else {
                     // User should not have had the option to select a child of a child datatype...
-                    throw new \Exception('Invalid Target Datatype');
+                    throw new ODRBadRequestException('Invalid Target Datatype');
                 }
             }
 
@@ -384,17 +400,17 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Attempt to load the previously uploaded csv file
             if ( !$session->has('csv_file') )
-                throw new \Exception('No CSV file uploaded');
+                throw new ODRBadRequestException('No CSV file uploaded');
 
             // Remove any completely blank columns and rows from the csv file
             $file_encoding_converted = self::trimCSVFile($user->getId(), $request);
 
-            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
+            $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $session->get('csv_file');
             $delimiter = $session->get('csv_delimiter');
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new \Exception('Target CSV File does not exist');
+                throw new ODRException('Target CSV File does not exist');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -408,7 +424,6 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Grab column names from first row
             $file_headers = $reader->getColumnHeaders();
-
             $error_messages = array();
             foreach ($file_headers as $column_num => $value) {
                 if ($value == '')
@@ -424,6 +439,7 @@ class CSVImportController extends ODRCustomController
             }
 
 //print_r($error_messages);
+
 
             // ----------------------------------------
             // Render the page
@@ -463,9 +479,13 @@ class CSVImportController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x224681522 ' . Encoding::toUTF8( $e->getMessage() );    // json_encode() will a boolean when it attempts to encode non-UTF8 characters...which is a possibility here because of how the CsvReader class works
+            $source = 0x9afc6f73;
+            $safe_message = Encoding::toUTF8($e->getMessage());    // json_encode() will a boolean when it attempts to encode non-UTF8 characters...which is a possibility here because of how the CsvReader class works
+
+            if ($e instanceof ODRException)
+                throw new ODRException($safe_message, $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($safe_message, 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -479,7 +499,7 @@ class CSVImportController extends ODRCustomController
      * rows or columns in the csv files it creates, there needs to be a function to strip these
      * completely blank rows/columns from the csv file that the user uploads.
      *
-     * @throws \Exception
+     * @throws ODRException
      *
      * @param integer $user_id
      * @param Request $request
@@ -491,14 +511,14 @@ class CSVImportController extends ODRCustomController
         // Attempt to load the previously uploaded csv file
         $session = $request->getSession();
         if ( !$session->has('csv_file') )
-            throw new \Exception('No CSV file uploaded');
+            throw new ODRException('No CSV file uploaded');
 
-        $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user_id.'/';
+        $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user_id.'/';
         $csv_filename = $session->get('csv_file');
         $delimiter = $session->get('csv_delimiter');
 
         if ( !file_exists($csv_import_path.$csv_filename) )
-            throw new \Exception('Target CSV File does not exist');
+            throw new ODRException('Target CSV File does not exist');
 
         // Apparently SplFileObject doesn't do this before opening the file...
         ini_set('auto_detect_line_endings', TRUE);
@@ -700,15 +720,15 @@ class CSVImportController extends ODRCustomController
             // Attempt to load the previously uploaded csv file
             $session = $request->getSession();
             if ( !$session->has('csv_file') )
-                throw new \Exception('No CSV file uploaded');
+                throw new ODRException('No CSV file uploaded');
 
-            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user_id.'/';
+            $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user_id.'/';
             $csv_filename = $session->get('csv_file');
             $absolute_filepath = $csv_import_path.$csv_filename;
 
             $handle = fopen($absolute_filepath, 'r');
             if ($handle === false)
-                throw new \Exception('Unable to open existing file at "'.$absolute_filepath.'"');
+                throw new ODRException('Unable to open existing file at "'.$absolute_filepath.'"');
 
             // Attach the original filename to the download
             $display_filename = substr($csv_filename, 0, strrpos($csv_filename, '.'));
@@ -747,19 +767,18 @@ class CSVImportController extends ODRCustomController
             return $response;
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x11533537 ' . $e->getMessage();
+            $source = 0x81eae304;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
     }
 
 
     /**
-     * Builds and returns a JSON list of the files that have been uploaded to the user's csv storage directory
+     * Builds and returns a JSON list of the files that have been uploaded to the user's csv
+     * storage directory
      *
      * @param Request $request
      *
@@ -773,13 +792,13 @@ class CSVImportController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // TODO - permissions?
+            // Don't need to check permissions
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Get all files in the given user's 'upload' directory
             $uploaded_files = array();
-            $upload_directory = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/storage';
+            $upload_directory = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/storage';
             if ( file_exists($upload_directory) )
                 $uploaded_files = scandir($upload_directory);
 
@@ -796,9 +815,11 @@ class CSVImportController extends ODRCustomController
             $return['d'] = $filelist;
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x627153467 ' . $e->getMessage();
+            $source = 0x9b61078d;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -822,13 +843,13 @@ class CSVImportController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // TODO - permissions?
+            // Don't need to check permissions
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Get all files in the given user's 'upload' directory
             $uploaded_files = array();
-            $upload_directory = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/storage';
+            $upload_directory = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/storage';
             if ( file_exists($upload_directory) )
                 $uploaded_files = scandir($upload_directory);
 
@@ -839,9 +860,11 @@ class CSVImportController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x627153468 ' . $e->getMessage();
+            $source = 0x15cde5cc;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -851,7 +874,9 @@ class CSVImportController extends ODRCustomController
 
 
     /**
-     * Deletes any csv-specific data from the user's session, and also deletes any csv file they uploaded.
+     * Deletes any csv-specific data from the user's session, and also deletes any csv file they
+     * uploaded.
+     *
      * TODO - replace this functionality with a more conventional "this is the list of CSV files have been uploaded...what do you want to do with them?"
      *
      * @param Request $request
@@ -873,7 +898,7 @@ class CSVImportController extends ODRCustomController
             if ( $session->has('csv_file') ) {
                 // Delete the file if it exists
                 $filename = $session->get('csv_file');
-                $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
+                $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/';
                 if ( file_exists($csv_import_path.$filename) )
                     unlink($csv_import_path.$filename);
 
@@ -885,9 +910,11 @@ class CSVImportController extends ODRCustomController
             // The page will reload itself to reset the HTML
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x42627153467 ' . $e->getMessage();
+            $source = 0x336d4581;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -897,7 +924,8 @@ class CSVImportController extends ODRCustomController
 
 
     /**
-     * Reads a $_POST request for importing a CSV file, and creates a beanstalk job to validate each line in the file.
+     * Reads a $_POST request for importing a CSV file, and creates a beanstalk job to validate
+     * each line in the file.
      *
      * @param Request $request
      *
@@ -916,7 +944,7 @@ class CSVImportController extends ODRCustomController
 //return;
 
             if ( !isset($post['datatype_id']) )
-                throw new \Exception('Invalid Form');
+                throw new ODRException('Invalid Form');
             $datatype_id = $post['datatype_id'];
 
             // --------------------
@@ -972,6 +1000,10 @@ class CSVImportController extends ODRCustomController
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             // Need to store fieldtype ids and fieldtype typenames
             /** @var FieldType[] $fieldtypes */
             $fieldtypes = $repo_fieldtype->findAll();
@@ -982,10 +1014,11 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Load required datatype entities
+            // None of these should ever fail, since this is only called via beanstalk
             /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
-                throw new \Exception('Invalid Form');
+                throw new ODRException('Invalid Form...Datatype is deleted');
 
             /** @var DataType|null $parent_datatype */
             $parent_datatype = null;
@@ -993,7 +1026,7 @@ class CSVImportController extends ODRCustomController
                 $parent_datatype = $repo_datatype->find($parent_datatype_id);
 
                 if ($parent_datatype == null)
-                    throw new \Exception('Invalid Form');
+                    throw new ODRException('Invalid Form...Parent Datatype is deleted');
             }
 
             // If importing into top-level dataype, $datatype is the top-level datatype and $parent_datatype is null
@@ -1005,12 +1038,10 @@ class CSVImportController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )    // TODO - less restrictive permissions?
-                return parent::permissionDeniedError("edit");
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )    // TODO - less restrictive permissions?
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -1019,14 +1050,14 @@ class CSVImportController extends ODRCustomController
             // Block csv imports if there's already one in progress for this datatype
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             // Also block if there's a datafield migration in place
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
 
 
             // ----------------------------------------
@@ -1038,9 +1069,9 @@ class CSVImportController extends ODRCustomController
                 if ($datafield_id == 'new') {
                     // Since a new datafield will be created, ensure fieldtype exists
                     if ( $fieldtype_mapping == null )
-                        throw new \Exception('Invalid Form...no fieldtype_mapping');
+                        throw new ODRException('Invalid Form...no fieldtype_mapping');
                     if ( !isset($fieldtype_mapping[$col_num]) )
-                        throw new \Exception('Invalid Form...$fieldtype_mapping['.$col_num.'] not set');
+                        throw new ODRException('Invalid Form...$fieldtype_mapping['.$col_num.'] not set');
 
                     // If new datafield is multiple select/radio, or new datafield is file/image, ensure secondary delimiters exist
                     $fieldtype_id = $fieldtype_mapping[$col_num];
@@ -1048,9 +1079,9 @@ class CSVImportController extends ODRCustomController
 
                     if ($typename == 'Multiple Radio' || $typename == 'Multiple Select' || $typename == 'File' || $typename == 'Image') {
                         if ( $column_delimiters == null )
-                            throw new \Exception('Invalid Form a...no column_delimiters');
+                            throw new ODRException('Invalid Form a...no column_delimiters');
                         if ( !isset($column_delimiters[$col_num]) )
-                            throw new \Exception('Invalid Form a...$column_delimiters['.$col_num.'] not set');
+                            throw new ODRException('Invalid Form a...$column_delimiters['.$col_num.'] not set');
 
                         // Keep track of file/image columns...
                         if ($typename == 'File' || $typename == 'Image')
@@ -1062,7 +1093,7 @@ class CSVImportController extends ODRCustomController
                     /** @var DataFields $datafield */
                     $datafield = $repo_datafield->find($datafield_id);
                     if ($datafield == null)
-                        throw new \Exception('Invalid Form...deleted DataField');
+                        throw new ODRException('Invalid Form...deleted DataField');
 
                     // Ensure fieldtype mapping entry exists
                     $fieldtype_mapping[$col_num] = $datafield->getFieldType()->getId();
@@ -1071,9 +1102,9 @@ class CSVImportController extends ODRCustomController
                     $typename = $datafield->getFieldType()->getTypeName();
                     if ($typename == "Multiple Select" || $typename == "Multiple Radio" || $typename == "File" || $typename == "Image") {
                         if ( $column_delimiters == null )
-                            throw new \Exception('Invalid Form b...no column_delimiters');
+                            throw new ODRException('Invalid Form b...no column_delimiters');
                         if ( !isset($column_delimiters[$col_num]) )
-                            throw new \Exception('Invalid Form b...$column_delimiters['.$col_num.'] not set');
+                            throw new ODRException('Invalid Form b...$column_delimiters['.$col_num.'] not set');
 
                         // Keep track of file/image columns...
                         if ($typename == "File" || $typename == "Image")
@@ -1109,7 +1140,7 @@ class CSVImportController extends ODRCustomController
                         $column_delimiters[$df_id] = "|";
                         break;
                     default:
-                        throw new \Exception('Invalid Form');
+                        throw new ODRException('Invalid Form');
                         break;
                 }
             }
@@ -1144,14 +1175,14 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Attempt to load csv file
             if ( !$session->has('csv_file') )
-                throw new \Exception('No CSV file uploaded');
+                throw new ODRException('No CSV file uploaded');
 
-            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
+            $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $session->get('csv_file');
             $delimiter = $session->get('csv_delimiter');
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new \Exception('Target CSV File does not exist');
+                throw new ODRException('Target CSV File does not exist');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -1432,9 +1463,11 @@ class CSVImportController extends ODRCustomController
             $return['d'] = array('tracked_job_id' => $tracked_job_id);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x232815634 ' . $e->getMessage();
+            $source = 0xfa64ef3c;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1543,7 +1576,7 @@ class CSVImportController extends ODRCustomController
             if ( !isset($post['tracked_job_id']) || !isset($post['datatype_id']) || !isset($post['user_id']) || !isset($post['column_names'])
                 || !isset($post['line_num']) || !isset($post['line']) || !isset($post['api_key']) ) {
 
-                throw new \Exception('Invalid job data');
+                throw new ODRException('Invalid job data');
             }
 
             // Pull data from the post
@@ -1602,14 +1635,14 @@ class CSVImportController extends ODRCustomController
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
 
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid job data');
+                throw new ODRException('Invalid job data');
 
             /** @var User $user */
             $user = $repo_user->find($user_id);
             /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
-                throw new \Exception('Datatype is deleted!');
+                throw new ODRException('Datatype is deleted!');
 
 
             // ----------------------------------------
@@ -1624,7 +1657,7 @@ class CSVImportController extends ODRCustomController
                 /** @var DataType $parent_datatype */
                 $parent_datatype = $repo_datatype->find($parent_datatype_id);
                 if ($parent_datatype == null || $parent_datatype->getExternalIdField() == null)
-                    throw new \Exception('Invalid Form');
+                    throw new ODRException('Invalid Form');
 
                 $parent_external_id_field = $parent_datatype->getExternalIdField();
                 $parent_external_id_value = trim( $line[$parent_external_id_column] );
@@ -1735,7 +1768,7 @@ class CSVImportController extends ODRCustomController
                     case "Image":
                         if ( $value !== '' && isset($column_delimiters[$column_num]) ) {
                             // Due to validation in self::processAction(), this will exist when the datafield is a file/image
-                            $upload_dir = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user_id.'/storage/';
+                            $upload_dir = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user_id.'/storage/';
 
                             // Grab a list of the files already uploaded to this datafield
                             $already_uploaded_files = array();
@@ -2051,9 +2084,11 @@ class CSVImportController extends ODRCustomController
                 $em->flush();
             }
 
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x223285634 ' . $e->getMessage();
+            $source = 0xc2313827;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -2089,15 +2124,17 @@ class CSVImportController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
 
             // ----------------------------------------
             /** @var TrackedJob $tracked_job */
             $tracked_job = $repo_tracked_job->find($tracked_job_id);
             if ($tracked_job == null)
-                return parent::deletedEntityError('TrackedJob');
+                throw new ODRNotFoundException('TrackedJob');
             if ( $tracked_job->getJobType() !== "csv_import_validate" )
-                return parent::deletedEntityError('TrackedJob');
+                throw new ODRNotFoundException('TrackedJob');
 
             $presets = json_decode( $tracked_job->getAdditionalData(), true );
             $target_entity = $tracked_job->getTargetEntity();
@@ -2107,18 +2144,18 @@ class CSVImportController extends ODRCustomController
             /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
-                return parent::deletedEntityError('DataType');
+                throw new ODRNotFoundException('Datatype');
+
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )    // TODO - less restrictive permissions?
-                return parent::permissionDeniedError("edit");
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )    // TODO - less restrictive permissions?
+                throw new ODRForbiddenException();
 
             // TODO - permissions check may need to be more involved than just checking whether the user accessing this can edit the datatype...
             // --------------------
@@ -2129,14 +2166,14 @@ class CSVImportController extends ODRCustomController
             // Block csv imports if there's already one in progress for this datatype
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             // Also block if there's a datafield migration in place
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
 
 
             // ----------------------------------------
@@ -2149,7 +2186,7 @@ class CSVImportController extends ODRCustomController
                 /** @var DataType $parent_datatype */
                 $parent_datatype = $repo_datatype->find($parent_datatype_id);
                 if ($parent_datatype == null)
-                    throw new \Exception('Invalid Form');
+                    throw new ODRException('Invalid Form');
             }
 
             $linked_importing = false;
@@ -2256,7 +2293,7 @@ class CSVImportController extends ODRCustomController
                         $presets['column_delimiters'][$df_id] = "pipe";
                         break;
                     default:
-                        throw new \Exception('Invalid Form');
+                        throw new ODRException('Invalid Form');
                         break;
                 }
             }
@@ -2264,12 +2301,12 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Read column names from the file
-            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
+            $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $presets['csv_filename'];
             $delimiter = $presets['delimiter'];
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new \Exception('Target CSV File does not exist');
+                throw new ODRException('Target CSV File does not exist');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -2326,9 +2363,11 @@ class CSVImportController extends ODRCustomController
             );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x469855647 ' . $e->getMessage();
+            $source = 0xee919ae8;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -2357,8 +2396,13 @@ class CSVImportController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
 
 
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
@@ -2371,7 +2415,7 @@ class CSVImportController extends ODRCustomController
             /** @var TrackedJob $tracked_job */
             $tracked_job = $repo_tracked_job->find($job_id);
             if ($tracked_job->getCompleted() == null)
-                throw new \Exception('Invalid job');
+                throw new ODRException('Invalid job');
 
             $job_data = json_decode( $tracked_job->getAdditionalData(), true );
             $target_entity = $tracked_job->getTargetEntity();
@@ -2381,18 +2425,16 @@ class CSVImportController extends ODRCustomController
             /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
-                return parent::deletedEntityError('DataType');
+                throw new ODRNotFoundException('Datatype');
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )    // TODO - less restrictive permissions?
-                return parent::permissionDeniedError("edit");
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )    // TODO - less restrictive permissions?
+                throw new ODRForbiddenException();
 
             // TODO - permissions check may need to be more involved than just checking whether the user accessing this can edit the datatype...
             // --------------------
@@ -2403,24 +2445,24 @@ class CSVImportController extends ODRCustomController
             // Block csv imports if there's already one in progress for this datatype
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+                throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+                throw new ODRException('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             // Also block if there's a datafield migration in place
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
-                throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+                throw new ODRException('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
 
 
             // ----------------------------------------
             // Read column names from the file
-            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
+            $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $job_data['csv_filename'];
             $delimiter = $job_data['delimiter'];
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new \Exception('Target CSV File does not exist');
+                throw new ODRException('Target CSV File does not exist');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -2499,7 +2541,7 @@ class CSVImportController extends ODRCustomController
                     /** @var DataFields $datafield */
                     $datafield = $repo_datafield->find($datafield_id);
                     if ($datafield == null)
-                        throw new \Exception('Invalid Form');
+                        throw new ODRException('Invalid Form');
 
 //print 'loaded existing datafield '.$datafield_id."\n";
                     $logger->notice('Using existing datafield '.$datafield->getId().' "'.$datafield->getFieldName().'" for csv import of datatype '.$datatype->getId().' by '.$user->getId());
@@ -2507,12 +2549,12 @@ class CSVImportController extends ODRCustomController
                 else {  // $datafield_id == 'new'
                     // Grab desired fieldtype from post
                     if ( $fieldtype_mapping == null )
-                        throw new \Exception('Invalid Form');
+                        throw new ODRException('Invalid Form');
 
                     /** @var FieldType $fieldtype */
                     $fieldtype = $repo_fieldtype->find( $fieldtype_mapping[$column_id] );
                     if ($fieldtype == null)
-                        throw new \Exception('Invalid Form');
+                        throw new ODRException('Invalid Form');
 
                     // Create new datafield
                     $created = true;
@@ -2564,6 +2606,7 @@ class CSVImportController extends ODRCustomController
 
                 // Update cached versions of datatype and master theme since new datafields were added
                 $dti_service->updateDatatypeCacheEntry($datatype, $user);
+                $theme_service->updateThemeCacheEntry($theme, $user);
 
                 // Don't need to worry about datafield permissions here, those are taken care of inside ODR_addDataField()
             }
@@ -2577,12 +2620,12 @@ print_r($new_mapping);
 
             // ----------------------------------------
             // Re-read the csv file so a beanstalk job can be created for each line in the file
-            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
+            $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $job_data['csv_filename'];
             $delimiter = $job_data['delimiter'];
 
             if ( !file_exists($csv_import_path.$csv_filename) )
-                throw new \Exception('Target CSV File does not exist');
+                throw new ODRException('Target CSV File does not exist');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -2637,9 +2680,11 @@ print_r($new_mapping);
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x232815622 ' . $e->getMessage();
+            $source = 0x61dc8b30;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -2672,7 +2717,7 @@ print_r($new_mapping);
 //return;
 
             if ( !isset($post['tracked_job_id']) || !isset($post['mapping']) || !isset($post['line']) || !isset($post['datatype_id']) || !isset($post['user_id']) || !isset($post['api_key']) )
-                throw new \Exception('Invalid job data');
+                throw new ODRException('Invalid job data');
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
@@ -2697,7 +2742,6 @@ print_r($new_mapping);
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $logger = $this->get('logger');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -2710,14 +2754,14 @@ print_r($new_mapping);
 
 
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid job data');
+                throw new ODRException('Invalid Form');
 
             /** @var User $user */
             $user = $repo_user->find($user_id);
             /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
-                throw new \Exception('Datatype is deleted!');
+                throw new ODRException('Invalid Form...Datatype is deleted');
 
 
             // ----------------------------------------
@@ -2735,7 +2779,7 @@ print_r($new_mapping);
                 if ( isset($datatree_array['descendant_of'][$datatype_id]) )
                     $parent_datatype_id = $datatree_array['descendant_of'][$datatype_id];
                 else
-                    throw new \Exception('Invalid Datatype ID');
+                    throw new ODRException('Invalid Datatype ID');
 
                 // Find the datarecord pointed to by the value in $parent_external_id_column
                 $parent_external_id_value = trim( $line[$parent_external_id_column] );
@@ -2748,7 +2792,7 @@ print_r($new_mapping);
                 // csvvalidateAction() purposely only gives a warning so the user is not prevented from importing the rest of the file
                 $parent_datarecord = parent::getDatarecordByExternalId($em, $parent_external_id_field->getId(), $parent_external_id_value);
                 if ($parent_datarecord == null)
-                    throw new \Exception('Parent Datarecord does not exist');
+                    throw new ODRException('Parent Datarecord does not exist');
             }
 
             // ----------------------------------------
@@ -2877,7 +2921,7 @@ print_r($new_mapping);
                             $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
 
                             // Store the path to the user's upload area...
-                            $path_prefix = dirname(__FILE__).'/../../../../web/';
+                            $path_prefix = $this->getParameter('odr_web_directory').'/';
                             $storage_filepath = 'uploads/csv/user_'.$user->getId().'/storage';
 
                             // Grab a list of the files/images already uploaded to this datafield
@@ -2939,7 +2983,7 @@ print_r($new_mapping);
                                         );
 
                                         // Ensure no decrypted version of the original file remains on the server
-                                        $filepath = dirname(__FILE__).'/../../../../web/uploads/files/File_'.$old_obj->getId().'.'.$old_obj->getExt();
+                                        $filepath = $this->getParameter('odr_web_directory').'/uploads/files/File_'.$old_obj->getId().'.'.$old_obj->getExt();
                                         if ( file_exists($filepath) )
                                             unlink($filepath);
                                     }
@@ -2958,7 +3002,7 @@ print_r($new_mapping);
                                         /** @var Image[] $old_images */
                                         $old_images = $em->getRepository('ODRAdminBundle:Image')->findBy( array('parent' => $old_obj->getId()) );
                                         foreach ($old_images as $img) {
-                                            $filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
+                                            $filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
                                             if ( file_exists($filepath) )
                                                 unlink($filepath);
                                         }
@@ -3008,7 +3052,7 @@ print_r($new_mapping);
                                         $status .= '      ...'.$typeclass.' ("'.$original_filename.'") not listed in csv file, deleting...'."\n";
 
                                         // Delete the decrypted version of this file from the server, if it exists
-                                        $file_upload_path = dirname(__FILE__).'/../../../../web/uploads/files/';
+                                        $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
                                         $filename = 'File_'.$file->getId().'.'.$file->getExt();
                                         $absolute_path = realpath($file_upload_path).'/'.$filename;
 
@@ -3037,7 +3081,7 @@ print_r($new_mapping);
                                         }
 
                                         // Ensure no decrypted version of the image (or thumbnails) exists on the server
-                                        $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$file->getId().'.'.$file->getExt();
+                                        $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$file->getId().'.'.$file->getExt();
                                         if ( file_exists($local_filepath) )
                                             unlink($local_filepath);
 
@@ -3236,9 +3280,11 @@ print_r($new_mapping);
                 $em->flush();
             }
 
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x232383515 ' . $e->getMessage();
+            $source = 0x121707ab;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -3272,7 +3318,7 @@ print_r($new_mapping);
 
             // TODO - correct requirements
             if ( !isset($post['tracked_job_id']) || /*!isset($post['mapping']) || */ !isset($post['line']) || !isset($post['datatype_id']) || !isset($post['user_id']) || !isset($post['api_key']) )
-                throw new \Exception('Invalid job data');
+                throw new ODRException('Invalid job data');
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
@@ -3305,30 +3351,29 @@ print_r($new_mapping);
             // ----------------------------------------
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-/*
             $logger = $this->get('logger');
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-*/
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
 
+
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid job data');
+                throw new ODRException('Invalid job data');
 
             /** @var User $user */
             $user = $repo_user->find($user_id);
             /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
-                throw new \Exception('Datatype is deleted!');
+                throw new ODRException('Invalid Form...Datatype is deleted');
+
             /** @var DataType $parent_datatype */
             $parent_datatype = $repo_datatype->find($parent_datatype_id);
             if ($parent_datatype == null)
-                throw new \Exception('Datatype is deleted!');
+                throw new ODRException('Invalid Form...Parent Datatype is deleted');
+
 
             // ----------------------------------------
             // Locate "local" and "remote" datarecords
@@ -3390,9 +3435,11 @@ print_r($new_mapping);
                 $em->flush();
             }
 
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x238253515 ' . $e->getMessage();
+            $source = 0xf520f9b1;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));

@@ -1219,7 +1219,7 @@
                     //
                     if ( $(this).hasClass('ODRDatafieldName') ) {   // inline update of datafield name  TODO - error handling?
                         var text = $(this).val();
-                        $("#ODRDatafield_" + datafield_id + "_name").html(text);
+                        $("#ODRDatafield_" + datafield_id + "_name").text(text);
                     }
 
                     SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
