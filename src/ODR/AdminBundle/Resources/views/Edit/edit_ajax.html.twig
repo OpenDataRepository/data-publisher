@@ -364,12 +364,12 @@ function initPage() {
             success: function(data, textStatus, jqXHR) {
                 if ( data.d.is_public ) {
                     // Image is now public
-                    $(public_div).removeClass('IconRed');
+                    $(public_div).addClass('ODRActiveIcon');
                     $(public_div).attr('title', 'Public since ' + data.d.public_date);
                 }
                 else {
                     // Image is now non-public
-                    $(public_div).addClass('IconRed');
+                    $(public_div).removeClass('ODRActiveIcon');
                     $(public_div).parent().next().attr('title', 'Image is not public');
                 }
             },

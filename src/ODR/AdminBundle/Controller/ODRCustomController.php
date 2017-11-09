@@ -350,6 +350,7 @@ class ODRCustomController extends Controller
     /**
      * Attempt to load the textresult version of the cached entries for each datarecord in $datarecord_list.
      * @todo - move to datarecord_info service?
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param array $datarecord_list           The list of datarecord ids that need rendered
@@ -4286,6 +4287,7 @@ class ODRCustomController extends Controller
 
     /**
      * Utility function to return the column definition for use by the datatables plugin
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param Theme $theme                     The 'table' theme that stores the order of datafields for its datatype

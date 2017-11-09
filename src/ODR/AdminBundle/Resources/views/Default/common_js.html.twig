@@ -459,28 +459,25 @@
 
         // Get Scroll height of inner
         var content_height = modal_inner_content.prop('scrollHeight');
-        console.log('h1: ' + content_height);
+//console.log('h1: ' + content_height);
 
         var modal_height =  $(window).height()
             - modal.find(".ODRRemodalButtons").height()
             - modal.find(".ODRRemodalTitle").height();
 
-        if($(window).width() >= 568) {
+        if ( $(window).width() >= 568 )
             modal_height -= 30;
-        }
+//console.log('mh0: ' + modal_height);
 
-        console.log('mh0: ' + modal_height);
         // Just show content if smaller than window height
-        if(content_height < modal_height) {
+        if (content_height < modal_height)
             modal_height = content_height;
-        }
-
-        console.log('mh1: ' + modal_height);
+//console.log('mh1: ' + modal_height);
 
         // Ensure it looks okay
-        if(modal_height < 100) {
-            modal_height =  100;
-        }
+        modal_height += 20;
+        if (modal_height < 100)
+            modal_height = 100;
 
         modal_inner.animate(
             {height: modal_height},
