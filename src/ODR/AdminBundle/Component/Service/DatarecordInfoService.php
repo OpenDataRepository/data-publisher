@@ -550,7 +550,6 @@ class DatarecordInfoService
         $this->cache_service->delete('cached_datarecord_'.$dr->getId());
 
         // Delete the filtered list of data meant specifically for table themes
-        // TODO - table theme rework may render this obsolete
-        $this->cache_service->delete('datarecord_table_data_'.$dr->getId());
+        $this->cache_service->delete('cached_table_data_'.$dr->getId());
     }
 }

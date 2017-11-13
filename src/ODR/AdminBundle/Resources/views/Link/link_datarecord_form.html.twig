@@ -64,9 +64,9 @@
             "deferRender": true,
             "createdRow": function( row, data, index ) {
             {% if allow_multiple_links or not local_datarecord_is_ancestor %}
-                $(row).prepend('<td><input type="checkbox" class="ODRCurrentLink dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');" /></td>');
+                $(row).prepend('<td><input type="checkbox" class="ODRCurrentLink ODRLinkCheckbox dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');" /></td>');
             {% else %}
-                $(row).prepend('<td><input type="radio" name="radio_group_orig" id="hidden_radio" style="display:none;"/><input type="radio" name="radio_group_orig" class="ODRCurrentLink dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');" /></td>');
+                $(row).prepend('<td><input type="radio" name="radio_group_orig" id="hidden_radio" style="display:none;"/><input type="radio" name="radio_group_orig" class="ODRCurrentLink ODRLinkCheckbox dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');" /></td>');
             {% endif %}
             },
 
@@ -94,15 +94,14 @@
 
     // For the current page of the given table, update state of all checkboxes
     function initCheckboxes(table, force_enabled) {
-console.log(table);
-        $(table).find('input').each(function() {
+
+        $(table).find('.ODRLinkCheckbox').each(function() {
             var dr_id = parseInt($(this).attr('rel'));
-console.log(dr_id);
 
             if ( linked_datarecords.indexOf(dr_id) !== -1 )
-                $('.dr_' + dr_id).attr('checked', 'checked');
+                $('.dr_' + dr_id).prop('checked', true);
             else
-                $('.dr_' + dr_id).removeAttr('checked');
+                $('.dr_' + dr_id).prop('checked', false);
 
             if ( illegal_datarecords.indexOf(dr_id) !== -1 && !force_enabled )
                 $('.dr_' + dr_id).not('.ODRCurrentLink').attr('disabled', 'disabled').attr('title', 'This remote Datarecord already has a link to some other Datarecord');
@@ -115,7 +114,7 @@ console.log(dr_id);
     function LinkRecord(dr_id) {
         var dr = "#dr_" + dr_id;
 
-    {% if allow_multiple_links or not local_datarecord_is_ancestor %}
+{% if allow_multiple_links or not local_datarecord_is_ancestor %}
         if ( $(dr).length > 0 ) {
             // hidden input element exists, delete it
             $(dr).remove();
@@ -130,7 +129,7 @@ console.log(dr_id);
             linked_datarecords.push(dr_id);
             $('.dr_' + dr_id).prop('checked', true);
         }
-    {% else %}
+{% else %}
         // Apparently don't need to worry about this function being called on an already selected element?
 
         $("#LinkDataRecordForm").children('input').each(function() {
@@ -144,7 +143,7 @@ console.log(dr_id);
         $("#hidden_radio").prop('checked', true);
         $('.dr_' + dr_id).prop('checked', true);
 
-    {% endif %}
+{% endif %}
     }
 
 {% if not allow_multiple_links and local_datarecord_is_ancestor %}

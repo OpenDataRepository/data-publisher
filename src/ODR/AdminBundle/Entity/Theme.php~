@@ -585,6 +585,7 @@ class Theme
 
     /**
      * Get isTableTheme
+     * @deprecated
      *
      * @return bool
      */

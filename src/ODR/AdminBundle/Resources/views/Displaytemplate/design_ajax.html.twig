@@ -88,7 +88,7 @@
     </div>
 
     <div id="link_datatype_dialog_wrapper">
-        {% include 'ODRAdminBundle:Displaytemplate:link_type_dialog.html.twig' %}
+        {% include 'ODRAdminBundle:Link:link_type_dialog.html.twig' %}
     </div>
     <div id="plugin_settings_dialog_wrapper">
         {% include 'ODRAdminBundle:Displaytemplate:plugin_settings_dialog.html.twig' %}
@@ -715,38 +715,8 @@
             var theme_element_id_data = $(this).parent().parent().attr("id").split(/_/);
             var theme_element_id = theme_element_id_data[1];
 
-            var url = '{{ path('odr_design_get_link_datatypes', {'datatype_id': 0, 'theme_element_id': 0 } ) }}';
-            url = url.substring(0,(url.length - 3)) + local_datatype_id + "/" + theme_element_id;
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function(data) {
-                    $("#dialog_link_datatype > .form_contents").html(data.d.html);
-                    $("#dialog_link_datatype").dialog( "open" );
-
-                    // This just opens the link dialog, icon muting only happens after the link dialog succeeds
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    // Don't need to do anything specific on an error
-                },
-                complete: function(jqXHR) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
-                }
-            });
+            {# defined in Link::link_type_dialog.html.twig #}
+            openLinkDatatypeDialog(local_datatype_id, theme_element_id);
         });
 
         $(".ODRUndeleteFields").unbind('click').click(function() {
@@ -1132,6 +1102,9 @@
                 }
             });
         });
+{#
+        // Don't need this?  ...only theme_datafield property that should be changed on a master
+        //  theme is the width, and that's handled via jquery resizable
 
         // Attach event handlers to the css width selectors in the datafield properties panel
         $("#ThemeDesignForm .ODRThemeDatafieldPropertiesForm").find("select").each(function() {
@@ -1145,7 +1118,7 @@
                 SaveThemeDatafieldProperties(theme_element_id, datafield_id);
             });
         });
-
+#}
         // Attach event handlers to most of the rest of the input elements
         $("#ThemeDesignForm .ODRDatafieldPropertiesForm").find("select").each(function() {
             // Grab Datafield id

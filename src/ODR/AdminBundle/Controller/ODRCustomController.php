@@ -77,6 +77,7 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -298,13 +299,22 @@ class ODRCustomController extends Controller
                     'target' => $target,
                     'search_key' => $search_key,
                     'offset' => $offset,
+
+                    // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
+                    'all_datarecords' => $datarecords,
                 )
             );
         }
         else if ( $theme->getThemeType() == 'table' ) {
             // -----------------------------------
-            // Grab the...
-            $column_data = self::getDatatablesColumnNames($em, $theme, $datafield_permissions);
+            $theme_array = $theme_service->getThemeArray( array($theme->getId()) );
+
+            // Determine the columns to use for the table
+            /** @var TableThemeHelperService $tth_service */
+            $tth_service = $this->container->get('odr.table_theme_helper_service');
+            $column_data = $tth_service->getColumnNames($user, $datatype->getId(), $theme->getId());
+//exit( '<pre>'.print_r($column_data, true).'</pre>' );
+
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
 
@@ -314,7 +324,7 @@ class ODRCustomController extends Controller
             //
             $template = 'ODRAdminBundle:TextResults:textresultslist.html.twig';
             if ($target == 'linking')
-                $template = 'ODRAdminBundle:Edit:link_datarecord_form_search.html.twig';
+                $template = 'ODRAdminBundle:Link:link_datarecord_form_search.html.twig';
 
             $final_html = $templating->render(
                 $template,
@@ -328,7 +338,7 @@ class ODRCustomController extends Controller
                     'scroll_target' => $scroll_target,
                     'user' => $user,
                     'user_permissions' => $datatype_permissions,
-                    'theme_id' => $theme->getId(),
+                    'theme_array' => $theme_array,
 
                     'logged_in' => $logged_in,
 
@@ -344,121 +354,6 @@ class ODRCustomController extends Controller
         }
 
         return $final_html;
-    }
-
-
-    /**
-     * Attempt to load the textresult version of the cached entries for each datarecord in $datarecord_list.
-     * @todo - move to datarecord_info service?
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param array $datarecord_list           The list of datarecord ids that need rendered
-     * @param Theme $theme                     The 'table' theme for the relevant datatype
-     * @param Request $request
-     *
-     * @throws \Exception
-     *
-     * @return array
-     */
-    public function renderTextResultsList($em, $datarecord_list, $theme, Request $request)
-    {
-        try {
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
-
-            // --------------------
-            // Store whether the user has view privileges for this datatype
-            $datatype = $theme->getDataType();
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datafield_permissions = array();
-
-            $can_view_datarecord = false;
-            if ($user !== 'anon.') {
-                $user_permissions = self::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-
-                // Check if user has permissions to view non-public datarecords
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-            }
-            // --------------------
-
-            // Always bypass cache if in dev mode?
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
-
-
-            // ----------------------------------------
-            // Attempt to load from memcached...
-            $rows = array();
-            foreach ($datarecord_list as $num => $datarecord_id) {
-                // Get the table version for this datarecord from memcached if possible
-                $data = $cache_service->get('datarecord_table_data_'.$datarecord_id);
-                if ($bypass_cache || $data == false)
-                    $data = self::Text_GetDisplayData($em, $datarecord_id, $request);
-
-                $row = array();
-                // Only add this datarecord to the list if the user is allowed to see it...
-                if ( $can_view_datarecord || $data['publicDate'] !== '2200-01-01 00:00:00' ) {
-                    // Don't save values from datafields the user isn't allowed to see...
-                    $dr_data = null;
-                    foreach ($data[$theme->getId()] as $display_order => $df_data) {        // TODO - apparently provides wrong theme id here at times?
-                        if ($dr_data == null)
-                            $dr_data = array();
-
-                        $df_id = $df_data['id'];
-                        $df_value = $df_data['value'];
-                        $df_is_public = $df_data['is_public'];
-
-                        if ( $df_is_public || (isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view'])) ) {
-                            if ( is_array($df_value) ) {
-                                // Need to ensure that names/links to non-public Files aren't displayed to people that don't have permission to view them
-                                $file_publicDate = $df_value['publicDate'];
-                                $file_url = $df_value['url'];
-
-                                if ( $can_view_datarecord || $file_publicDate != '2200-01-01' )
-                                    $dr_data[] = $file_url;
-                                else
-                                    $dr_data[] = '';
-                            }
-                            else {
-                                // Everything else is just a text string, and is always visible if the datafield itself is visible
-                                $dr_data[] = $df_value;
-                            }
-                        }
-                    }
-
-                    // If the user isn't prevented from seeing all datafields comprising this layout, store the data in an array
-                    if ( is_null($dr_data) ) {
-                        throw new \Exception('Table Theme has no datafields attached to it');
-                    }
-                    else if (count($dr_data) > 0) {
-                        $row[] = strval($datarecord_id);
-                        $row[] = strval($data['default_sort_value']);
-
-                        foreach ($dr_data as $tmp)
-                            $row[] = strval($tmp);
-                    }
-                    else {
-                        throw new \Exception('You are not allowed to view any of the Datafields used by this Table Theme');
-                    }
-
-                }
-
-                // If something exists in the array, append it to the list
-                if (count($row) > 0)
-                    $rows[] = $row;
-            }
-
-            return $rows;
-        }
-        catch (\Exception $e) {
-            throw new \Exception( $e->getMessage() );
-        }
     }
 
 
@@ -610,6 +505,7 @@ class ODRCustomController extends Controller
 
     /**
      * Utility function to let controllers easily force a redirect to a different search results page
+     * TODO - move into searching service?
      *
      * @param User $user
      * @param string $new_url
@@ -934,142 +830,6 @@ class ODRCustomController extends Controller
         }
 
         return $absolute_path;
-    }
-
-
-    /**
-     * Determines and returns an array of top-level datatype ids
-     * @deprecated
-     *
-     * @return int[]
-     */
-    public function getTopLevelDatatypes()
-    {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $query = $em->createQuery(
-           'SELECT dt.id AS datatype_id
-            FROM ODRAdminBundle:DataType AS dt
-            WHERE dt.deletedAt IS NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $all_datatypes = array();
-        foreach ($results as $num => $result)
-            $all_datatypes[] = $result['datatype_id'];
-
-        $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-            FROM ODRAdminBundle:DataTree AS dt
-            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-            JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE dtm.is_link = 0
-            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $parent_of = array();
-        foreach ($results as $num => $result)
-            $parent_of[ $result['descendant_id'] ] = $result['ancestor_id'];
-
-        $top_level_datatypes = array();
-        foreach ($all_datatypes as $datatype_id) {
-            if ( !isset($parent_of[$datatype_id]) )
-                $top_level_datatypes[] = $datatype_id;
-        }
-
-        return $top_level_datatypes;
-    }
-
-
-    /**
-     * Utility function to returns the DataTree table in array format
-     * TODO: This function is a really bad idea - will be absolutely GIGANTIC at some point.
-     * Why is this needed? Plus, how do you know when it needs to be flushed?
-     * @deprecated
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param boolean $force_rebuild
-     *
-     * @return array
-     */
-    public function getDatatreeArray($em, $force_rebuild = false)
-    {
-        // Attempt to load from cache first
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        $datatree_array = self::getRedisData(($redis->get($redis_prefix.'.cached_datatree_array')));
-        if ( !($force_rebuild || $datatree_array == false) ) {
-            return $datatree_array;
-        }
-
-        $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
-            FROM ODRAdminBundle:DataType AS ancestor
-            JOIN ODRAdminBundle:DataTree AS dt WITH ancestor = dt.ancestor
-            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL');
-        $results = $query->getArrayResult();
-
-        $datatree_array = array(
-            'descendant_of' => array(),
-            'linked_from' => array(),
-            'multiple_allowed' => array(),
-        );
-        foreach ($results as $num => $result) {
-            $ancestor_id = $result['ancestor_id'];
-            $descendant_id = $result['descendant_id'];
-            $is_link = $result['is_link'];
-            $multiple_allowed = $result['multiple_allowed'];
-
-            if ( !isset($datatree_array['descendant_of'][$ancestor_id]) )
-                $datatree_array['descendant_of'][$ancestor_id] = '';
-
-            if ($is_link == 0) {
-                $datatree_array['descendant_of'][$descendant_id] = $ancestor_id;
-            }
-            else {
-                if ( !isset($datatree_array['linked_from'][$descendant_id]) )
-                    $datatree_array['linked_from'][$descendant_id] = array();
-
-                $datatree_array['linked_from'][$descendant_id][] = $ancestor_id;
-            }
-
-            if ($multiple_allowed == 1) {
-                if ( !isset($datatree_array['multiple_allowed'][$descendant_id]) )
-                    $datatree_array['multiple_allowed'][$descendant_id] = array();
-
-                $datatree_array['multiple_allowed'][$descendant_id][] = $ancestor_id;
-            }
-        }
-
-        // Store in cache and return
-//print '<pre>'.print_r($datatree_array, true).'</pre>';  exit();
-        $redis->set($redis_prefix.'.cached_datatree_array', gzcompress(serialize($datatree_array)));
-        return $datatree_array;
-    }
-
-
-    /**
-     * Returns the id of the grandparent of the given datatype
-     * @deprecated
-     *
-     * @param array $datatree_array         @see self::getDatatreeArray()
-     * @param integer $initial_datatype_id
-     *
-     * @return integer
-     */
-    protected function getGrandparentDatatypeId($datatree_array, $initial_datatype_id)
-    {
-        $grandparent_datatype_id = $initial_datatype_id;
-        while( isset($datatree_array['descendant_of'][$grandparent_datatype_id]) && $datatree_array['descendant_of'][$grandparent_datatype_id] !== '' )
-            $grandparent_datatype_id = $datatree_array['descendant_of'][$grandparent_datatype_id];
-
-        return $grandparent_datatype_id;
     }
 
 
@@ -1602,44 +1362,6 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Temporary? function to mark theme as updated and delete cached version of datatype
-     * @deprecated
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param Theme $theme
-     * @param User $user
-     * @param boolean $update_datatype
-     */
-    protected function tmp_updateThemeCache($em, $theme, $user, $update_datatype = false)
-    {
-        /** @var CacheService $cache_service*/
-        $cache_service = $this->container->get('odr.cache_service');
-
-        // Mark theme as updated
-        $theme->setUpdatedBy($user);
-        $theme->setUpdated(new \DateTime());   // guarantee that the theme gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
-        $em->persist($theme);
-
-        if ($update_datatype) {
-            // Also mark datatype as updated
-            $datatype = $theme->getDataType();
-            $datatype->setUpdated(new \DateTime());   // guarantee that the datatype gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
-            $datatype->setUpdatedBy($user);
-            $em->persist($datatype);
-        }
-
-        $em->flush();
-
-        // Locate and clear the cache entry for this datatype
-//        $datatree_array = self::getDatatreeArray($em);
-//        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $theme->getDataType()->getId());
-        $datatype_id = $theme->getDataType()->getId();
-
-        $cache_service->delete('cached_datatype_'.$datatype_id);
-    }
-
-
-    /**
      * @deprecated
      * Gets or creates a TrackedJob entity in the database for use by background processes
      *
@@ -2003,10 +1725,15 @@ class ODRCustomController extends Controller
             $em->flush();
         }
 
-        // Refresh the cache entries for the ancestor datarecord
+        // Force a rebuild of the cached entry for the ancestor datarecord
         /** @var DatarecordInfoService $dri_service */
         $dri_service = $this->container->get('odr.datarecord_info_service');
         $dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
+
+        // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
+        /** @var CacheService $cache_service */
+        $cache_service = $this->container->get('odr.cache_service');
+        $cache_service->delete('associated_datarecords_for_'.$ancestor_datarecord->getGrandparent()->getId());
 
         return $linked_datatree;
     }
@@ -4281,200 +4008,6 @@ class ODRCustomController extends Controller
             $datarecord = $results[0];
 
         return $datarecord;
-    }
-
-
-    /**
-     * Utility function to return the column definition for use by the datatables plugin
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param Theme $theme                     The 'table' theme that stores the order of datafields for its datatype
-     * @param array $datafield_permissions     The datafield permissions array of the user requesting this page
-     *
-     * @return array
-     */
-    public function getDatatablesColumnNames($em, $theme, $datafield_permissions)
-    {
-        // First and second columns are always datarecord id and sort value, respectively
-        $column_names  = '{"title":"datarecord_id","visible":false,"searchable":false},';
-        $column_names .= '{"title":"datarecord_sortvalue","visible":false,"searchable":false},';
-        $num_columns = 2;
-
-        // Do a query to locate the names of all datafields that can be in the table
-        $query = $em->createQuery(
-           'SELECT df.id AS df_id, dfm.fieldName AS field_name, dfm.publicDate AS public_date
-            FROM ODRAdminBundle:ThemeElement AS te
-            JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
-            JOIN ODRAdminBundle:DataFields AS df WITH tdf.dataField = df
-            JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-            WHERE te.theme = :theme_id
-            AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
-            ORDER BY tdf.displayOrder'
-        )->setParameters( array('theme_id' => $theme->getId()) );
-        $results = $query->getArrayResult();
-
-        foreach ($results as $num => $data) {
-            $df_id = $data['df_id'];
-            $public_date = $data['public_date'];
-
-            $datafield_is_public = true;
-            if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-                $datafield_is_public = false;
-
-            if ($datafield_is_public || (isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view'])) ) {
-                $fieldname = $data['field_name'];
-                $fieldname = str_replace('"', "\\\"", $fieldname);  // escape double-quotes in datafield name
-
-                $column_names .= '{"title":"'.$fieldname.'"},';
-                $num_columns++;
-            }
-        }
-
-        return array('column_names' => $column_names, 'num_columns' => $num_columns);
-    }
-
-
-    /**
-     * Rebuilds all cached versions of table themes for the given datarecord.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $datarecord_id
-     * @param Request $request
-     *
-     * @throws \Exception
-     *
-     * @return array
-     */
-    protected function Text_GetDisplayData($em, $datarecord_id, Request $request)
-    {
-        /** @var DatatypeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatype_info_service');
-        /** @var DatarecordInfoService $dri_service */
-        $dri_service = $this->container->get('odr.datarecord_info_service');
-        /** @var CacheService $cache_service*/
-        $cache_service = $this->container->get('odr.cache_service');
-
-        $router = $this->container->get('router');
-
-        // ----------------------------------------
-        // Grab the cached version of the requested datarecord
-        $datarecord_data = $dri_service->getDatarecordArray($datarecord_id);
-
-        // Grab the cached version of the requested datatype
-        $datatype_id = $datarecord_data[$datarecord_id]['dataType']['id'];
-        $datatype_data = $dti_service->getDatatypeArray( array($datatype_id) );
-//print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();
-//print '<pre>'.print_r($datarecord_data, true).'</pre>'; exit();
-
-
-        // ----------------------------------------
-        // Need to build an array to store the data
-        $data = array(
-            'default_sort_value' => $datarecord_data[$datarecord_id]['sortField_value'],
-            'publicDate' => $datarecord_data[$datarecord_id]['dataRecordMeta']['publicDate']->format('Y-m-d H:i:s'),
-        );
-
-        foreach ($datatype_data[$datatype_id]['themes'] as $theme_id => $theme) {
-            if ($theme['themeType'] == 'table') {
-                $data[$theme_id] = array();
-
-                $theme_element = $theme['themeElements'][0];    // only ever one theme element for a table theme
-                if ( !isset($theme_element['themeDataFields']) )
-                    continue;
-
-                foreach ($theme_element['themeDataFields'] as $display_order => $tdf) {
-
-                    $df = $tdf['dataField'];
-                    $dr = $datarecord_data[$datarecord_id];
-                    $render_plugin = $df['dataFieldMeta']['renderPlugin'];
-
-                    $df_id = $tdf['dataField']['id'];
-                    $df_value = '';
-
-                    $df_is_public = 1;
-                    if ($df['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-                        $df_is_public = 0;
-
-                    if ($render_plugin['id'] !== 1) {
-                        // Run the render plugin for this datafield
-                        try {
-                            $plugin = $this->get($render_plugin['pluginClassName']);
-                            $df_value = $plugin->execute($tdf['dataField'], $datarecord_data[$datarecord_id], $render_plugin, 'table');
-                        }
-                        catch (\Exception $e) {
-                            throw new \Exception( 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$df['id'].' Datarecord '.$dr['id'].': '.$e->getMessage() );
-                        }
-                    }
-                    else if ( !isset($dr['dataRecordFields']) || !isset($dr['dataRecordFields'][$df_id]) ) {
-                        // A drf entry hasn't been created for this storage entity...just use the empty string
-                        $df_value = '';
-                    }
-                    else {
-                        // Locate this datafield's value from the datarecord array
-                        $df_typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-                        $drf = $dr['dataRecordFields'][$df_id];
-
-                        switch ($df_typeclass) {
-                            case 'Boolean':
-                                if ( $drf['boolean'][0]['value'] == 1 )
-                                    $df_value = 'YES';
-                                break;
-                            case 'IntegerValue':
-                                $df_value = $drf['integerValue'][0]['value'];
-                                break;
-                            case 'DecimalValue':
-                                $df_value = $drf['decimalValue'][0]['value'];
-                                break;
-                            case 'LongText':
-                                $df_value = $drf['longText'][0]['value'];
-                                break;
-                            case 'LongVarchar':
-                                $df_value = $drf['longVarchar'][0]['value'];
-                                break;
-                            case 'MediumVarchar':
-                                $df_value = $drf['mediumVarchar'][0]['value'];
-                                break;
-                            case 'ShortVarchar':
-                                $df_value = $drf['shortVarchar'][0]['value'];
-                                break;
-                            case 'DatetimeValue':
-                                $df_value = $drf['datetimeValue'][0]['value']->format('Y-m-d');
-                                if ($df_value == '9999-12-31')
-                                    $df_value = '';
-                                break;
-
-                            case 'File':
-                                if ( isset($drf['file'][0]) ) {
-                                    $file = $drf['file'][0];    // should only ever be one file in here anyways
-
-                                    $url = $router->generate( 'odr_file_download', array('file_id' => $file['id']) );
-                                    $df_value = array(
-                                        'publicDate' => $file['fileMeta']['publicDate']->format('Y-m-d'),
-                                        'url' => '<a href='.$url.'>'.$file['fileMeta']['originalFileName'].'</a>',
-                                    );
-                                }
-                                break;
-
-                            case 'Radio':
-                                foreach ($drf['radioSelection'] as $ro_id => $rs) {
-                                    if ( $rs['selected'] == 1 ) {
-                                        $df_value = $rs['radioOption']['optionName'];
-                                        break;
-                                    }
-                                }
-                                break;
-                        }
-                    }
-
-                    $data[$theme_id][$display_order] = array('id' => $df_id, 'value' => $df_value, 'is_public' => $df_is_public);
-                }
-            }
-        }
-
-
-        // Store the resulting array back in the cache before returning it
-        $cache_service->set('datarecord_table_data_'.$datarecord_id, $data);
-        return $data;
     }
 
 

@@ -310,7 +310,7 @@ class ThemeController extends ODRCustomController
 
             /** @var Theme[] $theme_list */
             $theme_list = $em->getRepository('ODRAdminBundle:Theme')->findBy(
-                array('datatype' => $datatype->getId(), 'themeType' => $theme_types)
+                array('dataType' => $datatype->getId(), 'themeType' => $theme_types)
             );
 
             // Each of the themes in this list need to be set to "not default"...
@@ -1056,8 +1056,8 @@ class ThemeController extends ODRCustomController
             if ($theme->getDataType()->getId() != $datatype->getId())
                 throw new ODRBadRequestException();
 
-            if ($theme->getThemeType() == 'table')
-                throw new ODRBadRequestException('Unable to change properties of a Table theme');
+//            if ($theme->getThemeType() == 'table')
+//                throw new ODRBadRequestException('Unable to change properties of a Table theme');
 
 
             // --------------------
@@ -1081,6 +1081,10 @@ class ThemeController extends ODRCustomController
 //$theme_datafield_form->addError( new FormError('DO NOT SAVE') );
 
                 if ($theme_datafield_form->isValid()) {
+                    // Don't allow a themeDatafield belonging to a master theme to be hidden
+                    if ($theme->getThemeType() == 'master')
+                        $submitted_data->setHidden(0);
+
                     // Save all changes made via the submitted form
                     $properties = array(
                         'displayOrder' => $submitted_data->getDisplayOrder(),
@@ -1420,8 +1424,8 @@ class ThemeController extends ODRCustomController
             // --------------------
 
             // Not allowed to create a new theme element for a table theme
-            if ($theme->getThemeType() == 'table')
-                throw new \Exception('Not allowed to have multiple theme elements in a table theme');
+//            if ($theme->getThemeType() == 'table')
+//                throw new \Exception('Not allowed to have multiple theme elements in a table theme');
 
 
             // Create a new theme element entity
@@ -1509,8 +1513,8 @@ class ThemeController extends ODRCustomController
             // --------------------
 
             // Not allowed to modify properties of a theme element in a table theme
-            if ($theme->getThemeType() == 'table')
-                throw new \Exception('Not allowed to change properties of a theme element belonging to a table theme');
+//            if ($theme->getThemeType() == 'table')
+//                throw new \Exception('Not allowed to change properties of a theme element belonging to a table theme');
 
 
             // Populate new ThemeElement form
@@ -1642,8 +1646,8 @@ class ThemeController extends ODRCustomController
 
 
             // Not allowed to delete a theme element from a table theme
-            if ($theme->getThemeType() == 'table')
-                throw new \Exception('Not allowed to delete a theme element from a table theme');
+//            if ($theme->getThemeType() == 'table')
+//                throw new \Exception('Not allowed to delete a theme element from a table theme');
 
             $entities_to_remove = array();
 
@@ -1743,8 +1747,8 @@ class ThemeController extends ODRCustomController
             // --------------------
 
             // Shouldn't happen since there's only one theme element per table theme
-            if ($theme->getThemeType() == 'table')
-                throw new \Exception('Not allowed to re-order theme elements inside a table theme');
+//            if ($theme->getThemeType() == 'table')
+//                throw new \Exception('Not allowed to re-order theme elements inside a table theme');
 
 
             // If user has permissions, go through all of the theme elements updating their display order if needed
@@ -1865,7 +1869,8 @@ class ThemeController extends ODRCustomController
                 throw new \Exception('Invalid Datafield list');
 
 
-            // There aren't appreciable differences between 'master', 'search_results', and 'table' themes...at least as far as changing datafield order is concerned
+            // There aren't appreciable differences between 'master', 'search_results', and 'table'
+            //  themes...at least as far as changing datafield order is concerned
 
             // Grab all theme_datafield entries currently in the destination theme element
             $datafield_list = array();

@@ -121,6 +121,13 @@ services:
             session: "@session"
             logger: "@logger"
 
+    odr.table_theme_helper_service:
+        class: ODR\AdminBundle\Component\Service\TableThemeHelperService
+        arguments:
+            container: "@service_container"    # needed in order to execute arbitrary render plugins
+            router: "@router"
+            logger: "@logger"
+
 
     odr.datarecord_export_service:
         class: ODR\AdminBundle\Component\Service\DatarecordExportService

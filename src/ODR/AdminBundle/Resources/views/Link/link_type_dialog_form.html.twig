@@ -1,7 +1,7 @@
 {% spaceless %}
 
     <!-- Link DataType Dialog Form -->
-    <form class="ODRLinkDatatypeForm pure-form pure-form-aligned full validate" id="LinkDatatypeForm" action="{{ path('odr_design_link_datatype') }}" method="post">
+    <form class="pure-form pure-form-aligned" id="ODRLinkDatatypeForm" action="{{ path('odr_design_link_datatype') }}" method="post">
 
         <input type="hidden" name="theme_element_id" value="{{ theme_element.id }}" />
         <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
@@ -10,12 +10,12 @@
 {% if remote_datatype != null and has_linked_datarecords %}
         <div id="ODRRemoteDatatypeHasLinks" class="pure-u-1">
             <div>
-                <span class="pure-u-2-24"><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
-                <span class="pure-u-22-24">Several Datarecords of the local Datatype "{{ local_datatype.getShortName }}" are currently connected to Datarecords of the remote Datatype "{{ remote_datatype.getShortName }}".</span>
+                <i class="fa fa-lg fa-exclamation-triangle Cursor"></i>&nbsp;&nbsp;
+                <span>Several Datarecords of the local Datatype "{{ local_datatype.getShortName }}" are currently connected to Datarecords of the remote Datatype "{{ remote_datatype.getShortName }}".</span>
             </div>
             <div>
-                <span class="pure-u-2-24"><i class="fa fa-lg fa-cog Pointer ODRLinkDatatypeAnalyze"></i></span>
-                <span class="pure-u-22-24">Click the gear icon to see which connections would be deleted if the local Datatype is unlinked from the remote Datatype.</span>
+                <i class="fa fa-lg fa-cog Pointer ODRLinkDatatypeAnalyze"></i>&nbsp;&nbsp;
+                <span>Click the gear icon to see which connections would be deleted if the local Datatype is unlinked from the remote Datatype.</span>
             </div>
         </div>
 {% endif %}
@@ -46,16 +46,11 @@
 
         <div id="ODRRemoteDatatypeLacksTableTheme" class="pure-u-1" {% if remote_datatype != null and datatypes_with_table_themes[remote_datatype.id] is not defined %}{% else %}style="display: none;"{% endif %}>
             <div>
-                <span class="pure-u-2-24"><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
-                <span class="pure-u-22-24">This remote Datatype does not currently have a Table theme.<br>Users won't be able to create links to Datarecords of this remote Datatype until it has at least one Table theme.</span>
+                <i class="fa fa-lg fa-exclamation-triangle Cursor"></i>&nbsp;&nbsp;
+                <span>This remote Datatype does not currently have a Search Results theme.<br>Users won't be able to create links to Datarecords of this remote Datatype until it has at least one Search Results theme.</span>
             </div>
         </div>
     </form>
-
-    <div style="margin-top: 5px;">
-        <button type="button" class="pure-button ODRCancelButton">Cancel</button>
-        <button type="button" id="ODRLinkDatatypeFormSubmit" class="pure-button pure-button-primary ODRSubmitButton" disabled>Link Database</button>
-    </div>
 
     <script>
         $(function() {
@@ -85,40 +80,15 @@
                     $("#ODRLinkDatatypeFormSubmit").html('Link Database');
 
                 // Warn about missing table theme if necessary
-                if ( $(this).children('option:selected').first().attr('rel') == 'warn' )
+                if ( $(this).children('option:selected').first().attr('rel') == 'warn' ) {
                     $("#ODRRemoteDatatypeLacksTableTheme").show();
-                else
+                    resetRemodalInnerHeight();
+                }
+                else {
                     $("#ODRRemoteDatatypeLacksTableTheme").hide();
-            });
-
-            $("#dialog_link_datatype").dialog({
-                autoOpen: false,
-                modal: true,
-                width: 500,
-                open: function() {
-                    $(this).parent().css('overflow', 'visible');
+                    resetRemodalInnerHeight();
                 }
             });
-
-            $("#dialog_link_datatype").find('.ODRSubmitButton').unbind('click').click(function() {
-                var $el = $(this).parents('.ui-dialog-content');
-                if ( $("#LinkDatatypeForm").valid() ) {
-                    $("#LinkDatatypeForm").submit();
-
-                    $el.find('form')[0].reset();
-                    $el.dialog('close');
-                }
-            });
-
-            $("#dialog_link_datatype").find('.ODRCancelButton').unbind('click').click(function() {
-                var $el = $(this).parents('.ui-dialog-content');
-
-                $el.find('form')[0].reset();
-                $el.dialog('close');
-            });
-
-            // Init Form
-            LinkDataTypeFormInit();
         });
     </script>
 

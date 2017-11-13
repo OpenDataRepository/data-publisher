@@ -1,5 +1,14 @@
 {% spaceless %}
 
+{% set theme = theme_array[datatype.id] %}
+
+{# Page/View Options #}
+{% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
+    'datatype': datatype,
+    'theme': theme,
+    'page_type': 'table',
+} %}
+
 <div>
     <table id="TextResults_search" class="display {#pure-table pure-table-striped#}"></table>
 </div>
@@ -41,7 +50,7 @@
                 "type": "POST",
                 "data": {
                     'datatype_id': {{ datatype.id }},
-                    "theme_id": {{ theme_id }},
+                    "theme_id": {{ theme.id }},
                     'search_key': "{{ search_key }}",
                     // Don't want anything done to this table to be saved, so don't send the tab id
                 }
@@ -53,9 +62,9 @@
             "deferRender": true,
             "createdRow": function( row, data, index ) {
                 if (allow_multiple_links == 1 || local_datarecord_is_ancestor == 0)
-                    $(row).prepend('<td><input type="checkbox" class="dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
+                    $(row).prepend('<td><input type="checkbox" class="ODRLinkCheckbox dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
                 else
-                    $(row).prepend('<td><input type="radio" name="radio_group" class="dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
+                    $(row).prepend('<td><input type="radio" name="radio_group" class="ODRLinkCheckbox dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
             },
 
         });

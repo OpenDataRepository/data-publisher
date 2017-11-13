@@ -464,18 +464,6 @@ odr_design_save_datatree:
     requirements:
         datatree_id: \d+
 
-odr_design_get_link_datatypes:
-    path:  /design/displaytemplate/getlinktypes/{datatype_id}/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:getlinkabledatatypes }
-    requirements:
-        datatype_id:  \d+
-        theme_element_id:  \d+
-
-odr_design_link_datatype:
-    path:  /design/displaytemplate/linktype
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:linkdatatype }
-    methods: [ POST ]
-
 odr_design_get_datafield_properties:
     path:  /design/displaytemplate/datafieldproperties/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldproperties }
@@ -691,20 +679,6 @@ odr_record_save_image_order:
     defaults: { _controller: ODRAdminBundle:Edit:saveimageorder }
     methods: [ POST ]
 
-odr_record_get_linkable_datarecords:
-    path:  /edit/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}/{search_key}
-    defaults: { _controller: ODRAdminBundle:Edit:getlinkabledatarecords, search_key: '' }
-    requirements:
-        ancestor_datatype_id:  \d+
-        descendant_datatype_id:  \d+
-        local_datarecord_id:  \d+
-        search_key: '[^\/]*'
-
-
-odr_link_datarecords:
-    path:  /edit/linkrecords
-    defaults: { _controller: ODRAdminBundle:Edit:linkdatarecords }
-    methods: [ POST ]
 
 odr_record_get_field_history:
     path:  /edit/history/{datarecord_id}/{datafield_id}
@@ -712,6 +686,36 @@ odr_record_get_field_history:
     requirements:
         datarecord_id:  \d+
         datafield_id:  \d+
+
+#-----------------------------------------
+
+#-----------------------------------------
+# Link Controller
+odr_design_get_link_datatypes:
+    path:  /design/displaytemplate/getlinktypes/{datatype_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Link:getlinkabledatatypes }
+    requirements:
+        datatype_id:  \d+
+        theme_element_id:  \d+
+
+odr_design_link_datatype:
+    path:  /design/displaytemplate/linktype
+    defaults: { _controller: ODRAdminBundle:Link:linkdatatype }
+    methods: [ POST ]
+
+odr_record_get_linkable_datarecords:
+    path:  /edit/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}/{search_key}
+    defaults: { _controller: ODRAdminBundle:Link:getlinkabledatarecords, search_key: '' }
+    requirements:
+        ancestor_datatype_id:  \d+
+        descendant_datatype_id:  \d+
+        local_datarecord_id:  \d+
+        search_key: '[^\/]*'
+
+odr_link_datarecords:
+    path:  /edit/linkrecords
+    defaults: { _controller: ODRAdminBundle:Link:linkdatarecords }
+    methods: [ POST ]
 
 #-----------------------------------------
 
@@ -742,7 +746,7 @@ odr_get_available_themes:
     defaults: { _controller: ODRAdminBundle:Display:getavailablethemes }
     requirements:
         datatype_id:  \d+
-        page_type:  'display|search_results'
+        page_type:  'display|search_results|table'
 
 # deprecated?
 #odr_cancel_file_decrypt:

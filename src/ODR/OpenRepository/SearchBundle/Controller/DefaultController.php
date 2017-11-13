@@ -24,6 +24,7 @@ use ODR\AdminBundle\Controller\ODRCustomController;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
@@ -847,17 +848,12 @@ exit();
             // Grab the desired theme to use for rendering search results
             $theme_type = null;
 
-            // Check user theme preferences for this datatype.
-            // Could be using a custom default or a session theme (instantaneous).
+            // Attempt to get the user's preferred theme for this datatype
             $theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
 
-            // Lets just use master if theme is null....
+            // Ensure the theme exists before attempting to use it
+            /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
-            if ($theme == null) {
-                $theme_type = 'master';
-                $theme = $theme_service->getDatatypeDefaultTheme($datatype->getId(), $theme_type);
-            }
-
             if ($theme == null)
                 throw new \Exception('The datatype "'.$datatype->getShortName().'" wants to use a "'.$theme_type.'" theme to render search results, but no such theme exists.');
 
@@ -890,7 +886,7 @@ exit();
                 'html' => $html,
             );
         } catch (\Exception $e) {
-            $source = 0x81fad8c3;
+            $source = 0x66d3804b;
             if ($e instanceof ODRException) {
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             } else {

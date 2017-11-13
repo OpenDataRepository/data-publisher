@@ -1,36 +1,39 @@
 {% spaceless %}
 
-    <!-- Plugin Settings Dialog Form -->
+<!-- Link DataType Dialog -->
+{#
+<div class="pure-form pure-g" style="display: none;" id="dialog_link_datatype" title="Link to a remote Datatype...">
+    <div class="form_contents pure-u-1"></div>
+</div><!-- End of #dialog_link_datatype -->
+#}
 
 <script>
+    var link_datatype_dialog_body = '<div id="ODRLinkDatatypeFormWrapper" class="Hide"> </div>';
 
-    var render_plugin_dialog_body = '<div id="ODRRenderPluginFormWrapper" class="Hide"> </div>';
-
-    function openPluginSettingsDialog(datafield_id, datatype_id) {
+    function openLinkDatatypeDialog(local_datatype_id, theme_element_id) {
         // open dialog
         modal_options = {
-            title: 'Render Plugin settings',
+            title: 'Manage Linked Datatypes',
             loading: true,
-            body: render_plugin_dialog_body,
+            body: link_datatype_dialog_body,
             buttons: [
                 {
-                    id: 'ODRRenderPluginFormSubmit',
-                    text: 'Save Render Plugin Settings',
+                    id: 'ODRLinkDatatypeFormSubmit',
+                    text: 'Link Database',
                     // secondary: true,
-                    disabled: false
+                    disabled: true
                 }
             ]
         };
         openODRRemodal(modal_options);
 
-        loadPluginData(datafield_id, datatype_id);
+        loadLinkData(local_datatype_id, theme_element_id);
     }
 
-    function loadPluginData(datafield_id, datatype_id) {
+    function loadLinkData(local_datatype_id, theme_element_id) {
 
-        var url  = '{{ path('odr_render_plugin_dialog', {'datatype_id': 0, 'datafield_id': 0 } ) }}';
-        url = url.substring(0,(url.length - 3));
-        url += datatype_id + '/' + datafield_id;
+        var url = '{{ path('odr_design_get_link_datatypes', {'datatype_id': 0, 'theme_element_id': 0 } ) }}';
+        url = url.substring(0,(url.length - 3)) + local_datatype_id + "/" + theme_element_id;
 
         $.ajax({
             cache: false,
@@ -38,20 +41,21 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                $("#ODRRenderPluginFormWrapper").html( data.d.html );
+//                alert( data.d.html );
+                $("#ODRLinkDatatypeFormWrapper").html( data.d.html );
 
                 // remove loading spinner
                 $(".ODRRemodalLoading").fadeOut('150', function() {
                     $(".ODRRemodalBody").show();
                     $(".ODRRemodalButtons").show();
-                    $("#ODRRenderPluginFormWrapper").show();
+                    $("#ODRLinkDatatypeFormWrapper").show();
 
                     // Resize ODRFileDownloadModal to take up full height
                     resetRemodalInnerHeight();
 
                     // Setup submit handler
-                    $('#ODRRenderPluginFormSubmit').unbind('click').click(function() {
-                        submitRenderPluginForm();
+                    $('#ODRLinkDatatypeFormSubmit').unbind('click').click(function() {
+                        submitLinkDatatypeForm();
                     });
                 });
             },
@@ -76,10 +80,10 @@
     }
 
 
-    function submitRenderPluginForm() {
+    function submitLinkDatatypeForm() {
 
-        var data = $('#ODRRenderPluginSettingsForm').serialize();
-        var url = $('#ODRRenderPluginSettingsForm').attr('action');
+        var data = $('#ODRLinkDatatypeForm').serialize();
+        var url = $('#ODRLinkDatatypeForm').attr('action');
 
         $.ajax({
             type: 'POST',
@@ -87,28 +91,20 @@
             data: data,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                // Ensure that render plugin info doesn't get screwed up if user modifies some other datafield or datatype property after setting render plugin
-                var datafield_id = data.d.datafield_id;
-                var datatype_id = data.d.datatype_id;
+                // Reload ThemeElement
+                var linked_datatype_id = data.d.linked_datatype_id;
+                var theme_element_id = data.d.element_id;
 
-                if (datafield_id != 0) {
-                    // This is a render plugin for a datatype...don't need to reload technically, but reloading indicates saving is done
-                    ReloadDatafield(datafield_id);
+                if (data.d.using_linked_type == 1) {  // there is now a linked datatype in this theme element
+                    ReloadThemeElement(theme_element_id);   // need the entire linked type in there...this will also cause icons to be muted
                 }
                 else {
-                    // This is a render plugin for a datatype
-                    var reload_datatype = data.d.reload_datatype;
-                    if ( reload_datatype ) {
-                        ReloadChild(datatype_id);
-                    }
-                    else {
-                        var icons = {};
-                        if (data.d.render_plugin_id == 1)   // set to default render plugin
-                            icons = {"ODRRenderPlugin": 0};
-                        else
-                            icons = {"ODRRenderPlugin": data.d.render_plugin_name};    // highlight to notify a render plugin is being used, and copy name of plugin to title attribute
-                        setDatatypeIcons(datatype_id, icons);
-                    }
+                    // Delete the removed linked datatype html
+                    $("#DataType_" + linked_datatype_id).remove();
+
+                    // Unmute the other icons
+                    var icons = {"ODRAddDatafield": 1, "ODRAddChildtype": 1, "ODRDeleteThemeElement": 1, "ODRLinkDatatype": 1};
+                    setThemeElementIcons(theme_element_id, icons);
                 }
 
                 closeODRRemodal();
@@ -133,6 +129,5 @@
     }
 
 </script>
-<!--  End of Plugin Settings Dialog -->
 
 {% endspaceless %}

@@ -3,22 +3,22 @@
 {% set datatype = datatype_array[initial_datatype_id] %}
 {% set datarecord = datarecord_array[initial_datarecord_id] %}
 
-<div class="ODRFormHeader clearfix">
-    {% for ancestor_id, ancestor_name in linked_datatype_ancestors %}
-        {% if datatype_permissions[ ancestor_id ] is defined and datatype_permissions[ ancestor_id ][ 'dr_edit' ] is defined %}
-            <button type="button" class="pure-button" onclick="LinkRecord({{ ancestor_id }},{{ datatype.id }},{{ datarecord.id }});">Link to {{ ancestor_name }}.</button>
+<div class="ODRFormHeader clearfix" style="margin-top: 10px; margin-bottom: 10px;">
+    {% for ancestor in linked_datatype_ancestors %}
+        {% if datatype_permissions[ ancestor.id ] is defined and datatype_permissions[ ancestor.id ][ 'dr_edit' ] is defined %}
+            <button type="button" class="pure-button" onclick="LinkRecord({{ ancestor.id }},{{ datatype.id }},{{ datarecord.id }});">Link to {{ ancestor.dataTypeMeta.shortName }} Records.</button>
         {% endif %}
     {% endfor %}
 
-    {% for descendant_id, descendant_name in linked_datatype_descendants %}
-        {% if datatype_permissions[ descendant_id ] is defined and datatype_permissions[ descendant_id ][ 'dr_edit' ] is defined %}
-            <button type="button" class="pure-button" onclick="LinkRecord({{ datatype.id }},{{ descendant_id }},{{ datarecord.id }});">Link to {{ descendant_name }}.</button>
+    {% for descendant in linked_datatype_descendants %}
+        {% if datatype_permissions[ descendant.id ] is defined and datatype_permissions[ descendant.id ][ 'dr_edit' ] is defined %}
+            <button type="button" class="pure-button" onclick="LinkRecord({{ datatype.id }},{{ descendant.id }},{{ datarecord.id }});">Link to {{ descendant.dataTypeMeta.shortName }} Records.</button>
         {% endif %}
     {% endfor %}
 
-    {% for dt_id, dt_name in disabled_datatype_links %}
-        {% if datatype_permissions[ dt_id ] is defined and datatype_permissions[ dt_id ][ 'dr_edit' ] is defined %}
-            <button type="button" class="pure-button pure-button-disabled" title="Unable to link to Datarecords of this Datatype because it does not have a Table Theme.">Link to {{ dt_name }}.</button>
+    {% for disabled in disabled_datatype_links %}
+        {% if datatype_permissions[ disabled.id ] is defined and datatype_permissions[ disabled.id ][ 'dr_edit' ] is defined %}
+            <button type="button" class="pure-button pure-button-disabled" title="Unable to link to Datarecords of this Datatype because it does not have a Table Theme.">Unable to link to {{ disabled.dataTypeMeta.shortName }} Records.</button>
         {% endif %}
     {% endfor %}
 </div>
@@ -43,10 +43,11 @@
     'token_list': token_list,
 } %}
 
+{#
 <div id="field_history_dialog_wrapper">
     {% include 'ODRAdminBundle:Edit:field_history_dialog.html.twig' %}
 </div>
-
+#}
 <div id="download_files_dialog_wrapper">
     {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
 </div>
@@ -364,12 +365,12 @@ function initPage() {
             success: function(data, textStatus, jqXHR) {
                 if ( data.d.is_public ) {
                     // Image is now public
-                    $(public_div).removeClass('IconRed');
+                    $(public_div).addClass('ODRActiveIcon');
                     $(public_div).attr('title', 'Public since ' + data.d.public_date);
                 }
                 else {
                     // Image is now non-public
-                    $(public_div).addClass('IconRed');
+                    $(public_div).removeClass('ODRActiveIcon');
                     $(public_div).parent().next().attr('title', 'Image is not public');
                 }
             },

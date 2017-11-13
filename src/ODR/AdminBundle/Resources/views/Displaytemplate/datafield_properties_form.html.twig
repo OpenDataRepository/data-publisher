@@ -9,7 +9,9 @@
     {% set is_external_id_field = true %}
 {% endif %}
 
+{#  TODO - delete this?
 {% include 'ODRAdminBundle:Theme:theme_datafield_properties_form.html.twig' with {'theme_datafield': theme_datafield, 'theme_datafield_form': theme_datafield_form} %}
+#}
 
 {{ form_start(datafield_form, {
     'method': 'POST',

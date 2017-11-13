@@ -7,7 +7,7 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * TODO
+ * Contains functions to get/build info about themes and which ones the users should use.
  */
 
 namespace ODR\AdminBundle\Component\Service;
@@ -31,6 +31,25 @@ use Symfony\Component\HttpFoundation\Session\Session;
 
 class ThemeInfoService
 {
+
+    // To make understanding this stuff somewhat easier...
+    const VALID_THEMETYPES = array(
+        'master',
+        'custom_view',
+        'search_results',
+        'table'
+    );
+    // These theme_types should only be used for displaying which datarecords matched a search
+    const SHORT_FORM_THEMETYPES = array(
+        'search_results',
+        'table'
+    );
+    // These theme_types should be used for everything else...Design/Display/Edit/etc
+    const LONG_FORM_THEMETYPES = array(
+        'master',
+        'custom_view'
+    );
+
 
     /**
      * @var EntityManager
@@ -89,20 +108,27 @@ class ThemeInfoService
      * @param Datatype $datatype
      * @param string $theme_type
      *
+     * @throws ODRBadRequestException
+     *
      * @return array
      */
     public function getAvailableThemes($user, $datatype, $theme_type = "master")
     {
-        // TODO -
+        // Determine which "class" of themes the user wants to see
         $theme_types = array();
         if ($theme_type == 'master' || $theme_type == 'custom_view') {
-            $theme_types[] = 'master';
-            $theme_types[] = 'custom_view';
+            // User wants themes that work on Display/Edit pages
+            $theme_types = self::LONG_FORM_THEMETYPES;
+        }
+        else if ($theme_type == 'search_results' || $theme_type == 'table') {
+            // User wants themes that work on Search Result pages
+            $theme_types = self::SHORT_FORM_THEMETYPES;
         }
         else {
-            $theme_types[] = $theme_type;
+            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0x722ce43e);
         }
 
+        // ----------------------------------------
         // Get all themes for this datatype that fulfill the previous criteria
         $query = $this->em->createQuery(
            'SELECT t
@@ -147,7 +173,7 @@ class ThemeInfoService
      * would prefer to use for all of the associated datatypes, and then returns their cached
      * entries back to the caller.
      *
-     * Note that the keys of the returned array are datatype_ids, not theme_ids.
+     * Note that the keys of the returned array are datatype ids, not theme ids.
      *
      * @param integer $grandparent_datatype_id
      * @param ODRUser $user
@@ -158,6 +184,11 @@ class ThemeInfoService
      */
     public function getThemesForDatatype($grandparent_datatype_id, $user, $theme_type = 'master', $include_links = true)
     {
+        // Ensure the provided theme type is valid
+        if ( !in_array($theme_type, self::VALID_THEMETYPES) )
+            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0xd4ded515);
+
+        // ----------------------------------------
         $associated_datatypes = array();
         if ($include_links) {
             // Need to locate all linked datatypes for the provided datatype
@@ -193,12 +224,16 @@ class ThemeInfoService
      * @param ODRUser $user
      * @param integer $datatype_id
      * @param string $theme_type
-     * @param array $top_level_themes
+     * @param array $top_level_themes should only be used by ThemeService
      *
      * @return int|null
      */
     public function getPreferredTheme($user, $datatype_id, $theme_type, $top_level_themes = null)
     {
+        // Ensure the provided theme type is valid
+        if ( !in_array($theme_type, self::VALID_THEMETYPES) )
+            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0x66034d60);
+
         // Look in the user's session first...
         $theme_id = self::getSessionTheme($datatype_id, $theme_type);
         if ($theme_id != null) {
@@ -250,7 +285,7 @@ class ThemeInfoService
             return $theme->getId();
 
         // ...if there's not even a master theme for this datatype, something is horribly wrong
-        throw new ODRException('Unable to locate master theme for datatype '.$datatype_id);
+        throw new ODRException('Unable to locate master theme for datatype '.$datatype_id, 0xba003ad0);
     }
 
 
@@ -264,15 +299,25 @@ class ThemeInfoService
      */
     public function getSessionTheme($datatype_id, $theme_type)
     {
+        // Ensure the provided theme type is valid
+        if ( !in_array($theme_type, self::VALID_THEMETYPES) )
+            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0xd3fe0f6d);
+
+        // Themes are stored in the session by which "class" they belong to
+        $theme_class = 'long_form';
+        if ( in_array($theme_type, self::SHORT_FORM_THEMETYPES) )
+            $theme_class = 'short_form';
+
+
         // If the user has specified a theme for their current session...
         if ( $this->session->has('session_themes') ) {
             // ...see if a theme is stored for this session for this datatype
             $session_themes = $this->session->get('session_themes');
 
             if (isset($session_themes[$datatype_id])
-                && isset($session_themes[$datatype_id][$theme_type])
+                && isset($session_themes[$datatype_id][$theme_class])
             ) {
-                return $session_themes[$datatype_id][$theme_type];
+                return $session_themes[$datatype_id][$theme_class];
             }
         }
 
@@ -289,20 +334,27 @@ class ThemeInfoService
      */
     public function setSessionTheme($datatype_id, $theme)
     {
-        // TODO
+        // Ensure the provided theme type is valid
         $theme_type = $theme->getThemeType();
-        if ($theme->getThemeType() == "custom_view")
-            $theme_type = "master";
-//        else
-//            $theme_type = preg_replace('/^custom_/','', $theme_type);
+        if ( !in_array($theme_type, self::VALID_THEMETYPES) )
+            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0xf07deceb);
+
+        // Themes are stored in the session by which "class" they belong to
+        $theme_class = 'long_form';
+        if ( in_array($theme_type, self::SHORT_FORM_THEMETYPES) )
+            $theme_class = 'short_form';
+
 
         // Load any existing session themes
         $session_themes = array();
         if ( $this->session->has('session_themes') )
             $session_themes = $this->session->get('session_themes');
 
+        if ( !isset($session_themes[$datatype_id]) )
+            $session_themes[$datatype_id] = array();
+
         // Save the theme choice in the session
-        $session_themes[$datatype_id][$theme_type] = $theme->getId();
+        $session_themes[$datatype_id][$theme_class] = $theme->getId();
         $this->session->set('session_themes', $session_themes);
     }
 
@@ -315,11 +367,15 @@ class ThemeInfoService
      */
     public function resetSessionTheme($datatype_id, $theme_type)
     {
-        // TODO
-        if ($theme_type == "custom_view")
-            $theme_type = "master";
-//        else
-//            $theme_type = preg_replace('/^custom_/','', $theme_type);
+        // Ensure the provided theme type is valid
+        if ( !in_array($theme_type, self::VALID_THEMETYPES) )
+            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0x68a0df80);
+
+        // Themes are stored in the session by which "class" they belong to
+        $theme_class = 'long_form';
+        if ( in_array($theme_type, self::SHORT_FORM_THEMETYPES) )
+            $theme_class = 'short_form';
+
 
         // Load any existing session themes
         $session_themes = array();
@@ -328,9 +384,9 @@ class ThemeInfoService
 
         // Unset the theme for this session if it exists
         if (isset($session_themes[$datatype_id])
-            && isset($session_themes[$datatype_id][$theme_type])
+            && isset($session_themes[$datatype_id][$theme_class])
         ) {
-            unset( $session_themes[$datatype_id][$theme_type] );
+            unset( $session_themes[$datatype_id][$theme_class] );
         }
 
         // Save back to session
@@ -354,18 +410,23 @@ class ThemeInfoService
         if ($user === 'anon.')
             return null;
 
-        // ----------------------------------------
-        // Get which theme_types define a "category" of themes
+
+        // Determine which "class" of themes the user wants to see
         $theme_types = array();
         if ($theme_type == 'master' || $theme_type == 'custom_view') {
-            $theme_types[] = 'master';
-            $theme_types[] = 'custom_view';
+            // User wants themes that work on Display/Edit pages
+            $theme_types = self::LONG_FORM_THEMETYPES;
+        }
+        else if ($theme_type == 'search_results' || $theme_type == 'table') {
+            // User wants themes that work on Search Result pages
+            $theme_types = self::SHORT_FORM_THEMETYPES;
         }
         else {
-            $theme_types[] = $theme_type;
-//            $theme_types[] = 'custom_'.$theme_type;
+            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0xfaedeca2);
         }
 
+
+        // ----------------------------------------
         // Determine whether the user already has a preferred Theme for this "category"
         $query = $this->em->createQuery(
            'SELECT tp
@@ -407,19 +468,17 @@ class ThemeInfoService
     {
         // Complain if this isn't a top-level theme
         if ($theme->getId() !== $theme->getParentTheme()->getId())
-            throw new ODRBadRequestException('This should only be called on Themes of top-level Datatypes');
+            throw new ODRBadRequestException('This should only be called on Themes of top-level Datatypes', 0x4f2519d6);
 
 
         // ----------------------------------------
         // Get which theme_types define a "category" of themes
-        $theme_types = array();
-        if ($theme->getThemeType() == 'master' || $theme->getThemeType() == 'custom_view') {
-            $theme_types[] = 'master';
-            $theme_types[] = 'custom_view';
-        }
-        else {
-            $theme_types[] = $theme->getThemeType();
-//            $theme_types[] = 'custom_'.$theme->getThemeType();
+        $theme_type = $theme->getThemeType();
+
+        $theme_types = self::LONG_FORM_THEMETYPES;
+        if ($theme_type == 'search_results' || $theme_type == 'table') {
+            // User wants themes that work on Search Result pages
+            $theme_types = self::SHORT_FORM_THEMETYPES;
         }
 
         // Determine whether the user already has a preferred Theme for this "category"
@@ -478,7 +537,7 @@ class ThemeInfoService
 
 
     /**
-     * Return the default Theme for this theme_type set by a datatype admin TODO
+     * Return a datatype's default Theme for this theme_type, as set by a datatype admin.
      *
      * @param integer $datatype_id
      * @param string $theme_type
@@ -487,15 +546,20 @@ class ThemeInfoService
      */
     public function getDatatypeDefaultTheme($datatype_id, $theme_type = 'master')
     {
-        // TODO
+        //
         $theme_types = array();
         if ($theme_type == 'master' || $theme_type == 'custom_view') {
-            $theme_types[] = 'master';
-            $theme_types[] = 'custom_view';
+            // User wants themes that work on Display/Edit pages
+            $theme_types = self::LONG_FORM_THEMETYPES;
+        }
+        else if ($theme_type == 'search_results' || $theme_type == 'table') {
+            // User wants themes that work on Search Result pages
+            $theme_types = self::SHORT_FORM_THEMETYPES;
         }
         else {
-            $theme_types[] = $theme_type;
+            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0xb940fc66);
         }
+
 
         //
         $query = $this->em->createQuery(
@@ -526,8 +590,7 @@ class ThemeInfoService
 
     /**
      * Loads and returns a cached data array for the specified theme ids.  Note that the keys for
-     * the returned array are theme_ids, unlike in self::getThemesForDatatype() where the keys are
-     * datatype_ids.
+     * the returned array are datatype ids.
      * 
      * @param int[] $parent_theme_ids
      * 
@@ -545,9 +608,9 @@ class ThemeInfoService
             if ($theme_data == false)
                 $theme_data = self::buildThemeData($parent_theme_id);
 
-            // Organize by theme id
-            foreach ($theme_data as $parent_theme_id => $data)
-                $theme_array[$parent_theme_id] = $data;
+            // Organize by datatype id
+            foreach ($theme_data as $dt_id => $data)
+                $theme_array[$dt_id] = $data;
         }
 
         return $theme_array;

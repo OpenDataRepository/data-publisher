@@ -5,9 +5,19 @@
 {% for dr_id, datarecord in datarecord_array %}
     <div class="ODRShortResults pure-u-1" id="ShortResults_{{ dr_id }}">
         <div class="ODRShortResultsHeader pure-u-1 Pointer" id="ShortResultsHeader_{{ dr_id }}">
-            <span>Record {{ counter }} - Click here to view</span>
-            {% if can_edit_datarecord %}
-            <span class="ODRShortResultsHeader_edit">Click here to edit</span>
+            {% if target == 'results' %}
+                <span>Record {{ counter }} - Click here to view</span>
+                {% if can_edit_datarecord %}
+                <span class="ODRShortResultsHeader_edit">Click here to edit</span>
+                {% endif %}
+            {% elseif target == 'linking' %}
+                <span>
+                    <label for="Input_{{ dr_id }}">
+                        <div class="SearchResults_link_box" id="Input_{{ dr_id }}">
+                            {#<input type="checkbox" class="dr_{{ dr_id }}" rel="{{ dr_id }}" onchange="LinkRecord('{{ dr_id }}');" /> Linked?#}
+                        </div>
+                    </label>
+                </span>
             {% endif %}
         </div>
 
@@ -30,7 +40,24 @@
     {% set counter = counter + 1 %}
 {% endfor %}
 
+{% if target == 'linking' %}
+<div id="TextResults_link_div">
+    <button class="pure-button" type="button" onclick="selectAll();">Select All</button>
+    &nbsp;
+    <button class="pure-button" type="button" onclick="deselectAll();">Deselect All</button>
+</div>
+
+<style>
+    .SearchResults_link_box {
+        line-height: 1.1em;
+        margin: 0.5em;
+        font-size: 1.2em;
+    }
+</style>
+{% endif %}
+
 <script>
+{% if target == 'results' %}
     jQuery(function() {
         $(".ODRShortResultsHeader").unbind('click').click(function() {
             var id = jQuery(this).attr('id').replace(/ShortResultsHeader_/,'');
@@ -45,6 +72,71 @@
             loadDataRecord(id, 'edit');
         });
     });
+{% elseif target == 'linking' %}
+    // Need to be able to store all datarecords returned from the search incase "Select All" is clicked
+    var all_datarecords = [];
+
+    $(function() {
+        all_datarecords = [{% for num,dr_id in all_datarecords %}{{ dr_id }},{% endfor %}];
+
+        var allow_multiple_links = $("#LinkDataRecordForm").children('input[name="allow_multiple_links"]').val();
+        var local_datarecord_is_ancestor = $("#LinkDataRecordForm").children('input[name="local_datarecord_is_ancestor"]').val();
+        if (allow_multiple_links == 0)
+            $("#TextResults_link_div").remove();
+
+        $(".SearchResults_link_box").each(function() {
+            var id_data = $(this).attr('id').split(/_/);
+            var dr_id = id_data[1];
+
+            if (allow_multiple_links == 1 || local_datarecord_is_ancestor == 0)
+                $(this).append('<input type="checkbox" class="ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="LinkRecord(' + dr_id + ');" /> Linked?');
+            else
+                $(this).append('<input type="radio" name="radio_group" class="ODRLinkCheckbox dr_' + dr_id + '" rel="' + dr_id + '" onchange="LinkRecord(' + dr_id + ');" /> Linked?');
+        });
+
+        initCheckboxes(".ODRShortResultWrapper", false);
+    });
+
+    function selectAll() {
+        // Add hidden input elements for all currently unselected datarecords
+        jQuery.each(all_datarecords, function(index, dr_id) {
+            var dr = "#dr_" + dr_id;
+
+            if ( $(dr).length > 0 ) {
+                // hidden input exists, do nothing
+            }
+            else if ( $(dr).length == 0 ) {
+                // hidden input does not exist, create it
+                $("#LinkDataRecordForm").append('<input type="hidden" id="dr_' + dr_id + '" name="datarecords[' + dr_id + ']" value="1" />');
+            }
+        });
+
+        // Update state of all checkboxes
+        linked_datarecords = all_datarecords;
+        initCheckboxes("#TextResults_current", true);
+        initCheckboxes(".ODRShortResultWrapper", false);
+    }
+
+    function deselectAll() {
+        // Remove hidden input elements for all currently selected datarecords
+        jQuery.each(linked_datarecords, function(index, dr_id) {
+            var dr = "#dr_" + dr_id;
+
+            if ( $(dr).length > 0 ) {
+                // hidden input exists, remove it
+                $(dr).remove();
+            }
+            else if ( $(dr).length == 0 ) {
+                // hidden input does not exist, do nothing
+            }
+        });
+
+        // Update state of all checkboxes
+        linked_datarecords = [];
+        initCheckboxes("#TextResults_current", true);
+        initCheckboxes(".ODRShortResultWrapper", false);
+    }
+{% endif %}
 </script>
 
 {% endspaceless %}
