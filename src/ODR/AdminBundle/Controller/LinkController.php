@@ -14,7 +14,6 @@
 namespace ODR\AdminBundle\Controller;
 
 // Entities
-use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTreeMeta;
@@ -35,6 +34,8 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\TableThemeHelperService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -759,8 +760,12 @@ class LinkController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var TableThemeHelperService $tth_service */
+            $tth_service = $this->container->get('odr.table_theme_helper_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
 
@@ -843,10 +848,9 @@ if ($debug)
             if ($remote_datatype->getSetupStep() != DataType::STATE_OPERATIONAL)
                 throw new ODRBadRequestException('Remote Datatype does not have a suitable Theme');
 
-            /** @var Theme $theme */
-//            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $remote_datatype->getId(), 'themeType' => 'table') );
-            $theme = $theme_service->getDatatypeDefaultTheme($remote_datatype->getId(), 'search_results');
-            if ($theme == null)
+            // Since the above statement didn't thrown an exception, the one below shouldn't either...
+            $theme_id = $theme_service->getPreferredTheme($user, $remote_datatype->getId(), 'search_results');
+            if ($theme_id == null)
                 throw new ODRException('Remote Datatype does not have a Table Theme');
 
 
@@ -907,32 +911,25 @@ if ($debug)
             }
 
 if ($debug) {
-    print "\nlinked datarecords\n";
+    print "\nlinked datarecords:\n";
     foreach ($linked_datarecords as $id => $value)
         print '-- '.$id."\n";
 }
 
 
             // ----------------------------------------
-            // Determine whether the link allows multiples or not
-            $allow_multiple_links = true;
-            $query = $em->createQuery(
-               'SELECT dtm.multiple_allowed AS multiple_allowed
-                FROM ODRAdminBundle:DataTree AS dt
-                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-                WHERE dt.ancestor = :ancestor AND dt.descendant = :descendant
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'ancestor' => $ancestor_datatype->getId(),
-                    'descendant' => $descendant_datatype->getId()
-                )
-            );
-            $result = $query->getArrayResult();
+            // Store whether the link allows multiples or not
+            $datatree_array = $dti_service->getDatatreeArray();
 
-            // Save whether only allowed to link to a single datarecord at a time
-            if ( $result[0]['multiple_allowed'] == 0 )
-                $allow_multiple_links = false;
+            $allow_multiple_links = false;
+            if ( isset($datatree_array['multiple_allowed'][$descendant_datatype->getId()])
+                && in_array(
+                    $ancestor_datatype->getId(),
+                    $datatree_array['multiple_allowed'][$descendant_datatype->getId()]
+                )
+            ) {
+                $allow_multiple_links = true;
+            }
 
 if ($debug) {
     if ($allow_multiple_links)
@@ -959,7 +956,12 @@ if ($debug) {
                     JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
                     WHERE descendant.dataType = :descendant_datatype AND ancestor.dataType = :ancestor_datatype
                     AND descendant.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
-                )->setParameters( array('descendant_datatype' => $descendant_datatype->getId(), 'ancestor_datatype' => $ancestor_datatype->getId()) );
+                )->setParameters(
+                    array(
+                        'descendant_datatype' => $descendant_datatype->getId(),
+                        'ancestor_datatype' => $ancestor_datatype->getId()
+                    )
+                );
                 $results = $query->getArrayResult();
 //print_r($results);
 
@@ -970,11 +972,11 @@ if ($debug) {
             }
 
 if ($debug) {
-    print "\nillegal datarecords\n";
+    print "\nillegal datarecords:\n";
     foreach ($illegal_datarecords as $key => $id)
         print '-- datarecord '.$id."\n";
 }
-
+//exit();
 
             // ----------------------------------------
             // Convert the list of linked datarecords into a slightly different format so renderTextResultsList() can build it
@@ -982,12 +984,12 @@ if ($debug) {
             foreach ($linked_datarecords as $dr_id => $value)
                 $datarecord_list[] = $dr_id;
 
-            $table_html = parent::renderTextResultsList($em, $datarecord_list, $theme, $request);
+            $table_html = $tth_service->getRowData($user, $datarecord_list, $remote_datatype->getId(), $theme_id);
             $table_html = json_encode($table_html);
 //print_r($table_html);
 
             // Grab the column names for the datatables plugin
-            $column_data = parent::getDatatablesColumnNames($em, $theme, $datafield_permissions);
+            $column_data = $tth_service->getColumnNames($user, $remote_datatype->getId(), $theme_id);
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
 
@@ -997,7 +999,7 @@ if ($debug) {
             $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
-                    'ODRAdminBundle:Edit:link_datarecord_form.html.twig',
+                    'ODRAdminBundle:Link:link_datarecord_form.html.twig',
                     array(
                         'search_key' => $search_key,
 
@@ -1051,7 +1053,7 @@ if ($debug) {
         try {
             // Symfony firewall won't permit GET requests to reach this point
             $post = $request->request->all();
-print_r($post);  exit();
+//print_r($post);  exit();
 
 
             if ( !isset($post['local_datarecord_id']) || !isset($post['ancestor_datatype_id']) || !isset($post['descendant_datatype_id']))
@@ -1072,6 +1074,8 @@ print_r($post);  exit();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -1134,11 +1138,7 @@ print_r($post);  exit();
                 $can_edit_ancestor_datarecord = true;
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
-//            if ( !($ancestor_datatype->isPublic() || $can_view_ancestor_datatype) || !($descendant_datatype->isPublic() || $can_view_descendant_datatype) || !($local_datarecord->isPublic() || $can_view_local_datarecord) || !$can_edit_ancestor_datarecord )
-//                throw new ODRForbiddenException();
-
-
-            if ( !$pm_service->canEditDatarecord($user, $ancestor_datarecord) )
+            if ( !($ancestor_datatype->isPublic() || $can_view_ancestor_datatype) || !($descendant_datatype->isPublic() || $can_view_descendant_datatype) || !($local_datarecord->isPublic() || $can_view_local_datarecord) || !$can_edit_ancestor_datarecord )
                 throw new ODRForbiddenException();
 
 
@@ -1215,7 +1215,6 @@ if ($debug) {
     foreach ($linked_datatree as $ldt)
         print "-- ldt ".$ldt->getId().' ancestor: '.$ldt->getAncestor()->getId().' descendant: '.$ldt->getDescendant()->getId()."\n";
 }
-
             foreach ($linked_datatree as $ldt) {
                 $remote_datarecord = null;
                 if ($local_datarecord_is_ancestor)
@@ -1242,6 +1241,8 @@ if ($debug)
 
                     // Mark the ancestor datarecord as updated
                     $dri_service->updateDatarecordCacheEntry($ldt->getAncestor(), $user);
+                    // Since a datarecord got unlinked, rebuild the list of what the ancestor datarecord links to
+                    $cache_service->delete('associated_datarecords_for_'.$ldt->getAncestor()->getGrandparent()->getId());
 
                     // Remove the linked_data_tree entry
                     $ldt->setDeletedBy($user);
@@ -1257,6 +1258,7 @@ if ($debug)
     print 'link between local datarecord '.$local_datarecord->getId().' and remote datarecord '.$remote_datarecord->getId()." already exists\n";
                 }
             }
+
 
             // Anything remaining in $datarecords is a newly linked datarecord
             foreach ($datarecords as $id => $num) {
@@ -1289,6 +1291,8 @@ if ($debug)
                 'datatype_id' => $descendant_datatype->getId(),
                 'datarecord_id' => $local_datarecord->getId()
             );
+
+            // Any cached entries that needed clearing have already been cleared
         }
         catch (\Exception $e) {
             $source = 0xdd047dcd;

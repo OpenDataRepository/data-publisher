@@ -1,5 +1,14 @@
 {% spaceless %}
 
+{% set theme = theme_array[datatype.id] %}
+
+{# Page/View Options #}
+{% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
+    'datatype': datatype,
+    'theme': theme,
+    'page_type': 'table',
+} %}
+
 <div>
     <table id="TextResults_search" class="display {#pure-table pure-table-striped#}"></table>
 </div>
@@ -41,7 +50,7 @@
                 "type": "POST",
                 "data": {
                     'datatype_id': {{ datatype.id }},
-                    "theme_id": {{ theme_id }},
+                    "theme_id": {{ theme.id }},
                     'search_key': "{{ search_key }}",
                     // Don't want anything done to this table to be saved, so don't send the tab id
                 }

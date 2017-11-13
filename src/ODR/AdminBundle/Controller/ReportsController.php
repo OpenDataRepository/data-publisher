@@ -33,6 +33,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
@@ -64,6 +65,9 @@ class ReportsController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -80,11 +84,9 @@ class ReportsController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -110,7 +112,7 @@ class ReportsController extends ODRCustomController
             }
             else {
                 // Locate the top-level datatype
-                $top_level_datatype_id = $dti_service->getGrandparentDatatypeId($datatype_id);
+                $top_level_datatype_id = $datatype->getGrandparent()->getId();
 
                 /** @var DataType $top_level_datatype */
                 $top_level_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($top_level_datatype_id);
@@ -125,7 +127,7 @@ class ReportsController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x2993cf40;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -309,6 +311,10 @@ print_r($grandparent_list);
             $em = $this->getDoctrine()->getManager();
             $templating = $this->get('templating');
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
@@ -317,18 +323,15 @@ print_r($grandparent_list);
             $datatype = $datafield->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -404,7 +407,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0x93aaae47;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -436,6 +439,10 @@ print_r($grandparent_list);
             $em = $this->getDoctrine()->getManager();
             $templating = $this->get('templating');
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var DataTree $datatree */
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($datatree_id);
             if ($datatree == null)
@@ -453,11 +460,9 @@ print_r($grandparent_list);
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $parent_datatype->getId() ]) && isset($datatype_permissions[ $parent_datatype->getId() ][ 'dt_admin' ])) )
+            if ( !$pm_service->isDatatypeAdmin($user, $parent_datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -516,7 +521,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0x62dda448;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -549,6 +554,10 @@ print_r($grandparent_list);
             $em = $this->getDoctrine()->getManager();
             $templating = $this->get('templating');
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var DataType $local_datatype */
             $local_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($local_datatype_id);
             if ($local_datatype == null)
@@ -564,11 +573,10 @@ print_r($grandparent_list);
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $local_datatype_id ]) && isset($datatype_permissions[ $local_datatype_id ][ 'dt_admin' ])) )
+            if ( !$pm_service->isDatatypeAdmin($user, $local_datatype) )
                 throw new ODRForbiddenException();
 
             $can_edit_local = false;
@@ -622,7 +630,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0x6abcb0cc;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -654,6 +662,10 @@ print_r($grandparent_list);
             $em = $this->getDoctrine()->getManager();
             $templating = $this->get('templating');
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
@@ -662,18 +674,15 @@ print_r($grandparent_list);
             $datatype = $datafield->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -758,7 +767,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0xb552e494;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -790,6 +799,10 @@ print_r($grandparent_list);
             $em = $this->getDoctrine()->getManager();
             $templating = $this->get('templating');
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
@@ -798,18 +811,15 @@ print_r($grandparent_list);
             $datatype = $datafield->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -866,7 +876,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0x16cb020a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -897,6 +907,10 @@ print_r($grandparent_list);
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
@@ -933,26 +947,22 @@ print_r($grandparent_list);
             }
             else {
                 // Grab user's permissions
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
+                $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
                 // If user has view permissions, show non-public sections of the datarecord
                 $can_view_datarecord = false;
                 if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
                     $can_view_datarecord = true;
 
-                // Ensure user can view datafield
-                $can_view_datafield = false;
-                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                    $can_view_datafield = true;
 
                 // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !($datatype->isPublic() || $can_view_datatype) || !($datafield->isPublic() || $can_view_datafield) || !($file->isPublic() || $can_view_datarecord) )
+                if ( !$pm_service->canViewDatatype($user, $datatype) )
+                    throw new ODRForbiddenException();
+
+                if ( !$pm_service->canViewDatafield($user, $datafield) )
+                    throw new ODRForbiddenException();
+
+                if ( !$file->isPublic() && !$can_view_datarecord )
                     throw new ODRForbiddenException();
             }
             // --------------------
@@ -963,7 +973,7 @@ print_r($grandparent_list);
 
             // Shouldn't really be necessary if the file is public, but including anyways for completeness/later use
             if ( $file->isPublic() ) {
-                $absolute_path = realpath( dirname(__FILE__).'/../../../../web/'.$file->getLocalFileName() );
+                $absolute_path = realpath( $this->getParameter('odr_web_directory').'/'.$file->getLocalFileName() );
 
                 if (!$absolute_path) {
                     // File doesn't exist, so no progress yet
@@ -980,7 +990,7 @@ print_r($grandparent_list);
                 // Determine temporary filename
                 $temp_filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId());
                 $temp_filename .= '.'.$file->getExt();
-                $absolute_path = realpath( dirname(__FILE__).'/../../../../web/uploads/files/'.$temp_filename );
+                $absolute_path = realpath( $this->getParameter('odr_web_directory').'/uploads/files/'.$temp_filename );
 
                 if (!$absolute_path) {
                     // File doesn't exist, so no progress yet
@@ -999,7 +1009,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0x10d09095;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1033,6 +1043,9 @@ print_r($grandparent_list);
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
@@ -1056,28 +1069,22 @@ print_r($grandparent_list);
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-
-            // Grab user's permissions
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
-
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                $can_view_datatype = true;
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
             // If user has view permissions, show non-public sections of the datarecord
             $can_view_datarecord = false;
             if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
                 $can_view_datarecord = true;
 
-            // Ensure user can view datafield
-            $can_view_datafield = false;
-            if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                $can_view_datafield = true;
 
             // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-            if ( !($datatype->isPublic() || $can_view_datatype) || !($datafield->isPublic() || $can_view_datafield) || !($file->isPublic() || $can_view_datarecord) )
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+            if ( !$pm_service->canViewDatafield($user, $datafield) )
+                throw new ODRForbiddenException();
+
+            if ( !$file->isPublic() && !$can_view_datarecord )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1111,13 +1118,12 @@ print_r($grandparent_list);
                     if ($delete_cache_entries) {
                         // Somehow, the file is fully encrypted, but the cached array doesn't properly reflect that...wipe them so they get rebuilt
                         $cache_service->delete('cached_datarecord_'.$grandparent_datarecord_id);
-                        $cache_service->delete('datarecord_table_data_'.$grandparent_datarecord_id);
+                        $cache_service->delete('cached_table_data_'.$grandparent_datarecord_id);
                     }
                 }
             }
             else {
-                // TODO - load from config file somehow?
-                $crypto_dir = dirname(__FILE__).'/../../../../app/crypto_dir/File_'.$file_id;
+                $crypto_dir = $this->getParameter('dterranova_crypto.temp_folder').'/File_'.$file_id;
                 $chunk_size = 2 * 1024 * 1024;  // 2Mb in bytes
 
                 $num_chunks = intval(floatval($file->getFilesize()) / floatval($chunk_size)) + 1;
@@ -1139,7 +1145,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0xccdb4bcb;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1172,7 +1178,7 @@ print_r($grandparent_list);
             if ($archive_filename == '0')
                 throw new ODRBadRequestException();
 
-            $archive_filepath = dirname(__FILE__).'/../../../../web/uploads/files/'.$archive_filename;
+            $archive_filepath = $this->getParameter('odr_web_directory').'/uploads/files/'.$archive_filename;
             if ( !file_exists($archive_filepath) )
                 throw new FileNotFoundException($archive_filename);
 
@@ -1187,7 +1193,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0xd16f3328;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1227,7 +1233,7 @@ print_r($grandparent_list);
         catch (\Exception $e) {
             $source = 0x2f933518;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

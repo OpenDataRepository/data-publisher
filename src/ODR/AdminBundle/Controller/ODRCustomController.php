@@ -77,6 +77,7 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -220,7 +221,7 @@ class ODRCustomController extends Controller
         // -----------------------------------
         $final_html = '';
         // All theme types other than table
-        if ( $theme->getThemeType() != 'table' ) {
+        if ( $theme->getThemeType() != 'table' && $target != 'linking' ) {
             // -----------------------------------
             // Ensure offset exists for shortresults list
             if ( (($offset-1) * $page_length) > count($datarecords) )
@@ -301,10 +302,16 @@ class ODRCustomController extends Controller
                 )
             );
         }
-        else if ( $theme->getThemeType() == 'table' ) {
+        else if ( $theme->getThemeType() == 'table' || $target == 'linking' ) {
             // -----------------------------------
-            // Grab the...
-            $column_data = self::getDatatablesColumnNames($em, $theme, $datafield_permissions);
+            $theme_array = $theme_service->getThemeArray( array($theme->getId()) );
+
+            // Determine the columns to use for the table
+            /** @var TableThemeHelperService $tth_service */
+            $tth_service = $this->container->get('odr.table_theme_helper_service');
+            $column_data = $tth_service->getColumnNames($user, $datatype->getId(), $theme->getId());
+//exit( '<pre>'.print_r($column_data, true).'</pre>' );
+
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
 
@@ -314,7 +321,7 @@ class ODRCustomController extends Controller
             //
             $template = 'ODRAdminBundle:TextResults:textresultslist.html.twig';
             if ($target == 'linking')
-                $template = 'ODRAdminBundle:Edit:link_datarecord_form_search.html.twig';
+                $template = 'ODRAdminBundle:Link:link_datarecord_form_search.html.twig';
 
             $final_html = $templating->render(
                 $template,
@@ -328,7 +335,7 @@ class ODRCustomController extends Controller
                     'scroll_target' => $scroll_target,
                     'user' => $user,
                     'user_permissions' => $datatype_permissions,
-                    'theme_id' => $theme->getId(),
+                    'theme_array' => $theme_array,
 
                     'logged_in' => $logged_in,
 
@@ -611,6 +618,7 @@ class ODRCustomController extends Controller
 
     /**
      * Utility function to let controllers easily force a redirect to a different search results page
+     * TODO - move into searching service?
      *
      * @param User $user
      * @param string $new_url
@@ -935,142 +943,6 @@ class ODRCustomController extends Controller
         }
 
         return $absolute_path;
-    }
-
-
-    /**
-     * Determines and returns an array of top-level datatype ids
-     * @deprecated
-     *
-     * @return int[]
-     */
-    public function getTopLevelDatatypes()
-    {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $query = $em->createQuery(
-           'SELECT dt.id AS datatype_id
-            FROM ODRAdminBundle:DataType AS dt
-            WHERE dt.deletedAt IS NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $all_datatypes = array();
-        foreach ($results as $num => $result)
-            $all_datatypes[] = $result['datatype_id'];
-
-        $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-            FROM ODRAdminBundle:DataTree AS dt
-            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-            JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE dtm.is_link = 0
-            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $parent_of = array();
-        foreach ($results as $num => $result)
-            $parent_of[ $result['descendant_id'] ] = $result['ancestor_id'];
-
-        $top_level_datatypes = array();
-        foreach ($all_datatypes as $datatype_id) {
-            if ( !isset($parent_of[$datatype_id]) )
-                $top_level_datatypes[] = $datatype_id;
-        }
-
-        return $top_level_datatypes;
-    }
-
-
-    /**
-     * Utility function to returns the DataTree table in array format
-     * TODO: This function is a really bad idea - will be absolutely GIGANTIC at some point.
-     * Why is this needed? Plus, how do you know when it needs to be flushed?
-     * @deprecated
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param boolean $force_rebuild
-     *
-     * @return array
-     */
-    public function getDatatreeArray($em, $force_rebuild = false)
-    {
-        // Attempt to load from cache first
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        $datatree_array = self::getRedisData(($redis->get($redis_prefix.'.cached_datatree_array')));
-        if ( !($force_rebuild || $datatree_array == false) ) {
-            return $datatree_array;
-        }
-
-        $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
-            FROM ODRAdminBundle:DataType AS ancestor
-            JOIN ODRAdminBundle:DataTree AS dt WITH ancestor = dt.ancestor
-            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL');
-        $results = $query->getArrayResult();
-
-        $datatree_array = array(
-            'descendant_of' => array(),
-            'linked_from' => array(),
-            'multiple_allowed' => array(),
-        );
-        foreach ($results as $num => $result) {
-            $ancestor_id = $result['ancestor_id'];
-            $descendant_id = $result['descendant_id'];
-            $is_link = $result['is_link'];
-            $multiple_allowed = $result['multiple_allowed'];
-
-            if ( !isset($datatree_array['descendant_of'][$ancestor_id]) )
-                $datatree_array['descendant_of'][$ancestor_id] = '';
-
-            if ($is_link == 0) {
-                $datatree_array['descendant_of'][$descendant_id] = $ancestor_id;
-            }
-            else {
-                if ( !isset($datatree_array['linked_from'][$descendant_id]) )
-                    $datatree_array['linked_from'][$descendant_id] = array();
-
-                $datatree_array['linked_from'][$descendant_id][] = $ancestor_id;
-            }
-
-            if ($multiple_allowed == 1) {
-                if ( !isset($datatree_array['multiple_allowed'][$descendant_id]) )
-                    $datatree_array['multiple_allowed'][$descendant_id] = array();
-
-                $datatree_array['multiple_allowed'][$descendant_id][] = $ancestor_id;
-            }
-        }
-
-        // Store in cache and return
-//print '<pre>'.print_r($datatree_array, true).'</pre>';  exit();
-        $redis->set($redis_prefix.'.cached_datatree_array', gzcompress(serialize($datatree_array)));
-        return $datatree_array;
-    }
-
-
-    /**
-     * Returns the id of the grandparent of the given datatype
-     * @deprecated
-     *
-     * @param array $datatree_array         @see self::getDatatreeArray()
-     * @param integer $initial_datatype_id
-     *
-     * @return integer
-     */
-    protected function getGrandparentDatatypeId($datatree_array, $initial_datatype_id)
-    {
-        $grandparent_datatype_id = $initial_datatype_id;
-        while( isset($datatree_array['descendant_of'][$grandparent_datatype_id]) && $datatree_array['descendant_of'][$grandparent_datatype_id] !== '' )
-            $grandparent_datatype_id = $datatree_array['descendant_of'][$grandparent_datatype_id];
-
-        return $grandparent_datatype_id;
     }
 
 
@@ -1603,44 +1475,6 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Temporary? function to mark theme as updated and delete cached version of datatype
-     * @deprecated
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param Theme $theme
-     * @param User $user
-     * @param boolean $update_datatype
-     */
-    protected function tmp_updateThemeCache($em, $theme, $user, $update_datatype = false)
-    {
-        /** @var CacheService $cache_service*/
-        $cache_service = $this->container->get('odr.cache_service');
-
-        // Mark theme as updated
-        $theme->setUpdatedBy($user);
-        $theme->setUpdated(new \DateTime());   // guarantee that the theme gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
-        $em->persist($theme);
-
-        if ($update_datatype) {
-            // Also mark datatype as updated
-            $datatype = $theme->getDataType();
-            $datatype->setUpdated(new \DateTime());   // guarantee that the datatype gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
-            $datatype->setUpdatedBy($user);
-            $em->persist($datatype);
-        }
-
-        $em->flush();
-
-        // Locate and clear the cache entry for this datatype
-//        $datatree_array = self::getDatatreeArray($em);
-//        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $theme->getDataType()->getId());
-        $datatype_id = $theme->getDataType()->getId();
-
-        $cache_service->delete('cached_datatype_'.$datatype_id);
-    }
-
-
-    /**
      * @deprecated
      * Gets or creates a TrackedJob entity in the database for use by background processes
      *
@@ -2004,10 +1838,15 @@ class ODRCustomController extends Controller
             $em->flush();
         }
 
-        // Refresh the cache entries for the ancestor datarecord
+        // Force a rebuild of the cached entry for the ancestor datarecord
         /** @var DatarecordInfoService $dri_service */
         $dri_service = $this->container->get('odr.datarecord_info_service');
         $dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
+
+        // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
+        /** @var CacheService $cache_service */
+        $cache_service = $this->container->get('odr.cache_service');
+        $cache_service->delete('associated_datarecords_for_'.$ancestor_datarecord->getGrandparent()->getId());
 
         return $linked_datatree;
     }
@@ -4338,6 +4177,7 @@ class ODRCustomController extends Controller
 
     /**
      * Rebuilds all cached versions of table themes for the given datarecord.
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $datarecord_id

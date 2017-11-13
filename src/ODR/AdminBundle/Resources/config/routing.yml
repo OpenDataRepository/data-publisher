@@ -746,7 +746,7 @@ odr_get_available_themes:
     defaults: { _controller: ODRAdminBundle:Display:getavailablethemes }
     requirements:
         datatype_id:  \d+
-        page_type:  'display|search_results'
+        page_type:  'display|search_results|table'
 
 # deprecated?
 #odr_cancel_file_decrypt:

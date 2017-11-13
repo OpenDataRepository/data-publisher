@@ -177,8 +177,9 @@ class DisplaytemplateController extends ODRCustomController
 //print '<pre>'.print_r($all_affected_users, true).'</pre>'; exit();
 
 
+            // TODO - disabled for now, but is this safe to delete?
             // Delete this datafield from all table themes and ensure all remaining datafields in the theme are still in sequential order
-            self::removeDatafieldFromTableThemes($em, $user, $datafield);
+//            self::removeDatafieldFromTableThemes($em, $user, $datafield);
 
 
             // ----------------------------------------
@@ -273,7 +274,7 @@ class DisplaytemplateController extends ODRCustomController
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
                 $cache_service->delete('cached_datarecord_'.$dr_id);
-                $cache_service->delete('datarecord_table_data_'.$dr_id);
+                $cache_service->delete('cached_table_data_'.$dr_id);
             }
 
 
@@ -416,7 +417,7 @@ class DisplaytemplateController extends ODRCustomController
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
                 $cache_service->delete('cached_datarecord_'.$dr_id);
-                $cache_service->delete('datarecord_table_data_'.$dr_id);
+                $cache_service->delete('cached_table_data_'.$dr_id);
             }
 
             // See if any cached search results need to be deleted...
@@ -890,7 +891,7 @@ class DisplaytemplateController extends ODRCustomController
                     $dr_id = $result['dr_id'];
 
                     $cache_service->delete('cached_datarecord_'.$dr_id);
-                    $cache_service->delete('datarecord_table_data_'.$dr_id);
+                    $cache_service->delete('cached_table_data_'.$dr_id);
                     $cache_service->delete('associated_datarecords_for_'.$dr_id);
                 }
             }
@@ -3584,7 +3585,7 @@ exit();
                         foreach ($results as $result) {
                             $dr_id = $result['dr_id'];
                             $cache_service->delete('cached_datarecord_'.$dr_id);
-                            $cache_service->delete('datarecord_table_data_'.$dr_id);
+                            $cache_service->delete('cached_table_data_'.$dr_id);
                         }
                     }
 
@@ -4156,6 +4157,7 @@ exit();
                         }
                     }
 
+                    // TODO - disabled for now, but is this safe to delete?
                     // Ensure a File datafield isn't in TextResults if it is set to allow multiple uploads
                     if ( !$current_datafield_meta->getAllowMultipleUploads() && $submitted_data->getAllowMultipleUploads() )
                         $update_field_order = true;
@@ -4197,8 +4199,9 @@ exit();
                     if ($sort_radio_options)
                         self::radiooptionorderAction($datafield->getId(), true, $request);  // TODO - might be race condition issue with design_ajax
 
-                    if ($update_field_order)
-                        self::removeDatafieldFromTableThemes($em, $user, $datafield);
+                    // TODO - disabled for now, but is this safe to delete?
+//                    if ($update_field_order)
+//                        self::removeDatafieldFromTableThemes($em, $user, $datafield);
 
                     if ($check_image_sizes)
                         parent::ODR_checkImageSizes($em, $user, $datafield);
@@ -4463,7 +4466,7 @@ exit();
 
     /**
      * Called after a user makes a change that requires a datafield be removed from TextResults
-     *
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user

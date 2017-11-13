@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set theme = theme_array[datatype.id] %}
+
 {% set can_edit_datarecord = false %}
 {% set is_datatype_admin = false %}
 
@@ -10,24 +12,27 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-<div class="ODRFormWrap" {#style="min-height: 800px;"#}> 
-    <div class="grid_12">
-        <div class="box">
-            <div class="header">
-            {% if target == "results" %}
-                <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
-            {% else %}
-                <h2>Edit Records - {{ datatype.dataTypeMeta.shortName }}</h2>
-            {% endif %}
-            </div>
-            <div id="TextResults_wrapper" class="ODRTableOuterWrap">
-                <div class="ODRTableWrap">
-                    <table id="TextResults" class="display"></table>
-                </div>
-            </div><!-- end of #TextResults_wrapper -->
-        </div>
-    </div><!-- End of .grid_12 -->
+<div class="ODRFormWrap">
+    <div class="header">
+    {% if target == "results" %}
+        <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
+    {% else %}
+        <h2>Edit Records - {{ datatype.dataTypeMeta.shortName }}</h2>
+    {% endif %}
+    </div>
 
+    {# Page/View Options #}
+    {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
+        'datatype': datatype,
+        'theme': theme,
+        'page_type': 'table',
+    } %}
+
+    <div id="TextResults_wrapper" class="ODRTableOuterWrap">
+        <div class="ODRTableWrap">
+            <table id="TextResults" class="display"></table>
+        </div>
+    </div><!-- end of #TextResults_wrapper -->
 </div><!-- End of .ODRFormWrap -->
 
 {% set user_role = '' %}
@@ -38,6 +43,7 @@
         {% endif %}
     {% endfor %}
 {% endif %}
+
 {% if user_role == 'ROLE_ADMIN' and count > 0 %}
 <div class="ODRExportButtons Cursor">
     <div style="float:left;">
@@ -139,7 +145,7 @@
                 "type": "POST",
                 "data": {
                     "datatype_id": {{ datatype.id }},
-                    "theme_id": {{ theme_id }},
+                    "theme_id": {{ theme.id }},
                     "search_key": "{{ search_key }}",
                     "odr_tab_id": window.sessionStorage.getItem('odr_tab_id')
                 },

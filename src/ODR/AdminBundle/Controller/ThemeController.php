@@ -310,7 +310,7 @@ class ThemeController extends ODRCustomController
 
             /** @var Theme[] $theme_list */
             $theme_list = $em->getRepository('ODRAdminBundle:Theme')->findBy(
-                array('datatype' => $datatype->getId(), 'themeType' => $theme_types)
+                array('dataType' => $datatype->getId(), 'themeType' => $theme_types)
             );
 
             // Each of the themes in this list need to be set to "not default"...

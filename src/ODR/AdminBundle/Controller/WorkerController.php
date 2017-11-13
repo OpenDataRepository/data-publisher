@@ -990,7 +990,7 @@ $ret .= '  Set current to '.$count."\n";
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
 
-                $key = 'datarecord_table_data_'.$dr_id;
+                $key = 'cached_table_data_'.$dr_id;
                 if ($cache_service->exists($key)) {
                     $cache_service->delete($key);
                     print '"'.$key.'" deleted'."\n";
@@ -2060,9 +2060,10 @@ $ret .= '  Set current to '.$count."\n";
                'UPDATE ODRAdminBundle:DataType AS dt
                 SET dt.setup_step = :setup_step'
             )->setParameters( array('setup_step' => DataType::STATE_INCOMPLETE) );
-            $rows = $query->execute();
-
-            print 'Updated '.$rows.' datatypes to have the "incomplete" setup step'."\n";
+            if ($save) {
+                $rows = $query->execute();
+                print 'Updated '.$rows.' datatypes to have the "incomplete" setup step'."\n";
+            }
 
 
             // Locate all datatypes that have a search_results theme
@@ -2086,9 +2087,10 @@ $ret .= '  Set current to '.$count."\n";
                 SET dt.setup_step = :setup_step
                 WHERE dt.id IN (:datatype_ids)'
             )->setParameters( array('setup_step' => DataType::STATE_OPERATIONAL, 'datatype_ids' => $datatype_ids) );
-            $rows = $query->execute();
-
-            print 'Updated '.$rows.' datatypes to have the "operational" setup step'."\n";
+            if ($save) {
+                $rows = $query->execute();
+                print 'Updated '.$rows.' datatypes to have the "operational" setup step'."\n";
+            }
 
 
             $em->getFilters()->enable('softdeleteable');
@@ -2180,8 +2182,10 @@ $ret .= '  Set current to '.$count."\n";
                 WHERE t.themeType = :empty_string
                 AND t.deletedAt IS NULL'
             )->setParameters( array('new_date' => new \DateTime(), 'empty_string' => '') );
-            $rows = $query->execute();
-            print 'Deleted '.$rows.' themes where theme_type == ""'."\n";
+            if ($save) {
+                $rows = $query->execute();
+                print 'Deleted '.$rows.' themes where theme_type == ""'."\n";
+            }
 
             // Also ensure no "derivative" theme_type exists either...this shouldn't do anything, but making sure
             $query = $em->createQuery(
@@ -2190,8 +2194,10 @@ $ret .= '  Set current to '.$count."\n";
                 WHERE t.themeType = :empty_string
                 AND t.deletedAt IS NULL'
             )->setParameters( array('new_date' => new \DateTime(), 'empty_string' => 'derivative') );
-            $rows = $query->execute();
-            print 'Deleted '.$rows.' themes where theme_type == "derivative"'."\n";
+            if ($save) {
+                $rows = $query->execute();
+                print 'Deleted '.$rows.' themes where theme_type == "derivative"'."\n";
+            }
 
 
             // ----------------------------------------
@@ -2216,18 +2222,22 @@ $ret .= '  Set current to '.$count."\n";
                 SET tm.isTableTheme = :is_table_theme
                 WHERE tm.theme IN (:theme_ids)'
             )->setParameters( array('is_table_theme' => true, 'theme_ids' => $table_theme_ids) );
-            $rows = $query->execute();
-            print 'Updated "isTableTheme" property for '.$rows.' theme meta entries'."\n";
+            if ($save) {
+                $rows = $query->execute();
+                print 'Updated "isTableTheme" property for '.$rows.' theme meta entries'."\n";
+            }
 
 
-            // Change all of these themes to be a 'search_results' theme instead
+            // Temporarily change all of these themes to be a 'search_results' theme instead
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:Theme AS t
                 SET t.themeType = :new_theme_type
                 WHERE t.themeType = :old_theme_type'
             )->setParameters( array('old_theme_type' => 'table', 'new_theme_type' => 'search_results') );
-            $rows = $query->execute();
-            print 'Changed themeType property for '.$rows.' theme entries from "table" into "search_results"'."\n";
+            if ($save) {
+                $rows = $query->execute();
+                print 'Changed themeType property for '.$rows.' theme entries from "table" into "search_results"'."\n";
+            }
 
             $em->getFilters()->enable('softdeleteable');
 
@@ -2454,11 +2464,21 @@ $ret .= '  Set current to '.$count."\n";
             // Run one last set of queries to force all themes to be shared by default
             $em->getFilters()->disable('softdeleteable');
 
+            // Change all the themes that used to be "table" themes back into "table" themes
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:Theme AS t
+                SET t.themeType = :new_theme_type
+                WHERE t.id IN (:table_theme_ids)'
+            )->setParameters( array('new_theme_type' => 'table', 'table_theme_ids' => $table_theme_ids) );
+            if ($save) {
+                $rows = $query->execute();
+                print 'Changed '.$rows.' themes back into "table" themes'."\n";
+            }
+
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:ThemeMeta AS tm
                 SET tm.shared = :shared'
             )->setParameters( array('shared' => true) );
-
             if ($save)
                 $rows = $query->execute();
 

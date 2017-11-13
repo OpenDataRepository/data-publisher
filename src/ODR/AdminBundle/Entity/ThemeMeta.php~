@@ -246,6 +246,7 @@ class ThemeMeta
 
     /**
      * Set isTableTheme
+     * @deprecated 
      *
      * @param boolean $isTableTheme
      *
@@ -260,6 +261,7 @@ class ThemeMeta
 
     /**
      * Get isTableTheme
+     * @deprecated
      *
      * @return boolean
      */

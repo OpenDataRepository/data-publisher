@@ -386,7 +386,7 @@ class EditController extends ODRCustomController
 
             // Delete the cached entry for this now-deleted datarecord
             $cache_service->delete('cached_datarecord_'.$datarecord_id);
-            $cache_service->delete('datarecord_table_data_'.$datarecord_id);
+            $cache_service->delete('cached_table_data_'.$datarecord_id);
 
             // Delete the sorted list of datarecords for this datatype
             $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
@@ -2313,71 +2313,70 @@ class EditController extends ODRCustomController
 
         $html = '';
         if ($template_name == 'default') {
-/*
+
             // ----------------------------------------
             // Need to determine ids and names of datatypes this datarecord can link to
             $query = $em->createQuery(
-               'SELECT ancestor.id AS ancestor_id, ancestor_meta.shortName AS ancestor_name, descendant.id AS descendant_id, descendant_meta.shortName AS descendant_name
-                FROM ODRAdminBundle:DataTypeMeta AS ancestor_meta
-                JOIN ODRAdminBundle:DataType AS ancestor WITH ancestor_meta.dataType = ancestor
-                JOIN ODRAdminBundle:DataTree AS dt WITH dt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-                JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-                JOIN ODRAdminBundle:DataTypeMeta AS descendant_meta WITH descendant_meta.dataType = descendant
+               'SELECT
+                  dt, dtm,
+                  ancestor, ancestor_meta,
+                  descendant, descendant_meta
+
+                FROM ODRAdminBundle:DataTree AS dt
+                JOIN dt.dataTreeMeta AS dtm
+
+                JOIN dt.ancestor AS ancestor
+                JOIN ancestor.dataTypeMeta AS ancestor_meta
+                JOIN dt.descendant AS descendant
+                JOIN descendant.dataTypeMeta AS descendant_meta
+
                 WHERE dtm.is_link = 1 AND (ancestor.id = :datatype_id OR descendant.id = :datatype_id)
-                AND ancestor_meta.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL AND descendant_meta.deletedAt IS NULL'
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                AND ancestor.deletedAt IS NULL AND ancestor_meta.deletedAt IS NULL
+                AND descendant.deletedAt IS NULL AND descendant_meta.deletedAt IS NULL'
             )->setParameters( array('datatype_id' => $datatype->getId()) );
             $results = $query->getArrayResult();
+//exit( '<pre>'.print_r($results, true).'</pre>' );
 
+
+            // Organize the linked datatypes into arrays
             $linked_datatype_ancestors = array();
             $linked_datatype_descendants = array();
-            foreach ($results as $result) {
-                if ( $result['ancestor_id'] == $datatype->getId() )
-                    $linked_datatype_descendants[ $result['descendant_id'] ] = $result['descendant_name'];
-                else if ( $result['descendant_id'] == $datatype->getId() )
-                    $linked_datatype_ancestors[ $result['ancestor_id'] ] = $result['ancestor_name'];
-            }
-
-            // ----------------------------------------
-            // Remove ids/names of datatypes this datarecord can link to if the datatype doesn't have a table theme
+            // Also store which datatype can't be linked to because they lack a search_results theme
             $disabled_datatype_links = array();
-            foreach ($linked_datatype_descendants as $dt_id => $dt_name) {
-                //
-                $has_table_theme = false;
-                if ( isset($datatype_array[$dt_id]) ) {
-                    foreach ($datatype_array[$dt_id]['themes'] as $num => $t) {
-                        if ($t['themeType'] == 'table')
-                            $has_table_theme = true;
-                    }
-                }
 
-                if (!$has_table_theme) {
-                    $disabled_datatype_links[$dt_id] = $dt_name;
-                    unset( $linked_datatype_descendants[$dt_id] );
+            foreach ($results as $num => $dt) {
+                $ancestor_id = $dt['ancestor']['id'];
+                $descendant_id = $dt['descendant']['id'];
+
+                if ($ancestor_id == $datatype->getId() ) {
+                    $descendant = $dt['descendant'];
+                    $descendant['dataTypeMeta'] = $dt['descendant']['dataTypeMeta'][0];
+
+                    if ( $descendant['setup_step'] == DataType::STATE_OPERATIONAL )
+                        $linked_datatype_descendants[$descendant_id] = $descendant;
+                    else
+                        $disabled_datatype_links[$descendant_id] = $descendant;
+                }
+                else if ($descendant_id == $datatype->getId() ) {
+                    $ancestor = $dt['ancestor'];
+                    $ancestor['dataTypeMeta'] = $dt['ancestor']['dataTypeMeta'][0];
+
+                    if ( $ancestor['setup_step'] == DataType::STATE_OPERATIONAL )
+                        $linked_datatype_ancestors[$ancestor_id] = $ancestor;
+                    else
+                        $disabled_datatype_links[$ancestor_id] = $ancestor;
                 }
             }
-            foreach ($linked_datatype_ancestors as $dt_id => $dt_name) {
-                // $datatype_array won't have data on an "ancestor" datatype, so have to load data for each of them from the cache...
-                $anc_dt_data = $dti_service->getDatatypeArray(array($dt_id));
 
-                $has_table_theme = false;
-                foreach ($anc_dt_data[$dt_id]['themes'] as $num => $t) {
-                    if ( $t['themeType'] == 'table' )
-                        $has_table_theme = true;
-                }
-
-                if (!$has_table_theme) {
-                    $disabled_datatype_links[$dt_id] = $dt_name;
-                    unset( $linked_datatype_ancestors[$dt_id] );
-                }
-            }
+/*
+print '<pre>';
+print 'ancestors: '.print_r($linked_datatype_ancestors, true);
+print 'descendants: '.print_r($linked_datatype_descendants, true);
+print 'disabled: '.print_r($disabled_datatype_links, true);
+print '</pre>';
+exit();
 */
-
-            // TODO - re-implement linking
-            $linked_datatype_ancestors = array();
-            $linked_datatype_descendants = array();
-            $disabled_datatype_links = array();
-
 
             // ----------------------------------------
             // Generate a csrf token for each of the datarecord/datafield pairs
