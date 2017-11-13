@@ -77,6 +77,8 @@
         var inst = modal.remodal(remodal_options);
 
         // Reset modal
+        modal.find(".ODRRemodalLoading").hide();
+        setODRRemodalLoadingText("loading");
         modal.find(".ODRRemodalBody").html('');
         // Clear buttons
         modal.find(".ODRRemodalButtons").hide();
@@ -135,7 +137,9 @@
         inst.open();
 
         // Reset modal to display content.
-        resetRemodalInnerHeight();
+        if(options.no_reset == undefined) {
+            resetRemodalInnerHeight();
+        }
     }
 </script>
 

@@ -153,6 +153,18 @@
         download.abort();
     }
 #}
+
+
+    // TODO - All of these setTimeout calls need to be intervals. So they can be destroyed properly.
+    var file_encrypt_timeouts = {};
+    function createFileEncryptProgressCheck(file_id, datarecord_id, datafield_id) {
+        // Ensure that at most a single timeout is running for a given file at any given time
+        if ( file_encrypt_timeouts[ file_id ] == null || file_encrypt_timeouts[ file_id ] == undefined ) {
+            file_encrypt_timeouts[ file_id ] = 1;
+            window.setTimeout( "checkFileEncryptProgress(" + file_id + ", " + datarecord_id + ", " + datafield_id + ");", encrypt_check_timeout );
+        }
+    }
+
     var file_decrypt_timeouts = {};
     function createFileDecryptProgressCheck(file_id, download_file_after) {
         // Ensure that at most a single timeout is running for a given file at any given time

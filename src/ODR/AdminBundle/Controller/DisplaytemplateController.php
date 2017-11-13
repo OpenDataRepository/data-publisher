@@ -2722,7 +2722,8 @@ class DisplaytemplateController extends ODRCustomController
                 // Grab available render plugins for this datatype
                 $render_plugins = array();
                 /** @var RenderPlugin[] $all_render_plugins */
-                $all_render_plugins = $repo_render_plugin->findAll(); 
+                $all_render_plugins = $repo_render_plugin->findAll();
+                // TODO This query would be better with parameters rather than a for loop.
                 foreach ($all_render_plugins as $plugin) {
                     if ($plugin->getPluginType() <= 2 && $plugin->getActive() == 1)  // 1: datatype only plugins...2: both...3: datafield only plutins
                         $render_plugins[] = $plugin;
@@ -2748,6 +2749,7 @@ class DisplaytemplateController extends ODRCustomController
                 // Grab available render plugins for this datafield
                 $render_plugins = array();
                 /** @var RenderPlugin[] $all_render_plugins */
+                // TODO This query would be better with parameters rather than a for loop.
                 $all_render_plugins = $repo_render_plugin->findAll();
                 foreach ($all_render_plugins as $plugin) {
                     if ($plugin->getPluginType() >= 2 && $plugin->getActive() == 1) // 1: datatype only plugins...2: both...3: datafield only plugins
