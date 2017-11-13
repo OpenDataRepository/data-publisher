@@ -1102,6 +1102,9 @@
                 }
             });
         });
+{#
+        // Don't need this?  ...only theme_datafield property that should be changed on a master
+        //  theme is the width, and that's handled via jquery resizable
 
         // Attach event handlers to the css width selectors in the datafield properties panel
         $("#ThemeDesignForm .ODRThemeDatafieldPropertiesForm").find("select").each(function() {
@@ -1115,7 +1118,7 @@
                 SaveThemeDatafieldProperties(theme_element_id, datafield_id);
             });
         });
-
+#}
         // Attach event handlers to most of the rest of the input elements
         $("#ThemeDesignForm .ODRDatafieldPropertiesForm").find("select").each(function() {
             // Grab Datafield id

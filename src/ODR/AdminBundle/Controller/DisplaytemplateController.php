@@ -4231,7 +4231,9 @@ exit();
                 $em->refresh($datafield->getDataFieldMeta());
 
                 // ----------------------------------------
+                // TODO - delete this?
                 // Get relevant theme_datafield entry for this datatype's master theme and create the associated form
+/*
                 $query = $em->createQuery(
                    'SELECT tdf
                     FROM ODRAdminBundle:ThemeElement AS te
@@ -4240,10 +4242,10 @@ exit();
                     AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL'
                 )->setParameters( array('theme_id' => $theme->getId(), 'datafield' => $datafield->getId()) );
                 $result = $query->getResult();
-                /** @var ThemeDataField $theme_datafield */
+                /** @var ThemeDataField $theme_datafield
                 $theme_datafield = $result[0];
                 $theme_datafield_form = $this->createForm(UpdateThemeDatafieldForm::class, $theme_datafield);
-
+*/
 
                 // Create the form for the datafield entry
                 $datafield_meta = $datafield->getDataFieldMeta();
@@ -4276,8 +4278,8 @@ exit();
 
                             'datafield' => $datafield,
                             'datafield_form' => $datafield_form->createView(),
-                            'theme_datafield' => $theme_datafield,
-                            'theme_datafield_form' => $theme_datafield_form->createView(),
+//                            'theme_datafield' => $theme_datafield,
+//                            'theme_datafield_form' => $theme_datafield_form->createView(),
                         )
                     )
                 );

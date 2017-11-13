@@ -5,7 +5,7 @@
 {% for dr_id, datarecord in datarecord_array %}
     <div class="ODRShortResults pure-u-1" id="ShortResults_{{ dr_id }}">
         <div class="ODRShortResultsHeader pure-u-1 Pointer" id="ShortResultsHeader_{{ dr_id }}">
-            {% if target == 'searching' %}
+            {% if target == 'results' %}
                 <span>Record {{ counter }} - Click here to view</span>
                 {% if can_edit_datarecord %}
                 <span class="ODRShortResultsHeader_edit">Click here to edit</span>
@@ -57,7 +57,7 @@
 {% endif %}
 
 <script>
-{% if target == 'searching' %}
+{% if target == 'results' %}
     jQuery(function() {
         $(".ODRShortResultsHeader").unbind('click').click(function() {
             var id = jQuery(this).attr('id').replace(/ShortResultsHeader_/,'');

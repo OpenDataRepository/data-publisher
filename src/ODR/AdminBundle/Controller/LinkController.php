@@ -979,7 +979,7 @@ if ($debug) {
 //exit();
 
             // ----------------------------------------
-            // Convert the list of linked datarecords into a slightly different format so renderTextResultsList() can build it
+            // Convert the list of linked datarecords into a slightly different format so the datatables plugin can use it
             $datarecord_list = array();
             foreach ($linked_datarecords as $dr_id => $value)
                 $datarecord_list[] = $dr_id;
