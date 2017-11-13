@@ -221,7 +221,7 @@ class ODRCustomController extends Controller
         // -----------------------------------
         $final_html = '';
         // All theme types other than table
-        if ( $theme->getThemeType() != 'table' && $target != 'linking' ) {
+        if ( $theme->getThemeType() != 'table' ) {
             // -----------------------------------
             // Ensure offset exists for shortresults list
             if ( (($offset-1) * $page_length) > count($datarecords) )
@@ -299,10 +299,13 @@ class ODRCustomController extends Controller
                     'target' => $target,
                     'search_key' => $search_key,
                     'offset' => $offset,
+
+                    // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
+                    'all_datarecords' => $datarecords,
                 )
             );
         }
-        else if ( $theme->getThemeType() == 'table' || $target == 'linking' ) {
+        else if ( $theme->getThemeType() == 'table' ) {
             // -----------------------------------
             $theme_array = $theme_service->getThemeArray( array($theme->getId()) );
 

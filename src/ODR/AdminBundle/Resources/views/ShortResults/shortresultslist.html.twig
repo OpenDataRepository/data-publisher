@@ -13,6 +13,16 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
+{% set user_role = '' %}
+{% if user != 'anon.' %}
+    {% for role in user.getroles %}
+        {% if role == 'ROLE_ADMIN' %}
+            {% set user_role = 'ROLE_ADMIN' %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
+
+
 <div class="ODRFormWrap">
     <div class="header">
     {% if datatype != null %}
@@ -43,6 +53,8 @@
             'initial_datatype_id': initial_datatype_id,
             'offset': offset,
             'can_edit_datarecord': can_edit_datarecord,
+
+            'target': target,
         } %}
 
         {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
@@ -55,15 +67,7 @@
 
 </div><!-- End of .ODRFormWrap -->
 
-{% set user_role = '' %}
-{% if user != 'anon.' %}
-    {% for role in user.getroles %}
-        {% if role == 'ROLE_ADMIN' %}
-            {% set user_role = 'ROLE_ADMIN' %}
-        {% endif %}
-    {% endfor %}
-{% endif %}
-{% if user_role == 'ROLE_ADMIN' and count > 0 %}
+{% if target == 'searching' and user_role == 'ROLE_ADMIN' and count > 0 %}
 <div class="ODRExportButtons Cursor">
     <div style="float:left;">
         {% if can_edit_datarecord or is_datatype_admin %}
@@ -183,7 +187,7 @@
 
     }
 
-{% if count > 0 and user_role == 'ROLE_ADMIN' %}
+{% if target == 'searching' and count > 0 and user_role == 'ROLE_ADMIN' %}
     {% if can_edit_datarecord or is_datatype_admin %}
     function doMassEdit() {
         var url = '{{ path('odr_mass_edit_render', { 'datatype_id': 0, 'search_key': '', 'offset': '' }) }}';

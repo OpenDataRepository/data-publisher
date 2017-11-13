@@ -62,9 +62,9 @@
             "deferRender": true,
             "createdRow": function( row, data, index ) {
                 if (allow_multiple_links == 1 || local_datarecord_is_ancestor == 0)
-                    $(row).prepend('<td><input type="checkbox" class="dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
+                    $(row).prepend('<td><input type="checkbox" class="ODRLinkCheckbox dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
                 else
-                    $(row).prepend('<td><input type="radio" name="radio_group" class="dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
+                    $(row).prepend('<td><input type="radio" name="radio_group" class="ODRLinkCheckbox dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
             },
 
         });
