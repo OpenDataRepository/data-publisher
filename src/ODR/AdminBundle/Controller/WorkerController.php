@@ -2239,9 +2239,17 @@ $ret .= '  Set current to '.$count."\n";
                 print 'Changed themeType property for '.$rows.' theme entries from "table" into "search_results"'."\n";
             }
 
+            // Set all themes to not be default...
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:ThemeMeta AS tm
+                SET tm.isDefault = :not_default'
+            )->setParameters( array('not_default' => false) );
+            if ($save) {
+                $rows = $query->execute();
+                print 'Set '.$rows.' themes as "not default"'."\n";
+            }
+
             $em->getFilters()->enable('softdeleteable');
-
-
             print "\n";
 
             // ----------------------------------------
@@ -2461,7 +2469,97 @@ $ret .= '  Set current to '.$count."\n";
 
 
             // ----------------------------------------
-            // Run one last set of queries to force all themes to be shared by default
+            // Need to set all master themes as default
+            $em->getFilters()->disable('softdeleteable');
+
+            $query = $em->createQuery(
+               'SELECT t.id AS theme_id
+                FROM ODRAdminBundle:Theme AS t
+                JOIN ODRAdminBundle:Theme AS parent_theme WITH t.parentTheme = parent_theme
+                WHERE t.themeType = :theme_type AND t.id = parent_theme.id'
+            )->setParameters( array('theme_type' => 'master') );
+            $results = $query->getArrayResult();
+
+            $all_master_themes = array();
+            foreach ($results as $result)
+                $all_master_themes[] = $result['theme_id'];
+
+            $em->getFilters()->enable('softdeleteable');
+
+            // Need to set the oldest non-deleted search_results/table theme as default
+            $query = $em->createQuery(
+               'SELECT t.id AS theme_id, t.created AS created, dt.id AS dt_id, t.themeType
+                FROM ODRAdminBundle:Theme AS t
+                JOIN ODRAdminBundle:Theme AS parent_theme WITH t.parentTheme = parent_theme
+                JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
+                WHERE t.themeType IN (:theme_types) AND t.id = parent_theme.id
+                ORDER BY dt.id'
+            )->setParameters( array('theme_types' => ThemeInfoService::SHORT_FORM_THEMETYPES) );
+            $results = $query->getArrayResult();
+
+            $tmp = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $t_id = $result['theme_id'];
+                $created = $result['created']->format('Y-m-d H:i:s');
+
+                if ( !isset($tmp[$dt_id]) ) {
+                    $tmp[$dt_id] = array(
+                        'theme_id' => $t_id,
+                        'created' => $created,
+                    );
+                }
+                else {
+                    $previous_created = $tmp[$dt_id]['created'];
+                    if ($created < $previous_created) {
+                        $tmp[$dt_id] = array(
+                            'theme_id' => $t_id,
+                            'created' => $created,
+                        );
+                    }
+                }
+            }
+
+            $all_default_themes = array();
+            foreach ($tmp as $data)
+                $all_default_themes[] = $data['theme_id'];
+
+            // Set all the themes to be default
+            $all_default_themes = array_merge($all_master_themes, $all_default_themes);
+            $all_default_themes = array_unique($all_default_themes);
+            sort($all_default_themes);
+
+
+            $em->getFilters()->disable('softdeleteable');
+            // Get all theme meta entries that belong to these themes
+            $query = $em->createQuery(
+               'SELECT parent_theme.id AS parent_theme_id, t.id AS theme_id, tm.id AS tm_id
+                FROM ODRAdminBundle:Theme AS parent_theme
+                JOIN ODRAdminBundle:Theme AS t WITH t.parentTheme = parent_theme
+                JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
+                WHERE parent_theme.id IN (:all_default_themes)'
+            )->setParameters( array('all_default_themes' => $all_default_themes) );
+            $results = $query->getArrayResult();
+
+            $theme_meta_ids = array();
+            foreach ($results as $result)
+                $theme_meta_ids[] = $result['tm_id'];
+
+
+            // Set all the themes to be default
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:ThemeMeta AS tm
+                SET tm.isDefault = :is_default
+                WHERE tm.id IN (:theme_meta_ids)'
+            )->setParameters( array('is_default' => true, 'theme_meta_ids' => $theme_meta_ids) );
+            if ($save) {
+                $rows = $query->execute();
+                print 'Changed '.$rows.' themes to be default'."\n";
+            }
+            $em->getFilters()->enable('softdeleteable');
+
+
+            // ----------------------------------------
             $em->getFilters()->disable('softdeleteable');
 
             // Change all the themes that used to be "table" themes back into "table" themes
@@ -2475,12 +2573,15 @@ $ret .= '  Set current to '.$count."\n";
                 print 'Changed '.$rows.' themes back into "table" themes'."\n";
             }
 
+            // Run one last set of queries to force all themes to be shared by default
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:ThemeMeta AS tm
                 SET tm.shared = :shared'
             )->setParameters( array('shared' => true) );
-            if ($save)
+            if ($save) {
                 $rows = $query->execute();
+                print 'Set '.$rows.' themes as "shared"'."\n";
+            }
 
             $em->getFilters()->enable('softdeleteable');
 

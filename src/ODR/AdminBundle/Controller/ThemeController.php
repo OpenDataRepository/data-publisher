@@ -94,14 +94,20 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ($user === 'anon.')
+            // Require users to be logged in and able to view the datatype before doing this...
+            if ($user === "anon.")
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
-            // Only allow the user to change the name/description if they created the theme, or if
-            //  they're an admin for this datatype
-            if ( $theme->getCreatedBy()->getId() !== $user->getId()
-                || !$pm_service->isDatatypeAdmin($user, $datatype)
+            if ($theme->getThemeType() == 'master' && !$pm_service->isDatatypeAdmin($user, $datatype)) {
+                // If this is a 'master' theme, then require the user to be a datatype admin
+                throw new ODRForbiddenException();
+            }
+            else if ($theme->getThemeType() !== 'master'
+                && $theme->getCreatedBy()->getId() !== $user->getId()
             ) {
+                // If this isn't a 'master' theme, then require the user to have created the theme
                 throw new ODRForbiddenException();
             }
             // --------------------
@@ -190,17 +196,18 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Require users to be logged in and able to view the datatype before doing this...
             if ($user === "anon.")
                 throw new ODRForbiddenException();
-
-            // If they're not a super admin, don't allow a user to change shared status of another user's theme
-            if (!$user->hasRole('ROLE_SUPER_ADMIN') && $user->getId() != $theme->getCreatedBy()->getId())
-                throw new ODRForbiddenException();
-
-            // Don't allow the user to make changes to a theme of a datatype they can't view
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
+
+            // If user didn't create the theme, don't allow them to change shared status
+            if ($theme->getCreatedBy()->getId() !== $user->getId())
+                throw new ODRForbiddenException();
             // --------------------
+
 
             // If the theme is a 'master' theme, then don't allow it to be set to "not shared"
             if ($theme->getThemeType() == 'master' && $theme->isShared())
@@ -299,14 +306,9 @@ class ThemeController extends ODRCustomController
 
 
             // Compile a list of theme types that need to be set to "not default"
-            $theme_types = array();
-            if ($theme->getThemeType() == 'master' || $theme->getThemeType() == 'custom_view') {
-                array_push($theme_types, 'master');
-                array_push($theme_types, 'custom_view');
-            }
-            else {
-                array_push($theme_types, $theme->getThemeType());
-            }
+            $theme_types = ThemeInfoService::LONG_FORM_THEMETYPES;
+            if ( in_array($theme->getThemeType(), ThemeInfoService::SHORT_FORM_THEMETYPES) )
+                $theme_types = ThemeInfoService::SHORT_FORM_THEMETYPES;
 
             /** @var Theme[] $theme_list */
             $theme_list = $em->getRepository('ODRAdminBundle:Theme')->findBy(
@@ -389,9 +391,10 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Require users to be logged in and able to view the datatype before doing this...
             if ($user === "anon.")
                 throw new ODRForbiddenException();
-
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
@@ -402,6 +405,7 @@ class ThemeController extends ODRCustomController
                 throw new ODRForbiddenException();
             }
             // --------------------
+
 
             // If the theme is a 'master' theme, then nobody is allowed to delete it
             if ($theme->getThemeType() == 'master')
@@ -502,22 +506,25 @@ class ThemeController extends ODRCustomController
             if ($theme->getDataType()->getId() !== $datatype->getId())
                 throw new ODRBadRequestException();
 
+            // Don't allow on a 'master' theme
+            if ($theme->getThemeType() == 'master')
+                throw new ODRBadRequestException('ThemeController::modifythemeAction() called on a master theme');
+
 
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            // Require users to be logged in and able to view the datatype before doing this...
             if ($user === "anon.")
                 throw new ODRForbiddenException();
-
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
+
+            if ($theme->getCreatedBy()->getId() !== $user->getId())
+                throw new ODRForbiddenException();
             // --------------------
-
-
-            if ($theme->getThemeType() == 'master')
-                throw new ODRBadRequestException('ThemeController::modifythemeAction() called on a master theme');
 
 
             $return['d'] = array(
@@ -583,23 +590,36 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            // Require users to be logged in and able to view the datatype before doing this...
             if ($user === 'anon.')
                 throw new ODRForbiddenException();
-
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
+
+            // If a theme is shared...
+            if ($theme->isShared()) {
+                // ...allow anybody to copy it
+            }
+            else if ( !$pm_service->isDatatypeAdmin($user, $datatype)
+                && $theme->getCreatedBy()->getId() !== $user->getId()
+            ) {
+                // User has to be a datatype admin or the creator of the theme to be allowed to
+                //  copy a non-shared theme
+                throw new ODRForbiddenException();
+            }
             // --------------------
+
 
             // Don't run this on themes for child datatypes
             if ($theme->getId() !== $theme->getParentTheme()->getId())
                 throw new ODRBadRequestException('Not allowed to clone a Theme for a child Datatype');
 
 
-            // For now, just directly clone the theme...
-            $source_theme_type = $theme->getThemeType();
-            $dest_theme_type = 'custom_view';
-            if ($source_theme_type == 'search_results')
-                $dest_theme_type = 'search_results';
+            // For now, just directly clone the theme...'master' themes get cloned to 'custom_view'
+            // Everything else retains the theme_type it was previously
+            $dest_theme_type = $theme->getThemeType();
+            if ($dest_theme_type == 'master')
+                $dest_theme_type = 'custom_view';
 
             $new_theme = $clone_theme_service->cloneThemeFromParent($user, $theme, $dest_theme_type);
 
@@ -667,14 +687,19 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            // Require users to be logged in and able to view the datatype before doing this...
             if ($user === 'anon.')
                 throw new ODRForbiddenException();
-
             if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+            // If the user didn't create the theme, don't allow them to sync it
+            if ($theme->getCreatedBy()->getId() !== $user->getId())
                 throw new ODRForbiddenException();
             // --------------------
 
-            // Don't run this on themes that are their own source
+
+            // Don't run this on themes that are their own source...this also blocks 'master' themes
             if ($theme->getSourceTheme()->getId() == $theme->getId())
                 throw new ODRBadRequestException('Not allowed to sync a Theme with itself');
 
@@ -683,9 +708,8 @@ class ThemeController extends ODRCustomController
                 throw new ODRBadRequestException('Not allowed to clone a Theme for a child Datatype');
 
 
+            // TODO - track this in the future...it's fast enough to not need it right now though
             $changes_made = $clone_theme_service->syncThemeWithSource($user, $theme);
-
-            // TODO - Save theme element order?
 
             $return['d'] = array('changes_made' => $changes_made);
         }
@@ -743,8 +767,9 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            // TODO - pretty sure custom themes can't use this...
+
             // Ensure user has permissions to be doing this
-            // TODO - Alternate settings for individual users to create their own themes...
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
@@ -941,9 +966,23 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            // Require users to be logged in and able to view the datatype before doing this...
+            if ( $user === 'anon.' )
                 throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+
+            if ($theme->getThemeType() == 'master' && !$pm_service->isDatatypeAdmin($user, $datatype)) {
+                // If this is a 'master' theme, then require the user to be a datatype admin
+                throw new ODRForbiddenException();
+            }
+            else if ($theme->getThemeType() !== 'master'
+                && $theme->getCreatedBy()->getId() !== $user->getId()
+            ) {
+                // If this isn't a 'master' theme, then require the user to have created the theme
+                throw new ODRForbiddenException();
+            }
             // --------------------
 
 
@@ -1065,9 +1104,23 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Ensure user has permissions to be doing this    TODO - do users creating custom themes have the ability to resize?
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            // Require users to be logged in and able to view the datatype before doing this...
+            if ( $user === 'anon.' )
                 throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+
+            if ($theme->getThemeType() == 'master' && !$pm_service->isDatatypeAdmin($user, $datatype)) {
+                // If this is a 'master' theme, then require the user to be a datatype admin
+                throw new ODRForbiddenException();
+            }
+            else if ($theme->getThemeType() !== 'master'
+                && $theme->getCreatedBy()->getId() !== $user->getId()
+            ) {
+                // If this isn't a 'master' theme, then require the user to have created the theme
+                throw new ODRForbiddenException();
+            }
             // --------------------
 
 
@@ -1176,9 +1229,25 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // TODO - Only allow if user is datatype admin or theme owner?
-            if ( !$pm_service->isDatatypeAdmin($user, $parent_datatype) )
+            // Require users to be logged in and able to view the datatype before doing this...
+            if ( $user === 'anon.' )
                 throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $parent_datatype) )
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $child_datatype) )
+                throw new ODRForbiddenException();
+
+
+            if ($theme->getThemeType() == 'master' && !$pm_service->isDatatypeAdmin($user, $parent_datatype)) {
+                // If this is a 'master' theme, then require the user to be a datatype admin
+                throw new ODRForbiddenException();
+            }
+            else if ($theme->getThemeType() !== 'master'
+                && $theme->getCreatedBy()->getId() !== $user->getId()
+            ) {
+                // If this isn't a 'master' theme, then require the user to have created the theme
+                throw new ODRForbiddenException();
+            }
             // --------------------
 
 
@@ -1304,9 +1373,25 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Only allow if user is datatype admin or theme owner?
-            if ( !$pm_service->isDatatypeAdmin($user, $parent_datatype) )
+            // Require users to be logged in and able to view the datatype before doing this...
+            if ( $user === 'anon.' )
                 throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $parent_datatype) )
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $child_datatype) )
+                throw new ODRForbiddenException();
+
+
+            if ($theme->getThemeType() == 'master' && !$pm_service->isDatatypeAdmin($user, $parent_datatype)) {
+                // If this is a 'master' theme, then require the user to be a datatype admin
+                throw new ODRForbiddenException();
+            }
+            else if ($theme->getThemeType() !== 'master'
+                && $theme->getCreatedBy()->getId() !== $user->getId()
+            ) {
+                // If this isn't a 'master' theme, then require the user to have created the theme
+                throw new ODRForbiddenException();
+            }
             // --------------------
 
 
@@ -1418,9 +1503,23 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            // Require users to be logged in and able to view the datatype before doing this...
+            if ( $user === 'anon.' )
                 throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+
+            if ($theme->getThemeType() == 'master' && !$pm_service->isDatatypeAdmin($user, $datatype)) {
+                // If this is a 'master' theme, then require the user to be a datatype admin
+                throw new ODRForbiddenException();
+            }
+            else if ($theme->getThemeType() !== 'master'
+                && $theme->getCreatedBy()->getId() !== $user->getId()
+            ) {
+                // If this isn't a 'master' theme, then require the user to have created the theme
+                throw new ODRForbiddenException();
+            }
             // --------------------
 
             // Not allowed to create a new theme element for a table theme
@@ -1507,9 +1606,23 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            // Require users to be logged in and able to view the datatype before doing this...
+            if ( $user === 'anon.' )
                 throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+
+            if ($theme->getThemeType() == 'master' && !$pm_service->isDatatypeAdmin($user, $datatype)) {
+                // If this is a 'master' theme, then require the user to be a datatype admin
+                throw new ODRForbiddenException();
+            }
+            else if ($theme->getThemeType() !== 'master'
+                && $theme->getCreatedBy()->getId() !== $user->getId()
+            ) {
+                // If this isn't a 'master' theme, then require the user to have created the theme
+                throw new ODRForbiddenException();
+            }
             // --------------------
 
             // Not allowed to modify properties of a theme element in a table theme
@@ -1639,9 +1752,23 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            // Require users to be logged in and able to view the datatype before doing this...
+            if ( $user === 'anon.' )
                 throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+
+            if ($theme->getThemeType() == 'master' && !$pm_service->isDatatypeAdmin($user, $datatype)) {
+                // If this is a 'master' theme, then require the user to be a datatype admin
+                throw new ODRForbiddenException();
+            }
+            else if ($theme->getThemeType() !== 'master'
+                && $theme->getCreatedBy()->getId() !== $user->getId()
+            ) {
+                // If this isn't a 'master' theme, then require the user to have created the theme
+                throw new ODRForbiddenException();
+            }
             // --------------------
 
 
@@ -1690,6 +1817,7 @@ class ThemeController extends ODRCustomController
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
+
 
     /**
      * Updates the display order of ThemeElements inside the current layout.
@@ -1741,9 +1869,23 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            // Require users to be logged in and able to view the datatype before doing this...
+            if ( $user === 'anon.' )
                 throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+
+            if ($theme->getThemeType() == 'master' && !$pm_service->isDatatypeAdmin($user, $datatype)) {
+                // If this is a 'master' theme, then require the user to be a datatype admin
+                throw new ODRForbiddenException();
+            }
+            else if ($theme->getThemeType() !== 'master'
+                && $theme->getCreatedBy()->getId() !== $user->getId()
+            ) {
+                // If this isn't a 'master' theme, then require the user to have created the theme
+                throw new ODRForbiddenException();
+            }
             // --------------------
 
             // Shouldn't happen since there's only one theme element per table theme
@@ -1838,9 +1980,23 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+            // Require users to be logged in and able to view the datatype before doing this...
+            if ( $user === 'anon.' )
                 throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+
+            if ($theme->getThemeType() == 'master' && !$pm_service->isDatatypeAdmin($user, $datatype)) {
+                // If this is a 'master' theme, then require the user to be a datatype admin
+                throw new ODRForbiddenException();
+            }
+            else if ($theme->getThemeType() !== 'master'
+                && $theme->getCreatedBy()->getId() !== $user->getId()
+            ) {
+                // If this isn't a 'master' theme, then require the user to have created the theme
+                throw new ODRForbiddenException();
+            }
             // --------------------
 
 

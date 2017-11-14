@@ -29,7 +29,7 @@
             <th>Database Name</th>
             <th>Viewable Records</th>
             <th>Master Layout</th>
-            <th>Derivative Layouts</th>
+            {#<th>Derivative Layouts</th>#}
             <th>Manage Groups</th>
             <th>CSV Import</th>
             <th>Delete</th>
@@ -92,6 +92,7 @@
             </td>
 
             {# derivative layout designer link #}
+{#
             <td>
             {% if datatype.setup_step == 'incomplete' %}
                 <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Search Results Theme not designed!</a>
@@ -101,7 +102,7 @@
                 <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a>
             {% endif %}
             </td>
-
+#}
 
             {# Group management link for this datatype #}
             <td>
@@ -140,7 +141,7 @@
                     "visible": false
                 },
                 {
-                    "targets": [1,4,5,6,7,8],
+                    "targets": [1,4,5,6,7{#,8#}],
                     "orderable": false,
                     "searchable": false
                 }

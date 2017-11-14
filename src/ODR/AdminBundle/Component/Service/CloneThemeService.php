@@ -604,6 +604,7 @@ class CloneThemeService
 
         // Clone the source theme's meta entry
         $new_theme_meta = clone $source_theme->getThemeMeta();
+        $new_theme_meta->setTemplateName( 'Copy of '.$new_theme_meta->getTemplateName() );
         if ($dest_theme_type == 'master') {
             $new_theme_meta->setShared(true);
             $new_theme_meta->setIsDefault(true);
