@@ -23,7 +23,6 @@
 <script>
     jQuery(function() {
         jQuery(".qanalyze-start-button").click(function(ele) {
-            console.log(ele);
             var file_id = "";
             jQuery(ele.target).parent().parent().parent().find(".ODRFileDownload").each(
                 function() {
@@ -37,7 +36,6 @@
                         if(label.html().match(/^XRD pattern$/i)) {
                             // This is the CSV File we are looking for
                             file_id = file.attr("rel");
-                            console.log(file_id)
                         }
                     }
                 }
@@ -51,8 +49,7 @@
     });
 
     var phase_sets = new Array();
-
-    phase_sets.push({"set_name": "Generic Phases",
+    phase_sets.push({"set_name": "Mars Soil Default",
         "phases": [
             { "name": "Andesine",  "AMCSD_code": 1052 },
             { "name": "Anhydrite", "AMCSD_code": 5117 },
@@ -69,22 +66,18 @@
         ]
      });
 
-    phase_sets.push({"set_name": "Mars Soil Default",
+    phase_sets.push({"set_name": "Generic Phases",
         "phases": [
             { "name": "Andesine",  "AMCSD_code": 1052 },
             { "name": "Anhydrite", "AMCSD_code": 5117 },
             { "name": "Augite",    "AMCSD_code": 1 },
-            { "name": "Bassanite", "AMCSD_code": 13868 },
             { "name": "Forsterite","AMCSD_code": 2674 },
-            { "name": "Hematite",  "AMCSD_code": 143 },
-            { "name": "Ilmenite",  "AMCSD_code": 9082 },
             { "name": "Maghemite", "AMCSD_code": 7898 },
             { "name": "Orthopyroxene", "AMCSD_code": 4556 },
             { "name": "Pigeonite", "AMCSD_code": 209 },
-            { "name": "Fayalite",  "AMCSD_code": 174 },
-            { "name": "Sanidine II",  "AMCSD_code": 10740 }
+            { "name": "Sanidine",  "AMCSD_code": 10740 }
         ]
-     });
+    });
 
     function selectPhase(set_name) {
         var set_list = "";
@@ -92,16 +85,27 @@
             if(phase_sets[x].set_name === set_name) {
                 for(var y in phase_sets[x].phases) {
                     var phase = phase_sets[x].phases[y];
-                    set_list += '<li>' + phase.name + '</li>'
+                    if(y % 2 == 0) {
+                        set_list += '<tr>'
+                    }
+                    set_list += '<td>' + phase.name + '</td><td>' + phase.AMCSD_code + '</td>';
+                    if(y % 2 == 0) {
+                        set_list += '<td></td>'
+                    }
+                    if(y % 2 > 0) {
+                        set_list += '</tr>';
+                    }
                 }
-
+                if(!set_list.match(/tr\>$/)) {
+                    set_list += '</tr>';
+                }
                 qanalyze_data.phases = phase_sets[x].phases;
             }
         }
+        console.log(set_list);
 
         qanalyze_data.selected_phase_group = set_name;
         jQuery("#qanalyze-phase-list").html(set_list);
-        jQuery("#phase-set-name").html(set_name);
         resetRemodalInnerHeight();
     }
 
@@ -112,8 +116,8 @@
         // Build the selector
         var body = '';
         body += '<div class="pure-u-1 pure-u-md-1 pure-u-lg-1 qanalyze-intro">' +
-            'Select the phase set to user for analysis and then click "Run Qanalyze" below to ' +
-            ' open the qanalyze app in a new browser window.</div>';
+            '<p>Select the phase set to user for analysis.</p><p>Then click "Run Qanalyze" below to ' +
+            ' open the qanalyze app in a new browser window.</p></div>';
 
         /* body += '<div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-3 qanalyze-phase-selection">' +
                 '' +
@@ -125,13 +129,22 @@
             body += '<option value="' + phase_sets[x].set_name + '">' + phase_sets[x].set_name + '</option>';
         }
 
-        body += '</select>';
+        body += '</select></div>';
 
         // display selected phases
-        body += '<div><h4 id="phase-set-name">' + phase_sets[0].set_name + '</h4>' +
-            '<ul id="qanalyze-phase-list">';
-
-        body += '</ul></div>';
+        body += '<div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-3"><table class="pure-table pure-table-bordered">' +
+                '<thead>' +
+                '<tr>' +
+                '<th>Phase</th>' +
+                '<th>AMCSD Code #</th>' +
+                '<th>&nbsp;</th>' +
+                '<th>Phase</th>' +
+                '<th>AMCSD Code #</th>' +
+                '</tr>' +
+                '</thead>' +
+                '<tbody id="qanalyze-phase-list">' +
+                '</tbody>' +
+                '</table></div>';
 
         // Display the modal
         modal_options = {
@@ -154,9 +167,7 @@
 
         // Set up the selectors and buttons
         jQuery("#qanalyze-phase-selector").change(function (e) {
-            console.log("selector change");
             var option = jQuery(e.target).find("option:selected");
-            console.log(option.val());
             selectPhase(option.val());
         });
 
@@ -206,7 +217,6 @@
                     // File exists and is ready to download
                     setODRRemodalLoadingText("Preparing data");
                     qanalyze_data.sample.data = getFileData(file_id);
-                    console.log(qanalyze_data)
                     submitData();
                 }
                 else if (status_code == 202) {
@@ -237,41 +247,29 @@
 
     }
 
-    var openQanalyze = function(verb, url, data, target) {
-        var form = document.createElement("form");
-        form.action = url;
-        form.method = verb;
-        form.target = target || "_self";
-        // if (data) {
-            // for (var key in data) {
-                var input = document.createElement("textarea");
-                input.name = "data";
-                input.value = JSON.stringify(data);
-                form.appendChild(input);
-            // }
-        // }
-        form.style.display = 'none';
-        document.body.appendChild(form);
-        console.log('submitting form');
-        form.submit();
-    };
-
     function submitData() {
-        console.log("submitting data");
         var url = '//chemin.qanalyze.com/odr';
-
-        // openQanalyze("post", url, qanalyze_data, "QAnalyzeTest")
-
         $.ajax({
             type: 'POST',
             url: url,
             data: JSON.stringify(qanalyze_data),
             success: function(data) {
                 // var w = window.open('about:blank', qanalyze_data.sample.name);
-                var w = window.open('about:blank', "_blank");
-                w.document.write(data);
-                w.document.close();
-                closeODRRemodal();
+                var w = window.open('about:blank', 'qanalyze');
+                if(!w || w.closed || typeof w.closed=='undefined')
+                {
+                    var modal = $('[data-remodal-id=ODRRemodal]');
+                    modal.find(".ODRRemodalBody").html("<h4>You appear to have pop-ups blocked for this site.</h4><p>Please enable popups to allow external apps to open.<p>");
+                    modal.find(".ODRRemodalLoading").hide();
+                    modal.find(".ODRRemodalButtons").show();
+                    modal.find(".ODRRemodalBody").show();
+                    resetODRRemodalLoadingText();
+                }
+                else {
+                    w.document.write(data);
+                    w.document.close();
+                    closeODRRemodal();
+                }
             },
             contentType: "application/json",
             dataType: 'html'
