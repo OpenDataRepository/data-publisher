@@ -146,6 +146,12 @@ class ODRCustomController extends Controller
         $templating = $this->get('templating');
         $session = $this->get('session');
 
+        $use_jupyterhub = false;
+        $jupyterhub_config = $this->getParameter('jupyterhub_config');
+        if ( isset($jupyterhub_config['use_jupyterhub']) && $jupyterhub_config['use_jupyterhub'] == true )
+            $use_jupyterhub = true;
+
+
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
@@ -302,6 +308,7 @@ class ODRCustomController extends Controller
 
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
                     'all_datarecords' => $datarecords,
+                    'use_jupyterhub' => $use_jupyterhub,
                 )
             );
         }
@@ -349,6 +356,7 @@ class ODRCustomController extends Controller
 
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
                     'all_datarecords' => $datarecords,
+                    'use_jupyterhub' => $use_jupyterhub,
                 )
             );
         }

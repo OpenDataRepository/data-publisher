@@ -53,6 +53,7 @@
         <button class="pure-button" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>
     </div>
 
+    {% if use_jupyterhub %}
     <div style="float:right;">
         <span id="jupyterhub_app_list" style="padding-right: 10px;"></span>
 
@@ -64,6 +65,7 @@
             <button type="submit" class="pure-button">Run this Jupyterhub app on these search results</button>
         </form>
     </div>
+    {% endif %}
 </div>
 
 <div class="Cursor" style="float:right;">
@@ -170,7 +172,7 @@
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
-{% if user_role == 'ROLE_ADMIN' and count > 0 %}
+{% if user_role == 'ROLE_ADMIN' and count > 0 and use_jupyterhub %}
         // Get the app list to display on the page
         $.ajax({
             cache: false,

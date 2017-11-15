@@ -155,7 +155,7 @@ class GraphController extends ODRCustomController
 
             // Render the static graph
             $filename = $svc->execute($datarecord_array, $datatype, $render_plugin, $theme_array, $rendering_options);
-            return $this->redirect("/uploads/files/graphs/" . $filename);
+            return $this->redirect($filename);
         }
         catch (\Exception $e) {
             $message = $e->getMessage();

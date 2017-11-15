@@ -48,15 +48,13 @@
                 {# any person can make their view public #}
                 {% if user != "anon." and theme.created_by == user.id and not theme.public %}
                     <li class="ODRMakeViewPublic">make view public (usable by others)</li>
-                {%  elseif user != "anon." and theme.created_by == user.id and theme.is_default == 0 %}
+                {%  elseif user != "anon." and theme.created_by == user.id and theme.is_default != 1 %}
                     <li class="ODRMakeViewPublic">make view private</li>
                 {% endif %}
 
                 {# admin tools #}
-                {% if datatype_admin and user.id != "anon." %}
-                    {% if theme.created_by == user.id and theme.is_default == 0 %}
-                        <li class="ODRDefaultDatabase">make default for database</li>
-                    {%  endif %}
+                {% if datatype_admin and user.id != "anon." and theme.is_default != 1 %}
+                    <li class="ODRDefaultDatabase">make default for database</li>
                 {% endif %}
 
                 <li>

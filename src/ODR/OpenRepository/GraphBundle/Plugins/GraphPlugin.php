@@ -305,6 +305,12 @@ class GraphPlugin
 
                         // Set the chart id
                         $page_data['odr_chart_id'] = $odr_chart_ids[$dr_id];
+
+                        $page_data['odr_chart_file_ids'] = array($file['id']);
+                        $page_data['odr_chart_file_names'] = array($dr_id => $file['localFileName']);
+                        $page_data['odr_chart_files'] = array($dr_id => $file);
+
+                        $filename = 'Chart__'.$file['id'].'_'.$max_option_date.'.svg';
                     }
 
                     // Pre-rendered graph file does not exist...need to create it
@@ -341,6 +347,7 @@ class GraphPlugin
         }
     }
 
+
     /**
      * Builds the static graphs for the server.
      *
@@ -359,7 +366,6 @@ class GraphPlugin
 
         // Path to writeable files in web folder
         $files_path = $this->container->getParameter('odr_web_directory').'/uploads/files/';
-
         $fs = new \Symfony\Component\Filesystem\Filesystem();
 
         //The HTML file that generates the svg graph that will be saved to the server by Phantomjs.
@@ -407,7 +413,7 @@ class GraphPlugin
 
             // Remove the HTML file
             unlink($files_path . "Chart__" . $file_id_list . '.html');
-            return $filename;
+            return '/uploads/files/graphs/'.$filename;
         }
         else {
             if ( strlen($output_svg) > 40 ) {
