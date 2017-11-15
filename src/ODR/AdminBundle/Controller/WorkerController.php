@@ -948,53 +948,45 @@ $ret .= '  Set current to '.$count."\n";
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
                 throw new ODRForbiddenException();
 
+
+            $conn = $em->getConnection();
+
             $query = null;
             if ($datatype_id == 0) {
                 // Locate all existing datarecord ids
-                $query = $em->createQuery(
+                $query =
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
-                    WHERE dr.id = grandparent.id'
-                );
+                    FROM odr_data_record AS dr
+                    WHERE dr.id = dr.grandparent_id
+                    AND dr.deletedAt IS NULL';
             }
             else {
                 // Only want datarecords of the specified datatype
-                $query = $em->createQuery(
+                $query =
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.dataType = :datatype_id'
-                )->setParameters(array('datatype_id' => $datatype_id));
+                    FROM odr_data_record AS dr
+                    WHERE dr.id = dr.grandparent_id AND dr.data_type_id = '.$datatype_id.'
+                    AND dr.deletedAt IS NULL';
             }
-            $results = $query->getArrayResult();
+            $results = $conn->fetchAll($query);
 
             print '<pre>';
+            $key = 'associated_datarecords_for_';
             foreach ($results as $result) {
-                $dr_id = $result['dr_id'];
-
-                $key = 'associated_datarecords_for_'.$dr_id;
-                if ($cache_service->exists($key)) {
-                    $cache_service->delete($key);
-                    print '"'.$key.'" deleted'."\n";
-                }
+                if ($cache_service->exists($key.$result['dr_id']))
+                    $cache_service->delete($key.$result['dr_id']);
             }
-            foreach ($results as $result) {
-                $dr_id = $result['dr_id'];
 
-                $key = 'cached_datarecord_'.$dr_id;
-                if ($cache_service->exists($key)) {
-                    $cache_service->delete($key);
-                    print '"'.$key.'" deleted'."\n";
-                }
+            $key = 'cached_datarecord_';
+            foreach ($results as $result) {
+                if ($cache_service->exists($key.$result['dr_id']))
+                    $cache_service->delete($key.$result['dr_id']);
             }
-            foreach ($results as $result) {
-                $dr_id = $result['dr_id'];
 
-                $key = 'cached_table_data_'.$dr_id;
-                if ($cache_service->exists($key)) {
-                    $cache_service->delete($key);
-                    print '"'.$key.'" deleted'."\n";
-                }
+            $key = 'cached_table_data_';
+            foreach ($results as $result) {
+                if ($cache_service->exists($key.$result['dr_id']))
+                    $cache_service->delete($key.$result['dr_id']);
             }
             print '</pre>';
 
@@ -1367,6 +1359,8 @@ $ret .= '  Set current to '.$count."\n";
                     $matches = array();
                     if ( preg_match('/^class ([^\s]+)$/', $line, $matches) == 1 )
                         $classname = $matches[1];
+                    if ($classname == 'FieldType')
+                        continue;
 
                     if ( strpos($line, 'private $created;') !== false )
                         $has_created[] = $classname;
@@ -1451,6 +1445,23 @@ $ret .= '  Set current to '.$count."\n";
         print "bad publicDate: \n";
         print_r($bad_publicdate);
 
+        $save = false;
+//        $save = true;
+
+        foreach ($bad_created as $classname => $num) {
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:'.$classname.' AS e
+                SET e.created = :good_date
+                WHERE e.created < :bad_date'
+            )->setParameters(
+                array(
+                    'good_date' => new \Datetime('2013-01-01 00:00:00'),
+                    'bad_date' => '2000-01-01 00:00:00'
+                )
+            );
+            if ($save)
+                $first = $query->execute();
+        }
 
         foreach ($bad_updated as $classname => $num) {
             $query = $em->createQuery(
@@ -1458,14 +1469,45 @@ $ret .= '  Set current to '.$count."\n";
                 SET e.updated = e.deletedAt
                 WHERE e.deletedAt IS NOT NULL'
             );
-//            $first = $query->execute();
+            if ($save)
+                $first = $query->execute();
 
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:'.$classname.' AS e
                 SET e.updated = e.created
                 WHERE e.updated < :good_date'
             )->setParameters( array('good_date' => '2000-01-01 00:00:00') );
-//            $second = $query->execute();
+            if ($save)
+                $second = $query->execute();
+        }
+
+        foreach ($bad_deleted as $classname => $num) {
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:'.$classname.' AS e
+                SET e.deletedAt = NULL
+                WHERE e.deletedAt < :bad_date'
+            )->setParameters(
+                array(
+                    'bad_date' => '2000-01-01 00:00:00'
+                )
+            );
+            if ($save)
+                $first = $query->execute();
+        }
+
+        foreach ($bad_publicdate as $classname => $num) {
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:'.$classname.' AS e
+                SET e.publicDate = :good_date
+                WHERE e.publicDate < :bad_date'
+            )->setParameters(
+                array(
+                    'good_date' => new \DateTime('2200-01-01 00:00:00'),
+                    'bad_date' => '2000-01-01 00:00:00'
+                )
+            );
+            if ($save)
+                $first = $query->execute();
         }
 
         $em->getFilters()->enable('softdeleteable');
@@ -1516,6 +1558,8 @@ $ret .= '  Set current to '.$count."\n";
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
                 throw new ODRForbiddenException();
 
+            $batch_size = 100;
+            $count = 0;
 
             // Load everything regardless of deleted status
             $em->getFilters()->disable('softdeleteable');
@@ -1577,6 +1621,12 @@ $ret .= '  Set current to '.$count."\n";
                     $dfm->setUpdatedBy($user);
 
                     $em->persist($dfm);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
                 }
             }
 
@@ -1611,6 +1661,12 @@ $ret .= '  Set current to '.$count."\n";
                     $drm->setUpdatedBy($user);
 
                     $em->persist($drm);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
                 }
             }
 
@@ -1681,6 +1737,12 @@ $ret .= '  Set current to '.$count."\n";
                     $dtm->setUpdatedBy($user);
 
                     $em->persist($dtm);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
                 }
             }
 
@@ -1710,12 +1772,19 @@ $ret .= '  Set current to '.$count."\n";
                     $fm = new FileMeta();
                     $fm->setFile($file);
                     $fm->setOriginalFileName('file_name');
+                    $fm->setExternalId('');
                     $fm->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
 
                     $fm->setCreatedBy($user);
                     $fm->setUpdatedBy($user);
 
                     $em->persist($fm);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
                 }
             }
 
@@ -1754,6 +1823,12 @@ $ret .= '  Set current to '.$count."\n";
                     $im->setUpdatedBy($user);
 
                     $em->persist($im);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
                 }
             }
 
@@ -1791,6 +1866,12 @@ $ret .= '  Set current to '.$count."\n";
                     $rom->setUpdatedBy($user);
 
                     $em->persist($rom);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
                 }
             }
 
@@ -1830,6 +1911,12 @@ $ret .= '  Set current to '.$count."\n";
                     $tm->setUpdatedBy($user);
 
                     $em->persist($tm);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
                 }
             }
 
@@ -1867,6 +1954,12 @@ $ret .= '  Set current to '.$count."\n";
                     $tem->setUpdatedBy($user);
 
                     $em->persist($tem);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
                 }
             }
 
@@ -2071,9 +2164,9 @@ $ret .= '  Set current to '.$count."\n";
                'SELECT DISTINCT(dt.id) AS dt_id
                 FROM ODRAdminBundle:Theme AS t
                 JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
-                WHERE t.themeType = :theme_type
+                WHERE t.themeType IN (:theme_types)
                 AND t.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters( array('theme_type' => 'search_results') );
+            )->setParameters( array('theme_type' => array('search_results', 'table') ) );
             $results = $query->getArrayResult();
 
             $datatype_ids = array();
