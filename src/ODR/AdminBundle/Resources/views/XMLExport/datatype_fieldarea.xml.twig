@@ -1,7 +1,7 @@
 {% spaceless %}
     
 {% set datatype = datatype_array[target_datatype_id] %}
-{% set theme = datatype.themes[theme_id] %}
+{% set theme = theme_array[datatype.id] %}
 
 {# describe datafields first #}
 <fields>
@@ -10,18 +10,23 @@
 
         {% for theme_datafield in theme_element.themeDataFields %}
             {% if theme_datafield.dataField is defined %}
-                {% set datafield = theme_datafield.dataField %}
+                {% set datafield_id = theme_datafield.dataField.id %}
 
-                {% if datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
-                    {% include 'ODRAdminBundle:XMLExport:datatype_datafield.xml.twig' with {
-                        'datafield': datafield,
+                {# intentionally ignoring the 'hidden' property #}
+                {% if datatype['dataFields'][datafield_id] is defined %}
+                    {% set datafield = datatype['dataFields'][datafield_id] %}
 
-                        'is_link': is_link,
+                    {% if datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
+                        {% include 'ODRAdminBundle:XMLExport:datatype_datafield.xml.twig' with {
+                            'datafield': datafield,
 
-                        'using_metadata': using_metadata,
-                        'baseurl': baseurl,
-                        'version': version,
-                    } %}
+                            'is_link': is_link,
+
+                            'using_metadata': using_metadata,
+                            'baseurl': baseurl,
+                            'version': version,
+                        } %}
+                    {% endif %}
                 {% endif %}
             {% endif %}
         {% endfor %}
@@ -34,23 +39,13 @@
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
 
-        {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
-            {% set child_datatype = theme_datatype.dataType %}
+        {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
+        {% for theme_datatype in theme_element.themeDataType %}
+            {% set child_datatype_id = theme_datatype.dataType.id %}
 
-            {# locate the child datatype's id #}
-            {% set child_datatype_id = '' %}
-            {% for c_dt_id, c_dt in child_datatype %}
-                {% set child_datatype_id = c_dt_id %}
-            {% endfor %}
-
-            {% if child_datatype_id != '' %}
-                {# locate the master theme id for this child datatype #}
-                {% set child_theme_id = '' %}
-                {% for t_id, t in child_datatype[ child_datatype_id ]['themes'] %}
-                    {% if t['themeType'] == 'master' %}
-                        {% set child_theme_id = t['id'] %}
-                    {% endif %}
-                {% endfor %}
+            {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
+            {% if datatype['descendants'][child_datatype_id] is defined %}
+                {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
 
                 {# only want to do child datatypes in this block #}
                 {% if theme_datatype.is_link == 0 %}
@@ -58,7 +53,7 @@
 
                     {# using macro on purpose #}
                     {% import "ODRAdminBundle:XMLExport:datatype_childtype.xml.twig" as mychildform %}
-                    {% set content = mychildform.input(child_datatype, child_theme_id, child_datatype_id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
+                    {% set content = mychildform.input(child_datatype, theme_array, child_datatype_id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
 
                     {% if "<" in content|trim %}
                         {{ content }}
@@ -76,23 +71,13 @@
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
 
-        {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
-            {% set child_datatype = theme_datatype.dataType %}
+        {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
+        {% for theme_datatype in theme_element.themeDataType %}
+            {% set child_datatype_id = theme_datatype.dataType.id %}
 
-            {# locate the child datatype's id #}
-            {% set child_datatype_id = '' %}
-            {% for c_dt_id, c_dt in child_datatype %}
-                {% set child_datatype_id = c_dt_id %}
-            {% endfor %}
-
-            {% if child_datatype_id != '' %}
-                {# locate the master theme id for this child datatype #}
-                {% set child_theme_id = '' %}
-                {% for t_id, t in child_datatype[ child_datatype_id ]['themes'] %}
-                    {% if t['themeType'] == 'master' %}
-                        {% set child_theme_id = t['id'] %}
-                    {% endif %}
-                {% endfor %}
+            {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
+            {% if datatype['descendants'][child_datatype_id] is defined %}
+                {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
 
                 {# only want to do linked datatypes in this block #}
                 {% if theme_datatype.is_link == 1 %}
@@ -100,7 +85,7 @@
 
                     {# using macro on purpose #}
                     {% import "ODRAdminBundle:XMLExport:datatype_childtype.xml.twig" as mychildform %}
-                    {% set content = mychildform.input(child_datatype, child_theme_id, child_datatype_id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
+                    {% set content = mychildform.input(child_datatype, theme_array, child_datatype_id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
 
                     {% if "<" in content|trim %}
                         {{ content }}

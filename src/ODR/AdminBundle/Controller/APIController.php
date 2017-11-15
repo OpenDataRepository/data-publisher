@@ -28,9 +28,11 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
+use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordExportService;
 use ODR\AdminBundle\Component\Service\DatatypeExportService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -88,7 +90,7 @@ class APIController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xfd346a45;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -120,6 +122,9 @@ class APIController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             $top_level_datatype_ids = $dti_service->getTopLevelDatatypes();
             $datatree_array = $dti_service->getDatatreeArray();
@@ -127,11 +132,7 @@ class APIController extends ODRCustomController
             // Get the user's permissions if applicable
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $datatype_permissions = array();
-            if ($user !== 'anon.') {
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-            }
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
 
             // ----------------------------------------
@@ -218,7 +219,7 @@ class APIController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x5dc89429;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -290,6 +291,9 @@ class APIController extends ODRCustomController
             $dte_service = $this->container->get('odr.datatype_export_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -310,35 +314,16 @@ class APIController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = array();
-            if ( $user === 'anon.' ) {
-                if ( !$datatype->isPublic() ) {
-                    // non-public datatype and anonymous user, can't view
-                    throw new ODRForbiddenException();
-                }
-                else {
-                    // public datatype, anybody can view
-                }
-            }
-            else {
-                // Grab user's permissions
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
 
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                if (!$datatype->isPublic() && !$can_view_datatype)
-                    throw new ODRForbiddenException();
-            }
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
             // ----------------------------------------
 
 
             // ----------------------------------------
             // Render the requested datatype
             $baseurl = $this->container->getParameter('site_baseurl');
-            $data = $dte_service->getData($version, $datatype_id, $request->getRequestFormat(), $display_metadata, $user_permissions, $baseurl);
+            $data = $dte_service->getData($version, $datatype_id, $request->getRequestFormat(), $display_metadata, $user, $baseurl);
 
             // Set up a response to send the datatype back
             $response = new Response();
@@ -355,7 +340,7 @@ class APIController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x43dd4818;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -381,6 +366,9 @@ class APIController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -396,21 +384,13 @@ class APIController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $datatype_permissions = array();
-            if ($user !== 'anon.') {
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-            }
-
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
             $can_view_datarecord = false;
             if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
                 $can_view_datarecord = true;
 
-            if (!$datatype->isPublic() && !$can_view_datatype)
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
@@ -525,7 +505,7 @@ class APIController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xd12ec6ee;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -564,6 +544,9 @@ class APIController extends ODRCustomController
 
             /** @var DatarecordExportService $dre_service */
             $dre_service = $this->container->get('odr.datarecord_export_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -574,11 +557,6 @@ class APIController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
-
             if ($datarecord->getId() != $datarecord->getGrandparent()->getId())
                 throw new ODRBadRequestException('Only permitted on top-level datarecords');
 
@@ -587,42 +565,19 @@ class APIController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = array();
-            if ( $user === 'anon.' ) {
-                if ( !$datatype->isPublic() || !$datarecord->isPublic() ) {
-                    // non-public datatype and anonymous user, can't view
-                    throw new ODRForbiddenException();
-                }
-                else {
-                    // public datatype, anybody can view
-                }
-            }
-            else {
-                // Grab user's permissions
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
 
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
-                if (!$datatype->isPublic() && !$can_view_datatype)
-                    throw new ODRForbiddenException();
-                if (!$datarecord->isPublic() && !$can_view_datarecord)
-                    throw new ODRForbiddenException();
-            }
+            // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatarecord($user, $datarecord) )
+                throw new ODRForbiddenException();
             // ----------------------------------------
 
 
             // ----------------------------------------
             // Render the requested datarecord
             $baseurl = $this->container->getParameter('site_baseurl');
-            $data = $dre_service->getData($version, $datarecord_id, $request->getRequestFormat(), $display_metadata, $user_permissions, $baseurl);
+            $data = $dre_service->getData($version, $datarecord_id, $request->getRequestFormat(), $display_metadata, $user, $baseurl);
 
             // Set up a response to send the datarecord back
             $response = new Response();
@@ -639,7 +594,7 @@ class APIController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x722347a6;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -661,6 +616,12 @@ class APIController extends ODRCustomController
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
@@ -688,38 +649,12 @@ class APIController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            if ($user === 'anon.') {
-                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() && $file->isPublic() ) {
-                    // user is allowed to download this file
-                }
-                else {
-                    // something is non-public, therefore an anonymous user isn't allowed to download this file
-                    throw new ODRForbiddenException();
-                }
-            }
-            else {
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
 
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ]['dt_view']) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ]['dr_view']) )
-                    $can_view_datarecord = true;
-
-                $can_view_datafield = false;
-                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ]['view']) )
-                    $can_view_datafield = true;
-
-                if (!$datatype->isPublic() && !$can_view_datatype)
-                    throw new ODRForbiddenException();
-                if (!$datarecord->isPublic() && !$can_view_datarecord)
-                    throw new ODRForbiddenException();
-                if (!$datafield->isPublic() && !$can_view_datafield)
-                    throw new ODRForbiddenException();
+            if (!$pm_service->canViewDatatype($user, $datatype)
+                || !$pm_service->canViewDatarecord($user, $datarecord)
+                || !$pm_service->canViewDatafield($user, $datafield)
+            ) {
+                throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
@@ -729,14 +664,17 @@ class APIController extends ODRCustomController
                 throw new ODRNotImplementedException('Currently not allowed to download files larger than 5Mb');
 
 
-            // Ensure the file exists in decrypted format
-            $file_path = realpath( dirname(__FILE__).'/../../../../web/'.$file->getLocalFileName() );     // realpath() returns false if file does not exist
-            if ( !$file->isPublic() || !$file_path )
-                $file_path = parent::decryptObject($file->getId(), 'file');     // TODO - decrypts non-public files to guessable names...though 5Mb size restriction should prevent this from being easily exploitable
+            $filename = 'File_'.$file_id.'.'.$file->getExt();
+            if ( !$file->isPublic() )
+                $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
 
-            $handle = fopen($file_path, 'r');
+            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
+            if (!$local_filepath)
+                $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
+
+            $handle = fopen($local_filepath, 'r');
             if ($handle === false)
-                throw new FileNotFoundException($file_path);
+                throw new FileNotFoundException($local_filepath);
 
 
             // Attach the original filename to the download
@@ -747,8 +685,8 @@ class APIController extends ODRCustomController
             // Set up a response to send the file back
             $response = new StreamedResponse();
             $response->setPrivate();
-            $response->headers->set('Content-Type', mime_content_type($file_path));
-            $response->headers->set('Content-Length', filesize($file_path));        // TODO - apparently this isn't sent?
+            $response->headers->set('Content-Type', mime_content_type($local_filepath));
+            $response->headers->set('Content-Length', filesize($local_filepath));        // TODO - apparently this isn't sent?
             $response->headers->set('Content-Disposition', 'attachment; filename="'.$display_filename.'";');
 /*
             // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
@@ -779,7 +717,7 @@ class APIController extends ODRCustomController
 
             // If file is non-public, delete the decrypted version off the server
             if ( !$file->isPublic() )
-                unlink( $file_path );
+                unlink( $local_filepath );
 
             return $response;
         }
@@ -789,7 +727,7 @@ class APIController extends ODRCustomController
 
             $source = 0xbbaafae5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -811,6 +749,12 @@ class APIController extends ODRCustomController
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var Image $image */
             $image = $em->getRepository('ODRAdminBundle:Image')->find($image_id);
@@ -838,38 +782,12 @@ class APIController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            if ($user === 'anon.') {
-                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() && $image->isPublic() ) {
-                    // user is allowed to download this image
-                }
-                else {
-                    // something is non-public, therefore an anonymous user isn't allowed to download this image
-                    throw new ODRForbiddenException();
-                }
-            }
-            else {
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
 
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ]['dt_view']) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ]['dr_view']) )
-                    $can_view_datarecord = true;
-
-                $can_view_datafield = false;
-                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ]['view']) )
-                    $can_view_datafield = true;
-
-                if (!$datatype->isPublic() && !$can_view_datatype)
-                    throw new ODRForbiddenException();
-                if (!$datarecord->isPublic() && !$can_view_datarecord)
-                    throw new ODRForbiddenException();
-                if (!$datafield->isPublic() && !$can_view_datafield)
-                    throw new ODRForbiddenException();
+            if (!$pm_service->canViewDatatype($user, $datatype)
+                || !$pm_service->canViewDatarecord($user, $datarecord)
+                || !$pm_service->canViewDatafield($user, $datafield)
+            ) {
+                throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
@@ -880,14 +798,19 @@ class APIController extends ODRCustomController
                 throw new ODRNotImplementedException('Currently not allowed to download files larger than 5Mb');
 */
 
-            // Ensure the image exists in decrypted format
-            $file_path = realpath( dirname(__FILE__).'/../../../../web/'.$image->getLocalFileName() );     // realpath() returns false if file does not exist
-            if ( !$image->isPublic() || !$file_path )
-                $file_path = parent::decryptObject($image->getId(), 'image');     // TODO - decrypts non-public files to guessable names...though 5Mb size restriction should prevent this from being easily exploitable
+            // Ensure image exists before attempting to download it
+            $filename = 'Image_'.$image_id.'.'.$image->getExt();
+            if ( !$image->isPublic() )
+                $filename = md5($image->getOriginalChecksum().'_'.$image_id.'_'.$user->getId()).'.'.$image->getExt();
 
-            $handle = fopen($file_path, 'r');
+            // Ensure the image exists in decrypted format
+            $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
+            if ( !$image->isPublic() || !$image_path )
+                $image_path = $crypto_service->decryptImage($image_id, $filename);
+
+            $handle = fopen($image_path, 'r');
             if ($handle === false)
-                throw new FileNotFoundException($file_path);
+                throw new FileNotFoundException($image_path);
 
 
             // Attach the original filename to the download
@@ -898,8 +821,8 @@ class APIController extends ODRCustomController
             // Set up a response to send the image back
             $response = new StreamedResponse();
             $response->setPrivate();
-            $response->headers->set('Content-Type', mime_content_type($file_path));
-            $response->headers->set('Content-Length', filesize($file_path));        // TODO - apparently this isn't sent?
+            $response->headers->set('Content-Type', mime_content_type($image_path));
+            $response->headers->set('Content-Length', filesize($image_path));        // TODO - apparently this isn't sent?
             $response->headers->set('Content-Disposition', 'attachment; filename="'.$display_filename.'";');
 /*
             // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
@@ -930,7 +853,7 @@ class APIController extends ODRCustomController
 
             // If image is non-public, delete the decrypted version off the server
             if ( !$image->isPublic() )
-                unlink( $file_path );
+                unlink( $image_path );
 
             return $response;
         }
@@ -940,7 +863,7 @@ class APIController extends ODRCustomController
 
             $source = 0x8a8b2309;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

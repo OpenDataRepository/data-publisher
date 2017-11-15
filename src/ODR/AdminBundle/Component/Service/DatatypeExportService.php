@@ -14,7 +14,7 @@ namespace ODR\AdminBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\Theme;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -89,16 +89,18 @@ class DatatypeExportService
      * @param integer $datatype_id      Which datatype to render
      * @param string $format            The format (json, xml, etc) to render the datatype in
      * @param boolean $using_metadata   Whether to display additional metadata (who created it, public date, revision, etc)
-     * @param array $user_permissions   The permissions of the user requesting this
+     * @param ODRUser $user             Which user requested this
      * @param string $baseurl           The current baseurl of this ODR installation, used for file/image links
      *
      * @return string
      */
-    public function getData($version, $datatype_id, $format, $using_metadata, $user_permissions, $baseurl)
+    public function getData($version, $datatype_id, $format, $using_metadata, $user, $baseurl)
     {
         // All of these should already exist
         /** @var DataType $datatype */
         $datatype = $this->em->getRepository('ODRAdminBundle:DataRecord')->find($datatype_id);
+
+        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
 
 
         // ----------------------------------------

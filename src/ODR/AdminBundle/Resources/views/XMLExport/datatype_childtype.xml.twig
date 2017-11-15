@@ -1,4 +1,4 @@
-{% macro input(datatype_array, theme_id, target_datatype_id, is_top_level, is_link, using_metadata, baseurl, version) %}
+{% macro input(datatype_array, theme_array, target_datatype_id, is_top_level, is_link, using_metadata, baseurl, version) %}
 
 {% spaceless %}
 
@@ -45,7 +45,7 @@
             'datatype_array': datatype_array,
 
             'target_datatype_id': target_datatype_id,
-            'theme_id': theme_id,
+            'theme_array': theme_array,
 
             'is_top_level': is_top_level,
             'is_link': is_link,

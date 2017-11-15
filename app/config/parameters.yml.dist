@@ -77,6 +77,10 @@ parameters:
             name: 'URL Field'
             filename: URLPlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
+        qanalyze_plugin:
+            name: 'Qanalyze XRD Analysis'
+            filename: QanalyzePlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
 
         organization_plugin:
             name: 'Organization Plugin'

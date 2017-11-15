@@ -8,6 +8,6 @@
 
     {# using macro on purpose #}
     {% import "ODRAdminBundle:XMLExport:datatype_childtype.xml.twig" as mychildform %}
-    {{ mychildform.input(datatype_array, theme_id, initial_datatype_id, is_top_level, is_link, using_metadata, baseurl, version) }}
+    {{ mychildform.input(datatype_array, theme_array, initial_datatype_id, is_top_level, is_link, using_metadata, baseurl, version) }}
 
 {% endspaceless %}
