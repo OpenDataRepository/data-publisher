@@ -410,99 +410,51 @@ footer ul li:first-child {
 .pure-skin-odr .pure-form .ODRRecord input[type="search"],
 .pure-skin-odr .pure-form .ODRRecord input[type="tel"],
 .pure-skin-odr .pure-form .ODRRecord input[type="color"],
-.pure-skin-odr .pure-form .ODRRecord select,
 .pure-skin-odr .pure-form .ODRRecord textarea {
-    padding: 0.2em 0.2em 0.4em 0.4em;
+    padding: 2px 2px 4px 4px;
     display: inline-block;
-    border: none;
     font-size: 0.8em;
     box-shadow: none;
-    border: 1px solid rgba(184,232,250, 0.7); 
+    border: 1px solid rgba(184,232,250, 0.7);
     border-radius: 2px;
     background: #ECF7FB none;
-    /* margin-left: -0.8em; */
-    /* -webkit-transition: 0.3s linear border;
-    -moz-transition: 0.3s linear border;
-    -ms-transition: 0.3s linear border;
-    -o-transition: 0.3s linear border;
-    transition: 0.3s linear border; */
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
     box-sizing: border-box;
     -webkit-font-smoothing: antialiased;
 }
 
-.pure-skin-odr .pure-form .ODRRecord select {
-    height: 2.25em;
-    background: #b8e8fa;
+/* .pure-skin-odr .pure-form .ODRRecord select { */
+.pure-skin-odr .pure-form select {
+    position: relative;
+    top: -2px;
+    height: 24px;
+    font-size: 0.8em;
+    box-shadow: none;
+    border: 1px solid rgba(184,232,250, 0.7);
+    margin: 0 0 0 0;
+    border-radius: 4px;
+    padding: 0 2px 0 4px;
+    background: #ECF7FB none;
     color: #1c81d0;
     -webkit-appearance: none;
     -moz-appearance: none;
-    appearance: none;
-    padding: 0.4em 0.2em 0.4em 0.8em;
-}
-
-.pure-skin-odr .pure-form .ODRRecord select:before {
-    font-family: "FontAwesome";
-    content: "\f0d7";
     display: inline-block;
-    padding-right: 3px;
-    vertical-align: middle;
-}
-
-.pure-skin-odr .ODRResults .pure-form input[type="text"],
-.pure-skin-odr .ODRResults .pure-form input[type="password"],
-.pure-skin-odr .ODRResults .pure-form input[type="email"],
-.pure-skin-odr .ODRResults .pure-form input[type="url"],
-.pure-skin-odr .ODRResults .pure-form input[type="date"],
-.pure-skin-odr .ODRResults .pure-form input[type="month"],
-.pure-skin-odr .ODRResults .pure-form input[type="time"],
-.pure-skin-odr .ODRResults .pure-form input[type="datetime"],
-.pure-skin-odr .ODRResults .pure-form input[type="datetime-local"],
-.pure-skin-odr .ODRResults .pure-form input[type="week"],
-.pure-skin-odr .ODRResults .pure-form input[type="number"],
-.pure-skin-odr .ODRResults .pure-form input[type="search"],
-.pure-skin-odr .ODRResults .pure-form input[type="tel"],
-.pure-skin-odr .ODRResults .pure-form input[type="color"],
-.pure-skin-odr .ODRResults .pure-form select,
-.pure-skin-odr .ODRResults .pure-form textarea {
-    padding: 0.2em 0.2em 0.4em 0.4em;
-    display: inline-block;
-    border: none;
-    font-size: 0.8em;
-    box-shadow: none;
-    border: 1px solid rgba(184,232,250, 0.7); 
-    border-radius: 2px;
-    background: #ECF7FB none;
-    /* -webkit-transition: 0.3s linear border;
-    -moz-transition: 0.3s linear border;
-    -ms-transition: 0.3s linear border;
-    -o-transition: 0.3s linear border;
-    transition: 0.3s linear border; */
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
     box-sizing: border-box;
     -webkit-font-smoothing: antialiased;
 }
 
-.pure-skin-odr .ODRResults .pure-form select {
-    height: 2.25em;
-    background: #b8e8fa;
-    color: #1c81d0;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    padding: 0.4em 0.2em 0.4em 0.8em;
-}
-
-.pure-skin-odr .ODRResults .pure-form select:before {
-    font-family: "FontAwesome";
+/* Select element can't take :before pseudo element
+.pure-skin-odr .pure-form select::before {
     content: "\f0d7";
     display: inline-block;
     padding-right: 3px;
     vertical-align: middle;
+    font-family: "FontAwesome";
 }
-
+*/
 
 .ODRTristateCheckbox {
     background: white none;

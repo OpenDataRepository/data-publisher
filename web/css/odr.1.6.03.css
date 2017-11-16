@@ -356,7 +356,6 @@ Forms Core
 .pure-skin-odr .pure-form input[type="search"],
 .pure-skin-odr .pure-form input[type="tel"],
 .pure-skin-odr .pure-form input[type="color"],
-.pure-skin-odr .pure-form select,
 .pure-skin-odr .pure-form textarea {
     padding: 0.4em 0.2em 0.4em 0.4em;
     display: inline-block;
@@ -505,9 +504,9 @@ Forms Core
     outline-color: #e9322d;
 }
 .pure-skin-odr .pure-form select {
-    border: 1px solid #e6e6e6;
+    /* border: 1px solid #e6e6e6;
     background-color: white;
-    color: #e9322d;
+    color: #e9322d; */
 }
 .pure-skin-odr .pure-form select[multiple] {
     height: auto;
@@ -2198,19 +2197,87 @@ h1:after {
 .DataTypeTools {
     font-size: 18px;
     color: #888;
-    /*float: right;*/
     position: relative;
-    /*top: -48px;*/
-    /*height: 0px;*/
     line-height: 0px;
     padding: 0px 0px 0px 0px;
     z-index: 500;
-    display: none;
+}
+
+.ResultsDataTypeTools {
+    float: right;
+    margin-top: 8px;
+    margin-right: 8px;
+}
+
+.ODRRecord .ResultsDataTypeTools span {
+    min-width: 40px;
+    padding: 4px 4px 4px 4px;
+    background: rgba(255,255,255, 0.4);
+    border-radius: 6px;
+}
+
+.ODRTabAccordion .DataTypeTools {
+    float: right;
+    top: -96px;
+    height: 0px;
+    margin-right: 8px;
+
+}
+.ODRTabAccordion .DataTypeTools span {
+    padding: 4px 4px 4px 4px;
+    background: rgba(255,255,255, 0.4);
+    border-radius: 6px;
+}
+
+.ODRDropdownAccordion .DataTypeTools {
+    float: right;
+    top: -40px;
+    height: 0px;
+    margin-right: 8px;
+
+}
+.ODRDropdownAccordion .DataTypeTools span {
+    padding: 4px 4px 4px 4px;
+    background: rgba(255,255,255, 0.4);
+    border-radius: 6px;
+}
+
+.ODRResults .AccordionSelect {
+    float: right;
+    margin-right: 20px !important;
+    max-width: 350px;
+    padding: 4px 4px 2px 4px !important;
+    height: 32px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: 6px;
+}
+
+.ODRRecord select.AccordionSelect {
+    float: right;
+    margin-right: 48px !important;
+    max-width: 350px;
+    padding: 4px 4px 2px 4px !important;
+    height: 32px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: 6px;
+}
+
+.DataTypeToolsAccordion {
+    float: right;
+    top: -48px;
+    height: 0px;
+    padding-right: 8px;
 }
 
 .ODRThemeElement > .DataTypeTools {
     margin: 5px 0px;
 }
+
+
 
 #ODRDatatypeDesign .fa {
     margin-top: 1px;
@@ -2792,28 +2859,34 @@ form .row {
     margin-right: auto;
 }
 
-.ODRGalleryLeftArrow {
-    color: #888;
-    padding: 0.3em 0.3em 0.3em 0em;
-    background: rgba(255,255,255, 0.7);
-    border-top-right-radius: 20px;
-    border-bottom-right-radius: 20px;
-    position: absolute;
-    left: 0;
+.ODRGalleryLeftArrow,
+.ODRGalleryRightArrow {
+    opacity: 0.10;
+    color: rgba(152, 152, 152, 1);
+    background: rgba(255, 255, 255, 1);
     margin-top: 30%;
     z-index: 100;
+    position: absolute;
+}
+
+
+.ODRGalleryLeftArrow {
+    padding: 0.3em 0.3em 0.3em 0;
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+    left: 0;
 }
 
 .ODRGalleryRightArrow {
-    color: #888;
-    padding: 0.3em 0em 0.3em 0.3em;
-    background: rgba(255,255,255, 0.7);
-    border-top-left-radius: 20px;
-    border-bottom-left-radius: 20px;
-    position: absolute;
+    padding: 0.3em 0 0.3em 0.3em;
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
     right: 0;
-    margin-top: 30%;
-    z-index: 100;
+}
+.ODRGalleryLeftArrow:hover,
+.ODRGalleryRightArrow:hover {
+    opacity: 0.45;
+    transition: opacity 0.3s;
 }
 
 .ODRBrowseLabels {

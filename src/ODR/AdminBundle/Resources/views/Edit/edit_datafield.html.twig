@@ -121,7 +121,7 @@
                         <div class="pure-u-1">
                             &nbsp;<i class="Cursor tooltip fa fa-calendar fa-lg" title="Uploaded {{ oimage.created|date('Y-m-d') }} by {{ oimage.createdBy|user_string }}"></i>
                             &nbsp;<i class="ODRDeleteImage tooltip Pointer fa fa-lg fa-trash-o" title="Delete Image" rel="{{ oimage.id }}"></i>
-                            &nbsp;<i class="ODRPublicImage tooltip Pointer fa fa-lg fa-globe {% if oimage.imageMeta.publicDate|is_public %}ODRActiveIcon{% endif %}" title="{% if not oimage.imageMeta.publicDate|is_public %}Image is not public{% else %}Public since {{ oimage.imageMeta.publicDate|date('Y-m-d') }}{% endif %}" rel="{{ oimage.id }}"></i>
+                            &nbsp;<i class="ODRPublicImage tooltip Pointer fa fa-lg fa-globe {% if not oimage.imageMeta.publicDate|is_public %}IconRed{% endif %}" title="{% if not oimage.imageMeta.publicDate|is_public %}Image is not public{% else %}Public since {{ oimage.imageMeta.publicDate|date('Y-m-d') }}{% endif %}" rel="{{ oimage.id }}"></i>
                             &nbsp;<i class="ODRRotateImage tooltip Pointer fa fa-lg fa-rotate-left" title="Rotate Image 90 degrees counter-clockwise" rel="{{ oimage.id }}"></i>
                             &nbsp;<i class="ODRRotateImage tooltip Pointer fa fa-lg fa-rotate-right" title="Rotate Image 90 degrees clockwise" rel="{{ oimage.id }}"></i>
                             &nbsp;
@@ -218,7 +218,7 @@
         <fieldset>
             <label for="{{ input_id }}" class="ODRFieldLabel {#ODRDatafieldHistory#} pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
 
-            <select id="{{ input_id }}" class="pure-u-23-24 {% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
+            <select id="{{ input_id }}" class="pure-u-24-24 {% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
 
             {% if datafield.radioOptions is defined %}
                 {% if field_typename == "Single Select" %}
