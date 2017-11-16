@@ -2166,7 +2166,7 @@ $ret .= '  Set current to '.$count."\n";
                 JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
                 WHERE t.themeType IN (:theme_types)
                 AND t.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters( array('theme_type' => array('search_results', 'table') ) );
+            )->setParameters( array('theme_types' => array('search_results', 'table') ) );
             $results = $query->getArrayResult();
 
             $datatype_ids = array();
@@ -2185,6 +2185,32 @@ $ret .= '  Set current to '.$count."\n";
                 print 'Updated '.$rows.' datatypes to have the "operational" setup step'."\n";
             }
 
+            // Ensure all top-level datatypes have a search abbreviation
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+            $query = $em->createQuery(
+               'SELECT dtm.id AS dtm_id
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                WHERE dt.id IN (:top_level_datatypes)
+                AND (dtm.searchSlug IS NULL OR dtm.searchSlug = :empty_string)'
+            )->setParameters( array('top_level_datatypes' => $top_level_datatypes, 'empty_string' => '') );
+            $results = $query->getArrayResult();
+
+            $dtm_ids = array();
+            foreach ($results as $result)
+                $dtm_ids[] = $result['dtm_id'];
+
+            // Easier to use a native query for this...
+            $conn = $em->getConnection();
+            $query =
+                'UPDATE odr_data_type_meta AS dtm
+                 SET dtm.search_slug = CONCAT("data_", dtm.data_type_id)
+                 WHERE dtm.id IN ('.implode(',', $dtm_ids).')';
+            if ($save) {
+                $params = array();
+                $rows = $conn->executeUpdate($query, $params);
+                print 'Fixed '.$rows.' datatype_meta entries to have a search slug'."\n";
+            }
 
             $em->getFilters()->enable('softdeleteable');
             print '</pre>';
@@ -2196,7 +2222,6 @@ $ret .= '  Set current to '.$count."\n";
 
             $query = $em->createQuery(
                'SELECT dt, parent
-
                 FROM ODRAdminBundle:DataType AS dt
                 JOIN dt.parent AS parent'
             );

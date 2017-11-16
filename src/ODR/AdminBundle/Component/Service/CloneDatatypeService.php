@@ -496,7 +496,7 @@ class CloneDatatypeService
             $new_df = clone $parent_df;
             $new_df->setDataType($new_datatype);
             $new_df->setIsMasterField(false);
-            $new_df->setMasterDatafield($parent_df);
+            $new_df->setMasterDataField($parent_df);
 
             // Ensure the "in-memory" version of $new_datatype knows about the new datafield
             $new_datatype->addDataField($new_df);

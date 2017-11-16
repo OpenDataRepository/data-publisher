@@ -1944,7 +1944,7 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_meta->setDataType($child_datatype);
             $datatype_meta->setRenderPlugin($default_render_plugin);
 
-            $datatype_meta->setSearchSlug(null);
+            $datatype_meta->setSearchSlug(null);    // child datatypes don't have search slugs
             $datatype_meta->setShortName("New Child");
             $datatype_meta->setLongName("New Child");
             $datatype_meta->setDescription("New Child Type");
@@ -3526,7 +3526,7 @@ exit();
                     // ...check that the new search slug is restricted to alphanumeric characters and a few symbols
                     $pattern = '/^[0-9a-zA-Z][0-9a-zA-Z\_\-]+$/';
                     if ( !preg_match($pattern, $submitted_data->getSearchSlug()) )
-                        $datatype_form->addError( new FormError('The abbreviation must consist an alphanumeric character; followed by any number of alphanumeric characters, hyphens, or underscores') );
+                        $datatype_form->addError( new FormError('The abbreviation must start with an alphanumeric character; followed by any number of alphanumeric characters, hyphens, or underscores') );
 
                     // ...check that the new search slug isn't going to collide with other parts of the site
                     // TODO - make this automatic based on contents of routing files?

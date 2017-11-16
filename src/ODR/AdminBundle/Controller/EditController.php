@@ -428,7 +428,7 @@ class EditController extends ODRCustomController
             }
             else {
                 // ...otherwise, return to the list of datatypes
-                $url = $this->generateUrl('odr_list_types', array('section' => 'records'));
+                $url = $this->generateUrl('odr_list_types', array('section' => 'databases'));
             }
 
             $return['d'] = $url;

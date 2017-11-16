@@ -4,23 +4,19 @@
     <div class="box">
     
         <div class="header">
-        {% if section == "design" %}
+        {% if section == "databases" %}
             <h2>Database Management</h2>
-        {% elseif section == "master" %}
+        {% elseif section == "templates" %}
             <h2>Template management</h2>
-        {% else %}
-            <h2>Record Management</h2>
         {% endif %}
         </div>
         
         <div class="content">
 
-            {% if section == "design" %}
-                {% include 'ODRAdminBundle:Datatype:type_list_content_design.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions, 'datatypes': datatypes, 'metadata': metadata } %}
-            {% elseif section == "master" %}
-                {% include 'ODRAdminBundle:Datatype:type_list_content_master.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions, 'datatypes': datatypes, 'metadata': metadata } %}
-            {% elseif section == "records" %}
-                {% include 'ODRAdminBundle:Datatype:type_list_content_records.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions, 'datatypes': datatypes, 'metadata': metadata } %}
+            {% if section == "databases" %}
+                {% include 'ODRAdminBundle:Datatype:type_list_content_databases.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions, 'datatypes': datatypes, 'metadata': metadata } %}
+            {% elseif section == "templates" %}
+                {% include 'ODRAdminBundle:Datatype:type_list_content_templates.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions, 'datatypes': datatypes, 'metadata': metadata } %}
             {% endif %}
             
         </div><!-- End of .content -->

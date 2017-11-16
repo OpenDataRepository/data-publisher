@@ -26,15 +26,13 @@
         <span rel="{{ datatype.id }}">
             <i id="datarecord_{{ datarecord.id }}_public"
                 class="fa fa-globe
-                {% if not datarecord.dataRecordMeta.publicDate|is_public %}
-                    IconRed
+                {% if datarecord.dataRecordMeta.publicDate|is_public %}
+                    ODRActiveIcon
                 {% endif %}
                 {% if is_link == 0 and can_edit_record == 1 %}
                     Pointer tooltip ODRPublicChildRecord
                 {% endif %}"
-                title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is
-                {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}
-                Public" rel="{{ datarecord.id }}">
+                title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}">
             </i>
 
         {% if is_link == 0 and can_delete_record == 1 %}

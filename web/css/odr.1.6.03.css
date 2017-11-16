@@ -2251,9 +2251,9 @@ h3 .DatatypeTools,
     border-radius: 6px;
 }
 
-.ODRResults .AccordionSelect {
+.ODRResults select.AccordionSelect {
     float: right;
-    margin-right: 20px !important;
+    margin-right: 38px !important;
     max-width: 350px;
     padding: 4px 4px 2px 4px !important;
     height: 32px !important;

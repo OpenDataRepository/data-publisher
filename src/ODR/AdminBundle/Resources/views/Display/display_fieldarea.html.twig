@@ -3,11 +3,16 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[ datatype.id ] %}
 
-{% if is_top_level == 0 and (display_type == 1 or display_type == 2) %}
-    {# tabbed or dropdown display_type #}
-    <div id="DataTypeTools_{{ datarecord.id }}" class="ResultsDataTypeTools">
-        <span>
-            <i class="tooltip fa fa-globe {% if not datarecord.dataRecordMeta.publicDate|is_public %}IconRed{% endif %}" title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" style="cursor:default;"></i>
+{% if is_top_level == 0 and (display_type == 1 or display_type == 2) %}    {# tabbed or dropdown display_type #}
+    <div id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
+        <span rel="{{ datatype.id }}">
+            <i id="datarecord_{{ datarecord.id }}_public"
+               class="fa fa-globe Cursor
+                {% if datarecord.dataRecordMeta.publicDate|is_public %}
+                    ODRActiveIcon
+                {% endif %}"
+               title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}">
+            </i>
         </span>
     </div>
 {% endif %}

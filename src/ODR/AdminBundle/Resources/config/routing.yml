@@ -279,7 +279,7 @@ odr_list_types:
     path:  /admin/type/list/{section}
     defaults: { _controller: ODRAdminBundle:Datatype:list }
     requirements:
-        section: design|records|master
+        section: databases|templates
 
 odr_create_type:
     path:  /admin/type/create/{create_master}

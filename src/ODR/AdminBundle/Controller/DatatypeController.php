@@ -86,7 +86,7 @@ class DatatypeController extends ODRCustomController
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
 
             // Grab each top-level datatype from the repository
-            if ($section == "master") {
+            if ($section == "templates") {
                 // Only want master templates to be displayed in this section
                 $query = $em->createQuery(
                    'SELECT dt, dtm, dt_cb, dt_ub
