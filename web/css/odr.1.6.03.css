@@ -2194,9 +2194,10 @@ h1:after {
     margin-bottom: -1em;
 }
 
+h3 .DatatypeTools,
 .DataTypeTools {
     font-size: 18px;
-    color: #888;
+    color: #888 !important;
     position: relative;
     line-height: 0px;
     padding: 0px 0px 0px 0px;
@@ -2221,11 +2222,19 @@ h1:after {
     top: -96px;
     height: 0px;
     margin-right: 8px;
-
 }
+
 .ODRTabAccordion .DataTypeTools span {
     padding: 4px 4px 4px 4px;
-    background: rgba(255,255,255, 0.4);
+    background: rgba(255,255,255, 0.4) !important;
+    border-radius: 6px;
+}
+
+.ODRFormAccordion .DatatypeTools {
+    float: right;
+    top: -4px;
+    padding: 4px 4px 4px 4px;
+    background: rgba(255, 255, 255, 0.4);
     border-radius: 6px;
 }
 
@@ -2256,7 +2265,7 @@ h1:after {
 
 .ODRRecord select.AccordionSelect {
     float: right;
-    margin-right: 48px !important;
+    margin-right: 58px !important;
     max-width: 350px;
     padding: 4px 4px 2px 4px !important;
     height: 32px !important;
@@ -2658,7 +2667,7 @@ form .row {
     /* margin: 5px 5px 20px; */
 }
 .ODRAccordionWrapper > h3 {
-    padding: 0.78em 1.5em;
+    padding: 12px 8px 12px 16px;
     cursor: pointer;
 }
 .ODRAccordionWrapper > div {
