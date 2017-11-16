@@ -469,11 +469,11 @@ function initPage() {
                 var new_title = title;
 
                 if (data.d.public == 1) {
-                    $(header).removeClass('IconRed');
+                    $(header).addClass('ODRActiveIcon');
                     new_title = title.replace('not ', '');
                 }
                 else {
-                    $(header).addClass('IconRed');
+                    $(header).removeClass('ODRActiveIcon');
                     new_title = title.substring(0, title.indexOf('Public')) + 'not Public';
                 }
 

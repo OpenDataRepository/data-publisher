@@ -549,6 +549,13 @@ class DisplayController extends ODRCustomController
                 $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
 
             $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
+            if (!$local_filepath) {
+                // Allow graph plugin to download non-public files directly?
+                // TODO - don't like this...
+                if ($datatype->getRenderPlugin()->getPluginName() == 'Graph Plugin')
+                    $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
+            }
+
             if (!$local_filepath)
                 throw new FileNotFoundException($local_filepath);
 
