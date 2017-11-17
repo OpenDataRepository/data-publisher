@@ -61,14 +61,19 @@
             {# render all datafields in this theme element #}
             {% for theme_datafield in theme_element.themeDataFields %}
                 {% set datafield_id = theme_datafield.dataField.id %}
-                {% set datafield = datatype['dataFields'][datafield_id] %}
 
-                {% include 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig' with {
-                    'theme_datafield': theme_datafield,
-                    'datafield': datafield,
+                {% if datatype['dataFields'][datafield_id] is not defined %}
+                    <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {% if not is_datatype_admin %}ODRForbidden{% endif %}" id="Field_{{ datafield.id }}" ></div>
+                {% else %}
+                    {% set datafield = datatype['dataFields'][datafield_id] %}
 
-                    'is_datatype_admin': is_datatype_admin,
-                } %}
+                    {% include 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig' with {
+                        'theme_datafield': theme_datafield,
+                        'datafield': datafield,
+
+                        'is_datatype_admin': is_datatype_admin,
+                    } %}
+                {% endif %}
 
             {% endfor %}
         {% elseif theme_element.themeDataType is defined %}

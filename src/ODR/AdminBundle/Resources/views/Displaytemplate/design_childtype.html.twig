@@ -12,13 +12,13 @@
                 {{ datatype.dataTypeMeta.shortName }}
             </a>
         </h3>
-            {% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {
-                'datatype': datatype,
-                'theme_id': theme.id,
+        {% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {
+            'datatype': datatype,
+            'theme_id': theme.id,
 
-                'is_top_level': is_top_level,
-                'is_link': is_link,
-            } %}
+            'is_top_level': is_top_level,
+            'is_link': is_link,
+        } %}
 
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datatype.id }}">
             {% include 'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig' with {

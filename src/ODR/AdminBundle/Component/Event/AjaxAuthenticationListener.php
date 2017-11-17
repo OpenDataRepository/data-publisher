@@ -38,7 +38,9 @@ class AjaxAuthenticationListener
         if ($request->isXmlHttpRequest()) {
             if ($exception instanceof AuthenticationException || $exception instanceof AccessDeniedException) {
                 // If this exception was caused as a result of an AJAX request, change it to an ODR-defined exception
-                $event->setException( new ODRForbiddenException($exception->getMessage()) );
+                $event->setException(
+                    new ODRForbiddenException($exception->getMessage(), 0x050bfe48)
+                );
             }
         }
 

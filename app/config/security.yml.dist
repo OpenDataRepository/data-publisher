@@ -116,11 +116,11 @@ security:
         - { path: ^/admin/dashboard, role: ROLE_USER }            # dashboard
         - { path: ^/profile, role: ROLE_USER }                    # ability to edit own profile
 
-        - { path: ^/admin/type/list/records, role: ROLE_USER }    # can see page that provides links to add/edit/import datarecords for a datatype
+        - { path: ^/admin/type/list/databases, role: ROLE_USER }  # can see page that provides links to manage datatypes
         - { path: ^/edit, role: ROLE_USER }                       # Editing and CSV Import
         - { path: ^/jobs, role: ROLE_USER }                       # Active Jobs page
 
-        - { path: ^/admin/type/list/design, role: ROLE_USER }     # can see page that provides links to design the layout of datatypes
+        - { path: ^/admin/type/list/templates, role: ROLE_ADMIN } # can see page that provides links to design the layout of datatypes
         - { path: ^/admin/type/add, role: ROLE_ADMIN }            # Creating a new datatype
 
         - { path: ^/design, role: ROLE_USER }                     # ability to design results/records and shortresults layouts

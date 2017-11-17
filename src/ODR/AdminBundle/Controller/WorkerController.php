@@ -2204,7 +2204,7 @@ $ret .= '  Set current to '.$count."\n";
             $conn = $em->getConnection();
             $query =
                 'UPDATE odr_data_type_meta AS dtm
-                 SET dtm.search_slug = CONCAT("data_", dtm.data_type_id)
+                 SET dtm.search_slug = dtm.data_type_id
                  WHERE dtm.id IN ('.implode(',', $dtm_ids).')';
             if ($save) {
                 $params = array();

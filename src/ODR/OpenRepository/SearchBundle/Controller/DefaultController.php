@@ -397,7 +397,7 @@ exit();
                     if ($logged_in) {
                         // Instead of displaying a "page not found", redirect to the datarecord list
                         $baseurl = $this->generateUrl('odr_admin_homepage');
-                        $hash = $this->generateUrl('odr_list_types', array( 'section' => 'records') );
+                        $hash = $this->generateUrl('odr_list_types', array( 'section' => 'databases') );
 
                         return $this->redirect( $baseurl.'#'.$hash );
                     }
