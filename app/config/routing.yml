@@ -1,27 +1,4 @@
-#jp_graph:
-#    resource: "@jpGraphBundle/Resources/config/routing.yml"
-#    prefix:   /
-
-odr_open_repository_graph:
-    resource: "@ODROpenRepositoryGraphBundle/Resources/config/routing.yml"
-    prefix:   /
-
-odr_open_repository_api:
-    resource: "@ODROpenRepositoryApiBundle/Resources/config/routing.yml"
-    prefix:   /
-
-odr_open_repository_user:
-    resource: "@ODROpenRepositoryUserBundle/Resources/config/routing.yml"
-    prefix:   /
-
-odr_admin:
-    resource: "@ODRAdminBundle/Resources/config/routing.yml"
-    prefix:   /
-
-#odr_login:
-#    resource: "@ODRLoginBundle/Resources/config/routing.yml"
-#    prefix:   /
-
+# ----------------------------------------
 # Internal routing configuration to handle ESI
 #_internal:
 #    resource: "@FrameworkBundle/Resources/config/routing/internal.xml"
@@ -31,9 +8,9 @@ fos_user_security:
     resource: "@FOSUserBundle/Resources/config/routing/security.xml"
 
 # routes are unused, but required so FoS:ResettingController and FoS:ChangePasswordController don't throw errors
-fos_user_profile:
-    resource: "@FOSUserBundle/Resources/config/routing/profile.xml"
-    prefix: /profile
+#fos_user_profile:
+#    resource: "@FOSUserBundle/Resources/config/routing/profile.xml"
+#    prefix: /profile
 
 # currently not allowing users to self-register to the site
 #fos_user_register:
@@ -46,10 +23,67 @@ fos_user_resetting:
     prefix: /resetting
 
 # also using FoS built-in password change functionality
-fos_user_change_password:
-    resource: "@FOSUserBundle/Resources/config/routing/change_password.xml"
-    prefix: /profile
+#fos_user_change_password:
+#    resource: "@FOSUserBundle/Resources/config/routing/change_password.xml"
+#    prefix: /profile
 
+# ----------------------------------------
+# FOSOAuthServerBundle routes
+fos_oauth_server_token:
+    resource: "@FOSOAuthServerBundle/Resources/config/routing/token.xml"
+
+fos_oauth_server_authorize:
+    resource: "@FOSOAuthServerBundle/Resources/config/routing/authorize.xml"
+
+# ----------------------------------------
+# HWIOAuthBundle routes
+hwi_oauth_redirect:
+    resource: "@HWIOAuthBundle/Resources/config/routing/redirect.xml"
+    prefix:   /connect
+
+hwi_oauth_connect:
+    resource: "@HWIOAuthBundle/Resources/config/routing/connect.xml"
+    prefix:   /connect
+
+# unused, FOSUserBundle's login files are overridden to include pieces from this bundle
+#hwi_oauth_login:
+#    resource: "@HWIOAuthBundle/Resources/config/routing/login.xml"
+#    prefix:   /login
+
+# Resource file needs to contain the routes listed in app/config/security.yml under  security: -> firewalls: -> main: -> oauth: -> resource_owners:
+odr_open_repository_oauth_client:
+    resource: "@ODROpenRepositoryOAuthClientBundle/Resources/config/routing.yml"
+    prefix:   /
+
+# ----------------------------------------
+# ODR routes
+odr_open_repository_graph:
+    resource: "@ODROpenRepositoryGraphBundle/Resources/config/routing.yml"
+    prefix:   /
+
+odr_open_repository_api:
+    resource: "@ODROpenRepositoryApiBundle/Resources/config/routing.yml"
+    prefix:   /
+
+odr_open_repository_user:
+    resource: "@ODROpenRepositoryUserBundle/Resources/config/routing.yml"
+    prefix:   /
+
+odr_open_repository_oauth_server:
+    resource: "@ODROpenRepositoryOAuthServerBundle/Resources/config/routing.yml"
+    prefix:   /
+
+odr_open_repository_jupyterhub_bridge:
+    resource: "@ODROpenRepositoryJupyterhubBridgeBundle/Resources/config/routing.yml"
+    prefix:   /
+
+odr_admin:
+    resource: "@ODRAdminBundle/Resources/config/routing.yml"
+    prefix:   /
+
+
+# ----------------------------------------
+# ----------------------------------------
 # MUST be last in this list due to use of a general catch-all route
 odr_open_repository_search:
     resource: "@ODROpenRepositorySearchBundle/Resources/config/routing.yml"

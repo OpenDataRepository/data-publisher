@@ -10,40 +10,96 @@ security:
         FOS\UserBundle\Model\UserInterface: sha512
 
     role_hierarchy:
-        ROLE_USER:           ROLE_USER
-        ROLE_ADMIN:          ROLE_ADMIN
-        ROLE_SUPER_ADMIN:    ROLE_SUPER_ADMIN
+        ROLE_USER:            ROLE_USER
+        ROLE_ADMIN:           ROLE_ADMIN
+        ROLE_SUPER_ADMIN:     ROLE_SUPER_ADMIN
+
+        ROLE_JUPYTERHUB_USER: ROLE_JUPYTERHUB_USER
 
     providers:
         fos_userbundle:
             id: fos_user.user_provider.username
+#        odr_user_provider:
+#            id: odr.openrepository.oauthclient.oauth_user_provider
 
     firewalls:
-        main:
-            pattern: ^/
+        oauth_token:
+            pattern:    ^/oauth/v2/token
+            security:   false
+
+        oauth_authorize:
+            pattern:    ^/oauth/v2/auth
             form_login:
                 provider: fos_userbundle
-                # Symfony2 < 2.8
-                #csrf_provider: form.csrf_provider
-                # Symfony >= 2.8
+
+                check_path: odr_oauth_server_auth_login_check
+                login_path: odr_oauth_server_auth_login
+
+                # always force sucessful logins through this firewall (apps using ODR as OAuth provider) to redirect to this path
+                default_target_path:  odr_redirect
+                always_use_default_target_path: true
+            anonymous: true
+
+            context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
+
+        api:
+            pattern:    ^/api
+            fos_oauth:  true
+            stateless:  true
+            anonymous:  true
+
+        main:
+            pattern: ^/
+            oauth:
+                resource_owners:    # https://github.com/hwi/HWIOAuthBundle/blob/master/Resources/doc/3-configuring_the_security_layer.md
+                    # NOTE: ODR should not be listed here, despite technically being an OAuth provider through the FOSOAuthServerBundle
+#                    GitHub:        "/login/check-github"
+#                    Google:        "/login/check-google"
+
+                oauth_user_provider:
+                    service: odr.openrepository.oauthclient.oauth_user_provider
+
+                login_path:     /login
+                use_forward:    false
+                failure_path:   /login
+
+                # always force sucessful logins through this firewall (handles external OAuth providers) to redirect to this path
+                default_target_path:  odr_redirect
+                always_use_default_target_path: true
+
+            form_login:
+                provider: fos_userbundle
                 csrf_token_generator: security.csrf.token_manager
+
+                # always force sucessful logins through this firewall (regular username/password login to ODR) to redirect to this path
+                default_target_path:  odr_redirect
+                always_use_default_target_path: true
+
             remember_me:
                 key:      [[ ENTER RANDOM KEY HERE - Text String ]]
                 lifetime: 1209600
                 path:     /
                 domain:   ~
-    
+
             logout:
                 path:   /logout
                 target: /
             anonymous:    true
 
+            context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
+
     access_control:
+##########
+# API control
+        - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
+
 ##########
 # These need to stay anonymous, otherwise users are unable to log in
         - { path: ^/login$, role: IS_AUTHENTICATED_ANONYMOUSLY }
         - { path: ^/register, role: IS_AUTHENTICATED_ANONYMOUSLY }
         - { path: ^/resetting, role: IS_AUTHENTICATED_ANONYMOUSLY }
+
+        - { path: ^/save_fragment, role: IS_AUTHENTICATED_ANONYMOUSLY }  # assists in redirecting after logging in
 
 ##########
 # These need to stay anonymous
@@ -53,16 +109,18 @@ security:
 
 ##########
 # Regular use of site for logged-in users
-#        - { path: ^/api, role: ROLE_USER }                           # XML/XSD download
+        - { path: ^/redirect, role: ROLE_USER }                   # redirects after logging in
+        - { path: ^/admin/oauth, role: ROLE_USER }                # ability to connect/disconnect OAuth provider accounts
+
         - { path: ^/admin$, role: ROLE_USER }                     # front page
         - { path: ^/admin/dashboard, role: ROLE_USER }            # dashboard
         - { path: ^/profile, role: ROLE_USER }                    # ability to edit own profile
 
-        - { path: ^/admin/type/list/records, role: ROLE_USER }    # can see page that provides links to add/edit/import datarecords for a datatype
+        - { path: ^/admin/type/list/databases, role: ROLE_USER }  # can see page that provides links to manage datatypes
         - { path: ^/edit, role: ROLE_USER }                       # Editing and CSV Import
         - { path: ^/jobs, role: ROLE_USER }                       # Active Jobs page
 
-        - { path: ^/admin/type/list/design, role: ROLE_USER }     # can see page that provides links to design the layout of datatypes
+        - { path: ^/admin/type/list/templates, role: ROLE_ADMIN } # can see page that provides links to modify master templates
         - { path: ^/admin/type/add, role: ROLE_ADMIN }            # Creating a new datatype
 
         - { path: ^/design, role: ROLE_USER }                     # ability to design results/records and shortresults layouts

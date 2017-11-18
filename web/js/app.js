@@ -9,6 +9,9 @@
  */
 
 // ! Your application
+window.$ = $
+window.jQuery = $
+
 var SaveTimeout = 2000;
 
 (function($, window, document, undefined){
@@ -73,3 +76,26 @@ var SaveTimeout = 2000;
     }; // End of '$.fn.setValidationOptions = ...'
 
 })(jQuery, this, document);
+
+
+
+// Theme Design Scroll Handler
+function initDesignScrollHandler(offset) {
+    // OnScroll is deprecated due to thread performance.
+    // Will need to update to a CSS-based solution when
+    // web standards finally support them.
+    $(window).on('scroll', function(e){
+        var $el = $('#ThemeLeftColumn');
+        var $tda = $('#ThemeDesignArea');
+        var isPositionFixed = ($el.css('position') == 'fixed');
+        if ($(this).scrollTop() > offset && !isPositionFixed){
+            $el.css({'position': 'fixed', 'top': '0px'});
+            $tda.css({'margin-left': '320px'})
+        }
+        if ($(this).scrollTop() < offset && isPositionFixed)
+        {
+            $el.css({'position': 'static', 'top': '0px'});
+            $tda.css({'margin-left': '15px'})
+        }
+    });
+}

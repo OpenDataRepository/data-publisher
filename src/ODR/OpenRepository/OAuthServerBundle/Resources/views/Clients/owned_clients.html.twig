@@ -1,0 +1,136 @@
+{% spaceless %}
+
+<div id="ODROwnedClientsList" class="ODRTabContent" style="margin-top: 25px;">
+    {% if owned_clients|length == 0 %}
+        <div>
+            <div class="ODROAuthIndent">If you're unfamiliar with how OAuth works or you don't need an OAuth Client to make requests to ODR on your behalf, then you can safely ignore the following section.</div>
+            <div class="ODROAuthIndent">For the people who do need credentials for an OAuth Client to use, the button below will generate an OAuth Client ID/Secret pair that's tied specifically to your ODR user account.</div>
+            <div class="ODROAuthIndent">Any OAuth Client using these credentials will be authenticated as your ODR user account, and therefore authorized to perform the same actions to ODR's API as you can.</div>
+            <div class="ODROAuthIndent">The OAuth Client will use a custom OAuth grant extension based off the client_credentials grant type...it won't need to store your ODR username/password, nor will it require your interaction with an ODR login screen.</div>
+        </div>
+
+        <button id="ODRCreateOwnedClient" class="pure-button" style="margin-top: 20px;">Create OAuth Client</button>
+    {% else %}
+        {% set client = owned_clients[0] %}
+        {% set client_id = client.id ~ '_' ~ client.randomId %}
+        {% set client_secret = client.secret %}
+
+        {% set grant_type = '' %}
+        {% for gt in client.allowedGrantTypes %}
+            {% if gt != 'token' and gt != 'refresh_token' %}    {# there shouldn't be any of the other 4 oauth grant types in that array #}
+                {% set grant_type = gt %}
+            {% endif %}
+        {% endfor %}
+
+        <div>
+            <label for="ODRClientRandomId" style="margin-right:10px;">
+                <strong>Client ID:</strong>
+            </label>
+            <span id="ODRClientRandomId">{{ client_id }}</span>
+        </div>
+        <div>
+            <label for="ODRClientSecret" style="margin-right:10px;">
+                <strong>Client Secret:</strong>
+            </label>
+            <span id="ODRClientSecret">{{ client_secret }}</span>
+        </div>
+        <div>
+            <label for="ODRGrantType" style="margin-right:10px;">
+                <strong>Grant Type:</strong>
+            </label>
+            <span id="ODRGrantType">{{ grant_type }}</span>
+        </div>
+
+        <div class="ODROAuthIndent">The Client ID/Secret <strong>SHOULD NOT</strong> be shared with anybody else.  They are effectively an alternate username/password for your account, and should be treated as such.  The above values are used by sending the following HTTP request to ODR...</div>
+
+        <div>
+            {% set params = {'grant_type': grant_type, 'client_id': client_id, 'client_secret': client_secret} %}
+            <div style="border: 1px solid #7fb9d8; border-radius: 4px; padding:5px 9px;">{{ site_baseurl }}/oauth/v2/token?{{ params|url_encode }}</div>
+        </div>
+
+        <div class="ODROAuthIndent">
+            ODR should then return a JSON object that includes an access token, which can then be used to gain access to any part of ODR's API that you already have permission to access.
+            <div style="border: 1px solid #7fb9d8; border-radius: 4px; padding:5px 9px;">{{ site_baseurl }}{{ path('odr_api_userdata', {'version': 'v1'}) }}?access_token=RETURNED_ACCESS_TOKEN</div>
+        </div>
+
+        <div class="ODROAuthIndent">A complete list of the available API routes is located <a href="{{ path('odr_admin_homepage') }}">here.</a></div>
+
+        <button id="ODRDeleteOwnedClient" class="pure-button" style="margin-top: 20px;">Delete OAuth Client</button>
+    {% endif %}
+</div>
+
+<style>
+    .ODROAuthIndent {
+        margin-top: 10px;
+        text-indent: 15px;
+    }
+</style>
+
+<script>
+    $(function() {
+        $("#ODRCreateOwnedClient").unbind('click').click(function() {
+            var url  = '{{ path('odr_create_oauth_client') }}';
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function (data) {
+                    // Reload the page
+                    window.location.reload();
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function (jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        });
+
+        $("#ODRDeleteOwnedClient").unbind('click').click(function() {
+            if ( confirm("The client id and secret keys will immediately stop working and can't be recovered...are you certain you want to delete this OAuth Client?") ) {
+                var url  = '{{ path('odr_delete_oauth_client') }}';
+
+                $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: "json",
+                    success: function (data) {
+                        // Reload the page
+                        window.location.reload();
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        // Don't need to do anything specific on an error
+                    },
+                    complete: function (jqXHR) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                        }
+                    }
+                });
+            }
+        });
+    });
+</script>
+{% endspaceless %}

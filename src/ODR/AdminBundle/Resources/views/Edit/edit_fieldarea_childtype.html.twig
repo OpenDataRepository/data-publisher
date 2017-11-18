@@ -25,7 +25,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
     {% include 'ODRAdminBundle:Edit:edit_childtype.html.twig' with {
         'datatype_array': datatype_array,
         'datarecord_array': datarecord_array,
-        'theme_id': theme_id,
+        'theme_array': theme_array,
 
         'target_datatype_id': target_datatype_id,
         'parent_datarecord_id': parent_datarecord.id,
@@ -49,14 +49,14 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
     {% elseif can_add_record == 1 and (multiple_allowed == 1 or child_datarecord_count < 1) %}
 #}
     {% if can_add_record == 1 and (multiple_allowed == 1 or child_datarecord_count < 1) %}
-        <button class="pure-button pure-button-primary" type="button" onclick="AddChildRecord({{ childtype.id }},{{ parent_datarecord.id }},{{ parent_datarecord.grandparent.id }});">Add {{ childtype.dataTypeMeta.shortName }} record.</button>
+        <button class="pure-button pure-button-primary" type="button" onclick="AddChildRecord({{ childtype.id }},{{ parent_datarecord.id }});">Add {{ childtype.dataTypeMeta.shortName }} record.</button>
     {% endif %}
     </div>
 {% else %}
     {% include 'ODRAdminBundle:Display:display_childtype.html.twig' with {
         'datatype_array': datatype_array,
         'datarecord_array': datarecord_array,
-        'theme_id': theme_id,
+        'theme_array': theme_array,
 
         'target_datatype_id': target_datatype_id,
         'parent_datarecord_id': datarecord.id,

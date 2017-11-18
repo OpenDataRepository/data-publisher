@@ -11,14 +11,19 @@
     {% set can_add_record = 1 %}
 {% endif %}
 
-{% if datarecord_array[parent_datarecord_id]['children'][target_datatype_id] is defined %}
+
     {% set parent_datarecord = datarecord_array[parent_datarecord_id] %}
-    {% set datarecord_array = parent_datarecord['children'][ target_datatype_id ] %}
+
+    {# Still need to render the template even if there are no child datarecords...otherwise the "Add new Child" button won't be displayed #}
+    {% set datarecord_array = {} %}
+    {% if parent_datarecord['children'][ target_datatype_id ] is defined %}
+        {% set datarecord_array = parent_datarecord['children'][ target_datatype_id ] %}
+    {% endif %}
 
     {% include 'ODRAdminBundle:Edit:edit_fieldarea_childtype.html.twig' with {
         'datatype_array': datatype_array,
         'datarecord_array': datarecord_array,
-        'theme_id': theme_id,
+        'theme_array': theme_array,
 
         'target_datatype_id': target_datatype_id,
         'parent_datarecord': parent_datarecord,
@@ -36,7 +41,5 @@
 
         'token_list': token_list,
     } %}
-
-{% endif %}
 
 {% endspaceless %}

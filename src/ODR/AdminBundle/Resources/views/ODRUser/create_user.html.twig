@@ -1,109 +1,18 @@
 {% spaceless %}
 
-<div class="header">
-    <h2>New User
-        <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
-    </h2>
-</div>
+<div class="ODRContentWrapper pure-u-1">
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i>
+                Create User
+                <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
+            </h3>
 
-<div class="ODRTableOuterWrap pure-g pure-u-1 pure-u-sm-2-3">
-<div class="ODRTableWrap">
-
-{{ form_start(profile_form, {
-    'method': 'POST',
-    'attr': {
-        'id': 'ODRUserProfileForm',
-        'class': 'ODRUserProfileForm pure-form pure-form-aligned'
-    }
-}) }}
-
-    <fieldset>
-        <div id="form_errors">
-            {{ form_errors(profile_form) }}
-            {{ form_errors(profile_form.plainPassword.first) }}
+            <div class="ODRBodyContent">
+                {% include 'ODRAdminBundle:ODRUser:create_user_form.html.twig' with {'profile_form': profile_form} %}
+            </div>
         </div>
-        <div id="password_errors"></div>
-    </fieldset>
-
-    <fieldset>
-
-        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
-            <label for="{{ profile_form.email.vars.id }}">
-                <strong>{{ profile_form.email.vars.label }}</strong>
-            </label>
-            {{ form_errors(profile_form.email) }}
-            {{ form_widget(profile_form.email, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
-        </div>
-        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
-            <span style="margin: 5px;">
-                <button id="emailCheckButton" type="button" class="pure-button pure-button-primary" onclick="checkEmail();">Check Email Availability</button>
-            </span>
-            <span id="email_errors" style="margin: 5px;"></span>
-        </div>
-        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
-            <label for="{{ profile_form.plainPassword.first.vars.id }}">
-                <strong>{{ profile_form.plainPassword.first.vars.label }}</strong>
-            </label>
-            {{ form_errors(profile_form.plainPassword.first) }}
-            {{ form_widget(profile_form.plainPassword.first, { 'attr': {'class': '', 'data-error-type': 'inline', 'required': 'required' } }) }}
-        </div>
-        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
-            <label for="{{ profile_form.plainPassword.second.vars.id }}">
-                <strong>{{ profile_form.plainPassword.second.vars.label }}</strong>
-            </label>
-            {{ form_errors(profile_form.plainPassword.second) }}
-            {{ form_widget(profile_form.plainPassword.second, { 'attr': {'class': '', 'data-error-type': 'inline', 'required': 'required' } }) }}
-        </div>
-
-        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
-            <label for="{{ profile_form.firstName.vars.id }}">
-                <strong>{{ profile_form.firstName.vars.label }}</strong>
-            </label>
-            {{ form_errors(profile_form.firstName) }}
-            {{ form_widget(profile_form.firstName, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
-        </div>
-        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
-            <label for="{{ profile_form.lastName.vars.id }}">
-                <strong>{{ profile_form.lastName.vars.label }}</strong>
-            </label>           
-            {{ form_errors(profile_form.lastName) }}
-            {{ form_widget(profile_form.lastName, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
-        </div>
-
-        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
-            <label for="{{ profile_form.institution.vars.id }}">
-                <strong>{{ profile_form.institution.vars.label }}</strong>
-            </label>
-            {{ form_errors(profile_form.institution) }}
-            {{ form_widget(profile_form.institution, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
-        </div>
-        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
-            <label for="{{ profile_form.position.vars.id }}">
-                <strong>{{ profile_form.position.vars.label }}</strong>
-            </label>
-            {{ form_errors(profile_form.position) }}
-            {{ form_widget(profile_form.position, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
-        </div>
-        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
-            <label for="{{ profile_form.phoneNumber.vars.id }}">
-                <strong>{{ profile_form.phoneNumber.vars.label }}</strong>
-            </label>
-            {{ form_errors(profile_form.phoneNumber) }}
-            {{ form_widget(profile_form.phoneNumber, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
-        </div>
-
-        <div style="display: none">
-            {{ form_rest(profile_form) }}
-        </div>
-    </fieldset>
-
-{{ form_end(profile_form) }}
-
-<button id="submitButton" class="pure-button pure-button-primary">Save</button>
-
-{% include 'ODRAdminBundle:ODRUser:password_rules.html.twig' with {'form': profile_form} %}
-
-</div>
+    </div>
 </div>
 
 <script>
@@ -114,19 +23,19 @@
             rules: {
                 "{{ profile_form.email.vars.full_name }}": {
                     required: true,
-                    email: true,
-                },
+                    email: true
+                }
             },
             errorLabelContainer: "#email_errors",
             messages: {
                 "{{ profile_form.email.vars.full_name }}": {
                     required: "Invalid email address",
                     email: "Invalid email address"
-                },
+                }
             },
             submitHandler: function(form) {
-                SaveProfileForm();
-            },
+                saveProfileForm();
+            }
         });
 
         var old_email = '';
@@ -141,13 +50,16 @@
                 $("#submitButton").removeClass('pure-button-primary').attr('disabled', 'disabled').attr('title', 'Email needs to be checked for availability first');
             }
         });
-    });
 
+        // Don't allow regular form submission...
+        $("#ODRUserProfileForm").submit(function(event) {
+            event.preventDefault();
+        });
+    });
 
     function checkEmail() {
         var url = "{{ path('odr_admin_new_user_check') }}";
-        var email = $("#{{ profile_form.email.vars.id }}").val();
-        email = email.trim();
+        var email = $("#{{ profile_form.email.vars.id }}").val().trim();
 
         // Require a valid email address before sending an ajax request
         if ( !$("input[name='{{ profile_form.email.vars.full_name }}']").valid() )
@@ -159,23 +71,20 @@
             dataType: 'json',
             data: {"email": email},
             success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
-                    $("#emailCheckButton").removeClass('pure-button-primary').attr('disabled', 'disabled');
+                $("#emailCheckButton").removeClass('pure-button-primary').attr('disabled', 'disabled');
 
-                    if (data.d == 0) {
-                        // Email not found
-                        $("#submitButton").addClass('pure-button-primary').html('Save').attr('onclick', 'saveProfileForm();').removeAttr('disabled').removeAttr('title');
-                    }
-                    else {
-                        // Email already exists
-                        $("#submitButton").addClass('pure-button-primary').html('View User Permissions').attr('onclick', 'viewPermissions(' + data.d + ');').removeAttr('disabled').removeAttr('title');
-                        $("#emailCheckButton").html('User already exists');
-                    }
+                if (data.d == 0) {
+                    // Email not found
+                    $("#submitButton").addClass('pure-button-primary').html('Save').attr('onclick', 'saveProfileForm();').removeAttr('disabled').removeAttr('title');
                 }
                 else {
-                    // Error in form
-                    alert(data.d.html);
+                    // Email already exists
+                    $("#submitButton").addClass('pure-button-primary').html('View User Permissions').attr('onclick', 'viewPermissions(' + data.d + ');').removeAttr('disabled').removeAttr('title');
+                    $("#emailCheckButton").html('User already exists');
                 }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -197,14 +106,11 @@
         var url = "{{ path('odr_manage_user_groups', {'user_id': 0}) }}";
         url = url.substr(0, url.length-1);
         url += user_id;
-//alert(url);
-//return;
 
         UpdateURL(url);
     }
 
     function saveProfileForm() {
-
         if ( !$("#ODRUserProfileForm").valid() ) {
             alert("Invalid form");
             return;
@@ -216,8 +122,6 @@
         }
 
         var url = "{{ path('odr_admin_new_user_save') }}";
-//alert(url);
-//return;
 
         $("#submitButton").attr('disabled', 'disabled').html('Creating New User...');
 
@@ -227,17 +131,13 @@
             dataType: 'json',
             data: $("#ODRUserProfileForm").serialize(),
             success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
-                    alert('User Created');
-
-                    // Redirect to their permissions page
-                    UpdateURL( data.d.url );
-                }
-                else {
-                    // Error in form
-                    alert(data.d.html);
-                    checkEmail();
-                }
+                // Redirect to their permissions page
+                alert('User Created');
+                UpdateURL( data.d.url );
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Reset the email validation and the save button
+                checkEmail();
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers

@@ -73,16 +73,6 @@ ODR\AdminBundle\Entity\ImageSizes:
             nullable: true
 
     manyToOne:
-        fieldType:
-            targetEntity: FieldType
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                field_type_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-
         dataFields:
             targetEntity: DataFields
             cascade: {  }
@@ -102,7 +92,6 @@ ODR\AdminBundle\Entity\ImageSizes:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }

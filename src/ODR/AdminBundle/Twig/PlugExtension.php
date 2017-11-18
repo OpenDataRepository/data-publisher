@@ -43,11 +43,11 @@ class PlugExtension extends \Twig_Extension
         return array(
             new \Twig_SimpleFilter('datafield_plugin', array($this, 'datafieldPluginFilter')),
             new \Twig_SimpleFilter('datatype_plugin', array($this, 'datatypePluginFilter')),
-
             new \Twig_SimpleFilter('xml', array($this, 'xmlFilter')),
             new \Twig_SimpleFilter('is_public', array($this, 'isPublicFilter')),
             new \Twig_SimpleFilter('user_string', array($this, 'userStringFilter')),
             new \Twig_SimpleFilter('filesize', array($this, 'filesizeFilter')),
+            new \Twig_SimpleFilter('is_empty', array($this, 'isEmptyFilter')),
         );
     }
 
@@ -58,23 +58,18 @@ class PlugExtension extends \Twig_Extension
      * @param array $datarecords
      * @param array $datatype
      * @param array $render_plugin
-     * @param array $theme
+     * @param array $theme_array
      * @param array $rendering_options
      *
      * @return string
      * @throws \Exception
      */
-    public function datatypePluginFilter($datarecords, $datatype, $render_plugin, $theme, $rendering_options)
+    public function datatypePluginFilter($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options)
     {
         try {
-            // Re-organize list of datarecords into
-            $datarecord_array = array();
-            foreach ($datarecords as $num => $dr)
-                $datarecord_array[ $dr['id'] ] = $dr;
-
             // Load and execute the render plugin
             $svc = $this->container->get($render_plugin['pluginClassName']);
-            return $svc->execute($datarecord_array, $datatype, $render_plugin, $theme, $rendering_options);
+            return $svc->execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options);
         }
         catch (\Exception $e) {
             return 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage();
@@ -101,12 +96,15 @@ class PlugExtension extends \Twig_Extension
                     unset( $datarecord['dataRecordFields'][$df_id] );
             }
 
-            // Several other parts of the arrays should be pruned to avoid duplicate/exccessive data
+            // Several other parts of the arrays should be pruned to avoid duplicate/excessive data
+            // TODO This is totally wrong - the plugin data is not duplicative.
+            /*
             if ( isset($datafield['dataFieldMeta']) && isset($datafield['dataFieldMeta']['renderPlugin']) )
                 unset( $datafield['dataFieldMeta']['renderPlugin'] );
 
             if ( isset($datarecord['dataType']) )
                 unset( $datarecord['dataType'] );
+            */
 
 
             // Load and execute the render plugin
@@ -236,6 +234,78 @@ class PlugExtension extends \Twig_Extension
         }
         catch (\Exception $e) {
             throw new \Exception( "Error executing filesize filter: ".$e->getMessage() );
+        }
+    }
+
+
+    /**
+     * Returns whether the provided theme_element should be considered "empty", and therefore not displayed.
+     *
+     * @param array $theme_element
+     * @param array $datarecord
+     * @param array $datatype
+     * @param string $mode  'display' or 'edit'
+     *
+     * @return bool
+     * @throws \Exception
+     */
+    public function isEmptyFilter($theme_element, $datarecord, $datatype, $mode)
+    {
+        try {
+            if ( !isset($theme_element['themeElementMeta']) )
+                throw new \Exception('Array does not describe a theme_element');
+
+            // If the theme element itself is marked has "hidden", then don't display regardless
+            //  of contents
+            if ( $theme_element['themeElementMeta']['hidden'] == 1 )
+                return true;
+
+
+            // If the theme element has datafield entries...
+            if ( isset($theme_element['themeDataFields']) && count($theme_element['themeDataFields']) > 0 ) {
+
+                // ...it is not considered empty if at least one of those datafields has not been filtered out, and is not hidden
+                foreach ($theme_element['themeDataFields'] as $num => $tdf) {
+                    $df_id = $tdf['dataField']['id'];
+
+                    if ( $tdf['hidden'] == 0 && isset($datatype['dataFields']) && isset($datatype['dataFields'][$df_id]) )
+                        return false;
+                }
+            }
+
+            // If the theme element has a child datatype entry...
+            if ( isset($theme_element['themeDataType']) && count($theme_element['themeDataType']) > 0 ) {
+
+                // ...and that entry has not been filtered out and is not hidden...
+                foreach ($theme_element['themeDataType'] as $num => $tdt) {
+
+                    // Note: Display mode won't pass this check if the child datatype doesn't have any child/linked datarecords for this datatype
+                    //  Edit mode will apparently always pass this check
+                    if ( $tdt['hidden'] == 0 && isset($tdt['dataType']) && count($tdt['dataType']) > 0 ) {
+
+                        if ( $tdt['is_link'] == 0 && $mode == 'edit' ) {
+                            // This theme element contains a child datatype, and is therefore never considered "empty" when in Edit mode
+                            return false;
+                        }
+                        else {
+                            // This theme element contains a linked datatype...
+                            $child_datatype_id = $tdt['dataType']['id'];
+
+                            // ...it's only considered empty when there are no linked datarecords of this linked datatype
+                            if ( isset($datarecord['children']) && isset($datarecord['children'][$child_datatype_id]) && count($datarecord['children'][$child_datatype_id]) > 0 )
+                                return false;
+                            else
+                                return true;
+                        }
+                    }
+                }
+            }
+
+            // Otherwise, the theme element is empty and should not be displayed
+            return true;
+        }
+        catch (\Exception $e) {
+            throw new \Exception( "Error executing is_empty filter: ".$e->getMessage() );
         }
     }
 

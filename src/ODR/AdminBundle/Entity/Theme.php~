@@ -57,9 +57,34 @@ class Theme
     private $themeElements;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $themePreferences;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
     private $dataType;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $relatedThemes;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $relatedSourceThemes;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\Theme
+     */
+    private $parentTheme;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\Theme
+     */
+    private $sourceTheme;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -83,6 +108,9 @@ class Theme
     {
         $this->themeMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeElements = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->themePreferences = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->relatedThemes = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->relatedSourceThemes = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -254,6 +282,39 @@ class Theme
     }
 
     /**
+     * Add themePreferences
+     *
+     * @param \ODR\AdminBundle\Entity\ThemePreferences $themePreferences
+     * @return Theme
+     */
+    public function addThemePreference(\ODR\AdminBundle\Entity\ThemePreferences $themePreferences)
+    {
+        $this->themePreferences[] = $themePreferences;
+
+        return $this;
+    }
+
+    /**
+     * Remove themePreferences
+     *
+     * @param \ODR\AdminBundle\Entity\ThemePreferences $themePreferences
+     */
+    public function removeThemePreference(\ODR\AdminBundle\Entity\ThemePreferences $themePreferences)
+    {
+        $this->themePreferences->removeElement($themePreferences);
+    }
+
+    /**
+     * Get themePreferences
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getThemePreferences()
+    {
+        return $this->themePreferences;
+    }
+
+    /**
      * Set dataType
      *
      * @param \ODR\AdminBundle\Entity\DataType $dataType
@@ -274,6 +335,122 @@ class Theme
     public function getDataType()
     {
         return $this->dataType;
+    }
+
+    /**
+     * Add relatedTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $relatedTheme
+     *
+     * @return Theme
+     */
+    public function addRelatedTheme(\ODR\AdminBundle\Entity\Theme $relatedTheme)
+    {
+        $this->relatedThemes[] = $relatedTheme;
+
+        return $this;
+    }
+
+    /**
+     * Remove relatedTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $relatedTheme
+     */
+    public function removeRelatedTheme(\ODR\AdminBundle\Entity\Theme $relatedTheme)
+    {
+        $this->relatedThemes->removeElement($relatedTheme);
+    }
+
+    /**
+     * Get relatedThemes
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRelatedThemes()
+    {
+        return $this->relatedThemes;
+    }
+
+    /**
+     * Add relatedSourceTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $relatedSourceTheme
+     *
+     * @return Theme
+     */
+    public function addRelatedSourceTheme(\ODR\AdminBundle\Entity\Theme $relatedSourceTheme)
+    {
+        $this->relatedSourceThemes[] = $relatedSourceTheme;
+
+        return $this;
+    }
+
+    /**
+     * Remove relatedSourceTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $relatedSourceTheme
+     */
+    public function removeRelatedSourceTheme(\ODR\AdminBundle\Entity\Theme $relatedSourceTheme)
+    {
+        $this->relatedSourceThemes->removeElement($relatedSourceTheme);
+    }
+
+    /**
+     * Get relatedSourceThemes
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRelatedSourceThemes()
+    {
+        return $this->relatedSourceThemes;
+    }
+
+    /**
+     * Set parentTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $parentTheme
+     *
+     * @return Theme
+     */
+    public function setParentTheme(\ODR\AdminBundle\Entity\Theme $parentTheme = null)
+    {
+        $this->parentTheme = $parentTheme;
+
+        return $this;
+    }
+
+    /**
+     * Get parentTheme
+     *
+     * @return \ODR\AdminBundle\Entity\Theme
+     */
+    public function getParentTheme()
+    {
+        return $this->parentTheme;
+    }
+
+    /**
+     * Set sourceTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $sourceTheme
+     *
+     * @return Theme
+     */
+    public function setSourceTheme(\ODR\AdminBundle\Entity\Theme $sourceTheme = null)
+    {
+        $this->sourceTheme = $sourceTheme;
+
+        return $this;
+    }
+
+    /**
+     * Get sourceTheme
+     *
+     * @return \ODR\AdminBundle\Entity\Theme
+     */
+    public function getSourceTheme()
+    {
+        return $this->sourceTheme;
     }
 
     /**
@@ -371,8 +548,49 @@ class Theme
      *
      * @return boolean
      */
-    public function getIsDefault()
+    public function isDefault()
     {
         return $this->getThemeMeta()->getIsDefault();
+    }
+
+    /**
+     * Get displayOrder
+     *
+     * @return int
+     */
+    public function getDisplayOrder()
+    {
+        return $this->getThemeMeta()->getDisplayOrder();
+    }
+
+    /**
+     * Get shared
+     *
+     * @return bool
+     */
+    public function isShared()
+    {
+        return $this->getThemeMeta()->getShared();
+    }
+
+    /**
+     * Get sourceSyncCheck
+     *
+     * @return \DateTime
+     */
+    public function getSourceSyncCheck()
+    {
+        return $this->getThemeMeta()->getSourceSyncCheck();
+    }
+
+    /**
+     * Get isTableTheme
+     * @deprecated
+     *
+     * @return bool
+     */
+    public function getIsTableTheme()
+    {
+        return $this->getThemeMeta()->getIsTableTheme();
     }
 }

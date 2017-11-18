@@ -10,59 +10,46 @@
  * The graph plugin plots a line graph out of data files uploaded
  * to a File DataField, and labels them using a "legend" field
  * selected when the graph plugin is created...
- *
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
-// Controllers/Classes
-
-// Libraries
-use Ramsey\Uuid\Uuid;
-use Ramsey\Uuid\Exception\UnsatisfiedDependencyException;
-
-// Symfony components
+// Services
+use ODR\AdminBundle\Component\Service\CryptoService;
+// Symfony
+use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\DependencyInjection\ContainerInterface as Container;
-// use Doctrine\ORM\EntityManager;
+use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+// Other
+use Ramsey\Uuid\Uuid;
 
-/**
- * Class GraphPlugin
- * @package ODR\OpenRepository\GraphBundle\Plugins
- */
+
 class GraphPlugin
 {
-
-
     /**
-     * @var mixed
+     * @var EngineInterface
      */
     private $templating;
 
-
     /**
-     * @var mixed
+     * @var Logger
      */
     private $logger;
 
-
     /**
-     * @var array
+     * @var Container
      */
-    // private $line_colors;
-
-    /**
-     * @var array
-     */
-    // private $jpgraph_line_colors;
+    private $container;
 
 
     /**
      * GraphPlugin constructor.
      *
-     * @param $templating
-     * @param $logger
+     * @param EngineInterface $templating
+     * @param Logger $logger
+     * @param Container $container
      */
-    public function __construct($templating, $logger, Container $container) {
+    public function __construct(EngineInterface $templating, Logger $logger, Container $container) {
         $this->templating = $templating;
 	    $this->logger = $logger;
         $this->container = $container;
@@ -70,90 +57,21 @@ class GraphPlugin
 
 
     /**
-     * TODO
-     *
-     * @param $string
-     *
-     * @return bool
-     */
-    private function is_all_multibyte($string)
-    {
-        // check if the string doesn't contain invalid byte sequence
-        if (mb_check_encoding($string, 'UTF-8') === false)
-            return false;
-
-        $length = mb_strlen($string, 'UTF-8');
-        for ($i = 0; $i < $length; $i += 1) {
-
-            $char = mb_substr($string, $i, 1, 'UTF-8');
-
-            // check if the string doesn't contain single character
-            if (mb_check_encoding($char, 'ASCII'))
-                return false;
-        }
-
-        return true;
-    }
-
-
-    /**
-     * TODO - delete this?
-     *
-     * @param $string
-     *
-     * @return bool
-     */
-/*
-    private function contains_any_multibyte($string)
-    {
-        return !mb_check_encoding($string, 'ASCII') && mb_check_encoding($string, 'UTF-8');
-    }
-*/
-
-    /**
-     * TODO - delete this?
-     *
-     * @param $str
-     *
-     * @return string
-     */
-/*
-    private function convert_to_utf8($str) {
-        $encoding =  mb_detect_encoding($content, $enclist, true);
-        // $this->logger->info('GraphPlugin :: ' . $encoding);
-
- 	    static $enclist = array(
-            'UTF-16', 'UTF-16LE', 'UTF-16BE', 'UTF-8', 'ASCII', 
-            'ISO-8859-1', 'ISO-8859-2', 'ISO-8859-3', 'ISO-8859-4', 'ISO-8859-5', 
-            'ISO-8859-6', 'ISO-8859-7', 'ISO-8859-8', 'ISO-8859-9', 'ISO-8859-10', 
-            'ISO-8859-13', 'ISO-8859-14', 'ISO-8859-15', 'ISO-8859-16', 
-            'Windows-1251', 'Windows-1252', 'Windows-1254', 
-        );
-        // $content = file_get_contents($fn); 
-        return mb_convert_encoding(
-                   $str, 
-                   'UTF-8', 
-                   mb_detect_encoding($str, $enclist, true)); 
-    }
-*/
-
-    /**
      * Executes the Graph Plugin on the provided datarecords
      *
      * @param array $datarecords
      * @param array $datatype
      * @param array $render_plugin
-     * @param array $theme
+     * @param array $theme_array
      * @param array $rendering_options
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme, $rendering_options)
+    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options)
     {
 
         try {
-
             // ----------------------------------------
             // Grab various properties from the render plugin array
             $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
@@ -182,22 +100,9 @@ class GraphPlugin
                 $rpf = $rpm['renderPluginFields'];
                 $df_id = $rpm['dataField']['id'];
 
-                // Want the full-fledged datafield entry...the one in $rpm['dataField'] has no render plugin or meta data
-                // Unfortunately, the desired one is buried inside the $theme array somewhere...
                 $df = null;
-                foreach ($theme['themeElements'] as $te) {
-                    if ( isset($te['themeDataFields']) ) {
-                        foreach ($te['themeDataFields'] as $tdf) {
-                            if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $df_id ) {
-                                $df = $tdf['dataField'];
-                                break;
-                            }
-                        }
-                    }
-
-                    if ($df !== null)
-                        break;
-                }
+                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$df_id]) )
+                    $df = $datatype['dataFields'][$df_id];
 
                 if ($df == null)
                     throw new \Exception('Unable to locate array entry for the field "'.$rpf['fieldName'].'", mapped to df_id '.$df_id);
@@ -266,7 +171,7 @@ class GraphPlugin
             // Or create rollup name for rollup chart
             foreach ($datarecords as $dr_id => $dr) {
                 $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
-                if(isset($dr['dataRecordFields'][$graph_datafield_id])) {
+                if ( isset($dr['dataRecordFields'][$graph_datafield_id]) ) {
                     foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
                         // File ID list is used only by rollup
                         $odr_chart_file_ids[] = $file['id'];
@@ -309,7 +214,7 @@ class GraphPlugin
             $page_data = array(
                 'datatype_array' => array($datatype['id'] => $datatype),
                 'datarecord_array' => $datarecords,
-                'theme_id' => $theme['id'],
+                'theme_array' => $theme_array,
                 'target_datatype_id' => $datatype['id'],
 
                 // TODO - figure out what these do
@@ -331,16 +236,17 @@ class GraphPlugin
             );
 
 
-            if(isset($rendering_options['build_graph'])) {
-
+            if ( isset($rendering_options['build_graph']) ) {
                 // Determine file name
                 $graph_filename = "";
-                if(isset($options['use_rollup']) && $options['use_rollup'] == "yes") {
+                if ( isset($options['use_rollup']) && $options['use_rollup'] == "yes" ) {
                     $graph_filename = $odr_chart_output_files['rollup'];
                 }
                 else {
                     // Determine target datarecord
-                    if(isset($rendering_options['datarecord_id']) && preg_match("/^\d+$/", trim($rendering_options['datarecord_id']))) {
+                    if ( isset($rendering_options['datarecord_id'])
+                        && preg_match("/^\d+$/", trim($rendering_options['datarecord_id']))
+                    ) {
                         $graph_filename = $odr_chart_output_files[$rendering_options['datarecord_id']];
                     }
                     else {
@@ -348,25 +254,32 @@ class GraphPlugin
                     }
                 }
 
+
                 // We need to know if this is a rollup or direct record request here...
-                if (file_exists(dirname(__FILE__).'/../../../../../web/uploads/files/graphs/'.$graph_filename)) {
+                if ( file_exists($this->container->getParameter('odr_web_directory').$graph_filename) ) {
                     /* Pre-rendered graph file exists, do nothing */
                     return $graph_filename;
                 }
                 else {
                     // In this case, we should be building a single graph (either rollup or individual datarecord)
+                    /** @var CryptoService $crypto_service */
                     $crypto_service = $this->container->get('odr.crypto_service');
 
                     $files_to_delete = array();
-                    if(isset($options['use_rollup']) && $options['use_rollup'] == "yes") {
-                        // Decrypt any non-public files (if needed - filter by target datarecord if not rollup)
+                    if ( isset($options['use_rollup']) && $options['use_rollup'] == "yes" ) {
+                        // For each of the files that will be used in the graph...
                         foreach ($odr_chart_files as $dr_id => $file) {
-                            $public_date = new \DateTime($file['fileMeta']['publicDate']->date);
-                            $now = new \DateTime();
-                            if ($now < $public_date) {
-                                // File is encrypted and must be decrypted temporarily to graph.
-                                $file_path = $crypto_service->decryptObject($file['id'], 'file');
-                                array_push($files_to_delete, $file_path);
+                            // ...ensure that it exists
+                            $filepath = $this->container->getParameter('odr_web_directory').'/'.$file['localFileName'];
+                            if ( !file_exists($filepath) ) {
+                                // File does not exist, decrypt it
+                                $file_path = $crypto_service->decryptFile($file['id']);
+
+                                // If file is not public, make sure it gets deleted later
+                                $public_date = $file['fileMeta']['publicDate'];
+                                $now = new \DateTime();
+                                if ($now < $public_date)
+                                    array_push($files_to_delete, $file_path);
                             }
                         }
 
@@ -377,26 +290,35 @@ class GraphPlugin
                         // Only a single file will be needed.  Check if it needs to be decrypted.
                         $dr_id = $rendering_options['datarecord_id'];
                         $file = $odr_chart_files[$dr_id];
-                        $public_date = new \DateTime($file['fileMeta']['publicDate']->date);
-                        $now = new \DateTime();
-                        if ($now < $public_date) {
-                            // File is encrypted and must be decrypted temporarily to graph.
-                            $file_path = $crypto_service->decryptObject($file['id'], 'file');
-                            array_push($files_to_delete, $file_path);
+
+                        $filepath = $this->container->getParameter('odr_web_directory').'/'.$file['localFileName'];
+                        if ( !file_exists($filepath) ) {
+                            // File does not exist, decrypt it
+                            $file_path = $crypto_service->decryptFile($file['id']);
+
+                            // If file is not public, make sure it gets deleted later
+                            $public_date = $file['fileMeta']['publicDate'];
+                            $now = new \DateTime();
+                            if ($now < $public_date)
+                                array_push($files_to_delete, $file_path);
                         }
 
                         // Set the chart id
                         $page_data['odr_chart_id'] = $odr_chart_ids[$dr_id];
-                    }
 
+                        $page_data['odr_chart_file_ids'] = array($file['id']);
+                        $page_data['odr_chart_file_names'] = array($dr_id => $file['localFileName']);
+                        $page_data['odr_chart_files'] = array($dr_id => $file);
+
+                        $filename = 'Chart__'.$file['id'].'_'.$max_option_date.'.svg';
+                    }
 
                     // Pre-rendered graph file does not exist...need to create it
                     $output_filename = self::buildGraph($page_data, $filename);
 
                     // Delete previously encrypted non-public files
-                    foreach($files_to_delete as $file_path) {
+                    foreach ($files_to_delete as $file_path)
                         unlink($file_path);
-                    }
 
                     // File has been created.  Now can return it.
                     return $output_filename;
@@ -409,7 +331,7 @@ class GraphPlugin
                 );
             }
 
-            if(!isset($rendering_options['build_graph'])) {
+            if (!isset($rendering_options['build_graph'])) {
                 return $output;
             }
         }
@@ -425,12 +347,17 @@ class GraphPlugin
         }
     }
 
+
     /**
-     * Builds the static graphs for the server
-     * @param $page_data - A Map holding all the data that is needed for creating the graph html, and for the phantomjs
-     *      js server to render it.
-     * @param $filename - The name that the svg file should have.
-     * @throws \Exception  - Standard PHP exception.
+     * Builds the static graphs for the server.
+     *
+     * @param array $page_data A Map holding all the data that is needed for creating the graph
+     *                          html, and for the phantomjs js server to render it.
+     * @param string $filename The name that the svg file should have.
+     *
+     * @throws \Exception
+     *
+     * @return string
      */
     private function buildGraph($page_data, $filename)
     {
@@ -438,8 +365,7 @@ class GraphPlugin
         $file_id_list = implode('_', $page_data['odr_chart_file_ids']);
 
         // Path to writeable files in web folder
-        $files_path = dirname(__FILE__) . "/../../../../../web/uploads/files/";
-
+        $files_path = $this->container->getParameter('odr_web_directory').'/uploads/files/';
         $fs = new \Symfony\Component\Filesystem\Filesystem();
 
         //The HTML file that generates the svg graph that will be saved to the server by Phantomjs.
@@ -479,7 +405,7 @@ class GraphPlugin
         curl_close($ch);
 
         // Parse output to fix CamelCase in SVG element
-        if (file_exists($output_tmp_svg)) {
+        if ( file_exists($output_tmp_svg) ) {
             $created_file = file_get_contents($output_tmp_svg);
             $fixed_file = str_replace('viewbox', 'viewBox', $created_file);
             $fixed_file = str_replace('preserveaspectratio', 'preserveAspectRatio', $fixed_file);
@@ -487,39 +413,14 @@ class GraphPlugin
 
             // Remove the HTML file
             unlink($files_path . "Chart__" . $file_id_list . '.html');
-            return $filename;
-        } else {
-            if(strlen($output_svg) > 40) {
+            return '/uploads/files/graphs/'.$filename;
+        }
+        else {
+            if ( strlen($output_svg) > 40 ) {
                 $output_svg = "..." . substr($output_svg,(strlen($output_svg) - 40), strlen($output_svg));
             }
+
             throw new \Exception('The file "'. $output_svg .'" does not exist');
         }
-
     }
-
-    /**
-     * Returns the power set of a one dimensional array, a 2-D array.
-     * [a,b,c] -> [ [a], [b], [c], [a, b], [a, c], [b, c], [a, b, c] ]
-     *
-     * PowerSet - Used to build all possible combinations of static graphs.
-     */
-    private function powerSet($in,$minLength = 1) {
-        $count = count($in);
-        $members = pow(2,$count);
-        $return = array();
-        for ($i = 0; $i < $members; $i++) {
-            $b = sprintf("%0".$count."b",$i);
-            $out = array();
-            for ($j = 0; $j < $count; $j++) {
-                $testval = $b[$j];
-                $inval = $in[$j];
-                if ($b[$j] == '1') $out[] = $in[$j];
-            }
-            if (count($out) >= $minLength) {
-                $return[] = $out;
-            }
-        }
-        return $return;
-    }
-
 }

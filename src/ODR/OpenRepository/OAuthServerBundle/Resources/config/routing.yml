@@ -1,0 +1,18 @@
+# FOSOAuthBundle - server side oauth login routes
+odr_oauth_server_auth_login:
+    path:  /oauth/v2/auth_login
+    defaults: { _controller: ODROpenRepositoryOAuthServerBundle:Security:oauthlogin }
+
+odr_oauth_server_auth_login_check:
+    path:  /oauth/v2/auth_login_check
+    defaults: { _controller: ODROpenRepositoryOAuthServerBundle:Security:oauthloginCheck }
+    requirements: { methods: POST }
+
+# user management of OAuth Clients
+odr_create_oauth_client:
+    path:  /profile/oauth_client/create
+    defaults: { _controller: ODROpenRepositoryOAuthServerBundle:Client:createOAuthClient }
+
+odr_delete_oauth_client:
+    path:  /profile/oauth_client/delete
+    defaults: { _controller: ODROpenRepositoryOAuthServerBundle:Client:deleteOAuthClient }

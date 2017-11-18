@@ -36,18 +36,14 @@ ODR\AdminBundle\Entity\RadioOptions:
             cascade: {  }
             mappedBy: radioOption
             inversedBy: null
-            joinColumns:
-                radio_meta_id:
-                    referencedColumnName: id
+            orphanRemoval: false
 
         radioSelections:
             targetEntity: RadioSelection
             cascade: {  }
             mappedBy: radioOption
             inversedBy: null
-            joinColumns:
-                radio_selection_id:
-                    referencedColumnName: id
+            orphanRemoval: false
 
     manyToOne:
         dataField:

@@ -2,6 +2,57 @@ parameters:
 #    odr_open_repository_graph.example.class: ODR\OpenRepository\GraphBundle\Example
 
 services:
+    graph.qanalyzeplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\QanalyzePlugin
+        arguments:
+            templating: "@templating"
+            logger: "@logger"
+    graph.chemined1plugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\CheminED1Plugin
+        arguments:
+            templating: "@templating"
+            logger: "@logger"
+    graph.cheminedaplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\CheminEDAPlugin
+        arguments:
+            templating: "@templating"
+            logger: "@logger"
+    graph.cheminedsplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\CheminEDSPlugin
+        arguments:
+            templating: "@templating"
+            logger: "@logger"
+    graph.cheminee1plugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\CheminEE1Plugin
+        arguments:
+            templating: "@templating"
+            logger: "@logger"
+    graph.chemineeaplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\CheminEEAPlugin
+        arguments:
+            templating: "@templating"
+            logger: "@logger"
+    graph.chemineesplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\CheminEESPlugin
+        arguments:
+            templating: "@templating"
+            logger: "@logger"
+    graph.cheminefmplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\CheminEFMPlugin
+        arguments:
+            templating: "@templating"
+            logger: "@logger"
+    graph.cheminetrplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\CheminETRPlugin
+        arguments:
+            templating: "@templating"
+            logger: "@logger"
+
+    graph.csvtableplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\CSVTablePlugin
+        arguments:
+            templating: "@templating"
+            logger: "@logger"
     graph.graphplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\GraphPlugin
         arguments:

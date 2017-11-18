@@ -1,0 +1,34 @@
+{% spaceless %}
+
+<span id="DataTypeTools_{{ datatype.id }}" class="DataTypeTools" style="float:right;">
+    {% if theme.themeType == 'derivative' %}
+    <i class="Pointer tooltip fa fa-info-circle ODRDatatypeProperties" title="DataType Properties" rel="{{ datatype.id }}"></i>
+    {% else %}
+    <i class="Pointer tooltip fa fa-info-circle ODRThemeProperties" title="Theme Properties" rel="{{ theme.id }}"></i>
+    {% endif %}
+
+{% if is_link == 0 %}
+    {% if theme.themeType != 'table' %}
+        <i class="Pointer tooltip fa fa-edit ODRAddThemeElement" title="Add Group Box" rel="{{ theme_id }}"></i>
+    {% endif %}
+{#
+    {% if is_top_level == 0 %}
+        <i class="Pointer tooltip fa fa-trash-o ODRDeleteDatatype" title="Delete DataType" rel="{{ datatype.id }}"></i>
+    {% endif %}
+    <i class="Pointer tooltip fa fa-undo ODRUndeleteFields" title="Undelete Datafields" rel="{{ datatype.id }}"></i>
+#}
+    {% if theme.themeType == 'derivative' %}
+        {% if datatype.dataTypeMeta.renderPlugin.id != 1 %}
+            <i class="Pointer tooltip fa fa-bar-chart-o ODRRenderPlugin ODRActiveIcon" title="RenderPlugin Settings (using {{ datatype.dataTypeMeta.renderPlugin.pluginName }})" rel="{{ datatype.id }}"></i>
+        {% else %}
+            <i class="Pointer tooltip fa fa-bar-chart-o ODRRenderPlugin" title="RenderPlugin Settings" rel="{{ datatype.id }}"></i>
+        {% endif %}
+    {% endif %}
+{#
+    <i class="Pointer tooltip fa fa-globe {% if datatype.dataTypeMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatatype" title="Datatype {% if not datatype.dataTypeMeta.publicDate|is_public %}not {% endif %}visible to Public" rel="{{ datatype.id }}"></i>
+#}
+{% endif %}
+
+</span>
+
+{% endspaceless %}

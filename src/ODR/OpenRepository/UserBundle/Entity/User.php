@@ -1,22 +1,21 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* User Entity (override)
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* Extends the default FOS User Entity to add some additional data,
-* and adds a password validation function.
-*/
-
+ * Open Data Repository Data Publisher
+ * User Entity (override)
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * Extends the default FOS User Entity to add some additional data,
+ * and adds a password validation function.
+ */
 
 namespace ODR\OpenRepository\UserBundle\Entity;
 
 use FOS\UserBundle\Model\User as BaseUser;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Validator\ExecutionContextInterface;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 /**
  * @ORM\Entity
@@ -31,10 +30,16 @@ class User extends BaseUser
      */
     protected $id;
 
+    /**
+     * @inheritdoc
+     */
     public function __construct()
     {
         parent::__construct();
-        // your own logic
+
+        $this->userGroups = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->clients = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->userLink = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -234,13 +239,9 @@ class User extends BaseUser
 
     /**
      * Custom callback to validate the plainPassword
-     * @see http://symfony.com/doc/2.3/reference/constraints/Callback.html
+     * @see http://symfony.com/doc/2.8/reference/constraints/Callback.html
      *
-     * changes made to password rules should also be made in these files:
-     *  ODR\OpenRepository\UserBundle\Resources\views\ChangePassword\changePassword_content.html.twig
-     *  ODR\OpenRepository\UserBundle\Resources\views\Resetting\reset_content.html.twig
-     *  ODR\OpenRepository\UserBundle\Entity\User.php
-     *  ODR\AdminBundle\Resources\views\ODRUser\change_password.html.twig
+     * Any change to the password rules also needs to be made in ODR\AdminBundle\Resources\views\ODRUser\change_password.html.twig
      */
     public function isPasswordValid(ExecutionContextInterface $context)
     {
@@ -248,35 +249,165 @@ class User extends BaseUser
         if ($this->plainPassword == null)
             return;
 
-        if ( preg_match('/[a-z]/', $this->plainPassword) !== 1 ) {
-            $context->addViolationAt(
-                'plainPassword',
-                'Password must contain at least one lowercase letter'
-            );
+        if ( preg_match('/[a-z]/', $this->plainPassword) !== 1 )
+            $context->buildViolation('Password must contain at least one lowercase letter')->atPath('plainPassword')->addViolation();
+
+        if ( preg_match('/[A-Z]/', $this->plainPassword) !== 1 )
+            $context->buildViolation('Password must contain at least one uppercase letter')->atPath('plainPassword')->addViolation();
+
+        if ( preg_match('/[0-9]/', $this->plainPassword) !== 1 )
+            $context->buildViolation('Password must contain at least one numerical letter')->atPath('plainPassword')->addViolation();
+
+        if ( preg_match('/[\`\~\!\@\#\$\%\^\&\*\(\)\-\_\=\+\[\{\]\}\\\|\;\:\'\"\,\<\.\>\/\?]/', $this->plainPassword) !== 1 )
+            $context->buildViolation('Password must contain at least one symbol')->atPath('plainPassword')->addViolation();
+
+        if ( strlen($this->plainPassword) < 8 )
+            $context->buildViolation('Password must be at least 8 characters long')->atPath('plainPassword')->addViolation();
+    }
+
+
+    // -------------------- Groups --------------------
+    /**
+     * @var \ODR\AdminBundle\Entity\UserGroup
+     *
+     * @ORM\OneToMany(targetEntity="\ODR\AdminBundle\Entity\UserGroup", mappedBy="user")
+     * @ORM\JoinTable(name="odr_user_group")
+     */
+    private $userGroups;
+
+    /**
+     * Add userGroup
+     *
+     * @param \ODR\AdminBundle\Entity\UserGroup $userGroup
+     * @return User
+     */
+    public function addUserGroup(\ODR\AdminBundle\Entity\UserGroup $userGroup)
+    {
+        $this->userGroups[] = $userGroup;
+
+        return $this;
+    }
+
+    /**
+     * Remove userGroup
+     *
+     * @param \ODR\AdminBundle\Entity\UserGroup $userGroup
+     */
+    public function removeUserGroup(\ODR\AdminBundle\Entity\UserGroup $userGroup)
+    {
+        $this->clients->removeElement($userGroup);
+    }
+
+    /**
+     * Get userGroup
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getUserGroups()
+    {
+        return $this->userGroups;
+    }
+
+
+    // -------------------- OAuth Server --------------------
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     *
+     * @ORM\ManyToMany(targetEntity="\ODR\OpenRepository\OAuthServerBundle\Entity\Client", inversedBy="users")
+     * @ORM\JoinTable(name="fos_authorized_clients")
+     */
+    private $clients;
+
+    /**
+     * Add authorizedClient
+     *
+     * @param \ODR\OpenRepository\OAuthServerBundle\Entity\Client $client
+     * @return User
+     */
+    public function addClient(\ODR\OpenRepository\OAuthServerBundle\Entity\Client $client)
+    {
+        $this->clients[] = $client;
+
+        return $this;
+    }
+
+    /**
+     * Remove authorizedClient
+     *
+     * @param \ODR\OpenRepository\OAuthServerBundle\Entity\Client $client
+     */
+    public function removeClient(\ODR\OpenRepository\OAuthServerBundle\Entity\Client $client)
+    {
+        $this->clients->removeElement($client);
+    }
+
+    /**
+     * Get clients
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getClients()
+    {
+        return $this->clients;
+    }
+
+    /**
+     * is authorizedClient
+     *
+     * @param \ODR\OpenRepository\OAuthServerBundle\Entity\Client $client
+     * @return boolean
+     */
+    public function isAuthorizedClient(\ODR\OpenRepository\OAuthServerBundle\Entity\Client $client)
+    {
+        $authorized_clients = self::getClients();
+        foreach ($authorized_clients as $authorized_client) {
+            if ($client->getId() == $authorized_client->getId())
+                return true;
         }
-        if ( preg_match('/[A-Z]/', $this->plainPassword) !== 1 ) {
-            $context->addViolationAt(
-                'plainPassword',
-                'Password must contain at least one uppercase letter'
-            );
-        }
-        if ( preg_match('/[0-9]/', $this->plainPassword) !== 1 ) {
-            $context->addViolationAt(
-                'plainPassword',
-                'Password must contain at least one numerical character'
-            );
-        }
-        if ( preg_match('/[\`\~\!\@\#\$\%\^\&\*\(\)\-\_\=\+\[\{\]\}\\\|\;\:\'\"\,\<\.\>\/\?]/', $this->plainPassword) !== 1 ) {
-            $context->addViolationAt(
-                'plainPassword',
-                'Password must contain at least one symbol'
-            );
-        }
-        if ( strlen($this->plainPassword) < 8 ) {
-            $context->addViolationAt(
-                'plainPassword',
-                'Password must be at least 8 characters long'
-            );
-        }
+
+        return false;
+    }
+
+    // -------------------- OAuth Client --------------------
+    /**
+     * @var \ODR\OpenRepository\OAuthClientBundle\Entity\UserLink
+     *
+     * @ORM\OneToMany(targetEntity="\ODR\OpenRepository\OAuthClientBundle\Entity\UserLink", mappedBy="user")
+     * @ORM\JoinTable(name="fos_user_link_oauth")
+     */
+    private $userLink;
+
+    /**
+     * Get UserLink
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getUserLink()
+    {
+        return $this->userLink;
+    }
+
+    /**
+     * Add userLink
+     *
+     * @param \ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink
+     *
+     * @return User
+     */
+    public function addUserLink(\ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink)
+    {
+        $this->userLink[] = $userLink;
+
+        return $this;
+    }
+
+    /**
+     * Remove userLink
+     *
+     * @param \ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink
+     */
+    public function removeUserLink(\ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink)
+    {
+        $this->userLink->removeElement($userLink);
     }
 }

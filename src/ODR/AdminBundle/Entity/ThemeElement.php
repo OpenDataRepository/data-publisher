@@ -332,6 +332,16 @@ class ThemeElement
     }
 
     /**
+     * Get hidden
+     *
+     * @return integer
+     */
+    public function getHidden()
+    {
+        return $this->getThemeElementMeta()->getHidden();
+    }
+
+    /**
      * Get cssWidthXL
      *
      * @return string

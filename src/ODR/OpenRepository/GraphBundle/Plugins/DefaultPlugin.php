@@ -14,11 +14,14 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
+// Symfony
+use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+
 
 class DefaultPlugin
 {
     /**
-     * @var mixed
+     * @var EngineInterface
      */
     private $templating;
 
@@ -26,9 +29,9 @@ class DefaultPlugin
     /**
      * URLPlugin constructor.
      *
-     * @param $templating
+     * @param EngineInterface $templating
      */
-    public function __construct($templating) {
+    public function __construct(EngineInterface $templating) {
         $this->templating = $templating;
     }
 

@@ -1,0 +1,146 @@
+{% spaceless %}
+
+<!-- ODR Modal Dialog -->
+<div class="ODRRemodal" data-remodal-id="ODRRemodal" id="ODRRemodal">
+    <button data-remodal-action="close" class="remodal-close"></button>
+    <h3 class="ODRRemodalTitle"></h3>
+    <div class="ODRRemodalInner form_contents pure-u-1">
+        <div class="ODRRemodalInnerContent">
+            <div class="ODRRemodalLoading pure-u-1 Hide">
+                <div class="loading-container">
+                    <div class="loading"></div>
+                    <div class="loading-text">loading</div>
+                </div>
+            </div>
+            <div class="ODRRemodalBody Hide">
+            </div>
+        </div>
+    </div>
+    <div class="ODRRemodalButtons Hide">
+        <button data-remodal-action="close" class="ODRRemodalCancel remodal-close"></button>
+    </div>
+</div>
+<!-- End ODR Modal Dialog -->
+
+<script>
+    function setODRRemodalLoadingText(message) {
+        var loading_text = $(".ODRRemodalLoading").find(".loading-text");
+        loading_text.html(message);
+    }
+
+    function resetODRRemodalLoadingText() {
+        var loading_text = $(".ODRRemodalLoading").find(".loading-text");
+        loading_text.html("loading");
+    }
+
+    // Apparently calling the close() function on a remodal that isn't "opened" will fail silently
+    function closeODRRemodal() {
+        var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+
+        var state = inst.getState();
+        if (state === 'opened')
+            inst.close();
+        else if (state === 'opening')
+            setTimeout(closeODRRemodal, 100);
+    }
+
+    function setModalMessage(message, message_type) {
+        var modal_body = $(".ODRRemodalBody");
+        if (message_type === undefined) {
+            modal_body.html(
+                '<h4>' + message + '<h4>'
+            );
+        }
+        else if (message_type === "raw") {
+            modal_body.html( message );
+        }
+        modal_body.show();
+        resetRemodalInnerHeight();
+    }
+
+    function openODRRemodal(options, remodal_options) {
+        if (remodal_options === undefined
+            || !_.isObject(remodal_options)
+            || _.isEmpty(remodal_options)
+        ) {
+            remodal_options = {
+                hashTracking: false,
+                closeOnOutsideClick: true
+            };
+        }
+        // always disable hash tracking
+        remodal_options.hashTracking = false;
+
+
+        // Setup the modal
+        var modal = $('[data-remodal-id=ODRRemodal]');
+        var inst = modal.remodal(remodal_options);
+
+        // Reset modal
+        modal.find(".ODRRemodalLoading").hide();
+        setODRRemodalLoadingText("loading");
+        modal.find(".ODRRemodalBody").html('');
+        // Clear buttons
+        modal.find(".ODRRemodalButtons").hide();
+        modal.find(".ODRRemodalButtons button").each(function() {
+            if (!$(this).hasClass("ODRRemodalCancel")) {
+                $(this).remove();
+            }
+        });
+
+        // Set title
+        modal.find(".ODRRemodalTitle").html(options.title);
+        // Set buttons
+        if (!_.isEmpty(options.buttons)) {
+            for (var i = (options.buttons.length - 1); i >= 0; i--) {
+                var button = options.buttons[i];
+
+                var button_html = '<button ' +
+                    'id="' + button.id +'" ' +
+                    'class="pure-button ODRSubmitButton ';
+
+                if (button.secondary !== undefined && button.secondary)
+                    button_html += ' pure-button-secondary"';
+                else
+                    button_html += ' pure-button-primary"';
+
+                if (button.title)
+                    button_html += ' title="' + button.title + '"';
+
+                if (button.disabled)
+                    button_html += 'disabled>' + button.text + '</button>';
+                else
+                    button_html += '>' + button.text + '</button>';
+
+//                console.log(button_html)
+                modal.find(".ODRRemodalButtons").prepend(button_html);
+
+                // Setup click handler
+                $("#" + button.id).unbind('click').click(button.click);
+            }
+        }
+
+        if (options.body)
+            modal.find(".ODRRemodalBody").html(options.body);
+
+        // Set body
+        if (options.loading || !options.body) {
+            // Set the loading screen (if body empty)
+            modal.find(".ODRRemodalButtons").hide();
+            modal.find(".ODRRemodalLoading").show();
+        }
+        else {
+            modal.find(".ODRRemodalBody").show();
+            modal.find(".ODRRemodalButtons").show();
+        }
+
+        inst.open();
+
+        // Reset modal to display content.
+        if(options.no_reset == undefined) {
+            resetRemodalInnerHeight();
+        }
+    }
+</script>
+
+{% endspaceless %}

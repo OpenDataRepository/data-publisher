@@ -27,7 +27,7 @@ ODR\AdminBundle\Entity\UserGroup:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: userGroups
             joinColumns:
                 user_id:
                     referencedColumnName: id

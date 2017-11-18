@@ -102,16 +102,6 @@
             <span>{{ form_widget(datatype_form.searchSlug, { 'attr': {'class': '','style': 'width:auto;', 'maxlength': '32'} }) }}</span>
             </div>
         </div>
-
-        <div class="pure-control-group">
-            <label for="{{ datatype_form.useShortResults.vars.id }}">
-                {{ datatype_form.useShortResults.vars.label }}
-            </label>
-            <div class="ODRFieldWrapper">
-            {{ form_errors(datatype_form.useShortResults) }}
-            {{ form_widget(datatype_form.useShortResults, { 'attr': {'class': 'pure-u-1','style': 'width:auto'} }) }}
-            </div>
-        </div>
         {% endif %}
 
         {% if is_top_level == true and can_view_permissions == true %}

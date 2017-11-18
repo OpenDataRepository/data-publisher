@@ -1,0 +1,10 @@
+{% spaceless %}
+
+<?xml version="1.0" encoding="UTF-8"?>
+<userdata>
+{% for key, value in user_data %}
+    <{{ key }}>{{ value|raw|xml }}</{{ key }}>
+{% endfor %}
+</userdata>
+
+{% endspaceless %}

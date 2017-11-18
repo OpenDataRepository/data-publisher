@@ -26,20 +26,27 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
-// Forms
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+// Services
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
+use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 // CSV Reader
-use Ddeboer\DataImport\Reader;
-use Ddeboer\DataImport\Writer;
-use Ddeboer\DataImport\Filter;
 use Ddeboer\DataImport\Writer\CsvWriter;
 
 
 class CSVExportController extends ODRCustomController
 {
+
     /**
      * Sets up a csv export request made from a search results page.
      * 
@@ -62,30 +69,25 @@ class CSVExportController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
+                throw new ODRNotFoundException('Datatype');
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
-
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
-                $can_edit_datarecord = true;
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
             // Ensure user has permissions to be doing this
-            if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
-                return parent::permissionDeniedError("export");
+            if ( !$user->hasRole('ROLE_ADMIN') || !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
             // --------------------
 
             // ----------------------------------------
@@ -108,7 +110,7 @@ class CSVExportController extends ODRCustomController
                 // If there is no tab id for some reason, or the user is attempting to view a datarecord from a search that returned no results...
                 if ( $odr_tab_id === '' || $data['redirect'] == true || ($encoded_search_key !== '' && $datarecord_list === '') ) {
                     // ...get the search controller to redirect to "no results found" page
-                    $url = $this->generateUrl('odr_search_render', array('theme_id' => 0, 'search_key' => $data['encoded_search_key']));
+                    $url = $this->generateUrl('odr_search_render', array('search_key' => $data['encoded_search_key']));
                     return parent::searchPageRedirect($user, $url);
                 }
 
@@ -137,9 +139,11 @@ class CSVExportController extends ODRCustomController
             $return['d'] = array( 'html' => $header_html.$page_html );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x12736279 ' . $e->getMessage();
+            $source = 0x8647bcc3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -162,44 +166,44 @@ class CSVExportController extends ODRCustomController
         // Required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
+        /** @var PermissionsManagementService $pm_service */
+        $pm_service = $this->container->get('odr.permissions_management_service');
+        /** @var ThemeInfoService $theme_service */
+        $theme_service = $this->container->get('odr.theme_info_service');
+
 
         // All of these should already exist
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
         /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+//        $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
 
 
         // --------------------
         // Determine user privileges
         /** @var User $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
-        $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+        $user_permissions = $pm_service->getUserPermissionsArray($user);
         // --------------------
 
-        // Always bypass cache in dev mode
-        $bypass_cache = false;
-        if ($this->container->getParameter('kernel.environment') === 'dev')
-            $bypass_cache = true;
 
         // ----------------------------------------
         // Grab the cached version of the desired datatype
-        $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype->getId())));
-        if ($bypass_cache || $datatype_data == false)
-            $datatype_data = parent::getDatatypeData($em, parent::getDatatreeArray($em, $bypass_cache), $datatype->getId(), $bypass_cache);
-
-
+        $include_links = false;
+        $datatype_data = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
 //print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();
 
-        // ----------------------------------------
         // Filter by user permissions
         $datarecord_data = array();
-        parent::filterByGroupPermissions($datatype_data, $datarecord_data, $user_permissions);
+        $pm_service->filterByGroupPermissions($datatype_data, $datarecord_data, $user_permissions);
+
+        $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
 
 
+        // ----------------------------------------
         // Render the CSVExport page
         $templating = $this->get('templating');
         $html = $templating->render(
@@ -207,7 +211,7 @@ class CSVExportController extends ODRCustomController
             array(
                 'datatype_array' => $datatype_data,
                 'initial_datatype_id' => $datatype_id,
-                'theme_id' => $theme->getId(),
+                'theme_array' => $theme_array,
 
                 'odr_tab_id' => $odr_tab_id,
             )
@@ -232,12 +236,11 @@ class CSVExportController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            $post = $_POST;
-//print_r($post);
-//return;
+            $post = $request->request->all();
+//print_r($post);  exit();
 
             if ( !isset($post['odr_tab_id']) || !isset($post['datafields']) || !isset($post['datatype_id']) || !isset($post['csv_export_delimiter']) )
-                throw new \Exception('bad post request');
+                throw new ODRBadRequestException();
 
             $odr_tab_id = $post['odr_tab_id'];
             $datafields = $post['datafields'];
@@ -253,15 +256,14 @@ class CSVExportController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
-
-
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+                throw new ODRNotFoundException('Datatype');
 
             $session = $request->getSession();
             $api_key = $this->container->getParameter('beanstalk_api_key');
@@ -275,20 +277,10 @@ class CSVExportController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
-                $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
-            if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
-                return parent::permissionDeniedError("export");
+            if ( !$user->hasRole('ROLE_ADMIN') || !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -297,9 +289,9 @@ class CSVExportController extends ODRCustomController
                 /** @var DataFields $datafield */
                 $datafield = $repo_datafields->find($datafield_id);
                 if ($datafield == null)
-                    throw new \Exception('Datafield does not exist');
+                    throw new ODRNotFoundException('Datafield');
                 if ($datafield->getDataType()->getId() != $datatype->getId() )
-                    throw new \Exception('Invalid Datafield');
+                    throw new ODRBadRequestException('Invalid Datafield');
             }
 
             // Translate delimiter from string to character
@@ -323,7 +315,7 @@ class CSVExportController extends ODRCustomController
                     $delimiter = "|";
                     break;
                 default:
-                    throw new \Exception('bad post request');
+                    throw new ODRBadRequestException('Invalid delimiter');
                     break;
             }
             switch ($secondary_delimiter) {
@@ -350,7 +342,7 @@ class CSVExportController extends ODRCustomController
                 case null:
                     break;
                 default:
-                    throw new \Exception('bad post request');
+                    throw new ODRBadRequestException('Invalid secondary delimiter');
                     break;
             }
 
@@ -409,6 +401,7 @@ return;
 
                 // ----------------------------------------
                 // Create a beanstalk job for each of these datarecords
+                $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
                 foreach ($datarecords as $num => $datarecord_id) {
 
                     $priority = 1024;   // should be roughly default priority
@@ -437,13 +430,15 @@ return;
 
             }
             else {
-                throw new \Exception('No datarecords selected to export');
+                throw new ODRException('No datarecords selected to export');
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x24397429 ' . $e->getMessage();
+            $source = 0x86acf50b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -467,12 +462,14 @@ return;
         $return['d'] = '';
 
         try {
-            $post = $_POST;
-//print_r($post);
-//return;
+            // This should only be called by a beanstalk worker process, so force exceptions to be in json
+            $request->setRequestFormat('json');
+
+            $post = $request->request->all();
+//print_r($post);  exit();
 
             if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecord_id']) || !isset($post['datatype_id']) || !isset($post['datafields']) || !isset($post['api_key']) || !isset($post['delimiter']) )
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
@@ -488,15 +485,12 @@ return;
                 $secondary_delimiter = $post['secondary_delimiter'];
 
             // Load symfony objects
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
 
             $url = $this->container->getParameter('site_baseurl');
             $url .= $this->container->get('router')->generate('odr_csv_export_worker');
@@ -508,7 +502,7 @@ return;
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
-                throw new \Exception('Datatype does not exist');
+                throw new ODRNotFoundException('Datatype');
 
             $datarecord_data = array();
 
@@ -566,7 +560,7 @@ return;
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                throw new \Exception('Datarecord does not exist');
+                throw new ODRNotFoundException('Datarecord');
 
             $external_id = $datarecord->getExternalId();        // TODO - marked as deprecated, but should it actually be used here?
 
@@ -644,20 +638,19 @@ return;
 
             // Sort by datafield id to ensure columns are always in same order in csv file
             ksort($datarecord_data);
-//print_r($datarecord_data);
-//return;
+//print_r($datarecord_data);  exit();
 
             $line = array();
             $line[] = $external_id;
 
             foreach ($datarecord_data as $df_id => $data)
                 $line[] = $data;
+//print_r($line);  exit();
 
-print_r($line);
-//return;
 
             // ----------------------------------------
             // Create a beanstalk job for this datarecord
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
             $priority = 1024;   // should be roughly default priority
             $payload = json_encode(
                 array(
@@ -682,9 +675,11 @@ print_r($line);
             $return['d'] = '';
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x24463979 ' . $e->getMessage();
+            $source = 0x5bd2c168;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -708,12 +703,15 @@ print_r($line);
         $return['d'] = '';
 
         try {
-            $post = $_POST;
-//print_r($post);
-//return;
+            // This should only be called by a beanstalk worker process, so force exceptions to be in json
+            $request->setRequestFormat('json');
+
+            $post = $request->request->all();
+//print_r($post);  exit();
+
 
             if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['line']) || !isset($post['datafields']) || !isset($post['random_key']) || !isset($post['api_key']) || !isset($post['delimiter']) )
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
@@ -725,15 +723,12 @@ print_r($line);
             $delimiter = $post['delimiter'];
 
             // Load symfony objects
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -757,18 +752,18 @@ print_r($line);
 
 
             // Ensure directories exists
-            $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/csv_export/';
+            $csv_export_path = $this->getParameter('odr_web_directory').'/uploads/csv_export/';
             if ( !file_exists($csv_export_path) )
                 mkdir( $csv_export_path );
 
-            $csv_export_path .= 'tmp/';
-            if ( !file_exists($csv_export_path) )
-                mkdir( $csv_export_path );
+            $tmp_csv_export_path = $csv_export_path.'tmp/';
+            if ( !file_exists($tmp_csv_export_path) )
+                mkdir( $tmp_csv_export_path );
 
 
             // Open the indicated file
             $filename = 'f_'.$random_key.'.csv';
-            $handle = fopen($csv_export_path.$filename, 'a');
+            $handle = fopen($tmp_csv_export_path.$filename, 'a');
             if ($handle !== false) {
                 // Write the line given to the file
                 // https://github.com/ddeboer/data-import/blob/master/src/Ddeboer/DataImport/Writer/CsvWriter.php
@@ -784,7 +779,7 @@ print_r($line);
             }
             else {
                 // Unable to open file
-                throw new \Exception('could not open csv export file...');
+                throw new ODRException('Could not open csv worker export file.');
             }
 
 
@@ -884,7 +879,7 @@ print_r($line);
 
                 // Make a "final" file for the export, and insert the header line
                 $final_filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
-                $final_file = fopen($csv_export_path.$final_filename, 'w');
+                $final_file = fopen($csv_export_path.$final_filename, 'w');     // this should be created in the web/uploads/csv_export/ directory, not the web/uploads/csv_export/tmp/ directory
 
                 if ($final_file !== false) {
 //                    $delimiter = "\t";
@@ -895,7 +890,7 @@ print_r($line);
                     $writer->writeItem($header_line);
                 }
                 else {
-                    throw new \Exception('could not open csv export file...b');
+                    throw new ODRException('Could not open csv finalize export file.');
                 }
 
                 fclose($final_file);
@@ -905,7 +900,8 @@ print_r($line);
                 $url = $this->container->getParameter('site_baseurl');
                 $url .= $this->container->get('router')->generate('odr_csv_export_finalize');
 
-                // 
+                //
+                $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
                 $priority = 1024;   // should be roughly default priority
                 $payload = json_encode(
                     array(
@@ -929,9 +925,11 @@ print_r($line);
             $return['d'] = '';
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x302421399 ' . $e->getMessage();
+            $source = 0xc0abdfce;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -955,12 +953,15 @@ print_r($line);
         $return['d'] = '';
 
         try {
-            $post = $_POST;
-//print_r($post);
-//return;
+            // This should only be called by a beanstalk worker process, so force exceptions to be in json
+            $request->setRequestFormat('json');
+
+            $post = $request->request->all();
+//print_r($post);  exit();
+
 
             if ( !isset($post['tracked_job_id']) || !isset($post['final_filename']) || !isset($post['random_keys']) || !isset($post['user_id']) || !isset($post['api_key']) )
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
@@ -970,15 +971,12 @@ print_r($line);
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -986,8 +984,10 @@ print_r($line);
 
             // -----------------------------------------
             // Append the contents of one of the temporary files to the final file
-            $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/csv_export/';
+            $csv_export_path = $this->getParameter('odr_web_directory').'/uploads/csv_export/';
             $final_file = fopen($csv_export_path.$final_filename, 'a');
+            if (!$final_file)
+                throw new ODRException('Unable to open csv export finalize file');
 
             // Go through and append the contents of each of the temporary files to the "final" file
             $tracked_csv_export_id = null;
@@ -1023,7 +1023,8 @@ print_r($line);
                 $url = $this->container->getParameter('site_baseurl');
                 $url .= $this->container->get('router')->generate('odr_csv_export_finalize');
 
-                // 
+                //
+                $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
                 $priority = 1024;   // should be roughly default priority
                 $payload = json_encode(
                     array(
@@ -1055,9 +1056,11 @@ print_r($line);
             $return['d'] = '';
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x32439779 ' . $e->getMessage();
+            $source = 0xa9285db8;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1080,22 +1083,24 @@ print_r($line);
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
-        $return['d'] = ''; 
-            
-        $response = new StreamedResponse();
-        
+        $return['d'] = '';
+
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var TrackedJob $tracked_job */
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
             if ($tracked_job == null)
-                return parent::deletedEntityError("Job");
+                throw new ODRNotFoundException('Job');
             $job_type = $tracked_job->getJobType();
             if ($job_type !== 'csv_export')
-                return parent::deletedEntityError("Job");
+                throw new ODRNotFoundException('Job');
 
             $target_entity = $tracked_job->getTargetEntity();
             $tmp = explode('_', $target_entity);
@@ -1103,42 +1108,32 @@ print_r($line);
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find( $tmp[1] );
             if ($datatype == null)
-                return parent::deletedEntityError("DataType");
-            $datatype_id = $datatype->getId();
+                throw new ODRNotFoundException('Datatype');
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
-                $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
-            if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
-                return parent::permissionDeniedError("export");
+            if ( !$user->hasRole('ROLE_ADMIN') || !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
             // --------------------
 
 
-            $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/csv_export/';
+            $csv_export_path = $this->getParameter('odr_web_directory').'/uploads/csv_export/';
             $filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
 
             $handle = fopen($csv_export_path.$filename, 'r');
             if ($handle !== false) {
-        
                 // Set up a response to send the file back
+                $response = new StreamedResponse();
+
                 $response->setPrivate();
                 $response->headers->set('Content-Type', mime_content_type($csv_export_path.$filename));
                 $response->headers->set('Content-Length', filesize($csv_export_path.$filename));
                 $response->headers->set('Content-Disposition', 'attachment; filename="'.$filename.'";');
-    
+
 //                $response->sendHeaders();
 
                 // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
@@ -1150,26 +1145,19 @@ print_r($line);
                     }
                     fclose($handle);
                 });
+
+                return $response;
             }
             else {
-                throw new \Exception('Could not open requested file');
+                throw new FileNotFoundException($filename);
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x848128635 ' . $e->getMessage();
-        }
-
-        if ($return['r'] !== 0) {
-            // If error encountered, do a json return
-            $response = new Response(json_encode($return));
-            $response->headers->set('Content-Type', 'application/json');
-            return $response;
-        }
-        else {
-            // Return the previously created response
-            return $response;
+            $source = 0x86a6eb3a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 

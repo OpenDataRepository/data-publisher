@@ -26,11 +26,26 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\File;
-use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
-// Forms
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
+// Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CryptoService;
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
+use Doctrine\ORM\EntityManager;
 use Symfony\Component\HttpFoundation\Cookie;
+use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -38,6 +53,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DisplayController extends ODRCustomController
 {
+
     /**
      * Returns the "Results" version of the given DataRecord.
      * 
@@ -56,48 +72,48 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $session = $request->getSession();
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
+
+
+            // ----------------------------------------
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                return parent::deletedEntityError('Datarecord');
+                throw new ODRNotFoundException('Datarecord');
 
             $datatype = $datarecord->getDataType();
-            if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
 
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-            if ($theme == null)
-                return parent::deletedEntityError('Theme');
+            // Save in case the user requested a child datarecord
+            $requested_datarecord = $datarecord;
+            $requested_datatype = $datatype;
 
-            // Save incase the user originally requested a child datarecord
-            $original_datarecord = $datarecord;
-            $original_datatype = $datatype;
-            $original_theme = $theme;
-
-
-            // ...want the grandparent datarecord and datatype for everything else, however
+            // Want the grandparent datarecord and datatype for everything else
             $is_top_level = 1;
             if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() ) {
+                // This is a child datatype
                 $is_top_level = 0;
                 $datarecord = $datarecord->getGrandparent();
+                if ($datarecord->getDeletedAt() != null)
+                    throw new ODRNotFoundException('Datarecord');
 
                 $datatype = $datarecord->getDataType();
-                if ($datatype == null)
-                    return parent::deletedEntityError('Datatype');
-
-                /** @var Theme $theme */
-                $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-                if ($theme == null)
-                    return parent::deletedEntityError('Theme');
+                if ($datatype->getDeletedAt() != null)
+                    throw new ODRNotFoundException('Datatype');
             }
 
 
@@ -105,40 +121,12 @@ class DisplayController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = array();
-            $datatype_permissions = array();
-            $datafield_permissions = array();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
-
-            if ( $user === 'anon.' ) {
-                if ( $datatype->isPublic() && $datarecord->isPublic() ) {
-                    /* anonymous users aren't restricted from a public datarecord that belongs to a public datatype */
-                }
-                else {
-                    // ...if either the datatype is non-public or the datarecord is non-public, return false
-                    return parent::permissionDeniedError('view');
-                }
-            }
-            else {
-                // Grab user's permissions
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-//                $datarecord_restriction = $user_permissions['datarecord_restriction'];  // TODO
-
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                // TODO - should this check block viewing of a public child datarecord if the user isn't allowed to see its parent?
-                // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
-                if ( !($original_datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) )
-                    return parent::permissionDeniedError('view');
-            }
+            if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canViewDatarecord($user, $datarecord) )
+                throw new ODRForbiddenException();
             // ----------------------------------------
 
 
@@ -239,77 +227,26 @@ class DisplayController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Always bypass cache if in dev mode?
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
+            // Load the cached versions of all datarecords, datatypes, and themes that will be
+            //  needed for rendering this datarecord
+            $datarecord_array = $dri_service->getDatarecordArray($datarecord->getId());
+            $datatype_array = $dti_service->getDatatypeArray($datatype->getId());
+            $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user);
 
-
-            // Grab all datarecords "associated" with the desired datarecord...
-            $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId())));
-            if ($bypass_cache || $associated_datarecords == false) {
-                $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord->getId()));
-
-                $redis->set($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId(), gzcompress(serialize($associated_datarecords)));
-            }
-
-//print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
-
-            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
-            $datarecord_array = array();
-            foreach ($associated_datarecords as $num => $dr_id) {
-                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
-                if ($bypass_cache || $datarecord_data == false)
-                    $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
-
-                foreach ($datarecord_data as $dr_id => $data)
-                    $datarecord_array[$dr_id] = $data;
-            }
-
-//print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
-
-
-            // ----------------------------------------
-            //
-            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-
-            // Grab all datatypes associated with the desired datarecord
-            // NOTE - not using parent::getAssociatedDatatypes() here on purpose...that would always return child/linked datatypes for the datatype even if this datarecord isn't making use of them
-            $associated_datatypes = array();
-            foreach ($datarecord_array as $dr_id => $dr) {
-                $dt_id = $dr['dataType']['id'];
-
-                if ( !in_array($dt_id, $associated_datatypes) )
-                    $associated_datatypes[] = $dt_id;
-            }
-
-
-            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            $datatype_array = array();
-            foreach ($associated_datatypes as $num => $dt_id) {
-                // print $redis_prefix.'.cached_datatype_'.$dt_id;
-                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-                if ($bypass_cache || $datatype_data == false)
-                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
-
-                foreach ($datatype_data as $dt_id => $data)
-                    $datatype_array[$dt_id] = $data;
-            }
-
-//print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
 
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-//print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
-//print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
+            // Intentionally leaving the theme array alone
+            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 
-            // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-            $stacked_datarecord_array[ $original_datarecord->getId() ] = parent::stackDatarecordArray($datarecord_array, $original_datarecord->getId());
-            $stacked_datatype_array[ $original_datatype->getId() ] = parent::stackDatatypeArray($datatype_array, $original_datatype->getId(), $original_theme->getId());
-//print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
-//print '<pre>'.print_r($stacked_datatype_array, true).'</pre>';  exit();
+            // "Inflate" the currently flattened $datarecord_array and $datatype_array...
+            // This is required so that render plugins for a datatype can also correctly render
+            //  that datatype's child/linked datatypes
+            $stacked_datarecord_array[ $requested_datarecord->getId() ] =
+                $dri_service->stackDatarecordArray($datarecord_array, $requested_datarecord->getId());
+            $stacked_datatype_array[ $requested_datatype->getId() ] =
+                $dti_service->stackDatatypeArray($datatype_array, $requested_datatype->getId());
 
 
             // ----------------------------------------
@@ -320,14 +257,15 @@ class DisplayController extends ODRCustomController
                 array(
                     'datatype_array' => $stacked_datatype_array,
                     'datarecord_array' => $stacked_datarecord_array,
+                    'theme_array' => $theme_array,
 
-                    'theme_id' => $original_theme->getId(),    // using these on purpose...user could have requested a child datarecord initially
-                    'initial_datatype_id' => $original_datatype->getId(),
-                    'initial_datarecord_id' => $original_datarecord->getId(),
+                    'initial_datatype_id' => $requested_datatype->getId(),
+                    'initial_datarecord_id' => $requested_datarecord->getId(),
 
                     'is_top_level' => $is_top_level,
-
                     'search_key' => $search_key,
+                    'user' => $user,
+                    'record_display_view' => 'single',
                 )
             );
 
@@ -336,188 +274,15 @@ class DisplayController extends ODRCustomController
                 'html' => $header_html.$page_html
             );
 
+            // Store which datarecord to scroll to if returning to the search results list
+            $session->set('scroll_target', $datarecord->getId());
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x38978321 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Given a datarecord and datafield, re-render and return the html for that datafield.
-     *
-     * @param integer $datarecord_id
-     * @param integer $datafield_id
-     * @param integer $theme_id
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function reloaddatafieldAction($datarecord_id, $datafield_id, $theme_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = 'html';
-        $return['d'] = '';
-
-        try {
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-            /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if ($datarecord == null)
-                return parent::deletedEntityError('Datarecord');
-            /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-            if ($datafield == null)
-                return parent::deletedEntityError('DataField');
-            $datatype = $datafield->getDataType();
-            if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
-
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
-            if ($theme == null)
-                return parent::deletedEntityError('Theme');
-
-
-            // Save incase the user originally requested a re-render of a datafield from a child datarecord
-            $original_datarecord = $datarecord;
-            $original_datatype = $datatype;
-
-            // ...want the grandparent datarecord and datatype for everything else, however
-            if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() ) {
-                $datarecord = $datarecord->getGrandparent();
-
-                $datatype = $datarecord->getDataType();
-                if ($datatype == null)
-                    return parent::deletedEntityError('Datatype');
-            }
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = array();
-            $datarecord_restriction = '';
-
-            if ( $user === 'anon.' ) {
-                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() ) {
-                    /* anonymous users aren't restricted from a public datafield in a public datarecord that belongs to a public datatype */
-                }
-                else {
-                    // ...if any of the relevant entities are non-public, return false
-                    return parent::permissionDeniedError('view');
-                }
-            }
-            else {
-                // Grab user's permissions
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-//                $datarecord_restriction = $user_permissions['datarecord_restriction'];      // TODO
-
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                $can_view_datafield = false;
-                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                    $can_view_datafield = true;
-
-                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !($original_datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
-                    return parent::permissionDeniedError('view');
-            }
-            // --------------------
-
-            // Always bypass cache if in dev mode?
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
-
-
-            // ----------------------------------------
-            // Grab the cached versions of the desired datarecord
-            $datarecord_array = array();
-            $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$datarecord->getId())));
-            if ($bypass_cache || $datarecord_data == false)
-                $datarecord_data = parent::getDatarecordData($em, $datarecord->getId(), $bypass_cache);
-
-            foreach ($datarecord_data as $dr_id => $data)
-                $datarecord_array[$dr_id] = $data;
-
-
-            // Grab the cached version of the datafield's datatype
-            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-            $datatype_array = array();
-            $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$original_datatype->getId())));
-            if ($bypass_cache || $datatype_data == false)
-                $datatype_data = parent::getDatatypeData($em, $datatree_array, $original_datatype->getId(), $bypass_cache);
-
-            foreach ($datatype_data as $dt_id => $data)
-                $datatype_array[$dt_id] = $data;
-
-
-            // ----------------------------------------
-            // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-            // Extract datafield and theme_datafield from datatype_array
-            $datafield = null;
-            foreach ($datatype_array[ $original_datatype->getId() ]['themes'][$theme_id]['themeElements'] as $te_num => $te) {
-                if ( isset($te['themeDataFields']) ) {
-                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-
-                        if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $datafield_id ) {
-                            $datafield = $tdf['dataField'];
-                            break;
-                        }
-                    }
-                    if ($datafield !== null)
-                        break;
-                }
-            }
-
-            if ( $datafield == null )
-                throw new \Exception('Unable to locate array entry for datafield '.$datafield_id);
-
-
-            // ----------------------------------------
-            // Render and return the HTML for this datafield
-            $templating = $this->get('templating');
-            $html = $templating->render(
-                'ODRAdminBundle:Display:display_datafield.html.twig',
-                array(
-                    'datarecord' => $datarecord_array[ $original_datarecord->getId() ],
-                    'datafield' => $datafield,
-
-                    'image_thumbnails_only' => false,
-                )
-            );
-
-            $return['d'] = array('html' => $html);
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x438381285 ' . $e->getMessage();
+            $source = 0x8f465413;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -546,64 +311,45 @@ class DisplayController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
+
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             // Locate the file in the database
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
-                return parent::deletedEntityError('File');
+                throw new ODRNotFoundException('File');
+
             $datafield = $file->getDataField();
             if ($datafield->getDeletedAt() != null)
-                return parent::deletedEntityError('DataField');
+                throw new ODRNotFoundException('Datafield');
             $datarecord = $file->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
-                return parent::deletedEntityError('DataRecord');
+                throw new ODRNotFoundException('Datarecord');
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('DataType');
+                throw new ODRNotFoundException('Datatype');
 
             // Files that aren't done encrypting shouldn't be downloaded
             if ($file->getProvisioned() == true)
-                return parent::deletedEntityError('File');
+                throw new ODRNotFoundException('File');
 
 
             // ----------------------------------------
             // First, ensure user is permitted to download
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if ($user === 'anon.') {
-                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() && $file->isPublic() ) {
-                    // user is allowed to download this file
-                }
-                else {
-                    // something is non-public, therefore an anonymous user isn't allowed to download this file
-                    return parent::permissionDeniedError();
-                }
-            }
-            else {
-                // Grab the user's permission list
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
 
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                $can_view_datafield = false;
-                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                    $can_view_datafield = true;
-
-                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
-                    return parent::permissionDeniedError();
+            if (!$pm_service->canViewDatatype($user, $datatype)
+                || !$pm_service->canViewDatarecord($user, $datarecord)
+                || !$pm_service->canViewDatafield($user, $datafield)
+            ) {
+                throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
@@ -616,14 +362,15 @@ class DisplayController extends ODRCustomController
             $url .= $router->generate('odr_crypto_request');
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
-            $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
+
+            $file_decryptions = $cache_service->get('file_decryptions');
 
 
             // ----------------------------------------
             // Slightly different courses of action depending on the public status of the file
             if ( $file->isPublic() ) {
                 // Check that the file exists...
-                $local_filepath = realpath( dirname(__FILE__).'/../../../../web/'.$file->getLocalFileName() );
+                $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getLocalFileName() );
                 if (!$local_filepath) {
                     // File does not exist for some reason...see if it's getting decrypted right now
                     $target_filename = 'File_'.$file_id.'.'.$file->getExt();
@@ -631,7 +378,7 @@ class DisplayController extends ODRCustomController
                     if ( !isset($file_decryptions[$target_filename]) ) {
                         // File is not scheduled to get decrypted at the moment, store that it will be decrypted
                         $file_decryptions[$target_filename] = 1;
-                        $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
+                        $cache_service->set('file_decryptions', $file_decryptions);
 
                         // Schedule a beanstalk job to start decrypting the file
                         $priority = 1024;   // should be roughly default priority
@@ -667,7 +414,7 @@ class DisplayController extends ODRCustomController
                         $download_url = $this->generateUrl('odr_file_download', array('file_id' => $file_id));
 
                         // Return a link to the download URL
-                        $response = new Response();
+                        $response = new JsonResponse(array());
                         $response->setStatusCode(200);
                         $response->headers->set('Location', $download_url);
 
@@ -687,7 +434,7 @@ class DisplayController extends ODRCustomController
                 if ( !isset($file_decryptions[$target_filename]) ) {
                     // File is not scheduled to get decrypted at the moment, store that it will be decrypted
                     $file_decryptions[$target_filename] = 1;
-                    $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
+                    $cache_service->set('file_decryptions', $file_decryptions);
 
                     // Schedule a beanstalk job to start decrypting the file
                     $priority = 1024;   // should be roughly default priority
@@ -718,20 +465,18 @@ class DisplayController extends ODRCustomController
             // Return a URL to monitor decryption progress
             $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', array('file_id' => $file_id));
 
-            $response = new Response();
+            $response = new JsonResponse(array());
             $response->setStatusCode(202);
             $response->headers->set('Location', $monitor_url);
 
             return $response;
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x3835385 ' . $e->getMessage();
-
-            $response = new Response(json_encode($return));
-            $response->headers->set('Content-Type', 'application/json');
-            return $response;
+            $source = 0x9afc6f73;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
@@ -757,60 +502,42 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             // Locate the file in the database
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
-                return parent::deletedEntityError('File');
+                throw new ODRNotFoundException('File');
+
             $datafield = $file->getDataField();
             if ($datafield->getDeletedAt() != null)
-                return parent::deletedEntityError('DataField');
+                throw new ODRNotFoundException('Datafield');
             $datarecord = $file->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
-                return parent::deletedEntityError('DataRecord');
+                throw new ODRNotFoundException('Datarecord');
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('DataType');
+                throw new ODRNotFoundException('Datatype');
 
             // Files that aren't done encrypting shouldn't be downloaded
             if ($file->getProvisioned() == true)
-                return parent::deletedEntityError('File');
+                throw new ODRNotFoundException('File');
 
 
             // ----------------------------------------
             // First, ensure user is permitted to download
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if ($user === 'anon.') {
-                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() && $file->isPublic() ) {
-                    // user is allowed to download this file
-                }
-                else {
-                    // something is non-public, therefore an anonymous user isn't allowed to download this file
-                    return parent::permissionDeniedError();
-                }
-            }
-            else {
-                // Grab the user's permission list
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
 
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                $can_view_datafield = false;
-                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                    $can_view_datafield = true;
-
-                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
-                    return parent::permissionDeniedError();
+            if (!$pm_service->canViewDatarecord($user, $datarecord)
+                || !$pm_service->canViewDatafield($user, $datafield)
+            ) {
+                throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
@@ -821,9 +548,16 @@ class DisplayController extends ODRCustomController
             if ( !$file->isPublic() )
                 $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
 
-            $local_filepath = realpath( dirname(__FILE__).'/../../../../web/'.$file->getUploadDir().'/'.$filename );
+            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
+            if (!$local_filepath) {
+                // Allow graph plugin to download non-public files directly?
+                // TODO - don't like this...
+                if ($datatype->getRenderPlugin()->getPluginName() == 'Graph Plugin')
+                    $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
+            }
+
             if (!$local_filepath)
-                throw new \Exception('File at "'.$local_filepath.'" does not exist');
+                throw new FileNotFoundException($local_filepath);
 
             $response = self::createDownloadResponse($file, $local_filepath);
 
@@ -834,13 +568,16 @@ class DisplayController extends ODRCustomController
             return $response;
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x848418123: ' . $e->getMessage();
+            // Usually this'll be called via the jQuery fileDownload plugin, and therefore need a json-format error
+            // But in the off-chance it's a direct link, then the error format needs to remain html
+            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
+                $request->setRequestFormat('json');
 
-            // The jquery $.fileDownload() behaves better if an error is returned as the responseHTML...
-            $response = new Response($return['d']);
-            return $response;
+            $source = 0xe3de488a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
@@ -905,7 +642,7 @@ class DisplayController extends ODRCustomController
 
     /**
      * Provides users the ability to cancel the decryption of a file.
-     * @deprecated?
+     * @deprecated
      *
      * @param integer $file_id  The database id of the file currently being decrypted
      * @param Request $request
@@ -920,6 +657,8 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            throw new ODRNotImplementedException();
+
             // ----------------------------------------
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1019,31 +758,36 @@ class DisplayController extends ODRCustomController
         $return['t'] = 'html';
         $return['d'] = '';
 
-        $response = new Response();
-
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             // Locate the image object in the database
             /** @var Image $image */
             $image = $em->getRepository('ODRAdminBundle:Image')->find($image_id);
             if ($image == null)
-                return parent::deletedEntityError('Image');
+                throw new ODRNotFoundException('Image');
+
             $datafield = $image->getDataField();
             if ($datafield->getDeletedAt() != null)
-                return parent::deletedEntityError('DataField');
+                throw new ODRNotFoundException('Datafield');
             $datarecord = $image->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
-                return parent::deletedEntityError('DataRecord');
+                throw new ODRNotFoundException('Datarecord');
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('DataType');
+                throw new ODRNotFoundException('Datatype');
 
             // Images that aren't done encrypting shouldn't be downloaded
             if ($image->getEncryptKey() == '')
-                return parent::deletedEntityError('Image');
+                throw new ODRNotFoundException('Image');
 
 
             // ----------------------------------------
@@ -1051,51 +795,29 @@ class DisplayController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ($user === 'anon.') {
-                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() && $image->isPublic() ) {
-                    // user is allowed to download this image
-                }
-                else {
-                    // something is non-public, therefore an anonymous user isn't allowed to download this image
-                    return parent::permissionDeniedError();
-                }
-            }
-            else {
-                // Grab the user's permission list
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                $can_view_datafield = false;
-                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                    $can_view_datafield = true;
-
-                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
-                    return parent::permissionDeniedError();
+            if (!$pm_service->canViewDatarecord($user, $datarecord)
+                || !$pm_service->canViewDatafield($user, $datafield)
+            ) {
+                throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
+            // Ensure file exists before attempting to download it
+            $filename = 'Image_'.$image_id.'.'.$image->getExt();
+            if ( !$image->isPublic() )
+                $filename = md5($image->getOriginalChecksum().'_'.$image_id.'_'.$user->getId()).'.'.$image->getExt();
 
             // Ensure the image exists in decrypted format
-            $image_path = realpath( dirname(__FILE__).'/../../../../web/'.$image->getLocalFileName() );     // realpath() returns false if file does not exist
+            $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
             if ( !$image->isPublic() || !$image_path )
-                $image_path = parent::decryptObject($image->getId(), 'image');
+                $image_path = $crypto_service->decryptImage($image_id, $filename);
 
             $handle = fopen($image_path, 'r');
             if ($handle === false)
-                throw new \Exception('Unable to open image at "'.$image_path.'"');
-
+                throw new FileNotFoundException($image_path);
 
             // Have to send image headers first...
+            $response = new Response();
             $response->setPrivate();
             switch ( strtolower($image->getExt()) ) {
                 case 'gif':
@@ -1142,22 +864,16 @@ class DisplayController extends ODRCustomController
             // If the image isn't public, delete the decrypted version so it can't be accessed without going through symfony
             if ( !$image->isPublic() )
                 unlink($image_path);
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x848418124: ' . $e->getMessage();
-        }
 
-        if ($return['r'] !== 0) {
-            // If error encountered, do a json return
-            $response = new Response(json_encode($return));
-            $response->headers->set('Content-Type', 'application/json');
-            return $response;
-        }
-        else {
             // Return the previously created response
             return $response;
+        }
+        catch (\Exception $e) {
+            $source = 0xc2fbf062;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
@@ -1180,38 +896,45 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // ----------------------------------------
             // Get necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             /** @var DataRecord $grandparent_datarecord */
             $grandparent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($grandparent_datarecord_id);
             if ($grandparent_datarecord == null)
-                return parent::deletedEntityError('Grandparent DataRecord');
+                throw new ODRNotFoundException('Grandparent Datarecord');
 
             $grandparent_datatype = $grandparent_datarecord->getDataType();
             if ($grandparent_datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('Grandparent DataType');
-
+                throw new ODRNotFoundException('Grandparent Datarecord');
 
             if ( ($datarecord_id === 0 && $datafield_id !== 0) || ($datarecord_id !== 0 && $datafield_id === 0) )
-                throw new \Exception('Invalid arguments');
+                throw new ODRBadRequestException();
 
-            /** @var DataType|null $datatype */
+
+            /** @var DataType $datatype */
             $datatype = null;
+
             /** @var DataRecord|null $datarecord */
             $datarecord = null;
             if ($datarecord_id !== 0) {
                 $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
                 if ($datarecord == null)
-                    return parent::deletedEntityError('DataRecord');
+                    throw new ODRNotFoundException('Datarecord');
 
                 $datatype = $datarecord->getDataType();
                 if ($datatype->getDeletedAt() != null)
-                    return parent::deletedEntityError('DataType');
+                    throw new ODRNotFoundException('Datatype');
             }
 
             /** @var DataFields|null $datafield */
@@ -1219,7 +942,11 @@ class DisplayController extends ODRCustomController
             if ($datafield_id !== 0) {
                 $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
                 if ($datafield == null)
-                    return parent::deletedEntityError('DataField');
+                    throw new ODRNotFoundException('Datafield');
+
+                $datatype = $datafield->getDataType();
+                if ($datatype->getDeletedAt() != null)
+                    throw new ODRNotFoundException('Datatype');
             }
 
 
@@ -1227,126 +954,36 @@ class DisplayController extends ODRCustomController
             // Ensure user has permissions to be doing this
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
 
-            $user_permissions = array();
-
-            if ($user === 'anon.') {
-                if ( !$grandparent_datatype->isPublic() || !$grandparent_datarecord->isPublic() )
-                    return parent::permissionDeniedError();
-
-                // Check permissions on the specified datarecord if it exists
-                if ( $datarecord != null && !$datarecord->isPublic() )
-                    return parent::permissionDeniedError();
-
-                // Check permissions on the specified datafield if it exists
-                if ( $datafield != null && !$datafield->isPublic() )
-                    return parent::permissionDeniedError();
-            }
-            else {
-                // Grab the user's permission list
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-
-                $can_view_grandparent_datatype = false;
-                if ( isset($datatype_permissions[ $grandparent_datatype->getId() ]) && isset($datatype_permissions[ $grandparent_datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_grandparent_datatype = true;
-
-                $can_view_grandparent_datarecord = false;
-                if ( isset($datatype_permissions[ $grandparent_datatype->getId() ]) && isset($datatype_permissions[ $grandparent_datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_grandparent_datarecord = true;
-
-                // If grandparent datatype is not public and user doesn't have permissions to view anything other than public sections of the grandparent datarecord, then don't allow them to view
-                if ( !($grandparent_datatype->isPublic() || $can_view_grandparent_datatype)  || !($grandparent_datarecord->isPublic() || $can_view_grandparent_datarecord) )
-                    return parent::permissionDeniedError();
-
-
-                // Check permissions on the specified datarecord if it exists
-                if ($datarecord != null) {
-                    $can_view_datatype = false;
-                    if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                        $can_view_datatype = true;
-
-                    $can_view_datarecord = false;
-                    if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                        $can_view_datarecord = true;
-
-                    // If datatype is not public and user doesn't have permissions to view anything other than public sections of the grandparent datarecord, then don't allow them to view
-                    if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) )
-                        return parent::permissionDeniedError();
-                }
-
-                // Check permissions on the specified datafield if it exists
-                if ($datafield != null) {
-                    $can_view_datafield = false;
-                    if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ]['view']) )
-                        $can_view_datafield = true;
-
-                    if ( !($datafield->isPublic() || $can_view_datafield) )
-                        return parent::permissionDeniedError();
-                }
+            // Ensure the user can view the grandparent datarecord/datatype first...
+            if ( !$pm_service->canViewDatatype($user, $grandparent_datatype)
+                || !$pm_service->canViewDatarecord($user, $grandparent_datarecord)
+            ) {
+                throw new ODRForbiddenException();
             }
 
+            // If they requested all files in a datarecord, ensure they can view the datarecord
+            if ($datarecord != null) {
+                if ( !$pm_service->canViewDatarecord($user, $datarecord) )
+                    throw new ODRForbiddenException();
+            }
+
+            // If they requested all files in a datafield, ensure they can view the datafield
+            if ($datafield != null) {
+                if ( !$pm_service->canViewDatafield($user, $datafield) )
+                    throw new ODRForbiddenException();
+            }
             // ----------------------------------------
 
 
             // ----------------------------------------
-            // Always bypass cache if in dev mode?
-            $bypass_cache = false;
-//            if ($this->container->getParameter('kernel.environment') === 'dev')
-//                $bypass_cache = true;
+            // Get all Datarecords and Datatypes that are associated with the datarecord...need to render an abbreviated view in order to select files
+            $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
+            $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId());
 
-
-            // Grab all datarecords "associated" with the desired datarecord...
-            $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId())));
-            if ($bypass_cache || $associated_datarecords == false) {
-                $associated_datarecords = parent::getAssociatedDatarecords($em, array($grandparent_datarecord->getId()));
-
-                $redis->set($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId(), gzcompress(serialize($associated_datarecords)));
-            }
-
-
-            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
-            $datarecord_array = array();
-            foreach ($associated_datarecords as $num => $dr_id) {
-                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
-                if ($bypass_cache || $datarecord_data == false)
-                    $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
-
-                foreach ($datarecord_data as $dr_id => $data)
-                    $datarecord_array[$dr_id] = $data;
-            }
-
-
-            // ----------------------------------------
-            //
-            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-
-            // Grab all datatypes associated with the desired datarecord
-            // NOTE - not using parent::getAssociatedDatatypes() here on purpose...that would always return child/linked datatypes for the datatype even if this datarecord isn't making use of them
-            $associated_datatypes = array();
-            foreach ($datarecord_array as $dr_id => $dr) {
-                $dt_id = $dr['dataType']['id'];
-
-                if ( !in_array($dt_id, $associated_datatypes) )
-                    $associated_datatypes[] = $dt_id;
-            }
-
-
-            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            $datatype_array = array();
-            foreach ($associated_datatypes as $num => $dt_id) {
-                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-                if ($bypass_cache || $datatype_data == false)
-                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
-
-                foreach ($datatype_data as $dt_id => $data)
-                    $datatype_array[$dt_id] = $data;
-            }
-
-            // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
             // Get rid of all non-file/image datafields while the datarecord array is still "deflated"
             $datafield_ids = array();
@@ -1364,6 +1001,7 @@ class DisplayController extends ODRCustomController
             $datafield_ids = array_unique($datafield_ids);
             $datatype_ids = array_unique($datatype_ids);
 
+            // Faster/easier to query the database again to store datafield names
             $query = $em->createQuery(
                'SELECT df.id, dfm.fieldName
                 FROM ODRAdminBundle:DataFields AS df
@@ -1381,6 +1019,7 @@ class DisplayController extends ODRCustomController
                 $datafield_names[$df_id] = $df_name;
             }
 
+            // Faster/easier to query the database again to store datatype names
             $query = $em->createQuery(
                'SELECT dt.id, dtm.shortName
                 FROM ODRAdminBundle:DataType AS dt
@@ -1401,7 +1040,8 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-            $stacked_datarecord_array[ $grandparent_datarecord->getId() ] = parent::stackDatarecordArray($datarecord_array, $grandparent_datarecord->getId());
+            $stacked_datarecord_array[ $grandparent_datarecord->getId() ]
+                = $dri_service->stackDatarecordArray($datarecord_array, $grandparent_datarecord->getId());
 //print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
 
             $ret = self::locateFilesforDownloadAll($stacked_datarecord_array, $grandparent_datarecord->getId());
@@ -1428,9 +1068,11 @@ class DisplayController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x848418124: ' . $e->getMessage();
+            $source = 0xce2c6ae9;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1463,10 +1105,10 @@ class DisplayController extends ODRCustomController
 
                     if ( is_null($ret) ) {
                         // This child datarecord didn't have any files/images, and also didn't have any children of its own with files/images...don't want to see it later
-                        unset($dr_array[$datarecord_id]['children'][$child_dt_id][$child_dr_id]);
+                        unset( $dr_array[$datarecord_id]['children'][$child_dt_id][$child_dr_id] );
 
                         // If this datarecord has no child datarecords of this child datatype with files/images, then get rid of the entire array entry for the child datatype
-                        if ( count($dr_array[$datarecord_id]['children'][$child_dt_id] ) == 0)
+                        if ( count($dr_array[$datarecord_id]['children'][$child_dt_id]) == 0 )
                             unset( $dr_array[$datarecord_id]['children'][$child_dt_id] );
                     }
                     else {
@@ -1502,9 +1144,14 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            $post = $_POST;
-//print_r($post);  exit();
+            // Symfony firewall won't permit GET requests to reach this point
+            $post = $request->request->all();
 
+            // Require at least one of these...
+            if ( !isset($post['files']) && !isset($post['images']) )
+                throw new ODRBadRequestException();
+
+            // Don't need to check whether the file/image ids are numeric...they're not sent to the database
             $file_ids = array();
             if ( isset($post['files']) )
                 $file_ids = $post['files'];
@@ -1517,95 +1164,45 @@ class DisplayController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
 
             /** @var DataRecord $grandparent_datarecord */
             $grandparent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($grandparent_datarecord_id);
             if ($grandparent_datarecord == null)
-                return parent::deletedEntityError('DataRecord');
+                throw new ODRNotFoundException('Datarecord');
 
             $grandparent_datatype = $grandparent_datarecord->getDataType();
             if ($grandparent_datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('DataType');
+                throw new ODRNotFoundException('Datatype');
 
 
             // ----------------------------------------
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = array();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
 
-            if ($user === 'anon.') {
-                // No permissions for an anonymous user...
-            }
-            else {
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-
-                // Don't need to check whether user has permissions to view grandparent datarecord/datatype...the filter will take care of that
-            }
+            // Don't need to verify any permissions, filterByGroupPermissions() will take care of it
             // ----------------------------------------
 
 
             // ----------------------------------------
-            // Always bypass cache if in dev mode?
-            $bypass_cache = false;
-//            if ($this->container->getParameter('kernel.environment') === 'dev')
-//                $bypass_cache = true;
+            // Easier/faster to just load the entire datarecord/datatype arrays...
+            $datarecord_array = $dri_service->getDatarecordArray($grandparent_datarecord->getId());
+            $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId());
 
-
-            // Grab all datarecords "associated" with the desired datarecord...
-            $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId())));
-            if ($bypass_cache || $associated_datarecords == false) {
-                $associated_datarecords = parent::getAssociatedDatarecords($em, array($grandparent_datarecord->getId()));
-
-                $redis->set($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId(), gzcompress(serialize($associated_datarecords)));
-            }
-
-
-            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
-            $datarecord_array = array();
-            foreach ($associated_datarecords as $num => $dr_id) {
-                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
-                if ($bypass_cache || $datarecord_data == false)
-                    $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
-
-                foreach ($datarecord_data as $dr_id => $data)
-                    $datarecord_array[$dr_id] = $data;
-            }
+            // ...so the permissions service can prevent the user from downloading files/images they're not allowed to see
+            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 
             // ----------------------------------------
-            //
-            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-
-            // Grab all datatypes associated with the desired datarecord
-            // NOTE - not using parent::getAssociatedDatatypes() here on purpose...that would always return child/linked datatypes for the datatype even if this datarecord isn't making use of them
-            $associated_datatypes = array();
-            foreach ($datarecord_array as $dr_id => $dr) {
-                $dt_id = $dr['dataType']['id'];
-
-                if ( !in_array($dt_id, $associated_datatypes) )
-                    $associated_datatypes[] = $dt_id;
-            }
-
-
-            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            $datatype_array = array();
-            foreach ($associated_datatypes as $num => $dt_id) {
-                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-                if ($bypass_cache || $datatype_data == false)
-                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
-
-                foreach ($datatype_data as $dt_id => $data)
-                    $datatype_array[$dt_id] = $data;
-            }
-
-            // ----------------------------------------
-            // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
             // Intersect the array of desired file/image ids with the array of permitted files/ids to determine which files/images to add to the zip archive
             $file_list = array();
             $filename_list = array();
@@ -1627,18 +1224,8 @@ class DisplayController extends ODRCustomController
                             }
                         }
                     }
-/*
-                    // TODO - download images in a zip archive?
-                    else if ( count($drf['image']) > 0 ) {
-                        foreach ($drf['image'] as $i_num => $i) {
-                            if ( in_array($i['parent']['id'], $image_ids) ) {
-                                // Store by original checksum so multiples of the same image only get decrypted once
-                                //$original_checksum = $i['original_checksum'];
-                                //$image_list[$original_checksum] = $i;
-                            }
-                        }
-                    }
-*/
+
+                    // TODO - also allow user to download images in a zip archive?
                 }
             }
 
@@ -1671,11 +1258,13 @@ print '<pre>'.print_r($file_list, true).'</pre>';
 print '<pre>'.print_r($image_list, true).'</pre>';
 exit();
 */
+
             // ----------------------------------------
             // If any files/images remain...
             if ( count($file_list) == 0 && count($image_list) == 0 ) {
                 // TODO - what to return?
-                throw new \Exception('No files are available to download');
+                $exact = true;
+                throw new ODRNotFoundException('No files are available to download', $exact);
             }
             else {
                 // Generate the url for cURL to use
@@ -1692,7 +1281,7 @@ exit();
                 $random_id = substr($tokenGenerator->generateToken(), 0, 12);
 
                 $archive_filename = $random_id.'.zip';
-                $archive_filepath = dirname(__FILE__).'/../../../../web/uploads/files/'.$archive_filename;
+                $archive_filepath = $this->getParameter('odr_web_directory').'/uploads/files/'.$archive_filename;
 
                 $archive_size = count($file_list) + count($image_list);
 
@@ -1737,9 +1326,11 @@ exit();
             $return['d'] = array('archive_filename' => $archive_filename, 'archive_size' => $archive_size);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x4148561: ' . $e->getMessage();
+            $source = 0xc31d45b5;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         // If error encountered, do a json return
@@ -1750,7 +1341,7 @@ exit();
 
 
     /**
-     *
+     * Downloads a zip archive constructed by self::startdownloadarchiveAction()
      *
      * @param string $archive_filename
      * @param Request $request
@@ -1765,19 +1356,19 @@ exit();
         $return['d'] = '';
 
         try {
-            // Can't really check permissions...
+            // TODO - some level of permissions checking?  maybe store archive filename in user's session?
 
-            // Ensure zip archive exists before attempting to download it
+            // Symfony firewall requires $archive_filename to match "0|[0-9a-zA-Z\-\_]{12}.zip"
             if ($archive_filename == '0')
-                throw new \Exception('Invalid archive filename');
+                throw new ODRBadRequestException();
 
-            $archive_filepath = dirname(__FILE__).'/../../../../web/uploads/files/'.$archive_filename;
+            $archive_filepath = $this->getParameter('odr_web_directory').'/uploads/files/'.$archive_filename;
             if ( !file_exists($archive_filepath) )
-                throw new \Exception('Invalid archive filename');
+                throw new FileNotFoundException($archive_filename);
 
             $handle = fopen($archive_filepath, 'r');
             if ($handle === false)
-                throw new \Exception('Unable to open existing file at "'.$archive_filepath.'"');
+                throw new FileNotFoundException($archive_filename);
 
 
             // Set up a response to send the file back
@@ -1818,13 +1409,100 @@ exit();
             return $response;
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x848418123: ' . $e->getMessage();
+            // Usually this'll be called via the jQuery fileDownload plugin, and therefore need a json-format error
+            // But in the off-chance it's a direct link, then the error format needs to remain html
+            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
+                $request->setRequestFormat('json');
 
-            // The jquery $.fileDownload() behaves better if an error is returned as the responseHTML...
-            $response = new Response($return['d']);
-            return $response;
+            $source = 0xc953bbf3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
+    }
+
+
+    /**
+     * Get available themes for user and datatype.
+     * This function is in display controller to automatically set the theme type.
+     * IE: called by display = use "master" theme.
+     *
+     * TODO - Perhaps should be moved to theme controller and a theme type passed.
+     *
+     * @param integer $datatype_id
+     * @param string $page_type     'display' or 'search_results'
+     * @param Request $request
+     *
+     * @return Response $response
+     */
+    public function getavailablethemesAction($datatype_id, $page_type, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'json';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // --------------------
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
+            // --------------------
+
+
+            // We will eventually use master only for 'edit'
+            if ($page_type == "display")
+                $page_type = "master";
+
+
+            // Get all available themes for this datatype that the user can view
+            $themes = $theme_service->getAvailableThemes($user, $datatype, $page_type);
+
+            // Get the user's default theme for this datatype, if they have one
+            $user_default_theme = $theme_service->getUserDefaultTheme($user, $datatype_id, $page_type);
+            $selected_theme_id = $theme_service->getPreferredTheme($user, $datatype_id, $page_type);
+
+
+            // Render and return the theme chooser dialog
+            $templating = $this->get('templating');
+            $return['d'] = $templating->render(
+                'ODRAdminBundle:Default:choose_view.html.twig',
+                array(
+                    'themes' => $themes,
+                    'user_default_theme' => $user_default_theme,
+                    'selected_theme_id' => $selected_theme_id,
+
+                    'user' => $user,
+                    'datatype_admin' => $is_datatype_admin
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x81fad8c3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 }

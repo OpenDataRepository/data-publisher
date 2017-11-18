@@ -1,9 +1,8 @@
+# These blacklisted strings should all be lowercase
+# TODO - add other ones commonly used by bots looking for easy pickings...
 parameters:
-#    odr_open_repository_search.example.class: ODR\OpenRepository\SearchBundle\Example
+    odr.search_slug_blacklist: "admin|api|app|beanstalk|bin|design|docs|edit|jobs|login|login-check|logout|oauth|profile|redirect|resetting|save_fragment|search|src|vendor|view|web"
 
 services:
-#    odr_open_repository_search.example:
-#        class: %odr_open_repository_search.example.class%
-#        arguments: [@service_id, "plain_value", %parameter%]
     odr_custom_controller:
         class: ODR\AdminBundle\Controller\ODRCustomController

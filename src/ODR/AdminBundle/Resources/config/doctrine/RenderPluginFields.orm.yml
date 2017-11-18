@@ -20,8 +20,8 @@ ODR\AdminBundle\Entity\RenderPluginFields:
             fixed: false
             nullable: false
             column: allowed_fieldtypes
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 
         fieldName:
             type: string
@@ -29,26 +29,26 @@ ODR\AdminBundle\Entity\RenderPluginFields:
             fixed: false
             nullable: false
             column: field_name
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         description:
             type: text
             fixed: false
             nullable: true
             column: description
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         active:
             type: boolean
             nullable: false
             column: active
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         deletedAt:
             type: date
             nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         created:
             type: datetime
             gedmo:
@@ -59,8 +59,8 @@ ODR\AdminBundle\Entity\RenderPluginFields:
             gedmo:
                 timestampable:
                     on: update
-    manyToOne:
 
+    manyToOne:
         renderPlugin:
             targetEntity: RenderPlugin
             cascade: {  }
@@ -70,8 +70,8 @@ ODR\AdminBundle\Entity\RenderPluginFields:
                 render_plugin_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 
 #        fieldType:
 #            targetEntity: FieldType
@@ -94,7 +94,7 @@ ODR\AdminBundle\Entity\RenderPluginFields:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
+#            gedmo:
 #                blameable:
 #                    on: create
         updatedBy:
@@ -106,7 +106,7 @@ ODR\AdminBundle\Entity\RenderPluginFields:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
+#            gedmo:
 #                blameable:
 #                    on: update
     lifecycleCallbacks: {  }

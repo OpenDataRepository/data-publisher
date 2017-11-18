@@ -9,25 +9,7 @@
 }) }}
 
     <fieldset>
-        <div class="pure-control-group">
-            <label for="{{ theme_element_form.cssWidthMed.vars.id }}">
-                <strong>{{ theme_element_form.cssWidthMed.vars.label }}</strong>
-            </label>
-            {{ form_errors(theme_element_form.cssWidthMed) }}
-            {{ form_widget(theme_element_form.cssWidthMed, { 'attr': {'style': 'width:auto'} }) }}
-        </div>
-
-        <div class="pure-control-group">
-            <label for="{{ theme_element_form.cssWidthXL.vars.id }}">
-                <strong>{{ theme_element_form.cssWidthXL.vars.label }}</strong>
-            </label>
-            {{ form_errors(theme_element_form.cssWidthXL) }}
-            {{ form_widget(theme_element_form.cssWidthXL, { 'attr': {'style': 'width:auto'} }) }}
-        </div>
-
-        <div style="display: none">
         {{ form_rest(theme_element_form) }}
-        </div>
     </fieldset>
 
 {{ form_end(theme_element_form) }}

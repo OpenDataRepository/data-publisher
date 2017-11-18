@@ -1,0 +1,115 @@
+{% spaceless %}
+
+<ul id="wizardStatus">
+    {% if not create_master %}
+    <li class="current">Step 1. <span class="wizardStatusText">Choose a template.</span></li>
+    {% else %}
+    <li class="current">Step 1. <span class="wizardStatusText">Initial instructions.</span></li>
+    {% endif %}
+    <li class="">Step 2. <span class="wizardStatusText">Database information.</span></li>
+    <li class="">Step 3. <span class="wizardStatusText">Add or change fields.</span></li>
+    <li>Step 4. <span class="wizardStatusText">Setup search templates.</span></li>
+    <!-- <li>Step 4. <span class="wizardStatusText">Book/Order repair</span></li> -->
+</ul>
+
+{% if not create_master %}
+    <div class="ODRContentWrapper pure-u-1">
+        <div class="ODRThemeElement pure-u-1">
+            <div class="ODRInnerBox pure-u-1">
+                <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Choose a Template</h3>
+                <div class="ODRBodyContent">
+                    <p>Select a pre-defined template or create a completely custom database by selecting from the database templates column.</p>
+                    <p>If you choose a template, most of the work of creating a database will be automatically completed.  Creating a custom database requires the administrator to add all fields to the database using the template editor.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<div class="ODRContentWrapper pure-u-1">
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <div class="ODRAccordionWrapper ODRFormAccordion">
+                {% if not create_master %}
+                    {% for datatype in master_templates %}
+                        {% set datatype_meta = datatype.dataTypeMeta[0] %}
+
+                    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                        Template: {{ datatype_meta.shortName }}
+                    </h3>
+                    <div class="ODRFieldArea accordion-content">
+                        <div class="ODRBodyContent">
+                            <h3>Database Template Description</h3>
+                            <p>
+                                {{ datatype_meta.description }}
+                            </p>
+                            <p>&nbsp;</p>
+                            <p>
+                                To view a sample record demonstration of this database's default capabilities, click the button below:
+                            </p>
+                            <p>
+                                {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype_meta.searchSlug } ) %}
+                                <a class="pure-button" target="_blank" href="{{ datatype_baseurl }}#{{ path('odr_search_render', {'search_key': 'dt_id='~datatype.id} ) }}" title="View {{ datatype_meta.shortName }} Sample Record">View Sample Record</a>
+                            </p>
+                            <p>
+                                To select this database template, click the button below:
+                            </p>
+                            <p>
+                                {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype_meta.searchSlug } ) %}
+                                <a class="pure-button" href="#{{ path('odr_create_type_info', {'template_choice': datatype.id, 'creating_master_template': '0'} ) }}" title="Select {{ datatype_meta.shortName }} Database Template">Select <b>{{ datatype_meta.shortName }}</b> Database Template</a>
+                            </p>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                        Create Custom Database
+                    </h3>
+                    <div class="ODRFieldArea accordion-content">
+                        <div class="ODRBodyContent">
+                            <h3>Create Custom Database</h3>
+                            <p>
+                                When creating a custom database, the administrator must define all fields using the database editor.  Select this option if your database needs are not met by the
+                                pre-defined templates.
+                            </p>
+                            <p>&nbsp;</p>
+                            <p>
+                                To create a custom database, click the button below:
+                            </p>
+                            <p>
+                                <a class="pure-button" href="#{{ path('odr_create_type_info', {'template_choice': '0', 'creating_master_template': '0'} ) }}" title="Create a Custom Database">Create a Custom Database</a>
+                            </p>
+                        </div>
+                    </div>
+                {% else %}
+                    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                        Create a Master Database Template
+                    </h3>
+                    <div class="ODRFieldArea accordion-content">
+                        <div class="ODRBodyContent">
+                            <h3>Create a Master Database Template</h3>
+                            <p>
+                                When creating a master database template, the administrator must define all fields using the database editor.  Select this option if your database needs are not met by the pre-defined templates.
+                            </p>
+                            <p>&nbsp;</p>
+                            <p>
+                                To create a master database template, click the button below:
+                            </p>
+                            <p>
+                                <a class="pure-button" href="#{{ path('odr_create_type_info', {'template_choice': '0', 'creating_master_template': '1'} ) }}" title="Create a Custom Database">Create a Master Database Template</a>
+                            </p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(function() {
+        setupAccordions();
+    });
+</script>
+
+{% endspaceless %}

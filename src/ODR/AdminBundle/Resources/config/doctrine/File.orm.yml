@@ -63,9 +63,6 @@ ODR\AdminBundle\Entity\File:
             cascade: { }
             mappedBy: file
             inversedBy: null
-            joinColumns:
-                file_checksum_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
         fileMeta:
@@ -73,9 +70,6 @@ ODR\AdminBundle\Entity\File:
             cascade: { }
             mappedBy: file
             inversedBy: null
-            joinColumns:
-                file_meta_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
     manyToOne:
@@ -112,7 +106,7 @@ ODR\AdminBundle\Entity\File:
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
-#            mappedBy: null
+            mappedBy: null
             inversedBy: file
             joinColumns:
                 data_record_fields_id:

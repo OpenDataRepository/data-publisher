@@ -8,40 +8,39 @@
 {% if datarecord.dataRecordFields[ datafield.id ] is defined %}
     {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
 
-    {% if field_typename == "Boolean" %}
+    {% if field_typename == "Boolean" and datarecordfield.boolean[0] is defined %}
         {% set valuefield = datarecordfield.boolean[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typename == "File" %}
         {% set valuefield = datarecordfield.file %}
     {% elseif field_typename == "Image" %}
         {% set valuefield = datarecordfield.image %}
-    {% elseif field_typename == "Decimal" %}
+    {% elseif field_typename == "Decimal" and datarecordfield.decimalValue[0] is defined %}
         {% set valuefield = datarecordfield.decimalValue[0] %}
         {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "Integer" %}
+    {% elseif field_typename == "Integer" and datarecordfield.integerValue[0] is defined %}
         {% set valuefield = datarecordfield.integerValue[0] %}
         {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "Paragraph Text" %}
+    {% elseif field_typename == "Paragraph Text" and datarecordfield.longText[0] is defined %}
         {% set valuefield = datarecordfield.longText[0] %}
         {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "Long Text" %}
+    {% elseif field_typename == "Long Text" and datarecordfield.longVarchar[0] is defined %}
         {% set valuefield = datarecordfield.longVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "Medium Text" %}
+    {% elseif field_typename == "Medium Text" and datarecordfield.mediumVarchar[0] is defined %}
         {% set valuefield = datarecordfield.mediumVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typeclass == "Radio" %}
         {% set valuefield = datarecordfield.radioSelection %}
-    {% elseif field_typename == "Short Text" %}
+    {% elseif field_typename == "Short Text" and datarecordfield.shortVarchar[0] is defined %}
         {% set valuefield = datarecordfield.shortVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
-    {% elseif field_typename == "DateTime" %}
+    {% elseif field_typename == "DateTime" and datarecordfield.datetimeValue[0] is defined %}
         {% set valuefield = datarecordfield.datetimeValue[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typename == "Markdown" %}
         {% set valuefield = '' %}
     {% endif %}
-
 {% endif %}
 
 {% if valuefield == '' and (field_typename == 'File' or field_typename == 'Image' or field_typeclass == 'Radio') %}
@@ -52,9 +51,13 @@
 
     <form class="pure-u-1" id="ViewForm_{{ unique_id }}">
 
-    {% set render_plugin = datafield.dataFieldMeta.renderPlugin %}
-    {% if render_plugin.id != 1 %}
-        {{ datafield|datafield_plugin(datarecord, render_plugin)|raw }}
+    {% set render_plugin_id = 1 %}
+    {% if bypass_render_plugin is not defined or not bypass_render_plugin %}
+        {% set render_plugin_id = datafield.dataFieldMeta.renderPlugin.id %}
+    {%  endif %}
+
+    {% if render_plugin_id != 1 %}
+        {{ datafield|datafield_plugin(datarecord, datafield.dataFieldMeta.renderPlugin)|raw }}
 
     {% elseif field_typename == "Boolean" %}
         <fieldset>
@@ -70,7 +73,7 @@
         {#<fieldset class="pure-u-1">#}
             <div class="ODRFileDatafield">
                 <div class="ODRFileDatafield_header pure-u-1">
-                    {% if not is_short_form %}<i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;{% endif %}
+                    <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
                     <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
                 </div>
                 {% for file in valuefield %}
@@ -100,7 +103,7 @@
                                     </div>
                                 </span>
                             </span>
-                            <a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="ODRFileDownload" title="{{ filename }}" rel="{{ file.id }}">{{ filename }}</a>
+                            <a {#href="{{ path('odr_file_download', { 'file_id': file.id } ) }}"#} class="ODRFileDownload" title="{{ filename }}" rel="{{ file.id }}">{{ filename }}</a>
                         </span>
 
                         <span id="ODRFileDecrypt_{{ file.id }}_overlay" class="ODRFakeProgressBar_overlay" {% if file.original_checksum != '' %}style="visibility:hidden;"{% endif %}>
@@ -124,8 +127,8 @@
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}" style="text-align: center;">{{ datafield.dataFieldMeta.fieldName }}</label>
             <div id="imagegallery_{{ datafield.id }}_{{ datarecord.id }}" class="ODRImageGallery pure-u-1">
                 {#<label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>#}
-                <i id="ODRImageLeft_{{ datafield.id }}_{{ datarecord.id }}" class="ODRGalleryLeftArrow Pointer fa fa-3x fa-chevron-left" rel="{{ datafield.id }}_{{ datarecord.id }}"></i>
-                <i id="ODRImageRight_{{ datafield.id }}_{{ datarecord.id }}" class="ODRGalleryRightArrow Pointer fa fa-3x fa-chevron-right" rel="{{ datafield.id }}_{{ datarecord.id }}"></i>
+                <i id="ODRImageLeft_{{ datafield.id }}_{{ datarecord.id }}" class="ODRGalleryLeftArrow Pointer fa fa-2x fa-chevron-left" rel="{{ datafield.id }}_{{ datarecord.id }}"></i>
+                <i id="ODRImageRight_{{ datafield.id }}_{{ datarecord.id }}" class="ODRGalleryRightArrow Pointer fa fa-2x fa-chevron-right" rel="{{ datafield.id }}_{{ datarecord.id }}"></i>
                 <div class="ODRImageGalleryImage pure-u-1"></div>
             </div>
             <div id="imagestorage_{{ datafield.id }}_{{ datarecord.id }}" style="display: none;" rel="{{ datafield.dataFieldMeta.children_per_row }}">

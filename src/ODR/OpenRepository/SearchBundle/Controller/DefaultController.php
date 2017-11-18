@@ -1,18 +1,18 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* Search Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The search controller handles rendering of search pages and
-* the actual process of searching.
-*
-* The rendering of the results from searching is handled by
-* ODRCustomController.
-*/
+ * Open Data Repository Data Publisher
+ * Search Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The search controller handles rendering of search pages and
+ * the actual process of searching.
+ *
+ * The rendering of the results from searching is handled by
+ * ODRCustomController.
+ */
 
 namespace ODR\OpenRepository\SearchBundle\Controller;
 
@@ -26,7 +26,15 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
-// Forms
+// Exceptions
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+// Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -46,7 +54,7 @@ class DefaultController extends Controller
      *
      * @return Response
      */
-    public function searchPageError($error_message, Request $request, $inline = false)
+    public function searchPageError($error_message, Request $request, $status_code = 500, $inline = false)
     {
         $return = array();
         $return['r'] = 0;
@@ -55,8 +63,10 @@ class DefaultController extends Controller
 
         $html = '';
 
-        try
-        {
+        try {
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             // Grab user and their permissions if possible
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
@@ -82,17 +92,7 @@ class DefaultController extends Controller
             }
             else {
                 // Grab user permissions if possible
-                $datatype_permissions = array();
-                if ($logged_in) {
-                    /** @var ODRCustomController $odrcc */
-                    $odrcc = $this->get('odr_custom_controller', $request);
-                    $odrcc->setContainer($this->container);
-
-                    /** @var \Doctrine\ORM\EntityManager $em */
-                    $em = $this->getDoctrine()->getManager();
-                    $user_permissions = $odrcc->getUserPermissionsArray($em, $user->getId());
-                    $datatype_permissions = $user_permissions['datatypes'];
-                }
+                $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
                 $site_baseurl = $this->container->getParameter('site_baseurl');
                 if ($this->container->getParameter('kernel.environment') === 'dev')
@@ -132,10 +132,12 @@ class DefaultController extends Controller
         $response = null;
         if ($inline) {
             $response = new Response(json_encode($return));
+            $response->setStatusCode($status_code);
             $response->headers->set('Content-Type', 'application/json');
         }
         else {
             $response = new Response($html);
+            $response->setStatusCode($status_code);
             $response->headers->set('Content-Type', 'text/html');
         }
 
@@ -145,6 +147,7 @@ class DefaultController extends Controller
 
     /**
      * Returns a list of all datatypes which are either children or linked to an optional target datatype, minus the ones a user doesn't have permissions to see
+     * TODO - this can probably be done much easier now since datatype has a grandparent property
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $target_datatype_id      If set, which top-level datatype to save child/linked datatypes for
@@ -359,35 +362,27 @@ exit();
         $html = '';
 
         try {
-            // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var ODRCustomController $odrcc */
-            $odrcc = $this->get('odr_custom_controller', $request);
-            $odrcc->setContainer($this->container);
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             $cookies = $request->cookies;
+
 
             // ------------------------------
             // Grab user and their permissions if possible
             /** @var User $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $datatype_permissions = array();
-            $datafield_permissions = array();
+            $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
+            $datafield_permissions = $pm_service->getDatafieldPermissions($admin_user);
 
             // Store if logged in or not
             $logged_in = true;
-            if ($admin_user === 'anon.') {
-                $admin_user = null;
+            if ($admin_user === 'anon.')
                 $logged_in = false;
-            }
-            else {
-                // Grab user permissions
-                $user_permissions = $odrcc->getUserPermissionsArray($em, $admin_user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-            }
             // ------------------------------
 
 
@@ -402,7 +397,7 @@ exit();
                     if ($logged_in) {
                         // Instead of displaying a "page not found", redirect to the datarecord list
                         $baseurl = $this->generateUrl('odr_admin_homepage');
-                        $hash = $this->generateUrl('odr_list_types', array( 'section' => 'records') );
+                        $hash = $this->generateUrl('odr_list_types', array( 'section' => 'databases') );
 
                         return $this->redirect( $baseurl.'#'.$hash );
                     }
@@ -415,10 +410,11 @@ exit();
                 /** @var DataTypeMeta $meta_entry */
                 $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('searchSlug' => $search_slug) );
                 if ($meta_entry == null)
-                    return self::searchPageError("Page not found", $request);
+                    throw new ODRNotFoundException('Datatype');
+
                 $target_datatype = $meta_entry->getDataType();
                 if ($target_datatype == null)
-                    return self::searchPageError("Page not found", $request);
+                    throw new ODRNotFoundException('Datatype');     // TODO - this just dumps out an error page
             }
             /** @var DataType $target_datatype */
 
@@ -426,25 +422,23 @@ exit();
             // Check if user has permission to view datatype
             $target_datatype_id = $target_datatype->getId();
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[ $target_datatype_id ]) && isset($datatype_permissions[ $target_datatype_id ][ 'dt_view' ]) )
-                $can_view_datatype = true;
-
             $can_view_datarecord = false;
             if ( isset($datatype_permissions[ $target_datatype_id ]) && isset($datatype_permissions[ $target_datatype_id ][ 'dr_view' ]) )
                 $can_view_datarecord = true;
 
-            if ( !$target_datatype->isPublic() && !$can_view_datatype )
-                return self::searchPageError("You don't have permission to access this DataType.", $request);
+            if ( !$pm_service->canViewDatatype($admin_user, $target_datatype) )
+                throw new ODRForbiddenException();      // TODO - this doesn't redirect to a login page
 
-            // Need to grab all searchable datafields for the target_datatype and its descendants
 
             // ----------------------------------------
+            // Need to grab all searchable datafields for the target_datatype and its descendants
+
             // Grab ids of all datatypes related to the requested datatype that the user can view
             $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $datatype_permissions);
 
             // Grab all searchable datafields
             $searchable_datafields = self::getSearchableDatafields($em, $related_datatypes, $logged_in, $datatype_permissions, $datafield_permissions);
+
 
             // ----------------------------------------
             // Grab a random background image if one exists and the user is allowed to see it
@@ -453,24 +447,37 @@ exit();
 
                 // Determine whether the user is allowed to view the background image datafield
                 $df = $target_datatype->getBackgroundImageField();
-                if ( $df->isPublic() || ( isset($datafield_permissions[$df->getId()]) && isset($datafield_permissions[$df->getId()]['view']) ) ) {
+
+                $can_view_datafield = false;
+                if ( isset($datafield_permissions[$df->getId()]) && isset($datafield_permissions[$df->getId()]['view']) )
+                    $can_view_datafield = true;
+
+                if ( $df->isPublic() || $can_view_datafield ) {
                     $query = null;
                     if ($can_view_datarecord) {
+                        // Users with the $can_view_datarecord permission can view all images in all datarecords of this datatype
                         $query = $em->createQuery(
                            'SELECT i.id AS image_id
-                            FROM ODRAdminBundle:Image AS i
-                            WHERE i.original = 1 AND i.dataField = :datafield_id
-                            AND i.deletedAt IS NULL'
-                        )->setParameters( array('datafield_id' => $df->getId()) );
+                            FROM ODRAdminBundle:Image as i
+                            JOIN ODRAdminBundle:DataRecordFields AS drf WITH i.dataRecordFields = drf
+                            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                            WHERE i.original = 1 AND i.dataField = :datafield_id AND i.encrypt_key != :encrypt_key
+                            AND i.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                        )->setParameters( array('datafield_id' => $df->getId(), 'encrypt_key' => '') );
                     }
                     else {
+                        // Users without the $can_view_datarecord permission can only view public images in public datarecords of this datatype
                         $query = $em->createQuery(
                            'SELECT i.id AS image_id
-                            FROM ODRAdminBundle:Image AS i
+                            FROM ODRAdminBundle:Image as i
                             JOIN ODRAdminBundle:ImageMeta AS im WITH im.image = i
-                            WHERE i.original = 1 AND i.dataField = :datafield_id AND im.publicDate NOT LIKE :public_date
-                            AND i.deletedAt IS NULL AND im.deletedAt IS NULL'
-                        )->setParameters( array('datafield_id' => $df->getId(), 'public_date' => '2200-01-01 00:00:00') );
+                            JOIN ODRAdminBundle:DataRecordFields AS drf WITH i.dataRecordFields = drf
+                            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                            JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                            WHERE i.original = 1 AND i.dataField = :datafield_id AND i.encrypt_key != :encrypt_key
+                            AND im.publicDate NOT LIKE :public_date AND drm.publicDate NOT LIKE :public_date
+                            AND i.deletedAt IS NULL AND im.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
+                        )->setParameters( array('datafield_id' => $df->getId(), 'encrypt_key' => '', 'public_date' => '2200-01-01 00:00:00') );
                     }
                     $results = $query->getArrayResult();
 
@@ -497,7 +504,7 @@ exit();
                 }
             }
 
-            if ( $admin_user == null || count($admin_permissions) == 0 ) {
+            if ( $admin_user == 'anon.' || count($admin_permissions) == 0 ) {
                 // Not logged in, or has none of the required permissions
                 $user_list = array();
             }
@@ -572,8 +579,13 @@ exit();
             $session->set('scroll_target', '');
         }
         catch (\Exception $e) {
-            // This and ODRAdminBundle:Default:indexAction() are currently the only two controller actions that make Symfony handle the errors instead of AJAX popups
-            throw new HttpException( 500, 'Error 0x81286282', $e );
+            $source = 0xd75fa46d;
+            if ($e instanceof ODRException)
+//                return self::searchPageError($e->getMessage(), $request, $e->getStatusCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+//                return self::searchPageError($e->getMessage(), $request, 500);
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response($html);
@@ -604,6 +616,10 @@ exit();
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var ODRCustomController $odrcc */
             $odrcc = $this->get('odr_custom_controller', $request);
             $odrcc->setContainer($this->container);
@@ -618,7 +634,8 @@ exit();
             // Grab user and their permissions if possible
             /** @var User $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = $odrcc->getUserPermissionsArray($em, $admin_user->getId());
+
+            $user_permissions = $pm_service->getUserPermissionsArray($admin_user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
@@ -747,13 +764,15 @@ exit();
             // Grab default objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
+
+
 //            $templating = $this->get('templating');
-/*
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $session = $request->getSession();
-*/
+
             /** @var ODRCustomController $odrcc */
             $odrcc = $this->get('odr_custom_controller', $request);
             $odrcc->setContainer($this->container);
@@ -762,11 +781,11 @@ exit();
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
             $datatype_permissions = array();
             $datafield_permissions = array();
 
             if ($user !== 'anon.') {
-                $user_permissions = $odrcc->getUserPermissionsArray($em, $user->getId());
                 $datatype_permissions = $user_permissions['datatypes'];
                 $datafield_permissions = $user_permissions['datafields'];
             }
@@ -793,7 +812,7 @@ exit();
             // Attempt to grab the list of datarecords from the cache...
             $search_params = $odrcc->getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype_id, $search_key, $request);
             if ($search_params['redirect'] == 1) {
-                $url = $this->generateUrl('odr_search_render', array('search_key' => $search_params['encoded_search_key'], 'offset' => 1, 'source' => 'searching'));
+                $url = $this->generateUrl('odr_search_render', array('search_key' => $search_params['encoded_search_key']));
                 return $odrcc->searchPageRedirect($user, $url);
             }
 
@@ -828,43 +847,51 @@ exit();
             // TODO - better error handling, likely need more options as well...going to need a way to get which theme the user wants to use too
             // Grab the desired theme to use for rendering search results
             $theme_type = null;
-            if ($source == 'linking' || $datatype->getUseShortResults() == 0)
-                $theme_type = 'table';
-            else
-                $theme_type = 'search_results';
 
+            // Attempt to get the user's preferred theme for this datatype
+            $theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+
+            // Ensure the theme exists before attempting to use it
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
-
-            // Lets just use master if theme is null....
-            if ($theme == null) {
-                $theme_type = 'master';
-                $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
-            }
-                
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
             if ($theme == null)
                 throw new \Exception('The datatype "'.$datatype->getShortName().'" wants to use a "'.$theme_type.'" theme to render search results, but no such theme exists.');
 
 
             // -----------------------------------
             // Render and return the page
-            $path_str = $this->generateUrl('odr_search_render', array('search_key' => $encoded_search_key) );   // this will double-encode the search key, mostly
+            $path_str = $this->generateUrl(
+                'odr_search_render',
+                array('search_key' => $encoded_search_key)
+            );   // this will double-encode the search key, mostly
             $path_str = urldecode($path_str);   // decode the resulting string so search-key is only single-encoded
 
             $target = 'results';
             if ($source == 'linking')
                 $target = $source;
-            $html = $odrcc->renderList($datarecords, $datatype, $theme, $user, $path_str, $target, $encoded_search_key, $offset, $request);
+
+            $html = $odrcc->renderList(
+                $datarecords,
+                $datatype,
+                $theme,     // TODO - under the newer theme system, this should probably be "theme_type" instead of a Theme object
+                $user,
+                $path_str,
+                $target,
+                $encoded_search_key,
+                $offset,
+                $request
+            );
 
              $return['d'] = array(
                 'html' => $html,
             );
-
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x14168352 ' . $e->getMessage();
+        } catch (\Exception $e) {
+            $source = 0x66d3804b;
+            if ($e instanceof ODRException) {
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            } else {
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+            }
         }
 
         $response = new Response(json_encode($return));
@@ -903,7 +930,7 @@ exit();
 
                 $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
-                $url = $this->generateUrl('odr_search_render', array('search_key' => $search_params['encoded_search_key'], 'offset' => 1, 'source' => 'searching'));
+                $url = $this->generateUrl('odr_search_render', array('search_key' => $search_params['encoded_search_key']));
                 return $odrcc->searchPageRedirect($user, $url);
             }
 
@@ -1118,31 +1145,48 @@ if (isset($debug['timing'])) {
             $datarecord_ids = implode(',', $datarecord_ids);
         }
 
+        $sorted_grandparent_ids = '';
         $public_grandparent_ids = '';
         if (strpos($grandparent_ids, ',') !== false) {
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
             $grandparent_ids = substr($grandparent_ids, 0, -1);
-            $grandparent_ids = $odrcc->getSortedDatarecords($target_datatype, $grandparent_ids);
+            $grandparent_ids_as_array = $dti_service->getSortedDatarecordList($target_datatype->getId(), $grandparent_ids);
+
+            // Convert the sorted list of grandparent ids back into a string
+            $sorted_grandparent_ids = '';
+            foreach ($grandparent_ids_as_array as $dr_id => $sort_value)
+                $sorted_grandparent_ids .= $dr_id.',';
+            $sorted_grandparent_ids = substr($sorted_grandparent_ids, 0, -1);
 
             // Need to figure out which of these grandparent datarecords are viewable to people without the 'dr_view' permission
-            $grandparent_ids_as_array = explode(',', $grandparent_ids);
             $query = $em->createQuery(
                'SELECT gp.id AS gp_id
                 FROM ODRAdminBundle:DataRecord AS gp
                 JOIN ODRAdminBundle:DataRecordMeta AS gpm WITH gpm.dataRecord = gp
                 WHERE gp.id IN (:grandparent_ids) AND gpm.publicDate != :public_date
                 AND gp.deletedAt IS NULL AND gpm.deletedAt IS NULL'
-            )->setParameters( array('grandparent_ids' => $grandparent_ids_as_array, 'public_date' => '2200-01-01 00:00:00') );
+            )->setParameters( array('grandparent_ids' => array_keys($grandparent_ids_as_array), 'public_date' => '2200-01-01 00:00:00') );
             $results = $query->getArrayResult();
 
             foreach($results as $result)
                 $public_grandparent_ids .= $result['gp_id'].',';
+
             $public_grandparent_ids = substr($public_grandparent_ids, 0, -1);
-            $public_grandparent_ids = $odrcc->getSortedDatarecords($target_datatype, $public_grandparent_ids);
+            $public_grandparent_ids_as_array = $dti_service->getSortedDatarecordList($target_datatype->getId(), $public_grandparent_ids);
+
+            // Convert the sorted list of public grandparent ids back into a string
+            $str = '';
+            foreach ($public_grandparent_ids_as_array as $dr_id => $sort_value)
+                $str .= $dr_id.',';
+            $public_grandparent_ids = substr($str, 0, -1);
         }
 
 if (isset($debug['basic'])) {
     print '$datarecord_ids: '.print_r($datarecord_ids, true)."\n";
     print '$grandparent_ids: '.print_r($grandparent_ids, true)."\n";
+    print '$sorted_grandparent_ids: '.$sorted_grandparent_ids."\n";
 
     if ($datarecord_ids == '') {
         print 'count($datarecord_ids): 0'."\n";
@@ -1154,14 +1198,18 @@ if (isset($debug['basic'])) {
 
     if ($grandparent_ids == '') {
         print 'count($grandparent_ids): 0'."\n";
-        print 'count($public_grandparent_ids): 0'."\n";
     }
     else {
         $grandparent_ids_as_array = explode(',', $grandparent_ids);
         print 'count($grandparent_ids): '.count($grandparent_ids_as_array)."\n";
+    }
 
-        $grandparent_ids_as_array = explode(',', $public_grandparent_ids);
-        print 'count($public_grandparent_ids): '.count($grandparent_ids_as_array)."\n";
+    if ($public_grandparent_ids == '') {
+        print 'count($public_grandparent_ids): 0'."\n";
+    }
+    else {
+        $public_grandparent_ids_as_array = explode(',', $public_grandparent_ids);
+        print 'count($public_grandparent_ids): '.count($public_grandparent_ids_as_array)."\n";
     }
 }
 if (isset($debug['timing'])) {
@@ -1171,10 +1219,9 @@ if (isset($debug['timing'])) {
 
 
         // --------------------------------------------------
-        // Store the list of datarecord ids for later use
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        // Need to store the list of datarecord ids for later use...
+        /** @var CacheService $cache_service*/
+        $cache_service = $this->container->get('odr.cache_service');
 
         // Determine which datafields were searched on
         $searched_datafields = array();
@@ -1199,7 +1246,7 @@ if (isset($debug['timing'])) {
         // Create pieces of the array if they don't exist
         $search_checksum = md5($search_key);
 
-        $cached_searches = ODRCustomController::getRedisData($redis->get($redis_prefix.'.cached_search_results'));
+        $cached_searches = $cache_service->get('cached_search_results');
 //        $cached_searches = array();
 
         if ($cached_searches == false)
@@ -1211,9 +1258,9 @@ if (isset($debug['timing'])) {
 
         // Store the data in the memcached entry
         $cached_searches[$target_datatype_id][$search_checksum]['complete_datarecord_list'] = $datarecord_ids;
-        $cached_searches[$target_datatype_id][$search_checksum]['datarecord_list'] = array('all' => $grandparent_ids, 'public' => $public_grandparent_ids);
+        $cached_searches[$target_datatype_id][$search_checksum]['datarecord_list'] = array('all' => $sorted_grandparent_ids, 'public' => $public_grandparent_ids);
 
-        $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+        $cache_service->set('cached_search_results', $cached_searches);
 
 if (isset($debug['cached_searches'])) {
     print '$cached_searches: '.print_r($cached_searches, true)."\n";
@@ -3001,5 +3048,4 @@ if ( isset($debug['search_string_parsing']) ) {
         $revert = array('%21'=>'!', '%2A'=>'*', '%27'=>"'", '%28'=>'(', '%29'=>')');
         return strtr(rawurlencode($str), $revert);
     }
-
 }

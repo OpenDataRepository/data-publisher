@@ -1,5 +1,18 @@
-# Allows users to resend a password reset email
+# FOSUserBundle - Allows users to resend a password reset email
 fos_user_resetting_resend_email:
     path:  /resetting/resend-email   # needs to have the same prefix as the fos_user_resetting resource in /app/config/routing.yml
     defaults: { _controller: ODROpenRepositoryUserBundle:Resetting:resend }
     requirements: { methods: POST }
+
+# Utility routes to seamlessly redirect to the initial page...only an issue because HWIOAuthBundle hijacks the entire login flow when it's used
+odr_save_url:
+    path:  /save_url
+    defaults: { _controller: ODROpenRepositoryUserBundle:Utility:saveurl }
+
+odr_save_fragment:
+    path:  /save_fragment
+    defaults: { _controller: ODROpenRepositoryUserBundle:Utility:savefragment }
+
+odr_redirect:
+    path:  /redirect
+    defaults: { _controller: ODROpenRepositoryUserBundle:Utility:redirect }

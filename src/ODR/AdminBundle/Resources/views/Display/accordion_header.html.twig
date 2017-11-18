@@ -1,5 +1,4 @@
 {% spaceless %}
-
     {% if is_top_level == 0 and display_type == 0 %}     {# accordion display_type...unlike edit page, don't want list display_type (3) here as well #}
         <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
@@ -10,17 +9,23 @@
             <a>{{ datatype.dataTypeMeta.shortName }}</a>
         {% endif %}
 
-        {% if is_link == 1 %}
-            <span style="margin-left: 15px;" title="This is a linked Datatype">
-            <i class="fa fa-lg fa-link Cursor"></i>
-        </span>
-        {% endif %}
+            <span class="DatatypeTools">
+                {% if is_link == 1 %}
+                    <span style="margin-left: 15px;" title="This is a linked Datatype">
+                        <i class="fa fa-link Cursor"></i>
+                    </span>
+                {% endif %}
 
-        {% if datarecord.dataRecordMeta.publicDate|is_public and datarecord.id != datarecord.grandparent.id %}
-            <span style="float: right;">
-                <i class="tooltip fa fa-lg fa-globe {% if not datarecord.dataRecordMeta.publicDate|is_public %}IconRed{% endif %}" title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}"></i>
+                {% if datarecord.id != datarecord.grandparent.id %}
+                    <span rel="{{ datatype.id }}">
+                        <i id="datarecord_{{ datarecord.id }}_public" class="tooltip fa fa-globe
+                            {% if datarecord.dataRecordMeta.publicDate|is_public %}
+                                ODRActiveIcon
+                            {% endif %} Cursor"
+                           title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}"></i>
+                    </span>
+                {% endif %}
             </span>
-        {% endif %}
         </h3>
     {% endif %}
 

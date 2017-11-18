@@ -67,8 +67,18 @@ use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\TrackedError;
 use ODR\OpenRepository\UserBundle\Entity\User;
-use ODR\AdminBundle\Entity\UserGroup;
-// Forms
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+// Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\TableThemeHelperService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -136,20 +146,34 @@ class ODRCustomController extends Controller
         $templating = $this->get('templating');
         $session = $this->get('session');
 
+        $use_jupyterhub = false;
+        $jupyterhub_config = $this->getParameter('jupyterhub_config');
+        if ( isset($jupyterhub_config['use_jupyterhub']) && $jupyterhub_config['use_jupyterhub'] == true )
+            $use_jupyterhub = true;
+
+
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
+        /** @var DatarecordInfoService $dri_service */
+        $dri_service = $this->container->get('odr.datarecord_info_service');
+        /** @var PermissionsManagementService $pm_service */
+        $pm_service = $this->container->get('odr.permissions_management_service');
+        /** @var ThemeInfoService $theme_service */
+        $theme_service = $this->container->get('odr.theme_info_service');
+
+
         $logged_in = false;
-        $user_permissions = array();
-        $datatype_permissions = array();
-        $datafield_permissions = array();
-        if ($user !== 'anon.') {
+        if ($user !== 'anon.')
             $logged_in = true;
-            $user_permissions = self::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
-        }
+
+        $user_permissions = $pm_service->getUserPermissionsArray($user);
+        $datatype_permissions = $pm_service->getDatatypePermissions($user);
+        $datafield_permissions = $pm_service->getDatafieldPermissions($user);
+
 
         // Grab the tab's id, if it exists
         $params = $request->query->all();
@@ -195,14 +219,15 @@ class ODRCustomController extends Controller
                     $scroll_target = '';
 
                 // Null out the scroll target
-                $session->set('scroll_target', '');     // WTF WHY
+                $session->set('scroll_target', '');
             }
         }
 
 
         // -----------------------------------
         $final_html = '';
-        if ( $theme->getThemeType() == 'search_results' ) {
+        // All theme types other than table
+        if ( $theme->getThemeType() != 'table' ) {
             // -----------------------------------
             // Ensure offset exists for shortresults list
             if ( (($offset-1) * $page_length) > count($datarecords) )
@@ -225,37 +250,33 @@ class ODRCustomController extends Controller
 
 
             // ----------------------------------------
-            // Load datatype and datarecord data from the cache
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-            // Always bypass cache if in dev mode?
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
-
-
-            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            // print $redis_prefix.'.cached_datatype_'.$datatype->getId();
-            $datatype_array = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype->getId())));
-            if ($bypass_cache || $datatype_array == false) {
-                $datatype_array = self::getDatatypeData($em, self::getDatatreeArray($em, $bypass_cache), $datatype->getId(), $bypass_cache);
-            }
-
-            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
-            $datarecord_array = array();
+            // Grab the cached versions of all of the datarecords, and store them all at the same level in a single array
+            $include_links = true;
+            $related_datarecord_array = array();
             foreach ($datarecord_list as $num => $dr_id) {
-                $datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
-                if ($bypass_cache || $datarecord_data == false)
-                    $datarecord_data = self::getDatarecordData($em, $dr_id, $bypass_cache);
+                // TODO - modify getDatarecordArray() to take an array of ids?  would be marginally more efficient...
+                $datarecord_info = $dri_service->getDatarecordArray($dr_id, $include_links);
 
-                foreach ($datarecord_data as $dr_id => $data)
-                    $datarecord_array[$dr_id] = $data;
+                foreach ($datarecord_info as $local_dr_id => $data)
+                    $related_datarecord_array[$local_dr_id] = $data;
             }
+
+            $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
+            $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, $theme->getThemeType(), $include_links);
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            self::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            $pm_service->filterByGroupPermissions($datatype_array, $related_datarecord_array, $user_permissions);
+
+            // Stack the datatype and all of its children
+            $datatype_array[ $datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+
+            // Stack each individual datarecord in the array
+            // TODO - is there a faster way of doing this?  Loading/stacking datarecords is likely the slowest part of rendering a search results list now
+            $datarecord_array = array();
+            foreach ($related_datarecord_array as $dr_id => $dr) {
+                if ( $dr['dataType']['id'] == $datatype->getId() )
+                    $datarecord_array[$dr_id] = $dri_service->stackDatarecordArray($related_datarecord_array, $dr_id);
+            }
 
 
             // -----------------------------------
@@ -266,7 +287,7 @@ class ODRCustomController extends Controller
                 array(
                     'datatype_array' => $datatype_array,
                     'datarecord_array' => $datarecord_array,
-                    'theme_id' => $theme->getId(),
+                    'theme_array' => $theme_array,
 
                     'initial_datatype_id' => $datatype->getId(),
 
@@ -284,22 +305,25 @@ class ODRCustomController extends Controller
                     'target' => $target,
                     'search_key' => $search_key,
                     'offset' => $offset,
+
+                    // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
+                    'all_datarecords' => $datarecords,
+                    'use_jupyterhub' => $use_jupyterhub,
                 )
             );
-
         }
         else if ( $theme->getThemeType() == 'table' ) {
             // -----------------------------------
-            // Grab the...
-            $column_data = self::getDatatablesColumnNames($em, $theme, $datafield_permissions);
+            $theme_array = $theme_service->getThemeArray( array($theme->getId()) );
+
+            // Determine the columns to use for the table
+            /** @var TableThemeHelperService $tth_service */
+            $tth_service = $this->container->get('odr.table_theme_helper_service');
+            $column_data = $tth_service->getColumnNames($user, $datatype->getId(), $theme->getId());
+//exit( '<pre>'.print_r($column_data, true).'</pre>' );
+
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
-/*
-print '<pre>';
-print_r($column_data);
-print '</pre>';
-exit();
-*/
 
             // Don't render the starting textresults list here, it'll always be loaded via ajax later
 
@@ -307,7 +331,7 @@ exit();
             //
             $template = 'ODRAdminBundle:TextResults:textresultslist.html.twig';
             if ($target == 'linking')
-                $template = 'ODRAdminBundle:Edit:link_datarecord_form_search.html.twig';
+                $template = 'ODRAdminBundle:Link:link_datarecord_form_search.html.twig';
 
             $final_html = $templating->render(
                 $template,
@@ -321,7 +345,7 @@ exit();
                     'scroll_target' => $scroll_target,
                     'user' => $user,
                     'user_permissions' => $datatype_permissions,
-                    'theme_id' => $theme->getId(),
+                    'theme_array' => $theme_array,
 
                     'logged_in' => $logged_in,
 
@@ -332,129 +356,12 @@ exit();
 
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
                     'all_datarecords' => $datarecords,
+                    'use_jupyterhub' => $use_jupyterhub,
                 )
             );
         }
 
         return $final_html;
-    }
-
-
-    /**
-     * Attempt to load the textresult version of the cached entries for each datarecord in $datarecord_list.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param array $datarecord_list           The list of datarecord ids that need rendered
-     * @param Theme $theme                     The 'table' theme for the relevant datatype
-     * @param Request $request
-     *
-     * @throws \Exception
-     *
-     * @return array
-     */
-    public function renderTextResultsList($em, $datarecord_list, $theme, Request $request)
-    {
-        try {
-            // --------------------
-            // Store whether the user has view privileges for this datatype
-            $datatype = $theme->getDataType();
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datafield_permissions = array();
-
-            $can_view_datarecord = false;
-            if ($user !== 'anon.') {
-                $user_permissions = self::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-
-                // Check if user has permissions to view non-public datarecords
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-            }
-            // --------------------
-
-
-            // Grab necessary objects
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-            // Always bypass cache if in dev mode?
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
-
-
-            // ----------------------------------------
-            // Attempt to load from memcached...
-//        $datatype_revision = intval( $datatype->getRevision() );      // TODO?
-            $rows = array();
-            foreach ($datarecord_list as $num => $datarecord_id) {
-                // Get the table version for this datarecord from memcached if possible
-                $data = self::getRedisData(($redis->get($redis_prefix.'.datarecord_table_data_'.$datarecord_id)));
-                if ($bypass_cache || $data == false)
-                    $data = self::Text_GetDisplayData($em, $datarecord_id, $request);
-
-                $row = array();
-                // Only add this datarecord to the list if the user is allowed to see it...
-                if ( $can_view_datarecord || $data['publicDate'] !== '2200-01-01 00:00:00' ) {
-                    // Don't save values from datafields the user isn't allowed to see...
-                    $dr_data = null;
-                    foreach ($data[$theme->getId()] as $display_order => $df_data) {        // TODO - apparently provides wrong theme id here at times?
-                        if ($dr_data == null)
-                            $dr_data = array();
-
-                        $df_id = $df_data['id'];
-                        $df_value = $df_data['value'];
-                        $df_is_public = $df_data['is_public'];
-
-                        if ( $df_is_public || (isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view'])) ) {
-                            if ( is_array($df_value) ) {
-                                // Need to ensure that names/links to non-public Files aren't displayed to people that don't have permission to view them
-                                $file_publicDate = $df_value['publicDate'];
-                                $file_url = $df_value['url'];
-
-                                if ( $can_view_datarecord || $file_publicDate != '2200-01-01' )
-                                    $dr_data[] = $file_url;
-                                else
-                                    $dr_data[] = '';
-                            }
-                            else {
-                                // Everything else is just a text string, and is always visible if the datafield itself is visible
-                                $dr_data[] = $df_value;
-                            }
-                        }
-                    }
-
-                    // If the user isn't prevented from seeing all datafields comprising this layout, store the data in an array
-                    if ( is_null($dr_data) ) {
-                        throw new \Exception('Table Theme has no datafields attached to it');
-                    }
-                    else if (count($dr_data) > 0) {
-                        $row[] = strval($datarecord_id);
-                        $row[] = strval($data['default_sort_value']);
-
-                        foreach ($dr_data as $tmp)
-                            $row[] = strval($tmp);
-                    }
-                    else {
-                        throw new \Exception('You are not allowed to view any of the Datafields used by this Table Theme');
-                    }
-
-                }
-
-                // If something exists in the array, append it to the list
-                if (count($row) > 0)
-                    $rows[] = $row;
-            }
-
-            return $rows;
-        }
-        catch (\Exception $e) {
-            throw new \Exception( $e->getMessage() );
-        }
     }
 
 
@@ -524,6 +431,7 @@ exit();
 
     /**
      * Get (or create) a list of datarecords returned by searching on the given search key
+     * TODO - move this into some sort of "searching service"?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
@@ -539,10 +447,8 @@ exit();
      */
     public function getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype_id, $search_key, Request $request)
     {
-        // Get necessary objects
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        /** @var CacheService $cache_service*/
+        $cache_service = $this->container->get('odr.cache_service');
 
         // ----------------------------------------
         // Going to need the search controller for determining whether $search_key is valid or not
@@ -567,7 +473,7 @@ exit();
 
         // Attempt to load the search result for this search_key
         $data = array();
-        $cached_searches = self::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+        $cached_searches = $cache_service->get('cached_search_results');
         if ( $cached_searches == false
             || !isset($cached_searches[$datatype_id])
             || !isset($cached_searches[$datatype_id][$search_checksum]) ) {
@@ -579,7 +485,7 @@ exit();
             else if ($ret['redirect'] == true)
                 return array('redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key'], 'datarecord_list' => '');
 
-            $cached_searches = self::getRedisData($redis->get($redis_prefix.'.cached_search_results'));
+            $cached_searches = $cache_service->get('cached_search_results');
         }
 
         // ----------------------------------------
@@ -607,6 +513,7 @@ exit();
 
     /**
      * Utility function to let controllers easily force a redirect to a different search results page
+     * TODO - move into searching service?
      *
      * @param User $user
      * @param string $new_url
@@ -868,6 +775,8 @@ exit();
 
 
     /**
+     * @deprecated
+     *
      * Utility function that does the work of decrypting a given File/Image entity.
      * Note that the filename of the decrypted file/image is determined solely by $object_id and $object_type because of constraints in the $crypto->decryptFile() function
      *
@@ -933,140 +842,8 @@ exit();
 
 
     /**
-     * Determines and returns an array of top-level datatype ids
-     *
-     * @return int[]
-     */
-    public function getTopLevelDatatypes()
-    {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $query = $em->createQuery(
-           'SELECT dt.id AS datatype_id
-            FROM ODRAdminBundle:DataType AS dt
-            WHERE dt.deletedAt IS NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $all_datatypes = array();
-        foreach ($results as $num => $result)
-            $all_datatypes[] = $result['datatype_id'];
-
-        $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-            FROM ODRAdminBundle:DataTree AS dt
-            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-            JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE dtm.is_link = 0
-            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $parent_of = array();
-        foreach ($results as $num => $result)
-            $parent_of[ $result['descendant_id'] ] = $result['ancestor_id'];
-
-        $top_level_datatypes = array();
-        foreach ($all_datatypes as $datatype_id) {
-            if ( !isset($parent_of[$datatype_id]) )
-                $top_level_datatypes[] = $datatype_id;
-        }
-
-        return $top_level_datatypes;
-    }
-
-
-    /**
-     * Utility function to returns the DataTree table in array format
-     * TODO: This function is a really bad idea - will be absolutely GIGANTIC at some point.
-     * Why is this needed? Plus, how do you know when it needs to be flushed? 
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param boolean $force_rebuild
-     *
-     * @return array
-     */
-    public function getDatatreeArray($em, $force_rebuild = false)
-    {
-        // Attempt to load from cache first
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        $datatree_array = self::getRedisData(($redis->get($redis_prefix.'.cached_datatree_array')));
-        if ( !($force_rebuild || $datatree_array == false) ) {
-            return $datatree_array;
-        }
-
-        $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
-            FROM ODRAdminBundle:DataType AS ancestor
-            JOIN ODRAdminBundle:DataTree AS dt WITH ancestor = dt.ancestor
-            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL');
-        $results = $query->getArrayResult();
-
-        $datatree_array = array(
-            'descendant_of' => array(),
-            'linked_from' => array(),
-            'multiple_allowed' => array(),
-        );
-        foreach ($results as $num => $result) {
-            $ancestor_id = $result['ancestor_id'];
-            $descendant_id = $result['descendant_id'];
-            $is_link = $result['is_link'];
-            $multiple_allowed = $result['multiple_allowed'];
-
-            if ( !isset($datatree_array['descendant_of'][$ancestor_id]) )
-                $datatree_array['descendant_of'][$ancestor_id] = '';
-
-            if ($is_link == 0) {
-                $datatree_array['descendant_of'][$descendant_id] = $ancestor_id;
-            }
-            else {
-                if ( !isset($datatree_array['linked_from'][$descendant_id]) )
-                    $datatree_array['linked_from'][$descendant_id] = array();
-
-                $datatree_array['linked_from'][$descendant_id][] = $ancestor_id;
-            }
-
-            if ($multiple_allowed == 1) {
-                if ( !isset($datatree_array['multiple_allowed'][$descendant_id]) )
-                    $datatree_array['multiple_allowed'][$descendant_id] = array();
-
-                $datatree_array['multiple_allowed'][$descendant_id][] = $ancestor_id;
-            }
-        }
-
-        // Store in cache and return
-//print '<pre>'.print_r($datatree_array, true).'</pre>';  exit();
-        $redis->set($redis_prefix.'.cached_datatree_array', gzcompress(serialize($datatree_array)));
-        return $datatree_array;
-    }
-
-
-    /**
-     * Returns the id of the grandparent of the given datatype
-     *
-     * @param array $datatree_array         @see self::getDatatreeArray()
-     * @param integer $initial_datatype_id
-     *
-     * @return integer
-     */
-    protected function getGrandparentDatatypeId($datatree_array, $initial_datatype_id)
-    {
-        $grandparent_datatype_id = $initial_datatype_id;
-        while( isset($datatree_array['descendant_of'][$grandparent_datatype_id]) && $datatree_array['descendant_of'][$grandparent_datatype_id] !== '' )
-            $grandparent_datatype_id = $datatree_array['descendant_of'][$grandparent_datatype_id];
-
-        return $grandparent_datatype_id;
-    }
-
-
-    /**
      * Automatically decompresses and unserializes redis data.
+     * @deprecated
      *
      * @throws \Exception
      *
@@ -1080,468 +857,6 @@ exit();
             return unserialize(gzuncompress($redis_value));
         }
         return false;
-    }
-
-
-    /**
-     * Ensures the given user is in the given group.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user
-     * @param Group $group
-     * @param User $admin_user
-     *
-     * @return UserGroup
-     */
-    protected function ODR_createUserGroup($em, $user, $group, $admin_user)
-    {
-        // Check to see if the user already belongs to this group
-        $query = $em->createQuery(
-           'SELECT ug
-            FROM ODRAdminBundle:UserGroup AS ug
-            WHERE ug.user = :user_id AND ug.group = :group_id
-            AND ug.deletedAt IS NULL'
-        )->setParameters( array('user_id' => $user->getId(), 'group_id' => $group->getId()) );
-        /** @var UserGroup[] $results */
-        $results = $query->getResult();
-
-        $user_group = null;
-        if ( count($results) > 0 ) {
-            // If an existing user_group entry was found, return it and don't do anything else
-            foreach ($results as $num => $ug)
-                return $ug;
-        }
-        else {
-            // ...otherwise, create a new user_group entry
-            $user_group = new UserGroup();
-            $user_group->setUser($user);
-            $user_group->setGroup($group);
-
-            $user_group->setCreatedBy($admin_user);
-
-            $em->persist($user_group);
-            $em->flush();
-        }
-
-        return $user_group;
-    }
-
-
-    /**
-     * Create a new Group for users of the given datatype.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user
-     * @param DataType $datatype               An id for a top-level datatype
-     * @param string $initial_purpose          One of 'admin', 'edit_all', 'view_all', 'view_only', or ''
-     *
-     * @return array
-     */
-    protected function ODR_createGroup($em, $user, $datatype, $initial_purpose = '')
-    {
-        // ----------------------------------------
-        // Create the Group entity
-        $group = new Group();
-        $group->setDataType($datatype);
-        $group->setPurpose($initial_purpose);
-
-        $group->setCreatedBy($user);
-
-        $em->persist($group);
-        $em->flush();
-        $em->refresh($group);
-
-
-        // Create the GroupMeta entity
-        $group_meta = new GroupMeta();
-        $group_meta->setGroup($group);
-        if ($initial_purpose == 'admin') {
-            $group_meta->setGroupName('Default Group - Admin');
-            $group_meta->setGroupDescription('Users in this default Group are always allowed to view and edit all Datarecords, modify all layouts, and change permissions of any User with regards to this Datatype.');
-        }
-        else if ($initial_purpose == 'edit_all') {
-            $group_meta->setGroupName('Default Group - Editor');
-            $group_meta->setGroupDescription('Users in this default Group can always both view and edit all Datarecords and Datafields of this Datatype.');
-        }
-        else if ($initial_purpose == 'view_all') {
-            $group_meta->setGroupName('Default Group - View All');
-            $group_meta->setGroupDescription('Users in this default Group always have the ability to see non-public Datarecords and Datafields of this Datatype, but cannot make any changes.');
-        }
-        else if ($initial_purpose == 'view_only') {
-            $group_meta->setGroupName('Default Group - View');
-            $group_meta->setGroupDescription('Users in this default Group are always able to see public Datarecords and Datafields of this Datatype, though they cannot make any changes.  If the Datatype is public, then adding Users to this Group is meaningless.');
-        }
-        else {
-            $group_meta->setGroupName('New user group for '.$datatype->getShortName());
-            $group_meta->setGroupDescription('');
-        }
-
-        $group_meta->setCreatedBy($user);
-        $group_meta->setUpdatedBy($user);
-
-        $em->persist($group_meta);
-        $em->flush();
-        $em->refresh($group_meta);
-
-
-        // ----------------------------------------
-        // Need to keep track of which datatypes are top-level
-        $top_level_datatypes = self::getTopLevelDatatypes();
-
-        // Create the initial datatype permission entries
-        $include_links = false;
-        $associated_datatypes = self::getAssociatedDatatypes($em, array($datatype->getId()), $include_links);   // TODO - if datatypes are eventually going to be undeleteable, then this needs to also return deleted child datatypes
-//print_r($associated_datatypes);
-
-        // Build a single INSERT INTO query to add GroupDatatypePermissions entries for this top-level datatype and for each of its children
-        $query_str = '
-            INSERT INTO odr_group_datatype_permissions (
-                group_id, data_type_id,
-                can_view_datatype, can_view_datarecord, can_add_datarecord, can_delete_datarecord, can_design_datatype, is_datatype_admin,
-                created, createdBy, updated, updatedBy
-            )
-            VALUES ';
-
-        $has_datatypes = false;
-        foreach ($associated_datatypes as $num => $dt_id) {
-            $has_datatypes = true;
-
-            if ($initial_purpose == 'admin')
-                $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "1", "1", "1", "1", "1", "1", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-            else if ($initial_purpose == 'edit_all')
-                $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "1", "1", "1", "1", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-            else if ($initial_purpose == 'view_all')
-                $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "1", "1", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-            else if ( $initial_purpose == 'view_only' || in_array($dt_id, $top_level_datatypes) )
-                $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "1", "0", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-            else
-                $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "0", "0", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-        }
-
-        if ($has_datatypes) {
-            // Get rid of the trailing comma and replace with a semicolon
-            $query_str = substr($query_str, 0, -2).';';
-            $conn = $em->getConnection();
-            $rowsAffected = $conn->executeUpdate($query_str);
-        }
-
-        // ----------------------------------------
-        // Create the initial datafield permission entries
-        $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted datafields
-        $query = $em->createQuery(
-           'SELECT df.id AS df_id, df.deletedAt AS df_deletedAt
-            FROM ODRAdminBundle:DataFields AS df
-            JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-            WHERE dt.id IN (:datatype_ids)'
-        )->setParameters( array('datatype_ids' => $associated_datatypes) );
-        $results = $query->getArrayResult();
-        $em->getFilters()->enable('softdeleteable');
-//print_r($results);  exit();
-
-        // Build a single INSERT INTO query to add GroupDatafieldPermissions entries for all datafields of this top-level datatype and its children
-        $query_str = '
-            INSERT INTO odr_group_datafield_permissions (
-                group_id, data_field_id,
-                can_view_datafield, can_edit_datafield,
-                created, createdBy, updated, updatedBy, deletedAt
-            )
-            VALUES ';
-
-        $has_datafields = false;
-        foreach ($results as $result) {
-            $has_datafields = true;
-            $df_id = $result['df_id'];
-            $df_deletedAt = $result['df_deletedAt'];
-
-            // Want to also store GroupDatafieldPermission entries for deleted datafields, in case said datafields get undeleted later...
-            $deletedAt = "NULL";
-            if ( !is_null($df_deletedAt) )
-                $deletedAt = '"'.$df_deletedAt->format('Y-m-d H:i:s').'"';
-
-            if ($initial_purpose == 'admin' || $initial_purpose == 'edit_all')
-                $query_str .= '("'.$group->getId().'", "'.$df_id.'", "1", "1", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'", '.$deletedAt.'),'."\n";
-            else if ($initial_purpose == 'view_all')
-                $query_str .= '("'.$group->getId().'", "'.$df_id.'", "1", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'", '.$deletedAt.'),'."\n";
-            else
-                $query_str .= '("'.$group->getId().'", "'.$df_id.'", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'", '.$deletedAt.'),'."\n";
-        }
-
-        if ($has_datafields) {
-            // Get rid of the trailing comma and replace with a semicolon
-            $query_str = substr($query_str, 0, -2).';';
-            $conn = $em->getConnection();
-            $rowsAffected = $conn->executeUpdate($query_str);
-        }
-
-        // ----------------------------------------
-        // Automatically add super-admin users to new default "admin" groups
-        if ($initial_purpose == 'admin') {
-            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-            // Grab all users
-            $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var User[] $user_list */
-            $user_list = $user_manager->findUsers();
-
-            // Locate those with super-admin permissions...
-            foreach ($user_list as $u) {
-                if ( $u->hasRole('ROLE_SUPER_ADMIN') ) {
-                    // ...add the super admin to this new admin group
-                    self::ODR_createUserGroup($em, $u, $group, $user);
-
-                    // ...delete the cached list of permissions for each super-admin belongs to
-                    $redis->del($redis_prefix.'.user_'.$u->getId().'_permissions');
-                }
-            }
-        }
-
-        return array('group' => $group, 'group_meta' => $group_meta);
-    }
-
-
-    /**
-     * Creates GroupDatatypePermissions for all groups when a new datatype is created.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user
-     * @param DataType $datatype
-     * @param boolean $is_top_level
-     */
-    protected function ODR_createGroupsForDatatype($em, $user, $datatype, $is_top_level)
-    {
-        $datatype_id = $datatype->getId();
-
-        // Locate all groups for this datatype's grandparent
-        $repo_group = $em->getRepository('ODRAdminBundle:Group');
-        $groups = false;
-
-        /** @var Group[] $groups */
-        if ($is_top_level) {
-            $groups = $repo_group->findBy( array('dataType' => $datatype->getId()) );
-            if ($groups == false) {
-                // Determine whether this datatype has the default groups already...
-                $admin_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'admin') );
-                if ($admin_group == false)
-                    self::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'admin');
-
-                $edit_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'edit_all') );
-                if ($edit_group == false)
-                    self::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'edit_all');
-
-                $view_all_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'view_all') );
-                if ($view_all_group == false)
-                    self::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'view_all');
-
-                $view_only_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'view_only') );
-                if ($view_only_group == false)
-                    self::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'view_only');
-
-
-                // Now that the default groups exist, reload them
-                $groups = $repo_group->findBy( array('dataType' => $datatype_id) );
-            }
-        }
-        else {
-            // This function call is to create initial groups for a child datatype...locate its grandparent id
-            $datatree_array = self::getDatatreeArray($em, true);
-            $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype_id);
-
-            // Load all groups belonging to the grandparent datatype
-            $groups = $repo_group->findBy( array('dataType' => $grandparent_datatype_id) );
-        }
-
-        // If this function is called to create groups for a top-level datatype, the following section wouldn't be needed since it's already covered by in self::ODR_createGroup()...
-        if ( !$is_top_level ) {
-
-            // ----------------------------------------
-            // Going to need these later...
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-
-            // ----------------------------------------
-            // Load the list of groups and users this INSERT INTO query will affect
-            $group_list = array();
-            foreach ($groups as $group)
-                $group_list[] = $group->getId();
-
-            $query = $em->createQuery(
-               'SELECT DISTINCT(u.id) AS user_id
-                FROM ODRAdminBundle:UserGroup AS ug
-                JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
-                WHERE ug.group IN (:groups)
-                AND ug.deletedAt IS NULL'
-            )->setParameters( array('groups' => $group_list) );
-            $results = $query->getArrayResult();
-
-            $user_list = array();
-            foreach ($results as $result)
-                $user_list[] = $result['user_id'];
-
-
-            // ----------------------------------------
-            // Build a single INSERT INTO query to add a GroupDatatypePermissions entry for this child datatype to all groups found previously
-            $query_str = '
-                INSERT INTO odr_group_datatype_permissions (
-                    group_id, data_type_id,
-                    can_view_datatype, can_view_datarecord, can_add_datarecord, can_delete_datarecord, can_design_datatype, is_datatype_admin,
-                    created, createdBy, updated, updatedBy
-                )
-                VALUES ';
-
-            foreach ($groups as $group) {
-                // Default permissions depend on the original purpose of this group...
-                $initial_purpose = $group->getPurpose();
-
-                $cache_update = null;
-                if ($initial_purpose == 'admin') {
-                    $query_str .= '("'.$group->getId().'", "'.$datatype_id.'", "1", "1", "1", "1", "1", "1", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-                    $cache_update = array('dt_view' => 1, 'dr_view' => 1, 'dr_add' => 1, 'dr_delete' => 1,/* 'dt_design' => 1,*/ 'dt_admin' => 1);
-                }
-                else if ($initial_purpose == 'edit_all') {
-                    $query_str .= '("'.$group->getId().'", "'.$datatype_id.'", "1", "1", "1", "1", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-                    $cache_update = array('dt_view' => 1, 'dr_view' => 1, 'dr_add' => 1, 'dr_delete' => 1);
-                }
-                else if ($initial_purpose == 'view_all') {
-                    $query_str .= '("'.$group->getId().'", "'.$datatype_id.'", "1", "1", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-                    $cache_update = array('dt_view' => 1, 'dr_view' => 1);
-                }
-                else if ($initial_purpose == 'view_only' ) {
-                    $query_str .= '("'.$group->getId().'", "'.$datatype_id.'", "1", "0", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-                    $cache_update = array('dt_view' => 1);
-                }
-                else {
-                    $query_str .= '("'.$group->getId().'", "'.$datatype_id.'", "0", "0", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-                    /* no need to update the cache entry with this */
-                }
-
-                if ($cache_update != null) {
-                    // Immediately update group permissions with the new datatype, if a cached version of those permissions exists
-                    $group_permissions = self::getRedisData(($redis->get($redis_prefix.'.group_'.$group->getId().'_permissions')));
-                    if ($group_permissions != false) {
-                        $group_permissions['datatypes'][$datatype_id] = $cache_update;
-                        $redis->set($redis_prefix.'.group_'.$group->getId().'_permissions', gzcompress(serialize($group_permissions)));
-                    }
-                }
-            }
-
-            // Get rid of the trailing comma and replace with a semicolon
-            $query_str = substr($query_str, 0, -2).';';
-            $conn = $em->getConnection();
-            $rowsAffected = $conn->executeUpdate($query_str);
-
-
-            // ----------------------------------------
-            // Delete all permission entries for each affected user...
-            // Not updating cached entry because it's a combination of all group permissions, and would take as much work to figure out what all to change as it would to just rebuild it
-            foreach ($user_list as $user_id)
-                $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
-        }
-    }
-
-
-    /**
-     * Creates GroupDatafieldPermissions for all groups when a new datafield is created, and updates existing cache entries for groups and users with the new datafield.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user
-     * @param DataFields $datafield
-     */
-    protected function ODR_createGroupsForDatafield($em, $user, $datafield)
-    {
-        // ----------------------------------------
-        // Going to need these later...
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-
-        // ----------------------------------------
-        // Locate this datafield's datatype's grandparent
-        $datatree_array = self::getDatatreeArray($em);
-        $datatype_id = $datafield->getDataType()->getId();
-        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype_id);
-
-        // Locate all groups for this datatype's grandparent
-        /** @var Group[] $groups */
-        $groups = $em->getRepository('ODRAdminBundle:Group')->findBy( array('dataType' => $grandparent_datatype_id) );
-        // Unless something has gone wrong previously, there should always be results in this
-
-
-        // ----------------------------------------
-        // Load the list of groups and users this INSERT INTO query will affect
-        $group_list = array();
-        foreach ($groups as $group)
-            $group_list[] = $group->getId();
-
-        $query = $em->createQuery(
-           'SELECT DISTINCT(u.id) AS user_id
-            FROM ODRAdminBundle:UserGroup AS ug
-            JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
-            WHERE ug.group IN (:groups)
-            AND ug.deletedAt IS NULL'
-        )->setParameters( array('groups' => $group_list) );
-        $results = $query->getArrayResult();
-
-        $user_list = array();
-        foreach ($results as $result)
-            $user_list[] = $result['user_id'];
-
-
-        // ----------------------------------------
-        // Build a single INSERT INTO query to add a GroupDatafieldPermissions entry for this datafield to all groups found previously
-        $query_str = '
-            INSERT INTO odr_group_datafield_permissions (
-                group_id, data_field_id,
-                can_view_datafield, can_edit_datafield,
-                created, createdBy, updated, updatedBy
-            )
-            VALUES ';
-        foreach ($groups as $group) {
-            $initial_purpose = $group->getPurpose();
-
-            $cache_update = null;
-            if ($initial_purpose == 'admin' || $initial_purpose == 'edit_all') {
-                $query_str .= '("'.$group->getId().'", "'.$datafield->getId().'", "1", "1", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-                $cache_update = array('view' => 1, 'edit' => 1);
-            }
-            else if ($initial_purpose == 'view_all') {
-                $query_str .= '("'.$group->getId().'", "'.$datafield->getId().'", "1", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-                $cache_update = array('view' => 1);
-            }
-            else {
-                $query_str .= '("'.$group->getId().'", "'.$datafield->getId().'", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-                /* no need to update the cache entry with this */
-            }
-
-            if ($cache_update != null) {
-                // Immediately update group permissions with the new datafield, if a cached version of those permissions exists
-                $group_permissions = self::getRedisData(($redis->get($redis_prefix.'.group_'.$group->getId().'_permissions')));
-                if ($group_permissions != false) {
-                    if ( !isset($group_permissions['datafields'][$datatype_id]) )
-                        $group_permissions['datafields'][$datatype_id] = array();
-
-                    $group_permissions['datafields'][$datatype_id][$datafield->getId()] = $cache_update;
-                    $redis->set($redis_prefix.'.group_'.$group->getId().'_permissions', gzcompress(serialize($group_permissions)));
-                }
-            }
-        }
-
-        // Get rid of the trailing comma and replace with a semicolon
-        $query_str = substr($query_str, 0, -2).';';
-        $conn = $em->getConnection();
-        $rowsAffected = $conn->executeUpdate($query_str);
-
-
-        // ----------------------------------------
-        // Delete all permission entries for each affected user...
-        // Not updating cached entry because it's a combination of all group permissions, and would take as much work to figure out what all to change as it would to just rebuild it
-        foreach ($user_list as $user_id)
-            $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
     }
 
 
@@ -1616,6 +931,10 @@ exit();
         // Delete the old meta entry if needed
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
+
+        // Ensure the "in-memory" version of $group references the correct meta entry
+        $group->removeGroupMetum($old_meta_entry);
+        $group->addGroupMetum($new_group_meta);
 
         // Save the new meta entry
         $em->persist($new_group_meta);
@@ -1787,26 +1106,30 @@ exit();
 
 
     /**
+     * @todo - move to the permissions service?
+     * @deprecated
+     *
      * Gets and returns the permissions array for the given group.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $user_id
      * @param boolean $force_rebuild
      *
-     * @throws \Exception
+     * @throws ODRException
      *
      * @return array
      */
     public function getUserPermissionsArray($em, $user_id, $force_rebuild = false)
     {
         try {
-            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
 
 //$force_rebuild = true;
-            $user_permissions = self::getRedisData(($redis->get($redis_prefix.'.user_'.$user_id.'_permissions')));
+            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
+            $user_permissions = $cache_service->get('user_'.$user_id.'_permissions');
             if ( !$force_rebuild && $user_permissions != false )
                 return $user_permissions;
 
@@ -1821,6 +1144,7 @@ exit();
                 AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
             )->setParameters( array('user_id' => $user_id) );
             $results = $query->getArrayResult();
+//exit('<pre>'.print_r($results, true).'</pre>' );
 
             $user_groups = array();
             foreach ($results as $result)
@@ -1832,11 +1156,11 @@ exit();
             $group_permissions = array();
             foreach ($user_groups as $num => $group_id) {
                 // Attempt to load the permissions for this group
-                $permissions = self::getRedisData(($redis->get($redis_prefix.'.group_'.$group_id.'_permissions')));
+                $permissions = $cache_service->get('group_'.$group_id.'_permissions');
 
                 if ( $force_rebuild || $permissions == false ) {
                     $permissions = self::rebuildGroupPermissionsArray($em, $group_id);
-                    $redis->set($redis_prefix.'.group_'.$group_id.'_permissions', gzcompress(serialize($permissions)));
+                    $cache_service->set('group_'.$group_id.'_permissions', $permissions);
                 }
 
                 $group_permissions[$group_id] = $permissions;
@@ -1850,9 +1174,12 @@ exit();
                 // TODO - datarecord restriction?
 
                 foreach ($group_permission['datatypes'] as $dt_id => $dt_permissions) {
-                    foreach ($dt_permissions as $permission => $num) {
+                    foreach ($dt_permissions as $permission => $num)
                         $user_permissions['datatypes'][$dt_id][$permission] = 1;
-                    }
+
+                    // If the user is an admin for the datatype, ensure they're allowed to edit datarecords of the datatype
+                    if ( isset($user_permissions['datatypes'][$dt_id]['dt_admin']) )
+                        $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
                 }
 
                 foreach ($group_permission['datafields'] as $dt_id => $datafields) {
@@ -1871,7 +1198,7 @@ exit();
             }
 
             // If child datatypes have the "dr_edit" permission, ensure their parents do as well
-            $datatree_array = self::getDatatreeArray($em, $force_rebuild);
+            $datatree_array = $dti_service->getDatatreeArray();
 
             foreach ($user_permissions['datatypes'] as $dt_id => $dt_permissions) {
                 if ( isset($dt_permissions['dr_edit']) ) {
@@ -1885,20 +1212,22 @@ exit();
             }
 
             // Store that array in the cache
-            $redis->set($redis_prefix.'.user_'.$user_id.'_permissions', gzcompress(serialize($user_permissions)));
-
+            $cache_service->set('user_'.$user_id.'_permissions', $user_permissions);
 
             // ----------------------------------------
             // Return the permissions for all groups this user belongs to
             return $user_permissions;
         }
         catch (\Exception $e) {
-            throw new \Exception( $e->getMessage() );
+            throw new ODRException( $e->getMessage() );
         }
     }
 
 
     /**
+     * @todo - move to the permissions service?
+     * @deprecated
+     *
      * Rebuilds the cached version of a group's datatype/datafield permissions array
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -1922,7 +1251,7 @@ exit();
             AND g.deletedAt IS NULL AND gm.deletedAt IS NULL AND gdtp.deletedAt IS NULL AND gdfp.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND df_dt.deletedAt IS NULL'
         )->setParameters( array('group_id' => $group_id) );
         $results = $query->getArrayResult();
-//print '<pre>'.print_r($results, true).'</pre>'; exit();
+//exit( '<pre>'.print_r($results, true).'</pre>' );
 
         // Read the query result to find...
         $datarecord_restriction = '';
@@ -1935,6 +1264,9 @@ exit();
 
             // Build the permissions list for datatypes
             foreach ($group['groupDatatypePermissions'] as $num => $permission) {
+                if ( !isset($permission['dataType']['id']) )
+                    continue;
+
                 $dt_id = $permission['dataType']['id'];
                 $datatype_permissions[$dt_id] = array();
 
@@ -1979,154 +1311,14 @@ exit();
 
 
     /**
-     * Given a group's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.
-     *
-     * @param array &$datatype_array    @see self::getDatatypeArray()
-     * @param array &$datarecord_array  @see self::getDatarecordArray()
-     * @param array $permissions_array  @see self::getUserPermissionsArray()
-     */
-    protected function filterByGroupPermissions(&$datatype_array, &$datarecord_array, $permissions_array)
-    {
-$debug = true;
-$debug = false;
-
-if ($debug)
-    print '----- permissions filter -----'."\n";
-
-        // Save relevant permissions...
-        $datatype_permissions = array();
-        if ( isset($permissions_array['datatypes']) )
-            $datatype_permissions = $permissions_array['datatypes'];
-        $datafield_permissions = array();
-        if ( isset($permissions_array['datafields']) )
-            $datafield_permissions = $permissions_array['datafields'];
-
-        $can_view_datatype = array();
-        $can_view_datarecord = array();
-        $datafields_to_remove = array();
-        foreach ($datatype_array as $dt_id => $dt) {
-            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dt_view' ]) )
-                $can_view_datatype[$dt_id] = true;
-            else
-                $can_view_datatype[$dt_id] = false;
-
-            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dr_view' ]) )
-                $can_view_datarecord[$dt_id] = true;
-            else
-                $can_view_datarecord[$dt_id] = false;
-        }
-
-
-        // For each datatype in the provided array...
-        foreach ($datatype_array as $dt_id => $dt) {
-
-            // If there was no datatype permission entry for this datatype, have it default to false
-            if ( !isset($can_view_datatype[$dt_id]) )
-                $can_view_datatype[$dt_id] = false;
-
-            // If datatype is non-public and user does not have the 'can_view_datatype' permission, then remove the datatype from the array
-            if ( $dt['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datatype[$dt_id] ) {
-                unset( $datatype_array[$dt_id] );
-if ($debug)
-    print 'removed non-public datatype '.$dt_id."\n";
-
-                // Also remove all datarecords of that datatype
-                foreach ($datarecord_array as $dr_id => $dr) {
-                    if ($dt_id == $dr['dataType']['id'])
-                        unset( $datarecord_array[$dr_id] );
-if ($debug)
-    print ' -- removed datarecord '.$dr_id."\n";
-                }
-
-                // No sense checking anything else for this datatype, skip to the next one
-                continue;
-            }
-
-            // Otherwise, the user is allowed to see this datatype...
-            foreach ($dt['themes'] as $theme_id => $theme) {
-                foreach ($theme['themeElements'] as $te_num => $te) {
-
-                    // For each datafield in this theme element...
-                    if ( isset($te['themeDataFields']) ) {
-                        foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                            $df_id = $tdf['dataField']['id'];
-
-                            // If the user doesn't have the 'can_view_datafield' permission for that datafield...
-                            if ( $tdf['dataField']['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !(isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) ) ) {
-                                // ...remove it from the layout
-                                unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry on purpose
-                                $datafields_to_remove[$df_id] = 1;
-if ($debug)
-    print 'removed datafield '.$df_id.' from theme_element '.$te['id'].' datatype '.$dt_id.' theme '.$theme_id.' ('.$theme['themeType'].')'."\n";
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Also need to go through the datarecord array and remove both datarecords and datafields that the user isn't allowed to see
-        foreach ($datarecord_array as $dr_id => $dr) {
-            // Save datatype id of this datarecord
-            $dt_id = $dr['dataType']['id'];
-
-            // If there was no datatype permission entry for this datatype, have it default to false
-            if ( !isset($can_view_datarecord[$dt_id]) )
-                $can_view_datarecord[$dt_id] = false;
-
-            // If the datarecord is non-public and user doesn't have the 'can_view_datarecord' permission, then remove the datarecord from the array
-            if ( $dr['dataRecordMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
-                unset( $datarecord_array[$dr_id] );
-if ($debug)
-    print 'removed non-public datarecord '.$dr_id."\n";
-
-                // No sense checking anything else for this datarecord, skip to the next one
-                continue;
-            }
-
-            // The user is allowed to view this datarecord...
-            foreach ($dr['dataRecordFields'] as $df_id => $drf) {
-
-                // Remove the datafield if needed
-                if ( isset($datafields_to_remove[$df_id]) ) {
-                    unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
-if ($debug)
-    print 'removed datafield '.$df_id.' from datarecord '.$dr_id."\n";
-
-                    // No sense checking file/image public status, skip to the next datafield
-                    continue;
-                }
-
-                // ...remove the files the user isn't allowed to see
-                foreach ($drf['file'] as $file_num => $file) {
-                    if ( $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
-                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['file'][$file_num] );
-if ($debug)
-    print 'removed non-public file '.$file['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
-                    }
-                }
-
-                // ...remove the images the user isn't allowed to see
-                foreach ($drf['image'] as $image_num => $image) {
-                    if ( $image['parent']['imageMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
-                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['image'][$image_num] );
-if ($debug)
-    print 'removed non-public image '.$image['parent']['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
-                    }
-                }
-            }
-        }
-    }
-
-
-    /**
      * Utility function so other controllers can return 403 errors easily.
+     * @deprecated
      *
      * @param string $type
      *
      * @return Response
      */
-    protected function permissionDeniedError($type = '')
+    public function permissionDeniedError($type = '')
     {
         $str = '';
         if ($type !== '')
@@ -2150,12 +1342,13 @@ if ($debug)
 
     /**
      * Utility function so other controllers can notify of deleted entities easily.
+     * @deprecated
      *
      * @param string $entity
      *
      * @return Response
      */
-    protected function deletedEntityError($entity = '')
+    public function deletedEntityError($entity = '')
     {
         $str = '';
         if ($entity !== '')
@@ -2177,227 +1370,7 @@ if ($debug)
 
 
     /**
-     * Temporary? function to mark datarecord as updated and delete cached version
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param DataRecord $datarecord
-     * @param User $user
-     */
-    protected function tmp_updateDatarecordCache($em, $datarecord, $user)
-    {
-        // Mark datarecord as updated
-        $datarecord->setUpdatedBy($user);
-        $datarecord->setUpdated(new \DateTime());   // guarantee that the datarecord gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
-        $em->persist($datarecord);
-        $em->flush();
-
-        // Locate and clear the cache entry for this datarecord
-        $grandparent_datarecord_id = $datarecord->getGrandparent()->getId();
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        $redis->del($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord_id);
-        $redis->del($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
-        $redis->del($redis_prefix.'.datarecord_table_data_'.$grandparent_datarecord_id);
-    }
-
-
-    /**
-     * Temporary? function to mark datatype as updated and delete cached version
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param DataType $datatype
-     * @param User $user
-     */
-    protected function tmp_updateDatatypeCache($em, $datatype, $user)
-    {
-        // Mark datatype as updated
-        $datatype->setUpdatedBy($user);
-        $datatype->setUpdated(new \DateTime());   // guarantee that the datatype gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
-        $em->persist($datatype);
-        $em->flush();
-
-        // Locate and clear the cache entry for this datatype
-//        $datatree_array = self::getDatatreeArray($em);
-//        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype->getId());
-        $datatype_id = $datatype->getId();
-
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        $redis->del($redis_prefix.'.cached_datatype_'.$datatype_id);
-    }
-
-
-    /**
-     * Temporary? function to mark theme as updated and delete cached version of datatype
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param Theme $theme
-     * @param User $user
-     * @param boolean $update_datatype
-     */
-    protected function tmp_updateThemeCache($em, $theme, $user, $update_datatype = false)
-    {
-        // Mark theme as updated
-        $theme->setUpdatedBy($user);
-        $theme->setUpdated(new \DateTime());   // guarantee that the theme gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
-        $em->persist($theme);
-
-        if ($update_datatype) {
-            // Also mark datatype as updated
-            $datatype = $theme->getDataType();
-            $datatype->setUpdated(new \DateTime());   // guarantee that the datatype gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
-            $datatype->setUpdatedBy($user);
-            $em->persist($datatype);
-        }
-
-        $em->flush();
-
-        // Locate and clear the cache entry for this datatype
-//        $datatree_array = self::getDatatreeArray($em);
-//        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $theme->getDataType()->getId());
-        $datatype_id = $theme->getDataType()->getId();
-
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        $redis->del($redis_prefix.'.cached_datatype_'.$datatype_id);
-    }
-
-
-    /**
-     * Sorts DataRecords of a given DataType by the value contained in the DataField marked as the DataRecord's sorting field, and returns a comma-separated string of DataRecord ids in that order.
-     *
-     * @param DataType $datatype The DataType that needs to have its DataRecords sorted
-     * @param string $subset_str The subset of datarecord ids to return as a string
-     *
-     * @return string
-     */
-    public function getSortedDatarecords($datatype, $subset_str = '')
-    {
-        // Get Entity Manager and setup objects
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        // Attempt to grab the list of datarecords for this datatype from the cache
-        $datarecords = array();
-        $datarecord_str = self::getRedisData(($redis->get($redis_prefix.'.data_type_'.$datatype->getId().'_record_order')));
-//print 'loaded record_order: '.$datarecord_str."\n";
-
-        // No caching in dev environment
-        $bypass_cache = false;
-        if ($this->container->getParameter('kernel.environment') === 'dev')
-            $bypass_cache = true;
-
-
-        if ( !$bypass_cache && $datarecord_str != false && trim($datarecord_str) !== '' ) {
-            // List exists in cache, load datarecords
-            $datarecord_str = explode(',', trim($datarecord_str));
-//print '$datarecord_str: <pre>'.print_r($datarecord_str, true).'</pre>';
-
-            foreach ($datarecord_str as $dr_id)
-                $datarecords[$dr_id] = 1;
-        }
-        else {
-            // Create a query to return the ids of all datarecords belonging to this datatype
-            $query = $em->createQuery(
-               'SELECT dr.id
-                FROM ODRAdminBundle:DataRecord AS dr
-                WHERE dr.dataType = :datatype AND dr.provisioned = false
-                AND dr.deletedAt IS NULL
-                ORDER BY dr.id'
-            )->setParameters( array('datatype' => $datatype) );
-            $results = $query->getArrayResult();
-
-            // Flatten the array
-            $datarecords = array();
-            foreach ($results as $id => $data)
-                $datarecords[ $data['id'] ] = '';
-//print 'all datarecords: <pre>'.print_r($datarecords, true).'</pre>';
-
-
-            // Need to get the DataField used to sort the DataType
-            $sortfield = $datatype->getSortField();
-            if ($sortfield == null) {
-                // ...no sort order defined, use database id order
-                foreach ($datarecords as $dr_id => $value)
-                    $datarecords[$dr_id] = $dr_id;
-            }
-            else {
-                // Create a query to return a collection of datarecord ids, sorted by the sortfield of the datatype
-                $field_typeclass = $sortfield->getFieldType()->getTypeClass();
-                $query = $em->createQuery(
-                    'SELECT dr.id AS dr_id, e.value AS sort_value
-                     FROM ODRAdminBundle:DataRecord AS dr
-                     JOIN ODRAdminBundle:'.$field_typeclass.' AS e WITH e.dataRecord = dr
-                     WHERE dr.dataType = :datatype AND dr.provisioned = false AND e.dataField = :datafield
-                     AND dr.deletedAt IS NULL AND e.deletedAt IS NULL
-                     ORDER BY e.value'
-                )->setParameters( array('datatype' => $datatype, 'datafield' => $sortfield) );
-                $results = $query->getArrayResult();
-//print 'sort field results: <pre>'.print_r($results, true).'</pre>';
-
-                // Flatten the array
-                foreach ($results as $num => $data) {
-                    $dr_id = $data['dr_id'];
-                    $sort_value = $data['sort_value'];
-
-                    if ($field_typeclass == "DatetimeValue") {
-                        $sort_value = $sort_value->format('Y-m-d H:i:s');
-                        if ($sort_value == '9999-12-31 00:00:00')
-                            $sort_value = '';
-                    }
-
-                    $datarecords[ $dr_id ] = $sort_value;
-                }
-
-                asort($datarecords);
-//print 'sorted datarecords: <pre>'.print_r($datarecords, true).'</pre>';
-            }
-
-            // Turn the sorted datarecords into a string to store in memcached
-            $str = '';
-            foreach ($datarecords as $id => $key)
-                $str .= $id.',';
-            $datarecord_str = substr($str, 0, strlen($str)-1);
-//print 'saving record_order: '.$datarecord_str."\n";
-
-            $redis->set($redis_prefix.'.data_type_'.$datatype->getId().'_record_order', gzcompress(serialize($datarecord_str)));
-        }
-
-        // TODO - leave this as comma-separated list, or return an array instead?
-        $sorted_datarecords = '';
-        if ($subset_str !== '') {
-            // The user only wants the sort order for a subset of the DataType's DataRecords...
-            $subset = explode(',', $subset_str);
-
-            foreach ($datarecords as $id => $key) {
-                if ( in_array($id, $subset) )
-                    $sorted_datarecords .= $id.',';
-            }
-        }
-        else {
-            // Just flatten the array...
-            foreach ($datarecords as $id => $key)
-                $sorted_datarecords .= $id.',';
-        }
-
-        $sorted_datarecords = substr($sorted_datarecords, 0, strlen($sorted_datarecords)-1);
-//print 'sorted_datarecords: '.$sorted_datarecords."\n";
-
-        return $sorted_datarecords;
-    }
-
-
-    /**
+     * @deprecated
      * Gets or creates a TrackedJob entity in the database for use by background processes
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -2449,6 +1422,7 @@ if ($debug)
 
 
     /**
+     * @deprecated
      * Gets an array of TrackedError entities for a specified TrackedJob
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -2462,7 +1436,7 @@ if ($debug)
 
         $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
         if ($tracked_job == null)
-            return self::deletedEntityError('TrackedJob');
+            throw new ODRNotFoundException('TrackedJob');
 
         /** @var TrackedError[] $tracked_errors */
         $tracked_errors = $em->getRepository('ODRAdminBundle:TrackedError')->findBy( array('trackedJob' => $tracked_job_id) );
@@ -2474,11 +1448,11 @@ if ($debug)
 
 
     /**
+     * @deprecated
      * Deletes all TrackedError entities associated with a specified TrackedJob
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $tracked_job_id
-     *
      */
     protected function ODR_deleteTrackedErrorsByJob($em, $tracked_job_id)
     {
@@ -2628,6 +1602,10 @@ if ($debug)
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
+        // Ensure the "in-memory" version of $datarecord references the correct meta entry
+        $datarecord->removeDataRecordMetum($old_meta_entry);
+        $datarecord->addDataRecordMetum($new_datarecord_meta);
+
         $em->persist($new_datarecord_meta);
         $em->flush();
 
@@ -2703,6 +1681,10 @@ if ($debug)
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
+        // Ensure the "in-memory" version of $datatree references the correct meta entry
+        $datatree->removeDataTreeMetum($old_meta_entry);
+        $datatree->addDataTreeMetum($new_datatree_meta);
+
         $em->persist($new_datatree_meta);
         $em->flush();
 
@@ -2751,8 +1733,15 @@ if ($debug)
             $em->flush();
         }
 
-        // Refresh the cache entries for the ancestor datarecord
-        self::tmp_updateDatarecordCache($em, $ancestor_datarecord, $user);
+        // Force a rebuild of the cached entry for the ancestor datarecord
+        /** @var DatarecordInfoService $dri_service */
+        $dri_service = $this->container->get('odr.datarecord_info_service');
+        $dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
+
+        // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
+        /** @var CacheService $cache_service */
+        $cache_service = $this->container->get('odr.cache_service');
+        $cache_service->delete('associated_datarecords_for_'.$ancestor_datarecord->getGrandparent()->getId());
 
         return $linked_datatree;
     }
@@ -2760,6 +1749,7 @@ if ($debug)
 
     /**
      * Creates a new File/Image entity from the given file at the given filepath, and persists all required information to the database.
+     * @todo - move all encryption/decryption stuff to a service of its own?
      *
      * NOTE: the newly uploaded file/image will have its decrypted version deleted off the server...if you need it immediately after calling this function, you'll have to use decryptObject() to re-create it
      *
@@ -3258,6 +2248,10 @@ if ($debug)
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
+        // Ensure the "in-memory" version of $file references the correct meta entry
+        $file->removeFileMetum($old_meta_entry);
+        $file->addFileMetum($new_file_meta);
+
         $em->persist($new_file_meta);
         $em->flush();
 
@@ -3345,6 +2339,10 @@ if ($debug)
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
+        // Ensure the "in-memory" version of $image references the correct meta entry
+        $image->removeImageMetum($old_meta_entry);
+        $image->addImageMetum($new_image_meta);
+
         $em->persist($new_image_meta);
         $em->flush();
 
@@ -3375,9 +2373,11 @@ if ($debug)
             $radio_option->setCreatedBy($user);
             $radio_option->setCreated(new \DateTime());
 
-            // Save and reload the RadioOption so the associated meta entry can access it
+            // Ensure the "in-memory" version of the datafield knows about the new radio option
+            $datafield->addRadioOption($radio_option);
             $em->persist($radio_option);
-            $em->flush($radio_option);
+
+            $em->flush();
             $em->refresh($radio_option);
 
             // Create a new RadioOptionMeta entity
@@ -3391,8 +2391,16 @@ if ($debug)
             $radio_option_meta->setCreatedBy($user);
             $radio_option_meta->setCreated( new \DateTime() );
 
+            // Ensure the "in-memory" version of the new radio option knows about its meta entry
+            $radio_option->addRadioOptionMetum($radio_option_meta);
             $em->persist($radio_option_meta);
-            $em->flush($radio_option_meta);
+            $em->flush();
+
+            // Master Template Data Fields must increment Master Revision on all change requests.
+            if($datafield->getIsMasterField()) {
+                $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+                self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
+            }
 
             return $radio_option;
         }
@@ -3453,6 +2461,13 @@ if ($debug)
                     // Now that it exists, fill out the properties of a RadioOptionMeta entity that were skipped during the manual creation...
                     $radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOption' => $radio_option->getId()) );
                 }
+            }
+
+            // Master Template Data Fields must increment Master Revision
+            // on all change requests.
+            if($datafield->getIsMasterField()) {
+                $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+                self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
             }
 
             return $radio_option;
@@ -3537,9 +2552,21 @@ if ($debug)
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
+        // Ensure the "in-memory" version of $radio_option references the correct meta entry
+        $radio_option->removeRadioOptionMetum($old_meta_entry);
+        $radio_option->addRadioOptionMetum($new_radio_option_meta);
+
         // Save the new meta entry
         $em->persist($new_radio_option_meta);
         $em->flush();
+
+        // Master Template Data Fields must increment Master Revision
+        // on all change requests.
+        if($radio_option->getDataField()->getIsMasterField()) {
+            $datafield = $radio_option->getDataField();
+            $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+            self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
+        }
 
         // Return the new entry
         return $new_radio_option_meta;
@@ -3687,8 +2714,10 @@ if ($debug)
             'description' => $old_meta_entry->getDescription(),
             'xml_shortName' => $old_meta_entry->getXmlShortName(),
 
-            'useShortResults' => $old_meta_entry->getUseShortResults(),
             'publicDate' => $old_meta_entry->getPublicDate(),
+            'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
+            'master_revision' => $old_meta_entry->getMasterRevision(),
+            'tracking_master_revision' => $old_meta_entry->getTrackingMasterRevision(),
         );
 
         // These Datafields entries can be null
@@ -3743,8 +2772,11 @@ if ($debug)
             $new_datatype_meta->setDescription( $old_meta_entry->getDescription() );
             $new_datatype_meta->setXmlShortName( $old_meta_entry->getXmlShortName() );
 
-            $new_datatype_meta->setUseShortResults( $old_meta_entry->getUseShortResults() );
             $new_datatype_meta->setPublicDate( $old_meta_entry->getPublicDate() );
+
+            $new_datatype_meta->setMasterRevision( $old_meta_entry->getMasterRevision() );
+            $new_datatype_meta->setMasterPublishedRevision( $old_meta_entry->getMasterPublishedRevision() );
+            $new_datatype_meta->setTrackingMasterRevision( $old_meta_entry->getTrackingMasterRevision() );
 
             $new_datatype_meta->setCreatedBy($user);
         }
@@ -3794,17 +2826,42 @@ if ($debug)
         if ( isset($properties['xml_shortName']) )
             $new_datatype_meta->setXmlShortName( $properties['xml_shortName'] );
 
-        if ( isset($properties['useShortResults']) )
-            $new_datatype_meta->setUseShortResults( $properties['useShortResults'] );
         if ( isset($properties['publicDate']) )
             $new_datatype_meta->setPublicDate( $properties['publicDate'] );
 
+        if ( isset($properties['master_revision']) )
+            $new_datatype_meta->setMasterRevision( $properties['master_revision'] );
+        if ( isset($properties['master_published_revision']) )
+            $new_datatype_meta->setMasterPublishedRevision( $properties['master_published_revision'] );
+        if ( isset($properties['master_published_revision']) )
+            $new_datatype_meta->setTrackingMasterRevision( $properties['tracking_master_revision'] );
+
         $new_datatype_meta->setUpdatedBy($user);
 
+        if ($datatype->getIsMasterType()) {
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
+            // Update grandparent master revision
+            $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($datatype->getId());
+
+            if ($grandparent_datatype_id != $datatype->getId()) {
+                $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+                /** @var DataType $grandparent_datatype */
+                $grandparent_datatype = $repo_datatype->find($grandparent_datatype_id);
+
+                $gp_properties['master_revision'] = $grandparent_datatype->getDataTypeMeta()->getMasterRevision() + 1;
+                self::ODR_copyDatatypeMeta($em, $user, $grandparent_datatype, $gp_properties);
+            }
+        }
 
         // Delete the old entry if needed
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
+
+        // Ensure the "in-memory" version of $datatype references the correct meta entry
+        $datatype->removeDataTypeMetum($old_meta_entry);
+        $datatype->addDataTypeMetum($new_datatype_meta);
 
         // Save the new meta entry
         $em->persist($new_datatype_meta);
@@ -3831,8 +2888,16 @@ if ($debug)
         // Poplulate new DataFields form
         $datafield = new DataFields();
         $datafield->setDataType($datatype);
-
         $datafield->setCreatedBy($user);
+
+        // This will always be zero unless
+        // created from a Master Template data field.
+        // $datafield->setMasterDataField(0);
+
+        // Add master flags
+        $datafield->setIsMasterField(false);
+        if ($datatype->getIsMasterType() == true)
+            $datafield->setIsMasterField(true);
 
         $em->persist($datafield);
         $em->flush();
@@ -3843,6 +2908,15 @@ if ($debug)
         $datafield_meta->setDataField($datafield);
         $datafield_meta->setFieldType($fieldtype);
         $datafield_meta->setRenderPlugin($renderplugin);
+
+        // Master Revision defaults to zero.  When
+        // created from a Master Template field, this will
+        // track the data field Master Published Revision.
+        $datafield_meta->setMasterRevision(0);
+        // Will need to set the tracking revision if created
+        // from master template field.
+        $datafield_meta->setTrackingMasterRevision(0);
+        $datafield_meta->setMasterPublishedRevision(0);
 
         $datafield_meta->setFieldName('New Field');
         $datafield_meta->setDescription('Field description.');
@@ -3871,10 +2945,21 @@ if ($debug)
         $datafield_meta->setUpdatedBy($user);
 
         $em->persist($datafield_meta);
+        $em->flush();
+        $em->refresh($datafield_meta);
 
+        if($datatype->getIsMasterType() > 0) {
+            // A datafield publishes its own revision number.
+            // This number will be incremented whenever a change is made
+            // to the master data field.
+            $dfm_properties['master_revision'] = $datafield_meta->getMasterRevision() + 1;
+            self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
+        }
 
         // Add the datafield to all groups for this datatype
-        self::ODR_createGroupsForDatafield($em, $user, $datafield);
+        /** @var PermissionsManagementService $pm_service */
+        $pm_service = $this->container->get('odr.permissions_management_service');
+        $pm_service->createGroupsForDatafield($user, $datafield);
 
         return array('datafield' => $datafield, 'datafield_meta' => $datafield_meta);
     }
@@ -3921,6 +3006,9 @@ if ($debug)
             'radio_option_display_unselected' => $old_meta_entry->getRadioOptionDisplayUnselected(),
             'searchable' => $old_meta_entry->getSearchable(),
             'publicDate' => $old_meta_entry->getPublicDate(),
+            'master_revision' => $old_meta_entry->getMasterRevision(),
+            'tracking_master_revision' => $old_meta_entry->getTrackingMasterRevision(),
+            'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
         );
 
         foreach ($existing_values as $key => $value) {
@@ -3960,12 +3048,18 @@ if ($debug)
             $new_datafield_meta->setSearchable( $old_meta_entry->getSearchable() );
             $new_datafield_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
+            // Master Template Related
+            $new_datafield_meta->setMasterRevision( $old_meta_entry->getMasterRevision() );
+            $new_datafield_meta->setTrackingMasterRevision( $old_meta_entry->getTrackingMasterRevision() );
+            $new_datafield_meta->setMasterPublishedRevision( $old_meta_entry->getMasterPublishedRevision() );
+
             $new_datafield_meta->setCreatedBy($user);
         }
         else {
             // Update the existing meta entry
             $new_datafield_meta = $old_meta_entry;
         }
+
 
         // Set any new properties
         if ( isset($properties['fieldType']) )
@@ -4003,17 +3097,43 @@ if ($debug)
             $new_datafield_meta->setSearchable( $properties['searchable'] );
         if ( isset($properties['publicDate']) )
             $new_datafield_meta->setPublicDate( $properties['publicDate'] );
+        if ( isset($properties['master_revision']) ) {
+            $new_datafield_meta->setMasterRevision( $properties['master_revision'] );
+        }
+        // Check in case master revision needs to be updated.
+        else if($datafield->getIsMasterField() > 0) {
+            // We always increment the Master Revision for master data fields
+            $new_datafield_meta->setMasterRevision($new_datafield_meta->getMasterRevision() + 1);
+        }
+
+        if ( isset($properties['tracking_master_revision']) )
+            $new_datafield_meta->setTrackingMasterRevision( $properties['tracking_master_revision'] );
+        if ( isset($properties['master_published_revision']) )
+            $new_datafield_meta->setMasterPublishedRevision( $properties['master_published_revision'] );
 
         $new_datafield_meta->setUpdatedBy($user);
 
+        //Save the new meta entry
+        $em->persist($new_datafield_meta);
+        $em->flush();
 
         // Delete the old meta entry if necessary
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        //Save the new meta entry
-        $em->persist($new_datafield_meta);
-        $em->flush();
+        // Ensure the "in-memory" version of $datafield references the correct meta entry
+        $datafield->removeDataFieldMetum($old_meta_entry);
+        $datafield->addDataFieldMetum($new_datafield_meta);
+
+        // All metadata changes result in a new
+        // Data Field Master Published Revision.  Revision
+        // changes are picked up by derivative data types
+        // when the parent data type revision is changed.
+        if($datafield->getIsMasterField() > 0) {
+            $datatype = $datafield->getDataType();
+            $properties['master_revision'] = $datatype->getDataTypeMeta()->getMasterRevision() + 1;
+            self::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+        }
 
         // Return the new entry
         return $new_datafield_meta;
@@ -4045,6 +3165,10 @@ if ($debug)
             'templateName' => $old_meta_entry->getTemplateName(),
             'templateDescription' => $old_meta_entry->getTemplateDescription(),
             'isDefault' => $old_meta_entry->getIsDefault(),
+            'displayOrder' => $old_meta_entry->getDisplayOrder(),
+            'shared' => $old_meta_entry->getShared(),
+            'sourceSyncCheck' => $old_meta_entry->getSourceSyncCheck(),
+            'isTableTheme' => $old_meta_entry->getIsTableTheme(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -4068,6 +3192,10 @@ if ($debug)
             $new_theme_meta->setTemplateName( $old_meta_entry->getTemplateName() );
             $new_theme_meta->setTemplateDescription( $old_meta_entry->getTemplateDescription() );
             $new_theme_meta->setIsDefault( $old_meta_entry->getIsDefault() );
+            $new_theme_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
+            $new_theme_meta->setShared( $old_meta_entry->getShared() );
+            $new_theme_meta->setSourceSyncCheck( $old_meta_entry->getSourceSyncCheck() );
+            $new_theme_meta->setIsTableTheme( $old_meta_entry->getIsTableTheme() );
 
             $new_theme_meta->setCreatedBy($user);
         }
@@ -4084,6 +3212,14 @@ if ($debug)
             $new_theme_meta->setTemplateDescription( $properties['templateDescription'] );
         if ( isset($properties['isDefault']) )
             $new_theme_meta->setIsDefault( $properties['isDefault'] );
+        if ( isset($properties['displayOrder']) )
+            $new_theme_meta->setDisplayOrder( $properties['displayOrder'] );
+        if ( isset($properties['shared']) )
+            $new_theme_meta->setShared( $properties['shared'] );
+        if ( isset($properties['sourceSyncCheck']) )
+            $new_theme_meta->setSourceSyncCheck( $properties['sourceSyncCheck'] );
+        if ( isset($properties['isTableTheme']) )
+            $new_theme_meta->setIsTableTheme( $properties['isTableTheme'] );
 
         $new_theme_meta->setUpdatedBy($user);
 
@@ -4091,6 +3227,10 @@ if ($debug)
         // Delete the old meta entry if needed
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
+
+        // Ensure the "in-memory" version of $theme references the correct meta entry
+        $theme->removeThemeMetum($old_meta_entry);
+        $theme->addThemeMetum($new_theme_meta);
 
         // Save the new meta entry
         $em->persist($new_theme_meta);
@@ -4126,6 +3266,7 @@ if ($debug)
         $theme_element_meta->setThemeElement($theme_element);
 
         $theme_element_meta->setDisplayOrder(-1);
+        $theme_element_meta->setHidden(0);
         $theme_element_meta->setCssWidthMed('1-1');
         $theme_element_meta->setCssWidthXL('1-1');
 
@@ -4162,6 +3303,7 @@ if ($debug)
         $changes_made = false;
         $existing_values = array(
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
+            'hidden' => $old_meta_entry->getHidden(),
             'cssWidthMed' => $old_meta_entry->getCssWidthMed(),
             'cssWidthXL' => $old_meta_entry->getCssWidthXL(),
         );
@@ -4185,6 +3327,7 @@ if ($debug)
             $theme_element_meta->setThemeElement($theme_element);
 
             $theme_element_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
+            $theme_element_meta->setHidden( $old_meta_entry->getHidden() );
             $theme_element_meta->setCssWidthMed( $old_meta_entry->getCssWidthMed() );
             $theme_element_meta->setCssWidthXL( $old_meta_entry->getCssWidthXL() );
 
@@ -4199,6 +3342,8 @@ if ($debug)
         // Set any changed properties
         if ( isset($properties['displayOrder']) )
             $theme_element_meta->setDisplayOrder( $properties['displayOrder'] );
+        if ( isset($properties['hidden']) )
+            $theme_element_meta->setHidden( $properties['hidden'] );
         if ( isset($properties['cssWidthMed']) )
             $theme_element_meta->setCssWidthMed( $properties['cssWidthMed'] );
         if ( isset($properties['cssWidthXL']) )
@@ -4210,6 +3355,10 @@ if ($debug)
         // Remove old meta entry if needed
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
+
+        // Ensure the "in-memory" version of $theme_element references the correct meta entry
+        $theme_element->removeThemeElementMetum($old_meta_entry);
+        $theme_element->addThemeElementMetum($theme_element_meta);
 
         // Save the new meta entry
         $em->persist($theme_element_meta);
@@ -4240,6 +3389,7 @@ if ($debug)
         $theme_datafield->setDisplayOrder(999);
         $theme_datafield->setCssWidthMed('1-3');
         $theme_datafield->setCssWidthXL('1-3');
+        $theme_datafield->setHidden(0);
 
         $theme_datafield->setCreatedBy($user);
         $theme_datafield->setUpdatedBy($user);
@@ -4272,6 +3422,7 @@ if ($debug)
             'displayOrder' => $theme_datafield->getDisplayOrder(),
             'cssWidthMed' => $theme_datafield->getCssWidthMed(),
             'cssWidthXL' => $theme_datafield->getCssWidthXL(),
+            'hidden' => $theme_datafield->getHidden(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -4296,6 +3447,7 @@ if ($debug)
             $new_theme_datafield->setDisplayOrder( $theme_datafield->getDisplayOrder() );
             $new_theme_datafield->setCssWidthMed( $theme_datafield->getCssWidthMed() );
             $new_theme_datafield->setCssWidthXL( $theme_datafield->getCssWidthXL() );
+            $new_theme_datafield->setHidden( $theme_datafield->getHidden() );
 
             $new_theme_datafield->setCreatedBy($user);
         }
@@ -4315,6 +3467,8 @@ if ($debug)
             $new_theme_datafield->setCssWidthMed( $properties['cssWidthMed'] );
         if (isset($properties['cssWidthXL']))
             $new_theme_datafield->setCssWidthXL( $properties['cssWidthXL'] );
+        if (isset($properties['hidden']))
+            $new_theme_datafield->setHidden( $properties['hidden'] );
 
         $new_theme_datafield->setUpdatedBy($user);
 
@@ -4350,6 +3504,7 @@ if ($debug)
         $theme_datatype->setThemeElement($theme_element);
 
         $theme_datatype->setDisplayType(0);     // 0 is accordion, 1 is tabbed, 2 is dropdown, 3 is list
+        $theme_datatype->setHidden(0);
 
         $theme_datatype->setCreatedBy($user);
         $theme_datatype->setUpdatedBy($user);
@@ -4378,6 +3533,7 @@ if ($debug)
         $changes_made = false;
         $existing_values = array(
             'display_type' => $theme_datatype->getDisplayType(),
+            'hidden' => $theme_datatype->getHidden(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -4400,6 +3556,7 @@ if ($debug)
             $new_theme_datatype->setThemeElement( $theme_datatype->getThemeElement() );
 
             $new_theme_datatype->setDisplayType( $theme_datatype->getDisplayType() );
+            $new_theme_datatype->setHidden( $theme_datatype->getHidden() );
 
             $new_theme_datatype->setCreatedBy($user);
         }
@@ -4412,6 +3569,8 @@ if ($debug)
         // Set any new properties
         if (isset($properties['display_type']))
             $new_theme_datatype->setDisplayType( $properties['display_type'] );
+        if (isset($properties['hidden']))
+            $new_theme_datatype->setHidden( $properties['hidden'] );
 
         $new_theme_datatype->setUpdatedBy($user);
 
@@ -4777,6 +3936,7 @@ if ($debug)
 
     /**
      * Locates and returns a datarecord based on its external id
+     * @todo - move to datarecord info service?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $datafield_id
@@ -4813,6 +3973,7 @@ if ($debug)
 
     /**
      * Locates and returns a child datarecord based on its external id and its parent's external id
+     * @todo - move to datarecord info service?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $child_datafield_id
@@ -4843,8 +4004,8 @@ if ($debug)
             JOIN ODRAdminBundle:DataRecord AS dr WITH drf_1.dataRecord = dr
             JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
             JOIN ODRAdminBundle:DataRecordFields AS drf_2 WITH drf_2.dataRecord = parent
-            JOIN ODRAdminBundle:'.$parent_typeclass.' AS e_2
-            WHERE e_1.dataField = :child_datafield AND e_1.value = :child_value AND e_2.dataField = :parent_datafield AND e_2.value = :parent_value
+            JOIN ODRAdminBundle:'.$parent_typeclass.' AS e_2 WITH e_2.dataRecordFields = drf_2
+            WHERE dr.id != parent.id AND e_1.dataField = :child_datafield AND e_1.value = :child_value AND e_2.dataField = :parent_datafield AND e_2.value = :parent_value
             AND e_1.deletedAt IS NULL AND drf_1.deletedAt IS NULL AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND drf_2.deletedAt IS NULL AND e_2.deletedAt IS NULL'
         )->setParameters( array('child_datafield' => $child_datafield_id, 'child_value' => $child_external_id_value, 'parent_datafield' => $parent_datafield_id, 'parent_value' => $parent_external_id_value) );
         $results = $query->getResult();
@@ -4855,215 +4016,6 @@ if ($debug)
             $datarecord = $results[0];
 
         return $datarecord;
-    }
-
-
-    /**
-     * Utility function to return the column definition for use by the datatables plugin
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param Theme $theme                     The 'table' theme that stores the order of datafields for its datatype
-     * @param array $datafield_permissions     The datafield permissions array of the user requesting this page
-     *
-     * @return array
-     */
-    public function getDatatablesColumnNames($em, $theme, $datafield_permissions)
-    {
-        // First and second columns are always datarecord id and sort value, respectively
-        $column_names  = '{"title":"datarecord_id","visible":false,"searchable":false},';
-        $column_names .= '{"title":"datarecord_sortvalue","visible":false,"searchable":false},';
-        $num_columns = 2;
-
-        // Do a query to locate the names of all datafields that can be in the table
-        $query = $em->createQuery(
-           'SELECT df.id AS df_id, dfm.fieldName AS field_name, dfm.publicDate AS public_date
-            FROM ODRAdminBundle:ThemeElement AS te
-            JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
-            JOIN ODRAdminBundle:DataFields AS df WITH tdf.dataField = df
-            JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-            WHERE te.theme = :theme_id
-            AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
-            ORDER BY tdf.displayOrder'
-        )->setParameters( array('theme_id' => $theme->getId()) );
-        $results = $query->getArrayResult();
-
-        foreach ($results as $num => $data) {
-            $df_id = $data['df_id'];
-            $public_date = $data['public_date'];
-
-            $datafield_is_public = true;
-            if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-                $datafield_is_public = false;
-
-            if ($datafield_is_public || (isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view'])) ) {
-                $fieldname = $data['field_name'];
-                $fieldname = str_replace('"', "\\\"", $fieldname);  // escape double-quotes in datafield name
-
-                $column_names .= '{"title":"'.$fieldname.'"},';
-                $num_columns++;
-            }
-        }
-
-        return array('column_names' => $column_names, 'num_columns' => $num_columns);
-    }
-
-
-    /**
-     * Rebuilds all cached versions of table themes for the given datarecord.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $datarecord_id
-     * @param Request $request
-     *
-     * @throws \Exception
-     *
-     * @return array
-     */
-    protected function Text_GetDisplayData($em, $datarecord_id, Request $request)
-    {
-        // ----------------------------------------
-        // Grab necessary objects
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-        $router = $this->container->get('router');
-
-
-        // ----------------------------------------
-        // Always bypass cache in dev mode
-        $bypass_cache = false;
-        if ($this->container->getParameter('kernel.environment') === 'dev')
-            $bypass_cache = true;
-
-        // Grab the cached version of the requested datarecord
-        $datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$datarecord_id)));
-        if ($bypass_cache || $datarecord_data == false)
-            $datarecord_data = self::getDatarecordData($em, $datarecord_id, $bypass_cache);
-
-        $datatype_id = $datarecord_data[$datarecord_id]['dataType']['id'];
-
-        // Grab the cached version of the requested datatype
-        // print $redis_prefix.'.cached_datatype_'.$datatype_id;
-        $datatype_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype_id)));
-        if ($bypass_cache || $datatype_data == false) {
-            $datatype_data = self::getDatatypeData($em, self::getDatatreeArray($em, $bypass_cache), $datatype_id, $bypass_cache);
-        }
-
-
-//print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();
-//print '<pre>'.print_r($datarecord_data, true).'</pre>'; exit();
-
-
-        // ----------------------------------------
-        // Need to build an array to store the data
-        $data = array(
-            'default_sort_value' => $datarecord_data[$datarecord_id]['sortField_value'],
-            'publicDate' => $datarecord_data[$datarecord_id]['dataRecordMeta']['publicDate']->format('Y-m-d H:i:s'),
-        );
-
-        foreach ($datatype_data[$datatype_id]['themes'] as $theme_id => $theme) {
-            if ($theme['themeType'] == 'table') {
-                $data[$theme_id] = array();
-
-                $theme_element = $theme['themeElements'][0];    // only ever one theme element for a table theme
-                if ( !isset($theme_element['themeDataFields']) )
-                    continue;
-
-                foreach ($theme_element['themeDataFields'] as $display_order => $tdf) {
-
-                    $df = $tdf['dataField'];
-                    $dr = $datarecord_data[$datarecord_id];
-                    $render_plugin = $df['dataFieldMeta']['renderPlugin'];
-
-                    $df_id = $tdf['dataField']['id'];
-                    $df_value = '';
-
-                    $df_is_public = 1;
-                    if ($df['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-                        $df_is_public = 0;
-
-                    if ($render_plugin['id'] !== 1) {
-                        // Run the render plugin for this datafield
-                        try {
-                            $plugin = $this->get($render_plugin['pluginClassName']);
-                            $df_value = $plugin->execute($tdf['dataField'], $datarecord_data[$datarecord_id], $render_plugin, 'table');
-                        }
-                        catch (\Exception $e) {
-                            throw new \Exception( 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$df['id'].' Datarecord '.$dr['id'].': '.$e->getMessage() );
-                        }
-                    }
-                    else if ( !isset($dr['dataRecordFields']) || !isset($dr['dataRecordFields'][$df_id]) ) {
-                        // A drf entry hasn't been created for this storage entity...just use the empty string
-                        $df_value = '';
-                    }
-                    else {
-                        // Locate this datafield's value from the datarecord array
-                        $df_typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-                        $drf = $dr['dataRecordFields'][$df_id];
-
-                        switch ($df_typeclass) {
-                            case 'Boolean':
-                                if ( $drf['boolean'][0]['value'] == 1 )
-                                    $df_value = 'YES';
-                                break;
-                            case 'IntegerValue':
-                                $df_value = $drf['integerValue'][0]['value'];
-                                break;
-                            case 'DecimalValue':
-                                $df_value = $drf['decimalValue'][0]['value'];
-                                break;
-                            case 'LongText':
-                                $df_value = $drf['longText'][0]['value'];
-                                break;
-                            case 'LongVarchar':
-                                $df_value = $drf['longVarchar'][0]['value'];
-                                break;
-                            case 'MediumVarchar':
-                                $df_value = $drf['mediumVarchar'][0]['value'];
-                                break;
-                            case 'ShortVarchar':
-                                $df_value = $drf['shortVarchar'][0]['value'];
-                                break;
-                            case 'DatetimeValue':
-                                $df_value = $drf['datetimeValue'][0]['value']->format('Y-m-d');
-                                if ($df_value == '9999-12-31')
-                                    $df_value = '';
-                                break;
-
-                            case 'File':
-                                if ( isset($drf['file'][0]) ) {
-                                    $file = $drf['file'][0];    // should only ever be one file in here anyways
-
-                                    $url = $router->generate( 'odr_file_download', array('file_id' => $file['id']) );
-                                    $df_value = array(
-                                        'publicDate' => $file['fileMeta']['publicDate']->format('Y-m-d'),
-                                        'url' => '<a href='.$url.'>'.$file['fileMeta']['originalFileName'].'</a>',
-                                    );
-                                }
-                                break;
-
-                            case 'Radio':
-                                foreach ($drf['radioSelection'] as $ro_id => $rs) {
-                                    if ( $rs['selected'] == 1 ) {
-                                        $df_value = $rs['radioOption']['optionName'];
-                                        break;
-                                    }
-                                }
-                                break;
-                        }
-                    }
-
-                    $data[$theme_id][$display_order] = array('id' => $df_id, 'value' => $df_value, 'is_public' => $df_is_public);
-                }
-            }
-        }
-
-        // Store the resulting array back in memcached before returning it
-        // TODO - There should be no need to store the redis data again.  Data should not
-        // be modified during the rendering of the object.  The plugins should not be called
-        // during the creation of redis data so something is messed up here.
-        $redis->set($redis_prefix.'.datarecord_table_data_'.$datarecord_id, gzcompress(serialize($data)));
-        return $data;
     }
 
 
@@ -5130,6 +4082,7 @@ if ($debug)
 
             if ($transparency >= 0) {
                 // TODO figure out what trnprt_index is used for.
+                $trnprt_indx = null;
                 $transparent_color  = imagecolorsforindex($image, $trnprt_indx);
                 $transparency       = imagecolorallocate($image_resized, $transparent_color['red'], $transparent_color['green'], $transparent_color['blue']);
                 imagefill($image_resized, 0, 0, $transparency);
@@ -5216,9 +4169,9 @@ if ($debug)
         if (!$has_original) {
             // Create an ImageSize entity for the original image
             $query =
-               'INSERT INTO odr_image_sizes (data_fields_id, field_type_id, size_constraint, min_width, width, max_width, min_height, height, max_height, original, created, createdBy, updated, updatedBy)
+               'INSERT INTO odr_image_sizes (data_fields_id, size_constraint, min_width, width, max_width, min_height, height, max_height, original, created, createdBy, updated, updatedBy)
                 SELECT * FROM (
-                    SELECT :df_id AS data_fields_id, :ft_id AS field_type_id, :size_constraint AS size_constraint,
+                    SELECT :df_id AS data_fields_id, :size_constraint AS size_constraint,
                         :min_width AS min_width, :width AS width, :max_width AS max_width,
                         :min_height AS min_height, :height AS height, :max_height AS max_height,
                         :original AS original,
@@ -5229,7 +4182,6 @@ if ($debug)
                 ) LIMIT 1;';
             $params = array(
                 'df_id' => $datafield->getId(),
-                'ft_id' => $datafield->getFieldType()->getId(),
                 'size_constraint' => 'none',
 
                 'min_width' => 1024,
@@ -5256,9 +4208,9 @@ if ($debug)
         if (!$has_thumbnail) {
             // Create an ImageSize entity for the thumbnail
             $query =
-               'INSERT INTO odr_image_sizes (data_fields_id, field_type_id, size_constraint, min_width, width, max_width, min_height, height, max_height, original, imagetype, created, createdBy, updated, updatedBy)
+               'INSERT INTO odr_image_sizes (data_fields_id, size_constraint, min_width, width, max_width, min_height, height, max_height, original, imagetype, created, createdBy, updated, updatedBy)
                 SELECT * FROM (
-                    SELECT :df_id AS data_fields_id, :ft_id AS field_type_id, :size_constraint AS size_constraint,
+                    SELECT :df_id AS data_fields_id, :size_constraint AS size_constraint,
                         :min_width AS min_width, :width AS width, :max_width AS max_width,
                         :min_height AS min_height, :height AS height, :max_height AS max_height,
                         :original AS original, :imagetype AS imagetype,
@@ -5269,7 +4221,6 @@ if ($debug)
                 ) LIMIT 1;';
             $params = array(
                 'df_id' => $datafield->getId(),
-                'ft_id' => $datafield->getFieldType()->getId(),
                 'size_constraint' => 'both',
 
                 'min_width' => 500,
@@ -5311,710 +4262,5 @@ if ($debug)
         }
 
         return $error_str;
-    }
-
-
-    /**
-     * Gets all layout information required for the given datatype in array format
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param array $datatree_array
-     * @param integer $datatype_id
-     * @param boolean $force_rebuild
-     *
-     * @return array
-     */
-    protected function getDatatypeData($em, $datatree_array, $datatype_id, $force_rebuild = false)
-    {
-$debug = true;
-$debug = false;
-/*
-$timing = true;
-$timing = false;
-
-$t0 = $t1 = null;
-if ($timing)
-    $t0 = microtime(true);
-*/
-
-        // If datatype data exists in memcached and user isn't demanding a fresh version, return that
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        if (!$force_rebuild) {
-            $cached_datatype_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype_id)));
-            if ( $cached_datatype_data != false && count($cached_datatype_data) > 0 )
-                return $cached_datatype_data;
-        }
-
-
-        // Otherwise...get all non-layout data for a given grandparent datarecord
-        $query = $em->createQuery(
-           'SELECT
-                t, tm,
-                dt, dtm, dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
-                te, tem,
-                tdf, df, ro, rom,
-                dfm, ft, df_rp, df_rpi, df_rpo, df_rpm,
-                tdt, c_dt
-
-            FROM ODRAdminBundle:dataType AS dt
-            LEFT JOIN dt.dataTypeMeta AS dtm
-
-            LEFT JOIN dt.themes AS t
-            LEFT JOIN t.themeMeta AS tm
-
-            LEFT JOIN dtm.renderPlugin AS dt_rp
-            LEFT JOIN dt_rp.renderPluginInstance AS dt_rpi WITH (dt_rpi.dataType = dt)
-            LEFT JOIN dt_rpi.renderPluginOptions AS dt_rpo
-            LEFT JOIN dt_rpi.renderPluginMap AS dt_rpm
-            LEFT JOIN dt_rpm.renderPluginFields AS dt_rpf
-            LEFT JOIN dt_rpm.dataField AS dt_rpm_df
-
-            LEFT JOIN t.themeElements AS te
-            LEFT JOIN te.themeElementMeta AS tem
-
-            LEFT JOIN te.themeDataFields AS tdf
-            LEFT JOIN tdf.dataField AS df
-            LEFT JOIN df.radioOptions AS ro
-            LEFT JOIN ro.radioOptionMeta AS rom
-
-            LEFT JOIN df.dataFieldMeta AS dfm
-            LEFT JOIN dfm.fieldType AS ft
-
-            LEFT JOIN dfm.renderPlugin AS df_rp
-            LEFT JOIN df_rp.renderPluginInstance AS df_rpi WITH (df_rpi.dataField = df)
-            LEFT JOIN df_rpi.renderPluginOptions AS df_rpo
-            LEFT JOIN df_rpi.renderPluginMap AS df_rpm
-
-            LEFT JOIN te.themeDataType AS tdt
-            LEFT JOIN tdt.dataType AS c_dt
-
-            WHERE
-                dt.id = :datatype_id
-                AND t.deletedAt IS NULL AND dt.deletedAt IS NULL AND te.deletedAt IS NULL
-            ORDER BY dt.id, t.id, tem.displayOrder, te.id, tdf.displayOrder, df.id, rom.displayOrder, ro.id'
-        )->setParameters( array('datatype_id' => $datatype_id) );
-
-        $datatype_data = $query->getArrayResult();
-//print '<pre>'.print_r($datatype_data, true).'</pre>';  exit();
-
-/*
-if ($timing) {
-    $t1 = microtime(true);
-    $diff = $t1 - $t0;
-    print 'getLayoutData('.$datatype_id.')'."\n".'query execution in: '.$diff."\n";
-}
-*/
-
-        // The entity -> entity_metadata relationships have to be one -> many from a database perspective, even though there's only supposed to be a single non-deleted entity_metadata object for each entity
-        // Therefore, the preceeding query generates an array that needs to be slightly flattened in a few places
-        foreach ($datatype_data as $dt_num => $dt) {
-if ($debug)
-    print 'dt_id: '.$dt['id']."\n";
-
-            // Flatten datatype meta
-            $dtm = $dt['dataTypeMeta'][0];
-            $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
-
-            // Flatten theme_meta of each theme, and organize by theme id instead of a random number
-            $new_theme_array = array();
-            foreach ($dt['themes'] as $t_num => $theme) {
-if ($debug)
-    print ' -- t_id: '.$theme['id']."\n";
-
-                $theme_id = $theme['id'];
-
-                $tm = $theme['themeMeta'][0];
-                $theme['themeMeta'] = $tm;
-
-                // Flatten theme_element_meta of each theme_element
-                foreach ($theme['themeElements'] as $te_num => $te) {
-if ($debug)
-    print '    -- te_id: '.$te['id']."\n";
-
-                    $tem = $te['themeElementMeta'][0];
-                    $theme['themeElements'][$te_num]['themeElementMeta'] = $tem;
-
-                    // Flatten datafield_meta of each datafield
-                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-if ($debug)
-    print '       -- tdf_id: '.$tdf['id']."\n";
-if ($debug)
-    print '          -- df_id: '.$tdf['dataField']['id']."\n";
-
-                        $dfm = $tdf['dataField']['dataFieldMeta'][0];
-                        $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['dataFieldMeta'] = $dfm;
-
-                        // Flatten radio options if it exists
-                        foreach ($tdf['dataField']['radioOptions'] as $ro_num => $ro) {
-if ($debug)
-    print '             -- ro_id: '.$ro['id']."\n";
-
-                            $rom = $ro['radioOptionMeta'][0];
-                            $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['radioOptions'][$ro_num]['radioOptionMeta'] = $rom;
-                        }
-                        if ( count($tdf['dataField']['radioOptions']) == 0 )
-                            unset( $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['radioOptions'] );
-                    }
-
-                    // Attach the is_link property to each of the theme_datatype entries
-                    foreach ($te['themeDataType'] as $tdt_num => $tdt) {
-if ($debug)
-    print '       -- tdt_id: '.$tdt['id']."\n";
-if ($debug)
-    print '          -- cdt_id: '.$tdt['dataType']['id']."\n";
-
-                        $child_datatype_id = $tdt['dataType']['id'];
-
-                        if ( isset($datatree_array['linked_from'][$child_datatype_id]) && in_array($datatype_id, $datatree_array['linked_from'][$child_datatype_id]) )
-                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 1;
-                        else
-                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 0;
-
-                        if ( isset($datatree_array['multiple_allowed'][$child_datatype_id]) && in_array($datatype_id, $datatree_array['multiple_allowed'][$child_datatype_id]) )
-                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['multiple_allowed'] = 1;
-                        else
-                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['multiple_allowed'] = 0;
-                    }
-
-                    // Easier on twig if these arrays simply don't exist if nothing is in them...
-                    if ( count($te['themeDataFields']) == 0 )
-                        unset( $theme['themeElements'][$te_num]['themeDataFields'] );
-                    if ( count($te['themeDataType']) == 0 )
-                        unset( $theme['themeElements'][$te_num]['themeDataType'] );
-                }
-
-                $new_theme_array[$theme_id] = $theme;
-            }
-
-            unset( $datatype_data[$dt_num]['themes'] );
-            $datatype_data[$dt_num]['themes'] = $new_theme_array;
-        }
-
-        // Organize by datatype id
-        $formatted_datatype_data = array();
-        foreach ($datatype_data as $num => $dt_data) {
-            $dt_id = $dt_data['id'];
-
-            $formatted_datatype_data[$dt_id] = $dt_data;
-        }
-
-//print '<pre>'.print_r($formatted_datatype_data, true).'</pre>'; //exit();
-
-        $redis->set($redis_prefix.'.cached_datatype_'.$datatype_id, gzcompress(serialize($formatted_datatype_data)));
-//$cached_datatype_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype_id)));
-        return $formatted_datatype_data;
-    }
-
-
-    /**
-     * Runs a single database query to get all non-layout data for a given grandparent datarecord.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $grandparent_datarecord_id
-     * @param boolean $force_rebuild
-     *
-     * @return array
-     */
-    protected function getDatarecordData($em, $grandparent_datarecord_id, $force_rebuild = false)
-    {
-/*
-$debug = true;
-$debug = false;
-$timing = true;
-$timing = false;
-
-$t0 = $t1 = null;
-if ($timing)
-    $t0 = microtime(true);
-*/
-        // If datarecord data exists in memcached and user isn't demanding a fresh version, return that
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-        if (!$force_rebuild) {
-            $cached_datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id)));
-            if ( $cached_datarecord_data != false && count($cached_datarecord_data) > 0 )
-                return $cached_datarecord_data;
-        }
-
-
-        // Otherwise...get all non-layout data for a given grandparent datarecord
-        $query = $em->createQuery(
-           'SELECT
-               dr, drm, dr_cb, dr_ub, p_dr, gp_dr,
-               dt, dtm, dt_eif, dt_nf, dt_sf,
-               drf, e_f, e_fm, e_f_cb,
-               e_i, e_im, e_ip, e_ipm, e_is, e_ip_cb,
-               e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv, rs, ro,
-               e_b_cb, e_iv_cb, e_dv_cb, e_lt_cb, e_lvc_cb, e_mvc_cb, e_svc_cb, e_dtv_cb, rs_cb,
-               df,
-               cdr, cdr_dt, ldt, ldr, ldr_dt
-
-            FROM ODRAdminBundle:DataRecord AS dr
-            LEFT JOIN dr.dataRecordMeta AS drm
-            LEFT JOIN dr.createdBy AS dr_cb
-            LEFT JOIN dr.updatedBy AS dr_ub
-            LEFT JOIN dr.parent AS p_dr
-            LEFT JOIN dr.grandparent AS gp_dr
-
-            LEFT JOIN dr.dataType AS dt
-            LEFT JOIN dt.dataTypeMeta AS dtm
-            LEFT JOIN dtm.externalIdField AS dt_eif
-            LEFT JOIN dtm.nameField AS dt_nf
-            LEFT JOIN dtm.sortField AS dt_sf
-
-            LEFT JOIN dr.dataRecordFields AS drf
-            LEFT JOIN drf.file AS e_f
-            LEFT JOIN e_f.fileMeta AS e_fm
-            LEFT JOIN e_f.createdBy AS e_f_cb
-
-            LEFT JOIN drf.image AS e_i
-            LEFT JOIN e_i.imageMeta AS e_im
-            LEFT JOIN e_i.parent AS e_ip
-            LEFT JOIN e_ip.imageMeta AS e_ipm
-            LEFT JOIN e_i.imageSize AS e_is
-            LEFT JOIN e_ip.createdBy AS e_ip_cb
-
-            LEFT JOIN drf.boolean AS e_b
-            LEFT JOIN e_b.createdBy AS e_b_cb
-            LEFT JOIN drf.integerValue AS e_iv
-            LEFT JOIN e_iv.createdBy AS e_iv_cb
-            LEFT JOIN drf.decimalValue AS e_dv
-            LEFT JOIN e_dv.createdBy AS e_dv_cb
-            LEFT JOIN drf.longText AS e_lt
-            LEFT JOIN e_lt.createdBy AS e_lt_cb
-            LEFT JOIN drf.longVarchar AS e_lvc
-            LEFT JOIN e_lvc.createdBy AS e_lvc_cb
-            LEFT JOIN drf.mediumVarchar AS e_mvc
-            LEFT JOIN e_mvc.createdBy AS e_mvc_cb
-            LEFT JOIN drf.shortVarchar AS e_svc
-            LEFT JOIN e_svc.createdBy AS e_svc_cb
-            LEFT JOIN drf.datetimeValue AS e_dtv
-            LEFT JOIN e_dtv.createdBy AS e_dtv_cb
-            LEFT JOIN drf.radioSelection AS rs
-            LEFT JOIN rs.createdBy AS rs_cb
-            LEFT JOIN rs.radioOption AS ro
-
-            LEFT JOIN drf.dataField AS df
-
-            LEFT JOIN dr.children AS cdr
-            LEFT JOIN cdr.dataType AS cdr_dt
-
-            LEFT JOIN dr.linkedDatarecords AS ldt
-            LEFT JOIN ldt.descendant AS ldr
-            LEFT JOIN ldr.dataType AS ldr_dt
-
-            WHERE
-                dr.grandparent = :grandparent_id
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
-                AND (e_i.id IS NULL OR e_i.original = 0)'
-        )->setParameters(array('grandparent_id' => $grandparent_datarecord_id));
-
-//print $query->getSQL();  exit();
-        $datarecord_data = $query->getArrayResult();
-//print '<pre>'.print_r($datarecord_data, true).'</pre>';  exit();
-
-/*
-if ($timing) {
-    $t1 = microtime(true);
-    $diff = $t1 - $t0;
-    print 'getDatarecordData('.$grandparent_datarecord_id.')'."\n".'query execution in: '.$diff."\n";
-}
-*/
-        // The entity -> entity_metadata relationships have to be one -> many from a database perspective, even though there's only supposed to be a single non-deleted entity_metadata object for each entity
-        // Therefore, the previous query generates an array that needs to be slightly flattened in a few places
-        foreach ($datarecord_data as $dr_num => $dr) {
-            // Flatten datarecord_meta
-            $drm = $dr['dataRecordMeta'][0];
-            $datarecord_data[$dr_num]['dataRecordMeta'] = $drm;
-            $datarecord_data[$dr_num]['createdBy'] = self::cleanUserData( $dr['createdBy'] );
-            $datarecord_data[$dr_num]['updatedBy'] = self::cleanUserData( $dr['updatedBy'] );
-
-            // Store which datafields are used for the datatype's external_id_datafield, name_datafield, and sort_datafield
-            $external_id_field = null;
-            $name_datafield = null;
-            $sort_datafield = null;
-
-            if ( isset($dr['dataType']['dataTypeMeta'][0]['externalIdField']['id']) )
-                $external_id_field = $dr['dataType']['dataTypeMeta'][0]['externalIdField']['id'];
-            if ( isset($dr['dataType']['dataTypeMeta'][0]['nameField']['id']) )
-                $name_datafield = $dr['dataType']['dataTypeMeta'][0]['nameField']['id'];
-            if ( isset($dr['dataType']['dataTypeMeta'][0]['sortField']['id']) )
-                $sort_datafield = $dr['dataType']['dataTypeMeta'][0]['sortField']['id'];
-
-            $datarecord_data[$dr_num]['externalIdField_value'] = '';
-            $datarecord_data[$dr_num]['nameField_value'] = '';
-            $datarecord_data[$dr_num]['sortField_value'] = '';
-
-            // Don't want to store the datatype's meta entry
-            unset( $datarecord_data[$dr_num]['dataType']['dataTypeMeta'] );
-
-            // Need to store a list of child/linked datarecords by their respective datatype ids
-            $child_datarecords = array();
-            foreach ($dr['children'] as $child_num => $cdr) {
-                $cdr_id = $cdr['id'];
-                $cdr_dt_id = $cdr['dataType']['id'];
-
-                // A top-level datarecord is listed as its own parent in the database...don't want to store it in the list of children
-                if ( $cdr_id == $dr['id'] )
-                    continue;
-
-                if ( !isset($child_datarecords[$cdr_dt_id]) )
-                    $child_datarecords[$cdr_dt_id] = array();
-                $child_datarecords[$cdr_dt_id][] = $cdr_id;
-            }
-            foreach ($dr['linkedDatarecords'] as $child_num => $ldt) {
-                $ldr_id = $ldt['descendant']['id'];
-                $ldr_dt_id = $ldt['descendant']['dataType']['id'];
-
-                if ( !isset($child_datarecords[$ldr_dt_id]) )
-                    $child_datarecords[$ldr_dt_id] = array();
-                $child_datarecords[$ldr_dt_id][] = $ldr_id;
-            }
-            $datarecord_data[$dr_num]['children'] = $child_datarecords;
-            unset( $datarecord_data[$dr_num]['linkedDatarecords'] );
-
-
-            // Flatten datafield_meta of each datarecordfield, and organize by datafield id instead of some random number
-            $new_drf_array = array();
-            foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
-
-                $df_id = $drf['dataField']['id'];
-                unset( $drf['dataField'] );
-
-                // Flatten file metadata and get rid of encrypt_key
-                foreach ($drf['file'] as $file_num => $file) {
-                    unset( $drf['file'][$file_num]['encrypt_key'] ); // TODO - should encrypt_key actually remain in the array?
-
-                    $fm = $file['fileMeta'][0];
-                    $drf['file'][$file_num]['fileMeta'] = $fm;
-
-                    // Get rid of all private/non-essential information in the createdBy association
-                    $drf['file'][$file_num]['createdBy'] = self::cleanUserData( $drf['file'][$file_num]['createdBy'] );
-                }
-
-                // Flatten image metadata, get rid of both the thumbnail's and the parent's encrypt keys, and sort appropriately
-                $sort_by_image_id = true;
-                foreach ($drf['image'] as $image_num => $image) {
-                    if ($image['parent']['imageMeta'][0]['displayorder'] != 0) {
-                        $sort_by_image_id = false;
-                        break;
-                    }
-                }
-
-                $ordered_images = array();
-                foreach ($drf['image'] as $image_num => $image) {
-                    unset( $image['encrypt_key'] );
-                    unset( $image['parent']['encrypt_key'] ); // TODO - should encrypt_key actually remain in the array?
-
-                    unset( $image['imageMeta'] );   // This is a phantom meta entry created for this image's thumbnail
-                    $im = $image['parent']['imageMeta'][0];
-                    $image['parent']['imageMeta'] = $im;
-
-                    // Get rid of all private/non-essential information in the createdBy association
-                    $image['parent']['createdBy'] = self::cleanUserData( $image['parent']['createdBy'] );
-
-                    if ($sort_by_image_id) {
-                        // Store by parent id
-                        $ordered_images[ $image['parent']['id'] ] = $image;
-                    }
-                    else {
-                        // Store by display_order
-                        $ordered_images[ $image['parent']['imageMeta']['displayorder'] ] = $image;
-                    }
-                }
-
-                ksort($ordered_images);
-                $drf['image'] = $ordered_images;
-
-                // Scrub all user information from the rest of the array
-                $keys = array('boolean', 'integerValue', 'decimalValue', 'longText', 'longVarchar', 'mediumVarchar', 'shortVarchar', 'datetimeValue');
-                foreach ($keys as $typeclass) {
-                    if ( count($drf[$typeclass]) > 0 ) {
-                        $drf[$typeclass][0]['createdBy'] = self::cleanUserData( $drf[$typeclass][0]['createdBy'] );
-
-                        // Store the value from this storage entity if it's the one being used for external_id/name/sort datafields
-                        if ($external_id_field !== null && $external_id_field == $df_id) {
-                            $datarecord_data[$dr_num]['externalIdField_value'] = $drf[$typeclass][0]['value'];
-                        }
-                        if ($name_datafield !== null && $name_datafield == $df_id) {
-                            // Need to ensure this value is a string so php sorting functions don't complain
-                            if ($typeclass == 'datetimeValue')
-                                $datarecord_data[$dr_num]['nameField_value'] = $drf[$typeclass][0]['value']->format('Y-m-d');
-                            else
-                                $datarecord_data[$dr_num]['nameField_value'] = $drf[$typeclass][0]['value'];
-                        }
-                        if ($sort_datafield !== null && $sort_datafield == $df_id) {
-                            // Need to ensure this value is a string so php sorting functions don't complain
-                            if ($typeclass == 'datetimeValue')
-                                $datarecord_data[$dr_num]['sortField_value'] = $drf[$typeclass][0]['value']->format('Y-m-d');
-                            else
-                                $datarecord_data[$dr_num]['sortField_value'] = $drf[$typeclass][0]['value'];
-                        }
-                    }
-                }
-
-                // Organize radio selections by radio option id
-                $new_rs_array = array();
-                foreach ($drf['radioSelection'] as $rs_num => $rs) {
-                    $rs['createdBy'] = self::cleanUserData( $rs['createdBy'] );
-
-                    $ro_id = $rs['radioOption']['id'];
-                    $new_rs_array[$ro_id] = $rs;
-                }
-
-                $drf['radioSelection'] = $new_rs_array;
-                $new_drf_array[$df_id] = $drf;
-            }
-
-            unset( $datarecord_data[$dr_num]['dataRecordFields'] );
-            $datarecord_data[$dr_num]['dataRecordFields'] = $new_drf_array;
-        }
-
-        // Organize by datarecord id...DO NOT even attenpt to make this array recursive...for now...
-        $formatted_datarecord_data = array();
-        foreach ($datarecord_data as $num => $dr_data) {
-            $dr_id = $dr_data['id'];
-
-            // These two values should default to the datarecord id if empty
-            if ( $dr_data['nameField_value'] == '' )
-                $dr_data['nameField_value'] = $dr_id;
-            if ( $dr_data['sortField_value'] == '' )
-                $dr_data['sortField_value'] = $dr_id;
-
-            $formatted_datarecord_data[$dr_id] = $dr_data;
-        }
-
-        $redis->set($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id, gzcompress(serialize($formatted_datarecord_data)));
-        return $formatted_datarecord_data;
-    }
-
-
-    /**
-     * Removes all private/non-essential user info from an array generated by self::getDatarecordData() or self::getDatatypeData()
-     *
-     * @param array $user_data
-     *
-     * @return array
-     */
-    protected function cleanUserData($user_data)
-    {
-        foreach ($user_data as $key => $value) {
-            if ($key !== 'username' && $key !== 'email' && $key !== 'firstName' && $key !== 'lastName'/* && $key !== 'institution' && $key !== 'position'*/)
-                unset( $user_data[$key] );
-        }
-
-        return $user_data;
-    }
-
-
-    /**
-     * Builds and returns a list of all child and linked datatype ids related to the given datatype id.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param int[] $datatype_ids
-     * @param boolean $include_links
-     *
-     * @return int[]
-     */
-    protected function getAssociatedDatatypes($em, $datatype_ids, $include_links = true)
-    {
-        // Locate all datatypes that are either children of or linked to the datatypes in $datatype_ids
-        $results = array();
-        if ($include_links) {
-            $query = $em->createQuery(
-               'SELECT descendant.id AS descendant_id
-                FROM ODRAdminBundle:DataTree AS dt
-                LEFT JOIN dt.dataTreeMeta AS dtm
-                LEFT JOIN dt.ancestor AS ancestor
-                LEFT JOIN dt.descendant AS descendant
-                WHERE ancestor.id IN (:ancestor_ids)
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-            )->setParameters( array('ancestor_ids' => $datatype_ids) );
-            $results = $query->getArrayResult();
-        }
-        else {
-            $query = $em->createQuery(
-               'SELECT descendant.id AS descendant_id
-                FROM ODRAdminBundle:DataTree AS dt
-                LEFT JOIN dt.dataTreeMeta AS dtm
-                LEFT JOIN dt.ancestor AS ancestor
-                LEFT JOIN dt.descendant AS descendant
-                WHERE dtm.is_link = :is_link AND ancestor.id IN (:ancestor_ids)
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-            )->setParameters( array('is_link' => 0, 'ancestor_ids' => $datatype_ids) );
-            $results = $query->getArrayResult();
-        }
-
-        // Flatten the resulting array...
-        $child_datatype_ids = array();
-        foreach ($results as $num => $result)
-            $child_datatype_ids[] = $result['descendant_id'];
-
-        // If child datatypes were found, also see if those child datatypes have children of their own
-        if ( count($child_datatype_ids) > 0 )
-            $child_datatype_ids = array_merge( $child_datatype_ids, self::getAssociatedDatatypes($em, $child_datatype_ids, $include_links) );
-
-        // Return an array of the requested datatype ids and their children
-        $associated_datatypes = array_unique( array_merge($child_datatype_ids, $datatype_ids) );
-        return $associated_datatypes;
-    }
-
-
-    /**
-     * Builds and returns a list of all child and linked datarecords of the given datarecord id.
-     * Due to recursive interaction with self::getLinkedDatarecords(), this function doesn't attempt to store results in the cache.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param int[] $grandparent_ids
-     *
-     * @return int[]
-     */
-    protected function getAssociatedDatarecords($em, $grandparent_ids)
-    {
-        // Locate all datarecords that are children of the datarecords listed in $grandparent_ids
-        $query = $em->createQuery(
-           'SELECT dr.id AS id
-            FROM ODRAdminBundle:DataRecord AS dr
-            LEFT JOIN dr.grandparent AS grandparent
-            WHERE grandparent.id IN (:grandparent_ids)
-            AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-        )->setParameters( array('grandparent_ids' => $grandparent_ids) );
-        $results = $query->getArrayResult();
-
-        // Flatten the results array
-        $datarecord_ids = array();
-        foreach ($results as $result)
-            $datarecord_ids[] = $result['id'];
-
-        // Get all children and datarecords linked to all the datarecords in $datarecord_ids
-        $linked_datarecord_ids = self::getLinkedDatarecords($em, $datarecord_ids);
-
-        // Don't want any duplicate datarecord ids...
-        $associated_datarecord_ids = array_unique( array_merge($grandparent_ids, $linked_datarecord_ids) );
-
-        return $associated_datarecord_ids;
-    }
-
-
-    /**
-     * Builds and returns a list of all datarecords linked to from the provided datarecord ids.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param integer[] $ancestor_ids
-     *
-     * @return integer[]
-     */
-    private function getLinkedDatarecords($em, $ancestor_ids)
-    {
-        // Locate all datarecords that are linked to from any datarecord listed in $datarecord_ids
-        $query = $em->createQuery(
-           'SELECT descendant.id AS descendant_id
-            FROM ODRAdminBundle:LinkedDataTree AS ldt
-            JOIN ldt.ancestor AS ancestor
-            JOIN ldt.descendant AS descendant
-            WHERE ancestor.id IN (:ancestor_ids)
-            AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-        )->setParameters( array('ancestor_ids' => $ancestor_ids) );
-        $results = $query->getArrayResult();
-
-        // Flatten the results array
-        $linked_datarecord_ids = array();
-        foreach ($results as $result)
-            $linked_datarecord_ids[] = $result['descendant_id'];
-
-        // If there were datarecords found, get all of their associated child/linked datarecords
-        $associated_datarecord_ids = array();
-        if ( count($linked_datarecord_ids) > 0 )
-            $associated_datarecord_ids = self::getAssociatedDatarecords($em, $linked_datarecord_ids);
-
-        // Don't want any duplicate datarecord ids...
-        $linked_datarecord_ids = array_unique( array_merge($linked_datarecord_ids, $associated_datarecord_ids) );
-
-        return $linked_datarecord_ids;
-    }
-
-
-    /**
-     * "Inflates" the normally flattened $datarecord_array...
-     *
-     * @param array $datarecord_array
-     * @param integer $initial_datarecord_id
-     *
-     * @return array
-     */
-    public function stackDatarecordArray($datarecord_array, $initial_datarecord_id)
-    {
-        $current_datarecord = array();
-        if ( isset($datarecord_array[$initial_datarecord_id]) ) {
-            $current_datarecord = $datarecord_array[$initial_datarecord_id];
-
-            if ( isset($current_datarecord['children']) ) {
-                foreach ($current_datarecord['children'] as $dt_id => $dr_list) {
-
-                    $tmp = array();
-
-                    foreach ($dr_list as $num => $dr_id) {
-                        if ( isset($datarecord_array[$dr_id]) )
-                            $tmp[$dr_id] = self::stackDatarecordArray($datarecord_array, $dr_id);
-                    }
-
-                    // Sort array of datarecords by their respective sortvalue
-                    uasort($tmp, function ($a, $b) {
-                        return strnatcmp($a['sortField_value'], $b['sortField_value']);
-                    });
-
-                    $current_datarecord['children'][$dt_id] = $tmp;
-                }
-            }
-        }
-
-        return $current_datarecord;
-    }
-
-
-    /**
-     * "Inflates" the normally flattened $datatype_array...
-     *
-     * @param array $datatype_array
-     * @param integer $initial_datatype_id
-     * @param integer $theme_id
-     *
-     * @return array
-     */
-    public function stackDatatypeArray($datatype_array, $initial_datatype_id, $theme_id)
-    {
-        $current_datatype = array();
-        if ( isset($datatype_array[$initial_datatype_id]) ) {
-            $current_datatype = $datatype_array[$initial_datatype_id];
-
-            foreach ($current_datatype['themes'][$theme_id]['themeElements'] as $num => $theme_element) {
-                if ( isset($theme_element['themeDataType']) ) {
-                    $theme_datatype = $theme_element['themeDataType'][0];
-
-                    $child_datatype_id = $theme_datatype['dataType']['id'];
-
-                    $tmp = array();
-                    if ( isset($datatype_array[$child_datatype_id]) ) {
-
-                        $child_theme_id = '';
-                        foreach ($datatype_array[$child_datatype_id]['themes'] as $t_id => $t) {
-                            if ( $t['themeType'] == 'master' )
-                                $child_theme_id = $t_id;
-                        }
-
-                        $tmp[$child_datatype_id] = self::stackDatatypeArray($datatype_array, $child_datatype_id, $child_theme_id);
-                    }
-
-                    $current_datatype['themes'][$theme_id]['themeElements'][$num]['themeDataType'][0]['dataType'] = $tmp;
-                }
-            }
-        }
-
-        return $current_datatype;
     }
 }

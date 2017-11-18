@@ -38,8 +38,7 @@
 <script>
     $(function() {
 
-        $("#parent_external_id_column").unbind('change');
-        $("#parent_external_id_column").change(function() {
+        $("#parent_external_id_column").unbind('change').change(function() {
             if ( $(this).val() == '' )
                 $("#parent_external_id_warning").show();
             else
@@ -58,8 +57,7 @@
 
 {% if linked_importing %}
 
-        $("#remote_external_id_column").unbind('change');
-        $("#remote_external_id_column").change(function() {
+        $("#remote_external_id_column").unbind('change').change(function() {
             if ( $(this).val() == '' )
                 $("#remote_external_id_warning").show();
             else

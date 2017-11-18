@@ -5,23 +5,9 @@
     var encrypt_check_timeout = 1500;
 
     var pending_file_decryptions = {};
-{#
-    $(window).unload(function() {
-        jQuery.each(pending_file_decryptions, function(file_id, download) {
-            if (download != null)
-                cancelFileDecryption(download, file_id);
-        });
-    });
-#}
-    function handleFileDownload(event, file_id, href, short_form, can_cancel) {
+    function handleFileDownload(event, file_id, can_cancel) {
         // Prevent a normal file download
         event.preventDefault();
-        // If using ShortResults, this click will trigger a load of the datarecord this file belongs to...prevent that
-        if (short_form)
-            event.stopImmediatePropagation();
-
-//console.log(pending_file_decryptions);
-//console.log(file_decrypt_timeouts);
 
         // Don't start a new download if one is already in progress
         if ( pending_file_decryptions[file_id] != null || pending_file_decryptions[file_id] != undefined || file_decrypt_timeouts[file_id] != null || file_decrypt_timeouts[file_id] != undefined) {
@@ -29,7 +15,6 @@
             return false;
         }
 
-        {#var cancel_button = $("#ODRFileDownload_" + file_id + "_cancel");#}
         var download_div = $("#ODRFileDecrypt_" + file_id + "_overlay");
         var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress");
 
@@ -37,7 +22,6 @@
         url = url.substring(0, (url.length-1));
         url += file_id;
 
-        pending_file_decryptions[ file_id ] = 1;
 
         $.ajax({
             cache: false,
@@ -45,13 +29,7 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                // If some sort of error returned from server...
-                if (data != undefined && data.r == 1) {
-                    pending_file_decryptions[ file_id ] = null;
-                    alert( data.d );
-                    return;
-                }
-
+                // Handle successful responses
                 var status_code = jqXHR.status;
                 if (status_code == 200) {
                     // Hide div for decryption progress
@@ -60,7 +38,6 @@
 
                     // File exists and is ready to download
                     window.setTimeout( "downloadFile(" + file_id + ");", initial_decrypt_check_timeout );
-//console.log('file already exists');
                 }
                 else if (status_code == 202) {
                     // Show div for decryption progress
@@ -69,8 +46,12 @@
 
                     // File needs to be decrypted first
                     window.setTimeout( "createFileDecryptProgressCheck(" + file_id + ", 1);", initial_decrypt_check_timeout );  // download the file after it finishes decrypting
-//console.log('creating initial file decrypt check');
                 }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Handle errors
+                pending_file_decryptions[ file_id ] = null;
+                file_decrypt_timeouts[ file_id ] = null;
             },
             complete: function (jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -98,9 +79,13 @@
         var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress");
 
         var download = $.fileDownload(href, {
+            // Instruct ODR to send any errors back as json
+            data: {
+                'error_type': 'json'
+            },
             prepareCallback: function(url) {
-//console.log('prepare for file ' + file_id);
 {#
+//console.log('prepare for file ' + file_id);
                 if (can_cancel) {
                     // Activate the cancel button for this file decryption...
                     $(cancel_button).unbind('click');
@@ -120,7 +105,7 @@
             },
             successCallback: function (url) {
 //console.log('success for file ' + file_id);
-                // File is finished
+                // File is finished downloading
                 pending_file_decryptions[ file_id ] = null;
                 file_decrypt_timeouts[ file_id ] = null;
 {#
@@ -137,7 +122,9 @@
                 pending_file_decryptions[ file_id ] = null;
                 file_decrypt_timeouts[ file_id ] = null;
 
-                alert(responseHtml);
+                // Convert response to json, and display error message
+                var response = $.parseJSON(responseHtml);
+                createJGrowlError(response);
 {#
                 // Download is done, No longer need these
                 $(cancel_button).show();
@@ -166,6 +153,18 @@
         download.abort();
     }
 #}
+
+
+    // TODO - All of these setTimeout calls need to be intervals. So they can be destroyed properly.
+    var file_encrypt_timeouts = {};
+    function createFileEncryptProgressCheck(file_id, datarecord_id, datafield_id) {
+        // Ensure that at most a single timeout is running for a given file at any given time
+        if ( file_encrypt_timeouts[ file_id ] == null || file_encrypt_timeouts[ file_id ] == undefined ) {
+            file_encrypt_timeouts[ file_id ] = 1;
+            window.setTimeout( "checkFileEncryptProgress(" + file_id + ", " + datarecord_id + ", " + datafield_id + ");", encrypt_check_timeout );
+        }
+    }
+
     var file_decrypt_timeouts = {};
     function createFileDecryptProgressCheck(file_id, download_file_after) {
         // Ensure that at most a single timeout is running for a given file at any given time
@@ -187,55 +186,52 @@
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
-                    var current_value = parseFloat(data.d.current_value);   // already a percentage of max_value
-                    var max_value = parseFloat(data.d.max_value);
+                var current_value = parseFloat(data.d.current_value);   // already a percentage of max_value
+                var max_value = parseFloat(data.d.max_value);
 
-                    var download_div = $("#ODRFileDecrypt_" + file_id + "_overlay");
-                    var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress");
+                var download_div = $("#ODRFileDecrypt_" + file_id + "_overlay");
+                var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress");
 
-                    if ( !$(download_div).is(':visible') ) {
+                if ( !$(download_div).is(':visible') ) {
 //console.log('stopping timeout cycle for file ' + file_id);
-                        /* element got hidden already, do nothing */
-                        file_decrypt_timeouts[ file_id ] = null;
+                    /* element got hidden already, do nothing */
+                    file_decrypt_timeouts[ file_id ] = null;
 
-                        // Ensure progress bar isn't displayed anymore
-                        $(download_div).css('visibility', 'hidden');
-                        $(decrypt_progress).css('width', '0');
-                    }
-                    else if ( file_decrypt_timeouts[ file_id ] != null ) {
+                    // Ensure progress bar isn't displayed anymore
+                    $(download_div).css('visibility', 'hidden');
+                    $(decrypt_progress).css('width', '0');
+                }
+                else if ( file_decrypt_timeouts[ file_id ] != null ) {
 //console.log('progress for file ' + file_id + ': ' + current_value + '%');
 
-                        if (current_value < 100) {
-                            // Update the progressbar
-                            $(download_div).css('visibility', 'visible');
-                            $(decrypt_progress).css('width', current_value + '%');
+                    if (current_value < 100) {
+                        // Update the progressbar
+                        $(download_div).css('visibility', 'visible');
+                        $(decrypt_progress).css('width', current_value + '%');
 
-                            // Schedule the next decrypt check
-                            window.setTimeout( "checkFileDecryptProgress(" + file_id + ");", decrypt_check_timeout );
-                        }
-                        else {
-                            // Save whether the user needed to download this file after decryption or not
-                            var download_file_after = file_decrypt_timeouts[ file_id ];
+                        // Schedule the next decrypt check
+                        window.setTimeout( "checkFileDecryptProgress(" + file_id + ");", decrypt_check_timeout );
+                    }
+                    else {
+                        // Save whether the user needed to download this file after decryption or not
+                        var download_file_after = file_decrypt_timeouts[ file_id ];
 
-                            // File is fully decrypted, stop querying server for progress
-                            file_decrypt_timeouts[ file_id ] = null;
+                        // File is fully decrypted, stop querying server for progress
+                        file_decrypt_timeouts[ file_id ] = null;
 
-                            // Hide the css for the progressbar
-                            $(download_div).css('visibility', 'hidden');
-                            $(decrypt_progress).css('width', 0);
+                        // Hide the css for the progressbar
+                        $(download_div).css('visibility', 'hidden');
+                        $(decrypt_progress).css('width', 0);
 
-                            if (download_file_after == 1) {
-                                // Download the file
-                                downloadFile(file_id);
-                            }
+                        if (download_file_after == 1) {
+                            // Download the file
+                            downloadFile(file_id);
                         }
                     }
-
                 }
-                else {
-                    alert( data.d );
-                }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Handle errors
             }
         });
     }
@@ -261,40 +257,37 @@
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
-                    var current_value = parseInt(data.d.current_value);   // already a percentage of max_value
-                    var max_value = parseInt(data.d.max_value);
+                var current_value = parseInt(data.d.current_value);   // already a percentage of max_value
+                var max_value = parseInt(data.d.max_value);
 
-                    var file_encrypt_progress_div = $("#ODRFileDecrypt_" + file_id + "_overlay");
-                    var file_encrypt_progress_bar = $("#ODRFileDecrypt_" + file_id + "_progress");
+                var file_encrypt_progress_div = $("#ODRFileDecrypt_" + file_id + "_overlay");
+                var file_encrypt_progress_bar = $("#ODRFileDecrypt_" + file_id + "_progress");
 
-                    if (file_encrypt_progress_bar == null || file_encrypt_progress_bar == undefined || file_encrypt_progress_bar[0] == null || file_encrypt_progress_bar[0] == undefined) {
-                        /* element no longer exists, do nothing */
-                        file_encrypt_timeouts[ file_id ] = null;
+                if (file_encrypt_progress_bar == null || file_encrypt_progress_bar == undefined || file_encrypt_progress_bar[0] == null || file_encrypt_progress_bar[0] == undefined) {
+                    /* element no longer exists, do nothing */
+                    file_encrypt_timeouts[ file_id ] = null;
 
-                        $(file_encrypt_progress_bar).css('width', 0);
-                        $(file_encrypt_progress_div).css('visibility', 'hidden');
-                    }
-                    else if (current_value == 100) {
-                        // Stop checking for progress updates
-                        file_encrypt_timeouts[ file_id ] = null;
-
-                        // Hide the css for the progressbar
-                        $(file_encrypt_progress_bar).css('width', 0);
-                        $(file_encrypt_progress_div).css('visibility', 'hidden');
-                    }
-                    else if (file_encrypt_timeouts[ file_id ] != null) {
-                        // Update the progressbar
-                        window.setTimeout( "checkFileEncryptProgress(" + file_id + ", " + datarecord_id + ", " + datafield_id + ");", encrypt_check_timeout );
-
-                        $(file_encrypt_progress_div).css('visibility', 'visible');
-                        $(file_encrypt_progress_bar).css('width', current_value + '%');
-                    }
-
+                    $(file_encrypt_progress_bar).css('width', 0);
+                    $(file_encrypt_progress_div).css('visibility', 'hidden');
                 }
-                else {
-                    alert( data.d );
+                else if (current_value == 100) {
+                    // Stop checking for progress updates
+                    file_encrypt_timeouts[ file_id ] = null;
+
+                    // Hide the css for the progressbar
+                    $(file_encrypt_progress_bar).css('width', 0);
+                    $(file_encrypt_progress_div).css('visibility', 'hidden');
                 }
+                else if (file_encrypt_timeouts[ file_id ] != null) {
+                    // Update the progressbar
+                    window.setTimeout( "checkFileEncryptProgress(" + file_id + ", " + datarecord_id + ", " + datafield_id + ");", encrypt_check_timeout );
+
+                    $(file_encrypt_progress_div).css('visibility', 'visible');
+                    $(file_encrypt_progress_bar).css('width', current_value + '%');
+                }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Handle errors
             }
         });
     }
@@ -322,25 +315,17 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                // If some sort of error returned from server...
-                if (data != undefined && data.r == 1) {
-                    zip_archive_timeouts[ archive_filename ] = null;
-                    alert( data.d );
-                    return;
-                }
-
                 var archive_filecount = parseInt(data.d.archive_filecount);
 
                 // Update the progress indicator
-                var element = $('#' + form_id);
-                $(element).find('#FileDownloadForm_current').html(archive_filecount);
+                $('#ODRFileDownloadForm_current').html(archive_filecount);
 
 
                 if ( archive_size == archive_filecount ) {
                     // Reset and close the file download dialog form
-                    $(element).find('#FileDownloadForm_progress').hide();
-                    $(element).find('#FileDownloadForm_build').show();
-                    $(element).dialog('close');
+                    $('#ODRFileDownloadForm_progress').hide();
+                    var inst = $('[data-remodal-id=ODRRemodal]').remodal();
+                    inst.close();
 
                     // Construct the URL to download the archive
                     var download_url = "{{ path('odr_download_zip_archive', {'archive_filename': 0}) }}";
@@ -349,6 +334,10 @@
 
                     // Start downloading the archive
                     var download = $.fileDownload(download_url, {
+                        // Instruct ODR to send any errors back as json
+                        data: {
+                            'error_type': 'json'
+                        },
                         prepareCallback: function(url) {
 
                         },
@@ -360,13 +349,24 @@
                             // Something went wrong...
                             zip_archive_timeouts[ archive_filename ] = null;
 
-                            alert(responseHtml);
+                            // Convert response to json, and display error message
+                            var response = $.parseJSON(responseHtml);
+                            createJGrowlError(response);
                         }
                     });
                 }
                 else {
                     window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + form_id + "');", decrypt_check_timeout );
                 }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                zip_archive_timeouts[ archive_filename ] = null;
+                // Close modal
+                var inst = $('[data-remodal-id=' + dialog_id + ']').remodal();
+                inst.close();
+                // Show growl
+                var response = $.parseJSON(jqXHR.responseText);
+                createJGrowlError(response);
             },
             complete: function (jqXHR, textStatus) {
                 // Get the xdebugToken from response headers

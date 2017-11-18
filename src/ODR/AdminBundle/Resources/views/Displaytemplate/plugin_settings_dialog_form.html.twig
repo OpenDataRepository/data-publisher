@@ -1,9 +1,6 @@
 {% spaceless %}
 
-<!-- Plugin Settings Dialog Form -->
-<div style="display: block;">
-
-    <form action="{{ path('odr_save_render_plugin_settings') }}" method="post" {#{{ form_enctype(form) }}#} class="full validate" id="PluginSettingsForm">
+    <form action="{{ path('odr_save_render_plugin_settings') }}" method="post" class="pure-form pure-form-aligned" id="ODRRenderPluginSettingsForm">
 
         <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
         {% if local_datafield == null %}
@@ -18,7 +15,7 @@
         <fieldset>
             <div class="pure-control-group">
                 <label for="selected_render_plugin">
-                    <strong>Render Plugin:</strong>
+                    <strong>Render Plugin: </strong>
                 </label>
                 <select name="selected_render_plugin" id="selected_render_plugin" onchange="updatePluginData();">
                 {% for render_plugin in render_plugins %}
@@ -40,28 +37,12 @@
             </div>
         </fieldset>
 
-        <fieldset>
-            <div class="pure-control-group" id="render_plugin_data"></div>
-        </fieldset>
+        <div id="ODRRenderPluginData" class="pure-control-group"></div>
 
     </form>
 
-</div>
-
 <script>
     $( function() {
-        $( "#dialog_plugin_settings" ).dialog({
-            autoOpen: false,
-            modal: true,
-            width: 900,
-            open: function() {
-                $(this).parent().css('overflow', 'visible');
-            }
-        });
-
-        // Init Form
-        PluginSettingsFormInit();
-
         // Load initial plugin settings
         updatePluginData();
     });
@@ -74,7 +55,8 @@
         var url  = '{{ path('odr_load_plugin_data', {'datatype_id': 0, 'datafield_id': 0, 'render_plugin_id': 0 } ) }}';
         url = url.substring(0,(url.length - 5)) + datatype_id + '/' + datafield_id + '/' + render_plugin_id;
 
-        $("#render_plugin_data").html('<center><strong>Please wait...</strong></center>');
+        $("#ODRRenderPluginSettingsForm").hide();
+        $(".ODRRemodalLoading").show();
 
         var dataType = "json";
         $.ajax({
@@ -83,21 +65,15 @@
             url: url,
             dataType: dataType,
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    switch(data.t) {
-                        case 'html':
-                            $("#render_plugin_data").html(data.d.html);
-                            $("#dialog_plugin_settings").dialog({ position: { my: "center", at: "center", of: window } });
-                            PluginSettingsFormInit();
-                            break;
-                    }
-                }
-                else {
-                    // An error has occurred.
-                    $("#dialog_plugin_settings").dialog('close');
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+                $("#ODRRenderPluginData").html(data.d.html);
+                $(".ODRRemodalLoading").hide();
+                $("#ODRRenderPluginSettingsForm").show();
+
+                resetRemodalInnerHeight();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers

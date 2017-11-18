@@ -1,5 +1,6 @@
 # Cache and logs (Symfony2)
 /app/cache/*
+/app/crypto_dir/*
 /app/logs/*
 !app/cache/.gitkeep
 !app/logs/.gitkeep
@@ -11,6 +12,7 @@
 !var/logs/.gitkeep
 
 # Parameters
+/app/config/config.yml
 /app/config/parameters.yml
 /app/config/parameters.ini
 /app/config/security.yml
@@ -26,11 +28,16 @@
 # Assets and user uploads
 /web/bundles/
 /web/uploads/
+/web/node_modules/
 
 # PHPUnit
 /app/phpunit.xml
 /phpunit.xml
+/test-browser/node_modules/
+/test-browser/conf/*.conf.js
 
 # Composer PHAR
 /composer.phar
 
+# Dev tools
+.idea/

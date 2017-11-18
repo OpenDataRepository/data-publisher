@@ -20,16 +20,38 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
-// Forms
+
+use ODR\AdminBundle\Entity\DataFieldsMeta;
+use ODR\AdminBundle\Entity\DataRecordMeta;
+use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\FileMeta;
+use ODR\AdminBundle\Entity\ImageMeta;
+use ODR\AdminBundle\Entity\RadioOptionsMeta;
+use ODR\AdminBundle\Entity\RenderPlugin;
+use ODR\AdminBundle\Entity\ThemeElementMeta;
+use ODR\AdminBundle\Entity\ThemeMeta;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
+// Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CryptoService;
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -37,177 +59,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class WorkerController extends ODRCustomController
 {
-
-    /**
-     * Called by the recaching background process to rebuild all the different versions of a DataRecord and store them in memcached.
-     * @deprecated
-     * 
-     * @param Request $request
-     * 
-     * @return Response
-     */
-    public function recacherecordAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        $ret = '';
-
-        try {
-
-            throw new \Exception('DO NOT CONTINUE [DEPRECATED]');
-
-            $post = $_POST;
-            if ( !isset($post['tracked_job_id']) || !isset($post['datarecord_id']) || !isset($post['api_key']) || !isset($post['scheduled_at']) )
-                throw new \Exception('Invalid Form');
-
-            // Pull data from the post
-            $tracked_job_id = intval($post['tracked_job_id']);
-            $datarecord_id = $post['datarecord_id'];
-            $api_key = $post['api_key'];
-//            $scheduled_at = \DateTime::createFromFormat('Y-m-d H:i:s', $post['scheduled_at']);
-//            $delay = new \DateInterval( 'PT1S' );    // one second delay
-
-            // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-//            $pheanstalk = $this->get('pheanstalk');
-            $logger = $this->get('logger');
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
-
-            if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
-
-
-            // ----------------------------------------
-            // Grab necessary objects
-            $block = false;
-            /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if ($datarecord == null)
-                throw new \Exception('RecacheRecordCommand.php: Recache request for deleted DataRecord '.$datarecord_id.', skipping');
-
-            if ($datarecord->getProvisioned() == true)
-                throw new \Exception('RecacheRecordCommand.php: Recache request for provisioned Datarecord '.$datarecord_id.', skipping');
-
-            $datatype = $datarecord->getDataType();
-            if ($datatype->getDeletedAt() !== null)
-                throw new \Exception('RecacheRecordCommand.php: Recache request involving DataRecord '.$datarecord_id.' requires deleted DataType, skipping');
-            $datatype_id = $datatype->getId();
-
-
-            // ----------------------------------------
-            // See if there are migration jobs in progress for this datatype
-            $tracked_job = $repo_tracked_job->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null) {
-                $target_entity = $tracked_job->getTargetEntity();
-                $tmp = explode('_', $target_entity);
-                $datafield_id = $tmp[1];
-
-                $ret = 'RecacheRecordCommand.php: Datafield '.$datafield_id.' is currently being migrated to a different fieldtype...'."\n";
-                $return['r'] = 2;
-                $block = true;
-            }
-
-            $tracked_job = null;
-            $tracked_job_target = null;
-            if (!$block) {
-                // TODO - can this get moved to later, or does it have to stay here...STAYS HERE, UNTIL SYSTEM NEEDS TO GET TORN APART
-                // Stores tracked job target incase ODRCustomController:updateDatatypeCache() starts another update while this action is running
-                if ($tracked_job_id !== -1) {
-                    $tracked_job = $repo_tracked_job->find($tracked_job_id);
-                    if ($tracked_job !== null)
-                        $tracked_job_target = $tracked_job->getRestrictions();
-                }
-            }
-            /** @var TrackedJob $tracked_job */
-
-
-            // ----------------------------------------
-            if (!$block) {
-
-                // ----------------------------------------
-                // Ensure the memcached version of the datarecord's datatype exists
-                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype_id)));
-                if ($datatype_data == false)
-                    self::getDatatypeData($em, self::getDatatreeArray($em), $datatype_id);
-
-                // Ensure the memcached version of the datarecord exists
-                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$datarecord_id)));
-                if ($datarecord_data == false)
-                    self::getDatarecordData($em, $datarecord_id);
-
-                // Ensure the memcached version of the datarecord's
-                $datarecord_table_data = parent::getRedisData(($redis->get($redis_prefix.'.datarecord_table_data_'.$datarecord_id)));
-                if ($datarecord_table_data == false)
-                    self::Text_GetDisplayData($em, $datarecord_id, $request);
-
-                // Also recreate the XML version of the datarecord
-                $xml_export_path = dirname(__FILE__).'/../../../../web/uploads/xml_export/';
-
-                // Ensure directory exists
-                if ( !file_exists($xml_export_path) )
-                    mkdir( $xml_export_path );
-
-                $filename = 'DataRecord_'.$datarecord_id.'.xml';
-                $handle = fopen($xml_export_path.$filename, 'w');
-                if ($handle !== false) {
-                    $content = parent::XML_GetDisplayData($em, $datarecord->getId(), $request);
-                    fwrite($handle, $content);
-                    fclose($handle);
-                }
-
-$ret .= '>> Recached DataRecord '.$datarecord->getId()."\n";
-$logger->info('WorkerController::recacherecordAction() >> Recached DataRecord '.$datarecord->getId());
-
-                // Update the job tracker if necessary
-                if ($tracked_job_id !== -1 && $tracked_job !== null) {
-
-                    $em->refresh($tracked_job);
-
-$ret .= '  original tracked_job_target: '.$tracked_job_target.'  current tracked_job_target: '.$tracked_job->getRestrictions()."\n";
-
-                    if ( $tracked_job !== null && intval($tracked_job_target) == intval($tracked_job->getRestrictions()) ) {
-                        $total = $tracked_job->getTotal();
-                        $count = $tracked_job->incrementCurrent($em);
-
-                        if ($count >= $total)
-                            $tracked_job->setCompleted( new \DateTime() );
-                        
-                        $em->persist($tracked_job);
-                        $em->flush();
-$ret .= '  Set current to '.$count."\n";
-                    }
-                }
-
-            }
-            else {
-$ret = '>> Ignored update request for DataRecord '.$datarecord->getId()."\n";
-$logger->info('WorkerController::recacherecordAction() >> Ignored update request for DataRecord '.$datarecord->getId());
-            }
-
-            $return['d'] = $ret;
-        }
-        catch (\Exception $e) {
-            // TODO - increment tracked job counter on error?
-
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x6642397853 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
 
     /**
      * Called by the migration background process to transfer data from one storage entity to another compatible storage entity.
@@ -244,9 +95,6 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 //            $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -257,8 +105,11 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
             $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException('Invalid Form');
 
             $ret = '';
 
@@ -280,9 +131,9 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 
             // Ensure datarecord/datafield pair exist
             if ($datarecord == null)
-                throw new \Exception('Datarecord '.$datarecord_id.' is deleted');
+                throw new ODRException('Datarecord '.$datarecord_id.' is deleted');
             if ($datafield == null)
-                throw new \Exception('Datafield '.$datafield_id.' is deleted');
+                throw new ODRException('Datafield '.$datafield_id.' is deleted');
 
 
             // Radio options need typename to distinguish...
@@ -395,11 +246,6 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                     $new_obj = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
 
                     parent::ODR_copyStorageEntity($em, $user, $new_obj, array('value' => $value));
-
-
-                    // TODO - code to directly update the cached version of the datarecord
-                    // Locate and clear the cache entry for this datarecord
-                    parent::tmp_updateDatarecordCache($em, $datarecord->getGrandparent(), $user);
                 }
                 else {
                     $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";
@@ -424,17 +270,20 @@ $ret .= '  Set current to '.$count."\n";
 
 
             // ----------------------------------------
-            // Delete the cached versions of this datarecord
-            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+            // Mark this datarecord as updated
+            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+
+            // TODO - cached search results?
+
 
             $return['d'] = $ret;
         }
         catch (\Exception $e) {
-            // TODO - increment tracked job counter on error?
-
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x6642397856: '.$e->getMessage()."\n".$ret;
+            $source = 0x5e17488a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -459,6 +308,9 @@ $ret .= '  Set current to '.$count."\n";
         $return['d'] = '';
 
         try {
+
+            throw new ODRNotImplementedException();
+
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -542,9 +394,11 @@ $ret .= '  Set current to '.$count."\n";
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x38472782 ' . $e->getMessage();
+            $source = 0xb115dc04;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -570,6 +424,9 @@ $ret .= '  Set current to '.$count."\n";
         $tracked_job_id = -1;
 
         try {
+
+            throw new ODRNotImplementedException();
+
             $post = $_POST;
             if ( !isset($post['tracked_job_id']) || !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid Form');
@@ -586,11 +443,12 @@ $ret .= '  Set current to '.$count."\n";
                 throw new \Exception('Invalid Form');
 
             // ----------------------------------------
-            // Ensure the full-size image exists
-            parent::decryptObject($object_id, $object_type);
-
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
+
 
             /** @var Image $img */
             $img = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
@@ -600,6 +458,8 @@ $ret .= '  Set current to '.$count."\n";
             /** @var User $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find(2);    // TODO - need an actual system user...
 
+            // Ensure the full-size image exists on the server
+            $crypto_service->decryptImage($object_id);
 
             // Ensure an ImageSizes entity exists for this image
             /** @var ImageSizes[] $image_sizes */
@@ -683,6 +543,7 @@ $ret .= '  Set current to '.$count."\n";
 
     /**
      * Performs an asynchronous encrypt or decrypt on a specified file.  Also has the option
+     * @deprecated
      *
      * @param Request $request
      *
@@ -727,6 +588,10 @@ $ret .= '  Set current to '.$count."\n";
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+
 
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             if ($api_key !== $beanstalk_api_key)
@@ -780,7 +645,7 @@ $ret .= '  Set current to '.$count."\n";
 
                 // Update the datarecord cache so whichever controller is handling the "are you done encrypting yet?" javascript requests can return the correct HTML
                 $datarecord = $base_obj->getDataRecord();
-                parent::tmp_updateDatarecordCache($em, $datarecord, $base_obj->getCreatedBy());
+                $dri_service->updateDatarecordCacheEntry($datarecord, $base_obj->getCreatedBy());
             }
             else if ($crypto_type == 'decrypt') {
                 // This is (currently) the only request the user has made for this file...begin manually decrypting it because the crypto bundle offers limited control over filenames
@@ -891,35 +756,160 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function dtclearAction($datatype_id, Request $request)
     {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
 
-        /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
 
-        if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
-            return parent::permissionDeniedError();
 
-        $results = array();
-        if ($datatype_id == 0) {
-            $query = $em->createQuery(
-               'SELECT dt.id AS dt_id
-                FROM ODRAdminBundle:DataType AS dt');
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
 
-            $results = $query->getArrayResult();
+            $results = array();
+            if ($datatype_id == 0) {
+                // Locate all existing datatype ids
+                $query = $em->createQuery(
+                   'SELECT dt.id AS dt_id
+                    FROM ODRAdminBundle:DataType AS dt'
+                );
+
+                $results = $query->getArrayResult();
+            }
+            else {
+                // Locate all child/linked datatypes for the specified datatype
+                $datatype_ids = $dti_service->getAssociatedDatatypes( array($datatype_id) );
+
+                $query = $em->createQuery(
+                   'SELECT dt.id AS dt_id
+                    FROM ODRAdminBundle:DataType AS dt
+                    WHERE dt.id IN (:datatype_ids)'
+                )->setParameters( array('datatype_ids' => $datatype_ids) );
+
+                $results = $query->getArrayResult();
+            }
+
+            $cache_service->delete('cached_datatree_array');
+            $cache_service->delete('top_level_datatypes');
+
+            $keys_to_delete = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+
+                // All datatypes have these keys
+                $keys_to_delete[] = 'cached_datatype_'.$dt_id;
+                $keys_to_delete[] = 'datatype_'.$dt_id.'_record_order';
+
+                // Child datatypes don't have these keys, but deleting them doesn't hurt anything
+                $keys_to_delete[] = 'dashboard_'.$dt_id;
+                $keys_to_delete[] = 'dashboard_'.$dt_id.'_public_only';
+                $keys_to_delete[] = 'associated_datatypes_for_'.$dt_id;
+            }
+
+            print '<pre>';
+            foreach ($keys_to_delete as $key) {
+                if ($cache_service->exists($key) ) {
+                    $cache_service->delete($key);
+                    print '"'.$key.'" deleted'."\n";
+                }
+            }
+            print '</pre>';
         }
-        else {
-            $results = array('dt_id' => $datatype_id);
+        catch (\Exception $e) {
+            $source = 0xaa016ab8;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
+        $return = array(
+            'r' => 0,
+            't' => '',
+            'd' => '',
+        );
 
-        foreach ($results as $result) {
-            $dt_id = $result['dt_id'];
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 
-            $redis->del($redis_prefix.'.cached_datatype_'.$dt_id);
+
+    /**
+     * Debug function...clears existing cached versions of themes (optionally for a specific datatype).
+     * Should only be used when changes have been made to the structure of the cached array for themes.
+     *
+     * @param integer $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function themeclearAction($datatype_id, Request $request)
+    {
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
+
+            $results = array();
+            if ($datatype_id == 0) {
+                // Locate all existing theme ids
+                $query = $em->createQuery(
+                   'SELECT t.id AS t_id
+                    FROM ODRAdminBundle:Theme AS t'
+                );
+
+                $results = $query->getArrayResult();
+            }
+            else {
+                // Locate all themes for this datatype, its children, and its linked datatypes (just because)
+                $datatype_ids = $dti_service->getAssociatedDatatypes( array($datatype_id) );
+
+                $query = $em->createQuery(
+                   'SELECT t.id AS t_id
+                    FROM ODRAdminBundle:Theme AS t
+                    WHERE t.dataType IN (:datatype_ids)'
+                )->setParameters( array('datatype_ids' => $datatype_ids) );
+
+                $results = $query->getArrayResult();
+            }
+
+            $keys_to_delete = array();
+            foreach ($results as $result) {
+                $t_id = $result['t_id'];
+                $keys_to_delete[] = 'cached_theme_'.$t_id;
+            }
+
+            print '<pre>';
+            foreach ($keys_to_delete as $key) {
+                if ($cache_service->exists($key) ) {
+                    $cache_service->delete($key);
+                    print '"'.$key.'" deleted'."\n";
+                }
+            }
+            print '</pre>';
+        }
+        catch (\Exception $e) {
+            $source = 0xe4e80e34;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $return = array(
@@ -945,39 +935,68 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function drclearAction($datatype_id, Request $request)
     {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
 
-        /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
 
-        if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
-            return parent::permissionDeniedError();
 
-        $query = null;
-        if ($datatype_id == 0) {
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord AS dr');
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
+
+
+            $conn = $em->getConnection();
+
+            $query = null;
+            if ($datatype_id == 0) {
+                // Locate all existing datarecord ids
+                $query =
+                   'SELECT dr.id AS dr_id
+                    FROM odr_data_record AS dr
+                    WHERE dr.id = dr.grandparent_id
+                    AND dr.deletedAt IS NULL';
+            }
+            else {
+                // Only want datarecords of the specified datatype
+                $query =
+                   'SELECT dr.id AS dr_id
+                    FROM odr_data_record AS dr
+                    WHERE dr.id = dr.grandparent_id AND dr.data_type_id = '.$datatype_id.'
+                    AND dr.deletedAt IS NULL';
+            }
+            $results = $conn->fetchAll($query);
+
+            print '<pre>';
+            $key = 'associated_datarecords_for_';
+            foreach ($results as $result) {
+                if ($cache_service->exists($key.$result['dr_id']))
+                    $cache_service->delete($key.$result['dr_id']);
+            }
+
+            $key = 'cached_datarecord_';
+            foreach ($results as $result) {
+                if ($cache_service->exists($key.$result['dr_id']))
+                    $cache_service->delete($key.$result['dr_id']);
+            }
+
+            $key = 'cached_table_data_';
+            foreach ($results as $result) {
+                if ($cache_service->exists($key.$result['dr_id']))
+                    $cache_service->delete($key.$result['dr_id']);
+            }
+            print '</pre>';
+
         }
-        else {
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                WHERE dr.dataType = :datatype_id'
-            )->setParameters( array('datatype_id' => $datatype_id) );
-        }
-        $results = $query->getArrayResult();
-
-        foreach ($results as $result) {
-            $dr_id = $result['dr_id'];
-
-            $redis->del($redis_prefix.'.associated_datarecords_for_'.$dr_id);
-            $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
-            $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
+        catch (\Exception $e) {
+            $source = 0xc178ea4b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $return = array(
@@ -994,20 +1013,32 @@ $ret .= '  Set current to '.$count."\n";
 
     /**
      * Debug function...clears all existing cached search result.
+     *
+     * @param Request $request
+     *
+     * @return Response
      */
     public function searchclearAction(Request $request)
     {
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        try {
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
 
-        /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-        if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
-            return parent::permissionDeniedError();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
 
-        $redis->del($redis_prefix.'.cached_search_results');
+            $cache_service->delete('cached_search_results');
+        }
+        catch (\Exception $e) {
+            $source = 0xcb3e7952;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
 
         $return = array(
             'r' => 0,
@@ -1023,48 +1054,59 @@ $ret .= '  Set current to '.$count."\n";
 
     /**
      * Debug function...clears all existing cached search result.
+     *
+     * @param Request $request
+     *
+     * @return Response
      */
     public function permissionsclearAction(Request $request)
     {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
 
-        /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
 
-        if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
-            return parent::permissionDeniedError();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
 
-        // ----------------------------------------
-        // Clear all cached user permissions
-        $query = $em->createQuery(
-           'SELECT u.id AS user_id
-            FROM ODROpenRepositoryUserBundle:User AS u'
-        );
-        $results = $query->getArrayResult();
+            // ----------------------------------------
+            // Clear all cached user permissions
+            $query = $em->createQuery(
+               'SELECT u.id AS user_id
+                FROM ODROpenRepositoryUserBundle:User AS u'
+            );
+            $results = $query->getArrayResult();
 
-        foreach ($results as $result) {
-            $user_id = $result['user_id'];
-            $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
+            foreach ($results as $result) {
+                $user_id = $result['user_id'];
+                $cache_service->delete('user_'.$user_id.'_permissions');
+            }
+
+
+            // ----------------------------------------
+            // Clear all cached group permissions
+            $query = $em->createQuery(
+               'SELECT g.id AS group_id
+                FROM ODRAdminBundle:Group AS g'
+            );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                $group_id = $result['group_id'];
+                $cache_service->delete('group_'.$group_id.'_permissions');
+            }
         }
-
-
-        // ----------------------------------------
-        // Clear all cached group permissions
-        $query = $em->createQuery(
-           'SELECT g.id AS group_id
-            FROM ODRAdminBundle:Group AS g'
-        );
-        $results = $query->getArrayResult();
-
-        foreach ($results as $result) {
-            $group_id = $result['group_id'];
-            $redis->del($redis_prefix.'.group_'.$group_id.'_permissions');
+        catch (\Exception $e) {
+            $source = 0x2afc476b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-
 
         $return = array(
             'r' => 0,
@@ -1283,71 +1325,660 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
-     * @deprecated
+     * Debug function to force the correct datetime format in the database
+     *
+     * @param Request $request
+     */
+    public function fixdatabasedatesAction(Request $request)
+    {
+        /** @var User $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+        if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+            throw new ODRForbiddenException();
+
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+        $em->getFilters()->disable('softdeleteable');
+
+        $has_created = $has_updated = $has_deleted = $has_publicdate = array();
+
+        print '<pre>';
+        $filepath = dirname(__FILE__).'/../Entity/';
+        $filelist = scandir($filepath);
+        foreach ($filelist as $num => $filename) {
+
+            if ( strlen($filename) > 3 && strpos($filename, '~') === false && strpos($filename, '.bck') === false ) {
+                $handle = fopen($filepath.$filename, 'r');
+                if (!$handle)
+                    throw new ODRException('Unable to open file');
+
+                $classname = '';
+                while ( !feof($handle) ) {
+                    $line = fgets($handle);
+
+                    $matches = array();
+                    if ( preg_match('/^class ([^\s]+)$/', $line, $matches) == 1 )
+                        $classname = $matches[1];
+                    if ($classname == 'FieldType')
+                        continue;
+
+                    if ( strpos($line, 'private $created;') !== false )
+                        $has_created[] = $classname;
+                    if ( strpos($line, 'private $updated;') !== false )
+                        $has_updated[] = $classname;
+                    if ( strpos($line, 'private $deletedAt;') !== false )
+                        $has_deleted[] = $classname;
+                    if ( strpos($line, 'private $publicDate;') !== false )
+                        $has_publicdate[] = $classname;
+                }
+
+                fclose($handle);
+            }
+        }
+/*
+        print "has created: \n";
+        print_r($has_created);
+        print "has updated: \n";
+        print_r($has_updated);
+        print "has deleted: \n";
+        print_r($has_deleted);
+        print "has publicDate: \n";
+        print_r($has_publicdate);
+*/
+        $bad_created = $bad_updated = $bad_deleted = $bad_publicdate = array();
+        $parameter = array('bad_date' => "0000-00-00%");
+
+        foreach ($has_created as $num => $classname) {
+            $query = $em->createQuery(
+               'SELECT COUNT(e.id)
+                FROM ODRAdminBundle:'.$classname.' AS e
+                WHERE e.created LIKE :bad_date'
+            )->setParameters($parameter);
+            $results = $query->getArrayResult();
+
+            if ( $results[0][1] > 0 )
+                $bad_created[$classname] = $results[0][1];
+        }
+
+        foreach ($has_updated as $num => $classname) {
+            $query = $em->createQuery(
+               'SELECT COUNT(e.id)
+                FROM ODRAdminBundle:'.$classname.' AS e
+                WHERE e.updated LIKE :bad_date'
+            )->setParameters($parameter);
+            $results = $query->getArrayResult();
+
+            if ( $results[0][1] > 0 )
+                $bad_updated[$classname] = $results[0][1];
+        }
+
+        foreach ($has_deleted as $num => $classname) {
+            $query = $em->createQuery(
+               'SELECT COUNT(e.id)
+                FROM ODRAdminBundle:'.$classname.' AS e
+                WHERE e.deletedAt LIKE :bad_date'
+            )->setParameters($parameter);
+            $results = $query->getArrayResult();
+
+            if ( $results[0][1] > 0 )
+                $bad_deleted[$classname] = $results[0][1];
+        }
+
+        foreach ($has_publicdate as $num => $classname) {
+            $query = $em->createQuery(
+               'SELECT COUNT(e.id)
+                FROM ODRAdminBundle:'.$classname.' AS e
+                WHERE e.publicDate LIKE :bad_date'
+            )->setParameters($parameter);
+            $results = $query->getArrayResult();
+
+            if ( $results[0][1] > 0 )
+                $bad_publicdate[$classname] = $results[0][1];
+        }
+
+        print "bad created: \n";
+        print_r($bad_created);
+        print "bad updated: \n";
+        print_r($bad_updated);
+        print "bad deleted: \n";
+        print_r($bad_deleted);
+        print "bad publicDate: \n";
+        print_r($bad_publicdate);
+
+        $save = false;
+//        $save = true;
+
+        foreach ($bad_created as $classname => $num) {
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:'.$classname.' AS e
+                SET e.created = :good_date
+                WHERE e.created < :bad_date'
+            )->setParameters(
+                array(
+                    'good_date' => new \Datetime('2013-01-01 00:00:00'),
+                    'bad_date' => '2000-01-01 00:00:00'
+                )
+            );
+            if ($save)
+                $first = $query->execute();
+        }
+
+        foreach ($bad_updated as $classname => $num) {
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:'.$classname.' AS e
+                SET e.updated = e.deletedAt
+                WHERE e.deletedAt IS NOT NULL'
+            );
+            if ($save)
+                $first = $query->execute();
+
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:'.$classname.' AS e
+                SET e.updated = e.created
+                WHERE e.updated < :good_date'
+            )->setParameters( array('good_date' => '2000-01-01 00:00:00') );
+            if ($save)
+                $second = $query->execute();
+        }
+
+        foreach ($bad_deleted as $classname => $num) {
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:'.$classname.' AS e
+                SET e.deletedAt = NULL
+                WHERE e.deletedAt < :bad_date'
+            )->setParameters(
+                array(
+                    'bad_date' => '2000-01-01 00:00:00'
+                )
+            );
+            if ($save)
+                $first = $query->execute();
+        }
+
+        foreach ($bad_publicdate as $classname => $num) {
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:'.$classname.' AS e
+                SET e.publicDate = :good_date
+                WHERE e.publicDate < :bad_date'
+            )->setParameters(
+                array(
+                    'good_date' => new \DateTime('2200-01-01 00:00:00'),
+                    'bad_date' => '2000-01-01 00:00:00'
+                )
+            );
+            if ($save)
+                $first = $query->execute();
+        }
+
+        $em->getFilters()->enable('softdeleteable');
+        print '</pre>';
+    }
+
+
+    /**
+     * Looks for and creates any missing meta entries
      *
      * @param Request $request
      *
      * @return Response
-     * @throws \Exception
      */
-    public function startbuildgroupdataAction(Request $request)
+    public function fixmissingmetaentriesAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
-        $return['t'] = "";
-        $return['d'] = "";
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
 
         try {
-            // Grab necessary objects
+            // ----------------------------------------
+            // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $pheanstalk = $this->get('pheanstalk');
-            $router = $this->container->get('router');
 
-            $redis = $this->container->get('snc_redis.default');;
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
+            $repo_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin');
+            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_file = $em->getRepository('ODRAdminBundle:File');
+            $repo_image = $em->getRepository('ODRAdminBundle:Image');
+            $repo_radio_options = $em->getRepository('ODRAdminBundle:RadioOptions');
+            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
 
-            $api_key = $this->container->getParameter('beanstalk_api_key');
+            /** @var RenderPlugin $default_render_plugin */
+            $default_render_plugin = $repo_render_plugin->find(1);
 
-            throw new \Exception('DO NOT CONTINUE [DEPRECATED]');
-
-            // --------------------
-            // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
 
-            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
-                return parent::permissionDeniedError();
-            // --------------------
+            $batch_size = 100;
+            $count = 0;
 
+            // Load everything regardless of deleted status
+            $em->getFilters()->disable('softdeleteable');
 
-            // Generate the url for cURL to use
-            $url = $this->container->getParameter('site_baseurl');
-            $url .= $router->generate('odr_group_metadata');
+            // Going to run native SQL queries for this, doctrine doesn't do subqueries well
+            $conn = $em->getConnection();
+            print '<pre>';
 
+            // ----------------------------------------
+            // Datafields
+            $query =
+                'SELECT df.id AS df_id
+                 FROM odr_data_fields AS df
+                 WHERE df.id NOT IN (
+                     SELECT DISTINCT(dfm.data_field_id)
+                     FROM odr_data_fields_meta AS dfm
+                 )';
+            $results = $conn->fetchAll($query);
 
-            $top_level_datatypes = parent::getTopLevelDatatypes();
-            foreach ($top_level_datatypes as $num => $dt_id) {
-                // Insert the new job into the queue
-                $priority = 1024;   // should be roughly default priority
-                $payload = json_encode(
-                    array(
-                        "object_type" => 'datatype',
-                        "object_id" => $dt_id,
-                        "redis_prefix" => $redis_prefix,    // debug purposes only
-                        "url" => $url,
-                        "api_key" => $api_key,
-                    )
-                );
-                $delay = 1;
-                $pheanstalk->useTube('build_metadata')->put($payload, $priority, $delay);
+            $missing_datafields = array();
+            foreach ($results as $result)
+                $missing_datafields[] = $result['df_id'];
+
+            print 'missing datafield meta entries: '."\n";
+            print_r($missing_datafields);
+
+            if ($save) {
+                foreach ($missing_datafields as $num => $df_id) {
+                    $df = $repo_datafield->find($df_id);
+
+                    $dfm = new DataFieldsMeta();
+                    $dfm->setDataField($df);
+                    $dfm->setFieldType( $repo_fieldtype->find(9) );     // shortvarchar
+                    $dfm->setRenderPlugin($default_render_plugin);
+
+                    $dfm->setMasterRevision(0);
+                    $dfm->setTrackingMasterRevision(0);
+                    $dfm->setMasterPublishedRevision(0);
+
+                    $dfm->setFieldName('New Field');
+                    $dfm->setDescription('Field description');
+                    $dfm->setXmlFieldName('');
+                    $dfm->setRegexValidator('');
+                    $dfm->setPhpValidator('');
+
+                    $dfm->setMarkdownText('');
+                    $dfm->setIsUnique(false);
+                    $dfm->setRequired(false);
+                    $dfm->setSearchable(0);
+                    $dfm->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
+
+                    $dfm->setChildrenPerRow(1);
+                    $dfm->setRadioOptionNameSort(0);
+                    $dfm->setRadioOptionDisplayUnselected(0);
+                    $dfm->setAllowMultipleUploads(0);
+                    $dfm->setShortenFilename(0);
+
+                    $dfm->setCreatedBy($user);
+                    $dfm->setUpdatedBy($user);
+
+                    $em->persist($dfm);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
+                }
             }
+
+
+            // ----------------------------------------
+            // Datarecords
+            $query =
+                'SELECT dr.id AS dr_id
+                 FROM odr_data_record AS dr
+                 WHERE dr.id NOT IN (
+                     SELECT DISTINCT(drm.data_record_id)
+                     FROM odr_data_record_meta AS drm
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_datarecords = array();
+            foreach ($results as $result)
+                $missing_datarecords[] = $result['dr_id'];
+
+            print 'missing datarecord meta entries: '."\n";
+            print_r($missing_datarecords);
+
+            if ($save) {
+                foreach ($missing_datarecords as $num => $dr_id) {
+                    $dr = $repo_datarecord->find($dr_id);
+
+                    $drm = new DataRecordMeta();
+                    $drm->setDataRecord($dr);
+                    $drm->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
+
+                    $drm->setCreatedBy($user);
+                    $drm->setUpdatedBy($user);
+
+                    $em->persist($drm);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
+            // Datatree
+            $query =
+                'SELECT dt.id AS dt_id
+                 FROM odr_data_tree AS dt
+                 WHERE dt.id NOT IN (
+                     SELECT DISTINCT(dtm.data_tree_id)
+                     FROM odr_data_tree_meta AS dtm
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_datatrees = array();
+            foreach ($results as $result)
+                $missing_datatrees[] = $result['dt_id'];
+
+            print 'missing datatree meta entries:  **NO ACTION TAKEN**'."\n";
+            print_r($missing_datatrees);
+
+
+            // ----------------------------------------
+            // Datatypes
+            $query =
+                'SELECT dt.id AS dt_id
+                 FROM odr_data_type AS dt
+                 WHERE dt.id NOT IN (
+                     SELECT DISTINCT(dtm.data_type_id)
+                     FROM odr_data_type_meta AS dtm
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_datatypes = array();
+            foreach ($results as $result)
+                $missing_datatypes[] = $result['dt_id'];
+
+            print 'missing datatype meta entries: '."\n";
+            print_r($missing_datatypes);
+
+            if ($save) {
+                foreach ($missing_datatypes as $num => $dt_id) {
+                    $dt = $repo_datatype->find($dt_id);
+
+                    $dtm = new DataTypeMeta();
+                    $dtm->setDataType($dt);
+                    $dtm->setRenderPlugin($default_render_plugin);
+
+                    $dtm->setSearchSlug($dt_id);
+                    $dtm->setShortName("New Datatype");
+                    $dtm->setLongName("New Datatype");
+                    $dtm->setDescription("New DataType Description");
+                    $dtm->setXmlShortName('');
+
+                    $dtm->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+
+                    $dtm->setExternalIdField(null);
+                    $dtm->setNameField(null);
+                    $dtm->setSortField(null);
+                    $dtm->setBackgroundImageField(null);
+
+                    $dtm->setMasterPublishedRevision(0);
+                    $dtm->setMasterRevision(0);
+                    $dtm->setTrackingMasterRevision(0);
+
+                    $dtm->setCreatedBy($user);
+                    $dtm->setUpdatedBy($user);
+
+                    $em->persist($dtm);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
+            // Files
+            $query =
+                'SELECT f.id AS f_id
+                 FROM odr_file AS f
+                 WHERE f.id NOT IN (
+                     SELECT DISTINCT(fm.file_id)
+                     FROM odr_file_meta AS fm
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_files = array();
+            foreach ($results as $result)
+                $missing_files[] = $result['f_id'];
+
+            print 'missing file meta entries: '."\n";
+            print_r($missing_files);
+
+            if ($save) {
+                foreach ($missing_files as $num => $f_id) {
+                    $file = $repo_file->find($f_id);
+
+                    $fm = new FileMeta();
+                    $fm->setFile($file);
+                    $fm->setOriginalFileName('file_name');
+                    $fm->setExternalId('');
+                    $fm->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+
+                    $fm->setCreatedBy($user);
+                    $fm->setUpdatedBy($user);
+
+                    $em->persist($fm);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
+            // Images
+            $query =
+                'SELECT i.id AS i_id
+                 FROM odr_image AS i
+                 WHERE i.id NOT IN (
+                     SELECT DISTINCT(im.image_id)
+                     FROM odr_image_meta AS im
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_images = array();
+            foreach ($results as $result)
+                $missing_images[] = $result['i_id'];
+
+            print 'missing image meta entries: '."\n";
+            print_r($missing_images);
+
+            if ($save) {
+                foreach ($missing_images as $num => $i_id) {
+                    $image = $repo_image->find($i_id);
+
+                    $im = new ImageMeta();
+                    $im->setImage($image);
+                    $im->setDisplayorder(0);
+                    $im->setOriginalFileName('image name');
+                    $im->setCaption('image caption');
+                    $im->setExternalId('');
+                    $im->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+
+                    $im->setCreatedBy($user);
+                    $im->setUpdatedBy($user);
+
+                    $em->persist($im);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
+            // RadioOptions
+            $query =
+                'SELECT ro.id AS ro_id
+                 FROM odr_radio_options AS ro
+                 WHERE ro.id NOT IN (
+                     SELECT DISTINCT(rom.radio_option_id)
+                     FROM odr_radio_options_meta AS rom
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_radio_options = array();
+            foreach ($results as $result)
+                $missing_radio_options[] = $result['ro_id'];
+
+            print 'missing radio option meta entries: '."\n";
+            print_r($missing_radio_options);
+
+            if ($save) {
+                foreach ($missing_radio_options as $num => $ro_id) {
+                    $ro = $repo_radio_options->find($ro_id);
+
+                    $rom = new RadioOptionsMeta();
+                    $rom->setRadioOption($ro);
+                    $rom->setOptionName('Option Name');
+                    $rom->setXmlOptionName('');
+                    $rom->setDisplayOrder(0);
+                    $rom->setIsDefault(false);
+
+                    $rom->setCreatedBy($user);
+                    $rom->setUpdatedBy($user);
+
+                    $em->persist($rom);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
+            // Themes
+            $query =
+                'SELECT t.id AS t_id
+                 FROM odr_theme AS t
+                 WHERE t.id NOT IN (
+                     SELECT DISTINCT(tm.theme_id)
+                     FROM odr_theme_meta AS tm
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_themes = array();
+            foreach ($results as $result)
+                $missing_themes[] = $result['t_id'];
+
+            print 'missing theme meta entries: '."\n";
+            print_r($missing_themes);
+
+            if ($save) {
+                foreach ($missing_themes as $num => $t_id) {
+                    $theme = $repo_theme->find($t_id);
+
+                    $tm = new ThemeMeta();
+                    $tm->setTheme($theme);
+                    $tm->setTemplateName('');
+                    $tm->setTemplateDescription('');
+                    $tm->setIsDefault(false);
+                    $tm->setDisplayOrder(0);
+                    $tm->setShared(false);
+                    $tm->setIsTableTheme(false);
+
+                    $tm->setCreatedBy($user);
+                    $tm->setUpdatedBy($user);
+
+                    $em->persist($tm);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
+            // ThemeElements
+            $query =
+                'SELECT te.id AS te_id
+                 FROM odr_theme_element AS te
+                 WHERE te.id NOT IN (
+                     SELECT DISTINCT(tem.theme_element_id)
+                     FROM odr_theme_element_meta AS tem
+                 )';
+            $results = $conn->fetchAll($query);
+
+            $missing_theme_elements = array();
+            foreach ($results as $result)
+                $missing_theme_elements[] = $result['te_id'];
+
+            print 'missing theme element meta entries: '."\n";
+            print_r($missing_theme_elements);
+
+            if ($save) {
+                foreach ($missing_theme_elements as $num => $te_id) {
+                    $te = $repo_theme_element->find($te_id);
+
+                    $tem = new ThemeElementMeta();
+                    $tem->setThemeElement($te);
+                    $tem->setDisplayOrder(999);
+                    $tem->setCssWidthMed('1-1');
+                    $tem->setCssWidthXL('1-1');
+                    $tem->setHidden(0);
+
+                    $tem->setCreatedBy($user);
+                    $tem->setUpdatedBy($user);
+
+                    $em->persist($tem);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
+                }
+            }
+
+            // ----------------------------------------
+            if ($save)
+                $em->flush();
+
+            print '</pre>';
+            // Turn the deleted filter back on
+            $em->getFilters()->enable('softdeleteable');
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = '0x1878321483: '.$e->getMessage();
+            $em->getFilters()->enable('softdeleteable');
+
+            $source = 0xabcdef00;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1357,140 +1988,732 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
-     * @deprecated
+     * Migration function, fills in parent/grandparent property of the datatype.
      *
      * @param Request $request
      *
      * @return Response
      */
-    public function buildgroupdataAction(Request $request)
+    public function datatypemigrateAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
 
+        $save = false;
+//        $save = true;
+
         try {
-            $post = $_POST;
-            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
-                throw new \Exception('Invalid Form');
-
-            throw new \Exception('DO NOT CONTINUE [DEPRECATED]');
-
-            // Pull data from the post
-            $object_type = $post['object_type'];
-            $object_id = $post['object_id'];
-            $api_key = $post['api_key'];
-
-            // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-
+            // ----------------------------------------
+            // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
-            if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
-
-
-            /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($object_id);
-//            if ($datatype == null)
-//                throw new \Exception('Deleted Datatype');
-
-            // Determine whether this top-level datatype has the default groups already...
-            $repo_group = $em->getRepository('ODRAdminBundle:Group');
-            $repo_datatype_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
-            $repo_datafield_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');
-
-            $group_data = null;
-            $admin_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'admin') );
-            if ($admin_group == false) {
-                $group_data = parent::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'admin');
-                $admin_group = $group_data['group'];
-            }
-
-            $group_data = null;
-            $edit_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'edit_all') );
-            if ($edit_group == false) {
-                $group_data = parent::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'edit_all');
-                $edit_group = $group_data['group'];
-            }
-
-            $group_data = null;
-            $view_all_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'view_all') );
-            if ($view_all_group == false) {
-                $group_data = parent::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'view_all');
-                $view_all_group = $group_data['group'];
-            }
-
-            $group_data = null;
-            $view_only_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'view_only') );
-            if ($view_only_group == false) {
-                $group_data = parent::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'view_only');
-                $view_only_group = $group_data['group'];
-            }
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
 
 
-            // Need to add users to these new groups...
-            $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var User[] $user_list */
-            $user_list = $user_manager->findUsers();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
 
-$ret = 'Created default groups for datatype '.$datatype->getId()."...\n";
 
-            $users_with_groups = array();
+            // Load all datatypes, deleted or not
+            $em->getFilters()->disable('softdeleteable');
 
-            // Locate all users without the super-admin role that have the current 'is_datatype_admin' permission...
-            foreach ($user_list as $user) {
-                if ( $user->isEnabled() && !$user->hasRole('ROLE_SUPER_ADMIN') ) {
-                    $datatype_permission = $repo_datatype_permissions->findOneBy( array('is_type_admin' => 1, 'user' => $user->getId(), 'dataType' => $datatype->getId()) );
-                    if ($datatype_permission != false) {
-                        // ...add this user to the new default admin group
-                        parent::ODR_createUserGroup($em, $user, $admin_group, $datatype->getCreatedBy());
-$ret .= ' -- added '.$user->getUserString().' to the default "admin" group'."\n";
+            $query = $em->createQuery(
+               'SELECT dt.id, dt.deletedAt
+                FROM ODRAdminBundle:DataType AS dt
+                ORDER BY dt.id'
+            );
+            $results = $query->getArrayResult();
 
-                        // Note that this user is in the admin group, and therefore don't add them to any other default group
-                        $users_with_groups[ $user->getId() ] = 1;
+            print '<pre>';
+            foreach ($results as $num => $dt) {
+                $dt_id = $dt['id'];
+                $cache_service->delete('cached_datatype_'.$dt_id);
+
+                if ( $dt['deletedAt'] == null )
+                    print 'datatype '.$dt_id.':'."\n";
+                else
+                    print 'deleted datatype '.$dt_id.':'."\n";
+
+                $sub_query = $em->createQuery(
+                   'SELECT dt, ancestor, descendant
+
+                    FROM ODRAdminBundle:DataTree AS dt
+                    JOIN dt.dataTreeMeta AS dtm
+                    JOIN dt.ancestor AS ancestor
+                    JOIN dt.descendant AS descendant
+
+                    WHERE dt.descendant = :dt_id AND dtm.is_link = 0
+                    ORDER BY dt.deletedAt ASC'
+                )->setParameters( array('dt_id' => $dt_id) );
+                $sub_results = $sub_query->getArrayResult();
+
+                if ( count($sub_results) == 0 ) {
+                    /** @var DataType $datatype */
+                    $datatype = $repo_datatype->find($dt_id);
+
+                    $datatype->setParent($datatype);
+                    $datatype->setGrandparent($datatype);
+
+                    if ($save) {
+                        $em->persist($datatype);
+                        $em->flush();
+                        $em->refresh($datatype);
+                    }
+
+                    print "\tsetting parent to datatype ".$dt_id."\n";
+                    print "\tsetting grandparent to datatype ".$dt_id."\n";
+                }
+                else if ( count($sub_results) == 1 ) {
+
+                    $dt = $sub_results[0];
+                    /** @var DataType $datatype */
+                    $datatype = $repo_datatype->find($dt_id);
+                    /** @var DataType $ancestor */
+                    $ancestor = $repo_datatype->find($dt['ancestor']['id']);
+
+                    $datatype->setParent($ancestor);
+                    $datatype->setGrandparent($ancestor->getGrandparent());
+
+                    if ($save) {
+                        $em->persist($datatype);
+                        $em->flush();
+                        $em->refresh($datatype);
+                    }
+
+                    print "\tsetting parent to datatype ".$ancestor->getId()."\n";
+                    if ($save)
+                        print "\tsetting grandparent to datatype ".$ancestor->getGrandparent()->getId()."\n";
+                }
+                else {
+
+                    if ( $sub_results[0]['deletedAt'] == null ) {
+                        // Due to sort ASC, null values should be at the top
+                        // A null value here means this is the current datatree entry, and therefore should be the one used
+
+                        $dt = $sub_results[0];
+                        /** @var DataType $datatype */
+                        $datatype = $repo_datatype->find($dt_id);
+                        /** @var DataType $ancestor */
+                        $ancestor = $repo_datatype->find($dt['ancestor']['id']);
+
+                        $datatype->setParent($ancestor);
+                        $datatype->setGrandparent($ancestor->getGrandparent());
+
+                        if ($save) {
+                            $em->persist($datatype);
+                            $em->flush();
+                            $em->refresh($datatype);
+                        }
+
+                        print "\tsetting parent to datatype ".$ancestor->getId()."\n";
+                        if ($save)
+                            print "\tsetting grandparent to datatype ".$ancestor->getGrandparent()->getId()."\n";
+                    }
+                    else {
+                        // ...otherwise, there is no non-deleted datatree entry
+                        // The desired one is at the bottom of the array
+
+                        $dt = $sub_results[ count($sub_results) - 1 ];
+                        /** @var DataType $datatype */
+                        $datatype = $repo_datatype->find($dt_id);
+                        /** @var DataType $ancestor */
+                        $ancestor = $repo_datatype->find($dt['ancestor']['id']);
+
+                        $datatype->setParent($ancestor);
+                        $datatype->setGrandparent($ancestor->getGrandparent());
+
+                        if ($save) {
+                            $em->persist($datatype);
+                            $em->flush();
+                            $em->refresh($datatype);
+                        }
+
+                        print "\tsetting parent to datatype ".$ancestor->getId()."\n";
+                        if ($save)
+                            print "\tsetting grandparent to datatype ".$ancestor->getGrandparent()->getId()."\n";
                     }
                 }
+
+                print "\n";
             }
 
-            // Locate all users without the super-admin role that have the current 'can_edit_datarecord' permission...
-            foreach ($user_list as $user) {
-                if ( $user->isEnabled() && !$user->hasRole('ROLE_SUPER_ADMIN') && !isset($users_with_groups[$user->getId()]) ) {
-                    $datatype_permission = $repo_datatype_permissions->findOneBy( array('can_edit_record' => 1, 'user' => $user->getId(), 'dataType' => $datatype->getId()) );
-                    if ($datatype_permission != false) {
-                        // ...add this user to the new default edit_all group
-                        parent::ODR_createUserGroup($em, $user, $edit_group, $datatype->getCreatedBy());
-$ret .= ' -- added '.$user->getUserString().' to the default "edit_all" group'."\n";
 
-                        // Note that this user is in the edit_all group, and therefore don't add them to any other default group
-                        $users_with_groups[ $user->getId() ] = 1;
+            // ----------------------------------------
+            // Force all datatypes into a setup_state of "incomplete"
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataType AS dt
+                SET dt.setup_step = :setup_step'
+            )->setParameters( array('setup_step' => DataType::STATE_INCOMPLETE) );
+            if ($save) {
+                $rows = $query->execute();
+                print 'Updated '.$rows.' datatypes to have the "incomplete" setup step'."\n";
+            }
+
+
+            // Locate all datatypes that have a search_results theme
+            $query = $em->createQuery(
+               'SELECT DISTINCT(dt.id) AS dt_id
+                FROM ODRAdminBundle:Theme AS t
+                JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
+                WHERE t.themeType IN (:theme_types)
+                AND t.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            )->setParameters( array('theme_types' => array('search_results', 'table') ) );
+            $results = $query->getArrayResult();
+
+            $datatype_ids = array();
+            foreach ($results as $result)
+                $datatype_ids[] = $result['dt_id'];
+
+
+            // All datatypes that have a "search_results" theme are considered "operational
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataType AS dt
+                SET dt.setup_step = :setup_step
+                WHERE dt.id IN (:datatype_ids)'
+            )->setParameters( array('setup_step' => DataType::STATE_OPERATIONAL, 'datatype_ids' => $datatype_ids) );
+            if ($save) {
+                $rows = $query->execute();
+                print 'Updated '.$rows.' datatypes to have the "operational" setup step'."\n";
+            }
+
+            // Ensure all top-level datatypes have a search abbreviation
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+            $query = $em->createQuery(
+               'SELECT dtm.id AS dtm_id
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                WHERE dt.id IN (:top_level_datatypes)
+                AND (dtm.searchSlug IS NULL OR dtm.searchSlug = :empty_string)'
+            )->setParameters( array('top_level_datatypes' => $top_level_datatypes, 'empty_string' => '') );
+            $results = $query->getArrayResult();
+
+            $dtm_ids = array();
+            foreach ($results as $result)
+                $dtm_ids[] = $result['dtm_id'];
+
+            // Easier to use a native query for this...
+            $conn = $em->getConnection();
+            $query =
+                'UPDATE odr_data_type_meta AS dtm
+                 SET dtm.search_slug = dtm.data_type_id
+                 WHERE dtm.id IN ('.implode(',', $dtm_ids).')';
+            if ($save) {
+                $params = array();
+                $rows = $conn->executeUpdate($query, $params);
+                print 'Fixed '.$rows.' datatype_meta entries to have a search slug'."\n";
+            }
+
+            $em->getFilters()->enable('softdeleteable');
+            print '</pre>';
+
+
+            // ----------------------------------------
+            $cache_service->delete('cached_datatree_array');
+            $datatree_array = $dti_service->getDatatreeArray();
+
+            $query = $em->createQuery(
+               'SELECT dt, parent
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN dt.parent AS parent'
+            );
+            $results = $query->getArrayResult();
+
+            print '<pre>';
+            foreach ($results as $num => $dt) {
+                $dt_id = $dt['id'];
+                $parent_id = $dt['parent']['id'];
+
+                $cache_service->delete('cached_datatype_'.$dt_id);
+
+                if ( isset($datatree_array['descendant_of'][$dt_id]) ) {
+                    if ( $datatree_array['descendant_of'][$dt_id] == '' ) {
+                        if ( $dt_id == $parent_id ){
+                            print 'datatype '.$dt_id.' is correctly marked as a top-level datatype'."\n";
+                        }
+                    }
+                    else if ( $datatree_array['descendant_of'][$dt_id] == $parent_id ) {
+                        print 'datatype '.$dt_id.' is correctly marked as child of datatype '.$parent_id."\n";
+                    }
+                    else {
+                        print 'error with datatype '.$dt_id.'...marked as having parent datatype '.$parent_id.' but should have '.$datatree_array['descendant_of'][$dt_id]."\n";
                     }
                 }
-            }
-
-            // Locate all users without the super-admin role that have the current 'can_view_datatype' permission...
-            foreach ($user_list as $user) {
-                if ( $user->isEnabled() && !$user->hasRole('ROLE_SUPER_ADMIN') && !isset($users_with_groups[$user->getId()]) ) {
-                    $datatype_permission = $repo_datatype_permissions->findOneBy( array('can_view_type' => 1, 'user' => $user->getId(), 'dataType' => $datatype->getId()) );
-                    if ($datatype_permission != false) {
-                        // ...add this user to the new default view_all group
-                        parent::ODR_createUserGroup($em, $user, $view_all_group, $datatype->getCreatedBy());
-$ret .= ' -- added '.$user->getUserString().' to the default "view_all" group'."\n";
-
-                        // Note that this user is in the view_all group, and therefore don't add them to any other default group
-                        $users_with_groups[ $user->getId() ] = 1;
-                    }
+                else {
+                    print 'datatype '.$dt_id.' not found in datatree array'."\n";
                 }
             }
-
-            $return['d'] = $ret;
+            print '</pre>';
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x212738622 ' . $e->getMessage();
+            $em->getFilters()->enable('softdeleteable');
+
+            $source = 0xabcdef00;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * @param Request $request
+     */
+    public function thememigrateAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        try {
+            // ----------------------------------------
+            // Load required objects
+            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+
+
+            print '<pre>';
+            // ----------------------------------------
+            // First off, ensure that all themes without a valid "theme_type" are deleted
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:Theme AS t
+                SET t.deletedAt = :new_date
+                WHERE t.themeType = :empty_string
+                AND t.deletedAt IS NULL'
+            )->setParameters( array('new_date' => new \DateTime(), 'empty_string' => '') );
+            if ($save) {
+                $rows = $query->execute();
+                print 'Deleted '.$rows.' themes where theme_type == ""'."\n";
+            }
+
+            // Also ensure no "derivative" theme_type exists either...this shouldn't do anything, but making sure
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:Theme AS t
+                SET t.deletedAt = :new_date
+                WHERE t.themeType = :empty_string
+                AND t.deletedAt IS NULL'
+            )->setParameters( array('new_date' => new \DateTime(), 'empty_string' => 'derivative') );
+            if ($save) {
+                $rows = $query->execute();
+                print 'Deleted '.$rows.' themes where theme_type == "derivative"'."\n";
+            }
+
+
+            // ----------------------------------------
+            // Get a list of all table themes, even deleted ones
+            $em->getFilters()->disable('softdeleteable');
+
+            $query = $em->createQuery(
+               'SELECT t.id AS id
+                FROM ODRAdminBundle:Theme AS t
+                WHERE t.themeType = :theme_type'
+            )->setParameters( array('theme_type' => 'table') );
+            $results = $query->getArrayResult();
+
+            $table_theme_ids = array();
+            foreach ($results as $num => $theme)
+                $table_theme_ids[] = $theme['id'];
+
+
+            // Store the 'table' flag in the themeMeta entry...
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:ThemeMeta AS tm
+                SET tm.isTableTheme = :is_table_theme
+                WHERE tm.theme IN (:theme_ids)'
+            )->setParameters( array('is_table_theme' => true, 'theme_ids' => $table_theme_ids) );
+            if ($save) {
+                $rows = $query->execute();
+                print 'Updated "isTableTheme" property for '.$rows.' theme meta entries'."\n";
+            }
+
+
+            // Temporarily change all of these themes to be a 'search_results' theme instead
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:Theme AS t
+                SET t.themeType = :new_theme_type
+                WHERE t.themeType = :old_theme_type'
+            )->setParameters( array('old_theme_type' => 'table', 'new_theme_type' => 'search_results') );
+            if ($save) {
+                $rows = $query->execute();
+                print 'Changed themeType property for '.$rows.' theme entries from "table" into "search_results"'."\n";
+            }
+
+            // Set all themes to not be default...
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:ThemeMeta AS tm
+                SET tm.isDefault = :not_default'
+            )->setParameters( array('not_default' => false) );
+            if ($save) {
+                $rows = $query->execute();
+                print 'Set '.$rows.' themes as "not default"'."\n";
+            }
+
+            $em->getFilters()->enable('softdeleteable');
+            print "\n";
+
+            // ----------------------------------------
+            //
+            $query = $em->createQuery(
+               'SELECT t, tm, pt, st, dt, dt_g
+
+                FROM ODRAdminBundle:Theme AS t
+                JOIN t.themeMeta AS tm
+
+                LEFT JOIN t.parentTheme AS pt
+                LEFT JOIN t.sourceTheme AS st
+
+                LEFT JOIN t.dataType AS dt
+                JOIN dt.grandparent AS dt_g
+
+                WHERE t.deletedAt IS NULL AND tm.deletedAt IS NULL
+                AND dt.deletedAt IS NULL AND dt_g.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+//            print_r($results);
+
+            // ----------------------------------------
+            /*
+             * - datatype 1
+             *     - child datatype 2
+             *     - child datatype 3
+             * 	   - link to datatype 4
+             * - datatype 4
+             *
+             * theme 1 is "master" for datatype 1, parent_theme_id == 1, source_theme_id == 1
+             * theme 2 is "master" for datatype 2, parent_theme_id == 1, source_theme_id == 2
+             * theme 3 is "master" for datatype 3, parent_theme_id == 1, source_theme_id == 3
+             * theme 4 is "master" for datatype 4, parent_theme_id == 4, source_theme_id == 4
+             *
+             * creates a "search results" theme for datatype 1
+             * - theme 5 is "search_results" for datatype 1, parent_theme_id == 5, source_theme_id == 1
+             * - theme 6 is "search_results" for datatype 2, parent_theme_id == 5, source_theme_id == 2
+             * - theme 7 is "search_results" for datatype 3, parent_theme_id == 5, source_theme_id == 3
+             *
+             * creates a "search results" theme for datatype 4
+             * - theme 8 is "search_results" for datatype 4, parent_theme_id == 8, source_theme_id == 4
+             *
+             * copies the existing "search results" theme of datatype 1 to make a new one
+             * - theme 9 is "search_results" for datatype 1, parent_theme_id == 9, source_theme_id == 1
+             * - theme 10 is "search_results" for datatype 2, parent_theme_id == 9, source_theme_id == 2
+             * - theme 11 is "search_results" for datatype 3, parent_theme_id == 9, source_theme_id == 3
+             *
+             * No copy made of theme 8, so both theme groups 5 and 9 use theme 8 to display datatype 4?
+             */
+
+            $theme_list = array();
+            foreach ($results as $num => $theme) {
+                $theme_id = $theme['id'];
+                $theme_type = $theme['themeType'];
+
+                $parent_theme_id = -1;
+                if ( isset($theme['parentTheme']) && isset($theme['parentTheme']['id']) )
+                    $parent_theme_id = $theme['parentTheme']['id'];
+                $source_theme_id = -1;
+                if ( isset($theme['sourceTheme']) && isset($theme['sourceTheme']['id']) )
+                    $source_theme_id = $theme['sourceTheme']['id'];
+
+
+                $dt_id = $theme['dataType']['id'];
+                $g_dt_id = $theme['dataType']['grandparent']['id'];
+
+                if ( !isset($theme_list[$dt_id]) )
+                    $theme_list[$dt_id] = array();
+                if ( !isset($theme_list[$dt_id][$theme_type]) )
+                    $theme_list[$dt_id][$theme_type] = array();
+
+                $theme_list[$dt_id][$theme_type][] = array(
+                    'theme_id' => $theme_id,
+                    'parent_theme_id' => $parent_theme_id,
+                    'source_theme_id' => $source_theme_id,
+                    'grandparent_datatype_id' => $g_dt_id
+                );
+            }
+
+            print_r($theme_list);
+
+            foreach ($theme_list as $dt_id => $themes) {
+
+                print 'Updating themes for Datatype '.$dt_id.'...'."\n";
+
+                // ----------------------------------------
+                // Do some sanity checks...
+                if ( !isset($themes['master']) )
+                    throw new ODRException('Datatype '.$dt_id.' lacks a master theme, aborting');
+                if ( count($themes['master']) > 1 )
+                    throw new ODRException('Datatype '.$dt_id.' has more than one master theme, aborting');
+
+                // ----------------------------------------
+                // Deal with the master theme first...
+                $master_theme_data = $themes['master'][0];
+                $master_theme_id = $master_theme_data['theme_id'];
+
+                print ' - master theme '.$master_theme_id.'...'."\n";
+
+                /** @var Theme $master_theme */
+                $master_theme = $repo_theme->find($master_theme_id);
+                if ($master_theme == null)
+                    throw new ODRException('Datatype '.$dt_id.' referenced a non-existent master theme '.$master_theme_id);
+
+                // If source theme id is not set, then set it to this theme's id
+                if ( $master_theme_data['source_theme_id'] == -1 ) {
+                    $master_theme->setSourceTheme($master_theme);
+                    print ' - - set source theme to '.$master_theme_id."\n";
+                }
+                else {
+                    print ' - - source theme is already set to '.$master_theme->getSourceTheme()->getId().', would have set it to '.$master_theme_id."\n";
+                    if ( $master_theme_id != $master_theme->getSourceTheme()->getId() )
+                        print ' - - - MISMATCH'."\n";
+                }
+
+                // If parent theme id is not set, then set it to the datatype's grandparent's master theme
+                $grandparent_datatype_id = $master_theme_data['grandparent_datatype_id'];
+                $parent_theme_id = $theme_list[$grandparent_datatype_id]['master'][0]['theme_id'];
+                if ( $master_theme_data['parent_theme_id'] == -1 ) {
+                    /** @var Theme $parent_theme */
+                    $parent_theme = $repo_theme->find($parent_theme_id);
+                    if ($parent_theme == null)
+                        throw new ODRException('Datatype '.$dt_id.' master theme '.$master_theme_id.' attempted to locate a non-existent grandparent datatype master theme '.$parent_theme_id);
+
+                    $master_theme->setParentTheme($parent_theme);
+                    print ' - - set parent theme to datatype '.$grandparent_datatype_id.' master, theme '.$parent_theme_id."\n";
+                }
+                else {
+                    print ' - - parent theme is already set to '.$master_theme->getParentTheme()->getId().', would have set it to '.$parent_theme_id."\n";
+                    if ( $parent_theme_id != $master_theme->getParentTheme()->getId() )
+                        print ' - - - MISMATCH'."\n";
+                }
+
+                // Save changes to the master theme
+                if ($save)
+                    $em->persist($master_theme);
+
+
+                // ----------------------------------------
+                if ( isset($themes['search_results']) ) {
+                    // Deal with search result themes...
+                    foreach ($themes['search_results'] as $num => $search_results_theme_data) {
+                        $search_results_theme_id = $search_results_theme_data['theme_id'];
+                        $parent_theme_id = $search_results_theme_data['parent_theme_id'];
+                        $source_theme_id = $search_results_theme_data['source_theme_id'];
+                        $grandparent_datatype_id = $search_results_theme_data['grandparent_datatype_id'];
+
+                        print ' - search results theme '.$search_results_theme_id.'...'."\n";
+
+                        /** @var Theme $search_results_theme */
+                        $search_results_theme = $repo_theme->find($search_results_theme_id);
+                        if ($search_results_theme == null)
+                            throw new ODRException('Datatype '.$dt_id.' referenced a non-existent search results theme '.$search_results_theme_id);
+
+
+                        // If source theme id is not set, then set it to the datatype's master theme
+                        $datatype_master_theme_id = $theme_list[$dt_id]['master'][0]['theme_id'];
+                        if ($source_theme_id == -1) {
+                            /** @var Theme $source_theme */
+                            $source_theme = $repo_theme->find($datatype_master_theme_id);
+                            if ($source_theme == null)
+                                throw new ODRException('Datatype '.$dt_id.' search results theme '.$search_results_theme_id.' attempted to locate a non-existent datatype master theme '.$datatype_master_theme_id);
+
+                            $search_results_theme->setSourceTheme($source_theme);
+                            print ' - - set source theme to grandparent datatype '.$grandparent_datatype_id.' master theme '.$datatype_master_theme_id."\n";
+                        }
+                        else {
+                            print ' - - source theme is already set to '.$search_results_theme->getSourceTheme()->getId().', would have set it to '.$datatype_master_theme_id."\n";
+                            if ( $datatype_master_theme_id != $search_results_theme->getSourceTheme()->getId() )
+                                print ' - - - MISMATCH'."\n";
+                        }
+
+                        // If this is a search results theme for a top-level datatype...
+                        if ($dt_id == $grandparent_datatype_id) {
+                            // ...then the parent_theme_id should be set to itself
+                            if ( $parent_theme_id == -1 ) {
+                                $search_results_theme->setParentTheme($search_results_theme);
+                                print ' - - set parent theme to '.$search_results_theme_id."\n";
+                            }
+                            else {
+                                print ' - - parent theme is already set to '.$search_results_theme->getParentTheme()->getId().', would have set it to '.$search_results_theme_id."\n";
+                                if ( $search_results_theme_id != $search_results_theme->getParentTheme()->getId() )
+                                    print ' - - - MISMATCH'."\n";
+                            }
+                        }
+                        else {
+
+                            if ( $source_theme_id == -1 ) {
+                                /*
+                                 * Technically, if there's just one search results theme in both this datatype and its grandparent, i should be able to match them up...
+                                 * but do i have a way to figure out multiples?
+                                 */
+
+                                print ' - - set parent theme to grandparent datatype '.$grandparent_datatype_id.' search results theme ***UNKNOWN***'."\n";
+                                print ' - - - MISMATCH'."\n";
+                            }
+                            else {
+                                print ' - - parent theme is already set to '.$search_results_theme->getParentTheme()->getId().', would have set it to ***UNKNOWN***'."\n";
+                                print ' - - - MISMATCH'."\n";
+                            }
+
+                        }
+
+                        // Save changes to this search results theme
+                        if ($save)
+                            $em->persist($search_results_theme);
+                    }
+                }
+
+                print "\n";
+            }
+
+            if ($save)
+                $em->flush();
+
+
+            // ----------------------------------------
+            // Need to set all master themes as default
+            $em->getFilters()->disable('softdeleteable');
+
+            $query = $em->createQuery(
+               'SELECT t.id AS theme_id
+                FROM ODRAdminBundle:Theme AS t
+                JOIN ODRAdminBundle:Theme AS parent_theme WITH t.parentTheme = parent_theme
+                WHERE t.themeType = :theme_type AND t.id = parent_theme.id'
+            )->setParameters( array('theme_type' => 'master') );
+            $results = $query->getArrayResult();
+
+            $all_master_themes = array();
+            foreach ($results as $result)
+                $all_master_themes[] = $result['theme_id'];
+
+            $em->getFilters()->enable('softdeleteable');
+
+            // Need to set the oldest non-deleted search_results/table theme as default
+            $query = $em->createQuery(
+               'SELECT t.id AS theme_id, t.created AS created, dt.id AS dt_id, t.themeType
+                FROM ODRAdminBundle:Theme AS t
+                JOIN ODRAdminBundle:Theme AS parent_theme WITH t.parentTheme = parent_theme
+                JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
+                WHERE t.themeType IN (:theme_types) AND t.id = parent_theme.id
+                ORDER BY dt.id'
+            )->setParameters( array('theme_types' => ThemeInfoService::SHORT_FORM_THEMETYPES) );
+            $results = $query->getArrayResult();
+
+            $tmp = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $t_id = $result['theme_id'];
+                $created = $result['created']->format('Y-m-d H:i:s');
+
+                if ( !isset($tmp[$dt_id]) ) {
+                    $tmp[$dt_id] = array(
+                        'theme_id' => $t_id,
+                        'created' => $created,
+                    );
+                }
+                else {
+                    $previous_created = $tmp[$dt_id]['created'];
+                    if ($created < $previous_created) {
+                        $tmp[$dt_id] = array(
+                            'theme_id' => $t_id,
+                            'created' => $created,
+                        );
+                    }
+                }
+            }
+
+            $all_default_themes = array();
+            foreach ($tmp as $data)
+                $all_default_themes[] = $data['theme_id'];
+
+            // Set all the themes to be default
+            $all_default_themes = array_merge($all_master_themes, $all_default_themes);
+            $all_default_themes = array_unique($all_default_themes);
+            sort($all_default_themes);
+
+
+            $em->getFilters()->disable('softdeleteable');
+            // Get all theme meta entries that belong to these themes
+            $query = $em->createQuery(
+               'SELECT parent_theme.id AS parent_theme_id, t.id AS theme_id, tm.id AS tm_id
+                FROM ODRAdminBundle:Theme AS parent_theme
+                JOIN ODRAdminBundle:Theme AS t WITH t.parentTheme = parent_theme
+                JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
+                WHERE parent_theme.id IN (:all_default_themes)'
+            )->setParameters( array('all_default_themes' => $all_default_themes) );
+            $results = $query->getArrayResult();
+
+            $theme_meta_ids = array();
+            foreach ($results as $result)
+                $theme_meta_ids[] = $result['tm_id'];
+
+
+            // Set all the themes to be default
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:ThemeMeta AS tm
+                SET tm.isDefault = :is_default
+                WHERE tm.id IN (:theme_meta_ids)'
+            )->setParameters( array('is_default' => true, 'theme_meta_ids' => $theme_meta_ids) );
+            if ($save) {
+                $rows = $query->execute();
+                print 'Changed '.$rows.' themes to be default'."\n";
+            }
+            $em->getFilters()->enable('softdeleteable');
+
+
+            // ----------------------------------------
+            $em->getFilters()->disable('softdeleteable');
+
+            // Change all the themes that used to be "table" themes back into "table" themes
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:Theme AS t
+                SET t.themeType = :new_theme_type
+                WHERE t.id IN (:table_theme_ids)'
+            )->setParameters( array('new_theme_type' => 'table', 'table_theme_ids' => $table_theme_ids) );
+            if ($save) {
+                $rows = $query->execute();
+                print 'Changed '.$rows.' themes back into "table" themes'."\n";
+            }
+
+            // Run one last set of queries to force all themes to be shared by default
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:ThemeMeta AS tm
+                SET tm.shared = :shared'
+            )->setParameters( array('shared' => true) );
+            if ($save) {
+                $rows = $query->execute();
+                print 'Set '.$rows.' themes as "shared"'."\n";
+            }
+
+            $em->getFilters()->enable('softdeleteable');
+
+            print '</pre>';
+        }
+        catch (\Exception $e) {
+            // Don't want any changes made being saved to the database
+            $em->clear();
+
+            $source = 0xabcdef11;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));

@@ -21,6 +21,18 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class DataType
 {
+    // These are defined as strings instead of bitmasks because they're easier to read in the twig files
+    // Datatypes in these states are usually still being copied from a master template, and shouldn't be displayed/used elsewhere
+    const STATE_INITIAL = "initial";
+    // Datatypes in this state are technically viewable, but lack a search results theme
+    const STATE_INCOMPLETE = "incomplete";
+    // Datatypes in this state have *everything* they need
+    const STATE_OPERATIONAL = "operational";
+
+    // Convenience state so controllers can filter out datatypes that aren't ready for general use yet
+    const STATE_VIEWABLE = array(self::STATE_INCOMPLETE, self::STATE_OPERATIONAL);
+
+
     /**
      * @var integer
      */
@@ -32,14 +44,14 @@ class DataType
     private $revision;
 
     /**
-     * @var boolean
+     * @var string
      */
-    private $has_shortresults;
+    private $setup_step;
 
     /**
      * @var boolean
      */
-    private $has_textresults;
+    private $is_master_type;
 
     /**
      * @var \DateTime
@@ -59,12 +71,32 @@ class DataType
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
+    private $grandchildren;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $children;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $relatedMasterTypes;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
     private $dataTypeMeta;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
     private $themeDataType;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $themePreferences;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
@@ -80,6 +112,26 @@ class DataType
      * @var \Doctrine\Common\Collections\Collection
      */
     private $groups;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $groupDatatypePermissions;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $parent;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $grandparent;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $masterDataType;
 
     /**
      * @var \ODR\AdminBundle\Entity\RenderPlugin
@@ -107,11 +159,16 @@ class DataType
      */
     public function __construct()
     {
+        $this->grandchildren = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->children = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->relatedMasterTypes = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataTypeMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeDataType = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->themePreferences = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themes = new \Doctrine\Common\Collections\ArrayCollection();
         $this->groups = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->groupDatatypePermissions = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -148,49 +205,51 @@ class DataType
     }
 
     /**
-     * Set has_shortresults
+     * Set setupStep
      *
-     * @param boolean $hasShortresults
+     * @param string $setupStep
+     *
      * @return DataType
      */
-    public function setHasShortresults($hasShortresults)
+    public function setSetupStep($setupStep)
     {
-        $this->has_shortresults = $hasShortresults;
+        $this->setup_step = $setupStep;
 
         return $this;
     }
 
     /**
-     * Get has_shortresults
+     * Get setupStep
      *
-     * @return boolean 
+     * @return string
      */
-    public function getHasShortresults()
+    public function getSetupStep()
     {
-        return $this->has_shortresults;
+        return $this->setup_step;
     }
 
     /**
-     * Set has_textresults
+     * Set isMasterType
      *
-     * @param boolean $hasTextresults
+     * @param boolean $isMasterType
+     *
      * @return DataType
      */
-    public function setHasTextresults($hasTextresults)
+    public function setIsMasterType($isMasterType)
     {
-        $this->has_textresults = $hasTextresults;
+        $this->is_master_type = $isMasterType;
 
         return $this;
     }
 
     /**
-     * Get has_textresults
+     * Get isMasterType
      *
-     * @return boolean 
+     * @return boolean
      */
-    public function getHasTextresults()
+    public function getIsMasterType()
     {
-        return $this->has_textresults;
+        return $this->is_master_type;
     }
 
     /**
@@ -260,6 +319,108 @@ class DataType
     public function getDeletedAt()
     {
         return $this->deletedAt;
+    }
+
+    /**
+     * Add grandchild
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $grandchild
+     *
+     * @return DataType
+     */
+    public function addGrandchild(\ODR\AdminBundle\Entity\DataType $grandchild)
+    {
+        $this->grandchildren[] = $grandchild;
+
+        return $this;
+    }
+
+    /**
+     * Remove grandchild
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $grandchild
+     */
+    public function removeGrandchild(\ODR\AdminBundle\Entity\DataType $grandchild)
+    {
+        $this->grandchildren->removeElement($grandchild);
+    }
+
+    /**
+     * Get grandchildren
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getGrandchildren()
+    {
+        return $this->grandchildren;
+    }
+
+    /**
+     * Add child
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $child
+     *
+     * @return DataType
+     */
+    public function addChild(\ODR\AdminBundle\Entity\DataType $child)
+    {
+        $this->children[] = $child;
+
+        return $this;
+    }
+
+    /**
+     * Remove child
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $child
+     */
+    public function removeChild(\ODR\AdminBundle\Entity\DataType $child)
+    {
+        $this->children->removeElement($child);
+    }
+
+    /**
+     * Get children
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getChildren()
+    {
+        return $this->children;
+    }
+
+    /**
+     * Add relatedMasterType
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecord $relatedMasterType
+     *
+     * @return DataType
+     */
+    public function addRelatedMasterType(\ODR\AdminBundle\Entity\DataRecord $relatedMasterType)
+    {
+        $this->relatedMasterTypes[] = $relatedMasterType;
+
+        return $this;
+    }
+
+    /**
+     * Remove relatedMasterType
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecord $relatedMasterType
+     */
+    public function removeRelatedMasterType(\ODR\AdminBundle\Entity\DataRecord $relatedMasterType)
+    {
+        $this->relatedMasterTypes->removeElement($relatedMasterType);
+    }
+
+    /**
+     * Get relatedMasterTypes
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRelatedMasterTypes()
+    {
+        return $this->relatedMasterTypes;
     }
 
     /**
@@ -420,12 +581,120 @@ class DataType
 
     /**
      * Get groups
+     * NOTE: Only a top-level datatype actually "has" groups in the database...the groups are applied to child datatypes
+     * through GroupDatatypePermission entities.
      *
      * @return \Doctrine\Common\Collections\Collection
      */
     public function getGroups()
     {
         return $this->groups;
+    }
+
+    /**
+     * Add groupDatatypePermission
+     *
+     * @param \ODR\AdminBundle\Entity\GroupDatatypePermissions $groupDatatypePermission
+     *
+     * @return DataType
+     */
+    public function addGroupDatatypePermission(\ODR\AdminBundle\Entity\GroupDatatypePermissions $groupDatatypePermission)
+    {
+        $this->groupDatatypePermissions[] = $groupDatatypePermission;
+
+        return $this;
+    }
+
+    /**
+     * Remove groupDatatypePermission
+     *
+     * @param \ODR\AdminBundle\Entity\GroupDatatypePermissions $groupDatatypePermission
+     */
+    public function removeGroupDatatypePermission(\ODR\AdminBundle\Entity\GroupDatatypePermissions $groupDatatypePermission)
+    {
+        $this->groupDatatypePermissions->removeElement($groupDatatypePermission);
+    }
+
+    /**
+     * Get groupDatatypePermissions
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getGroupDatatypePermissions()
+    {
+        return $this->groupDatatypePermissions;
+    }
+
+    /**
+     * Set parent
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $parent
+     *
+     * @return DataType
+     */
+    public function setParent(\ODR\AdminBundle\Entity\DataType $parent = null)
+    {
+        $this->parent = $parent;
+
+        return $this;
+    }
+
+    /**
+     * Get parent
+     *
+     * @return \ODR\AdminBundle\Entity\DataType
+     */
+    public function getParent()
+    {
+        return $this->parent;
+    }
+
+    /**
+     * Set grandparent
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $grandparent
+     *
+     * @return DataType
+     */
+    public function setGrandparent(\ODR\AdminBundle\Entity\DataType $grandparent = null)
+    {
+        $this->grandparent = $grandparent;
+
+        return $this;
+    }
+
+    /**
+     * Get grandparent
+     *
+     * @return \ODR\AdminBundle\Entity\DataType
+     */
+    public function getGrandparent()
+    {
+        return $this->grandparent;
+    }
+
+    /**
+     * Set masterDataType
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $masterDataType
+     *
+     * @return DataType
+     */
+    public function setMasterDataType(\ODR\AdminBundle\Entity\DataType $masterDataType = null)
+    {
+        $this->masterDataType = $masterDataType;
+
+        return $this;
+    }
+
+    /**
+     * Get masterDataType
+     *
+     * @return \ODR\AdminBundle\Entity\DataType
+     */
+    public function getMasterDataType()
+    {
+        return $this->masterDataType;
     }
 
     /**
@@ -535,6 +804,36 @@ class DataType
     }
 
     /**
+     * Get masterRevision
+     *
+     * @return integer
+     */
+    public function getMasterRevision()
+    {
+        return $this->getDataTypeMeta()->getMasterRevision();
+    }
+
+    /**
+     * Get masterPublishedRevision
+     *
+     * @return integer
+     */
+    public function getMasterPublishedRevision()
+    {
+        return $this->getDataTypeMeta()->getMasterPublishedRevision();
+    }
+
+    /**
+     * Get trackingMasterRevision
+     *
+     * @return integer
+     */
+    public function getTrackingMasterRevision()
+    {
+        return $this->getDataTypeMeta()->getTrackingMasterRevision();
+    }
+
+    /**
      * Get shortName
      *
      * @return string
@@ -572,16 +871,6 @@ class DataType
     public function getXmlShortName()
     {
         return $this->getDataTypeMeta()->getXmlShortName();
-    }
-
-    /**
-     * Get useShortResults
-     *
-     * @return boolean
-     */
-    public function getUseShortResults()
-    {
-        return $this->getDataTypeMeta()->getUseShortResults();
     }
 
     /**

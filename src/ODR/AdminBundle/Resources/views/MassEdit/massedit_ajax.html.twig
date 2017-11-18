@@ -36,7 +36,7 @@
 {% include 'ODRAdminBundle:MassEdit:massedit_area.html.twig' with {
     'datatype_array': datatype_array,
     'initial_datatype_id': initial_datatype_id,
-    'theme_id': theme_id,
+    'theme_array': theme_array,
 
     'datatype_permissions': datatype_permissions,
     'datafield_permissions': datafield_permissions,
@@ -120,7 +120,7 @@ function initPage() {
     // Hide all theme elements without input fields
     $(".ODRThemeElement").each(function() {
         var found = false;
-        $(this).find("input").each(function() {
+        $(this).find("input,select,textarea").each(function() {
             found = true;
             return false;
         });
@@ -363,22 +363,12 @@ function doMassUpdate() {
         data: data,
         dataType: 'json',
         success: function(data, textStatus, jqXHR) {
-            if ( data.r == 0 ) {
-//                if (redirect) {
-                    alert( 'Mass Update in progress' );
-                    var url = '{{ path('odr_job_list') }}';
-                    UpdateURL(url);
-/*
-                }
-                else {
-                    alert( 'Public status of Datarecords updated' );
-                }
-*/
-            }
-            else {
-                alert( data.d );
-                alert( 'There was an error...no changes made' );
-            }
+            alert( 'Mass Update in progress' );
+            var url = '{{ path('odr_job_list') }}';
+            UpdateURL(url);
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            alert('Error encountered, no changes made');
         },
         complete: function(jqXHR, textStatus) {
             // Get the xdebugToken from response headers

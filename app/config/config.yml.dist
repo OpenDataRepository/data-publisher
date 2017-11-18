@@ -1,0 +1,208 @@
+imports:
+    - { resource: parameters.yml }
+    - { resource: security.yml }
+    - { resource: doctrine_extensions.yml }
+    - { resource: "@ODROpenRepositoryGraphBundle/Resources/config/services.yml" }
+
+
+framework:
+    #esi:             ~
+    #translator:      { fallback: %locale% }
+    translator: ~
+    secret:          %secret%
+    router:
+        resource: "%kernel.root_dir%/config/routing.yml"
+        strict_requirements: %kernel.debug%
+    form:            true
+    csrf_protection: true
+    validation:      { enabled: true, enable_annotations: false }
+    templating:      { engines: ['twig'] } #assets_version: SomeVersionScheme
+    default_locale:  %locale%
+    session:
+        gc_probability: 0
+        handler_id: ~  #  session.handler.memcached
+        cookie_lifetime:  1209600   # 2 weeks
+    #trusted_hosts:   ~
+     
+
+# Twig Configuration
+twig:
+    debug:            %kernel.debug%
+    strict_variables: %kernel.debug%
+    #cache: memcached
+    #cache: false
+    exception_controller: ODR.exception_controller:showAction
+
+# Knp Markdown Configuration
+knp_markdown:
+    parser:
+        service: odr.markdown.parser
+
+# Assetic Configuration
+assetic:
+    debug:          %kernel.debug%
+    use_controller: false
+    bundles:        [ ]
+    #java: /usr/bin/java
+    filters:
+        cssrewrite: ~
+        #closure:
+        #    jar: %kernel.root_dir%/Resources/java/compiler.jar
+        #yui_css:
+        #    jar: %kernel.root_dir%/Resources/java/yuicompressor-2.4.7.jar
+
+# Doctrine Configuration
+doctrine:
+    dbal:
+        driver:   %database_driver%
+        host:     %database_host%
+        port:     %database_port%
+        dbname:   %database_name%
+        user:     %database_user%
+        password: %database_password%
+        charset:  UTF8
+
+    orm:
+        auto_generate_proxy_classes: %kernel.debug%
+        auto_mapping: true
+        result_cache_driver:
+            type: memcached
+            host: 127.0.0.1
+            port: 11211
+            instance_class: Memcached
+        metadata_cache_driver:
+            type: memcached
+            host: 127.0.0.1
+            port: 11211
+            instance_class: Memcached
+        query_cache_driver:
+            type: memcached
+            host: 127.0.0.1
+            port: 11211
+            instance_class: Memcached
+        filters:
+            softdeleteable:
+                class: Gedmo\SoftDeleteable\Filter\SoftDeleteableFilter
+                enabled: true
+        mappings:
+            translatable:
+                type: annotation
+                alias: Gedmo
+                prefix: Gedmo\Translatable\Entity
+                dir: "%kernel.root_dir%/../vendor/gedmo/doctrine-extensions/lib/Gedmo/Translatable/Entity"
+            loggable:
+                type: annotation
+                alias: Gedmo
+                prefix: Gedmo\Loggable\Entity
+                dir: "%kernel.root_dir%/../vendor/gedmo/doctrine-extensions/lib/Gedmo/Loggable/Entity"
+            tree:
+                type: annotation
+                alias: Gedmo
+                prefix: Gedmo\Tree\Entity
+                dir: "%kernel.root_dir%/../vendor/gedmo/doctrine-extensions/lib/Gedmo/Tree/Entity"
+
+# Swiftmailer Configuration
+swiftmailer:
+    transport: %mailer_transport%
+    host:      %mailer_host%
+    username:  %mailer_user%
+    password:  %mailer_password%
+    spool:     { type: memory }
+
+# dterranovaCrypto Configuration
+dterranova_crypto:
+    temp_folder: "%kernel.root_dir%/../app/crypto_dir"
+    chunk_file_size: 2 # The size (in Mb) of chunked files, more it is big more it will consume memory 
+
+fos_user:
+    db_driver: orm # other valid values are 'mongodb', 'couchdb' and 'propel'
+    firewall_name: main
+    user_class: ODR\OpenRepository\UserBundle\Entity\User
+    from_email:
+#        address: "%mailer_user%"
+#        sender_name: "%mailer_user%"
+    # apparently FOSUserBundle currently DEMANDS non-empty values for these, even if you're not using the mailer service...no way to disable it either from the looks of it
+        address: admin@localhost
+        sender_name: admin
+    change_password:
+        form:
+            type: odr_user_change_password
+
+
+fos_oauth_server:
+    db_driver: orm
+    client_class:        ODR\OpenRepository\OAuthServerBundle\Entity\Client
+    access_token_class:  ODR\OpenRepository\OAuthServerBundle\Entity\AccessToken
+    refresh_token_class: ODR\OpenRepository\OAuthServerBundle\Entity\RefreshToken
+    auth_code_class:     ODR\OpenRepository\OAuthServerBundle\Entity\AuthCode
+    service:
+        options:
+            # Changing tokens and authcode lifetime
+#            access_token_lifetime: 3600
+#            refresh_token_lifetime: 1209600
+#            auth_code_lifetime: 30
+
+            # Enforce state to be passed in authorization (see RFC 6749, section 10.12)
+#            enforce_state: true
+
+hwi_oauth:
+    # list of names of the firewalls in which this bundle is active, this setting MUST be set
+    firewall_names: [main]
+    resource_owners:    # https://github.com/hwi/HWIOAuthBundle/blob/master/Resources/doc/2-configuring_resource_owners.md
+        # NOTE: ODR should not be listed here, despite technically being an OAuth provider through the FOSOAuthServerBundle
+#        GitHub:
+#            type:           github
+#            client_id:      [[ GITHUB CLIENT ID ]]
+#            client_secret:  [[ GITHUB CLIENT SECRET ]]
+#            scope:          "user:email"      # https://developer.github.com/v3/oauth/#scopes
+#            options:
+#                csrf: true
+
+#        Google:
+#            type:           google
+#            client_id:      [[ GOOGLE CLIENT ID ]]
+#            client_secret:  [[ GOOGLE CLIENT SECRET ]]
+#            scope:          "openid email"         # https://developers.google.com/identity/protocols/OpenIDConnect#scope-param
+#            options:
+#                csrf: true
+
+snc_redis:
+    clients:
+        default:
+            type: predis
+            alias: default
+            dsn: redis://localhost
+            # TODO: https://github.com/snc/SncRedisBundle/pull/199/files
+            #serialization: php
+
+drymek_pheanstalk: ~
+
+services:
+    ajax.listener:
+        class: ODR\AdminBundle\Component\Event\AjaxAuthenticationListener
+        tags:
+          - { name: kernel.event_listener, event: kernel.exception, method: onCoreException, priority: 1000 }
+    memcached:
+        class: Memcached
+        calls:
+            - [ addServers, [ %memcached.servers% ]]
+    session.memcached:
+        class: Memcached
+        arguments:
+            persistent_id: %session_memcached_prefix%
+        calls:
+            - [ addServer, [ %session_memcached_host%, %session_memcached_port% ]]
+    session.handler.memcached:
+        class:     Symfony\Component\HttpFoundation\Session\Storage\Handler\MemcachedSessionHandler
+        arguments: [@session.memcached, { prefix: %session_memcached_prefix%, expiretime: %session_memcached_expire% }]
+
+    ODR.exception_controller:
+        class: ODR\AdminBundle\Controller\ODRExceptionController
+        arguments: [ "@twig", "%kernel.debug%", "@security.token_storage" ]
+
+    odr.openrepository.oauthclient.oauth_user_provider:
+        class: ODR\OpenRepository\OAuthClientBundle\Security\Core\User\ODROAuthUserProvider
+        # for the third argument, keys need to match the key of the resource owners in these various configuration files
+        # the value for each needs to be the lowercase resource owner key, followed by "Id"
+        # e.g.  arguments: [@doctrine.orm.entity_manager, @session, {GitHub: githubId, Google: googleId}]
+        arguments: [@doctrine.orm.entity_manager, @session, {}]

@@ -1,0 +1,5 @@
+parameters:
+
+services:
+    odr.jupyterhub_bridge.username_service:
+        class: ODR\OpenRepository\JupyterhubBridgeBundle\Component\Service\UsernameService

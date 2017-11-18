@@ -58,13 +58,14 @@ ODR\AdminBundle\Entity\DataTreeMeta:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
+
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
             mappedBy: null
             inversedBy: null
             joinColumns:
-                createdBy:
+                updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
 

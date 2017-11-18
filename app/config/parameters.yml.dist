@@ -1,29 +1,61 @@
-# This file is auto-generated during the composer install
 parameters:
     database_driver: pdo_mysql
     database_host: localhost
     database_port: null
     database_name: odr_master
     database_user: odr_master
-    database_password: aisufh83409res8uf
-    #database_name: odr_localhost
-    #database_user: odr_localhost
-    #database_password: 8929asf2jlasdfk2asdfa
+    database_password: [[ ENTER DATABASE PASSWORD HERE ]]
     mailer_transport: smtp
     mailer_host: localhost
     mailer_user: null
     mailer_password: null
     locale: en
-    secret: 3894eruifsro8945uitrosaughjkrehsduiosreqjwhsdfjk
-    #secret: a8910801jwqersjfdk8wfdnsjadflask2093810923809ae9r0af9iau2jlkjwehasdfkjh12
+    secret: [[ ENTER RANDOM KEY HERE - Text String ]]
     odr_plugins:
-        graph_plugin:
-            name: 'Graph Plugin'
-            filename: GraphPlugin
+        chemined1_plugin:
+            name: 'Chemin ED1 Plugin'
+            filename: CheminED1Plugin
             bundle_path: /ODR/OpenRepository/GraphBundle
+        chemineda_plugin:
+            name: 'Chemin EDA Plugin'
+            filename: CheminEDAPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        chemineds_plugin:
+            name: 'Chemin EDS Plugin'
+            filename: CheminEDSPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        cheminee1_plugin:
+            name: 'Chemin EE1 Plugin'
+            filename: CheminEE1Plugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        chemineea_plugin:
+            name: 'Chemin EEA Plugin'
+            filename: CheminEEAPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        cheminees_plugin:
+            name: 'Chemin EES Plugin'
+            filename: CheminEESPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        cheminefm_plugin:
+            name: 'Chemin EFM Plugin'
+            filename: CheminEFMPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        cheminetr_plugin:
+            name: 'Chemin ETR Plugin'
+            filename: CheminETRPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+
         gcms_plugin:
             name: 'GCMassSpec Plugin'
             filename: GCMassSpecPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        csvtable_plugin:
+            name: 'CSV Table Plugin'
+            filename: CSVTablePlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        graph_plugin:
+            name: 'Graph Plugin'
+            filename: GraphPlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
         chemistry_plugin:
             name: 'Chemistry Field'
@@ -45,6 +77,11 @@ parameters:
             name: 'URL Field'
             filename: URLPlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
+        qanalyze_plugin:
+            name: 'Qanalyze XRD Analysis'
+            filename: QanalyzePlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+
         organization_plugin:
             name: 'Organization Plugin'
             filename: OrganizationPlugin
@@ -61,14 +98,24 @@ parameters:
             name: 'Site Identifier Plugin'
             filename: SitePlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
+
+    site_baseurl: [[ ENTER URL OF ODR DOMAIN HERE ]]     # This url MUST NOT have a trailing forward slash
+    odr_web_directory: "%kernel.root_dir%/../web"
+
     memcached.servers:
         -
             host: 127.0.0.1
             port: 11211
-    site_baseurl: 'http://odr.localhost'
-    memcached_key_prefix: odr_master
+    memcached_key_prefix: odr_master         # If the physical server handles more than a single instance of ODR, then these two memcached_prefix entries must be unique to this instance of ODR
     session_memcached_expire: 3600
     session_memcached_prefix: odr_master
     session_memcached_host: 127.0.0.1
     session_memcached_port: 11211
-    beanstalk_api_key: 01938reuifq39uwehirjfa3iuw4edjksaluih
+
+    beanstalk_api_key: [[ ENTER RANDOM KEY HERE - Text String ]]
+
+    jupyterhub_config:
+        use_jupyterhub: false    # set to true to enable jupyterhub integration
+        jupyterhub_baseurl: [[ ENTER URL OF JUPYTERHUB DOMAIN HERE ]]     # This url MUST NOT have a trailing forward slash
+        api_key: [[ ENTER RANDOM KEY HERE - Text String ]]
+        bridge_token: [[ ENTER RANDOM KEY HERE - Text String ]]

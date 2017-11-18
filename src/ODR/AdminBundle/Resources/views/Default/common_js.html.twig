@@ -2,52 +2,35 @@
 <script>
 
     $(function() {
-
         // Define a global error handler for ajax calls
+        // TODO - jquery 1.12 seems to be autoparsing every json response, and therefore throws ajax errors whenever ODR returns an empty response body
         $(document).ajaxError(function( event, jqxhr, settings, exception ) {
             switch( jqxhr.status ) {
-                case 500:
-                    alert('Server error: ' + exception);
-                    break;
-                case 404:
-                    alert('Page not found: ' + settings.url.substr(0, settings.url.indexOf('?')));
-                    break;
                 case 401:
-                case 403:
-                    alert( 'Access Denied. [0x883928]' );
-                    // If a hash is present, attempt to preserve it so user goes back to this page after login
-                    /* var url = window.location.href;
-                    if ( url.indexOf('#') !== -1 ) {
-                        var tmp = url.split('#');
-                        url = tmp[0].substr(0, tmp[0].lastIndexOf('/')) + '/login#' + tmp[1];
+                    ODRLogin();
+                    break;
 
-                        location.replace(url);
-                    }
-                    else {
-                        // Otherwise, just redirect to admin page
-                        location.replace("{{ path('odr_admin_homepage') }}");
-                    } */
+                default:    {# 400, 403, 404, 405, 500, etc #}
+                    var response = $.parseJSON( jqxhr.responseText );
+//                    console.log( response );
+                    createJGrowlError(response);
                     break;
-/*
-                default:
-                    alert('Error: ' + exception);
-                    break;
-*/
             }
         });
 
+
         // Detect refresh of page?
-        $(window).load(function() {
+        $(window).on('load', function() {
             if ( window.location.hash != '') {
-                // window.location.hash doesn't preserv url encoding...
+                // window.location.hash doesn't preserve url encoding...
                 var tmp = window.location.href.split('#');
                 var url = tmp[1];
                 LoadContentFullAjax( url );
             }
             else {
-{% if logged_in == true %}
-                LoadContentFullAjax('{{ path('odr_dashboard') }}');
-{% endif %}
+                {% if logged_in == true %}
+                    LoadContentFullAjax('{{ path('odr_dashboard') }}');
+                {% endif %}
             }
         });
 
@@ -57,6 +40,7 @@
         $(window).on("hashchange", function(event) {
             // Needed?
             event.preventDefault();
+//            console.log('hashchange event');
 
             // Close Menu
             $("#ODRNav").hide();
@@ -122,13 +106,62 @@
             UpdateURL(url);
         });
 
-
+{#
         // Menu click handler
         $("#ODRMainMenu a").click(function() {
 
         })
-
+#}
     });
+
+    function createJGrowlError(response) {
+        var error_text = '<div class="ODRNotificationHeader">' + response.error.code + ' ' + response.error.status_text + ' -- ' + response.error.exception_source + "</div>";
+        error_text += '<div class="ODRNotificationText">' + response.error.message + '</div>';
+
+        $.jGrowl(
+            error_text,
+            {
+                theme: "ODRNotification",
+                sticky: true,
+                openDuration: 250,
+                closeDuration: 250
+            }
+        );
+    }
+
+    function ODRLogin() {
+        // Extract the current base url
+        var baseurl = window.location.href;
+        var fragment = '';
+        if ( baseurl.indexOf('#') !== -1 ) {
+            var pieces = baseurl.split('#');
+            baseurl = pieces[0];
+            fragment = pieces[1];
+        }
+
+        // Save the "app_dev.php" part of the url if needed
+        var redirect_url = '/app_dev.php';
+        if ( baseurl.indexOf('app_dev.php') === -1 )
+            redirect_url = '/login';
+        else
+            redirect_url += '/login';
+
+        // Append the fragment if it exists
+        if (fragment !== '')
+            redirect_url += '#' + fragment;
+
+        // Redirect to the login page after saving the base url
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: '{{ path('odr_save_url') }}',
+            dataType: 'json',
+            data: {'url': baseurl},
+            success: function(data, textStatus, jqXHR) {
+                window.location.href = redirect_url;
+            }
+        });
+    }
 
     function UpdateURL(url) {
         // Update the URL and hash
@@ -144,16 +177,32 @@
     }
 
     var xhr = null;
-    function LoadContentFullAjax(url) {
+    var timer = null;
+    function LoadContentFullAjax(url, use_fade) {
+        if (timer) {
+            window.clearTimeout(timer)
+        }
+        // Default use_fade to 1
+        if (undefined == use_fade)
+            use_fade = true;
+
         // TODO Determine if this HACK is needed
         // Delete the DataTables fixed headers and bindings.
- 	jQuery(window).unbind('scroll');
- 	jQuery('.fixedHeader-floating').remove();
+ 	    jQuery(window).unbind('scroll');
+ 	    jQuery('.fixedHeader-floating').remove();
+
+
+        var faded_opacity = 0.15;
+        if(!use_fade) {
+            faded_opacity = 1;
+        }
 
         // Hide the properties menu
-        $("#ODRNavRightWrapper").fadeOut('fast');
-        $("#content").fadeTo(300, 0.15, function() {
-            //
+        // $("#ODRNavRightWrapper").fadeOut('fast');
+        // Disable scroll handlers
+        $(window).off('scroll');
+        $("#content").fadeTo(200, faded_opacity, function() {
+            // TODO Document what this is doing.
             if (xhr != null)
                 xhr.abort();
 
@@ -163,30 +212,28 @@
                 data = {'odr_tab_id': window.sessionStorage.getItem('odr_tab_id')};
 
             // Load to Content area
-            var dataType = "json";
             xhr = $.ajax({
                 cache: false,
                 type: 'GET',
                 url: url,
-                dataType: dataType,
+                dataType: "json",
                 data: data,
                 success: function(data, textStatus, jqXHR) {
-                    if ((data.r == 0) || (data.r == 403)) {
 
-                        $("#content").html(data.d.html);
-                        $("#content").fadeTo(1000, 1.0);
-
-                        xhr = null;
-                    }
-                    else if ( data.r == 2 ) {   // for redirects to another url
+                    if ( data.r == 2 ) {   // for redirects to another url
                         xhr = null;
                         UpdateURL( data.d.url );
                     }
                     else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        alert(data.d);
+                        $("#content").html(data.d.html);
+                        $("#content").fadeTo(200, 1.0);
+
+                        xhr = null;
                     }
+
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
                 },
                 complete: function(jqXHR, textStatus) {
                     // Get the xdebugToken from response headers
@@ -398,6 +445,48 @@
         });
     }
 
+    function reloadPage() {
+        // Reload the window
+        var url = window.location.hash.substr(1);
+        // TODO need to check if URL has hash value...
+        LoadContentFullAjax( url );
+    }
+
+    function resetRemodalInnerHeight() {
+        var modal = $("#ODRRemodal");
+        var modal_inner = modal.find(".ODRRemodalInner");
+        var modal_inner_content = modal.find(".ODRRemodalInnerContent");
+
+        // Get Scroll height of inner
+        var content_height = modal_inner_content.prop('scrollHeight');
+//console.log('h1: ' + content_height);
+
+        var modal_height =  $(window).height()
+            - modal.find(".ODRRemodalButtons").height()
+            - modal.find(".ODRRemodalTitle").height();
+
+        if ( $(window).width() >= 568 )
+            modal_height -= 30;
+//console.log('mh0: ' + modal_height);
+
+        // Just show content if smaller than window height
+        if (content_height < modal_height)
+            modal_height = content_height;
+//console.log('mh1: ' + modal_height);
+
+        // Ensure it looks okay
+        modal_height += 20;
+        if (modal_height < 100)
+            modal_height = 100;
+
+        modal_inner.animate(
+            {height: modal_height},
+            {
+                duration: 400,
+                easing: "swing"
+            }
+        );
+    }
 
     // Define waitForFinalEvent
     var waitForFinalEvent = (function () {
@@ -413,6 +502,44 @@
         };
     })();
 
+{#
+    var scrollTop = '';
+    var newHeight = '100';
+    function initODRDialog(elem) {
+        /*
+        $(window).bind('scroll', function() {
+            scrollTop = $( window ).scrollTop();
+            newHeight = scrollTop + 100;
+        });
+
+        if($(window).width() < 767) {
+            $(elem).show().addClass('odr-popup-mobile').css('top', 0);
+            $('html, body').animate({
+                scrollTop: $(elem).offset().top
+            }, 500);
+        } else {
+            $(elem).hide();
+            $(elem).removeClass('odr-popup-mobile').css('top', newHeight).toggle();
+        };
+
+        $(elem).append('<span class="odr-popup-btn-close">close</span>');
+
+        $('html').unbind('click')
+        .click(function() {
+            $('.odr-popup').hide();
+        });
+
+        $('.odr-popup-btn-close').unbind('click')
+        .click(function(e){
+            $(this).parent().hide();
+        });
+
+        $('.odr-popup').unbind('click')
+        .click(function(e){
+            e.stopPropagation();
+        });
+     }
+#}
 </script>
 
 {% include 'ODRAdminBundle:Default:file_handling.html.twig' %}

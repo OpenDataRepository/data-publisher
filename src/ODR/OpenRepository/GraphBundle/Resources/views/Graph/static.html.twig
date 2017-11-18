@@ -9,9 +9,7 @@
     <div class="ODRAccordionWrapper">
         <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
-            {#<a>{{ datarecordchild.getdatatype.shortname }}</a>#}
             <a>{{ datatype.dataTypeMeta.shortName }}</a>
-            {#{% if datarecordchild.grandparent != null %}#}
             {% if is_top_level == 0 %}
                 <span style="float: right;">
                    <span id="Switch_{{ nv_chart_id }}" class="DynamicSwitch" style="cursor: pointer">Switch to Dynamic Charts</span>

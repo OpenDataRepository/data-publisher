@@ -2,10 +2,6 @@
 
 {% set typename = datafield.getfieldtype.gettypename %}
 
-<div class="pure-u-3-4" style="visibility: hidden;">
-    <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
-</div>
-
 <div class="pure-g pure-u-1">
     <div class="pure-u-1" style="max-height:500px; overflow:auto; margin-bottom:10px;">
         <input type="hidden" id="datafield_{{ datafield.id }}_name_sort" value="{% if datafield.getradiooptionnamesort == true %}1{% else %}0{% endif %}" />

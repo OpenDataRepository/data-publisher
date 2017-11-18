@@ -1,0 +1,92 @@
+{% spaceless %}
+
+    <div>
+        <div class="pure-u-1-2">
+            <textarea id="ODRMarkdown_source" class="pure-u-3-4" style="height: 600px; overflow: auto;" readonly>
+---
+The # symbol at the beginning of a line denotes a heading.
+
+# h1 Heading
+## h2 Heading
+
+You're allowed to use up to six # characters in a row, but most websites (ODR included) tend to use specific styling for those elements.
+
+
+## Horizontal Rules
+___
+Three hyphens, underscores, or asterisks in a row creates a horizontal line
+
+---
+Text right above three hyphens is a shortcut for the h2 Heading
+---
+
+***
+
+
+## Emphasis
+
+Using a _single_ \* or \_ character creates _italic_ text.
+
+Using **two** \* or \_ characters in a row creates __bold text__.
+
+Using ___three___ \* or \_ characters in a row creates ***bold and italic*** text.
+
+You **can _also_ combine** one __type of *emphasis* inside__ another.
+
+Placing a \\ character before the \* or \_ characters will cause them \*\*to not\*\* be interpreted for emphasizing text.
+
+
+## Lists
+
+Unordered
+
++ Create a list by starting a line with `+`, `-`, or `*`
++ Sub-lists are made by indenting 2 spaces:
+  - Marker character change forces new list start:
+    * Praesent dapibus id libero sit amet consectetur
+    + Proin nec libero ac orci aliquet elementum
+    - Nullam venenatis ligula vitae justo facilisis rutrum
++ Very easy!
+
+Ordered
+
+1. Lorem ipsum dolor sit amet
+2. Nulla sem tortor, cursus id accumsan a, aliquam viverra mi
+3. In convallis arcu nisl, ac tempor eros tempus vel
+
+1. You can use sequential numbers...
+1. ...or keep all the numbers as `1.`
+
+Start numbering with offset:
+
+57. foo
+1. bar
+1. No extra line between the list members compresses the list
+
+
+## Links
+
+[link text](http://dev.nodeca.com)
+
+[link with title](http://nodeca.github.io/pica/demo/ "title text!")
+
+
+## Code
+
+Inline `code block`
+
+Block code "fences"
+
+```
+var a = 5;
+var b = 10;
+
+var c = a + b;
+```
+            </textarea>
+        </div>
+        <div id="ODRMarkdown_result" class="pure-u-1-2" style="height: 600px; overflow: auto; text-align: left;">
+        </div>
+    </div>
+
+{% endspaceless %}

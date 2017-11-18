@@ -1,0 +1,262 @@
+
+#
+# Ensure package list is up-to-date
+# 
+apt-get update
+
+#
+# Install Firewall
+#
+# VERY IMPORTANT OR REDIS WILL BE HACKED
+#
+sudo aptitude install ufw
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow ssh
+sudo ufw allow http
+sudo ufw allow https
+sudo ufw enable
+sudo ufw status verbose
+
+apt install tasksel
+
+sudo tasksel install lamp-server
+
+# 
+# Add PHP Modules
+#
+
+apt install php-apcu php-xml php-gd php-mbstring php-mcrypt php-memcached php-unzip php-zip php-curl unzip memcached beanstalkd build-essential tcl redis-server
+
+#
+# Enable Apache mod-rewrite
+#
+a2emod rewrite
+
+#
+# Modify default web dir as eneded
+#
+DocumentRoot /home/odr/data-publisher/web
+
+#
+# Add directory grant to 000-default.conf
+#
+<Directory /home/odr/data-publisher/web/>
+    AllowOverride All
+    Require all granted
+</Directory>
+
+#
+#  Install phantomjs
+#
+sudo apt-get install libfreetype6 libfreetype6-dev
+sudo apt-get install libfontconfig1 libfontconfig1-dev
+
+download phantomjs:  http://phantomjs.org/download.html
+
+sudo mv [PHANTOM_JS_DIRNAME] /usr/local/share
+sudo ln -sf /usr/local/share/[PHANTOM_JS_DIRNAME]/bin/phantomjs /usr/local/bin
+
+#
+# Start Worker Processes
+#
+cd /home/odr/data-publisher
+./start_jobs.sh
+
+cd /home/odr/phantomjs_server
+./start_phantom.sh
+
+
+
+#
+# JupyterHub Notes
+#
+
+# General Install Document
+https://github.com/jupyterhub/jupyterhub/wiki/Installation-of-Jupyterhub-on-remote-server
+
+Do this stuff as root... seems risky but is the only way it works.
+
+# Reverse Proxy Info (Apache)
+# https://github.com/jupyterhub/jupyterhub/issues/219
+
+#   Review working configurations in #219
+#   Review Apache version.
+#   Apache 2.4 or higher
+#   2.2.x does not provide WebSocket support.
+#   2.2 on CentOS will work with wstunnel backport patches (See https://gist.github.com/vitkin/6661683).
+#   have you enabled mod_proxy_wstunnel?
+#   enable proxy, proxy_http, headers and proxy_wstunnel.
+#   Checked Apache logs?
+#   Check for mispellings in config (i.e. notebook vs notebooks). Be consistent.
+#   May need to be configure the Hub to listen to an external interface rather than localhost
+#   Note: recent versions of JupyterHub and single user notebook servers will complain if started without SSL, so if you are terminating SSL at your proxy server (which is the common thing to do here) you may need to add the --no-ssl option
+
+a2enmod ssl
+a2enmod proxy
+a2enmod proxy_http
+a2enmod headers
+a2enmod proxy_wstunnel
+
+
+
+<IfModule mod_ssl.c>
+        #
+        # https://github.com/jupyterhub/jupyterhub/issues/219
+        # https://github.com/jupyter/notebook/issues/1835
+        #
+        <VirtualHost *:443>
+                ServerAdmin webmaster@localhost
+                ServerName gamma-jupyter.odr.io
+                SSLEngine On
+                SSLProxyEngine On
+                ProxyPreserveHost On
+                ProxyRequests off
+
+  <Location />
+    ProxyPass http://127.0.0.1:8000/
+    ProxyPassReverse http://127.0.0.1:8000/
+  </Location>
+
+  <LocationMatch "/(user/[^/]*)/(api/kernels/[^/]+/channels|terminals/websocket)(.*)">
+    ProxyPassMatch ws://127.0.0.1:8000/$1/$2$3
+    ProxyPassReverse ws://127.0.0.1:8000/$1/$2$3
+  </LocationMatch>
+
+                SSLCertificateFile /etc/ssl/certs/gamma-jupyter_odr_io.crt
+                SSLCertificateKeyFile /etc/ssl/private/odr_system.key
+                SSLCACertificateFile /etc/ssl/certs/gamma-jupyter_odr_io.ca-bundle
+
+                ErrorLog ${APACHE_LOG_DIR}/gamma-jupyter-ssl.error.log
+                CustomLog ${APACHE_LOG_DIR}/gamma-jupyter-ssl.access.log combined
+
+        </VirtualHost>
+</IfModule>
+
+
+#
+# Jupyterhub startup script
+#
+> more start_jupyterhub.sh 
+#!/bin/bash
+
+jupyterhub -f /root/jupyterhub_config.py --no-ssl >> /var/log/jupyterhub.log 2>&1 &
+
+
+
+
+#
+# Container Notes
+#
+lxc config set my-container limits.cpu 2
+lxc config set my-container limits.memory 256MB
+
+(The supported suffixes are kB, MB, GB, TB, PB and EB)
+
+To turn swap off for the container (defaults to enabled):
+
+lxc config set my-container limits.memory.swap false
+
+To tell the kernel to swap this container’s memory first:
+
+lxc config set my-container limits.memory.swap.priority 0
+
+And finally if you don’t want hard memory limit enforcement:
+
+lxc config set my-container limits.memory.enforce soft
+
+
+
+
+
+#
+# rc.local for starting services
+#
+#!/bin/sh -e
+#
+# rc.local
+#
+# This script is executed at the end of each multiuser runlevel.
+# Make sure that the script will "exit 0" on success or any other
+# value on error.
+#
+# In order to enable or disable this script just change the execution
+# bits.
+#
+# By default this script does nothing.
+
+
+export ODR_PATH=/home/odr/data-publisher
+
+cd $ODR_PATH
+su -c "php $ODR_PATH/app/console odr_record:migrate >> $ODR_PATH/app/logs/migrate.log 2>&1 &" odr
+su -c "php $ODR_PATH/app/console odr_record:mass_edit >> $ODR_PATH/app/logs/mass_edit.log 2>&1 &" odr
+su -c "php $ODR_PATH/app/console odr_crypto:worker >> $ODR_PATH/app/logs/crypto_worker.log 2>&1 &" odr
+su -c "php $ODR_PATH/app/console odr_crypto:worker >> $ODR_PATH/app/logs/crypto_worker_2.log 2>&1 &" odr
+su -c "php $ODR_PATH/app/console odr_datatype:create >> $ODR_PATH/app/logs/datatype_create.log 2>&1 &" odr
+su -c "php $ODR_PATH/app/console odr_csv_import:validate >> $ODR_PATH/app/logs/csv_import_validate.log 2>&1 &" odr
+su -c "php $ODR_PATH/app/console odr_csv_import:worker >> $ODR_PATH/app/logs/csv_import.log 2>&1 &" odr
+su -c "php $ODR_PATH/app/console odr_csv_export:start >> $ODR_PATH/app/logs/csv_export_start.log 2>&1 &" odr
+su -c "php $ODR_PATH/app/console odr_csv_export:worker >> $ODR_PATH/app/logs/csv_export_worker.log 2>&1 &" odr
+su -c "php $ODR_PATH/app/console odr_csv_export:worker >> $ODR_PATH/app/logs/csv_export_worker_2.log 2>&1 &" odr
+su -c "php $ODR_PATH/app/console odr_csv_export:finalize >> $ODR_PATH/app/logs/csv_export_finalize.log 2>&1 &" odr
+
+su -c "phantomjs $ODR_PATH/phantomjs_server/phantomjs_svg_server.js >> $ODR_PATH/app/logs/phantom.log 2>&1 &" odr
+
+/root/start_jupyterhub.sh
+
+
+#
+# Self-signed cert for Jupyter
+#
+openssl req  -nodes -newkey rsa:4096 -x509  -keyout server.key -out server.cert
+
+
+#
+# Install Docker Spawner
+#
+git clone https://github.com/jupyterhub/dockerspawner.git
+
+#
+# Install docker and build image
+#
+apt install docker.io
+
+# SingleUser - meaning dynamically spawned dockers for authenticated users
+docker pull jupyterhub/singleuser
+
+# SystemUser - docker mapped to user directories
+docker pull jupyterhub/systemuser
+
+# Install recommends line below but it doesn't work...
+#  docker build -t jupyterhub/systemuser systemuser
+
+#
+# Generate Jupyter Config
+#
+jupyterhub --generate-config
+
+#
+# jupyterhub_config.py [ Usage: jupyterhub -f /path/to/jupyterhub_config.py ]
+#
+#c.JupyterHub.spawner_class = 'jupyterhub.spawner.LocalProcessSpawner'
+c.JupyterHub.spawner_class = 'dockerspawner.DockerSpawner'
+#c.JupyterHub.spawner_class = 'dockerspawner.SystemUserSpawner'
+#c.SystemUserSpawner.host_homedir_format_string = '/home/jupyterhub_docker/{username}'
+c.Spawner.mem_limit = '512M'
+
+
+
+
+#
+# Crash Plan Pro
+#
+/usr/local/bin/CrashPlanDesktop won't run
+To Fix:
+View logs in /usr/local/crashplan/log  (ui_error.log)
+libgtk-x11-2.0.so.0: cannot open shared object file: No such file or directory
+apt-get install libgtk2.0-0
+apt-get install xorg
+
+
+

@@ -164,22 +164,6 @@ class UpdateDataTypeForm extends AbstractType
                     'label' => 'Search Abbreviation',
                 )
             );
-
-            $builder->add(
-                'useShortResults',
-                ChoiceType::class,
-                array(
-                    'choices' => array(
-                        'Table' => 0,
-                        'Default' => 1
-                    ),
-                    'choices_as_values' => true,
-                    'label' => 'Search Results Theme Type',
-                    'expanded' => false,
-                    'multiple' => false,
-                    'placeholder' => false
-                )
-            );
         }
 
     }

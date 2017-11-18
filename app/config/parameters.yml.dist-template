@@ -13,6 +13,18 @@ parameters:
     locale: en
     secret: [[ ENTER A LONG RANDOM STRING HERE WITH NO SPACES ]]
     odr_plugins:
+        cheminee1_plugin:
+            name: 'Chemin EE1 Plugin'
+            filename: CheminEE1Plugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        chemineda_plugin:
+            name: 'Chemin EDA Plugin'
+            filename: CheminEDAPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        csvtable_plugin:
+            name: 'CSV Table Plugin'
+            filename: CSVTablePlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
         graph_plugin:
             name: 'Graph Plugin'
             filename: GraphPlugin

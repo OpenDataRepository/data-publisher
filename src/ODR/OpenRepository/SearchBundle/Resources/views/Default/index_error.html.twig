@@ -9,7 +9,12 @@
 
 {% if logged_in == false %}
     {% set header_left_title = 'Search' %}
-    {% set header_left_path = path('odr_search', {'search_slug': search_slug} ) %}
+
+    {% if search_slug == 'admin' %}
+        {% set header_left_path = path('odr_admin_homepage') %}
+    {% else %}
+        {% set header_left_path = path('odr_search', {'search_slug': search_slug} ) %}
+    {% endif %}
 
     {% set header_middle_title = '' %}
     {% set header_middle_path = '' %}
@@ -22,7 +27,12 @@
     {% set header_left_path = path('odr_admin_homepage') %}
 
     {% set header_middle_title = 'Search' %}
-    {% set header_middle_path = path('odr_search', {'search_slug': search_slug} ) %}
+
+    {% if search_slug == 'admin' %}
+        {% set header_middle_path = path('odr_admin_homepage') %}
+    {% else %}
+        {% set header_middle_path = path('odr_search', {'search_slug': search_slug} ) %}
+    {% endif %}
 
     {% set header_right_title = 'Logout' %}
     {% set header_right_path = path('odr_logout') %}
@@ -50,34 +60,5 @@
     {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
     {{ js.write(logged_in) }}
 
-    <script>
-        function ODRLogin() {
-            $(function() {
-                var url = window.location.href;
-                if ( url.indexOf('{{ site_baseurl }}/{{ search_slug }}') !== -1 ) {
-                    {#url = url.replace('{{ site_baseurl }}/{{ search_slug }}', '{{ site_baseurl }}/login');#}
-
-                    var new_url = '{{ site_baseurl }}/login';
-
-                    if ( url.indexOf('#') !== -1 ) {
-                        var pieces = url.split('#');
-                        new_url += '#' + pieces[1];
-                    }
-
-                    url = new_url;
-                }
-                else if ( url.indexOf('#') !== -1 ) {
-                    var pieces = url.split('#');
-                    url = pieces[0] + 'login#' + pieces[1];
-                }
-                else {
-                    url = "{{ path('odr_admin_homepage') }}";
-                }
-
-//alert(url);
-                window.location.href = url;
-            });
-        }
-    </script>
 {% endblock %}
 

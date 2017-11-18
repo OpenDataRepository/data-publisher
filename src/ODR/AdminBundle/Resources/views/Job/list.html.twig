@@ -174,11 +174,15 @@
                         if (typeof doProgressBars == 'function')
                             doProgressBars();
                     }
-                },
-                
+                }
+            });
+
+            // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...
+            $.fn.dataTable.ext.errMode = 'none';
+            $("#ODRJobList_" + job_type).on('error.dt', function(e, settings, techNote, message) {
+                console.log(message);
             });
         });
-
     });
 
     function doProgressBars() {
@@ -188,7 +192,9 @@
 
             var progress_label = $(this).children(".ODRProgressBarLabel").first();
 
-            $(this).progressbar('destroy');
+            if ( $(this).progressbar('instance') !== undefined )
+                $(this).progressbar('destroy');
+
             $(this).progressbar({
                 value: current_value,
                 max: max_value,
@@ -197,7 +203,7 @@
                 },
                 change: function() {
                     progress_label.text( current_value + '/' + max_value );
-                },
+                }
             });
         });
     }

@@ -17,13 +17,21 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\OpenRepository\UserBundle\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
-// Forms
+use ODR\OpenRepository\UserBundle\Entity\User;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+// Services
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -47,12 +55,11 @@ class TextResultsController extends ODRCustomController
 
         try {
             // ----------------------------------------
-            $session = $request->getSession();
+            // Symfony firewall won't permit GET requests to reach this point
+            $post = $request->request->all();
 
-            // Grab data from post...
-            $post = $_POST;
-//print_r($post);
-//return;
+            if ( !isset($post['datatype_id']) || !isset($post['theme_id']) || !isset($post['draw']) || !isset($post['start']) )
+                throw new ODRBadRequestException();
 
             $odr_tab_id = '';
             if ( isset($post['odr_tab_id']) && trim($post['odr_tab_id']) !== '' )
@@ -62,6 +69,8 @@ class TextResultsController extends ODRCustomController
             $theme_id = intval( $post['theme_id'] );
             $draw = intval( $post['draw'] );    // intval() because of recommendation by datatables documentation
             $start = intval( $post['start'] );
+
+            $session = $request->getSession();
 
             // Need to deal with requests for a sorted table...
             $sort_column = 0;
@@ -94,7 +103,7 @@ class TextResultsController extends ODRCustomController
             // search_key is optional
             $search_key = '';
             if ( isset($post['search_key']) )
-                $search_key = urldecode($post['search_key']);   // apparently have to decode this because it's coming through a POST request instead of a GET?
+                $search_key = urldecode($post['search_key']);   // Symfony doesn't automatically decode this since it's not coming through a GET request
 
 
             // ----------------------------------------
@@ -102,45 +111,56 @@ class TextResultsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var TableThemeHelperService $tth_service */
+            $tth_service = $this->container->get('odr.table_theme_helper_service');
+
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
-                throw new \Exception('Datatype is deleted');
+                throw new ODRNotFoundException('Datatype');
 
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
             if ($theme == null)
-                throw new \Exception('Theme is deleted');
-            if ($theme->getDataType()->getId() !== $datatype->getId() || $theme->getThemeType() !== 'table')
-                throw new \Exception('Invalid request');
+                throw new ODRNotFoundException('Theme');
 
+            if ($theme->getDataType()->getId() !== $datatype->getId() )
+                throw new ODRBadRequestException();
+
+            // No longer makes sense to restrict to a single theme type...TableThemeHelperService
+            //  can deal with any type of theme it receives
+//            if ($theme->getThemeType() !== 'search_results')
+//                throw new ODRBadRequestException();
+
+
+            // ----------------------------------------
             // Determine whether user is logged in or not
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $datatype_permissions = array();
-            $datafield_permissions = array();
-            if ( $user !== 'anon.' ) {
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-            }
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
-            // TODO - user permissions?
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
 
             // ----------------------------------------
-//            $datarecord_count = 0;
             $list = array();
             if ( $search_key == '' ) {
-                // Grab the sorted list of datarecords for this datatype
-                $list = parent::getSortedDatarecords($datatype);
+                // Theoretically this isn't called during regular operation of ODR anymore, but keeping around just in case
 
-                // TODO - reaaaaaaaaallly need to get the above method to change its return type depending on user needs
-                $list = explode(',', $list);
+                // Grab the sorted list of datarecords for this datatype
+                $list = $dti_service->getSortedDatarecordList($datatype->getId());
             }
             else {
-                // Get all datarecords from the search key
+                // Get all datarecords from the search key...these are already sorted
                 $data = parent::getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype->getId(), $search_key, $request);
-//                $encoded_search_key = $data['encoded_search_key'];
                 $datarecord_list = $data['datarecord_list'];
 
                 // Don't check for a redirect here, right?  would need to modify datatables.js to deal with it... TODO
@@ -150,29 +170,21 @@ class TextResultsController extends ODRCustomController
                     $list = explode(',', $datarecord_list);
             }
 
-            // Save how many records total there are before filtering...
+            // Save how many datarecords there are in total...this list is already filtered to contain
+            //  just the public datarecords if the user lacks the relevant view permission
+            // TODO - this absolutely won't work when datarecord permissions becomes a thing
             $datarecord_count = count($list);
 
 
             // ----------------------------------------
             if ($sort_column >= 2) {    // column 0 is datarecord id, column 1 is default sort column...
-                // Adjust datatables column number to datafield display order number
-                $sort_column -= 2;
 
-                // Need the typeclass of the datafield first
-                $query = $em->createQuery(
-                   'SELECT df.id AS df_id, ft.typeClass AS type_class
-                    FROM ODRAdminBundle:ThemeElement AS te
-                    JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
-                    JOIN ODRAdminBundle:DataFields AS df WITH tdf.dataField = df
-                    JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-                    JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
-                    WHERE te.theme = :theme_id AND tdf.displayOrder = :display_order
-                    AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL AND df.deletedAt IS NULL'
-                )->setParameters( array('theme_id' => $theme->getId(), 'display_order' => $sort_column) );
-                $results = $query->getArrayResult();
-                $typeclass = $results[0]['type_class'];
-                $datafield_id = $results[0]['df_id'];
+                // Locate the datafield pointed to by $sort_column
+                $sort_column -= 2;
+                $df = $tth_service->getDatafieldAtColumn($user, $datatype->getId(), $theme->getId(), $sort_column);
+
+                $datafield_id = $df['id'];
+                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
 
                 // Because the drf entry and the storage entity may not exist, pre-initialize the array of datarecord ids and values so datarecords with non-existent drf/storage entities don't get dropped from this sorting
                 $query_results = array();
@@ -260,20 +272,10 @@ class TextResultsController extends ODRCustomController
                 }
 
                 // Get PHP to sort the list of datarecords
-                if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue') {
-                    // PHP can sort integer/decimal values directly
-                    if ($sort_dir == 'DESC')
-                        arsort($query_results);
-                    else
-                        asort($query_results);
-                }
-                else {
-                    // Text values need to use "natural" sorting
-                    natsort($query_results);
+                natsort($query_results);
 
-                    if ($sort_dir == 'DESC')
-                        $query_results = array_reverse($query_results, true);
-                }
+                if ($sort_dir == 'DESC')
+                    $query_results = array_reverse($query_results, true);
 
                 // Redo the list of datarecords based on the sorted order
                 $list = array();
@@ -311,7 +313,7 @@ class TextResultsController extends ODRCustomController
             // Get the rows that will fulfill the request
             $data = array();
             if ( $datarecord_count > 0 )
-                $data = parent::renderTextResultsList($em, $datarecord_list, $theme, $request);
+                $data = $tth_service->getRowData($user, $datarecord_list, $datatype->getId(), $theme->getId());
 
             // Build the json array to return to the datatables request
             $json = array(
@@ -321,12 +323,13 @@ class TextResultsController extends ODRCustomController
                 'data' => $data,
             );
             $return = $json;
-
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x122280082 ' . $e->getMessage();
+            $source = 0xa1955869;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -370,15 +373,16 @@ class TextResultsController extends ODRCustomController
             $session->set('stored_tab_data', $stored_tab_data);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x182060382 ' . $e->getMessage();
+            $source = 0x25baf2e3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -423,15 +427,16 @@ class TextResultsController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x906023282 ' . $e->getMessage();
+            $source = 0xbb8573dc;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -464,15 +469,16 @@ class TextResultsController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x923362822 ' . $e->getMessage();
+            $source = 0x9c3bb094;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 }

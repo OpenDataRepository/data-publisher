@@ -1,0 +1,9 @@
+ODR\OpenRepository\GraphBundle\Plugins\Qanalyze:
+    name: Qanalyze XRD Analysis
+    datatype: false
+    version: 1.00
+    override_fields: true
+    override_child: false
+    description: Opens XRD spectrum files in Qanalyze and performs peak fitting analysis.
+    required_fields:
+    config_options:

@@ -1,0 +1,77 @@
+{% spaceless %}
+
+{{ form_start(profile_form, {
+    'method': 'POST',
+    'attr': {
+        'id': 'ODRUserProfileForm_' ~ target_user.id,
+        'class': 'ODRUserProfileForm pure-form pure-form-aligned'
+    }
+}) }}
+
+    <fieldset>
+
+        <div class="pure-control-group">
+            <label for="{{ profile_form.email.vars.id }}">
+                <strong>{{ profile_form.email.vars.label }}</strong>
+            </label>
+            {{ form_errors(profile_form.email) }}
+            {{ form_widget(profile_form.email, { 'attr': {'class': 'required', 'data-error-type': 'inline', 'disabled': 'disabled'} }) }}
+        </div>
+
+        <div class="pure-control-group">
+            <a class="address pure-button" href="#{{ path('odr_admin_change_password', {'user_id': target_user.id}) }}" >Change Password</a>
+        </div>
+
+        <div class="pure-control-group">&nbsp;</div>
+
+        <div class="pure-control-group">
+            <label for="{{ profile_form.firstName.vars.id }}">
+                <strong>{{ profile_form.firstName.vars.label }}</strong>
+            </label>
+            {{ form_errors(profile_form.firstName) }}
+            {{ form_widget(profile_form.firstName, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
+        </div>
+        <div class="pure-control-group">
+            <label for="{{ profile_form.lastName.vars.id }}">
+                <strong>{{ profile_form.lastName.vars.label }}</strong>
+            </label>
+            {{ form_errors(profile_form.lastName) }}
+            {{ form_widget(profile_form.lastName, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
+        </div>
+
+        <div class="pure-control-group">&nbsp;</div>
+
+        <div class="pure-control-group">
+            <label for="{{ profile_form.institution.vars.id }}">
+                <strong>{{ profile_form.institution.vars.label }}</strong>
+            </label>
+            {{ form_errors(profile_form.institution) }}
+            {{ form_widget(profile_form.institution, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
+        </div>
+        <div class="pure-control-group">
+            <label for="{{ profile_form.position.vars.id }}">
+                <strong>{{ profile_form.position.vars.label }}</strong>
+            </label>
+            {{ form_errors(profile_form.position) }}
+            {{ form_widget(profile_form.position, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
+        </div>
+        <div class="pure-control-group">
+            <label for="{{ profile_form.phoneNumber.vars.id }}">
+                <strong>{{ profile_form.phoneNumber.vars.label }}</strong>
+            </label>
+            {{ form_errors(profile_form.phoneNumber) }}
+            {{ form_widget(profile_form.phoneNumber, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
+        </div>
+
+        <div class="pure-control-group">
+            <button id="submitButton" class="pure-button pure-button-primary">Save</button>
+        </div>
+
+        <div style="display: none">
+            {{ form_rest(profile_form) }}
+        </div>
+    </fieldset>
+
+{{ form_end(profile_form) }}
+
+{% endspaceless %}

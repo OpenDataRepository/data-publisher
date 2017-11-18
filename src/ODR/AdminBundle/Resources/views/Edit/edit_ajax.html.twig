@@ -3,22 +3,22 @@
 {% set datatype = datatype_array[initial_datatype_id] %}
 {% set datarecord = datarecord_array[initial_datarecord_id] %}
 
-<div class="ODRFormHeader clearfix">
-    {% for ancestor_id, ancestor_name in linked_datatype_ancestors %}
-        {% if datatype_permissions[ ancestor_id ] is defined and datatype_permissions[ ancestor_id ][ 'dr_edit' ] is defined %}
-            <button type="button" class="pure-button" onclick="LinkRecord({{ ancestor_id }},{{ datatype.id }},{{ datarecord.id }});">Link to {{ ancestor_name }}.</button>
+<div class="ODRFormHeader clearfix" style="margin-top: 10px; margin-bottom: 10px;">
+    {% for ancestor in linked_datatype_ancestors %}
+        {% if datatype_permissions[ ancestor.id ] is defined and datatype_permissions[ ancestor.id ][ 'dr_edit' ] is defined %}
+            <button type="button" class="pure-button" onclick="LinkRecord({{ ancestor.id }},{{ datatype.id }},{{ datarecord.id }});">Link to {{ ancestor.dataTypeMeta.shortName }} Records.</button>
         {% endif %}
     {% endfor %}
 
-    {% for descendant_id, descendant_name in linked_datatype_descendants %}
-        {% if datatype_permissions[ descendant_id ] is defined and datatype_permissions[ descendant_id ][ 'dr_edit' ] is defined %}
-            <button type="button" class="pure-button" onclick="LinkRecord({{ datatype.id }},{{ descendant_id }},{{ datarecord.id }});">Link to {{ descendant_name }}.</button>
+    {% for descendant in linked_datatype_descendants %}
+        {% if datatype_permissions[ descendant.id ] is defined and datatype_permissions[ descendant.id ][ 'dr_edit' ] is defined %}
+            <button type="button" class="pure-button" onclick="LinkRecord({{ datatype.id }},{{ descendant.id }},{{ datarecord.id }});">Link to {{ descendant.dataTypeMeta.shortName }} Records.</button>
         {% endif %}
     {% endfor %}
 
-    {% for dt_id, dt_name in disabled_datatype_links %}
-        {% if datatype_permissions[ dt_id ] is defined and datatype_permissions[ dt_id ][ 'dr_edit' ] is defined %}
-            <button type="button" class="pure-button pure-button-disabled" title="Unable to link to Datarecords of this Datatype because it does not have a Table Theme.">Link to {{ dt_name }}.</button>
+    {% for disabled in disabled_datatype_links %}
+        {% if datatype_permissions[ disabled.id ] is defined and datatype_permissions[ disabled.id ][ 'dr_edit' ] is defined %}
+            <button type="button" class="pure-button pure-button-disabled" title="Unable to link to Datarecords of this Datatype because it does not have a Table Theme.">Unable to link to {{ disabled.dataTypeMeta.shortName }} Records.</button>
         {% endif %}
     {% endfor %}
 </div>
@@ -31,7 +31,7 @@
 {% include 'ODRAdminBundle:Edit:edit_area.html.twig' with {
     'datatype_array': datatype_array,
     'datarecord_array': datarecord_array,
-    'theme_id': theme_id,
+    'theme_array': theme_array,
 
     'initial_datatype_id': initial_datatype_id,
     'initial_datarecord_id': initial_datarecord_id,
@@ -43,10 +43,11 @@
     'token_list': token_list,
 } %}
 
+{#
 <div id="field_history_dialog_wrapper">
     {% include 'ODRAdminBundle:Edit:field_history_dialog.html.twig' %}
 </div>
-
+#}
 <div id="download_files_dialog_wrapper">
     {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
 </div>
@@ -60,8 +61,7 @@ $(function() {
     // Only need to do this stuff once?
 
     // Resize all elements dependent on window size
-    $(window).unbind('resize');
-    $(window).resize(function() {
+    $(window).unbind('resize').resize(function() {
         WindowResizeInterval = window.clearInterval(WindowResizeInterval);      // variable WindowResizeInterval defined in common.js
         WindowResizeInterval = window.setInterval("onWindowResize()", 500);
     });
@@ -75,33 +75,10 @@ $(function() {
     // Hide divs for accordion purposes
     setupAccordions();
 
-    // Hide empty theme element divs
-    $(".ODRThemeElement").each(function() {
-        var has_children = false;
-        $(this).find(".ODRDataField").each(function() {
-            // Don't hide this theme element if it has datafields
-            has_children = true;
-        });
-
-        $(this).find("button.pure-button").each(function() {
-            // Also don't hide this theme element if child datatypes can be added
-            has_children = true;
-        });
-
-        $(this).find(".ODRRenderPluginContent").each(function() {
-            // Also don't hide the theme element if a render plugin exists
-            has_children = true;
-        });
-
-        if (!has_children)
-            $(this).css( "display", "none" );
-    });
-
     // --------------------
     initPage();
     $(".MenuDesignArea").remove();
     window.scrollTo(0,0);
-
 });
 
 
@@ -113,12 +90,8 @@ function initPage() {
     $("a.ODRFileDownload").unbind('click').click(function(event) {
         // Grab necessary attributes
         var file_id = $(this).attr('rel');
-        var href = $(this).attr('href');
 
-        var short_form = false;
-//        var can_cancel = true;
-        var can_cancel = false;
-        handleFileDownload(event, file_id, href, short_form, can_cancel);    // defined in Default::file_handling.html.twig
+        handleFileDownload(event, file_id);    // defined in Default::file_handling.html.twig
     });
 
     $(".ODRDownloadAllFiles").unbind('click').click(function() {
@@ -137,6 +110,7 @@ function initPage() {
         locateFileIds({{ initial_datarecord_id }}, datarecord_id, datafield_id);      // defined in ODRAdminBundle:Default:file_download_dialog.html.twig
     });
 
+{#
     $(".ODRDataField").find('.ODRDatafieldHistory').unbind('click').click(function(event) {
 
         // Don't trigger whatever the click normally would have done (mostly for boolean fields)
@@ -154,6 +128,8 @@ function initPage() {
 
         // TODO - File/Image/Radio fieldtypes?
 
+        alert('NOT IMPLEMENTED');
+        return;
 //alert( url );
 //return;
 
@@ -189,8 +165,8 @@ function initPage() {
                 }
             }
         });
-        
     });
+#}
 
     $(".ODRDeleteFile").unbind('click').click(function() {
         if ( confirm("Are you certain that you want to delete this File?") ) {
@@ -217,20 +193,14 @@ function initPage() {
                 url: url,
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        // Remove file data from table area
-                        $("#File_" + file_id).remove();
+                    // Remove file data from table area
+                    $("#File_" + file_id).remove();
 
-                        if (data.d.need_reload == true) {
-                            //ReloadDatafield(datarecord_id, datafield_id);
-                            $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id).parent().show();
-                        }
-                    }
-                    else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        alert(data.d);
-                    }
+                    if (data.d.need_reload == true)
+                        $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id).parent().show();
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
                 },
                 complete: function(jqXHR, textStatus) {
                     // Get the xdebugToken from response headers
@@ -264,11 +234,11 @@ function initPage() {
             return false;
         }
 
+        var download_div = $("#ODRFileDecrypt_" + file_id + "_overlay");
+        var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress");
+
         if ( $(public_div).hasClass('ODRFileSpacer_nonpublic') ) {
             // Show div for decryption progress
-            var download_div = $("#ODRFileDecrypt_" + file_id + "_overlay");
-            var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress");
-
             $(download_div).css('visibility', 'visible');
             $(decrypt_progress).css('width', '100%');
 
@@ -288,23 +258,24 @@ function initPage() {
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    if ( data.d.is_public ) {
-                        // File is now public
-                        $(public_div).removeClass('ODRFileSpacer_nonpublic').addClass('ODRFileSpacer_public');
-                        $(icon_div).parent().children('span').first().html('File was made public on ' + data.d.public_date);
-                    }
-                    else {
-                        // File is now non-public
-                        $(public_div).removeClass('ODRFileSpacer_public').addClass('ODRFileSpacer_nonpublic');
-                        $(icon_div).parent().children('span').first().html('File is not public');
-                    }
+                if ( data.d.is_public ) {
+                    // File is now public
+                    $(public_div).removeClass('ODRFileSpacer_nonpublic').addClass('ODRFileSpacer_public');
+                    $(icon_div).parent().children('span').first().html('File was made public on ' + data.d.public_date);
                 }
                 else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
+                    // File is now non-public
+                    $(public_div).removeClass('ODRFileSpacer_public').addClass('ODRFileSpacer_nonpublic');
+                    $(icon_div).parent().children('span').first().html('File is not public');
                 }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Stop checking decrypt progress when an error occurs
+                file_decrypt_timeouts[ file_id ] = null;
+
+                // Hide the css for the progressbar
+                $(download_div).css('visibility', 'hidden');
+                $(decrypt_progress).css('width', 0);
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -324,7 +295,7 @@ function initPage() {
 
     $(".ODRDeleteImage").unbind('click').click(function() {
 
-        if(confirm("Are you certain that you want to delete this Image?")) {
+        if (confirm("Are you certain that you want to delete this Image?")) {
             var image_id = $(this).attr('rel');
 
             var url = '{{ path('odr_record_delete_image', { 'image_id': 0 } ) }}';
@@ -348,18 +319,14 @@ function initPage() {
                 url: url,
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        // Will Cause removal from view
-                        if (data.d.need_reload == true)
-                            ReloadDatafield(datarecord_id, datafield_id);
-                        else
-                            $("#Image_" + image_id).remove();
-                    }
-                    else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        alert(data.d);
-                    }
+                    // Will Cause removal from view
+                    if (data.d.need_reload == true)
+                        ReloadDatafield(datarecord_id, datafield_id);
+                    else
+                        $("#Image_" + image_id).remove();
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
                 },
                 complete: function(jqXHR, textStatus) {
                     // Get the xdebugToken from response headers
@@ -396,25 +363,19 @@ function initPage() {
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-
-                    if ( data.d.is_public ) {
-                        // Image is now public
-                        $(public_div).removeClass('IconRed');
-                        $(public_div).attr('title', 'Public since ' + data.d.public_date);
-                    }
-                    else {
-                        // Image is now non-public
-                        $(public_div).addClass('IconRed');
-                        $(public_div).parent().next().attr('title', 'Image is not public');
-                    }
-
+                if ( data.d.is_public ) {
+                    // Image is now public
+                    $(public_div).addClass('ODRActiveIcon');
+                    $(public_div).attr('title', 'Public since ' + data.d.public_date);
                 }
                 else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
+                    // Image is now non-public
+                    $(public_div).removeClass('ODRActiveIcon');
+                    $(public_div).parent().next().attr('title', 'Image is not public');
                 }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -464,15 +425,11 @@ function initPage() {
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Reload the image datafield
-                    ReloadDatafield(datarecord_id, datafield_id);
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+                // Reload the image datafield
+                ReloadDatafield(datarecord_id, datafield_id);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -506,28 +463,24 @@ function initPage() {
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Don't want to reload everything just to change one little icon...
-                    var header = $("#datarecord_" + data.d.datarecord_id + "_public");
-                    var title = $(header).attr('title');
-                    var new_title = title;
+                // Don't want to reload everything just to change one little icon...
+                var header = $("#datarecord_" + data.d.datarecord_id + "_public");
+                var title = $(header).attr('title');
+                var new_title = title;
 
-                    if (data.d.public == 1) {
-                        $(header).removeClass('IconRed');
-                        new_title = title.replace('not ', '');
-                    }
-                    else {
-                        $(header).addClass('IconRed');
-                        new_title = title.substring(0, title.indexOf('Public')) + 'not Public';
-                    }
-
-                    $(header).attr('title', new_title);
-
+                if (data.d.public == 1) {
+                    $(header).addClass('ODRActiveIcon');
+                    new_title = title.replace('not ', '');
                 }
                 else {
-                    // Error occurred
-                    alert( data.d );
+                    $(header).removeClass('ODRActiveIcon');
+                    new_title = title.substring(0, title.indexOf('Public')) + 'not Public';
                 }
+
+                $(header).attr('title', new_title);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -548,13 +501,12 @@ function initPage() {
 
     $(".ODRDeleteChildRecord").unbind('click').click(function() {
         if ( confirm('Are you sure you want to delete this DataRecord?') ) {
-            var datatype_id = $(this).parent().attr('rel');
             var datarecord_id = $(this).attr('rel');   // which data record to delete
 
             // Load display template menu
-            var url  = '{{ path('odr_record_deletechild', {'datarecord_id': 0, 'datatype_id': 0} ) }}';
-            url = url.substring(0,(url.length - 3));
-            url += datarecord_id + '/' + datatype_id;
+            var url  = '{{ path('odr_record_deletechild', {'datarecord_id': 0} ) }}';
+            url = url.substring(0,(url.length - 1));
+            url += datarecord_id;
 
 //alert( url );
 //return;
@@ -565,18 +517,14 @@ function initPage() {
                 url: url,
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        // Refresh child wrapper area
-                        var datatype_id = data.d.datatype_id;
-                        var parent_id = data.d.parent_id;
+                    // Refresh child wrapper area
+                    var datatype_id = data.d.datatype_id;
+                    var parent_id = data.d.parent_id;
 
-                        ReloadChild(datatype_id, parent_id);
-                    }
-                    else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        alert(data.d);
-                    }
+                    ReloadChild(datatype_id, parent_id);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
                 },
                 complete: function(jqXHR, textStatus) {
                     // Get the xdebugToken from response headers
@@ -628,13 +576,11 @@ function initPage() {
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+                // Don't need to do anything on success
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Just reload the datafield on error, since can't restore the old value
+                ReloadDatafield(datarecord_id, datafield_id);
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -673,13 +619,11 @@ function initPage() {
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+                // Don't need to do anything on success
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Just reload the datafield on error, since can't restore the old value
+                ReloadDatafield(datarecord_id, datafield_id);
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -719,13 +663,11 @@ function initPage() {
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+                // Don't need to do anything on success
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Just reload the datafield on error, since can't restore the old value
+                ReloadDatafield(datarecord_id, datafield_id);
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -742,6 +684,8 @@ function initPage() {
             }
         });
     });
+
+    {# NOTE - there is no .MultipleSelectGroup...it's handled exactly the same as .MultipleRadioGroup #}
 
     var starting_datafield = null;
     $(".ODRSortableImage").sortable({
@@ -809,6 +753,9 @@ function initPage() {
         SaveRecordData('#' + form_id, '');
     });
 
+    $(".ODRDataField").children("form").submit(function(event) {
+        event.preventDefault();
+    });
 }
 
 function SaveImageOrder(container) {
@@ -835,13 +782,10 @@ function SaveImageOrder(container) {
         url: url,
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
+            // Don't need to do anything on success
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Don't need to do anything specific on an error
         },
         complete: function(jqXHR, textStatus) {
             // Get the xdebugToken from response headers
@@ -859,10 +803,10 @@ function SaveImageOrder(container) {
     });
 }
 
-function AddChildRecord(datatype_id, parent_id, grandparent_id) {
-    var url = '{{ path('odr_record_addchild', { 'datatype_id': 0, 'parent_id': 0, 'grandparent_id': 0 } ) }}';
-    url = url.substring(0, (url.length - 5));
-    url += datatype_id + '/' + parent_id + '/' + grandparent_id;
+function AddChildRecord(datatype_id, parent_id) {
+    var url = '{{ path('odr_record_addchild', { 'datatype_id': 0, 'parent_id': 0 } ) }}';
+    url = url.substring(0, (url.length - 3));
+    url += datatype_id + '/' + parent_id;
 
 //alert( url );
 //return;
@@ -873,18 +817,14 @@ function AddChildRecord(datatype_id, parent_id, grandparent_id) {
         url: url,
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                // Refresh child wrapper area
-//                var new_datarecord_id = data.d.new_datarecord
-                var datatype_id = data.d.datatype_id;
-                var parent_id = data.d.parent_id;
+            // Refresh child wrapper area
+            var datatype_id = data.d.datatype_id;
+            var parent_id = data.d.parent_id;
 
-                ReloadChild(datatype_id, parent_id);
-            }
-            else {
-                // Error occurred
-                alert( data.d.html );
-            }
+            ReloadChild(datatype_id, parent_id);
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Don't need to do anything specific on an error
         },
         complete: function(jqXHR, textStatus) {
             // Get the xdebugToken from response headers
@@ -921,9 +861,16 @@ function SaveRecordData(form_id, interval) {
     if(interval != "") 
         interval = window.clearInterval(interval);
 
+    // Determine datarecord/datafield id in case of error
+    var pieces = form_id.split('_');
+    var datarecord_id = pieces[1];
+    var datafield_id = pieces[2];
+
     // Determine save type
     var post_data = $(form_id).serialize();
     var url = $(form_id).attr('action');
+
+    console.log('saving data...');
 
 //alert( url );
 //alert( post_data );
@@ -935,34 +882,11 @@ function SaveRecordData(form_id, interval) {
         dataType: "json",
         data: post_data,
         success: function(data, textStatus, xhr) {
-
-            if(data.r == 0) {
-/*
-                // TODO - make this work again
-                // Refresh Field
-                $(the_form).find(".valid-icon").fadeIn();
-                setTimeout(function() {
-                    $(the_form).find(".valid-icon").fadeOut();
-                }, 500);
-*/
-            }
-            else if (data.r == 2) {
-                // Revert back to old value
-                var ids = form_id.split(/_/);
-                var input_id = "#Input_" + ids[1] + "_" + ids[2];
-
-                if (data.typeclass == 'LongText')
-                    $(form_id).find(input_id).children('textarea').first().html( data.old_value );
-                else
-                    $(form_id).find(input_id).children('input').first().val( data.old_value );
-
-                alert(data.error);
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
+            // Don't need to do anything special on success
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Just reload the datafield on error, since can't restore the old value
+            ReloadDatafield(datarecord_id, datafield_id);
         },
         complete: function(jqXHR, textStatus) {
             // Get the xdebugToken from response headers
@@ -1013,18 +937,16 @@ function ReloadChild(child_datatype_id, parent_datarecord_id) {
         url: url,
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
-            if (data.r == 0) {
-                // The returned html includes #ChildTypeWrapper...completely overwrite the contents of its parent div
-                $("#ChildTypeWrapper_" + child_datatype_id + "_" + parent_datarecord_id).parent(".ODRInnerBox").html(data.d.html);
+            // The returned html includes #ChildTypeWrapper...completely overwrite the contents of its parent div
+            $("#ChildTypeWrapper_" + child_datatype_id + "_" + parent_datarecord_id).parent(".ODRInnerBox").html(data.d.html);
 
-                onWindowResize();
-                setupImageGalleries();
-                setupAccordions();
-                initPage();
-            }
-            else {
-                alert( data.d );
-            }
+            onWindowResize();
+            setupImageGalleries();
+            setupAccordions();
+            initPage();
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Don't need to do anything specific on an error
         },
         complete: function(jqXHR, textStatus) {
             // Get the xdebugToken from response headers
@@ -1065,13 +987,11 @@ function ReloadDatafield(datarecord_id, datafield_id) {
         url: url,
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
-            if (data.r == 0) {
-                $(datafield_div).append(data.d.html);
-                initPage();
-            }
-            else {
-                alert( data.d );
-            }
+            $(datafield_div).append(data.d.html);
+            initPage();
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Don't need to do anything specific on an error
         },
         complete: function(jqXHR, textStatus) {
             // Get the xdebugToken from response headers
@@ -1102,13 +1022,11 @@ function ReloadFileDatafield(datarecord_id, datafield_id) {
         url: url,
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
-            if (data.r == 0) {
-                $(file_datafield_div).html(data.d.html);
-                initPage();
-            }
-            else {
-                alert( data.d );
-            }
+            $(file_datafield_div).html(data.d.html);
+            initPage();
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Don't need to do anything specific on an error
         },
         complete: function(jqXHR, textStatus) {
             // Get the xdebugToken from response headers

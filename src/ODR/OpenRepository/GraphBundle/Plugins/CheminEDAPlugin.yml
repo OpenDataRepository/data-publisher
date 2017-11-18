@@ -1,0 +1,37 @@
+ODR\OpenRepository\GraphBundle\Plugins\CheminEDA:
+    name: Chemin EDA Plugin
+    datatype: true
+    version: 1.00
+    override_fields: false
+    override_child: true
+    description: Chemin EDA Plugin
+    required_fields:
+        eda_tiff_file:
+            name: EDA Tiff File
+            description:
+            type: File
+        eda_raw_tiff_file:
+            name: EDA Raw Tiff File
+            description:
+            type: File
+        eda_mdi_file:
+            name: EDA MDI File
+            description:
+            type: File
+        eda_raw_mdi_file:
+            name: EDA RAW MDI File
+            description:
+            type: File
+        eda_lbl_file:
+            name: EDA LBL File
+            description:
+            type: File
+        eda_dat_file:
+            name: EDA DAT File
+            description:
+            type: File
+        eda_processing_description:
+            name: EDA Processing Description
+            description:
+            type: File
+    config_options:

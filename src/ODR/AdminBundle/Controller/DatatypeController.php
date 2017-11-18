@@ -19,20 +19,29 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\OpenRepository\UserBundle\Entity\User;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Forms
 use ODR\AdminBundle\Form\CreateDatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
+// Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+// Utility
+use ODR\AdminBundle\Component\Utility\UserUtility;
 
 
 class DatatypeController extends ODRCustomController
@@ -40,10 +49,10 @@ class DatatypeController extends ODRCustomController
 
     /**
      * Builds and returns a list of the actions a user can perform to each top-level DataType.
-     * 
+     *
      * @param string $section  Either "records" or "design", dictating which set of options the user will see for each datatype
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function listAction($section, Request $request)
@@ -59,28 +68,47 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $templating = $this->get('templating');
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             // --------------------
             // Grab user privileges to determine what they can do
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
             // --------------------
 
 
             // Grab a list of top top-level datatypes
-            $top_level_datatypes = parent::getTopLevelDatatypes();
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
 
             // Grab each top-level datatype from the repository
-            $query = $em->createQuery(
-               'SELECT dt, dtm, dt_cb, dt_ub
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN dt.dataTypeMeta AS dtm
-                JOIN dt.createdBy AS dt_cb
-                JOIN dt.updatedBy AS dt_ub
-                WHERE dt.id IN (:datatypes)
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-            )->setParameters( array('datatypes' => $top_level_datatypes) );
+            if ($section == "templates") {
+                // Only want master templates to be displayed in this section
+                $query = $em->createQuery(
+                   'SELECT dt, dtm, dt_cb, dt_ub
+                    FROM ODRAdminBundle:DataType AS dt
+                    JOIN dt.dataTypeMeta AS dtm
+                    JOIN dt.createdBy AS dt_cb
+                    JOIN dt.updatedBy AS dt_ub
+                    WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
+                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+                )->setParameters( array('datatypes' => $top_level_datatypes) );
+            }
+            else {
+                $query = $em->createQuery(
+                   'SELECT dt, dtm, dt_cb, dt_ub
+                    FROM ODRAdminBundle:DataType AS dt
+                    JOIN dt.dataTypeMeta AS dtm
+                    JOIN dt.createdBy AS dt_cb
+                    JOIN dt.updatedBy AS dt_ub
+                    WHERE dt.id IN (:datatypes) AND dt.is_master_type = 0
+                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+                )->setParameters( array('datatypes' => $top_level_datatypes) );
+            }
             $results = $query->getArrayResult();
 
             $datatypes = array();
@@ -89,12 +117,11 @@ class DatatypeController extends ODRCustomController
 
                 $dt = $result;
                 $dt['dataTypeMeta'] = $result['dataTypeMeta'][0];
-                $dt['createdBy'] = parent::cleanUserData($result['createdBy']);
-                $dt['updatedBy'] = parent::cleanUserData($result['updatedBy']);
+                $dt['createdBy'] = UserUtility::cleanUserData($result['createdBy']);
+                $dt['updatedBy'] = UserUtility::cleanUserData($result['updatedBy']);
 
                 $datatypes[$dt_id] = $dt;
             }
-//print_r($datatypes);  exit();
 
             // Determine whether user has the ability to view non-public datarecords for this datatype
             $can_view_public_datarecords = array();
@@ -142,28 +169,21 @@ class DatatypeController extends ODRCustomController
                 foreach ($results as $result) {
                     $dt_id = $result['dt_id'];
                     $count = $result['datarecord_count'];
-
                     $metadata[$dt_id] = $count;
                 }
             }
-//print_r($metadata);  exit();
 
 
-            // Build a form for creating a new datatype, if needed
-            $new_datatype_data = new DataTypeMeta();
-            $form = $this->createForm(CreateDatatypeForm::class, $new_datatype_data);
-
-            // Render and return the html
+            // Render and return the html for the datatype list
             $return['d'] = array(
                 'html' => $templating->render(
-                    'ODRAdminBundle:Datatype:list_ajax.html.twig', 
+                    'ODRAdminBundle:Datatype:type_list.html.twig',
                     array(
                         'user' => $user,
                         'datatype_permissions' => $datatype_permissions,
                         'section' => $section,
                         'datatypes' => $datatypes,
                         'metadata' => $metadata,
-                        'form' => $form->createView()
                     )
                 )
             );
@@ -173,9 +193,180 @@ class DatatypeController extends ODRCustomController
             $session->set('scroll_target', '');
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x884775820 ' . $e->getMessage();
+            $source = 0x24d5aae9;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Starts the create database wizard and loads master templates available for creation
+     * from templates.
+     *
+     * @param bool $create_master - Create a master template (true/false). Only allows custom type creation when true.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function createAction($create_master, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $templating = $this->get('templating');
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            // --------------------
+            // Grab user privileges to determine what they can do
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            // --------------------
+
+            // Grab a list of top top-level datatypes
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+
+            $query = $em->createQuery(
+               'SELECT dt, dtm, dt_cb, dt_ub
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN dt.dataTypeMeta AS dtm
+                JOIN dt.createdBy AS dt_cb
+                JOIN dt.updatedBy AS dt_ub
+                WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+            )->setParameters( array('datatypes' => $top_level_datatypes) );
+            $master_templates = $query->getArrayResult();
+
+            // Render and return the html
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Datatype:create_type_choose_template.html.twig',
+                    array(
+                        'user' => $user,
+                        'datatype_permissions' => $datatype_permissions,
+                        'master_templates' => $master_templates,
+                        'create_master' => $create_master
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x72002e34;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Starts the create database wizard and loads master templates available for creation
+     * from templates.
+     *
+     * @param integer $template_choice
+     * @param integer $creating_master_template
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function createinfoAction($template_choice, $creating_master_template, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $templating = $this->get('templating');
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            // --------------------
+            // Grab user privileges to determine what they can do
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            // --------------------
+
+            if ($template_choice != 0 && $creating_master_template == 1)
+                throw new ODRBadRequestException('Currently unable to copy a new Master Template from an existing Master Template');
+
+            // Build a form for creating a new datatype, if needed
+            $new_datatype_data = new DataTypeMeta();
+            $params = array(
+                'form_settings' => array(
+                    'is_master_type' => $creating_master_template,
+                    'master_type_id' => $template_choice,
+                )
+            );
+
+            $form = $this->createForm(CreateDatatypeForm::class, $new_datatype_data, $params);
+
+            // Grab a list of top top-level datatypes
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+
+            // Get the master templates
+            $query = $em->createQuery(
+               'SELECT dt, dtm, dt_cb, dt_ub
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN dt.dataTypeMeta AS dtm
+                JOIN dt.createdBy AS dt_cb
+                JOIN dt.updatedBy AS dt_ub
+                WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+            )->setParameters( array('datatypes' => $top_level_datatypes) );
+            $master_templates = $query->getArrayResult();
+
+            // Render and return the html
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Datatype:create_type_database_info.html.twig',
+                    array(
+                        'user' => $user,
+                        'datatype_permissions' => $datatype_permissions,
+                        'master_templates' => $master_templates,
+                        'master_type_id' => $template_choice,
+                        'creating_master_template' => $creating_master_template,
+                        'form' => $form->createView()
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0xeaff78ff;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -186,9 +377,9 @@ class DatatypeController extends ODRCustomController
 
     /**
      * Creates a new top-level DataType.
-     * 
+     *
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function addAction(Request $request)
@@ -196,13 +387,17 @@ class DatatypeController extends ODRCustomController
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'html';
-        $return['d'] = '';
+        $return['d'] = array();
 
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $templating = $this->get('templating');
+
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
             /** @var User $admin */
@@ -221,21 +416,47 @@ class DatatypeController extends ODRCustomController
                 if ($form->isEmpty())
                     $form->addError( new FormError('Form is empty?') );
 
-                $short_name = $submitted_data->getShortName();
-                $long_name = $submitted_data->getLongName();
+                $short_name = trim($submitted_data->getShortName());
+                // Set Long Name equal to Short Name
+                // DEPRECATED => Long Name
+                $long_name = $short_name;
                 if ($short_name == '' || $long_name == '')
-                    $form->addError( new FormError('New Datatypes require both a short name and a long name') );
+                    $form->addError( new FormError('New databases require a database name') );
 
-//$form->addError( new FormError('do not save') );
+                if ( strlen($short_name) > 32)
+                    $form->addError( new FormError('Shortname has a maximum length of 32 characters') );    // underlying database column only permits 32 characters
+
+                if ($form['is_master_type']->getData() > 0 && $form['master_type_id']->getData() > 0)
+                    $form->addError( new FormError('Currently unable to copy a new Master Template from an existing Master Template') );
 
                 if ($form->isValid()) {
                     // ----------------------------------------
                     // Create a new Datatype entity
                     $datatype = new DataType();
                     $datatype->setRevision(0);
-                    // Set to true so we can default to master if needed
-                    $datatype->setHasShortresults(true);
-                    $datatype->setHasTextresults(true);
+
+                    // Top-level datatypes exist in one of three three states...TODO - should there be more states?
+                    // initial - datatype isn't ready for anything really...it shouldn't be displayed to the user
+                    // incomplete - datatype can be viewed and modified as usual, but it's missing search result templates
+                    // operational - datatype should work perfectly
+                    $datatype->setSetupStep(DataType::STATE_INITIAL);
+
+                    // Is this a Master Type?
+                    $datatype->setIsMasterType(false);
+                    if ($form['is_master_type']->getData() > 0)
+                        $datatype->setIsMasterType(true);
+
+                    // If the user decided to create this datatype from a master template...
+                    if ($form['master_type_id']->getData() > 0) {
+                        // ...locate the master template datatype and store that it's the "source" for this new datatype
+                        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+                        /** @var DataType $master_datatype */
+                        $master_datatype = $repo_datatype->find($form['master_type_id']->getData());
+                        if ($master_datatype == null)
+                            throw new ODRNotFoundException('Master Datatype');
+
+                        $datatype->setMasterDataType($master_datatype);
+                    }
 
                     $datatype->setCreatedBy($admin);
                     $datatype->setUpdatedBy($admin);
@@ -245,20 +466,41 @@ class DatatypeController extends ODRCustomController
                     $em->flush();
                     $em->refresh($datatype);
 
+                    // Top level datatypes are their own parent/grandparent
+                    $datatype->setParent($datatype);
+                    $datatype->setGrandparent($datatype);
+                    $em->persist($datatype);
 
-                    // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name
+                    // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name since they're already from the form
                     $submitted_data->setDataType($datatype);
+                    $submitted_data->setLongName($short_name);
 
+                    /** @var RenderPlugin $default_render_plugin */
                     $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
                     $submitted_data->setRenderPlugin($default_render_plugin);
 
-                    $submitted_data->setDescription('');
+                    if ($submitted_data->getDescription() == null)
+                        $submitted_data->setDescription('');
+
                     // Default search slug to Database ID
                     $submitted_data->setSearchSlug($datatype->getId());
                     $submitted_data->setXmlShortName('');
 
-                    $submitted_data->setUseShortResults(true);
-                    $submitted_data->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+                    // Master Template Metadata
+                    // Once a child database is completely created from the master template, the creation process will update the revisions appropriately.
+                    $submitted_data->setMasterRevision(0);
+                    $submitted_data->setMasterPublishedRevision(0);
+                    $submitted_data->setTrackingMasterRevision(0);
+
+                    if ($form['is_master_type']->getData() > 0) {
+                        // Master Templates must increment revision so that data fields can reference the "to be published" revision.
+                        // Whenever an update is made to any data field the revision should be updated.
+                        // Master Published revision should only be updated when curators "publish" the latest revisions through the publication dialog.
+                        $submitted_data->setMasterPublishedRevision(0);
+                        $submitted_data->setMasterRevision(1);
+                    }
+
+                    $submitted_data->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 
                     $submitted_data->setExternalIdField(null);
                     $submitted_data->setNameField(null);
@@ -269,69 +511,113 @@ class DatatypeController extends ODRCustomController
                     $submitted_data->setUpdatedBy($admin);
                     $em->persist($submitted_data);
 
+                    // Ensure the "in-memory" version of the new datatype knows about its meta entry
+                    $datatype->addDataTypeMetum($submitted_data);
+                    $em->flush();
+
+
                     // ----------------------------------------
-                    // Create the default groups for this datatype
-                    $is_top_level = true;
-                    parent::ODR_createGroupsForDatatype($em, $admin, $datatype, $is_top_level);
+                    // If the datatype is being created from a master template...
+                    if ($form['master_type_id']->getData() > 0) {
+                        // ...do nothing. the datatype creation service will copy the master template's groups for the new datatype
+                    }
+                    else {
+                        // ...otherwise, this is a new custom datatype.  It'll need a default master theme...
+                        $theme = new Theme();
+                        $theme->setDataType($datatype);
+                        $theme->setThemeType('master');
+                        $theme->setCreatedBy($admin);
+                        $theme->setUpdatedBy($admin);
 
-                    // Ensure the user who created this datatype becomes a member of the new datatype's "is_datatype_admin" group
-                    if ( !$admin->hasRole('ROLE_SUPER_ADMIN') ) {
-                        $admin_group = $em->getRepository('ODRAdminBundle:Group')->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'admin') );
-                        parent::ODR_createUserGroup($em, $admin, $admin_group, $admin);
+                        $em->persist($theme);
+                        $em->flush();
+                        $em->refresh($theme);
 
-                        // Delete cached version of this user's permissions
-                        $redis = $this->container->get('snc_redis.default');;
-                        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-                        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+                        // "master" themes for top-level datatypes are considered their own parent and source
+                        $theme->setParentTheme($theme);
+                        $theme->setSourceTheme($theme);
+                        $em->persist($theme);
 
-                        $redis->del($redis_prefix.'.user_'.$admin->getId().'_permissions');
+                        // ...and an associated meta entry
+                        $theme_meta = new ThemeMeta();
+                        $theme_meta->setTheme($theme);
+                        $theme_meta->setTemplateName('');
+                        $theme_meta->setTemplateDescription('');
+                        $theme_meta->setIsDefault(true);
+                        $theme_meta->setShared(true);
+                        $theme_meta->setIsTableTheme(false);
+                        $theme_meta->setCreatedBy($admin);
+                        $theme_meta->setUpdatedBy($admin);
+
+                        $em->persist($theme_meta);
+
+                        // This dataype is now technically viewable since it has basic theme data...
+                        // Nobody is able to view it however, since it has no permission entries
+                        $datatype->setSetupStep(DataType::STATE_INCOMPLETE);
+                        $em->persist($datatype);
+                        $em->flush();
+
+                        // Delete the cached version of the datatree array and the list of top-level datatypes
+                        $cache_service->delete('cached_datatree_array');
+                        $cache_service->delete('top_level_datatypes');
+                        $cache_service->delete('top_level_themes');
+
+                        // Create the groups for the new datatype here so the datatype can be viewed
+                        $pm_service->createGroupsForDatatype($admin, $datatype);
+
+                        // Ensure the user who created this datatype becomes a member of the new datatype's "is_datatype_admin" group
+                        if ( !$admin->hasRole('ROLE_SUPER_ADMIN') ) {
+                            // createUserGroup() updates the database so all super admins automatically have permissions to this new datatype
+
+                            /** @var Group $admin_group */
+                            $admin_group = $em->getRepository('ODRAdminBundle:Group')->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'admin') );
+                            $pm_service->createUserGroup($admin, $admin_group, $admin);
+
+                            // Delete cached version of this user's permissions
+                            $cache_service->delete('user_'.$admin->getId().'_permissions');
+                        }
                     }
 
 
                     // ----------------------------------------
-                    // Create a new master theme for this new datatype
-                    $theme = new Theme();
-                    $theme->setDataType($datatype);
-                    $theme->setThemeType('master');
-                    $theme->setCreatedBy($admin);
-                    $theme->setUpdatedBy($admin);
+                    // If Master datatype is not null, then schedule a background process to clone it into the new datatype
+                    if ($datatype->getMasterDataType()) {
+                        // Start the job to create the datatype from the template
+                        $pheanstalk = $this->get('pheanstalk');
+                        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+                        $api_key = $this->container->getParameter('beanstalk_api_key');
 
-                    $em->persist($theme);
-                    $em->flush();
-                    $em->refresh($theme);
+                        // Insert the new job into the queue
+                        $priority = 1024;   // should be roughly default priority
+                        $payload = json_encode(
+                            array(
+                                "user_id" => $admin->getId(),
+                                "datatype_id" => $datatype->getId(),
 
-                    // ...and its associated meta entry
-                    $theme_meta = new ThemeMeta();
-                    $theme_meta->setTheme($theme);
-                    $theme_meta->setTemplateName('');
-                    $theme_meta->setTemplateDescription('');
-                    $theme_meta->setIsDefault(true);
-                    $theme_meta->setCreatedBy($admin);
-                    $theme_meta->setUpdatedBy($admin);
+                                "redis_prefix" => $redis_prefix,    // debug purposes only
+                                "api_key" => $api_key,
+                            )
+                        );
 
-                    $em->persist($theme_meta);
-                    $em->flush();
+                        $delay = 0;
+                        $pheanstalk->useTube('create_datatype')->put($payload, $priority, $delay);
+                    }
 
-
-                    // ----------------------------------------
-                    // Clear memcached of all datatype permissions for all users...the entries will get rebuilt the next time they do something
-                    $redis = $this->container->get('snc_redis.default');;
-                    // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-                    $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-                    // Delete the cached version of the datatree array
-                    $redis->del($redis_prefix.'.cached_datatree_array');
+                    // Forward to DisplayTemplate
+                    $url = $this->generateUrl('odr_design_master_theme', array('datatype_id' => $datatype->getId()), false);
+                    $return['d']['redirect_url'] = $url;
                 }
                 else {
                     // Return any errors encountered
-                    $return['r'] = 1;
-                    $return['d'] = parent::ODR_getErrorMessages($form);
+                    $error_str = parent::ODR_getErrorMessages($form);
+                    throw new ODRException($error_str);
                 }
             }
             else {
                 // Otherwise, this was a GET request
+                $templating = $this->get('templating');
                 $return['d'] = $templating->render(
-                    'ODRAdminBundle:Datatype:add_type_dialog_form.html.twig', 
+                    'ODRAdminBundle:Datatype:create_datatype_info_form.html.twig',
                     array(
                         'form' => $form->createView()
                     )
@@ -339,127 +625,15 @@ class DatatypeController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x3184489: '.$e->getMessage();
-        }
-    
-        $response = new Response(json_encode($return));  
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;  
-    }
-
-
-    /**
-     * Triggers a recache of all datarecords of all datatypes.
-     * @deprecated
-     * TODO - using old recaching system.
-     *
-     * @param Request $request
-     * 
-     * @return Response
-     */
-    public function recacheallAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Permissions check
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
-                return parent::permissionDeniedError("rebuild the cache for");  // TODO - really should say everything
-
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-//            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-            $pheanstalk = $this->get('pheanstalk');
-            $router = $this->container->get('router');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-            $api_key = $this->container->getParameter('beanstalk_api_key');
-
-            // Generate the url for cURL to use
-            $url = $this->container->getParameter('site_baseurl');
-//            if ( $this->container->getParameter('kernel.environment') === 'dev') { $url .= './app_dev.php'; }
-                $url .= $router->generate('odr_recache_record');
-
-            // Grab all top-level datatypes on the site
-            $top_level_datatypes = parent::getTopLevelDatatypes();
-
-            // Create and start a recache job for each of them
-            $current_time = new \DateTime();
-            foreach ($top_level_datatypes as $num => $datatype_id) {
-                // ----------------------------------------
-                /** @var DataType $datatype */
-                $datatype = $repo_datatype->find($datatype_id);
-
-                // Increment the datatype revision number so the worker processes will recache the datarecords
-                $revision = $datatype->getRevision();
-                $datatype->setRevision( $revision + 1 );
-                $em->persist($datatype);
-                $em->flush();
-
-                // Grab all non-deleted datarecords of each datatype
-                $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.dataType = :dataType AND dr.provisioned = false
-                    AND dr.deletedAt IS NULL'
-                )->setParameters( array('dataType' => $datatype_id) );
-                $results = $query->getArrayResult();
-
-                if ( count($results) > 0 ) {
-                    // ----------------------------------------
-                    // Get/create an entity to track the progress of this datatype recache
-                    $job_type = 'recache';
-                    $target_entity = 'datatype_'.$datatype_id;
-                    $additional_data = array('description' => 'Recache of DataType '.$datatype_id);
-                    $restrictions = $datatype->getRevision();
-                    $total = count($results);
-                    $reuse_existing = true;
-
-                    $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
-                    $tracked_job_id = $tracked_job->getId();
-
-                    // ----------------------------------------
-                    // Schedule each of those datarecords for an update
-                    foreach ($results as $result) {
-                        $datarecord_id = $result['dr_id'];
-
-                        // Insert the new job into the queue
-                        $priority = 1024;   // should be roughly default priority
-                        $payload = json_encode(
-                            array(
-                                "tracked_job_id" => $tracked_job_id,
-                                "datarecord_id" => $datarecord_id,
-                                "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                                "redis_prefix" => $redis_prefix,    // debug purposes only
-                                "url" => $url,
-                                "api_key" => $api_key,
-                            )
-                        );
-
-                        $delay = 5;
-                        $pheanstalk->useTube('recache_type')->put($payload, $priority, $delay);
-                    }
-                }
-            }
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x71034632: '.$e->getMessage();
+            $source = 0x6151265b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
-
 }

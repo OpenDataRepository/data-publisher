@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set theme = theme_array[datatype.id] %}
+
 {% set can_edit_datarecord = false %}
 {% set is_datatype_admin = false %}
 
@@ -10,24 +12,27 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-<div class="ODRFormWrap" {#style="min-height: 800px;"#}> 
-    <div class="grid_12">
-        <div class="box">
-            <div class="header">
-            {% if target == "results" %}
-                <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
-            {% else %}
-                <h2>Edit Records - {{ datatype.dataTypeMeta.shortName }}</h2>
-            {% endif %}
-            </div>
-            <div id="TextResults_wrapper" class="ODRTableOuterWrap">
-                <div class="ODRTableWrap">
-                    <table id="TextResults" class="display"></table>
-                </div>
-            </div><!-- end of #TextResults_wrapper -->
-        </div>
-    </div><!-- End of .grid_12 -->
+<div class="ODRFormWrap">
+    <div class="header">
+    {% if target == "results" %}
+        <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
+    {% else %}
+        <h2>Edit Records - {{ datatype.dataTypeMeta.shortName }}</h2>
+    {% endif %}
+    </div>
 
+    {# Page/View Options #}
+    {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
+        'datatype': datatype,
+        'theme': theme,
+        'page_type': 'table',
+    } %}
+
+    <div id="TextResults_wrapper" class="ODRTableOuterWrap">
+        <div class="ODRTableWrap">
+            <table id="TextResults" class="display"></table>
+        </div>
+    </div><!-- end of #TextResults_wrapper -->
 </div><!-- End of .ODRFormWrap -->
 
 {% set user_role = '' %}
@@ -38,13 +43,33 @@
         {% endif %}
     {% endfor %}
 {% endif %}
+
 {% if user_role == 'ROLE_ADMIN' and count > 0 %}
 <div class="ODRExportButtons Cursor">
+    <div style="float:left;">
     {% if can_edit_datarecord or is_datatype_admin %}
-    <button class="pure-button pure-button-primary" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
-    &nbsp;&nbsp;&nbsp;
+        <button class="pure-button" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
     {% endif %}
-    <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>
+        <button class="pure-button" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>
+    </div>
+
+    {% if use_jupyterhub %}
+    <div style="float:right;">
+        <span id="jupyterhub_app_list" style="padding-right: 10px;"></span>
+
+        <form target="_blank" action="{{ path('odr_jupyterhub_export') }}" method="post" style="display: inline;">
+            <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />
+            <input type="hidden" name="search_key" value="{{ search_key }}" />
+            <input type="hidden" name="app_id" id="jupyterhub_app_id" />
+
+            <button type="submit" class="pure-button">Run this Jupyterhub app on these search results</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<div class="Cursor" style="float:right;">
+
 </div>
 {% endif %}
 
@@ -96,7 +121,6 @@
                     "type": "POST",
                     "success": function(json) {
                         // Symfony properly quotes everything in the JSON return, but DataTables state loading will break if some of the properties are strings...
-                        // TODO - change the php function to fix these before returning the json to this callback?
                         if ( json.start !== undefined) {
                             // don't seem to need to convert the json.time parameter...
                             json.start = parseInt(json.start);
@@ -123,16 +147,11 @@
                 "type": "POST",
                 "data": {
                     "datatype_id": {{ datatype.id }},
-                    "theme_id": {{ theme_id }},
+                    "theme_id": {{ theme.id }},
                     "search_key": "{{ search_key }}",
                     "odr_tab_id": window.sessionStorage.getItem('odr_tab_id')
                 },
                 "dataSrc": function (json) {
-                    // If an error was encountered, display it to the user
-                    if ( json.d !== undefined ) {
-                        alert( json.d );
-                    }
-
                     // Apparently need to return this for datatables to work
                     return json.data;
                 }
@@ -152,45 +171,81 @@
         // Need a tab id in html5 sessionStorage if one doesn't exist
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
+
+{% if user_role == 'ROLE_ADMIN' and count > 0 and use_jupyterhub %}
+        // Get the app list to display on the page
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: "{{ path('odr_jupyterhub_app_list', {'datatype_id': datatype.id}) }}",
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if ( parseInt(jqXHR.status) === 200 ) {
+                    $("#jupyterhub_app_list").html(data.html);
+
+                    $("#jupyterhub_app_selector").unbind('change').change(function() {
+                        var selected = $(this).val();
+                        $("#jupyterhub_app_id").val(selected);
+                    });
+
+                    // Store the value of the first option in the form
+                    $("#jupyterhub_app_id").val( $("#jupyterhub_app_selector option:first").val() );
+                }
+            }
+        });
+{% endif %}
     });
 
+    // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...
+    $.fn.dataTable.ext.errMode = 'none';
+    $("#TextResults").on('error.dt', function(e, settings, techNote, message) {
+        console.log(message);
+
+        // Also, makes slightly more sense to disable the buttons to "do" stuff with the search results list on error
+        $(".ODRExportButtons").find("button").each(function() {
+            $(this).attr('disabled', 'disabled');
+        });
+    });
 
     // Because this table is dynamic, it needs to check for potential changes in the number of columns that it loads via ajax...
-    $("#TextResults").on('xhr.dt', function(e, settings, json) {
-        if ( json.data[0] === undefined )
-            return;
+    $("#TextResults").on('xhr.dt', function(e, settings, json, xhr) {
 
-        // check number of columns in json array
-        var reload_page = false;
-        var original_num_columns = {{ num_columns }};
-
-        // If number of columns is different from what's expected, reload the page
-        if ( json.data[0].length !== original_num_columns ) {
-            reload_page = true;
+        if ( xhr.status !== 200 || json === undefined || json === null ) {
+            // Don't need to actually "do" something here...just need to prevent dataTables from continuing to execute
         }
-{% if can_edit_datarecord %}
         else {
-            for (var i = 0; i < json.data.length; i++) {
-                json.data[i].push('<span class="ODREditLink" rel="' + json.data[i][0] + '"><u>Edit<u></span>');
+            if (json.data[0] === undefined)
+                return;
+
+            // check number of columns in json array
+            var reload_page = false;
+            var original_num_columns = {{ num_columns }};
+
+            // If number of columns is different from what's expected, reload the page
+            if ( json.data[0].length !== original_num_columns ) {
+                reload_page = true;
             }
-        }
+{% if can_edit_datarecord %}
+            else {
+                for (var i = 0; i < json.data.length; i++) {
+                    json.data[i].push('<span class="ODREditLink" rel="' + json.data[i][0] + '"><u>Edit<u></span>');
+                }
+            }
 {% endif %}
 
-        // If the json data has fewer columns than expected, splice in enough columns so datatables doesn't throw an alert before reloading the page
-        if ( json.data[0].length < original_num_columns ) {
-            for (var i = 0; i < json.data.length; i++) {
-                for (var j = json.data[i].length; j < original_num_columns; j++)
-                    json.data[i].push('');
+            // If the json data has fewer columns than expected, splice in enough columns so datatables doesn't throw an alert before reloading the page
+            if ( json.data[0].length < original_num_columns ) {
+                for (var i = 0; i < json.data.length; i++) {
+                    for (var j = json.data[i].length; j < original_num_columns; j++)
+                        json.data[i].push('');
+                }
             }
+
+            // Reload the page if necessary
+            // TODO - notify user why page reloaded?
+            if (reload_page)
+                window.location.reload();
         }
-
-        // Reload the page if necessary
-        // TODO - notify user why page reloaded?
-        if (reload_page)
-            window.location.reload();
-
-//console.log(json);
-
     });
 
 

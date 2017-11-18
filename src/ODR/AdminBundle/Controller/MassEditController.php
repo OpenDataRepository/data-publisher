@@ -37,7 +37,18 @@ use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
-// Forms
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+// Services
+use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CryptoService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -45,7 +56,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class MassEditController extends ODRCustomController
 {
-
 
     /**
      * Sets up a mass edit request made from a search results page.
@@ -69,16 +79,19 @@ class MassEditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
+                throw new ODRNotFoundException('Datatype');
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
@@ -91,8 +104,9 @@ class MassEditController extends ODRCustomController
                 $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
+            // TODO - can't use $pm_service->canEditDatarecord() here because don't actually have a datarecord...
             if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
             // ----------------------------------------
@@ -162,9 +176,11 @@ class MassEditController extends ODRCustomController
             $return['d'] = array( 'html' => $header_html.$page_html );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x12736279 ' . $e->getMessage();
+            $source = 0x50ff5a99;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -179,7 +195,9 @@ class MassEditController extends ODRCustomController
      * @param integer $datatype_id    The database id that the search was performed on.
      * @param string $odr_tab_id
      * @param Request $request
-     * 
+     *
+     * @throws ODRNotFoundException
+     *
      * @return string
      */
     private function massEditRender($datatype_id, $odr_tab_id, Request $request)
@@ -187,62 +205,50 @@ class MassEditController extends ODRCustomController
         // Required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
+        /** @var PermissionsManagementService $pm_service */
+        $pm_service = $this->container->get('odr.permissions_management_service');
+        /** @var ThemeInfoService $theme_service */
+        $theme_service = $this->container->get('odr.theme_info_service');
+
 
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
         if ($datatype == null)
-            return parent::deletedEntityError('Datatype');
+            throw new ODRNotFoundException('Datatype');
 
         /** @var Theme $theme */
         $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
         if ($theme == null)
-            return parent::deletedEntityError('Theme');
+            throw new ODRNotFoundException('Theme');
 
 
         // --------------------
         // Determine user privileges
         /** @var User $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
-        $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+        $user_permissions = $pm_service->getUserPermissionsArray($user);
         $datatype_permissions = $user_permissions['datatypes'];
         $datafield_permissions = $user_permissions['datafields'];
         // --------------------
 
-        $bypass_cache = false;
-        if ($this->container->getParameter('kernel.environment') === 'dev')
-            $bypass_cache = true;
-
 
         // ----------------------------------------
-        // Determine which datatypes/childtypes to load from the cache
-        $include_links = false;
-        $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype_id), $include_links);
-
-//print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
-
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+        $include_links = false;
+        $datatype_array = $dti_service->getDatatypeArray($datatype_id, $include_links);
+//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
-        $datatype_array = array();
-        foreach ($associated_datatypes as $num => $dt_id) {
-            $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-            if ($bypass_cache || $datatype_data == null)
-                $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
-
-            foreach ($datatype_data as $dt_id => $data)
-                $datatype_array[$dt_id] = $data;
-        }
-
-
-        // ----------------------------------------
         // Filter by user permissions
         $datarecord_array = array();
-        parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+        $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+        $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
 
 
+        // ----------------------------------------
         // Render the MassEdit page
         $templating = $this->get('templating');
         $html = $templating->render(
@@ -250,7 +256,7 @@ class MassEditController extends ODRCustomController
             array(
                 'datatype_array' => $datatype_array,
                 'initial_datatype_id' => $datatype_id,
-                'theme_id' => $theme->getId(),
+                'theme_array' => $theme_array,
 
                 'odr_tab_id' => $odr_tab_id,
                 'datatype_permissions' => $datatype_permissions,
@@ -277,13 +283,12 @@ class MassEditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Ensure post is valid
-            $post = $_POST;
-//print_r($post);
-//return;
+            $post = $request->request->all();
+//print_r($post);  exit();
+
 
             if ( !(isset($post['odr_tab_id']) && (isset($post['datafields']) || isset($post['public_status'])) && isset($post['datatype_id'])) )
-                throw new \Exception('bad post request');
+                throw new ODRBadRequestException();
 
             $odr_tab_id = $post['odr_tab_id'];
             $datafields = array();
@@ -298,28 +303,29 @@ class MassEditController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-//            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-//            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
+                throw new ODRNotFoundException('Datatype');
 
-//            $redis = $this->container->get('snc_redis.default');;
-//            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $session = $request->getSession();
             $api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
 
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
@@ -332,8 +338,9 @@ class MassEditController extends ODRCustomController
                 $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
+            // TODO - can't use $pm_service->canEditDatarecord() here because don't actually have a datarecord...
             if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -352,7 +359,7 @@ class MassEditController extends ODRCustomController
 //print '<pre>'.print_r($results, true).'</pre>';  exit();
 
             if ( count($results) > 0 )
-                throw new \Exception('A mass edit job is already in progress for this Datatype');
+                throw new ODRException('A mass edit job is already in progress for this Datatype');
 
 
             // ----------------------------------------
@@ -360,7 +367,7 @@ class MassEditController extends ODRCustomController
             $list = $session->get('mass_edit_datarecord_lists');
 
             $complete_datarecord_list = '';
-            $datarecords = '';
+            $datarecords = array();
             $encoded_search_key = null;
 
             if ( isset($list[$odr_tab_id]) ) {
@@ -370,7 +377,7 @@ class MassEditController extends ODRCustomController
             }
 
             // If the datarecord list doesn't exist for some reason, or the user is attempting to view a datarecord from a search that returned no results...
-            if ( !isset($list[$odr_tab_id]) || ($encoded_search_key !== '' && $datarecords === '') ) {
+            if ( !isset($list[$odr_tab_id]) || ($encoded_search_key !== '' && count($datarecords) == 0) ) {
                 // ...redirect to "no results found" page
                 /** @var SearchController $search_controller */
                 $search_controller = $this->get('odr_search_controller', $request);
@@ -381,8 +388,6 @@ class MassEditController extends ODRCustomController
 
             // TODO - delete the datarecord list/search key out of the user's session?
 
-
-//            $datarecords = explode(',', $datarecords);
 
             // ----------------------------------------
             // Ensure no unique datafields managed to get marked for this mass update...store which datatype they belong to at the same time
@@ -404,11 +409,10 @@ class MassEditController extends ODRCustomController
             }
 
             // Ensure no completely unrelated datafields are in the post request
-            $datatree_array = parent::getDatatreeArray($em);
             foreach ($datatype_list as $dt_id => $num) {
-                $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $dt_id);
+                $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($dt_id);
                 if ($grandparent_datatype_id != $datatype->getId())
-                    throw new \Exception('Invalid Form');
+                    throw new ODRBadRequestException();
             }
 /*
 print '$datarecords: '.print_r($datarecords, true)."\n";
@@ -581,9 +585,11 @@ return;
             $em->flush();
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x24463979 ' . $e->getMessage();
+            $source = 0xf0de8b70;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -607,11 +613,16 @@ return;
         $return['d'] = '';
 
         try {
+            // This should only be called by a beanstalk worker process, so force exceptions to be in json
             $ret = '';
-            $post = $_POST;
-//$ret = print_r($post, true);
+            $request->setRequestFormat('json');
+
+            $post = $request->request->all();
+//print_r($post);  exit();
+
+
             if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecord_id']) || !isset($post['public_status']) || !isset($post['api_key']) )
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
@@ -621,21 +632,20 @@ return;
             $api_key = $post['api_key'];
 
             // Load symfony objects
-//            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-//            $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
 
 
             // ----------------------------------------
@@ -645,11 +655,11 @@ return;
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                throw new \Exception('MassEditCommand.php: DataRecord '.$datarecord_id.' is deleted, skipping');
+                throw new ODRNotFoundException('MassEditCommand.php: DataRecord '.$datarecord_id.' is deleted, skipping');
 
             $datatype = $datarecord->getDataType();
-            if ($datatype == null)
-                throw new \Exception('MassEditCommand.php: DataRecord '.$datarecord_id.' belongs to a deleted DataType, skipping');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('MassEditCommand.php: DataRecord '.$datarecord_id.' belongs to a deleted DataType, skipping');
 
             $datatype_id = $datatype->getId();
 
@@ -695,12 +705,12 @@ return;
                 }
 
                 if ($updated) {
-                    // Refresh the cache entries for this datarecord
-                    parent::tmp_updateDatarecordCache($em, $datarecord, $user);
-
                     // ----------------------------------------
+                    // Mark this datarecord as updated
+                    $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+
                     // See if any cached search results need to be deleted...
-                    $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+                    $cached_searches = $cache_service->get('cached_search_results');
                     if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                         // Delete all cached search results for this datatype that contained this datarecord
                         foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
@@ -710,7 +720,7 @@ return;
                         }
 
                         // Save the collection of cached searches back to memcached
-                        $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                        $cache_service->set('cached_search_results', $cached_searches);
                     }
                 }
             }
@@ -738,9 +748,11 @@ return;
             $return['d'] = $ret;
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x392577639 ' . $e->getMessage();
+            $source = 0xb506e43f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -766,10 +778,15 @@ return;
         $ret = '';
 
         try {
-            $post = $_POST;
+            // This should only be called by a beanstalk worker process, so force exceptions to be in json
+            $request->setRequestFormat('json');
+
+            $post = $request->request->all();
+//print_r($post);  exit();
+
 
             if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecord_id']) || !isset($post['datafield_id']) || !isset($post['value']) || !isset($post['api_key']) )
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
@@ -780,15 +797,8 @@ return;
             $api_key = $post['api_key'];
 
             // Load symfony objects
-//            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-//            $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-
-            // Grab memcached stuff
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -796,8 +806,15 @@ return;
             $repo_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions');
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
 
 
             // ----------------------------------------
@@ -807,16 +824,16 @@ return;
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                throw new \Exception('MassEditCommand.php: Datarecord '.$datarecord_id.' is deleted, skipping');
+                throw new ODRNotFoundException('MassEditCommand.php: Datarecord '.$datarecord_id.' is deleted, skipping');
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
-                throw new \Exception('MassEditCommand.php: Datafield '.$datafield_id.' is deleted, skipping');
+                throw new ODRNotFoundException('MassEditCommand.php: Datafield '.$datafield_id.' is deleted, skipping');
 
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() !== null)
-                throw new \Exception('MassEditCommand.php: Datatype '.$datatype->getId().' is deleted, skipping');
+                throw new ODRNotFoundException('MassEditCommand.php: Datatype '.$datatype->getId().' is deleted, skipping');
             $datatype_id = $datatype->getId();
 
 
@@ -906,7 +923,7 @@ return;
                                     parent::ODR_copyFileMeta($em, $user, $file, $properties);
 
                                     // Delete the decrypted version of the file, if it exists
-                                    $file_upload_path = dirname(__FILE__).'/../../../../web/uploads/files/';
+                                    $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
                                     $filename = 'File_'.$file->getId().'.'.$file->getExt();
                                     $absolute_path = realpath($file_upload_path).'/'.$filename;
 
@@ -920,8 +937,9 @@ return;
                                     $properties = array('publicDate' => new \DateTime());
                                     parent::ODR_copyFileMeta($em, $user, $file, $properties);
 
-                                    // Immediately decrypt the file
-                                    parent::decryptObject($file->getId(), 'file');
+                                    // Immediately decrypt the file...don't need to specify a
+                                    //  filename because the file is guaranteed to be public
+                                    $crypto_service->decryptFile($file->getId());
 
                                     $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
                                 }
@@ -951,7 +969,7 @@ return;
                                     parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
                                     // Delete the decrypted version of the file, if it exists
-                                    $image_upload_path = dirname(__FILE__).'/../../../../web/uploads/images/';
+                                    $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
                                     $filename = 'Image_'.$image->getId().'.'.$image->getExt();
                                     $absolute_path = realpath($image_upload_path).'/'.$filename;
 
@@ -965,8 +983,9 @@ return;
                                     $properties = array('publicDate' => new \DateTime());
                                     parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
-                                    // Immediately decrypt the image
-                                    parent::decryptObject($image->getId(), 'image');
+                                    // Immediately decrypt the image...don't need to specify a
+                                    //  filename because the image is guaranteed to be public
+                                    $crypto_service->decryptImage($image->getId());
 
                                     $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
                                 }
@@ -1033,18 +1052,17 @@ $ret .= '  Set current to '.$count."\n";
 
 
                 // ----------------------------------------
-                // TODO - replace this block with code to directly update the cached version of the datarecord?
-                parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+                // Mark this datarecord as updated
+                $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-                // ----------------------------------------
                 // See if any cached search results need to be deleted...
-                $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+                $cached_searches = $cache_service->get('cached_search_results');
                 if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                     // Just delete all cached search results for this datatype...TODO - make it more precise than that...
                     unset ( $cached_searches[$datatype_id] );
 
-                    // Save the collection of cached searches back to memcached
-                    $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                    // Save the collection of cached searches
+                    $cache_service->set('cached_search_results', $cached_searches);
                 }
 
 $ret .=  "---------------\n";
@@ -1052,9 +1070,11 @@ $ret .=  "---------------\n";
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x61395739 ' . $e->getMessage();
+            $source = 0x99001e8b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));

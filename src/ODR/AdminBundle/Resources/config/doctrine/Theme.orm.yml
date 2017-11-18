@@ -40,9 +40,6 @@ ODR\AdminBundle\Entity\Theme:
             cascade: { }
             mappedBy: theme
             inversedBy: null
-            joinColumns:
-                theme_meta_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
         themeElements:
@@ -50,12 +47,43 @@ ODR\AdminBundle\Entity\Theme:
             cascade: { }
             mappedBy: theme
             inversedBy: null
-            joinColumns:
-                theme_element_id:
-                    referencedColumnName: id
             orphanRemoval: false
 
+        themePreferences:
+            targetEntity: ThemePreferences
+            cascade: { }
+            mappedBy: theme
+            inversedBy: null
+            orphanRemoval: false
+
+        relatedThemes:
+            targetEntity: Theme
+            mappedBy: parentTheme
+            fetch: EXTRA_LAZY
+
+        relatedSourceThemes:
+            targetEntity: Theme
+            mappedBy: sourceTheme
+            fetch: EXTRA_LAZY
+
     manyToOne:
+        parentTheme:
+            targetEntity: Theme
+            fetch: EXTRA_LAZY
+            inversedBy: relatedThemes
+            joinColumns:
+                parent_theme_id:
+                    referencedColumnName: id
+
+        sourceTheme:
+            targetEntity: Theme
+            fetch: EXTRA_LAZY
+            inversedBy: relatedSourceThemes
+            joinColumns:
+                source_theme_id:
+                    referencedColumnName: id
+
+
         dataType:
             targetEntity: DataType
             cascade: {  }

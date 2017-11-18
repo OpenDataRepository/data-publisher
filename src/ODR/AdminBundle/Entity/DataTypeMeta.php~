@@ -28,6 +28,21 @@ class DataTypeMeta
     private $id;
 
     /**
+     * @var integer
+     */
+    private $master_revision;
+
+    /**
+     * @var integer
+     */
+    private $master_published_revision;
+
+    /**
+     * @var integer
+     */
+    private $tracking_master_revision;
+
+    /**
      * @var string
      */
     private $searchSlug;
@@ -51,11 +66,6 @@ class DataTypeMeta
      * @var string
      */
     private $xml_shortName;
-
-    /**
-     * @var boolean
-     */
-    private $useShortResults;
 
     /**
      * @var \DateTime
@@ -126,6 +136,78 @@ class DataTypeMeta
     public function getId()
     {
         return $this->id;
+    }
+
+    /**
+     * Set masterRevision
+     *
+     * @param integer $masterRevision
+     *
+     * @return DataTypeMeta
+     */
+    public function setMasterRevision($masterRevision)
+    {
+        $this->master_revision = $masterRevision;
+
+        return $this;
+    }
+
+    /**
+     * Get masterRevision
+     *
+     * @return integer
+     */
+    public function getMasterRevision()
+    {
+        return $this->master_revision;
+    }
+
+    /**
+     * Set masterPublishedRevision
+     *
+     * @param integer $masterPublishedRevision
+     *
+     * @return DataTypeMeta
+     */
+    public function setMasterPublishedRevision($masterPublishedRevision)
+    {
+        $this->master_published_revision = $masterPublishedRevision;
+
+        return $this;
+    }
+
+    /**
+     * Get masterPublishedRevision
+     *
+     * @return integer
+     */
+    public function getMasterPublishedRevision()
+    {
+        return $this->master_published_revision;
+    }
+
+    /**
+     * Set trackingMasterRevision
+     *
+     * @param integer $trackingMasterRevision
+     *
+     * @return DataTypeMeta
+     */
+    public function setTrackingMasterRevision($trackingMasterRevision)
+    {
+        $this->tracking_master_revision = $trackingMasterRevision;
+
+        return $this;
+    }
+
+    /**
+     * Get trackingMasterRevision
+     *
+     * @return integer
+     */
+    public function getTrackingMasterRevision()
+    {
+        return $this->tracking_master_revision;
     }
 
     /**
@@ -241,29 +323,6 @@ class DataTypeMeta
     public function getXmlShortName()
     {
         return $this->xml_shortName;
-    }
-
-    /**
-     * Set useShortResults
-     *
-     * @param boolean $useShortResults
-     * @return DataTypeMeta
-     */
-    public function setUseShortResults($useShortResults)
-    {
-        $this->useShortResults = $useShortResults;
-
-        return $this;
-    }
-
-    /**
-     * Get useShortResults
-     *
-     * @return boolean 
-     */
-    public function getUseShortResults()
-    {
-        return $this->useShortResults;
     }
 
     /**

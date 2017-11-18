@@ -446,14 +446,16 @@
         var datatype_id = $("#datatype_id").val();
         search_key = $("#datatype_id").attr('name') + '=' + datatype_id;
         
-        if ( $("#textbox_general").val() !== '' )
-            search_key += divider + $("#textbox_general").attr('name') + '=' + encodeURIComponent( $("#textbox_general").val() );
+        if ( $("#textbox_general").val().trim() != '' )
+            search_key += divider + $("#textbox_general").attr('name') + '=' + encodeURIComponent( $("#textbox_general").val().trim() );
 
         $("#search_form .ODRInput").each(function() {
             var name = $(this).attr('name');
             var type = $(this).attr('type');
-            var value = $(this).attr('value');
-//            var datatype_id = $(this).attr('rel');
+            var value = '';
+            if($(this).attr('value') !== undefined) {
+                value = $(this).attr('value').trim();
+            }
 
             if ( $(this).hasClass('ODRFileDatafieldName') ) {
                 var df_id_data = $(this).attr('id').split(/_/);
@@ -498,7 +500,7 @@
 
             $(this).find('input').each(function() {
                 // Grab the radio_option_id
-                var value = $(this).attr('value');
+                var value = $(this).attr('value').trim();
                 if (value == '')
                     return;
 
@@ -520,7 +522,7 @@
         $(".ODRDatatype_require_public").each(function() {
             if ( !$(this).hasClass('ODRSearchDisabled') ) {
                 var name = $(this).attr('name');
-                var value = $(this).attr('value');
+                var value = $(this).val();
 
                 if (search_key != '')
                     search_key += divider;
@@ -535,9 +537,9 @@
         var url = '{{ path( 'odr_search_results', { 'search_key': '' } ) }}';
         url += search_key;
 
-        $("#loading-overlay").fadeIn();
+        $("#loading-overlay").fadeIn('fast');
         $("#loading").html('<span>Searching...</span>');
-        $("#loading").fadeIn();
+        $("#loading").fadeIn('fast');
 
         $.ajax({
             type: 'GET',
@@ -591,9 +593,9 @@
                 }
             },
             complete: function(jqXHR, textStatus) {
-                $("#loading-overlay").fadeOut();
-                $("#loading").fadeOut();
+                $("#loading-overlay").fadeOut('fast');
                 $("#loading").html('<span>Loading...</span>');
+                $("#loading").fadeOut('fast');
 
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
@@ -613,7 +615,7 @@
 
 {% if background_image_id != null %}
 <script>
-$(window).load(function() {    
+$(window).on('load',function() {
     // After the rest of the page is loaded, start loading the bg image
     var url = "{{ path('odr_image_download', {'image_id': 0 }) }}";
     url = url.substring(0, url.length-1);

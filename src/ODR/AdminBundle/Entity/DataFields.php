@@ -28,6 +28,11 @@ class DataFields
     private $id;
 
     /**
+     * @var boolean
+     */
+    private $is_master_field;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -36,6 +41,11 @@ class DataFields
      * @var \DateTime
      */
     private $deletedAt;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $relatedMasterFields;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
@@ -56,6 +66,16 @@ class DataFields
      * @var \Doctrine\Common\Collections\Collection
      */
     private $dataFieldMeta;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $groupDatafieldPermissions;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataFields
+     */
+    private $masterDataField;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataType
@@ -83,10 +103,12 @@ class DataFields
      */
     public function __construct()
     {
+        $this->relatedMasterFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataRecordFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeDataFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->radioOptions = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataFieldMeta = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->groupDatafieldPermissions = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -97,6 +119,30 @@ class DataFields
     public function getId()
     {
         return $this->id;
+    }
+
+    /**
+     * Set isMasterField
+     *
+     * @param boolean $isMasterField
+     *
+     * @return DataFields
+     */
+    public function setIsMasterField($isMasterField)
+    {
+        $this->is_master_field = $isMasterField;
+
+        return $this;
+    }
+
+    /**
+     * Get isMasterField
+     *
+     * @return boolean
+     */
+    public function getIsMasterField()
+    {
+        return $this->is_master_field;
     }
 
     /**
@@ -143,6 +189,40 @@ class DataFields
     public function getDeletedAt()
     {
         return $this->deletedAt;
+    }
+
+    /**
+     * Add relatedMasterField
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $relatedMasterField
+     *
+     * @return DataFields
+     */
+    public function addRelatedMasterField(\ODR\AdminBundle\Entity\DataFields $relatedMasterField)
+    {
+        $this->relatedMasterFields[] = $relatedMasterField;
+
+        return $this;
+    }
+
+    /**
+     * Remove relatedMasterField
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $relatedMasterField
+     */
+    public function removeRelatedMasterField(\ODR\AdminBundle\Entity\DataFields $relatedMasterField)
+    {
+        $this->relatedMasterFields->removeElement($relatedMasterField);
+    }
+
+    /**
+     * Get relatedMasterFields
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRelatedMasterFields()
+    {
+        return $this->relatedMasterFields;
     }
 
     /**
@@ -293,6 +373,63 @@ class DataFields
     public function getDataFieldMeta()
     {
         return $this->dataFieldMeta->first();
+    }
+
+    /**
+     * Add groupDatafieldPermission
+     *
+     * @param \ODR\AdminBundle\Entity\GroupDatafieldPermissions $groupDatafieldPermission
+     * @return DataFields
+     */
+    public function addGroupDatafieldPermission(\ODR\AdminBundle\Entity\GroupDatafieldPermissions $groupDatafieldPermission)
+    {
+        $this->groupDatafieldPermissions[] = $groupDatafieldPermission;
+
+        return $this;
+    }
+
+    /**
+     * Remove groupDatafieldPermission
+     *
+     * @param \ODR\AdminBundle\Entity\GroupDatafieldPermissions $groupDatafieldPermission
+     */
+    public function removeGroupDatafieldPermission(\ODR\AdminBundle\Entity\GroupDatafieldPermissions $groupDatafieldPermission)
+    {
+        $this->groupDatafieldPermissions->removeElement($groupDatafieldPermission);
+    }
+
+    /**
+     * Get groupDatafieldPermissions
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getGroupDatafieldPermissions()
+    {
+        return $this->groupDatafieldPermissions;
+    }
+
+    /**
+     * Set masterDataField
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $masterDataField
+     *
+     * @return DataFields
+     */
+    public function setMasterDataField(\ODR\AdminBundle\Entity\DataFields $masterDataField = null)
+    {
+        $this->masterDataField = $masterDataField;
+
+        return $this;
+    }
+
+    /**
+     * Get masterDataField
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields
+     */
+    public function getMasterDataField()
+    {
+        return $this->masterDataField;
     }
 
     /**
@@ -559,5 +696,35 @@ class DataFields
     public function getRenderPlugin()
     {
         return $this->getDataFieldMeta()->getRenderPlugin();
+    }
+
+    /**
+     * Get master_published_revision
+     *
+     * @return int
+     */
+    public function getMasterPublishedRevision()
+    {
+        return $this->getDataFieldMeta()->getMasterPublishedRevision();
+    }
+
+    /**
+     * Get master_revision
+     *
+     * @return int
+     */
+    public function getMasterRevision()
+    {
+        return $this->getDataFieldMeta()->getMasterRevision();
+    }
+
+    /**
+     * Get tracking_master_revision
+     *
+     * @return int
+     */
+    public function getTrackingMasterRevision()
+    {
+        return $this->getDataFieldMeta()->getTrackingMasterRevision();
     }
 }

@@ -2,16 +2,26 @@
 
 {% set datatype = datatype_array[initial_datatype_id] %}
 
-<div id="ODRGroupListContent_{{ group.id }}" class="ODRAccordionWrapper ODRFormAccordion ODRGroupListContentHeader pure-u-1" style="margin-top: 20px;">
+<div id="ODRGroupListContent_{{ group.id }}" class="ODRAccordionWrapper ODRFormAccordion ODRGroupListContentHeader pure-u-1">
     <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-        <a>{{ group.groupMeta.groupName }}</a>
+        <a class="ODRGroup_{{ group.id }}_name ODRGroupProperties" rel="{{ group.id }}">{{ group.groupMeta.groupName }}</a>
         <span style="margin-left: 10px;">
             <i class="Pointer fa fa-lg fa-info-circle ODRGroupProperties" style="color:black;" title="Group Properties" rel="{{ group.id }}"></i>
             <i class="Cursor fa fa-lg fa-globe {% if datatype.dataTypeMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatatype" title="Datatype{% if datatype.dataTypeMeta.publicDate|is_public %} does not require{% else %} requires{% endif %} permission to view" rel="{{ datatype.id }}"></i>
         </span>
     {% if prevent_all_changes %}
-        <span style="margin-left:15px; color: #000000;">Not allowed to make changes to this Group!</span>
+        <span style="cursor: default; margin-left:15px; color: #000000;">Not allowed to make changes to this Group!</span>
     {% endif %}
+
+        {% include 'ODRAdminBundle:ODRGroup:datatype_permissions_icons.html.twig' with {
+            'datatype': datatype,
+            'datatype_permissions': datatype_permissions,
+
+            'group': group,
+
+            'is_top_level': 1,
+            'prevent_all_changes': prevent_all_changes,
+        } %}
     </h3>
 </div>
 
@@ -23,7 +33,7 @@
 
     'datatype_array': datatype_array,
     'initial_datatype_id': initial_datatype_id,
-    'theme_id': theme_id,
+    'theme_array': theme_array,
 
     'prevent_all_changes': prevent_all_changes,
 } %}
@@ -32,14 +42,14 @@
 
 $(function() {
     initPage();
-    window.scrollTo(0,0);
 });
 
 function initPage() {
 
-    // Hide all TEDs without input fields
+    // Hide all theme elements without datafields
     $(".ODRThemeElement").each(function() {
-        if ( $(this).parent().hasClass("MenuDesignArea") )
+        // Only hide empty theme elements in the design area
+        if ( $(this).parents(".ODRFieldArea").length === 0 )
             return;
 
         var found = false;
@@ -76,20 +86,16 @@ function initPage() {
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    $("#ElementData").html(data.d).fadeIn('fast');
+            success: function(data) {
+                $("#ThemeDesignForm").html(data.d).fadeIn('fast');
 
-                    if (data.prevent_all_changes != 1)
-                        InitGroupPropertyForm();    // defined in permissions_wrapper.html.twig
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+                if (data.prevent_all_changes != 1)
+                    InitGroupPropertyForm();    // defined in permissions_wrapper.html.twig
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -133,25 +139,20 @@ function initPage() {
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-
-                    if (value == 0) {
-                        // If this permission got removed, show all the icons over each of the permissions
-                        $(element).parent().find('.fa-ban').show();
-                    }
-                    else {
-                        // Otherwise, just hide the icon indicating this group doesn't have the permission
-                        $(element).children('.fa-ban').hide();
-                    }
+            success: function(data) {
+                if (value == 0) {
+                    // If this permission got removed, show all the icons over each of the permissions
+                    $(element).parent().find('.fa-ban').show();
                 }
                 else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
+                    // Otherwise, just hide the icon indicating this group doesn't have the permission
+                    $(element).children('.fa-ban').hide();
                 }
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -193,21 +194,16 @@ function initPage() {
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-
-                    if (value == 0)
-                        $(element).children('.fa-ban').first().show();
-                    else
-                        $(element).children('.fa-ban').first().hide();
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+            success: function(data) {
+                if (value == 0)
+                    $(element).children('.fa-ban').first().show();
+                else
+                    $(element).children('.fa-ban').first().hide();
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -249,21 +245,16 @@ function initPage() {
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-
-                    if (value == 0)
-                        $(element).children('.fa-ban').first().show();
-                    else
-                        $(element).children('.fa-ban').first().hide();
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+            success: function(data) {
+                if (value == 0)
+                    $(element).children('.fa-ban').first().show();
+                else
+                    $(element).children('.fa-ban').first().hide();
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -305,21 +296,16 @@ function initPage() {
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-
-                    if (value == 0)
-                        $(element).children('.fa-ban').first().show();
-                    else
-                        $(element).children('.fa-ban').first().hide();
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+            success: function(data) {
+                if (value == 0)
+                    $(element).children('.fa-ban').first().show();
+                else
+                    $(element).children('.fa-ban').first().hide();
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -359,18 +345,14 @@ function initPage() {
             type: 'GET',
             url: url,
             dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Just reload the entire permissions UI area...easier that way
-                    $("#edit_group_" + group_id).trigger('click');
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+            success: function(data) {
+                // Just reload the entire permissions UI area...easier that way
+                $("#edit_group_" + group_id).trigger('click');
             },
-            complete: function(jqXHR, textStatus) {
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -399,24 +381,42 @@ function initPage() {
         if ( $("#datafield_" + datafield_id + "_public").val() == 0 )
             datafield_is_public = false;
 
+        // Store whether this datafield is markdown or not
+        var is_markdown = false;
+        if ( $(this).parent().hasClass('ODRMarkdownField') )
+            is_markdown = true;
+
 
         if ( $(this).hasClass('ODREditableDatafield') ) {
-            // switch from view/edit to view/no-edit
+            // Switch from view/edit to view/no-edit
             updateDatafieldPermissions(overlay_id, 'ODRVisibleDatafield');
         }
         else if ( $(this).hasClass('ODRVisibleDatafield') ) {
-            if (datafield_is_public) {
-                // switch from view/no-edit to view/edit...since datafield is public and viewable by everybody, it makes no sense to go to no-view/no-edit
-                updateDatafieldPermissions(overlay_id, 'ODREditableDatafield');
+            if (is_markdown) {
+                // Markdown fields can't be edited...only switch to no-view/no-edit if it's not public
+                if (!datafield_is_public)
+                    updateDatafieldPermissions(overlay_id, 'ODRBlockedDatafield');
             }
             else {
-                // switch from view/no-edit to no-view/no-edit
-                updateDatafieldPermissions(overlay_id, 'ODRBlockedDatafield');
+                if (datafield_is_public) {
+                    // Switch from view/no-edit to view/edit...since datafield is public and viewable by everybody, it makes no sense to go to no-view/no-edit
+                    updateDatafieldPermissions(overlay_id, 'ODREditableDatafield');
+                }
+                else {
+                    // Switch from view/no-edit to no-view/no-edit
+                    updateDatafieldPermissions(overlay_id, 'ODRBlockedDatafield');
+                }
             }
         }
         else if ( $(this).hasClass('ODRBlockedDatafield') ) {
-            // switch from no-view/no-edit to view/edit
-            updateDatafieldPermissions(overlay_id, 'ODREditableDatafield');
+            if (!is_markdown) {
+                // Switch from no-view/no-edit to view/edit
+                updateDatafieldPermissions(overlay_id, 'ODREditableDatafield');
+            }
+            else {
+                // Can't edit markdown fields by design, skip to view/no-edit
+                updateDatafieldPermissions(overlay_id, 'ODRVisibleDatafield');
+            }
         }
     });
 {% endif %}  {# {% if not prevent_all_changes %} #}
@@ -457,18 +457,14 @@ function updateDatafieldPermissions(datafield_overlay_id, desired_state) {
         type: 'GET',
         url: url,
         dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                // Update the datafield's overlay
-                updateOverlayProperties(datafield_overlay_id, desired_state);
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
+        success: function(data) {
+            // Update the datafield's overlay
+            updateOverlayProperties(datafield_overlay_id, desired_state);
         },
-        complete: function(jqXHR, textStatus) {
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Don't need to do anything specific on an error
+        },
+        complete: function(jqXHR) {
             // Get the xdebugToken from response headers
             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -529,7 +525,7 @@ function ReloadChild(datatype_id) {
         type: 'GET',
         url: url,
         dataType: 'json',
-        success: function(data, textStatus, jqXHR) {
+        success: function(data) {
             // remove old datatype
             $(datatype_div).fadeOut();
             $(datatype_div).remove();
@@ -542,7 +538,7 @@ function ReloadChild(datatype_id) {
 
             initPage();
         },
-        complete: function(jqXHR, textStatus) {
+        complete: function(jqXHR) {
             // Get the xdebugToken from response headers
             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -584,7 +580,7 @@ function ReloadThemeElement(theme_element_id) {
         type: 'GET',
         url: url,
         dataType: 'json',
-        success: function(data, textStatus, jqXHR) {
+        success: function(data) {
             // Remove old theme element
             $(theme_element).fadeOut();
             $(theme_element).remove();
@@ -597,7 +593,7 @@ function ReloadThemeElement(theme_element_id) {
 
             initPage();
         },
-        complete: function(jqXHR, textStatus) {
+        complete: function(jqXHR) {
             // Get the xdebugToken from response headers
             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 

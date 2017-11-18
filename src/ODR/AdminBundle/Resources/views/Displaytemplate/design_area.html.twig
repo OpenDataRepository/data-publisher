@@ -1,11 +1,12 @@
 {% spaceless %}
-<div class="ODRFormWrap ODRDesign pure-u-1">
+<div id="ODRDatatypeDesign" class="ODRFormWrap ODRDesign pure-u-1">
 
     {% include 'ODRAdminBundle:Displaytemplate:design_childtype.html.twig' with {
         'datatype_array': datatype_array,
         'target_datatype_id': initial_datatype_id,
-        'theme_id': theme_id,
+        'theme_array': theme_array,
 
+        'datatype_permissions': datatype_permissions,
         'is_datatype_admin': is_datatype_admin,
 
         'is_link': 0,

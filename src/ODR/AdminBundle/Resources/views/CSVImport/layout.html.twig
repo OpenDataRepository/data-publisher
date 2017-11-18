@@ -1,90 +1,100 @@
 {% spaceless %}
 
-    {% set external_id_field = datatype.getexternalidfield %}
+{% set external_id_field = datatype.getexternalidfield %}
 
 {%  if not linked_importing %}
-    <div class="csv_import_header pure-u-1">
-        <button type="button" class="pure-button" onclick="selectAllFields();">Select All</button>
-        &nbsp;
-        <button type="button" class="pure-button" onclick="deselectAllFields();">Deselect All</button>
-    </div>
-{% endif %}
-
-    <form id="csv_import_form">
-        <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />{# is the remote_datatype id if this is a linked import, or the child datatype id if importing into a childtype, or the top-level datatype otherwise #}
-{% if parent_datatype != null %}
-        <input type="hidden" name="parent_datatype_id" value="{{ parent_datatype.id }}" />
+<div class="csv_import_header pure-u-1">
+    <button type="button" class="pure-button" onclick="selectAllFields();">Select All</button>
+    &nbsp;
+    <button type="button" class="pure-button" onclick="deselectAllFields();">Deselect All</button>
+</div>
 {% endif %}
 
 
-        {% if parent_datatype != null %}
-            {% include 'ODRAdminBundle:CSVImport:parent_datatype_settings.html.twig' with {'parent_datatype': parent_datatype, 'datatype': datatype, 'linked_importing': linked_importing, 'columns': columns, 'presets': presets} %}
-        {% endif %}
+<form id="csv_import_form">
+    <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />{# is the remote_datatype id if this is a linked import, or the child datatype id if importing into a childtype, or the top-level datatype otherwise #}
+    {% if parent_datatype != null %}
+    <input type="hidden" name="parent_datatype_id" value="{{ parent_datatype.id }}" />
+    {% endif %}
+
+    {% if parent_datatype != null %}
+        {% include 'ODRAdminBundle:CSVImport:parent_datatype_settings.html.twig' with {
+            'parent_datatype': parent_datatype,
+            'datatype': datatype,
+            'linked_importing': linked_importing,
+            'columns': columns,
+            'presets': presets
+        } %}
+    {% endif %}
 
 {% if not linked_importing %}
-        {% include 'ODRAdminBundle:CSVImport:uniqueness_warnings.html.twig' with {'datatype': datatype, 'datafields': datafields, 'file_encoding_converted': file_encoding_converted} %}
+    {% include 'ODRAdminBundle:CSVImport:uniqueness_warnings.html.twig' with {
+        'datatype': datatype,
+        'datafields': datafields,
+        'file_encoding_converted': file_encoding_converted
+    } %}
 
-        <table id="csv_import_table" class="pure-table pure-table-striped" style="font-size: 1.25em;">
-            <thead>
-                <tr id="header">
-                    <th>Column Name</th>
-                    <th>Import?</th>
-                    <th>Require unique values?</th>
-                    <th>Map to datafield...</th>
-                    <th>Fieldtype...</th>
-                    <th>Secondary Delimiter...</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for column_id, column_name in columns %}
-                <tr>
-                    <td>{{ column_name }}</td>
-                    <td><input type="checkbox" id="import_checkbox_{{ column_id }}" class="import_checkbox" rel="{{ column_id }}" /></td>
+    <table id="csv_import_table" class="pure-table pure-table-striped" style="font-size: 1.25em;">
+        <thead>
+        <tr id="header">
+            <th>Column Name</th>
+            <th>Import?</th>
+            <th>Require unique values?</th>
+            <th>Map to datafield...</th>
+            <th>Fieldtype...</th>
+            <th>Secondary Delimiter...</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for column_id, column_name in columns %}
+            <tr>
+                <td>{{ column_name }}</td>
+                <td><input type="checkbox" id="import_checkbox_{{ column_id }}" class="import_checkbox" rel="{{ column_id }}" /></td>
 
-                    <td>
-                        <input type="checkbox" id="column_{{ column_id }}_unique" class="unique_checkbox" name="unique_columns[{{ column_id }}]" value="1" disabled rel="{{ column_id }}" />
-                        <span class="inline_warning" title="{% if parent_datatype == null %}The validation process will check for and warn of duplicate values in this column of the CSV file{% else %}TODO{% endif %}">
-                            &nbsp;<i class="fa fa-lg fa-question-circle" style="cursor:help;"></i>
-                        </span>
-                    </td>
+                <td>
+                    <input type="checkbox" id="column_{{ column_id }}_unique" class="unique_checkbox" name="unique_columns[{{ column_id }}]" value="1" disabled rel="{{ column_id }}" />
+                    <span class="inline_warning" title="{% if parent_datatype == null %}The validation process will check for and warn of duplicate values in this column of the CSV file{% else %}TODO{% endif %}">
+                        &nbsp;<i class="fa fa-lg fa-question-circle" style="cursor:help;"></i>
+                    </span>
+                </td>
 
-                    <td>
-                        <select id="column_{{ column_id }}" class="datafield_mapping" name="datafield_mapping[{{ column_id }}]" rel="{{ column_id }}" disabled>
-                            <option value="new">Create new datafield...</option>
-                            {% for datafield in datafields %}
-                                {% if datafield.fieldtype.id in allowed_fieldtypes|keys %}
+                <td>
+                    <select id="column_{{ column_id }}" class="datafield_mapping" name="datafield_mapping[{{ column_id }}]" rel="{{ column_id }}" disabled>
+                        <option value="new">Create new datafield...</option>
+                        {% for datafield in datafields %}
+                            {% if datafield.fieldtype.id in allowed_fieldtypes|keys %}
                                 <option value="{{ datafield.id }}" rel="{{ datafield.fieldtype.id }}">{{ datafield.fieldname }}</option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </td>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </td>
 
-                    <td>
-                        <select id="column_{{ column_id }}_fieldtype" class="fieldtype_mapping" name="fieldtype_mapping[{{ column_id }}]" rel="{{ column_id }}" disabled>
-                            {% for fieldtype in fieldtypes %}
+                <td>
+                    <select id="column_{{ column_id }}_fieldtype" class="fieldtype_mapping" name="fieldtype_mapping[{{ column_id }}]" rel="{{ column_id }}" disabled>
+                        {% for fieldtype in fieldtypes %}
                             <option value="{{ fieldtype.id }}">{{ fieldtype.typename }}</option>
-                            {% endfor %}
-                        </select>
-                    </td>
+                        {% endfor %}
+                    </select>
+                </td>
 
-                    <td>
-                        <select id="column_{{ column_id }}_delimiter" class="secondary_delimiter" name="column_delimiters[{{ column_id }}]" disabled>
-                            <option value="">Select a delimiter...</option>
-                            <option value="semicolon">{semicolon}</option>
-                            <option value="colon">{colon}</option>
-                            <option value="pipe">{pipe}</option>
-                        </select>
-                    </td>
+                <td>
+                    <select id="column_{{ column_id }}_delimiter" class="secondary_delimiter" name="column_delimiters[{{ column_id }}]" disabled>
+                        <option value="">Select a delimiter...</option>
+                        <option value="semicolon">{semicolon}</option>
+                        <option value="colon">{colon}</option>
+                        <option value="pipe">{pipe}</option>
+                    </select>
+                </td>
 
-                    <td id="column_{{ column_id }}_meta"></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                <td id="column_{{ column_id }}_meta"></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
 {% endif %} {# if not linked_importing #}
 
-    </form>
+</form>
 
 {% if not linked_importing %}
     <hr>
@@ -93,9 +103,9 @@
     <hr>
 {% endif %}
 
-    <div style="margin-top: 10px;">
-        <button id="validate_button" type="button" class="pure-button pure-button-primary" onclick="validateImport();">Validate Import</button>
-    </div>
+<div style="margin-top: 10px;">
+    <button id="validate_button" type="button" class="pure-button pure-button-primary" onclick="validateImport();">Validate Import</button>
+</div>
 
 <style>
     .csv_import_header {
@@ -130,8 +140,7 @@
 
         $(".inline_warning").hide();
 
-        $(".import_checkbox").unbind('change');
-        $(".import_checkbox").change(function() {
+        $(".import_checkbox").unbind('change').change(function() {
             var column_id = $(this).attr('rel');
 
             if ( $(this).is(':checked') ) {
@@ -165,8 +174,7 @@
                 preventImport();
         });
 
-        $(".unique_checkbox").unbind('click');
-        $(".unique_checkbox").click(function() {
+        $(".unique_checkbox").unbind('click').click(function() {
             var column_id = $(this).attr('rel');
 
             // Warn about unique datafields
@@ -176,8 +184,7 @@
                 preventImport();
         });
 
-        $(".datafield_mapping").unbind('change');
-        $(".datafield_mapping").change(function() {
+        $(".datafield_mapping").unbind('change').change(function() {
             var column_id = $(this).attr('rel');
 
             var fieldtype_id = $(this).children('option:selected').attr('rel');
@@ -205,8 +212,7 @@
                 preventImport();
         });
 
-        $(".fieldtype_mapping").unbind('change');
-        $(".fieldtype_mapping").change(function() {
+        $(".fieldtype_mapping").unbind('change').change(function() {
             var column_id = $(this).attr('rel');
 
             var fieldtype_id = $(this).val();
@@ -226,8 +232,7 @@
                 preventImport();
         });
 
-        $(".secondary_delimiter").unbind('change');
-        $(".secondary_delimiter").click(function() {
+        $(".secondary_delimiter").unbind('change').click(function() {
             if (block_changes)
                 preventImport();
         });
@@ -294,8 +299,7 @@
             $('#unlisted_' + column_id + '_note').attr('title', "The import process will always attempt to upload all files/images listed in the CSV file to this datafield, replacing the contents of any file/image that has already been uploaded.\nIf this option is checked, the import process will also delete any files/images in this datafield that are not listed in the CSV file.");
 
             if (block_changes) {
-                $(".synch_checkbox").unbind('click');
-                $(".synch_checkbox").click(function () {
+                $(".synch_checkbox").unbind('click').click(function () {
                     preventImport();
                 });
             }
@@ -490,17 +494,13 @@
                 dataType: 'json',
                 data: import_data,
                 success: function(data, textStatus, jqXHR) {
-                    if (data.r == 0) {
-                        // ...
-                        alert('Beginning validation of CSV Import...');
-                        var url = '{{ path('odr_job_list') }}';
-                        UpdateURL(url);
-                    }
-                    else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        alert(data.d);
-                    }
+                    alert('Beginning validation of CSV Import...');
+
+                    var url = '{{ path('odr_job_list') }}';
+                    UpdateURL(url);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
                 },
                 complete: function(jqXHR, textStatus) {
                     // Get the xdebugToken from response headers

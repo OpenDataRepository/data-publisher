@@ -3,7 +3,7 @@
 function setDatatypeIcons(id, icons) {
     $.each(icons, function(key, value) {
 //alert('key: ' + key + ' value: ' + value);
-        var icon = $("#DataTypeTools_" + id).find("." + key);
+        var icon = $("#ThemeDesignForm").find("." + key);
 
         // Currently, only render plugin and public datatype icons change
         if (key == "ODRRenderPlugin") {

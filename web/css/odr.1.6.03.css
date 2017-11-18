@@ -1,16 +1,14 @@
-
 /**
-* Open Data Repository Data Publisher
-* pure_odr_custom.css
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* CSS rules in this file are based off Pure.css
-* A set of small, responsive CSS modules that you can use in every web project.  http://purecss.io/
-* https://github.com/yahoo/pure/
-*
-*/
+ * Open Data Repository Data Publisher
+ * pure_odr_custom.css
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * CSS rules in this file are based off Pure.css
+ * A set of small, responsive CSS modules that you can use in every web project.  http://purecss.io/
+ * https://github.com/yahoo/pure/
+ */
 
 
 body {
@@ -94,7 +92,7 @@ a {
 .pure-skin-odr .pure-button-disabled,
 .pure-skin-odr .pure-button-disabled:hover,
 .pure-skin-odr .pure-button-disabled:active {
-    border: none;
+    border: 2px solid rgba(0,0,0,0);
     background-image: none;
     filter: progid:DXImageTransform.Microsoft.gradient(enabled = false);
     filter: alpha(opacity=40);
@@ -358,7 +356,6 @@ Forms Core
 .pure-skin-odr .pure-form input[type="search"],
 .pure-skin-odr .pure-form input[type="tel"],
 .pure-skin-odr .pure-form input[type="color"],
-.pure-skin-odr .pure-form select,
 .pure-skin-odr .pure-form textarea {
     padding: 0.4em 0.2em 0.4em 0.4em;
     display: inline-block;
@@ -507,9 +504,9 @@ Forms Core
     outline-color: #e9322d;
 }
 .pure-skin-odr .pure-form select {
-    border: 1px solid #e6e6e6;
+    /* border: 1px solid #e6e6e6;
     background-color: white;
-    color: #e9322d;
+    color: #e9322d; */
 }
 .pure-skin-odr .pure-form select[multiple] {
     height: auto;
@@ -977,12 +974,12 @@ pre,
 code {
     font-family: Consolas, 'Liberation Mono', Courier, monospace;
     color: #333;
-    background: rgb(250, 250, 250);
+    background: rgb(230, 230, 230);
 }
 
 code {
     padding: 0.2em 0.4em;
-    white-space: nowrap;
+    white-space: pre;
 }
 .content p code {
     font-size: 90%;
@@ -1923,8 +1920,8 @@ footer {
 }
 
 .ODRFormWrap {
-    margin-left: 10px; 
-    margin-right: 10px;
+    margin-left: 0px;
+    margin-right: 0px;
     /* background-color: #FAFAFA; */
     border: 0px solid #B9B9B9;
     border-radius: 2px;
@@ -2056,9 +2053,8 @@ header a {
     width: 450px;
     min-height: 350px;
     right: 0px;
-    background: #eee;
-    border-radius-top-right: 16px;
-    border-radius-bottom-right: 16px;
+    background-color: #6fa5c7;
+    border-radius: 6px;
     padding-top: 8px;
     padding-bottom: 8px;
 
@@ -2198,27 +2194,153 @@ h1:after {
     margin-bottom: -1em;
 }
 
+h3 .DatatypeTools,
 .DataTypeTools {
     font-size: 18px;
-    color: #888;
-    /*float: right;*/
+    color: #888 !important;
     position: relative;
-    /*top: -48px;*/
-    /*height: 0px;*/
     line-height: 0px;
     padding: 0px 0px 0px 0px;
     z-index: 500;
+}
+
+.ResultsDataTypeTools {
+    float: right;
+    margin-top: 8px;
+    margin-right: 8px;
+}
+
+.ODRRecord .ResultsDataTypeTools span {
+    min-width: 40px;
+    padding: 4px 4px 4px 4px;
+    background: rgba(255,255,255, 0.4);
+    border-radius: 6px;
+}
+
+.ODRTabAccordion .DataTypeTools {
+    float: right;
+    top: -96px;
+    height: 0px;
+    margin-right: 8px;
+}
+
+.ODRTabAccordion .DataTypeTools span {
+    padding: 4px 4px 4px 4px;
+    background: rgba(255,255,255, 0.4) !important;
+    border-radius: 6px;
+}
+
+.ODRFormAccordion .DatatypeTools {
+    float: right;
+    top: -4px;
+    padding: 4px 4px 4px 4px;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 6px;
+}
+
+.ODRDropdownAccordion .DataTypeTools {
+    float: right;
+    top: -40px;
+    height: 0px;
+    margin-right: 8px;
+
+}
+.ODRDropdownAccordion .DataTypeTools span {
+    padding: 4px 4px 4px 4px;
+    background: rgba(255,255,255, 0.4);
+    border-radius: 6px;
+}
+
+.ODRResults select.AccordionSelect {
+    float: right;
+    margin-right: 38px !important;
+    max-width: 350px;
+    padding: 4px 4px 2px 4px !important;
+    height: 32px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: 6px;
+}
+
+.ODRRecord select.AccordionSelect {
+    float: right;
+    margin-right: 58px !important;
+    max-width: 350px;
+    padding: 4px 4px 2px 4px !important;
+    height: 32px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: 6px;
+}
+
+.DataTypeToolsAccordion {
+    float: right;
+    top: -48px;
+    height: 0px;
+    padding-right: 8px;
 }
 
 .ODRThemeElement > .DataTypeTools {
     margin: 5px 0px;
 }
 
+
+
+#ODRDatatypeDesign .fa {
+    margin-top: 1px;
+}
+#ODRDatatypeDesign .ODRDataField {
+    margin-bottom: 4px;
+}
+
+#ODRDatatypeDesign > .ODRThemeElement > .ThemeElementTools {
+    color: #eeeeee;
+}
+#ODRDatatypeDesign .ODRFieldArea > .ODRThemeElement > .ThemeElementTools {
+    color: black;
+}
+#ODRDatatypeDesign .ThemeElementTools {
+    font-size: 18px;
+    color: #eeeeee;
+    /*float: right;*/
+    position: relative;
+    top: 0px;
+    height: 0px;
+    line-height: 0px;
+    padding: 0px 0px 0px 0px;
+    margin-right: 8px;
+    z-index: 5;
+}
+#ODRDatatypeDesign .ThemeElementTools i {
+    /* margin-top: 3px; */
+}
+
+#ODRDatatypeDesign .DataTypeTools {
+    font-size: 18px;
+    color: #eeeeee;
+    float: none;
+    position: relative;
+    /* margin-top: 6px; */
+    top: 0px;
+    height: 0px;
+    line-height: 0px;
+    padding: 0px 0px 0px 0px;
+    z-index: 500;
+}
+
+#ODRDatatypeDesign .ODRMarkdownContent .ODRPublicStatusIndicator {
+    float: left;
+}
+
+/*
 .tooltip {
     float: left;
     margin-top: 4px;
     margin-right: 4px;
 }
+*/
 .fa-muted {
     cursor: not-allowed;
     /*color: #aa0000;*/
@@ -2443,7 +2565,7 @@ form .row {
 
 .ODRDesign .ODRFieldLabel {
     font-weight: bold;
-    /* margin-left 0.6em; */
+    cursor: default;
 }
 
 .ODRShortResults .ODRFieldLabel {
@@ -2545,7 +2667,11 @@ form .row {
     /* margin: 5px 5px 20px; */
 }
 .ODRAccordionWrapper > h3 {
-    padding: 0.78em 1.5em;
+    padding: 12px 8px 12px 16px;
+    cursor: pointer;
+}
+.ODRAccordionWrapper > div {
+    margin-top: 4px;
 }
 
 .ODRDataType {
@@ -2742,28 +2868,34 @@ form .row {
     margin-right: auto;
 }
 
-.ODRGalleryLeftArrow {
-    color: #888;
-    padding: 0.3em 0.3em 0.3em 0em;
-    background: rgba(255,255,255, 0.7);
-    border-top-right-radius: 20px;
-    border-bottom-right-radius: 20px;
-    position: absolute;
-    left: 0;
+.ODRGalleryLeftArrow,
+.ODRGalleryRightArrow {
+    opacity: 0.10;
+    color: rgba(152, 152, 152, 1);
+    background: rgba(255, 255, 255, 1);
     margin-top: 30%;
     z-index: 100;
+    position: absolute;
+}
+
+
+.ODRGalleryLeftArrow {
+    padding: 0.3em 0.3em 0.3em 0;
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+    left: 0;
 }
 
 .ODRGalleryRightArrow {
-    color: #888;
-    padding: 0.3em 0em 0.3em 0.3em;
-    background: rgba(255,255,255, 0.7);
-    border-top-left-radius: 20px;
-    border-bottom-left-radius: 20px;
-    position: absolute;
+    padding: 0.3em 0 0.3em 0.3em;
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
     right: 0;
-    margin-top: 30%;
-    z-index: 100;
+}
+.ODRGalleryLeftArrow:hover,
+.ODRGalleryRightArrow:hover {
+    opacity: 0.45;
+    transition: opacity 0.3s;
 }
 
 .ODRBrowseLabels {
@@ -3051,8 +3183,12 @@ form .row {
     padding-right: 5px;
 }
 
-#FileDownloadForm ul {
+#ODRFileDownloadForm ul {
     list-style: none;
+    padding-left: 6px;
+}
+#ODRFileDownloadForm ul ul {
+    padding-left: 26px;
 }
 
 .ODRFileSpacer {
@@ -3116,7 +3252,6 @@ form .row {
     position: absolute;
 }
 
-
 .ODRUploadDragHighlight {
     background: green !important;
 }
@@ -3133,5 +3268,422 @@ form .row {
 }
 .ODRProgressBar {
     display: block;
+}
+
+
+.ODROAuthProviderList {
+    text-align: center;
+    padding-bottom: 25px;
+}
+
+.ODRLoginForm .pure-control-group {
+    margin-bottom: 10px;
+}
+
+.ODRActiveIcon {
+    /*border: 1px solid #00FF00;
+    border-radius: 8px; */
+    color: gold;
+}
+
+/*
+    ODR Responsive Modal
+    Initial Source/Inspirations
+    https://stanhub.com/multiple-responsive-popup-windows-on-same-page/
+ */
+.odr-popup-trigger { display: block; margin: 0 auto; padding: 20px; max-width: 260px; background: #4EBD79; color: #fff;
+    font-size: 18px; font-weight: 700; text-align: center; text-transform: uppercase; line-height: 24px; cursor: pointer; }
+.odr-popup {display: none; position: absolute; top: 100px; left: 50%; width: 700px; margin-left: -350px; padding: 50px 30px;
+    background: #fff; color: #333; font-size: 19px; line-height: 30px; border: 10px solid #150E2D; z-index: 9999;}
+.odr-popup-mobile {position: relative; top: 0; left: 0; margin: 30px 0 0; width: 100%;}
+.odr-popup-btn-close {position: absolute; top: 8px; right: 14px; color: #4EBD79; font-size: 14px; font-weight: bold; text-transform: uppercase; cursor: pointer;}
+
+
+.ODRDropActive {
+   background: rgba(88, 188, 88, 0.5);
+}
+.ODRDropHover {
+    background: rgba(46, 138, 68, 0.5);
+}
+
+.ODRInnerBox {
+    /*
+        Min height is required so sortable allows dropped objects when the
+        sortable itself has no children (of class ODRDataField)
+     */
+    min-height: 50px;
+}
+.ODRNotificationHeader {
+    font-weight: bold;
+}
+.ODRNotificationText {
+    margin-top: 5px;
+}
+
+.ODRRemodal {
+    max-width: 90%;
+    border: 1px solid #7fb9d8;
+    border-radius: 4px;
+    color: #3b8bba;
+    padding: 0 0 0 0;
+    overflow: hidden;
+}
+.ODRRemodal h3 {
+    font-size: 16px;
+    font-weight: bold;
+    color: #3b8bba;
+    background: #b8e8fa none repeat scroll 0 0;
+    position: absolute;
+    line-height: 35px;
+    top: 0;
+    margin: 0px 0px 0px 0px;
+    overflow: visible;
+    text-align: center;
+    width: 100%;
+}
+.ODRRemodalButtons {
+    /* display: block; */
+    cursor: pointer;
+    position: relative;
+    bottom: 0px;
+    background: white;
+    width: 100%;
+    box-sizing: border-box;
+    border-top: 1px solid #b8e8fa;
+    -webkit-box-shadow: 0px -1px 8px 0px rgba(50, 50, 50, 0.2);
+    -moz-box-shadow:    0px -1px 8px 0px rgba(50, 50, 50, 0.2);
+    box-shadow:         0px -1px 8px 0px rgba(50, 50, 50, 0.2);
+}
+.ODRRemodalTitle {
+    -webkit-box-shadow: 0px 1px 10px 0px rgba(50, 50, 50, 0.3);
+    -moz-box-shadow:    0px 1px 10px 0px rgba(50, 50, 50, 0.3);
+    box-shadow:         0px 1px 10px 0px rgba(50, 50, 50, 0.3);
+}
+.ODRRemodalCancel {
+    position: relative;
+    display: inline;
+    margin-top: 10px;
+    padding-top: 10px;
+    vertical-align: middle;
+    top: -5px;
+}
+.ODRRemodalLoading {
+    padding-top: 100px;
+    padding-bottom: 100px;
+    margin-left: -10px;
+}
+.ODRRemodalInner {
+    overflow: scroll;
+    margin-top: 35px;
+    /* margin-left: 10px; */
+    height: 10px;
+    /* -webkit-transition: max-height 2s;
+    -moz-transition: max-height 2s;
+    -ms-transition: max-height 2s;
+    -o-transition: max-height 2s;
+    transition: max-height 2s; */
+}
+.ODRRemodalInnerContent {
+    /* overflow: scroll; */
+    /* max-height: 1px; */
+}
+.remodal-close {
+    z-index: 100;
+}
+.ODRRemodalBody > div {
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+/* Media Queries */
+/* pure-hidden-xs */
+@media screen and (max-width:567px) {
+    .ODRRemodal h3 {
+        margin: 0px 0px 0px 0px;
+        padding: 0;
+        overflow: scroll;
+    }
+    .ODRRemodalButtons {
+        /* display: block; */
+        position: absolute;
+        bottom: 0px;
+    }
+    .ODRRemodal {
+        max-width: 100%;
+        color: green;
+        position:fixed !important;
+        position:absolute;
+        top:0;
+        right:0;
+        bottom:0;
+        left:0;
+        margin: 0;
+        padding: 0;
+        /* background: lightgoldenrodyellow; */
+    }
+}
+/* pure-hidden-sm */
+@media screen and (min-width:568px) and (max-width:767px) {
+}
+/* pure-hidden-md */
+@media screen and (min-width:768px) and (max-width:1023px) {
+}
+/* pure-hidden-lg */
+@media screen and (min-width:1024px) and (max-width:1279px) {
+}
+/* pure-hidden-xl */
+@media screen and (min-width:1280px) {
+}
+
+#ODRFileDownloadFormWrapper {
+    display: none;
+    text-align: left;
+    font-size: 0.8em;
+    color: #444;
+    font-family: "Lato-Reg", sans-serif;
+}
+#ODRFileDownloadForm_loading {
+    padding: 100px 10px 100px 10px;
+    color: #3b8bba;
+}
+#ODRFileDownloadForm_submit {
+    margin: 10px 10px 10px 10px;
+}
+#ODRFileDownloadForm_progress {
+    font-size: 20px;
+    padding: 100px 10px 100px 10px;
+}
+#ODRFileDownloadFormWrapper li {
+    white-space: nowrap;
+    list-style-type: none;
+}
+
+
+
+
+/** BEGIN CSS **/
+/* End Loading CSS Widget */
+/*
+
+Dom Sammut 2013
+***************
+Web: www.domsammut.com
+Twitter: www.twitter.com/domsammut
+
+View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-animation
+
+*/
+@keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-moz-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-webkit-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-o-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-moz-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-webkit-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@-o-keyframes rotate-loading {
+    0%  {transform: rotate(0deg);-ms-transform: rotate(0deg); -webkit-transform: rotate(0deg); -o-transform: rotate(0deg); -moz-transform: rotate(0deg);}
+    100% {transform: rotate(360deg);-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); -o-transform: rotate(360deg); -moz-transform: rotate(360deg);}
+}
+
+@keyframes loading-text-opacity {
+    0%  {opacity: 0}
+    20% {opacity: 0}
+    50% {opacity: 1}
+    100%{opacity: 0}
+}
+
+@-moz-keyframes loading-text-opacity {
+    0%  {opacity: 0}
+    20% {opacity: 0}
+    50% {opacity: 1}
+    100%{opacity: 0}
+}
+
+@-webkit-keyframes loading-text-opacity {
+    0%  {opacity: 0}
+    20% {opacity: 0}
+    50% {opacity: 1}
+    100%{opacity: 0}
+}
+
+@-o-keyframes loading-text-opacity {
+    0%  {opacity: 0}
+    20% {opacity: 0}
+    50% {opacity: 1}
+    100%{opacity: 0}
+}
+.loading-container,
+.loading {
+    height: 120px;
+    position: relative;
+    width: 120px;
+    border-radius: 100%;
+}
+
+
+.loading-container { margin: 40px auto }
+
+.loading {
+    border: 2px solid transparent;
+    border-color: transparent #fff transparent #FFF;
+    -moz-animation: rotate-loading 1.5s linear 0s infinite normal;
+    -moz-transform-origin: 50% 50%;
+    -o-animation: rotate-loading 1.5s linear 0s infinite normal;
+    -o-transform-origin: 50% 50%;
+    -webkit-animation: rotate-loading 1.5s linear 0s infinite normal;
+    -webkit-transform-origin: 50% 50%;
+    animation: rotate-loading 1.5s linear 0s infinite normal;
+    transform-origin: 50% 50%;
+}
+
+.loading-container .loading {
+    border-color: transparent #b8e8fa transparent #b8e8fa;
+}
+.loading-container:hover .loading,
+.loading-container .loading {
+    -webkit-transition: all 0.5s ease-in-out;
+    -moz-transition: all 0.5s ease-in-out;
+    -ms-transition: all 0.5s ease-in-out;
+    -o-transition: all 0.5s ease-in-out;
+    transition: all 0.5s ease-in-out;
+}
+
+.loading-text {
+    -moz-animation: loading-text-opacity 2s linear 0s infinite normal;
+    -o-animation: loading-text-opacity 2s linear 0s infinite normal;
+    -webkit-animation: loading-text-opacity 2s linear 0s infinite normal;
+    animation: loading-text-opacity 2s linear 0s infinite normal;
+    color: #3b8bba;
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 52px;
+    opacity: 0;
+    position: absolute;
+    text-align: center;
+    /* text-transform: uppercase; */
+    top: 0;
+    width: 120px;
+}
+/* End Loading CSS Widget */
+
+
+#ODRChooseView {
+    list-style-type: none;
+    -webkit-margin-before: 0;
+    -webkit-margin-after: 0;
+    -webkit-margin-start: 0;
+    -webkit-margin-end: 0;
+    -webkit-padding-start: 0;
+}
+
+#ODRChooseView > li {
+    background-color: rgba(184, 232, 250, 0.25);
+    border-radius: 8px;
+    padding-bottom: 0.6em;
+    margin-bottom: 0.8em;
+    margin-left: 0.4em;
+    margin-right: 0.4em;
+    border: 1px solid #ddd;
+}
+#ODRChooseView:first-child {
+    padding-bottom: 0.6em;
+    margin-top: 0.6em;
+}
+#ODRChooseView h4 {
+    -webkit-margin-before: 0;
+    -webkit-margin-after: 0;
+    -webkit-margin-start: 0;
+    -webkit-margin-end: 0;
+    margin-top: 0.4em;
+}
+
+.ODRViewOptions {
+    list-style-type: none;
+    -webkit-margin-before: 0;
+    -webkit-margin-after: 0;
+    -webkit-margin-start: 0;
+    -webkit-margin-end: 0;
+    -webkit-padding-start: 0;
+    margin-top: 1.0em;
+}
+
+.ODRChooseViewDescription {
+    box-sizing: border-box; /* 1 */
+    margin-top: 0.4em;
+    padding-left: 0.8em;
+    padding-right: 0.8em;
+    color: #888;
+    font-size: 1.0em;
+    text-align: left;
+}
+
+#ODRRenderPluginSettingsForm fieldset {
+    margin: 5px;
+    font-size: 1.2em;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 4px;
+}
+.ODRRenderPlugin_option_description {
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0px 5px;
+}
+
+.ODRCopyViewProgress {
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 0px;
+    width: auto;
+    position: relative;
+}
+.ODRDefaultPersonal,
+.ODRDefaultDatabase,
+.ODRMakeCurrentView,
+.ODRMakeViewPublic,
+.ODREditThemeName,
+.ODRModifyTheme,
+.ODRCopyModifyTheme,
+.ODRDeleteTheme {
+    cursor: pointer;
+}
+
+.ODRDefaultPersonal:hover,
+.ODRDefaultDatabase:hover,
+.ODRMakeCurrentView:hover,
+.ODRMakeViewPublic:hover,
+.ODREditThemeName:hover,
+.ODRModifyTheme:hover,
+.ODRCopyModifyTheme:hover,
+.ODRDeleteTheme:hover {
+    color: #2ca02c;
 }
 

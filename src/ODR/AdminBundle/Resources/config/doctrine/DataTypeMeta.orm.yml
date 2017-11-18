@@ -13,6 +13,26 @@ ODR\AdminBundle\Entity\DataTypeMeta:
             generator:
                 strategy: IDENTITY
 
+        # Master Templates increment revision using this column.
+        master_revision:
+            type: integer
+            unsigned: true
+            nullable: false
+            default: 0
+        # This value tracks the current published revision of the master template.
+        master_published_revision:
+            type: integer
+            unsigned: true
+            nullable: false
+            default: 0
+            column: master_published_version
+        # Databases created from master templates track the revision they are in compliance with here.
+        tracking_master_revision:
+            type: integer
+            unsigned: true
+            nullable: false
+            default: 0
+
         searchSlug:
             type: string
             length: 32
@@ -43,12 +63,6 @@ ODR\AdminBundle\Entity\DataTypeMeta:
             fixed: false
             nullable: false
             column: xml_short_name
-
-        useShortResults:
-            type: boolean
-            nullable: false
-            default: true
-            column: use_short_results
 
         publicDate:
             type: datetime
@@ -131,6 +145,7 @@ ODR\AdminBundle\Entity\DataTypeMeta:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
+
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }

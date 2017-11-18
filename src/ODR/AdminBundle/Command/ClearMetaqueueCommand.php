@@ -31,6 +31,10 @@ use ODR\AdminBundle\Entity\DataType;
 //class RefreshCommand extends Command
 class ClearMetaqueueCommand extends ContainerAwareCommand
 {
+
+    /**
+     * {@inheritdoc}
+     */
     protected function configure()
     {
         parent::configure();
@@ -41,6 +45,10 @@ class ClearMetaqueueCommand extends ContainerAwareCommand
             ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the redis_prefix to the tube name for deleting jobs');
     }
 
+
+    /**
+     * {@inheritdoc}
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         // Only need to load these once...
@@ -55,7 +63,7 @@ class ClearMetaqueueCommand extends ContainerAwareCommand
             if ($input->getOption('old'))
                 $job = $pheanstalk->watch($redis_prefix.'_build_metadata')->ignore('default')->reserve();
             else
-                $job = $pheanstalk->watch('build_metadata')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch('build_metadata')->ignore('default')->reserve();
 
             $data = json_decode($job->getData());
             $job_source = $data->redis_prefix;

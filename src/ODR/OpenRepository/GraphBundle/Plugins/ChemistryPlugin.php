@@ -16,11 +16,14 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
+// Symfony
+use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+
 
 class ChemistryPlugin
 {
     /**
-     * @var mixed
+     * @var EngineInterface
      */
     private $templating;
 
@@ -28,9 +31,9 @@ class ChemistryPlugin
     /**
      * URLPlugin constructor.
      *
-     * @param $templating
+     * @param EngineInterface $templating
      */
-    public function __construct($templating) {
+    public function __construct(EngineInterface $templating) {
         $this->templating = $templating;
     }
 

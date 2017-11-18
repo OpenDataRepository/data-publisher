@@ -1,7 +1,12 @@
 {% spaceless %}
 <div class="ODRFormWrap ODRDesign pure-u-1">
 
-    {% include 'ODRAdminBundle:CSVExport:csvexport_childtype.html.twig' with {'datatype_array': datatype_array, 'target_datatype_id': initial_datatype_id, 'theme_id': theme_id, 'is_top_level': 1} %}
+    {% include 'ODRAdminBundle:CSVExport:csvexport_childtype.html.twig' with {
+        'datatype_array': datatype_array,
+        'target_datatype_id': initial_datatype_id,
+        'theme_array': theme_array,
+        'is_top_level': 1
+    } %}
 
 </div><!-- End of .ODRFormWrap -->
 {% endspaceless %}

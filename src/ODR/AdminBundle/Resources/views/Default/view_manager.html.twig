@@ -1,0 +1,361 @@
+{% spaceless %}
+
+    <h1 class="no-margin-top-phone">
+        <span>Search Result &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+        <a id="page_settings" name="page_settings"><i class="fa fa-md fa-fw fa-cog"></i></a>
+    </h1>
+    {# Record View Menu #}
+    <div id="page_settings_menu" class="pure-menu pure-menu-horizontal" style="display:none;">
+        <ul class="pure-menu-list">
+            <li class="pure-menu-item">
+                <a name="ChooseView" id="ChooseView" class="pure-menu-link">Choose View</a>
+            </li>
+        </ul>
+    </div>
+
+<script>
+
+    $(function() {
+        initViewManager();
+    });
+
+    function initViewManager() {
+        // Setup Theme System
+        setupThemeSystem();
+
+        $("#page_settings").unbind('click').click(function(event) {
+            $("#page_settings_menu").toggle('fast');
+        });
+
+    }
+
+
+    function setupThemeSystem() {
+        // Init the choose view button
+        $("#ChooseView").unbind('click').click(function(event) {
+            chooseView();
+        });
+    }
+
+
+    function chooseView() {
+        modal_options = {
+            title: "Choose from available views:",
+            // body: "<div>Loading will not display if body is set.</div>",
+            // loading: true,  // Force loading to display
+        };
+        openODRRemodal(modal_options);
+
+        var url = '{{ path('odr_get_available_themes', { 'datatype_id': datatype.id, 'page_type': page_type }) }}';
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                $(".ODRRemodalBody").html( data.d );
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    resetRemodalInnerHeight();
+                    initChooseViewButtons();
+                });
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+
+    function initChooseViewButtons() {
+        $(".ODRDeleteTheme").unbind('click').click(function() {
+            // Show loading with "Deleting" text
+            setODRRemodalLoadingText("deleting");
+            $(".ODRRemodalBody").hide();
+            $(".ODRRemodalLoading").show();
+            resetRemodalInnerHeight();
+
+            var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
+            deleteView(theme_id);
+        });
+
+        $(".ODRDefaultPersonal").unbind('click').click(function() {
+            setModalMessage("Setting view as personal default.");
+
+            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            applyView(theme_id, 1, 0);
+        });
+
+        $(".ODRMakeCurrentView").unbind('click').click(function() {
+            setModalMessage("Setting view for session.");
+
+            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            applyView(theme_id, 1, 1);
+        });
+
+        $(".ODRCopyModifyTheme").unbind('click').click(function() {
+            var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
+            copyAndModifyView(theme_id);
+        });
+
+        $(".ODRModifyTheme").unbind('click').click(function() {
+            var theme_id = $(this).parent().parent().parent().parent().attr('data-theme-id');
+            openModifyThemeEditor(theme_id);
+        });
+
+        $(".ODRDefaultDatabase").unbind('click').click(function() {
+            setModalMessage("Setting view as database default.");
+
+            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            makeDatabaseDefault(theme_id);
+        });
+
+        $(".ODRMakeViewPublic").unbind('click').click(function() {
+            setModalMessage("Setting view as database default.");
+
+            var theme_id = $(this).parent().parent().parent().attr('data-theme-id');
+            makeViewPublic(theme_id);
+        });
+    }
+
+
+    function applyView(theme_id, redirect, session) {
+        if (redirect === undefined)
+            redirect = true;
+
+        if (session === undefined)
+            session = 1;
+
+        var url = '{{ path('odr_apply_theme', { 'datatype_id': datatype.id, 'theme_id': 0, 'session': 0   }) }}';
+        url = url.substr(0, (url.length - 3)) + theme_id + "/" + session;
+
+
+        // set view
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                if (redirect) {
+                    closeODRRemodal();
+                    reloadPage();
+                }
+
+                // Without redirect, this just sets the view preference
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+
+    function copyAndModifyView(theme_id) {
+        var url = '{{ path('odr_clone_theme', { 'theme_id': 0 }) }}';
+        url = url.substr(0, (url.length - 1)) + theme_id;
+
+        setModalMessage("Copying selected theme, please wait...");
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // Open the edit page for the new theme
+                // This will also make the new theme the user's current session theme
+                openModifyThemeEditor(data.d.new_theme_id);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+
+    function openModifyThemeEditor(theme_id) {
+        // Set view for session
+        applyView(theme_id, 0, 1);
+
+        closeODRRemodal();
+
+        // Open View Editor
+        var url = '{{ path('odr_modify_theme', { 'datatype_id': datatype.id, 'theme_id': 0 }) }}';
+        url = url.substr(0,(url.length - 1)) + theme_id;
+
+//alert(url);
+//return;
+
+        // Hash change event will load theme
+        window.location.hash = url
+    }
+
+
+    function makeViewPublic(theme_id) {
+        var url = '{{ path('odr_toggle_theme_public', {'theme_id': 0}) }}';
+        url = url.substr(0, (url.length - 1)) + theme_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+{#    TODO - these don't have a chance to display before the modal closes...
+                // Apply view for session and redirect.
+                if (data.d.public) {
+                    setModalMessage("View set to public. Other users will be able to select and use your view.");
+                }
+                else {
+                    setModalMessage("View set to private. Only you select and use this view.");
+                }
+#}
+                // Close modal and reload page
+                closeODRRemodal()
+
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+
+    function makeDatabaseDefault(theme_id) {
+        var url = '{{ path('odr_make_default_theme', {'theme_id': 0}) }}';
+        url = url.substr(0, (url.length - 1)) + theme_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // Apply view for session and redirect.
+                applyView(theme_id);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+
+    function deleteView(theme_id) {
+        var url = '{{ path('odr_delete_custom_theme', {'theme_id': 0}) }}';
+        url = url.substr(0, (url.length - 1)) + theme_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                $(".ODRRemodalLoading").hide();
+                resetODRRemodalLoadingText();
+                setModalMessage("View deleted.");
+
+                // Close modal and reload page
+                closeODRRemodal();
+                reloadPage();
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to create a jGrowl because exception handlers will automatically
+                //  display. Close the dialog so it's not in some half-initialized state.
+                closeODRRemodal();
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+{% endspaceless %}

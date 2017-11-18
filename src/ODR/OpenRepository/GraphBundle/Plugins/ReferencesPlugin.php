@@ -15,11 +15,14 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
+// Symfony
+use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
+
 
 class ReferencesPlugin
 {
     /**
-     * @var mixed
+     * @var EngineInterface
      */
     private $templating;
 
@@ -27,9 +30,9 @@ class ReferencesPlugin
     /**
      * URLPlugin constructor.
      *
-     * @param $templating
+     * @param EngineInterface $templating
      */
-    public function __construct($templating) {
+    public function __construct(EngineInterface $templating) {
         $this->templating = $templating;
     }
 
@@ -40,13 +43,13 @@ class ReferencesPlugin
      * @param array $datarecords
      * @param array $datatype
      * @param array $render_plugin
-     * @param array $theme
+     * @param array $theme_array
      * @param array $rendering_options
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme, $rendering_options)
+    public function execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options)
     {
 
         try {
@@ -70,22 +73,9 @@ class ReferencesPlugin
                 $rpf = $rpm['renderPluginFields'];
                 $df_id = $rpm['dataField']['id'];
 
-                // Want the full-fledged datafield entry...the one in $rpm['dataField'] has no render plugin or meta data
-                // Unfortunately, the desired one is buried inside the $theme array somewhere...
                 $df = null;
-                foreach ($theme['themeElements'] as $te) {
-                    if ( isset($te['themeDataFields']) ) {
-                        foreach ($te['themeDataFields'] as $tdf) {
-                            if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $df_id ) {
-                                $df = $tdf['dataField'];
-                                break;
-                            }
-                        }
-                    }
-
-                    if ($df !== null)
-                        break;
-                }
+                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$df_id]) )
+                    $df = $datatype['dataFields'][$df_id];
 
                 if ($df == null)
                     throw new \Exception('Unable to locate array entry for the field "'.$rpf['fieldName'].'", mapped to df_id '.$df_id);

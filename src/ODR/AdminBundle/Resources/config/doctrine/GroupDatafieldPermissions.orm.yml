@@ -51,7 +51,7 @@ ODR\AdminBundle\Entity\GroupDatafieldPermissions:
             targetEntity: DataFields
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: groupDatafieldPermissions
             joinColumns:
                 data_field_id:
                     referencedColumnName: id
