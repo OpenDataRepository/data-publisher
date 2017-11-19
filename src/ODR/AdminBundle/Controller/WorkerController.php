@@ -970,7 +970,6 @@ $ret .= '  Set current to '.$count."\n";
             }
             $results = $conn->fetchAll($query);
 
-            print '<pre>';
             $key = 'associated_datarecords_for_';
             foreach ($results as $result) {
                 if ($cache_service->exists($key.$result['dr_id']))
@@ -988,7 +987,6 @@ $ret .= '  Set current to '.$count."\n";
                 if ($cache_service->exists($key.$result['dr_id']))
                     $cache_service->delete($key.$result['dr_id']);
             }
-            print '</pre>';
 
         }
         catch (\Exception $e) {

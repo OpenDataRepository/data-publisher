@@ -550,10 +550,9 @@ class DisplayController extends ODRCustomController
 
             $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
             if (!$local_filepath) {
-                // Allow graph plugin to download non-public files directly?
-                // TODO - don't like this...
-                if ($datatype->getRenderPlugin()->getPluginName() == 'Graph Plugin')
-                    $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
+                // If file doesn't exist, and user has permissions...just decrypt it directly?
+                // TODO - don't really like this, but downloading a file via table theme or interactive graph feature can't get at non-public files otherwise...
+                $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
             }
 
             if (!$local_filepath)

@@ -212,14 +212,30 @@ class DatarecordInfoService
         // Otherwise...get all non-layout data for the requested grandparent datarecord
         $query = $this->em->createQuery(
            'SELECT
-               dr, drm, dr_cb, dr_ub, p_dr, gp_dr,
-               dt, dtm, dt_eif, dt_nf, dt_sf,
-               drf, e_f, e_fm, e_f_cb,
-               e_i, e_im, e_ip, e_ipm, e_is, e_ip_cb,
+               dr, partial drm.{id, publicDate}, partial p_dr.{id}, partial gp_dr.{id},
+               partial dr_cb.{id, username, email, firstName, lastName},
+               partial dr_ub.{id, username, email, firstName, lastName},
+
+               dt, dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
+
+               drf, partial df.{id},
+               e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
+               e_i, e_im, e_ip, e_ipm, e_is, partial e_ip_cb.{id, username, email, firstName, lastName},
+
                e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv, rs, ro,
-               e_b_cb, e_iv_cb, e_dv_cb, e_lt_cb, e_lvc_cb, e_mvc_cb, e_svc_cb, e_dtv_cb, rs_cb,
-               df,
-               cdr, cdr_dt, ldt, ldr, ldr_dt
+
+               partial e_b_ub.{id, username, email, firstName, lastName},
+               partial e_iv_ub.{id, username, email, firstName, lastName},
+               partial e_dv_ub.{id, username, email, firstName, lastName},
+               partial e_lt_ub.{id, username, email, firstName, lastName},
+               partial e_lvc_ub.{id, username, email, firstName, lastName},
+               partial e_mvc_ub.{id, username, email, firstName, lastName},
+               partial e_svc_ub.{id, username, email, firstName, lastName},
+               partial e_dtv_ub.{id, username, email, firstName, lastName},
+               partial rs_ub.{id, username, email, firstName, lastName},
+
+               partial cdr.{id}, partial cdr_dt.{id},
+               ldt, partial ldr.{id}, partial ldr_dt.{id}
 
             FROM ODRAdminBundle:DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
@@ -247,23 +263,23 @@ class DatarecordInfoService
             LEFT JOIN e_ip.createdBy AS e_ip_cb
 
             LEFT JOIN drf.boolean AS e_b
-            LEFT JOIN e_b.createdBy AS e_b_cb
+            LEFT JOIN e_b.updatedBy AS e_b_ub
             LEFT JOIN drf.integerValue AS e_iv
-            LEFT JOIN e_iv.createdBy AS e_iv_cb
+            LEFT JOIN e_iv.updatedBy AS e_iv_ub
             LEFT JOIN drf.decimalValue AS e_dv
-            LEFT JOIN e_dv.createdBy AS e_dv_cb
+            LEFT JOIN e_dv.updatedBy AS e_dv_ub
             LEFT JOIN drf.longText AS e_lt
-            LEFT JOIN e_lt.createdBy AS e_lt_cb
+            LEFT JOIN e_lt.updatedBy AS e_lt_ub
             LEFT JOIN drf.longVarchar AS e_lvc
-            LEFT JOIN e_lvc.createdBy AS e_lvc_cb
+            LEFT JOIN e_lvc.updatedBy AS e_lvc_ub
             LEFT JOIN drf.mediumVarchar AS e_mvc
-            LEFT JOIN e_mvc.createdBy AS e_mvc_cb
+            LEFT JOIN e_mvc.updatedBy AS e_mvc_ub
             LEFT JOIN drf.shortVarchar AS e_svc
-            LEFT JOIN e_svc.createdBy AS e_svc_cb
+            LEFT JOIN e_svc.updatedBy AS e_svc_ub
             LEFT JOIN drf.datetimeValue AS e_dtv
-            LEFT JOIN e_dtv.createdBy AS e_dtv_cb
+            LEFT JOIN e_dtv.updatedBy AS e_dtv_ub
             LEFT JOIN drf.radioSelection AS rs
-            LEFT JOIN rs.createdBy AS rs_cb
+            LEFT JOIN rs.updatedBy AS rs_ub
             LEFT JOIN rs.radioOption AS ro
 
             LEFT JOIN drf.dataField AS df
@@ -406,7 +422,7 @@ class DatarecordInfoService
                 $keys = array('boolean', 'integerValue', 'decimalValue', 'longText', 'longVarchar', 'mediumVarchar', 'shortVarchar', 'datetimeValue');
                 foreach ($keys as $typeclass) {
                     if ( count($drf[$typeclass]) > 0 ) {
-                        $drf[$typeclass][0]['createdBy'] = UserUtility::cleanUserData( $drf[$typeclass][0]['createdBy'] );
+                        $drf[$typeclass][0]['updatedBy'] = UserUtility::cleanUserData( $drf[$typeclass][0]['updatedBy'] );
 
                         // Store the value from this storage entity if it's the one being used for external_id/name/sort datafields
                         if ($external_id_field !== null && $external_id_field == $df_id) {
@@ -432,7 +448,7 @@ class DatarecordInfoService
                 // Organize radio selections by radio option id
                 $new_rs_array = array();
                 foreach ($drf['radioSelection'] as $rs_num => $rs) {
-                    $rs['createdBy'] = UserUtility::cleanUserData( $rs['createdBy'] );
+                    $rs['updatedBy'] = UserUtility::cleanUserData( $rs['updatedBy'] );
 
                     $ro_id = $rs['radioOption']['id'];
                     $new_rs_array[$ro_id] = $rs;
