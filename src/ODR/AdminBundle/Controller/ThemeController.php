@@ -1431,6 +1431,10 @@ class ThemeController extends ODRCustomController
             if ($theme_datatype_form->isSubmitted()) {
 
                 if ($theme_datatype_form->isValid()) {
+                    // Don't allow a themeDatatype belonging to a master theme to be hidden
+                    if ($theme->getThemeType() == 'master')
+                        $submitted_data->setHidden(0);
+
                     // Save all changes made via the form
                     $properties = array(
                         'display_type' => $submitted_data->getDisplayType(),
