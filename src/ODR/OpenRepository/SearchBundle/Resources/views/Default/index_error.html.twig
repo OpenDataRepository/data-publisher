@@ -41,20 +41,26 @@
 
 
 {% block title %}{{ window_title }}{% endblock %}
-
 {% set use_navigation_block = false %}
+
+{#
 {% if user != null %}
     {% set use_navigation_block = true %}
 {% endif %}
-
+#}
+{#
 {% block navigation_top %}
 {% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'user_permissions': user_permissions} %}
 {% endblock %}
-
+#}
 
 {% block body %}
 
-    {% include 'ODROpenRepositorySearchBundle:Default:searchpage_error.html.twig' with {'error_message': error_message} %}
+    {% if status_code == 401 %}
+        {% include 'ODROpenRepositorySearchBundle:Default:login_redirect.html.twig' %}
+    {% else %}
+        {% include 'ODROpenRepositorySearchBundle:Default:searchpage_error.html.twig' with {'error_message': error_message} %}
+    {% endif %}
 
     {% set logged_in = false %} {# prevent dashboard from loading automatically #}
     {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}

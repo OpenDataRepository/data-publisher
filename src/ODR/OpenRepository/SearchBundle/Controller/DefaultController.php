@@ -78,8 +78,8 @@ class DefaultController extends Controller
                 $logged_in = false;
             }
 
+            $templating = $this->get('templating');
             if ($inline) {
-                $templating = $this->get('templating');
                 $return['d'] = array(
                     'html' => $templating->render(
                         'ODROpenRepositorySearchBundle:Default:searchpage_error.html.twig',
@@ -91,9 +91,6 @@ class DefaultController extends Controller
                 );
             }
             else {
-                // Grab user permissions if possible
-                $datatype_permissions = $pm_service->getDatatypePermissions($user);
-
                 $site_baseurl = $this->container->getParameter('site_baseurl');
                 if ($this->container->getParameter('kernel.environment') === 'dev')
                     $site_baseurl .= '/app_dev.php';
@@ -107,7 +104,7 @@ class DefaultController extends Controller
                     array(
                         // required twig/javascript parameters
                         'user' => $user,
-                        'user_permissions' => $datatype_permissions,
+//                        'datatype_permissions' => $datatype_permissions,
 
 //                        'user_list' => $user_list,
                         'logged_in' => $logged_in,
@@ -118,6 +115,7 @@ class DefaultController extends Controller
                         'search_string' => '',
                         'odr_tab_id' => $odr_tab_id,
 
+                        'status_code' => $status_code,
                         'error_message' => $error_message,
                     )
                 );
@@ -426,8 +424,12 @@ exit();
             if ( isset($datatype_permissions[ $target_datatype_id ]) && isset($datatype_permissions[ $target_datatype_id ][ 'dr_view' ]) )
                 $can_view_datarecord = true;
 
-            if ( !$pm_service->canViewDatatype($admin_user, $target_datatype) )
-                throw new ODRForbiddenException();      // TODO - this doesn't redirect to a login page
+            if ( !$pm_service->canViewDatatype($admin_user, $target_datatype) ) {
+                if (!$logged_in)
+                    return self::searchPageError('', $request, 401, false);
+                else
+                    throw new ODRForbiddenException();
+            }
 
 
             // ----------------------------------------
