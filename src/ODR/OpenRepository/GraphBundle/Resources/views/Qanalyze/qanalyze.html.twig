@@ -41,7 +41,17 @@
                 }
             );
             if(file_id !== "") {
-                var sample_name = "TEST SAMPLE";
+                var sample_name = "";
+                jQuery("body").find(".ODRFieldLabel").each(
+                    function() {
+                        var ele = jQuery(this);
+                        // Check if there is a CSV file
+                        if(ele.html().match(/^Analysis ID$/)) {
+                            var inp = $(ele).parent().find("input");
+                            sample_name += inp.val()
+                        }
+                    }
+                );
 
                 openQanalyzeModal(file_id, sample_name);
             }
@@ -100,7 +110,6 @@
                 qanalyze_data.phases = phase_sets[x].phases;
             }
         }
-        console.log(set_list);
 
         qanalyze_data.selected_phase_group = set_name;
         jQuery("#qanalyze-phase-list").html(set_list);
