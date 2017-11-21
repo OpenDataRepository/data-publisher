@@ -34,6 +34,8 @@ class UpdateThemeDatafieldForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
+        $is_master_theme = $options['is_master_theme'];
+
         $builder->add(
             'dataField',
             DatafieldType::class
@@ -44,21 +46,29 @@ class UpdateThemeDatafieldForm extends AbstractType
             ThemeElementType::class
         );
 
-        $builder->add(
-            'hidden',
-            ChoiceType::class,
-            array(
-                'choices' => array(
-                    'Show' => '0',
-                    'Hide' => '1',
-                ),
-                'choices_as_values' => true,
-                'label'  => 'Visiblity',
-                'expanded' => false,
-                'multiple' => false,
-                'placeholder' => false
-            )
-        );
+        if (!$is_master_theme) {
+            $builder->add(
+                'hidden',
+                ChoiceType::class,
+                array(
+                    'choices' => array(
+                        'Show' => '0',
+                        'Hide' => '1',
+                    ),
+                    'choices_as_values' => true,
+                    'label' => 'Visiblity',
+                    'expanded' => false,
+                    'multiple' => false,
+                    'placeholder' => false
+                )
+            );
+        }
+        else {
+            $builder->add(
+                'hidden',
+                HiddenType::class
+            );
+        }
 
         $builder->add(
             'cssWidthMed',
@@ -101,6 +111,13 @@ class UpdateThemeDatafieldForm extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\ThemeDataField'));
+        $resolver->setDefaults(
+            array(
+                'data_class' => 'ODR\AdminBundle\Entity\ThemeDataField',
+            )
+        );
+
+        // Required options shouldn't have their defaults set
+        $resolver->setRequired('is_master_theme');
     }
 }

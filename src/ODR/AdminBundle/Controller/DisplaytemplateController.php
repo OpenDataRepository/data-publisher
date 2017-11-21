@@ -3720,20 +3720,13 @@ exit();
                 // Create the form for the ThemeDatatype entry (stores whether the child/linked datatype should use 'accordion', 'tabbed', 'dropdown', or 'list' rendering style)
                 $theme_datatype_form = null;
                 if ($theme_datatype !== null) {
-                    // TODO - why was this moved out of the associated form?
-                    // Allow header to be hidden for non-multiple-allowed child types
-                    $display_choices = array(
-                        'Accordion' => '0',
-                        'Tabbed' => '1',
-                        'Select Box' => '2',
-                        'List' => '3'
-                    );
 
                     $theme_datatype_form = $this->createForm(
                         UpdateThemeDatatypeForm::class,
                         $theme_datatype,
                         array(
-                            'display_choices' => $display_choices,
+                            'is_master_theme' => true,      // this is only called from a master theme
+                            'multiple_allowed' => $datatree->getMultipleAllowed(),
                         )
                     )->createView();
                 }

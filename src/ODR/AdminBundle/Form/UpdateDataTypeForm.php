@@ -198,13 +198,13 @@ class UpdateDataTypeForm extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults(array(
-            'data_class' => 'ODR\AdminBundle\Entity\DataTypeMeta',
-            'datatype_id' => null,
-            'is_top_level' => null,
-            'is_link' => null,
-        ));
+        $resolver->setDefaults(
+            array(
+                'data_class' => 'ODR\AdminBundle\Entity\DataTypeMeta',
+            )
+        );
 
+        // Required options should not have defaults set
         $resolver->setRequired('datatype_id');
         $resolver->setRequired('is_top_level');
         $resolver->setRequired('is_link');
