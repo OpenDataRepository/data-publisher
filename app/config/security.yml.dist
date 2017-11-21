@@ -120,7 +120,7 @@ security:
         - { path: ^/edit, role: ROLE_USER }                       # Editing and CSV Import
         - { path: ^/jobs, role: ROLE_USER }                       # Active Jobs page
 
-        - { path: ^/admin/type/list/templates, role: ROLE_ADMIN } # can see page that provides links to design the layout of datatypes
+        - { path: ^/admin/type/list/templates, role: ROLE_ADMIN } # can see page that provides links to modify master templates
         - { path: ^/admin/type/add, role: ROLE_ADMIN }            # Creating a new datatype
 
         - { path: ^/design, role: ROLE_USER }                     # ability to design results/records and shortresults layouts

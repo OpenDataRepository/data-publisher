@@ -453,9 +453,9 @@
             var name = $(this).attr('name');
             var type = $(this).attr('type');
             var value = '';
-            if($(this).attr('value') !== undefined) {
-                value = $(this).attr('value').trim();
-            }
+
+            if ( $(this).val() !== undefined )
+                value = $(this).val().trim();
 
             if ( $(this).hasClass('ODRFileDatafieldName') ) {
                 var df_id_data = $(this).attr('id').split(/_/);
@@ -500,7 +500,7 @@
 
             $(this).find('input').each(function() {
                 // Grab the radio_option_id
-                var value = $(this).attr('value').trim();
+                var value = $(this).val().trim();
                 if (value == '')
                     return;
 

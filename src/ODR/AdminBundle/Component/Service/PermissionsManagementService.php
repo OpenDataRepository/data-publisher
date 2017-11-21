@@ -95,7 +95,7 @@ class PermissionsManagementService
      */
     public function getDatatypePermissions($user)
     {
-        if ($user === "anon.")
+        if ($user === "anon." || $user == null)
             return array();
 
         $user_permissions = self::getUserPermissionsArray($user);
@@ -112,7 +112,7 @@ class PermissionsManagementService
      */
     public function getDatafieldPermissions($user)
     {
-        if ($user === "anon.")
+        if ($user === "anon." || $user == null)
             return array();
 
         $user_permissions = self::getUserPermissionsArray($user);

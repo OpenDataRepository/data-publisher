@@ -1,5 +1,9 @@
 {% spaceless %}
-<h5>Or login with:</h5>
+
+{% if hwi_oauth_resource_owners()|length > 0 %}
+    <h5>Or login with:</h5>
+{% endif %}
+
 {% for owner in hwi_oauth_resource_owners() %}
     <div class="pure-u-1 pure-u-md-1-2">
         <a class="odr_oauth_{{ owner }} pure-button" href="{{ hwi_oauth_login_url(owner) }}">

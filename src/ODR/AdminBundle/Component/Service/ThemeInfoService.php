@@ -158,6 +158,7 @@ class ThemeInfoService
                     'display_order' => $theme->getDisplayOrder(),
                     'theme_type' => $theme->getThemeType(),
                     'created_by' => $theme->getCreatedBy()->getId(),
+                    'created_by_name' => $theme->getCreatedBy()->getUserString(),
                 );
 
                 array_push($filtered_themes, $theme_record);

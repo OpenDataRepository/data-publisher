@@ -131,16 +131,10 @@ class CommentPlugin
             $output = $this->templating->render(
                 'ODROpenRepositoryGraphBundle:Comments:comments.html.twig', 
                 array(
-                    'datatype_array' => $datatype,
+                    'datatype' => $datatype,
                     'datarecord_array' => $datarecords,
                     'mapping' => $datafield_mapping,
-
-                    'target_datatype_id' => $datatype['id'],
-/*
-                    'shortname' => $datatype->getShortName(),
                     'comments' => $comments,
-                    'public_only' => $public_only,
-*/
                 )
             );
 
