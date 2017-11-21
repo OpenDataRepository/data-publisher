@@ -42,7 +42,7 @@
             );
             if(file_id !== "") {
                 var sample_name = "";
-                jQuery("body").find(".ODRFieldLabel").each(
+                jQuery(ele.target).closest(".ODRResults").find(".ODRFieldLabel").each(
                     function() {
                         var ele = jQuery(this);
                         // Check if there is a CSV file
