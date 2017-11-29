@@ -995,6 +995,11 @@ class ThemeController extends ODRCustomController
                 throw new ODRNotFoundException('ThemeDatafield');
 
 
+            // Form contents change slightly depending on whether this is a master theme or not
+            $is_master_theme = false;
+            if ($theme->getThemeType() == 'master')
+                $is_master_theme = true;
+
             // Create the ThemeDatatype form object
             $theme_datafield_form = $this->createForm(
                 UpdateThemeDatafieldForm::class,
@@ -1006,7 +1011,8 @@ class ThemeController extends ODRCustomController
                             'theme_element_id' => $theme_element_id,
                             'datafield_id' => $datafield_id
                         )
-                    )
+                    ),
+                    'is_master_theme' => $is_master_theme,
                 )
             )->createView();
 
@@ -1123,10 +1129,20 @@ class ThemeController extends ODRCustomController
             }
             // --------------------
 
+            // Form contents change slightly depending on whether this is a master theme or not
+            $is_master_theme = false;
+            if ($theme->getThemeType() == 'master')
+                $is_master_theme = true;
 
             // Populate new ThemeDataField form
             $submitted_data = new ThemeDataField();
-            $theme_datafield_form = $this->createForm(UpdateThemeDatafieldForm::class, $submitted_data);
+            $theme_datafield_form = $this->createForm(
+                UpdateThemeDatafieldForm::class,
+                $submitted_data,
+                array(
+                    'is_master_theme' => $is_master_theme,
+                )
+            );
 
             $theme_datafield_form->handleRequest($request);
             if ($theme_datafield_form->isSubmitted()) {
@@ -1251,23 +1267,17 @@ class ThemeController extends ODRCustomController
             // --------------------
 
 
-            // TODO - why was this moved out of the form itself?
-            // Allow header to be hidden for non-multiple-allowed child types
-            $display_choices = array(
-                'Accordion' => '0',
-                'Tabbed' => '1',
-                'Select Box' => '2',
-                'List' => '3'
-            );
+            // Form contents change slightly depending on whether this is a master theme or not
+            $is_master_theme = false;
+            if ($theme->getThemeType() == 'master')
+                $is_master_theme = true;
+
 
             // Check if multiple child/linked datarecords are allowed for datatype
             /** @var DataTree $datatree */
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
                 array('ancestor' => $parent_datatype->getId(), 'descendant' => $child_datatype->getId())
             );
-
-            if ($datatree->getMultipleAllowed() == false)
-                $display_choices['Hide Header'] = 4;
 
             // Create the ThemeDatatype form object
             $theme_datatype_form = $this->createForm(
@@ -1281,7 +1291,8 @@ class ThemeController extends ODRCustomController
                             'datatype_id' => $datatype_id,
                         )
                     ),
-                    'display_choices' => $display_choices
+                    'is_master_theme' => $is_master_theme,
+                    'multiple_allowed' => $datatree->getMultipleAllowed(),
                 )
             )->createView();
 
@@ -1399,23 +1410,16 @@ class ThemeController extends ODRCustomController
             /** @var ThemeDataType $submitted_data */
             $submitted_data = new ThemeDataType();
 
-            // TODO - why was this moved out of the associated form?
-            // Allow header to be hidden for non-multiple-allowed child types
-            $display_choices = array(
-                'Accordion' => '0',
-                'Tabbed' => '1',
-                'Select Box' => '2',
-                'List' => '3'
-            );
-
             // Check if multiple child/linked datarecords are allowed for datatype
             /** @var DataTree $datatree */
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
                 array('ancestor' => $parent_datatype->getId(), 'descendant' => $child_datatype->getId())
             );
 
-            if ($datatree->getMultipleAllowed() == false)
-                $display_choices['Hide Header'] = 4;
+            // Form contents change slightly depending on whether this is a master theme or not
+            $is_master_theme = false;
+            if ($theme->getThemeType() == 'master')
+                $is_master_theme = true;
 
 
             // Create the ThemeDatatype form object
@@ -1423,7 +1427,8 @@ class ThemeController extends ODRCustomController
                 UpdateThemeDatatypeForm::class,
                 $submitted_data,
                 array(
-                    'display_choices' => $display_choices
+                    'is_master_theme' => $is_master_theme,
+                    'multiple_allowed' => $datatree->getMultipleAllowed(),
                 )
             );
 
@@ -1633,12 +1638,19 @@ class ThemeController extends ODRCustomController
 //            if ($theme->getThemeType() == 'table')
 //                throw new \Exception('Not allowed to change properties of a theme element belonging to a table theme');
 
+            // Form contents change slightly depending on whether the theme is master or not
+            $is_master_theme = false;
+            if ($theme->getThemeType() == 'master')
+                $is_master_theme = true;
 
             // Populate new ThemeElement form
             $submitted_data = new ThemeElementMeta();
             $theme_element_form = $this->createForm(
                 UpdateThemeElementForm::class,
-                $submitted_data
+                $submitted_data,
+                array(
+                    'is_master_theme' => $is_master_theme,
+                )
             );
 
             $theme_element_form->handleRequest($request);
@@ -1680,7 +1692,8 @@ class ThemeController extends ODRCustomController
                             array(
                                 'theme_element_id' => $theme_element_id
                             )
-                        )
+                        ),
+                        'is_master_theme' => $is_master_theme,
                     )
                 );
 

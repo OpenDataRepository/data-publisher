@@ -140,6 +140,10 @@ class TableThemeHelperService
                     if ( isset($datatype_array[$datatype_id]['dataFields'][$df_id]) ) {
                         $df = $datatype_array[$datatype_id]['dataFields'][$df_id];
 
+                        // ...and the datafield isn't "hidden" for this theme...
+                        if ( $tdf['hidden'] == 1 )
+                            continue;
+
                         // ...and the field's type name is on the list of valid fieldtypes
                         $typename = $df['dataFieldMeta']['fieldType']['typeName'];
                         if ( !in_array($typename, $this->valid_fieldtypes) )
@@ -240,6 +244,10 @@ class TableThemeHelperService
                         // If the data in the datafield still exists after filtering...
                         if ( isset($datatype_array[$datatype_id]['dataFields'][$df_id]) ) {
                             $df = $datatype_array[$datatype_id]['dataFields'][$df_id];
+
+                            // ...and the datafield isn't "hidden" for this theme...
+                            if ( $tdf['hidden'] == 1 )
+                                continue;
 
                             // ...and the field's type name is on the list of valid fieldtypes...
                             $typename = $df['dataFieldMeta']['fieldType']['typeName'];
@@ -472,6 +480,10 @@ class TableThemeHelperService
                     // If the datafield still exists in the datatype array...
                     if ( isset($datatype_array[$datatype_id]['dataFields'][$df_id]) ) {
                         $df = $datatype_array[$datatype_id]['dataFields'][$df_id];
+
+                        // ...and the datafield isn't "hidden" for this theme...
+                        if ( $tdf['hidden'] == 1 )
+                            continue;
 
                         // ...and the field's type name is on the list of valid fieldtypes
                         $typename = $df['dataFieldMeta']['fieldType']['typeName'];
