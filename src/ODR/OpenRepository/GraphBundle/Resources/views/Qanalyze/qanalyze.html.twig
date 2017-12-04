@@ -223,8 +223,7 @@
 
                     // File exists and is ready to download
                     setODRRemodalLoadingText("Preparing data");
-                    qanalyze_data.sample.data = getFileData(file_id);
-                    submitData();
+                    getFileData(file_id, postData);
                 }
                 else if (status_code == 202) {
                     // File needs to be decrypted first
@@ -252,6 +251,41 @@
             }
         });
 
+    }
+
+    // Post data to new window
+    function postData() {
+        var form = document.createElement("form");
+        form.setAttribute("method", "post");
+        form.setAttribute("enctype", "text/plain");
+        form.setAttribute("action", "//chemin.qanalyze.com/odr");
+
+        function submitToPopup(f) {
+            form.target = 'qanalyze';
+            var w = window.open('about:blank', form.target);
+            if(!w || w.closed || typeof w.closed=='undefined')
+            {
+                var modal = $('[data-remodal-id=ODRRemodal]');
+                modal.find(".ODRRemodalBody").html("<h4>You appear to have pop-ups blocked for this site.</h4><p>Please enable popups to allow external apps to open.<p>");
+                modal.find(".ODRRemodalLoading").hide();
+                modal.find(".ODRRemodalButtons").show();
+                modal.find(".ODRRemodalBody").show();
+                resetODRRemodalLoadingText();
+            }
+            else {
+                var hiddenField = document.createElement("input");
+                hiddenField.setAttribute("type", "hidden");
+                hiddenField.setAttribute("name", "data");
+                hiddenField.setAttribute("value", JSON.stringify(qanalyze_data));
+                form.appendChild(hiddenField);
+                form.submit();
+                console.log(qanalyze_data)
+                console.log('post fired')
+                closeODRRemodal();
+            }
+        }
+        document.body.appendChild(form);
+        submitToPopup(form);
     }
 
     function submitData() {
@@ -284,7 +318,7 @@
     }
 
 
-    function getFileData(file_id){
+    function getFileData(file_id, cb){
         var txt = "";
         var file_url = "{{ path('odr_file_download', {'file_id': '0'}) }}";
         file_url = file_url.substr(0, file_url.length-1) + file_id;
@@ -298,33 +332,35 @@
                 async: false,
                 success : function(data) {
                     txt = data;
-                }
-            });
 
-            var file_data = [];
-            if(txt) {
-                var lines = txt.split(/\n/);
-                for(var i=0;i<lines.length;i = i+3) {
-                    var line = lines[i];
-                    if(!line.match(/^#/) && (line.match(/^[0-9]/) || line.match(/^\.[0-9]/))) {
-                        var data = "";
-                        if(line.match(/,/)) {
-                            data = line.split(/,/);
-                        }
-                        else if(line.match(/\t/)) {
-                            data = line.split(/\t/);
-                        }
+                    var file_data = [];
+                    if(txt) {
+                        var lines = txt.split(/\n/);
+                        for(var i=0;i<lines.length;i = i+3) {
+                            var line = lines[i];
+                            if(!line.match(/^#/) && (line.match(/^[0-9]/) || line.match(/^\.[0-9]/))) {
+                                var data = "";
+                                if(line.match(/,/)) {
+                                    data = line.split(/,/);
+                                }
+                                else if(line.match(/\t/)) {
+                                    data = line.split(/\t/);
+                                }
 
-                        if(undefined != data[0] && undefined != data[1]) {
-                            var xval = 0 + Number(data[0].trim());
-                            var yval = 0 + Number(data[1].trim());
-                            file_data.push({x: xval, y: yval})
+                                if(undefined != data[0] && undefined != data[1]) {
+                                    var xval = 0 + Number(data[0].trim());
+                                    var yval = 0 + Number(data[1].trim());
+                                    file_data.push({x: xval, y: yval})
+                                }
+                            }
                         }
                     }
-                }
-            }
 
-            return file_data;
+                    console.log('file data retrieved')
+                    qanalyze_data.sample.data = file_data;
+                    cb();
+                }
+            });
         }
     }
 
@@ -362,8 +398,7 @@
                     var download_file_after = file_decrypt_timeouts[ file_id ];
                     // File is fully decrypted, stop querying server for progress
                     file_decrypt_timeouts[ file_id ] = null;
-                    qanalyze_data.sample.data = getFileData(file_id);
-                    submitData();
+                    getFileData(file_id, postData);
                 }
             },
             error: function (jqXHR, textStatus, errorThrown) {
