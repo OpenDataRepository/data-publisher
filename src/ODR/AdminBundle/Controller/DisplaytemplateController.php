@@ -2592,6 +2592,8 @@ exit();
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
 
 
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
@@ -2756,8 +2758,13 @@ exit();
             }
 
             // If new datafields created, flush entity manager to save the theme_element and datafield meta entries
-            if ($reload_datatype)
+            if ($reload_datatype) {
                 $em->flush();
+
+                // Also wipe the cached datatype and theme entries
+                $dti_service->updateDatatypeCacheEntry($associated_datatype, $user);
+                $theme_service->updateThemeCacheEntry($theme, $user);
+            }
 
 
             // ----------------------------------------
