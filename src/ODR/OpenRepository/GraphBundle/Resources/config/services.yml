@@ -53,12 +53,15 @@ services:
         arguments:
             templating: "@templating"
             logger: "@logger"
+            crypto_service: "@odr.crypto_service"
+            odr_web_directory: "%odr_web_directory%"
     graph.graphplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\GraphPlugin
         arguments:
             templating: "@templating"
             logger: "@logger"
-            container: "@service_container"
+            crypto_service: "@odr.crypto_service"
+            odr_web_directory: "%odr_web_directory%"
     graph.gcmsplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\GCMassSpecPlugin
         arguments:

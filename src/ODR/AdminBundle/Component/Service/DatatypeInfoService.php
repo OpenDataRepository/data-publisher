@@ -79,41 +79,15 @@ class DatatypeInfoService
         $query = $this->em->createQuery(
            'SELECT dt.id AS datatype_id
             FROM ODRAdminBundle:DataType AS dt
-            WHERE dt.deletedAt IS NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $all_datatypes = array();
-        foreach ($results as $num => $result)
-            $all_datatypes[] = $result['datatype_id'];
-
-        // Get all datatypes that are ready to view
-        $query = $this->em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-            FROM ODRAdminBundle:DataTree AS dt
-            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-            JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE dtm.is_link = 0 
-            AND ancestor.setup_step IN (:setup_steps) 
-            AND descendant.setup_step IN (:setup_steps)
-            AND dt.deletedAt IS NULL 
-            AND dtm.deletedAt IS NULL 
-            AND ancestor.deletedAt IS NULL 
-            AND descendant.deletedAt IS NULL'
+            JOIN ODRAdminBundle:DataType AS grandparent WITH dt.grandparent = grandparent
+            WHERE dt.setup_step IN (:setup_steps) AND dt.id = grandparent.id
+            AND dt.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
         )->setParameters( array('setup_steps' => DataType::STATE_VIEWABLE) );
-
         $results = $query->getArrayResult();
-
-        $parent_of = array();
-        foreach ($results as $num => $result)
-            $parent_of[ $result['descendant_id'] ] = $result['ancestor_id'];
 
         $top_level_datatypes = array();
-        foreach ($all_datatypes as $datatype_id) {
-            if ( !isset($parent_of[$datatype_id]) )
-                $top_level_datatypes[] = $datatype_id;
-        }
+        foreach ($results as $result)
+            $top_level_datatypes[] = $result['datatype_id'];
 
 
         // ----------------------------------------
@@ -369,9 +343,17 @@ class DatatypeInfoService
         // Get all non-layout data for the requested datatype
         $query = $this->em->createQuery(
            'SELECT
-                dt, dtm, dt_cb, dt_ub, dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
-                df, ro, rom,
-                dfm, df_cb, ft, df_rp, df_rpi, df_rpo, df_rpm
+                dt, dtm,
+                partial dt_cb.{id, username, email, firstName, lastName},
+                partial dt_ub.{id, username, email, firstName, lastName},
+
+                dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
+
+                df, dfm, ft,
+                partial df_cb.{id, username, email, firstName, lastName},
+
+                ro, rom,
+                df_rp, df_rpi, df_rpo, df_rpm
 
             FROM ODRAdminBundle:DataType AS dt
             LEFT JOIN dt.dataTypeMeta AS dtm
@@ -386,12 +368,13 @@ class DatatypeInfoService
             LEFT JOIN dt_rpm.dataField AS dt_rpm_df
 
             LEFT JOIN dt.dataFields AS df
-            LEFT JOIN df.radioOptions AS ro
-            LEFT JOIN ro.radioOptionMeta AS rom
 
             LEFT JOIN df.dataFieldMeta AS dfm
             LEFT JOIN df.createdBy AS df_cb
             LEFT JOIN dfm.fieldType AS ft
+
+            LEFT JOIN df.radioOptions AS ro
+            LEFT JOIN ro.radioOptionMeta AS rom
 
             LEFT JOIN dfm.renderPlugin AS df_rp
             LEFT JOIN df_rp.renderPluginInstance AS df_rpi WITH (df_rpi.dataField = df)

@@ -644,11 +644,13 @@ class ThemeInfoService
         // Get all the data for the requested theme
         $query = $this->em->createQuery(
            'SELECT
-                t, tm, t_cb, t_ub,
-                dt,
+                t, tm, partial dt.{id},
+                partial t_cb.{id, username, email, firstName, lastName},
+                partial t_ub.{id, username, email, firstName, lastName},
+
                 te, tem,
-                tdf, df,
-                tdt, c_dt
+                tdf, partial df.{id},
+                tdt, partial c_dt.{id}
                 
             FROM ODRAdminBundle:Theme AS t
             LEFT JOIN t.themeMeta AS tm
@@ -722,6 +724,8 @@ class ThemeInfoService
                     $child_dt_id = $tdt['dataType']['id'];
                     $te['themeDataType'][$tdt_num]['dataType'] = array('id' => $child_dt_id);
 
+                    // Store the 'is_link' and 'multiple_allowed' properties from the Datatree
+                    //  entity here for convenience
                     $te['themeDataType'][$tdt_num]['is_link'] = 0;
                     $te['themeDataType'][$tdt_num]['multiple_allowed'] = 0;
 

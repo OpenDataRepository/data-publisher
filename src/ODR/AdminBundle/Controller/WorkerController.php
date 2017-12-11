@@ -2003,6 +2003,9 @@ $ret .= '  Set current to '.$count."\n";
 //        $save = true;
 
         try {
+
+            throw new ODRBadRequestException('NOT NEEDED ANYMORE');
+
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2284,6 +2287,9 @@ $ret .= '  Set current to '.$count."\n";
         $em = $this->getDoctrine()->getManager();
 
         try {
+
+            throw new ODRBadRequestException('NOT NEEDED ANYMORE');
+
             // ----------------------------------------
             // Load required objects
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');

@@ -435,6 +435,7 @@ class CloneDatatypeService
         $existing_meta = $new_datatype->getDataTypeMeta();
 
         $new_meta = clone $parent_meta;
+        $new_meta->setDataType($new_datatype);
         if ($existing_meta != null) {
             // $existing_meta was created back in DatatypeController::addAction()
 
@@ -466,8 +467,6 @@ class CloneDatatypeService
         // Use a prefix if short name not equal prefix
         if ($new_meta->getShortName() != $datatype_prefix)
             $new_meta->setLongName($datatype_prefix . " - " . $new_meta->getShortName());
-
-        $new_meta->setDataType($new_datatype);
 
         // Track the published version
         $new_meta->setMasterRevision(0);

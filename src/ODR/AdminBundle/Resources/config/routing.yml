@@ -1176,12 +1176,12 @@ odr_fix_missing_meta_entries:
     path: /admin/fix_meta_entries
     defaults: { _controller: ODRAdminBundle:Worker:fixmissingmetaentries }
 
-odr_datatype_migrate:
-    path:  /admin/datatype_migrate
-    defaults: { _controller: ODRAdminBundle:Worker:datatypemigrate }
-odr_theme_migrate:
-    path: /admin/theme_migrate
-    defaults: { _controller: ODRAdminBundle:Worker:thememigrate }
+#odr_datatype_migrate:
+#    path:  /admin/datatype_migrate
+#    defaults: { _controller: ODRAdminBundle:Worker:datatypemigrate }
+#odr_theme_migrate:
+#    path: /admin/theme_migrate
+#    defaults: { _controller: ODRAdminBundle:Worker:thememigrate }
 
 #-----------------------------------------
 
