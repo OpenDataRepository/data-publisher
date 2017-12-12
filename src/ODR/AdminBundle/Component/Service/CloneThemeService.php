@@ -226,7 +226,8 @@ class CloneThemeService
 
 
         // ----------------------------------------
-        // Redo the difference array so it makes more sense
+        // Remove all datafields/datatypes that currently exist in this theme from the list of all
+        //  datafields/datatypes that exist in the source theme
         $themes = array();
         foreach ($source_theme_datafields as $df_id => $t_id) {
             if ( !isset($themes[$t_id]) )
@@ -245,7 +246,8 @@ class CloneThemeService
             $themes[$t_id]['new_datatypes'][] = $dt_id;
         }
 
-        //
+        // The result is a list of the themeDatafield/themeDatatype entries that need to be created
+        //  for the current theme to be considered synchronized with its source themes
         return array('themes' => $themes);
     }
 
@@ -576,8 +578,7 @@ class CloneThemeService
         $new_theme = new Theme();
         $new_theme->setDataType($dest_datatype);
         $new_theme->setThemeType($dest_theme_type);
-        $new_theme->setCreatedBy($user);
-        $new_theme->setUpdatedBy($user);
+
 
         // This is cloning a theme within the same datatype...should use $source_theme's source
         $new_theme->setSourceTheme( $source_theme->getSourceTheme() );
@@ -588,10 +589,8 @@ class CloneThemeService
 
         // Ensure the "in-memory" version of $dest_datatype knows about its new theme
         $dest_datatype->addTheme($new_theme);
+        self::persistObject($new_theme, $user);
 
-        $this->em->persist($new_theme);
-        $this->em->flush();
-        $this->em->refresh($new_theme);
 
         // If $dest_parent_theme is null, then this is a theme for a top-level datatype, therefore
         //  this theme's parent should be set to itself
@@ -690,7 +689,6 @@ class CloneThemeService
      *
      * @param ODRUser $user
      * @param Theme $source_theme
-     * @param DataType $dest_datatype
      * @param Datatype[] $mapping Array keys are master template datatype ids, array values
      *                            are the Datatype entries that have been cloned from the templates
      *
@@ -792,16 +790,10 @@ class CloneThemeService
         $new_theme->setThemeType($dest_theme_type);
         $new_theme->setSourceTheme(null);
         $new_theme->setParentTheme($dest_parent_theme);
-        $new_theme->setCreatedBy($user);
-        $new_theme->setUpdatedBy($user);
 
         // Ensure the "in-memory" version of $dest_datatype knows about its new theme
         $dest_datatype->addTheme($new_theme);
-
-        $this->em->persist($new_theme);
-        $this->em->flush();
-        $this->em->refresh($new_theme);
-
+        self::persistObject($new_theme, $user);
 
 
         // This is part of cloning a datatype...unfortunately, this function has no way to

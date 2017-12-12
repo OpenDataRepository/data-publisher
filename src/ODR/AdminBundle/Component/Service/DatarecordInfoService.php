@@ -218,7 +218,7 @@ class DatarecordInfoService
 
                dt, dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
 
-               drf, partial df.{id},
+               drf, partial df.{id}, partial dfm.{id}, partial ft.{id, typeClass},
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
                e_i, e_im, e_ip, e_ipm, e_is, partial e_ip_cb.{id, username, email, firstName, lastName},
 
@@ -283,6 +283,8 @@ class DatarecordInfoService
             LEFT JOIN rs.radioOption AS ro
 
             LEFT JOIN drf.dataField AS df
+            LEFT JOIN df.dataFieldMeta AS dfm
+            LEFT JOIN dfm.fieldType AS ft
 
             LEFT JOIN dr.children AS cdr
             LEFT JOIN cdr.dataType AS cdr_dt
@@ -306,6 +308,15 @@ class DatarecordInfoService
             print 'buildDatarecordData('.$grandparent_datarecord_id.')'."\n".'query execution in: '.$diff."\n";
         }
 */
+
+        // The datarecordField entry returned by the preceeding query will have quite a few blank
+        //  subarrays...all but the following keys should be unset in order to reduce the amount of
+        //  memory that php needs to allocate to store a cached datarecord entry...it adds up.
+        $drf_keys_to_keep = array(
+            'id', 'created',
+            'file', 'image'     // keeping these for now because multiple pieces of code assume they exist
+        );
+
 
         // The entity -> entity_metadata relationships have to be one -> many from a database
         //  perspective, even though there's only supposed to be a single non-deleted entity_metadata
@@ -369,6 +380,12 @@ class DatarecordInfoService
             $new_drf_array = array();
             foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
 
+                // Going to delete most of the sub arrays inside $drf that are empty...
+                $expected_fieldtype = $drf['dataField']['dataFieldMeta'][0]['fieldType']['typeClass'];
+                $expected_fieldtype = lcfirst($expected_fieldtype);
+                if ($expected_fieldtype == 'radio')
+                    $expected_fieldtype = 'radioSelection';
+
                 $df_id = $drf['dataField']['id'];
                 unset( $drf['dataField'] );
 
@@ -384,14 +401,6 @@ class DatarecordInfoService
                 }
 
                 // Flatten image metadata
-                $sort_by_image_id = true;
-                foreach ($drf['image'] as $image_num => $image) {
-                    if ($image['parent']['imageMeta'][0]['displayorder'] != 0) {
-                        $sort_by_image_id = false;
-                        break;
-                    }
-                }
-
                 $ordered_images = array();
                 foreach ($drf['image'] as $image_num => $image) {
                     // Get rid of both the thumbnail's and the parent's encrypt keys
@@ -405,18 +414,19 @@ class DatarecordInfoService
                     // Get rid of all private/non-essential information in the createdBy association
                     $image['parent']['createdBy'] = UserUtility::cleanUserData( $image['parent']['createdBy'] );
 
-                    if ($sort_by_image_id) {
-                        // Store by parent id
-                        $ordered_images[ $image['parent']['id'] ] = $image;
-                    }
-                    else {
-                        // Store by display_order
-                        $ordered_images[ $image['parent']['imageMeta']['displayorder'] ] = $image;
-                    }
+                    $image_id = $image['parent']['id'];
+                    $display_order = $image['parent']['imageMeta']['displayorder'];
+
+                    $ordered_images[ $display_order.'_'.$image_id ] = $image;
                 }
 
-                ksort($ordered_images);
-                $drf['image'] = $ordered_images;
+                // Sort the images and discard the sort key afterwards
+                if ( count($ordered_images) > 0 ) {
+                    ksort($ordered_images);
+                    $ordered_images = array_values($ordered_images);
+
+                    $drf['image'] = $ordered_images;
+                }
 
                 // Scrub all user information from the rest of the array
                 $keys = array('boolean', 'integerValue', 'decimalValue', 'longText', 'longVarchar', 'mediumVarchar', 'shortVarchar', 'datetimeValue');
@@ -453,8 +463,18 @@ class DatarecordInfoService
                     $ro_id = $rs['radioOption']['id'];
                     $new_rs_array[$ro_id] = $rs;
                 }
-
                 $drf['radioSelection'] = $new_rs_array;
+
+                // Delete everything that isn't strictly needed in this $drf array
+                foreach ($drf as $k => $v) {
+                    if ( in_array($k, $drf_keys_to_keep) || $k == $expected_fieldtype )
+                        continue;
+
+                    // otherwise, delete it
+                    unset( $drf[$k] );
+                }
+
+                // Store the resulting $drf array by its datafield id
                 $new_drf_array[$df_id] = $drf;
             }
 

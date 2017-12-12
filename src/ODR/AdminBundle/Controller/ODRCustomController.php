@@ -679,7 +679,7 @@ class ODRCustomController extends Controller
                 // Grab the file and associated information
                 /** @var File $base_obj */
                 $base_obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
-                $file_upload_path = dirname(__FILE__).'/../../../../web/uploads/files/';
+                $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
                 $filename = 'File_'.$object_id.'.'.$base_obj->getExt();
 
                 if ( !file_exists($file_upload_path.$filename) )
@@ -692,7 +692,7 @@ class ODRCustomController extends Controller
                 // Grab the image and associated information
                 /** @var Image $base_obj */
                 $base_obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
-                $image_upload_path = dirname(__FILE__).'/../../../../web/uploads/images/';
+                $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
                 $imagename = 'Image_'.$object_id.'.'.$base_obj->getExt();
 
                 if ( !file_exists($image_upload_path.$imagename) )
@@ -804,7 +804,7 @@ class ODRCustomController extends Controller
             // Grab the file and associated information
             /** @var File $base_obj */
             $base_obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
-            $file_upload_path = dirname(__FILE__).'/../../../../web/uploads/files/';
+            $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
             $filename = 'File_'.$object_id.'.'.$base_obj->getExt();
 
             // crypto bundle requires an absolute path to the file to encrypt/decrypt
@@ -814,7 +814,7 @@ class ODRCustomController extends Controller
             // Grab the image and associated information
             /** @var Image $base_obj */
             $base_obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
-            $image_upload_path = dirname(__FILE__).'/../../../../web/uploads/images/';
+            $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
             $imagename = 'Image_'.$object_id.'.'.$base_obj->getExt();
 
             // crypto bundle requires an absolute path to the file to encrypt/decrypt
@@ -1772,7 +1772,7 @@ class ODRCustomController extends Controller
         $typeclass = $drf->getDataField()->getFieldType()->getTypeClass();
 
         // Get Symfony to guess the extension of the file via mimetype...a potential wrong extension shouldn't matter since Results::filedownloadAction() renames the file during downloads anyways
-        $path_prefix = dirname(__FILE__).'/../../../../web/';
+        $path_prefix = $this->getParameter('odr_web_directory').'/';
         $uploaded_file = new SymfonyFile($path_prefix.$filepath.'/'.$original_filename);
         $extension = $uploaded_file->guessExtension();
 
@@ -2839,16 +2839,9 @@ class ODRCustomController extends Controller
         $new_datatype_meta->setUpdatedBy($user);
 
         if ($datatype->getIsMasterType()) {
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-
             // Update grandparent master revision
-            $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($datatype->getId());
-
-            if ($grandparent_datatype_id != $datatype->getId()) {
-                $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-                /** @var DataType $grandparent_datatype */
-                $grandparent_datatype = $repo_datatype->find($grandparent_datatype_id);
+            if ($datatype->getGrandparent()->getId() != $datatype->getId()) {
+                $grandparent_datatype = $datatype->getGrandparent();
 
                 $gp_properties['master_revision'] = $grandparent_datatype->getDataTypeMeta()->getMasterRevision() + 1;
                 self::ODR_copyDatatypeMeta($em, $user, $grandparent_datatype, $gp_properties);

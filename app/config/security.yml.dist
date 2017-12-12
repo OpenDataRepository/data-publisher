@@ -121,7 +121,9 @@ security:
         - { path: ^/jobs, role: ROLE_USER }                       # Active Jobs page
 
         - { path: ^/admin/type/list/templates, role: ROLE_ADMIN } # can see page that provides links to modify master templates
-        - { path: ^/admin/type/add, role: ROLE_ADMIN }            # Creating a new datatype
+
+        - { path: ^/admin/type/add, role: ROLE_ADMIN }            # Creating a new datatype, somehow different from below
+        - { path: ^/admin/type/create, role: ROLE_ADMIN }         # Creating a new datatype, somehow different from above
 
         - { path: ^/design, role: ROLE_USER }                     # ability to design results/records and shortresults layouts
 #        - { path: ^/plugin, role: ROLE_USER }                     # ability to modify render plugin settings

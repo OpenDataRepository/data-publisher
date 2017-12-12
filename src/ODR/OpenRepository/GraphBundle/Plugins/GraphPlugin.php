@@ -18,7 +18,6 @@ namespace ODR\OpenRepository\GraphBundle\Plugins;
 use ODR\AdminBundle\Component\Service\CryptoService;
 // Symfony
 use Symfony\Bridge\Monolog\Logger;
-use Symfony\Component\DependencyInjection\ContainerInterface as Container;
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 // Other
 use Ramsey\Uuid\Uuid;
@@ -37,9 +36,14 @@ class GraphPlugin
     private $logger;
 
     /**
-     * @var Container
+     * @var CryptoService
      */
-    private $container;
+    private $crypto_service;
+
+    /**
+     * @var string
+     */
+    private $odr_web_directory;
 
 
     /**
@@ -47,12 +51,15 @@ class GraphPlugin
      *
      * @param EngineInterface $templating
      * @param Logger $logger
-     * @param Container $container
+     * @param CryptoService $crypto_service
+     * @param $odr_web_directory
      */
-    public function __construct(EngineInterface $templating, Logger $logger, Container $container) {
+    public function __construct(EngineInterface $templating, Logger $logger, CryptoService $crypto_service, $odr_web_directory)
+    {
         $this->templating = $templating;
 	    $this->logger = $logger;
-        $this->container = $container;
+        $this->crypto_service = $crypto_service;
+        $this->odr_web_directory = $odr_web_directory;
     }
 
 
@@ -256,24 +263,22 @@ class GraphPlugin
 
 
                 // We need to know if this is a rollup or direct record request here...
-                if ( file_exists($this->container->getParameter('odr_web_directory').$graph_filename) ) {
+                if ( file_exists($this->odr_web_directory.$graph_filename) ) {
                     /* Pre-rendered graph file exists, do nothing */
                     return $graph_filename;
                 }
                 else {
                     // In this case, we should be building a single graph (either rollup or individual datarecord)
-                    /** @var CryptoService $crypto_service */
-                    $crypto_service = $this->container->get('odr.crypto_service');
 
                     $files_to_delete = array();
                     if ( isset($options['use_rollup']) && $options['use_rollup'] == "yes" ) {
                         // For each of the files that will be used in the graph...
                         foreach ($odr_chart_files as $dr_id => $file) {
                             // ...ensure that it exists
-                            $filepath = $this->container->getParameter('odr_web_directory').'/'.$file['localFileName'];
+                            $filepath = $this->odr_web_directory.'/'.$file['localFileName'];
                             if ( !file_exists($filepath) ) {
                                 // File does not exist, decrypt it
-                                $file_path = $crypto_service->decryptFile($file['id']);
+                                $file_path = $this->crypto_service->decryptFile($file['id']);
 
                                 // If file is not public, make sure it gets deleted later
                                 $public_date = $file['fileMeta']['publicDate'];
@@ -291,10 +296,10 @@ class GraphPlugin
                         $dr_id = $rendering_options['datarecord_id'];
                         $file = $odr_chart_files[$dr_id];
 
-                        $filepath = $this->container->getParameter('odr_web_directory').'/'.$file['localFileName'];
+                        $filepath = $this->odr_web_directory.'/'.$file['localFileName'];
                         if ( !file_exists($filepath) ) {
                             // File does not exist, decrypt it
-                            $file_path = $crypto_service->decryptFile($file['id']);
+                            $file_path = $this->crypto_service->decryptFile($file['id']);
 
                             // If file is not public, make sure it gets deleted later
                             $public_date = $file['fileMeta']['publicDate'];
@@ -365,7 +370,7 @@ class GraphPlugin
         $file_id_list = implode('_', $page_data['odr_chart_file_ids']);
 
         // Path to writeable files in web folder
-        $files_path = $this->container->getParameter('odr_web_directory').'/uploads/files/';
+        $files_path = $this->odr_web_directory.'/uploads/files/';
         $fs = new \Symfony\Component\Filesystem\Filesystem();
 
         //The HTML file that generates the svg graph that will be saved to the server by Phantomjs.

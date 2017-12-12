@@ -13,6 +13,9 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
+
+// Services
+use ODR\AdminBundle\Component\Service\CryptoService;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Bridge\Monolog\Logger;
@@ -31,16 +34,31 @@ class CSVTablePlugin
      */
     private $logger;
 
+    /**
+     * @var CryptoService
+     */
+    private $crypto_service;
 
     /**
-     * GraphPlugin constructor.
-     *
-     * @param $templating
-     * @param $logger
+     * @var string
      */
-    public function __construct(EngineInterface $templating, Logger $logger) {
+    private $odr_web_directory;
+
+
+    /**
+     * CSVTablePlugin constructor.
+     *
+     * @param EngineInterface $templating
+     * @param Logger $logger
+     * @param CryptoService $crypto_service
+     * @param $odr_web_directory
+     */
+    public function __construct(EngineInterface $templating, Logger $logger, CryptoService $crypto_service, $odr_web_directory)
+    {
         $this->templating = $templating;
         $this->logger = $logger;
+        $this->crypto_service = $crypto_service;
+        $this->odr_web_directory = $odr_web_directory;
     }
 
 
@@ -57,7 +75,6 @@ class CSVTablePlugin
      */
     public function execute($datafield, $datarecord, $render_plugin, $themeType = 'master')
     {
-
         try {
             // ----------------------------------------
 //            $str = '<pre>'.print_r($datafield, true)."\n".print_r($datarecord, true)."\n".print_r($render_plugin, true)."\n".'</pre>';
@@ -78,14 +95,27 @@ class CSVTablePlugin
             // Only execute the plugin if a file has been uploaded to this datafield
             $data_array = array();
             if ( isset($datarecord['dataRecordFields'][$datafield['id']]['file']['0']) ) {
+                $files_to_delete = array();
 
                 // Check that the file exists...
                 $file = $datarecord['dataRecordFields'][$datafield['id']]['file']['0'];
-                $local_filepath = realpath(dirname(__FILE__).'/../../../../../web/'.$file['localFileName']);
+                $local_filepath = realpath( $this->odr_web_directory.'/'.$file['localFileName']);
                 if (!$local_filepath) {
-                    // File does not exist for some reason...probably due to being non-public TODO - FIX THIS
-                    throw new \Exception('Unable to open file');
+                    // File does not exist, decrypt it
+                    $local_filepath = $this->crypto_service->decryptFile($file['id']);
+
+                    // If file is not public, make sure it gets deleted later
+                    $public_date = $file['fileMeta']['publicDate'];
+                    $now = new \DateTime();
+                    if ($now < $public_date)
+                        array_push($files_to_delete, $local_filepath);
                 }
+
+                // Only allow this action for files smaller than 5Mb?
+                $filesize = $file['filesize'] / 1024 / 1024;
+                if ($filesize > 5)
+                    throw new \Exception('Currently not permitted to execute on files larger than 5Mb');
+
 
                 // TODO - test whether this'll work on stupid csv files like CSVImport has to deal with
                 // Load file and parse into array
@@ -97,8 +127,14 @@ class CSVTablePlugin
                     fclose($handle);
                 }
 
+
+                // Delete previously encrypted non-public files
+                foreach ($files_to_delete as $file_path)
+                    unlink($file_path);
+
                 $data_array = json_encode($data_array);
             }
+
 
             // ----------------------------------------
             $output = $this->templating->render(
@@ -123,5 +159,4 @@ class CSVTablePlugin
             throw new \Exception( $output );
         }
     }
-
 }
