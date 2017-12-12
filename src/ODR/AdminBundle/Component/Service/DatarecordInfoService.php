@@ -401,14 +401,6 @@ class DatarecordInfoService
                 }
 
                 // Flatten image metadata
-                $sort_by_image_id = true;
-                foreach ($drf['image'] as $image_num => $image) {
-                    if ($image['parent']['imageMeta'][0]['displayorder'] != 0) {
-                        $sort_by_image_id = false;
-                        break;
-                    }
-                }
-
                 $ordered_images = array();
                 foreach ($drf['image'] as $image_num => $image) {
                     // Get rid of both the thumbnail's and the parent's encrypt keys
@@ -422,18 +414,19 @@ class DatarecordInfoService
                     // Get rid of all private/non-essential information in the createdBy association
                     $image['parent']['createdBy'] = UserUtility::cleanUserData( $image['parent']['createdBy'] );
 
-                    if ($sort_by_image_id) {
-                        // Store by parent id
-                        $ordered_images[ $image['parent']['id'] ] = $image;
-                    }
-                    else {
-                        // Store by display_order
-                        $ordered_images[ $image['parent']['imageMeta']['displayorder'] ] = $image;
-                    }
+                    $image_id = $image['parent']['id'];
+                    $display_order = $image['parent']['imageMeta']['displayorder'];
+
+                    $ordered_images[ $display_order.'_'.$image_id ] = $image;
                 }
 
-                ksort($ordered_images);
-                $drf['image'] = $ordered_images;
+                // Sort the images and discard the sort key afterwards
+                if ( count($ordered_images) > 0 ) {
+                    ksort($ordered_images);
+                    $ordered_images = array_values($ordered_images);
+
+                    $drf['image'] = $ordered_images;
+                }
 
                 // Scrub all user information from the rest of the array
                 $keys = array('boolean', 'integerValue', 'decimalValue', 'longText', 'longVarchar', 'mediumVarchar', 'shortVarchar', 'datetimeValue');
