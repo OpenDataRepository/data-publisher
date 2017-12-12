@@ -2,13 +2,13 @@
 
 /**
  * Open Data Repository Data Publisher
- * Chemin ED1 Plugin
+ * QAnalyze Plugin
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * This plugin is specifically for CheMin ED1 products, and "combines" three file datafields into a single
- * compact display.
+ * This plugin turns a datafield into a button to POST a Chemin XRD pattern to a remote site to
+ * perform analysis on it.
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
@@ -33,7 +33,7 @@ class QanalyzePlugin
 
 
     /**
-     * CheminED1Plugin constructor.
+     * QanalyzePlugin constructor.
      *
      * @param EngineInterface $templating
      * @param Logger $logger
@@ -45,62 +45,67 @@ class QanalyzePlugin
 
 
     /**
-     * Executes the Chemin ED1 Plugin on the provided datarecords
+     * Executes the Qanalyze Plugin.
      *
-     * @param array $datarecords
-     * @param array $datatype
+     * @param array $datafield
+     * @param array $datarecord
      * @param array $render_plugin
-     * @param array $theme_array
-     * @param array $rendering_options
+     * @param string $themeType     One of 'master', 'search_results', 'table', TODO?
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords = array(), $datatype, $render_plugin, $theme_array = array(), $rendering_options = "")
+    public function execute($datafield, $datarecord, $render_plugin, $themeType = 'master')
     {
 
         try {
-            // ----------------------------------------
+//            $str = '<pre>'.print_r($datafield, true)."\n".print_r($datarecord, true)."\n".print_r($render_plugin, true)."\n".'</pre>';
+//            return $str;
+/*
             // Grab various properties from the render plugin array
-            $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
-            $render_plugin_map = $render_plugin_instance['renderPluginMap'];
-            $render_plugin_options = $render_plugin_instance['renderPluginOptions'];
+            $render_plugin_options = $render_plugin['renderPluginInstance'][0]['renderPluginOptions'];
 
             // Remap render plugin by name => value
-            $max_option_date = 0;
             $options = array();
             foreach($render_plugin_options as $option) {
                 if ( $option['active'] == 1 )
-                    $option_date = new \DateTime($option['updated']->date);
-                    $us = $option_date->format('u');
-                    $epoch = strtotime($option['updated']->date) * 1000000;
-                    $epoch = $epoch + $us;
-                    if($epoch > $max_option_date) {
-                        $max_option_date = $epoch;
-                    }
                     $options[ $option['optionName'] ] = $option['optionValue'];
             }
+*/
+/*
+            // Grab value of datafield
+            $value = '';
+            if ( isset($datarecord['dataRecordFields'][ $datafield['id'] ]) ) {
+                $drf = $datarecord['dataRecordFields'][ $datafield['id'] ];
+                $entity = '';
+                switch ( $datafield['dataFieldMeta']['fieldType']['typeClass'] ) {
+                    case 'IntegerValue':
+                        $entity = $drf['integerValue'];
+                        break;
+                    case 'ShortVarchar':
+                        $entity = $drf['shortVarchar'];
+                        break;
+                    case 'MediumVarchar':
+                        $entity = $drf['mediumVarchar'];
+                        break;
+                    case 'LongVarchar':
+                        $entity = $drf['longVarchar'];
+                        break;
+                    case 'LongText':
+                        $entity = $drf['longText'];
+                        break;
 
-            // Retrieve mapping between datafields and render plugin fields
-            $datafield_mapping = array();
-            foreach ($render_plugin_map as $rpm) {
-                // Get the entities connected by the render_plugin_map entity??
-                $rpf = $rpm['renderPluginFields'];
-                $df_id = $rpm['dataField']['id'];
-
-                $df = null;
-                if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$df_id]) )
-                    $df = $datatype['dataFields'][$df_id];
-
-                if ($df == null)
-                    throw new \Exception('Unable to locate array entry for the field "'.$rpf['fieldName'].'", mapped to df_id '.$df_id);
-
-                // Grab the field name specified in the plugin's config file to use as an array key
-                $key = strtolower( str_replace(' ', '_', $rpf['fieldName']) );
-
-                $datafield_mapping[$key] = array('datafield' => $df);
+                    default:
+                        throw new \Exception('Invalid Fieldtype');
+                        break;
+                }
+                $value = trim( $entity[0]['value'] );
             }
-
+            else {
+                // No datarecordfield entry for this datarecord/datafield pair...because of the allowed fieldtypes, the plugin can just use the empty string in this case
+                $value = '';
+            }
+*/
 
             // ----------------------------------------
             // The names of the files uploaded to this child datarecord should have two parts...
