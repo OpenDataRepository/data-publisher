@@ -22,7 +22,9 @@
                     {% if datatype.is_master_type == 1 %} {# Master Template Creation #}
                         <div class="ODRBodyContent">
                             <p>Use this design system to create and map the fields for the database template.</p>
+                            {% if datatype.setup_step != "operational" %}
                             <p><a class="pure-button" href="#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}">Save and Create Search Themes</a></p>
+                            {% endif %}
                         </div>
                         {# elseif datatype.master_type_id == 0 #} {# Custom Database #}
                         {#
@@ -36,7 +38,9 @@
                         <div class="ODRBodyContent">
                             <p>The database may be extended or modified using this design system.  The system will alert you when a change will
                                 break compatibility with the parent template.</p>
+                            {% if datatype.setup_step != "operational" %}
                             <p><a class="pure-button" href="#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}">Save and Create Search Themes</a></p>
+                            {% endif %}
                         </div>
                     {% endif %}
                 </div>

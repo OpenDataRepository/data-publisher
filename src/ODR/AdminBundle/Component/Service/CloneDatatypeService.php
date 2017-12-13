@@ -178,6 +178,7 @@ class CloneDatatypeService
             if ($this->user == null)
                 throw new ODRNotFoundException('User');
 
+            $this->logger->debug('----------------------------------------');
             $this->logger->debug('CloneDatatypeService: entered createDatatypeFromMaster(), user '.$user_id.' is attempting to clone a datatype');
 
             // Get the DataType to work with

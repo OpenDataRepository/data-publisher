@@ -812,6 +812,8 @@ class ThemeController extends ODRCustomController
                     $em->persist($datatype);
                     $em->flush();
 
+                    // Delete the cached version of this datatype
+                    $cache_service->delete('cached_datatype_'.$datatype->getId());
                     // Delete the cached list of top-level themes
                     $cache_service->delete('top_level_themes');
                 }
