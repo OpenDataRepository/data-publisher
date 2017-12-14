@@ -113,9 +113,19 @@ class ThemeController extends ODRCustomController
             // --------------------
 
 
+            // Store whether this is a "short" form or not...
+            // TODO - wasn't this distinction supposed to be removed in the near future?
+            $is_short_form = in_array($theme->getThemeType(), $theme_service::SHORT_FORM_THEMETYPES);
+
             // Populate new Theme form
             $submitted_data = new ThemeMeta();
-            $theme_form = $this->createForm(UpdateThemeForm::class, $submitted_data);
+            $theme_form = $this->createForm(
+                UpdateThemeForm::class,
+                $submitted_data,
+                array(
+                    'is_short_form' => $is_short_form,
+                )
+            );
             $theme_form->handleRequest($request);
 
 
@@ -131,6 +141,9 @@ class ThemeController extends ODRCustomController
                         'templateName' => $submitted_data->getTemplateName(),
                         'templateDescription' => $submitted_data->getTemplateDescription(),
                     );
+                    if ($is_short_form)
+                        $properties['isTableTheme'] = $submitted_data->getIsTableTheme();
+
                     parent::ODR_copyThemeMeta($em, $user, $theme, $properties);
 
                     // Update the cached version of this theme
@@ -885,11 +898,18 @@ class ThemeController extends ODRCustomController
         // ----------------------------------------
 
 
+        // Store whether this is a "short" form or not...
+        // TODO - wasn't this distinction supposed to be removed in the near future?
+        $is_short_form = in_array($theme->getThemeType(), $theme_service::SHORT_FORM_THEMETYPES);
+
         // Build the Form to save changes to the Theme's name/description
         $theme_meta = $theme->getThemeMeta();
         $theme_form = $this->createForm(
             UpdateThemeForm::class,
-            $theme_meta
+            $theme_meta,
+            array(
+                'is_short_form' => $is_short_form,
+            )
         );
 
         // ----------------------------------------
@@ -910,6 +930,8 @@ class ThemeController extends ODRCustomController
                 'is_datatype_admin' => $is_datatype_admin,
 
                 'display_mode' => $display_mode,
+
+                'is_short_form' => $is_short_form,
             )
         );
 

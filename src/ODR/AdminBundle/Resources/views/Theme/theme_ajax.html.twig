@@ -47,6 +47,8 @@
                             'datatype': theme_datatype,
                             'theme': theme,
                             'theme_form': theme_form,
+
+                            'is_short_form': is_short_form,
                         } %}
                         <div>
                             <button type="button" class="pure-button pure-button-primary" onclick="window.history.back()">Return to previous page</button>
@@ -76,12 +78,14 @@
                         </div>
                     </div>
                     <div class="pure-u-1"></div>
+
                     <div class="pure-u-24-24"><h3 class="ODRHeader">Element Settings</h3></div>
-                    <div id="ThemeDesignForm">
-                    </div>
+                    <div id="ThemeDesignForm"></div>
+
                     <div id="ThemeDesignKey">
                         <div class="pure-u-24-24"><h3 class="ODRHeader">Design Key</h3></div>
                         <div class="pure-u-24-24"></div>
+
                         <div class="pure-u-2-24"></div>
                         <div class="pure-u-20-24">Examples of hidden elements are show below.  Elements visible to users have no additional styling.</div>
                         <div class="pure-u-2-24"></div>
@@ -188,7 +192,7 @@
                 }
             });
 
-            $("#ThemePropertiesForm input").unbind('keyup').keyup(function() {
+            $("#ThemePropertiesForm input:text").unbind('keyup').keyup(function() {
                 window.clearInterval(interval);
                 interval = window.setInterval(
                     "saveThemeMeta()",
@@ -200,6 +204,13 @@
                 interval = window.setInterval(
                     "saveThemeMeta()",
                     3000
+                );
+            });
+            $("#ThemePropertiesForm input:checkbox").unbind('change').change(function() {
+                window.clearInterval(interval);
+                interval = window.setInterval(
+                    "saveThemeMeta()",
+                    1000
                 );
             });
 

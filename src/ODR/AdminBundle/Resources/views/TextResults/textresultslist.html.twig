@@ -84,10 +84,26 @@
 
             "columns": [{{ column_names | raw }} {% if can_edit_datarecord %}{"title":"","searchable":false,"orderable":false}{% endif %}], {# column_names|raw already has trailing comma #}
             "order": [[1, 'asc']],
-            "searching": false,
             "pageLength": {{ page_length }},
             "autoWidth": false,
             "orderMulti": false,    // disabled because ODR can't multi-sort server-side yet
+
+            {# https://datatables.net/reference/option/dom
+                "dom" parameter results in:
+                <div class="wrapper">
+                    <div class="FLeft">
+                        {information}
+                    </div>
+                    <div class="FRight">
+                        {length}
+                    </div>
+                    {processing}
+                    {table}
+                    {information}
+                    {pagination}
+               </div>
+            #}
+            "dom": '<"FLeft"i><"FRight"l>rtip',
 
             "responsive": true,
             "fixedHeader": {
