@@ -820,28 +820,33 @@ class ThemeController extends ODRCustomController
                     );
                     parent::ODR_copyThemeMeta($em, $user, $theme, $properties);
 
+                    // Everywhere that creates a new datatype should be also be setting a default
+                    //  search_slug for the datatype, but make doubly sure one exists...
+                    if ( is_null($datatype->getSearchSlug()) || $datatype->getSearchSlug() == '' )
+                        $datatype->getDataTypeMeta()->setSearchSlug( $datatype->getId() );
+
                     // This datatype now has a "search_results" theme, so it's no longer "incomplete"
                     $datatype->setSetupStep(DataType::STATE_OPERATIONAL);
                     $em->persist($datatype);
                     $em->flush();
+                    $em->refresh($datatype);
 
                     // Delete the cached version of this datatype
                     $cache_service->delete('cached_datatype_'.$datatype->getId());
                     // Delete the cached list of top-level themes
                     $cache_service->delete('top_level_themes');
+
+
+                    // Redirect to the search page for this datatype
+                    $url = $this->getParameter('site_baseurl');
+                    $url .= $this->generateUrl(
+                        'odr_search',
+                        array(
+                            'search_slug' => $datatype->getSearchSlug(),
+                        )
+                    );
+                    $return['d'] = array('url' => $url);
                 }
-
-                // Redirect to the correct URL to edit the default 'search_results' theme
-                $url = $this->generateUrl(
-                    'odr_modify_theme',
-                    array(
-                        'datatype_id' => $datatype->getId(),
-                        'theme_id' => $theme->getId()
-                    )
-                );
-
-                $response = new RedirectResponse($url);
-                return $response;
             }
         }
         catch (\Exception $e) {
@@ -1483,6 +1488,119 @@ class ThemeController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x1ffa9747;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Triggers a re-render and reload of a ThemeElement in the design.
+     *
+     * @param integer $source_datatype_id  The database id of the top-level datatype being rendered?
+     * @param integer $theme_element_id    The database id of the ThemeElement that needs to be re-rendered.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function reloadthemeelementAction($source_datatype_id, $theme_element_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var DataType $source_datatype */
+            $source_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($source_datatype_id);
+            if ($source_datatype == null)
+                throw new ODRNotFoundException('Source Datatype');
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ($theme_element == null)
+                throw new ODRNotFoundException('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                throw new ODRNotFoundException('Theme');
+            if ($theme->getThemeType() == 'master')
+                throw new ODRBadRequestException("Not allowed to re-render something that belongs to the master Theme");
+
+            $datatype = $theme->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $source_datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+            $include_links = false;
+            $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
+
+            $theme_array = $theme_service->getThemeArray(array($theme->getId()));     // TODO - need to get links?
+
+
+            // Filter out all theme_elements that aren't the one to reload
+            foreach ($theme_array[$source_datatype_id]['themeElements'] as $num => $te) {
+                if ( $te['id'] != $theme_element_id )
+                    unset( $theme_array[$source_datatype_id]['themeElements'][$num] );
+            }
+
+
+            // ----------------------------------------
+            // Render the required version of the page
+            $templating = $this->get('templating');
+            $html = $templating->render(
+                'ODRAdminBundle:Theme:theme_fieldarea.html.twig',
+                array(
+                    'datatype_array' => $datatype_array,
+                    'target_datatype_id' => $source_datatype->getId(),
+                    'theme_array' => $theme_array,
+
+                    'datatype_permissions' => $pm_service->getDatatypePermissions($user),
+                    'is_datatype_admin' => $pm_service->isDatatypeAdmin($user, $datatype),
+
+                    'is_top_level' => 0,    // the values for these two don't matter, for the moment
+                    'is_link' => 0,
+                )
+            );
+
+            $return['d'] = array(
+                'theme_element_id' => $theme_element_id,
+                'theme_element_hidden' => $theme_element->getHidden(),
+                'html' => $html,
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0xdb066a2d;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
