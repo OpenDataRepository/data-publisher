@@ -132,6 +132,10 @@ class TableThemeHelperService
         // ----------------------------------------
         // Need to store the names of each of the datafields
         foreach ($theme_array[$datatype_id]['themeElements'] as $te_num => $te) {
+            // Ignore theme elements that are hidden
+            if ( $te['themeElementMeta']['hidden'] == 1 )
+                continue;
+
             if ( isset($te['themeDataFields']) ) {
                 foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
                     $df_id = $tdf['dataField']['id'];
@@ -237,6 +241,10 @@ class TableThemeHelperService
             $dr_data = array();
 
             foreach ($theme_array[$datatype_id]['themeElements'] as $te_num => $te) {
+                // Ignore theme elements that are hidden
+                if ( $te['themeElementMeta']['hidden'] == 1 )
+                    continue;
+
                 if ( isset($te['themeDataFields']) ) {
                     foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
                         $df_id = $tdf['dataField']['id'];
@@ -473,6 +481,10 @@ class TableThemeHelperService
         $df_count = -1;
 
         foreach ($theme_array[$datatype_id]['themeElements'] as $te_num => $te) {
+            // Ignore theme elements that are hidden
+            if ( $te['themeElementMeta']['hidden'] == 1 )
+                continue;
+
             if ( isset($te['themeDataFields']) ) {
                 foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
                     $df_id = $tdf['dataField']['id'];
