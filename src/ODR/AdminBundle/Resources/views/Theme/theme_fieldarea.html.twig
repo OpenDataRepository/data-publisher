@@ -33,10 +33,15 @@
     <div class="ODRInnerBox">
 
         <div id="ThemeElementTools_{{ theme_element.id }}" class="ThemeElementTools pure-u-1">
-            <span style="float:right;">
+            <span class="FRight">
                 <i id="ODRThemeElement_{{ theme_element.id }}_properties"
                    class="Pointer tooltip fa fa-eye ODRThemeElementVisible"
                    title="Toggle visibility of ThemeElement">
+                </i>
+
+                <i id="ODRThemeElement_{{ theme_element.id }}_delete"
+                   class="Pointer tooltip fa fa-trash-o {% if has_datafields or has_childtype %}fa-muted{% endif %} ODRDeleteThemeElement"
+                   title="Delete ThemeElement">
                 </i>
             </span>
         </div>

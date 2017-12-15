@@ -354,6 +354,13 @@ odr_sync_source_theme:
     requirements:
         theme_id:  \d+
 
+odr_theme_reload_theme_element:
+    path: /design/theme/themeelementreload/{source_datatype_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:reloadthemeelement }
+    requirements:
+        source_datatype_id: \d+
+        theme_element_id: \d+
+
 
 odr_design_add_theme_element:
     path:  /design/themeelement/add/{theme_id}

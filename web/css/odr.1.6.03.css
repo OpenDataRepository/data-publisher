@@ -1858,21 +1858,11 @@ footer {
 #TextResults_paginate a {
     padding-right: 8px;
 }
-
-.dataTables_length {
-    float: right;
-}
 .dataTable {
     width: 100%;
 }
-.dataTables_paginate {
-    float: right;
-}
-.dataTables_info {
-    float: left;
-}
-
 /* END Search Results Table */
+
 #main {
     min-height: 80%;
     border: none;
@@ -2827,6 +2817,9 @@ form .row {
     text-overflow: clip;
 }
 
+.FLeft {
+    float: left;
+}
 .FRight {
     float: right;
 }

@@ -16,6 +16,7 @@ namespace ODR\AdminBundle\Form;
 
 // Symfony Forms
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 // Symfony Form classes
@@ -32,6 +33,8 @@ class UpdateThemeForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
+        $is_short_form = $options['is_short_form'];
+
         $builder->add(
             'templateName',
             TextType::class,
@@ -69,6 +72,23 @@ class UpdateThemeForm extends AbstractType
             'sourceSyncCheck',
             HiddenType::class
         );
+
+        if ($is_short_form) {
+            $builder->add(
+                'isTableTheme',
+                CheckboxType::class,
+                array(
+                    'required' => true,
+                    'label' => 'Render as Table Theme?'
+                )
+            );
+        }
+        else {
+            $builder->add(
+                'isTableTheme',
+                HiddenType::class
+            );
+        }
     }
 
 
@@ -101,6 +121,13 @@ class UpdateThemeForm extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\ThemeMeta'));
+        $resolver->setDefaults(
+            array(
+                'data_class' => 'ODR\AdminBundle\Entity\ThemeMeta'
+            )
+        );
+
+        // Required options shouldn't have their defaults set
+        $resolver->setRequired('is_short_form');
     }
 }

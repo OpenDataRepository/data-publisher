@@ -126,7 +126,7 @@
             {% elseif datatype.setup_step == 'operational' %}
                 <a id="ODRDatarecordList_{{ datatype.id }}_search" href="{{ datatype_baseurl }}" title="Search {{ datatype_meta.shortName }} DataRecords"><i class="fa fa-lg fa-search"></i>&nbsp;Search</a>
             {% elseif is_datatype_admin %}
-                <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Search Results Theme not designed!</a>
+                <a id="ODRDatarecordList_{{ datatype.id }}_search" class="ODRMissingSearchTheme" rel="{{ datatype.id }}" title="Search {{ datatype_meta.shortName }} DataRecords"><i class="fa fa-lg fa-search"></i>&nbsp;Search</a>
             {% else %}
                 {# missing templates to display search results, and user doesn't have permission to make any...do nothing #}
             {% endif %}
@@ -223,6 +223,45 @@
         // Due to rows already being hidden, redo the row classes
         redoRowClasses();
 {% endif %}
+
+        $(".ODRMissingSearchTheme").unbind('click').click(function(event) {
+            // These shouldn't be needed, but making sure...
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
+            var datatype_id = $(this).attr('rel');
+
+            var url = '{{ path('odr_design_derivative_themes', { 'datatype_id': 0 }) }}';
+            url = url.substring(0, (url.length - 1));
+            url += datatype_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    // Redirect to the datatype's search page
+                    window.location = data.d.url;
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
     });
 
     function addDataRecord(urlpath, datatype_id) {

@@ -7,10 +7,17 @@
     {% if is_top_level == 0 %}
         {# current datatype is a child or linked datatype #}
         <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top{% if display_type == 4 %} ODRThemeHiddenElement{% endif %}" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-            <a id="Datatype_{{ datatype.id }}_ShortName" class="ODRDatatypeProperties">
+            <a id="Datatype_{{ datatype.id }}_ShortName" class="ODRDatatypeProperties" rel="{{ datatype.id }}">
                 {{ datatype.dataTypeMeta.shortName }}
             </a>
         </h3>
+        {% include 'ODRAdminBundle:Theme:theme_datatypetools_div.html.twig' with {
+            'datatype': datatype,
+            'theme_id': theme.id,
+
+            'is_top_level': is_top_level,
+            'is_link': is_link,
+        } %}
 
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datatype.id }}">
             {% include 'ODRAdminBundle:Theme:theme_fieldarea.html.twig' with {
@@ -29,9 +36,17 @@
 
         <div class="ODRThemeElement pure-u-1">
             <div class="ODRInnerBox pure-u-1">
-                <h3 class="ODRHeader ODRDatatypeProperties" id="Datatype_{{ datatype.id }}_ShortName">
+                <h3 class="ODRHeader ODRDatatypeProperties" id="Datatype_{{ datatype.id }}_ShortName" rel="{{ datatype.id }}">
                     {{ datatype.dataTypeMeta.shortName }}
                 </h3>
+                {# current datatype is top-level #}
+                {% include 'ODRAdminBundle:Theme:theme_datatypetools_div.html.twig' with {
+                    'datatype': datatype,
+                    'theme_id': theme.id,
+
+                    'is_top_level': is_top_level,
+                    'is_link': is_link,
+                } %}
             </div>
         </div>
 

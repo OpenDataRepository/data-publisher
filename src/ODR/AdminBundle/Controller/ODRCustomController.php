@@ -3211,8 +3211,20 @@ class ODRCustomController extends Controller
             $new_theme_meta->setShared( $properties['shared'] );
         if ( isset($properties['sourceSyncCheck']) )
             $new_theme_meta->setSourceSyncCheck( $properties['sourceSyncCheck'] );
-        if ( isset($properties['isTableTheme']) )
+
+        if ( isset($properties['isTableTheme']) ) {
             $new_theme_meta->setIsTableTheme( $properties['isTableTheme'] );
+
+            // TODO - wasn't this distinction supposed to be removed in the near future?
+            if ($theme->getThemeType() == 'search_results' && $new_theme_meta->getIsTableTheme()) {
+                $theme->setThemeType('table');
+                $em->persist($theme);
+            }
+            else if ($theme->getThemeType() == 'table' && !$new_theme_meta->getIsTableTheme()) {
+                $theme->setThemeType('search_results');
+                $em->persist($theme);
+            }
+        }
 
         $new_theme_meta->setUpdatedBy($user);
 

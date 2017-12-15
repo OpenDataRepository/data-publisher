@@ -781,7 +781,7 @@ class DisplaytemplateController extends ODRCustomController
                 AND te.deletedAt IS NULL AND tem.deletedAt IS NULL AND t.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
             $query->execute();
-
+*/
             // Delete all Theme and ThemeMeta entries
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:Theme AS t, ODRAdminBundle:ThemeMeta AS tm
@@ -791,7 +791,7 @@ class DisplaytemplateController extends ODRCustomController
                 AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
             $query->execute();
-*/
+
 
             // ----------------------------------------
             // Delete all Datatree and DatatreeMeta entries

@@ -76,7 +76,7 @@ services:
             datatype_info_service: "@odr.datatype_info_service"
             permissions_service: "@odr.permissions_management_service"
             user_manager: "@fos_user.user_manager"
-            logger: "@logger"
+            logger: "@monolog.logger.clone_datatype"
 
     odr.clone_theme_service:
         class: ODR\AdminBundle\Component\Service\CloneThemeService
@@ -84,7 +84,7 @@ services:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
             theme_service: "@odr.theme_info_service"
-            logger: "@logger"
+            logger: "@monolog.logger.clone_theme"
 
 
     odr.permissions_management_service:
