@@ -35,9 +35,11 @@
 
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_list_types', { 'section': 'databases' } ) }}" title="List Records">&nbsp;<i class="fa fa-md fa-fw fa-list"></i>Databases</a></li>
 
-    {% if is_datatype_admin == true %}
+    {% if level == 3 or level == 7 %}
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_list_types', { 'section': 'templates' } ) }}" title="List Master Templates">&nbsp;<i class="fa fa-md fa-fw fa-cog"></i>Templates</a></li>
+    {% endif %}
 
+    {% if is_datatype_admin == true %}
         <li class="pure-menu-item">
             <span class="pure-menu-heading">User Management&nbsp;<i class="fa fa-md fa-plus-square"></i></span>
             <ul class="ODR-pure-submenu">

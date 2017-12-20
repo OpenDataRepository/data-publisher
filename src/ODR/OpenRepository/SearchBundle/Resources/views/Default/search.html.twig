@@ -425,7 +425,7 @@
 
         var datatype_id = $("#datatype_id").val();
         search_key = $("#datatype_id").attr('name') + '=' + datatype_id;
-        
+
         if ( $("#textbox_general").val().trim() != '' )
             search_key += divider + $("#textbox_general").attr('name') + '=' + encodeURIComponent( $("#textbox_general").val().trim() );
 
@@ -593,17 +593,17 @@
     }
 </script>
 
-{% if background_image_id != null %}
 <script>
 $(window).on('load',function() {
+    {% if background_image_id != null %}
     // After the rest of the page is loaded, start loading the bg image
     var url = "{{ path('odr_image_download', {'image_id': 0 }) }}";
     url = url.substring(0, url.length-1);
     url += "{{ background_image_id }}";
 
-    $("#odr_bg").attr('src', url);
-
-
+    if (window.location.hash === '')
+        $("#odr_bg").attr('src', url);
+    {% endif %}
 
     // Setup IntroJS Walkthrough
     jQuery('#ODRHelpButton')
@@ -657,17 +657,14 @@ function introJsStepBeforeChangeHandler(elem) {
             jQuery(".ODRSearchHelp").click();
         }
         if ( $("#search_type").val() === 'basic' ) {
-            introjs_starting_search_type = "basic"
-            changeSearch()
+            introjs_starting_search_type = "basic";
+            changeSearch();
         }
         else {
-            introjs_starting_search_type = "advanced"
+            introjs_starting_search_type = "advanced";
         }
     }
 }
 </script>
-
-
-{% endif %}
 
 {% endspaceless %}

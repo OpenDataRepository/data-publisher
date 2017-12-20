@@ -14,6 +14,8 @@
 
 namespace ODR\OpenRepository\UserBundle\Controller;
 
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -32,7 +34,7 @@ class UtilityController extends Controller
      *
      * @param Request $request
      *
-     * @throws \Exception
+     * @throws ODRBadRequestException
      *
      * @return JsonResponse
      */
@@ -44,14 +46,14 @@ class UtilityController extends Controller
 
         // Ensure query was correctly formed
         if (!$request->query->has('url') )
-            throw new \Exception('Invalid query string');
+            throw new ODRBadRequestException('Invalid query string', 0xf48d5eba);
 
         // Ensure the requested url to save is of this domain
         $url = $request->query->get('url');
         $site_baseurl = $this->container->getParameter('site_baseurl');
 
         if ( strpos($url, $site_baseurl) !== 0 )
-            throw new \Exception('Invalid query string');
+            throw new ODRBadRequestException('Invalid query string', 0xed466573);
 
         // Ensure all target paths are cleared before saving
         self::clearTargetPaths($request);
@@ -68,7 +70,7 @@ class UtilityController extends Controller
      *
      * @param Request $request
      *
-     * @throws \Exception
+     * @throws ODRBadRequestException
      *
      * @return JsonResponse
      */
@@ -80,7 +82,7 @@ class UtilityController extends Controller
 
         // Ensure query was correctly formed
         if (!$request->query->has('fragment') )
-            throw new \Exception('Invalid query string');
+            throw new ODRBadRequestException('Invalid query string', 0x3cf17023);
 
         // If the fragment starts with  "/app_dev.php", temporarily get rid of it...
         //  route matching will fail otherwise
