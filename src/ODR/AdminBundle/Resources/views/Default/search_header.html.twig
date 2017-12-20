@@ -3,27 +3,89 @@
 {% if search_key != '' %}
 <div>
     {% if search_result_count > 1 %}
-        <button class="pure-button" onclick="changeResult('prev');">
+        <button id="ODRSearchResultsPrevious" class="pure-button" onclick="changeResult('prev');">
             <i class="fa fa-backward"></i><span>&nbsp;Previous</span>
         </button>
     {% endif %}
 
-    <button class="pure-button" onclick="returnToSearchResults();">Return to Search Results</button>
+    <button id="ODRReturnToSearchResults" class="pure-button" onclick="returnToSearchResults();">Return to Search Results</button>
 
     {% if search_result_count > 1 %}
-        <button class="pure-button" onclick="changeResult('next');">
+        <button id="ODRSearchResultsNext" class="pure-button" onclick="changeResult('next');">
             <span>Next&nbsp;</span><i class="fa fa-forward"></i>
         </button>
     {% endif %}
 
-    <div class="ODRBrowseLabeels">
-        <strong class="ODRBrowseTitle">Browse Search Results</strong>
-        <strong class="FRight">Record {{ search_result_current }} of {{ search_result_count }}</strong>
+    <div class="ODRBrowseLabels">
+        <strong id="ODRBrowseSearchResults" class="ODRBrowseTitle">Browse Search Results</strong>
+        <strong id="ODRRecordSummary" class="FRight">Record {{ search_result_current }} of {{ search_result_count }}</strong>
     </div>
 </div>
 {% endif %}
 
 <script>
+
+    jQuery(function() {
+
+
+        // Setup IntroJS Walkthrough
+        jQuery('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br /><br />  For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+        jQuery('#page_settings')
+            .attr('data-step', '2')
+            .attr('data-intro', 'The settings gear contains customizable settings for this page (search results).');
+        jQuery('#ChooseView')
+            .attr('data-step', '3')
+            .attr('data-intro', 'Clicking "Choose View" brings up a menu of options for selecting alternate search views or creating your own.');
+        jQuery('#ODREditButton')
+            .attr('data-step', '4')
+            .attr('data-intro', 'Switch to "Edit" mode for this record.');
+        jQuery('#ODRDownloadAllFilesButton')
+            .attr('data-step', '5')
+            .attr('data-intro', 'This button opens a window that lets you quickly select and download files from this record.');
+        jQuery('#ODRSearchResultsPrevious')
+            .attr('data-step', '6')
+            .attr('data-intro', 'View the previous record in your search results list.');
+        jQuery('#ODRReturnToSearchResults')
+            .attr('data-step', '7')
+            .attr('data-intro', 'Return to your search results.');
+        jQuery('#ODRSearchResultsNext')
+            .attr('data-step', '8')
+            .attr('data-intro', 'View the next record in your search results list.');
+        jQuery('#ODRRecordSummary')
+            .attr('data-step', '9')
+            .attr('data-intro', 'This area shows a summary of the search results.');
+
+
+        // Initialize the help button
+        jQuery('#ODRHelpButton').unbind('click').click(function() {
+            introJs()
+                .onbeforechange(introJsStepBeforeChangeHandler)
+                .onbeforeexit(introJsExitHandler)
+                .start();
+        });
+    });
+
+    function introJsExitHandler() {
+    }
+
+    function introJsStepBeforeChangeHandler(elem) {
+        if(jQuery(elem).attr("id") === "page_settings") {
+            if(!jQuery("#page_settings_menu").is(":visible")) {
+                jQuery(elem).click();
+            }
+        }
+        if(
+            jQuery(elem).attr("id") !== "page_settings"
+            && jQuery(elem).attr("id") !== "ChooseView"
+        ) {
+            if(jQuery("#ChooseView").is(":visible")) {
+                jQuery("#page_settings").click();
+            }
+        }
+    }
+
     function returnToSearchResults() {
         var search_key = "{{ search_key }}";
         var offset = "{{ offset }}";

@@ -19,11 +19,11 @@
 
     <div class="pure-u-1 pure-u-md-1-3 pure-u-xl-1-3">
         {% if can_edit_record == 1 %}
-            <button type="button" class="pure-button pure-button-primary"
+            <button id="ODREditButton" type="button" class="pure-button pure-button-primary"
                     onclick="loadDataRecord({{ datarecord.id }},'edit');">Edit DataRecord</button>
         {% endif %}
 
-        <button type="button" class="pure-button pure-button-primary"
+        <button id="ODRDownloadAllFilesButton" type="button" class="pure-button pure-button-primary"
                 onclick="openFileDownloadDialog( {{ datarecord.id }}, 0, 0 );">Download Files...</button>
     </div>
 
@@ -43,12 +43,6 @@
         </div>
     {% endif %}
 </div>
-
-<script>
-    $(function() {
-        $(".MenuDesignArea").remove();
-    });
-</script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
 {{ js.write('record', search_key, offset) }}

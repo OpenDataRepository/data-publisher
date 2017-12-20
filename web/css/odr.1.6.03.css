@@ -3680,3 +3680,12 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     color: #2ca02c;
 }
 
+
+#ODRSearchBoxWrapper {
+    padding-top: 8px;
+}
+
+#ODRReturnToSearchResults {
+    padding-top: 9px;
+    padding-bottom: 10px;
+}
