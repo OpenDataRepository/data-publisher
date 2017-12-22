@@ -29,6 +29,7 @@
 /web/bundles/
 /web/uploads/
 /web/node_modules/
+/web/chemin-map-demo/
 
 # PHPUnit
 /app/phpunit.xml

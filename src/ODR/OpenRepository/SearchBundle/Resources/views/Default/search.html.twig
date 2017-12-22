@@ -4,17 +4,11 @@
 
     <div class="pure-u-sm-1-4"></div>
     <form id="search_form" class="pure-form pure-u-sm-1-2 pure-u-md-7-8">
-{#
-    {% if searchable_datafields|length == 0 %}
-        <strong>This DataType has no searchable DataFields.</strong>
-    {% else %}
-#}
         <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}" />
 
-        <fieldset>
-            <div id="search_top">
+        <fieldset id="search_top">
+            <div>
                 <div class="pure-u-1">
-                    <input type="hidden" id="search_type" value="basic"/>
                     <a class="ODRSearchHelper Pointer pure-u-1" onclick="changeSearch();">Open Advanced Search</a>
                 </div>
                 <div class="pure-u-1">
@@ -24,7 +18,7 @@
             </div>
         </fieldset>
 
-        <fieldset>
+        <fieldset class="ODRSearchBoxWrapper" >
             <div class="pure-u-1">
                 <label for="textbox_general" class="pure-u-1-3">
                     Search for:
@@ -32,6 +26,7 @@
                     <i class="fa fa-lg fa-info-circle Pointer ODRGeneralSearchList" style="padding-left:5px;" title="List of Datafields that will be searched"></i>
                 </label>
                 <input id="textbox_general" class="pure-u-2-3" type="text" name="gen" {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %} {% if searchable_datafields|length == 0 %}disabled="disabled" title="This datatype has no searchable datafields"{% endif %} />
+                <input type="hidden" id="search_type" value="basic"/>
             </div>
 
             <div class="pure-u-1" id="ODRSearchHelp_div" style="display:none;">
@@ -120,15 +115,6 @@
 
                 {# created/modified by, created/modified date, public status of datarecord #}
                 {# don't display metadata for linked datatypes...for now... #}
-{#
-                {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
-                    'datatype_id': target_datatype.id,
-                    'user_list': user_list,
-                    'datatype_permissions': datatype_permissions,
-                    'is_top_level': 0
-                } %}
-#}
-
                 </div>
             </fieldset>
             {% endif %}
@@ -137,7 +123,6 @@
 
         <fieldset>
             <div class="pure-u-1">
-                <input type="hidden" id="search_type" value="basic"/>
                 <a class="ODRSearchHelper Pointer pure-u-1" onclick="changeSearch();">Open Advanced Search</a>
             </div>
             <div class="pure-u-1">
@@ -145,9 +130,6 @@
                 <button class="pure-button pure-button-primary" type="submit">Search</button>
             </div>
         <fieldset>
-{#
-    {% endif %}
-#}
 
     </form>
     <div class="pure-u-sm-1-4"></div>
@@ -348,7 +330,6 @@
 
                 var start_date = $("#" + field_id + "_start").val();
                 var end_date = $("#" + field_id + "_end").val();
-//alert(start_date + ' ' + end_date);
                 if (end_date != '' && start_date != '') {
                     if (start_date > end_date)
                         $("#" + field_id + "_end").datepicker( "setDate", start_date );
@@ -372,7 +353,6 @@
                 $(this).blur();
             },
             beforeShow: function(input, inst) {
-// http://stackoverflow.com/questions/4598850/how-do-you-add-buttons-to-a-jquery-datepicker-in-the-button-panel
             }
         });
 
@@ -445,7 +425,7 @@
 
         var datatype_id = $("#datatype_id").val();
         search_key = $("#datatype_id").attr('name') + '=' + datatype_id;
-        
+
         if ( $("#textbox_general").val().trim() != '' )
             search_key += divider + $("#textbox_general").attr('name') + '=' + encodeURIComponent( $("#textbox_general").val().trim() );
 
@@ -613,17 +593,78 @@
     }
 </script>
 
-{% if background_image_id != null %}
 <script>
 $(window).on('load',function() {
+    {% if background_image_id != null %}
     // After the rest of the page is loaded, start loading the bg image
     var url = "{{ path('odr_image_download', {'image_id': 0 }) }}";
     url = url.substring(0, url.length-1);
     url += "{{ background_image_id }}";
 
-    $("#odr_bg").attr('src', url);
+    if (window.location.hash === '')
+        $("#odr_bg").attr('src', url);
+    {% endif %}
+
+    // Setup IntroJS Walkthrough
+    jQuery('#ODRHelpButton')
+        .attr('data-step', '1')
+        .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br /><br />  For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+    jQuery('#textbox_general')
+        .attr('data-step', '2')
+        .attr('data-intro', 'This is the "general search" box. Enter terms in this field that you want to find in any of the available search fields.');
+    jQuery('.ODRGeneralSearchList')
+        .attr('data-step', '3')
+        .attr('data-intro', 'Clicking this icon brings up a panel that lists the fields in this database that will be searched when using the "general search" box.');
+    jQuery('.ODRSearchHelp')
+        .attr('data-step', '4')
+        .attr('data-intro', 'All search fields can make use of operators and logic to build more refined searches.  Clicking this icon presents instructions on using operators to build more complex searches.');
+    jQuery('.ODRSearchHelper:first')
+        .attr('data-step', '5')
+        .attr('data-intro', 'Click this link to open or close "Advanced Search".  Advanced search allows you to refine searches to specific fields or field selections.');
+
+    // Initialize the help button
+    jQuery('#ODRHelpButton').unbind('click').click(function() {
+        introJs()
+            .onbeforechange(introJsStepBeforeChangeHandler)
+            .onbeforeexit(introJsExitHandler)
+            .start();
+    });
 });
+
+var introjs_starting_search_type = "basic";
+function introJsExitHandler() {
+    if ( introjs_starting_search_type === "basic" && $("#search_type").val() !== 'basic' ) {
+        changeSearch()
+    }
+}
+
+function introJsStepBeforeChangeHandler(elem) {
+    if(jQuery(elem).hasClass("ODRGeneralSearchList")) {
+        if(!jQuery("#ODRGeneralSearchList_div").is(":visible")) {
+            jQuery(elem).click();
+        }
+    }
+    if(jQuery(elem).hasClass("ODRSearchHelp")) {
+        if(!jQuery("#ODRSearchHelp_div").is(":visible")) {
+            jQuery(elem).click();
+        }
+        if(jQuery("#ODRGeneralSearchList_div").is(":visible")) {
+            jQuery(".ODRGeneralSearchList").click();
+        }
+    }
+    if(jQuery(elem).hasClass("ODRSearchHelper")) {
+        if(jQuery("#ODRSearchHelp_div").is(":visible")) {
+            jQuery(".ODRSearchHelp").click();
+        }
+        if ( $("#search_type").val() === 'basic' ) {
+            introjs_starting_search_type = "basic";
+            changeSearch();
+        }
+        else {
+            introjs_starting_search_type = "advanced";
+        }
+    }
+}
 </script>
-{% endif %}
 
 {% endspaceless %}

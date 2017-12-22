@@ -71,9 +71,9 @@
 <div class="ODRExportButtons Cursor">
     <div style="float:left;">
         {% if can_edit_datarecord or is_datatype_admin %}
-            <button class="pure-button" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
+            <button id="ODRMassEdit" class="pure-button" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
         {% endif %}
-        <button class="pure-button" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>
+        <button id="ODRCSVExport" class="pure-button" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>
     </div>
 
     {% if use_jupyterhub %}
@@ -85,7 +85,7 @@
             <input type="hidden" name="search_key" value="{{ search_key }}" />
             <input type="hidden" name="app_id" id="jupyterhub_app_id" />
 
-            <button type="submit" class="pure-button">Run this Jupyterhub app on these search results</button>
+            <button id="ODRRunApp" type="submit" class="pure-button">Run this Jupyterhub app on these search results</button>
         </form>
     </div>
     {% endif %}
@@ -104,7 +104,7 @@
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
-{% if user_role == 'ROLE_ADMIN' and count > 0 and use_jupyterhub %}
+        {% if user_role == 'ROLE_ADMIN' and count > 0 and use_jupyterhub %}
         // Get the app list to display on the page
         $.ajax({
             cache: false,
@@ -125,7 +125,7 @@
                 }
             }
         });
-{% endif %}
+        {% endif %}
     });
 
 
@@ -154,29 +154,7 @@
             handleFileDownload(event, file_id);    // defined in Default::file_handling.html.twig
         });
 
-{#
-        // Hide empty fieldareas
-        $(".ODRFieldArea").each(function() {
-            var max_height = 0;
-
-            $(this).find(".ODRDataField").each(function() {
-                var position = $(this).position();
-                var element_offset = position.top + $(this).height();
-
-                if (element_offset > max_height)
-                    max_height = element_offset;
-            });
-
-            if (max_height > 0) {
-//                $(this).css('height', max_height + 'px');
-//                $(this).css('min-height', max_height + 'px');
-//                $(this).parents('.ChildDataType').css('height', max_height + 'px');
-            }
-        });
-#}
-
-{% if scroll_target != '' %}
-//alert( {{ scroll_target }} );
+        {% if scroll_target != '' %}
         if (!prevent_scroll) {
             var target = '#ShortResults_' + {{ scroll_target }};
             if ( $(target) !== null && $(target) !== undefined && $(target).offset() !== null ) {
@@ -185,7 +163,7 @@
                 }, 500);
             }
         }
-{% endif %}
+        {% endif %}
 
     }
 
