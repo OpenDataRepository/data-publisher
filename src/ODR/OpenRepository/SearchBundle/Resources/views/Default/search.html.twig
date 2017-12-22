@@ -423,6 +423,9 @@
         var prev_field = '';
         var divider = '|';
 
+        // TODO - need to make this submit an HTML form instead of building a string...
+        console.log( $("#search_form").serialize() );
+
         var datatype_id = $("#datatype_id").val();
         search_key = $("#datatype_id").attr('name') + '=' + datatype_id;
 

@@ -49,6 +49,7 @@ use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -806,12 +807,13 @@ return;
             $repo_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions');
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
@@ -1055,15 +1057,8 @@ $ret .= '  Set current to '.$count."\n";
                 // Mark this datarecord as updated
                 $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-                // See if any cached search results need to be deleted...
-                $cached_searches = $cache_service->get('cached_search_results');
-                if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
-                    // Just delete all cached search results for this datatype...TODO - make it more precise than that...
-                    unset ( $cached_searches[$datatype_id] );
-
-                    // Save the collection of cached searches
-                    $cache_service->set('cached_search_results', $cached_searches);
-                }
+                // Delete all search results for this datatype...TODO - more precise than that?
+                $search_cache_service->clearByDatatypeId($datatype_id);
 
 $ret .=  "---------------\n";
                 $return['d'] = $ret;
