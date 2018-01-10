@@ -103,7 +103,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xeaa9d56a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -170,7 +170,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4a78400f;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -281,7 +281,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xc5f96e25;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -384,7 +384,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x97f688bd;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -529,7 +529,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xb6a03520;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -577,7 +577,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4c69f197;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -663,7 +663,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xc6125a86;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -806,7 +806,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x6c1fc667;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -917,7 +917,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x482172cc;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1008,7 +1008,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4f9fcf8c;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1074,7 +1074,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xaa351c38;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1211,7 +1211,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xee335a24;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1263,12 +1263,12 @@ class ODRUserController extends ODRCustomController
 //                throw new ODRException('Unable to delete another Super-Admin user');
 
             // Remove user from all the groups they're currently a member of
-            // NOTE - doing it this way because doctrine doesn't support multi-table updates
-            $query_str = '
-                UPDATE odr_user_group AS ug, odr_group AS g
+            // NOTE - using $em->getConnection()->executeUpdate(...) because
+            //  $em->createQuery(...)->execute() doesn't support multi-table updates
+            $query_str =
+               'UPDATE odr_user_group AS ug, odr_group AS g
                 SET ug.deletedAt = NOW(), ug.deletedBy = :admin_user_id
-                WHERE ug.group_id = g.id
-                AND ug.user_id = :user_id
+                WHERE ug.group_id = g.id AND ug.user_id = :user_id
                 AND ug.deletedAt IS NULL AND g.deletedAt IS NULL';
             $parameters = array('admin_user_id' => $admin_user->getId(), 'user_id' => $user->getId());
 
@@ -1307,7 +1307,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x750059fa;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1374,7 +1374,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x79443334;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1427,7 +1427,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1cfad2a4;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1525,7 +1525,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8f12f6cb;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1637,7 +1637,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1206f648;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1725,7 +1725,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1aeac909;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

@@ -469,7 +469,7 @@
 
             // Determine datatype_id (for delete) and theme_element_id (for reload)
             var datatype_id = $(this).attr('rel');
-            var theme_element_data = $(this).parent().parent().parent().parent().parent().attr('id').split(/_/);
+            var theme_element_data = $("#DataType_" + datatype_id).parent().parent().attr('id').split(/_/);
             var theme_element_id = theme_element_data[1];
 
             if (confirm("This will delete this data type and all associated records.\nAre you sure?")) {
