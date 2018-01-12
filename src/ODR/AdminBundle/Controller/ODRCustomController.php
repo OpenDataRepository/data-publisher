@@ -79,6 +79,7 @@ use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -449,6 +450,8 @@ class ODRCustomController extends Controller
     {
         /** @var CacheService $cache_service*/
         $cache_service = $this->container->get('odr.cache_service');
+        /** @var SearchCacheService $search_cache_service */
+        $search_cache_service = $this->container->get('odr.search_cache_service');
 
         // ----------------------------------------
         // Going to need the search controller for determining whether $search_key is valid or not
@@ -456,9 +459,11 @@ class ODRCustomController extends Controller
         $search_controller = $this->get('odr_search_controller', $request);
         $search_controller->setContainer($this->container);
 
+        $search_params = $search_cache_service->decodeSearchKey($search_key);
+
         // Determine whether the search key needs to be filtered based on the user's permissions
         $datafield_array = $search_controller->getSearchDatafieldsForUser($em, $user, $datatype_id, $datatype_permissions, $datafield_permissions);
-        $search_controller->buildSearchArray($search_key, $datafield_array, $datatype_permissions);
+        $search_controller->buildSearchArray($search_params, $datafield_array, $datatype_permissions);
 
         if ( $search_key !== $datafield_array['filtered_search_key'] )
             return array('redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key'], 'datarecord_list' => '');
@@ -479,7 +484,7 @@ class ODRCustomController extends Controller
             || !isset($cached_searches[$datatype_id][$search_checksum]) ) {
 
             // Saved search doesn't exist, redo the search and reload the results
-            $ret = $search_controller->performSearch($search_key, $request);
+            $ret = $search_controller->performSearch($request, $search_key);
             if ($ret['error'] == true)
                 throw new \Exception( $ret['message'] );
             else if ($ret['redirect'] == true)
@@ -490,22 +495,22 @@ class ODRCustomController extends Controller
 
         // ----------------------------------------
         // Now that the search result is guaranteed to exist, grab it
-        $search_params = $cached_searches[$datatype_id][$search_checksum];
+        $cached_search_params = $cached_searches[$datatype_id][$search_checksum];
 
         // Pull the individual pieces of info out of the search results
         $data['redirect'] = false;
         $data['search_checksum'] = $search_checksum;
         $data['datatype_id'] = $datatype_id;
 
-        $data['searched_datafields'] = $search_params['searched_datafields'];
-        $data['encoded_search_key'] = $search_params['encoded_search_key'];
+        $data['searched_datafields'] = $cached_search_params['searched_datafields'];
+        $data['encoded_search_key'] = $cached_search_params['encoded_search_key'];
 
         if ($can_view_datarecord)
-            $data['datarecord_list'] = $search_params['datarecord_list']['all'];          // ...user has view permission, show all top-level datarecords
+            $data['datarecord_list'] = $cached_search_params['datarecord_list']['all'];          // ...user has view permission, show all top-level datarecords
         else
-            $data['datarecord_list'] = $search_params['datarecord_list']['public'];       // ...user doesn't have view permission, only show public top-level datarecords
+            $data['datarecord_list'] = $cached_search_params['datarecord_list']['public'];       // ...user doesn't have view permission, only show public top-level datarecords
 
-        $data['complete_datarecord_list'] = $search_params['complete_datarecord_list'];   // ...top-level, child, and linked datarecords...NOT FILTERED BY USER PERMISSIONS
+        $data['complete_datarecord_list'] = $cached_search_params['complete_datarecord_list'];   // ...top-level, child, and linked datarecords...NOT FILTERED BY USER PERMISSIONS
 
         return $data;
     }

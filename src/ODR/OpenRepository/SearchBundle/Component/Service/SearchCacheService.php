@@ -1,6 +1,5 @@
 <?php
 
-
 /**
  * Open Data Repository Data Publisher
  * Search Cache Service

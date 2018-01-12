@@ -6,16 +6,15 @@ odr_search_box:
         target_datatype_id: \d+
 
 odr_search_results:
-    path: /search/results/{search_key}
+    path: /search/results
     defaults: { _controller:ODROpenRepositorySearchBundle:Default:search }
-    requirements:
-        search_key: '[^\/]*'
+    methods: [ POST ]
 
 odr_search_render:
     path: /search/render/{search_key}/{offset}/{source}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:render, offset: 1, source: 'searching' }
     requirements:
-        search_key: '[^\/]*'
+        search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
         source: searching|linking
 # ----------------------------------------

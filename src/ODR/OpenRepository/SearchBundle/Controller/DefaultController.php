@@ -33,8 +33,9 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
-use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -146,6 +147,7 @@ class DefaultController extends Controller
     /**
      * Returns a list of all datatypes which are either children or linked to an optional target datatype, minus the ones a user doesn't have permissions to see
      * TODO - this can probably be done much easier now since datatype has a grandparent property
+     * TODO - the results from this don't match with DatatypeInfoService::getAssociatedDatatypes()...links to links aren't found
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $target_datatype_id      If set, which top-level datatype to save child/linked datatypes for
@@ -155,7 +157,7 @@ class DefaultController extends Controller
      */
     private function getRelatedDatatypes($em, $target_datatype_id = null, $datatype_permissions = array())
     {
-        // Grab all entities out of the 
+        //
         $query = $em->createQuery(
            'SELECT ancestor.id AS ancestor_id, ancestor_meta.shortName AS ancestor_name, descendant.id AS descendant_id, descendant_meta.shortName AS descendant_name, descendant_meta.publicDate AS public_date, dtm.is_link AS is_link
             FROM ODRAdminBundle:DataTree AS dt
@@ -262,12 +264,8 @@ print '$links: '.print_r($links, true)."\n";
             'linked_datatypes' => $linked_datatypes,
             'datatype_names' => $datatype_names,
         );
-/*
-print '<pre>';
-print_r($datatype_tree);
-print '</pre>';
-exit();
-*/
+
+//print '<pre>'.print_r($datatype_tree, true).'</pre>';  exit();
 
         return $datatype_tree;
     }
@@ -769,6 +767,8 @@ exit();
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
 
@@ -795,19 +795,14 @@ exit();
 
 
             // -----------------------------------
-            // Attempt to load the search results (for this user and/or search string?) from memcached
-            // Extract the datatype id from the search string
-            $datatype_id = '';
-            $tokens = preg_split("/\|(?![\|\s])/", $search_key);
-            foreach ($tokens as $num => $token) {
-                $pieces = explode('=', $token);
-                if ($pieces[0] == 'dt_id') {
-                    $datatype_id = $pieces[1];
-                    break;
-                }
-            }
+            // Grab the datatype id from the cached search result
+            $search_params = $search_cache_service->decodeSearchKey($search_key);
 
-            if ( $datatype_id == ''|| !is_numeric($datatype_id) )
+            if ( !isset($search_params['dt_id']) )
+                throw new \Exception('Invalid search string');
+
+            $datatype_id = $search_params['dt_id'];
+            if ( $datatype_id == '' || !is_numeric($datatype_id) )
                 throw new \Exception('Invalid search string');
 
 
@@ -910,7 +905,7 @@ exit();
      * 
      * @return Response
      */
-    public function searchAction($search_key, Request $request)
+    public function searchAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -918,8 +913,8 @@ exit();
         $return['d'] = '';
 
         try {
-            //
-            $search_params = self::performSearch($search_key, $request);
+            // Run a search based off the POST
+            $search_params = self::performSearch($request);
 
             if ( $search_params['error'] == true ) {
                 throw new \Exception( $search_params['message'] );
@@ -937,6 +932,9 @@ exit();
             }
 
             // Intentionally does nothing...ODROpenRepository::Default::search.html.twig will force a URL change once this controller action returns
+            $return['d'] = array(
+                'search_key' => $search_params['encoded_search_key']
+            );
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -951,18 +949,27 @@ exit();
 
 
     /**
-     * Searches a DataType for all DataRecords matching the user-defined search criteria, then stores the result in memcached using the given search_key
+     * Searches a DataType for all DataRecords matching the user-defined search criteria, then
+     * caches the result.
      * 
-     * @param string $search_key The terms the user wants to search on
      * @param Request $request
+     * @param string $search_key If set, then use that for the search terms
+     *                           If not set, then look in the POST for the search terms
      *
      * @return boolean|array true if no error, or array with necessary data otherwise
      */
-    public function performSearch($search_key, Request $request)
+    public function performSearch(Request $request, $search_key = '')
     {
         // Grab default objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
+
+        /** @var CacheService $cache_service*/
+        $cache_service = $this->container->get('odr.cache_service');
+        /** @var PermissionsManagementService $pm_service */
+        $pm_service = $this->container->get('odr.permissions_management_service');
+        /** @var SearchCacheService $search_cache_service */
+        $search_cache_service = $this->container->get('odr.search_cache_service');
 
         /** @var ODRCustomController $odrcc */
         $odrcc = $this->get('odr_custom_controller', $request);
@@ -991,25 +998,40 @@ if (isset($debug['timing'])) {
 }
 
         // ----------------------------------------
-        // Split the entire search key on pipes that are not followed by another pipe or space
-        $get = preg_split("/\|(?![\|\s])/", $search_key);
+        // Load the array version of what was searched
+        $search_params = array();
 
-        // Determine which datatype the user is searching on
-        $target_datatype_id = null;
-        foreach ($get as $num => $value) {
-            if ( strpos($value, 'dt_id=') == 0 ) {
-                $target_datatype_id = substr($value, 6);
-                break;
+        if ($search_key == '') {
+            // Going to use the data in the POST request to build a new search key
+            $search_params = $request->request->all();
+
+            // The POST data probably has a whole pile of empty keys...not entirely sure why
+            foreach ($search_params as $key => $value) {
+                if (trim($value) == '')
+                    unset( $search_params[$key] );
             }
+            ksort($search_params);
+//            print '<pre>'.print_r($search_params, true).'</pre>';  exit();
+        }
+        else {
+            $search_params = $search_cache_service->decodeSearchKey($search_key);
         }
 
-        // Ensure it's a valid datatype before continuing...
+
+        // ----------------------------------------
+        // If the datatype isn't specified, throw an error
+        if ( !isset($search_params['dt_id']) )
+            return array( 'error' => true, 'redirect' => false, 'message' => 'Invalid search query');
+
+        // Ensure the requested datatype exists...
+        $target_datatype_id = $search_params['dt_id'];
         if ( !is_numeric($target_datatype_id) )
-            return array( 'error' => true, 'redirect' => false, 'message' => 'This Datatype is deleted', 'encoded_search_key' => self::encodeURIComponent($search_key) );
+            return array( 'error' => true, 'redirect' => false, 'message' => 'This Datatype is deleted');
+
         /** @var DataType $target_datatype */
         $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($target_datatype_id);
         if ($target_datatype == null)
-            return array( 'error' => true, 'redirect' => false, 'message' => 'This Datatype is deleted', 'encoded_search_key' => self::encodeURIComponent($search_key) );
+            return array( 'error' => true, 'redirect' => false, 'message' => 'This Datatype is deleted');
 
         $target_datatype_id = intval($target_datatype_id);
 
@@ -1017,18 +1039,12 @@ if (isset($debug['timing'])) {
         // Determine level of user's permissions...
         /** @var User $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-        $datatype_permissions = array();
-        $datafield_permissions = array();
-
-        if ($user !== 'anon.') {
-            $user_permissions = $odrcc->getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
-        }
+        $datatype_permissions = $pm_service->getDatatypePermissions($user);
+        $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
         // Don't allow user to search the datatype if it's non-public and they can't view it
         if ( !$target_datatype->isPublic() && !( isset($datatype_permissions[$target_datatype_id]) && $datatype_permissions[$target_datatype_id]['dt_view'] == 1) )
-            return array( 'error' => true, 'redirect' => false, 'message' => 'Permission Denied', 'encoded_search_key' => self::encodeURIComponent($search_key) );
+            return array( 'error' => true, 'redirect' => false, 'message' => 'Permission Denied');
 
 
         // ----------------------------------------
@@ -1043,9 +1059,10 @@ if (isset($debug['timing'])) {
         // ----------------------------------------
         // Expand $datafield_array with the results of parsing the search key
         $parse_all = true;
-        /*$dropped_datafields = */self::buildSearchArray($search_key, $datafield_array, $datatype_permissions, $parse_all, $debug);
+        /*$dropped_datafields = */self::buildSearchArray($search_params, $datafield_array, $datatype_permissions, $parse_all, $debug);
 
 
+        $search_key = $search_cache_service->encodeSearchKey($search_params);
         if ( $datafield_array['filtered_search_key'] !== $search_key )
             return array('error' => false, 'redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key']);
 
@@ -1221,10 +1238,6 @@ if (isset($debug['timing'])) {
 
 
         // --------------------------------------------------
-        // Need to store the list of datarecord ids for later use...
-        /** @var CacheService $cache_service*/
-        $cache_service = $this->container->get('odr.cache_service');
-
         // Determine which datafields were searched on
         $searched_datafields = array();
         if ( isset($datafield_array['general']) ) {
@@ -1273,7 +1286,7 @@ if (isset($debug['timing'])) {
     print 'entire function took '.((microtime(true) - $function_start_time) * 1000)."ms \n\n";
 }
 
-        return array('redirect' => false, 'error' => false);
+        return array('redirect' => false, 'error' => false, 'encoded_search_key' => $datafield_array['encoded_search_key']);
     }
 
 
@@ -1376,33 +1389,24 @@ if (isset($debug['timing'])) {
 
 
     /**
-     * Given an array of datafields the user is allowed to search on, parse the requested search values out of $search_key
+     * Given an array of datafields the user is allowed to search on, parse the requested search
+     * values from $original_search_params
      *
-     * @param string $search_key
+     * @param array $original_search_params
      * @param array $datafield_array
      * @param array $datatype_permissions
-     * @param boolean $parse_all           If false, then will only determine the filtered search key...if actually searching, this MUST be true
+     * @param boolean $parse_all          If false, then will only return the filtered search key...if actually searching, this MUST be true
      * @param array $debug
      */
-    public function buildSearchArray($search_key, &$datafield_array, $datatype_permissions, $parse_all = false, $debug = array())
+    public function buildSearchArray($original_search_params, &$datafield_array, $datatype_permissions, $parse_all = false, $debug = array())
     {
-        // May end up modifying the provided $search_key if the user doesn't have all the required datafield permissions...
+        // May end up needing a redirect if the user doesn't have the required datafield
+        //  permissions to see all the datafields in $datafield_array...
         $dropped_datafields = array();
         $encoded_search_keys = array();
         $filtered_search_keys = array();
 
-        // Split the entire search key on pipes that are not followed by another pipe or space
-        $get = preg_split("/\|(?![\|\s])/", $search_key);
-
-        foreach ($get as $key => $value) {
-            // Split each search value into "(datafield id or other identifier)=(search term)"
-            $pattern = '/([0-9a-z_]+)\=(.+)/';
-            $matches = array();
-            preg_match($pattern, $value, $matches);
-
-            $key = trim($matches[1]);
-            $value = trim($matches[2]);
-
+        foreach ($original_search_params as $key => $value) {
             // TODO - get rid of extraneous extra spaces in $value?  e.g. the extra spaces in  "<df_id>=zip    ||  csv"
 
             // Determine whether this field is a radio fieldtype
@@ -1441,7 +1445,7 @@ if (isset($debug['timing'])) {
 
                     $position = $keys[3];   // 's' or 'e' (start or end)
 
-                    // Ensure both start and end dates exist regardless of contents of $search_key
+                    // Ensure both start and end dates exist regardless of contents of $original_search_params
                     if ( !isset($datafield_array['metadata'][$dt_id][$type]) ) {
                         $datafield_array['metadata'][$dt_id][$type] = array(
 //                            's' => '1980-01-01 00:00:00',
@@ -1467,7 +1471,7 @@ if (isset($debug['timing'])) {
                     // Only save in array if user has permissions
                     if ( isset($datafield_array['advanced'][$df_id]) ) {
 
-                        // Ensure both start and end dates exist regardless of contents of $search_key
+                        // Ensure both start and end dates exist regardless of contents of $original_search_params
                         if ( !isset($datafield_array['advanced'][$df_id]['initial_value']) ) {
                             $datafield_array['advanced'][$df_id]['initial_value'] = array(
 //                                's' => '1980-01-01 00:00:00',
@@ -1502,7 +1506,7 @@ if (isset($debug['timing'])) {
                     // Should cover all other fieldtypes...
                     if ( isset($datafield_array['advanced'][$key]) ) {
                         $datafield_array['advanced'][$key]['initial_value'] = $value;
-                        $encoded_search_keys[$key] = self::encodeURIComponent($value);
+                        $encoded_search_keys[$key] = $value;
                         $filtered_search_keys[$key] = $value;
                     }
                     else {
@@ -1512,14 +1516,15 @@ if (isset($debug['timing'])) {
                 else {
                     // should only execute for 'dt_id' or 'gen' right now...
                     $datafield_array[$key] = $value;
-                    $encoded_search_keys[$key] = self::encodeURIComponent($value);
+                    $encoded_search_keys[$key] = $value;
                     $filtered_search_keys[$key] = $value;
                 }
             }
         }
 
         // ----------------------------------------
-        // Parameterize the search values for each datafield that has them, and remove all datafields from the array that aren't being searched on
+        // Parameterize the search values for each datafield that has them, and remove all
+        //  datafields from the array that aren't being searched on
         if ( isset($datafield_array['gen']) ) {
 
             if ($parse_all) {
@@ -1735,25 +1740,25 @@ if ( isset($debug['basic']))
 
 
         // ----------------------------------------
-        // Store a few pieces of info that aren't already in the array...
-        $encoded_search_key = '';
-        foreach ($encoded_search_keys as $key => $value)
-            $encoded_search_key .= $key.'='.$value.'|';
-        $encoded_search_key = substr($encoded_search_key, 0, -1);
+        // Ensure these are sorted so comparisions match
+        ksort($encoded_search_keys);
+        ksort($filtered_search_keys);
 
-        $filtered_search_key = '';
-        foreach ($filtered_search_keys as $key => $value)
-            $filtered_search_key .= $key.'='.$value.'|';
-        $filtered_search_key = substr($filtered_search_key, 0, -1);
+        /** @var SearchCacheService $search_cache_service */
+        $search_cache_service = $this->container->get('odr.search_cache_service');
 
-        $datafield_array['search_key'] = $search_key;
+        $encoded_search_key = $search_cache_service->encodeSearchKey($encoded_search_keys);
+        $filtered_search_key = $search_cache_service->encodeSearchKey($filtered_search_keys);
+
+        $datafield_array['search_params'] = $original_search_params;
         $datafield_array['encoded_search_key'] = $encoded_search_key;
         $datafield_array['filtered_search_key'] = $filtered_search_key;
 
 if ( isset($debug['basic']) ) {
     print '$datafield_array: '.print_r($datafield_array, true)."\n";
-    print 'md5($search_key): '.md5($search_key)."\n";
-    print 'md5($encoded_search_key): '.md5($encoded_search_key)."\n";
+//    print '$encoded_search_key: '.$encoded_search_key."\n";
+//    print 'md5($encoded_search_key): '.md5($encoded_search_key)."\n";
+//    print '$filtered_search_key: '.$filtered_search_key."\n";
     print '$dropped_datafields: '.print_r($dropped_datafields, true)."\n";
 }
 
@@ -3038,16 +3043,5 @@ if ( isset($debug['search_string_parsing']) ) {
             return true;
         else
             return false;
-    }
-
-
-    /**
-     * @param string $str The string to convert
-     *
-     * @return string
-     */
-    private function encodeURIComponent($str) {
-        $revert = array('%21'=>'!', '%2A'=>'*', '%27'=>"'", '%28'=>'(', '%29'=>')');
-        return strtr(rawurlencode($str), $revert);
     }
 }

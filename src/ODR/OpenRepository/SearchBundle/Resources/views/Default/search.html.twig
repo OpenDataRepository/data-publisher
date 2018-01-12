@@ -225,7 +225,7 @@
             var datafield_id = datafield_id_data[1];
 
             var value = $(this).val();
-            if ( value != '' )
+            if (value != '')
                 $("#datafield_" + datafield_id + "_ex").prop('selectedIndex', '1').change();
         });
 
@@ -234,7 +234,7 @@
             var datafield_id = datafield_id_data[1];
 
             var value = $(this).val();
-            if ( value == '0' )
+            if (value != 1)
                 $("#datafield_" + datafield_id + "_fn").val('');
         });
 
@@ -418,66 +418,14 @@
     }
 
     function doSearch() {
-        //
-        var search_key = '';
-        var prev_field = '';
-        var divider = '|';
 
-        // TODO - need to make this submit an HTML form instead of building a string...
-        console.log( $("#search_form").serialize() );
-
-        var datatype_id = $("#datatype_id").val();
-        search_key = $("#datatype_id").attr('name') + '=' + datatype_id;
-
-        if ( $("#textbox_general").val().trim() != '' )
-            search_key += divider + $("#textbox_general").attr('name') + '=' + encodeURIComponent( $("#textbox_general").val().trim() );
-
-        $("#search_form .ODRInput").each(function() {
-            var name = $(this).attr('name');
-            var type = $(this).attr('type');
-            var value = '';
-
-            if ( $(this).val() !== undefined )
-                value = $(this).val().trim();
-
-            if ( $(this).hasClass('ODRFileDatafieldName') ) {
-                var df_id_data = $(this).attr('id').split(/_/);
-                var df_id = df_id_data[1];
-
-                var exist_value = $("#datafield_" + df_id + "_ex").val();
-                if ( exist_value == '') {
-                    /* do nothing */
-                }
-                else if ( exist_value == 0 ) {
-                    value = '""';   // If user wanted datarecords that do not have files/images, set this datafield's value to empty string
-                }
-                else if ( exist_value == 1 && value == '' ) {
-                    value = '!""';  // If user wanted datarecords that do have files/images, but didn't specify a filename, set this datafield's value to 'not empty'
-                }
-            }
-
-            // Don't want empty values clogging the string
-            if (name == undefined || value == '')
-                return;
-
-            value = encodeURIComponent(value);
-
-            if (search_key != '')
-                search_key += divider;
-            search_key += name + '=' + value;
-
-            {#$('#dt_' + datatype_id + '_pub').removeClass('ODRSearchDisabled');#}
-        });
+        // Values for Radio datafields need to be manually set
         $(".ODRRadioSearchDiv").each(function() {
 
             var data = $(this).attr('id').split(/_/);
             var datafield_id = data[1];
 
             var str = '';
-            if (search_key != '')
-                str = divider;
-            str += datafield_id + '=';
-
             var first_selection = true;
             var has_selections = false;
 
@@ -499,36 +447,40 @@
             });
 
             if (has_selections)
-                search_key += str;
+                $("#datafield_" + datafield_id).val(str);
         });
-{#
-        $(".ODRDatatype_require_public").each(function() {
-            if ( !$(this).hasClass('ODRSearchDisabled') ) {
-                var name = $(this).attr('name');
-                var value = $(this).val();
 
-                if (search_key != '')
-                    search_key += divider;
-                search_key += name + '=' + value;
+        // Ensure the two parts of the search criteria for a file/image match
+        $(".ODRFileDatafieldName").each(function() {
+            var df_id_data = $(this).attr('id').split(/_/);
+            var df_id = df_id_data[1];
+
+            var value = $(this).val().trim();
+            var exist_value = $("#datafield_" + df_id + "_ex option:selected").val();
+
+            if ( exist_value == '') {
+                $(this).val('');
+            }
+            else if ( exist_value == 0 ) {
+                $(this).val('""');   // If user wanted datarecords that do not have files/images, set this datafield's value to empty string
+            }
+            else if ( exist_value == 1 && value == '' ) {
+                $(this).val('!""');  // If user wanted datarecords that do have files/images, but didn't specify a filename, set this datafield's value to 'not empty'
             }
         });
-#}
-//alert( 'search_key: ' + search_key );
-//return;
 
         // Request search results
-        var url = '{{ path( 'odr_search_results', { 'search_key': '' } ) }}';
-        url += search_key;
+        var url = '{{ path('odr_search_results') }}';
 
         $("#loading-overlay").fadeIn('fast');
         $("#loading").html('<span>Searching...</span>');
         $("#loading").fadeIn('fast');
 
         $.ajax({
-            type: 'GET',
+            type: 'POST',
             url: url,
             dataType: 'json',
-//data: search_key,
+            data: $("#search_form").serialize(),
             success: function(data, textStatus, jqXHR) {
                 if (data.r == 0) {
                 {% if source == "searching" %}
@@ -550,7 +502,7 @@
                     // Now that the search has been performed and cached, render the results
                     var url = '{{ path('odr_search_render', { 'search_key': '', 'offset': '1' } ) }}';
                     url = url.substr(0, url.length-1);
-                    url += '/' + search_key + '/1';
+                    url += '/' + data.d.search_key + '/1';
 
                     // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
                     UpdateURL(url);
@@ -558,7 +510,7 @@
                 {% elseif source == "linking" %}
                     var url = '{{ path('odr_search_render', { 'search_key': '', 'offset': '1', 'source': 'linking' } ) }}';
                     url = url.substr(0, url.length-10);
-                    url += search_key + '/1/linking';
+                    url += data.d.search_key + '/1/linking';
 
                     // Render the html into the search_content div on this page
                     $.ajax({

@@ -42,11 +42,13 @@
         {% elseif field_typeclass == "Radio" %}
             <span class="pure-u-2-3 ODRRadioSearchDiv" id="Input_{{ datafield.id }}" rel="{{ datatype_id }}">
                 {% if datafield.getRadioOptions is defined %}
+                    <input type="hidden" id="datafield_{{ datafield.id }}" name="{{ datafield.id }}" {#rel="{{ radio_option.id }}"#} value="" />
+
                     {% for radio_option in datafield.getRadioOptions %}
                     <label id="Label_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="ODRRadioLabel pure-u-1">
                         <span class="ODRTristateCheckbox" rel="{% if field_typename == "Single Radio" or field_typename == "Single Select" %}single{% else %}multiple{% endif %}">
                             <i class="fa"></i>
-                            <input type="hidden" name="{{ datafield.id }}" rel="{{ radio_option.id }}" value="" />
+                            <input type="hidden" {#name="{{ datafield.id }}"#} rel="{{ radio_option.id }}" value="" />
                         </span>
                         {{ radio_option.getOptionName }}
                     </label>

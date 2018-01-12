@@ -579,7 +579,7 @@ odr_record_edit:
     defaults: { _controller: ODRAdminBundle:Edit:edit, search_key: '', offset: '' }
     requirements:
         datarecord_id:  \d+
-        search_key: '[^\/]*'
+        search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
 
 odr_record_reload_child:
@@ -602,13 +602,11 @@ odr_record_reload_file_datafield:
         datafield_id: \d+
 
 odr_record_save:
-#    path:  /edit/save/{record_type}/{datarecord_id}
     path:  /edit/save/{datarecord_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Edit:update }
     requirements:
         datarecord_id:  \d+
         datafield_id_id:  \d+
-#        record_type:  '[a-zA-Z]+'
 
 odr_record_public:
     path:  /edit/publicdatarecord/{datarecord_id}
@@ -624,10 +622,10 @@ odr_record_add:
 
 odr_record_delete:
     path:  /edit/deletedatarecord/{datarecord_id}/{search_key}
-    defaults: { _controller: ODRAdminBundle:Edit:deletedatarecord}
+    defaults: { _controller: ODRAdminBundle:Edit:deletedatarecord }
     requirements:
         datarecord_id:  \d+
-        search_key: '[^\/]*'
+        search_key: '[a-zA-Z0-9\-\_]*'
 
 odr_record_addchild:
     path:  /edit/addchilddatarecord/{datatype_id}/{parent_id}
@@ -717,7 +715,7 @@ odr_record_get_linkable_datarecords:
         ancestor_datatype_id:  \d+
         descendant_datatype_id:  \d+
         local_datarecord_id:  \d+
-        search_key: '[^\/]*'
+        search_key: '[a-zA-Z0-9\-\_]*'
 
 odr_link_datarecords:
     path:  /edit/linkrecords
@@ -733,7 +731,7 @@ odr_display_view:
     defaults: { _controller: ODRAdminBundle:Display:view, search_key: '', offset: '' }
     requirements:
         datarecord_id:  \d+
-        search_key: '[^\/]*'
+        search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
 
 odr_file_download_start:
@@ -982,7 +980,7 @@ odr_mass_edit_render:
     defaults: { _controller: ODRAdminBundle:MassEdit:massEdit, offset: '' }
     requirements:
         datatype_id: \d+
-        search_key: '[^\/]*'
+        search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
 
 
@@ -1010,7 +1008,7 @@ odr_csv_export_render:
     defaults: { _controller: ODRAdminBundle:CSVExport:csvExport, offset: '' }
     requirements:
         datatype_id: \d+
-        search_key: '[^\/]*'
+        search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
 
 
