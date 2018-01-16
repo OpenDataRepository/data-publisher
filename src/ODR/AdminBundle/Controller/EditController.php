@@ -286,6 +286,7 @@ class EditController extends ODRCustomController
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
@@ -313,7 +314,6 @@ class EditController extends ODRCustomController
             if ( !$pm_service->canDeleteDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
-
 
             if ($datarecord->getId() !== $datarecord->getGrandparent()->getId())
                 throw new ODRBadRequestException('EditController::deletedatarecordAction() called on a Datarecord that is not top-level');
@@ -347,9 +347,12 @@ class EditController extends ODRCustomController
             foreach ($results as $result)
                 $ancestor_datarecord_ids[] = $result['ancestor_id'];
 
+
             // ----------------------------------------
-            // Perform a series of DQL mass updates to immediately remove everything that could break if it wasn't deleted...
-            // TODO - datarecordfield entries?
+            // Since this needs to make updates to multiple tables, use a transaction
+            $conn->beginTransaction();
+
+            // TODO - delete datarecordfield entries as well?
 
             // ...linked_datatree entries
             $query = $em->createQuery(
@@ -432,8 +435,15 @@ class EditController extends ODRCustomController
             }
 
             $return['d'] = $url;
+
+            // No error encountered, commit changes
+            $conn->commit();
         }
         catch (\Exception $e) {
+            // Don't commit changes if any error was encountered...
+            if ($conn->isTransactionActive())
+                $conn->rollBack();
+
             $source = 0x2fb5590f;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
@@ -466,6 +476,7 @@ class EditController extends ODRCustomController
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
@@ -499,7 +510,6 @@ class EditController extends ODRCustomController
             if ( !$pm_service->canDeleteDatarecord($user, $datatype) || !$pm_service->canEditDatarecord($user, $parent_datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
-
 
             if ($datarecord->getId() == $datarecord->getGrandparent()->getId())
                 throw new ODRBadRequestException('EditController::deletechildrecordAction() called on a Datarecord that is top-level');
@@ -552,9 +562,12 @@ class EditController extends ODRCustomController
             foreach ($results as $result)
                 $ancestor_datarecord_ids[] = $result['ancestor_id'];
 
+
             // ----------------------------------------
-            // Perform a series of DQL mass updates to immediately remove everything that could break if it wasn't deleted...
-            // TODO - datarecordfield entries?
+            // Since this needs to make updates to multiple tables, use a transaction
+            $conn->beginTransaction();
+
+            // TODO - delete datarecordfield entries as well?
 
             // ...linked_datatree entries
             $query = $em->createQuery(
@@ -608,8 +621,15 @@ class EditController extends ODRCustomController
                 'datatype_id' => $datatype->getId(),
                 'parent_id' => $grandparent_datarecord->getId(),
             );
+
+            // No error encountered, commit changes
+            $conn->commit();
         }
         catch (\Exception $e) {
+            // Don't commit changes if any error was encountered...
+            if ($conn->isTransactionActive())
+                $conn->rollBack();
+
             $source = 0x82bb1bb6;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
