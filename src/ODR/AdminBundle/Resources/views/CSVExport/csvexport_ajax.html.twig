@@ -206,7 +206,7 @@ function doCSVExport() {
             if ( data.r == 0 ) {
                 // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
                 alert( 'CSV Export in progress' );
-                var url = '{{ path('odr_job_list') }}';
+                var url = '{{ path('odr_job_list', {'section': 'csv_export'}) }}';
                 UpdateURL(url);
             }
             else {

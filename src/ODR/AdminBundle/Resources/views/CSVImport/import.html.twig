@@ -354,7 +354,7 @@
             success: function(data, textStatus, jqXHR) {
                 alert('Beginning CSV Import...');
 
-                var url = '{{ path('odr_job_list') }}';
+                var url = '{{ path('odr_job_list', {'section': 'csv_import'}) }}';
                 UpdateURL(url);
             },
             error: function(jqXHR, textStatus, errorThrown) {
