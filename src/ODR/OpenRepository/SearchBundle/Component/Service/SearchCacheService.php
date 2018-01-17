@@ -27,6 +27,7 @@
 namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
 // Exceptions
+use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
@@ -91,7 +92,11 @@ class SearchCacheService
         $decoded = base64_decode( strtr($search_key, '-_', '+/') );
 
         // Return an array instead of an object
-        return json_decode($decoded, true);
+        $array = json_decode($decoded, true);
+        if ( is_null($array) )
+            throw new ODRException('Invalid JSON', 400, 0x6e1c96a1);
+        else
+            return $array;
     }
 
 

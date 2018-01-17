@@ -179,7 +179,7 @@ class MassEditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x50ff5a99;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -588,7 +588,7 @@ return;
         catch (\Exception $e) {
             $source = 0xf0de8b70;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -751,7 +751,7 @@ return;
         catch (\Exception $e) {
             $source = 0xb506e43f;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1067,7 +1067,7 @@ $ret .=  "---------------\n";
         catch (\Exception $e) {
             $source = 0x99001e8b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

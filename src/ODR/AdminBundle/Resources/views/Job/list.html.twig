@@ -77,8 +77,7 @@
         window_intervals["{{ job_type }}"] = window.clearInterval( window.ODRJobTracking_{{ job_type }}_interval );
         {% endfor %}
 
-        $(".ODRJobTrackingToggle").unbind('click');
-        $(".ODRJobTrackingToggle").click(function() {
+        $(".ODRJobTrackingToggle").unbind('click').click(function() {
             var job_type = $(this).attr('rel');
             var delay = 10000;
 
@@ -133,10 +132,7 @@
                         "render": function(data, type, row, meta) {
                             if (data == 'Done') {
                                 // If job is done, make a link back to the datarecord list for this datatype
-                                var url = '{{ path('odr_search_render', {'search_key': ''} ) }}';
-                                url += 'dt_id=' + row.top_level_datatype_id;
-
-                                return '<a class="address" href="#' + url + '">Done</a>';
+                                return '<a onclick="viewResults(' + row.top_level_datatype_id + ');">Done</a>';
                             }
                             else {
                                 // If job is not done, display ETA
@@ -244,6 +240,41 @@
                 // If the Sfjs object exists
                 if (typeof Sfjs !== "undefined") {
 
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function viewResults(datatype_id) {
+        var url = '{{ path('odr_default_search_render', { 'datatype_id': 0 }) }}';
+
+        url = url.substring(0, (url.length - 1));
+        url += datatype_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                //
+                var baseurl = '{{ path('odr_search', { 'search_slug': '' } ) }}' + data.d.search_slug;
+                window.location = baseurl + '#' + data.d.url;
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
                     // Grab the toolbar element
                     var currentElement = $('.sf-toolbar')[0];
 

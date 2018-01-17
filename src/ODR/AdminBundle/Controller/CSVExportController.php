@@ -366,7 +366,7 @@ class CSVExportController extends ODRCustomController
                 $search_controller = $this->get('odr_search_controller', $request);
                 $search_controller->setContainer($this->container);
 
-                return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
+                return $search_controller->renderAction($encoded_search_key, 0, 1, 'searching', $request);
             }
 
             // TODO - delete the datarecord list/search key out of the user's session?

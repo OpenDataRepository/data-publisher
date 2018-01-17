@@ -144,7 +144,7 @@ class DisplayController extends ODRCustomController
                     // Some sort of error encounted...bad search query, invalid permissions, or empty datarecord list
                     /** @var SearchController $search_controller */
                     $search_controller = $this->get('odr_search_controller', $request);
-                    return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
+                    return $search_controller->renderAction($encoded_search_key, 0, 1, 'searching', $request);
                 }
                 else if ($data['redirect']) {
                     $url = $this->generateUrl('odr_display_view', array('datarecord_id' => $datarecord_id, 'search_key' => $encoded_search_key, 'offset' => 1));

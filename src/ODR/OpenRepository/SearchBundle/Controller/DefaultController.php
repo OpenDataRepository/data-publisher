@@ -27,6 +27,7 @@ use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
@@ -40,7 +41,6 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Cookie;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 
 class DefaultController extends Controller
@@ -747,13 +747,14 @@ print '$links: '.print_r($links, true)."\n";
      * Renders a Short/Textresults list of all datarecords stored in a given memcached key
      * 
      * @param string $search_key The terms the user is searching for
+     * @param integer $theme_id  If non-zero, which theme to use to render this list
      * @param integer $offset    Which page of the search results to render
      * @param string $source     "searching" if searching from frontpage, or "linking" if searching for datarecords to link
      * @param Request $request
      * 
      * @return Response
      */
-    public function renderAction($search_key, $offset, $source, Request $request)
+    public function renderAction($search_key, $theme_id, $offset, $source, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -816,6 +817,9 @@ print '$links: '.print_r($links, true)."\n";
             // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find( $search_params['datatype_id'] );
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
             $datarecord_list = $search_params['datarecord_list'];
             $encoded_search_key = $search_params['encoded_search_key'];
 
@@ -845,14 +849,31 @@ print '$links: '.print_r($links, true)."\n";
             // Grab the desired theme to use for rendering search results
             $theme_type = null;
 
-            // Attempt to get the user's preferred theme for this datatype
-            $theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+            // If a theme isn't specified...
+            $specified_theme = true;
+            if ($theme_id == 0) {
+                // ...attempt to get the user's preferred theme for this datatype
+                $theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+                $specified_theme = false;
+            }
 
             // Ensure the theme exists before attempting to use it
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
             if ($theme == null)
-                throw new \Exception('The datatype "'.$datatype->getShortName().'" wants to use a "'.$theme_type.'" theme to render search results, but no such theme exists.');
+                throw new ODRNotFoundException('Theme');
+
+            if ($theme->getDataType()->getId() !== $datatype->getId())
+                throw new ODRBadRequestException('The specified Theme does not belong to this Datatype');
+
+            // NOTE - pretending this isn't an issue here, renderList() will take care of it...
+//            if (!$theme->isShared() && $theme->getCreatedBy()->getId() !== $user->getId())
+//                throw new ODRForbiddenException('Theme is non-public');
+
+            // If the user specified a theme originally, then set that as the user's preferred
+            //  theme for this session
+            if ($specified_theme)
+                $theme_service->setSessionTheme($datatype->getId(), $theme);
 
 
             // -----------------------------------
@@ -860,8 +881,7 @@ print '$links: '.print_r($links, true)."\n";
             $path_str = $this->generateUrl(
                 'odr_search_render',
                 array('search_key' => $encoded_search_key)
-            );   // this will double-encode the search key, mostly
-            $path_str = urldecode($path_str);   // decode the resulting string so search-key is only single-encoded
+            );
 
             $target = 'results';
             if ($source == 'linking')
@@ -870,7 +890,7 @@ print '$links: '.print_r($links, true)."\n";
             $html = $odrcc->renderList(
                 $datarecords,
                 $datatype,
-                $theme,     // TODO - under the newer theme system, this should probably be "theme_type" instead of a Theme object
+                $theme,
                 $user,
                 $path_str,
                 $target,
@@ -887,6 +907,56 @@ print '$links: '.print_r($links, true)."\n";
             if ($e instanceof ODRException) {
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             } else {
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+            }
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Redirects to the default search results page for the given datatype
+     *
+     * @param integer $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function defaultrenderAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Encode the default search key for this datatype, and generate a route for it
+            $search_key = $search_cache_service->encodeSearchKey(array('dt_id' => $datatype_id));
+            $url = $this->generateUrl('odr_search_render', array('search_key' => $search_key));
+
+            // Return the URL to redirect to
+            $return['d'] = array('search_slug' => $datatype->getSearchSlug(), 'url' => $url);
+        }
+        catch (\Exception $e) {
+            $source = 0xc49e75eb;
+            if ($e instanceof ODRException) {
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            }
+            else {
                 throw new ODRException($e->getMessage(), 500, $source, $e);
             }
         }

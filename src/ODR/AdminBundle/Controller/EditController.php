@@ -119,6 +119,21 @@ class EditController extends ODRCustomController
             if ( !in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('EditController::adddatarecordAction() called for child datatype');
 
+            // If this datatype is a "master template"...
+            if ($datatype->getIsMasterType()) {
+                // ...then don't create another datarecord if the datatype already has one
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.dataType = :datatype_id
+                    AND dr.deletedAt IS NULL'
+                )->setParameters( array('datatype_id' => $datatype->getId()) );
+                $results = $query->getArrayResult();
+
+                if ( count($results) !== 0 )
+                    throw new ODRBadRequestException('This Master Template already has a sample datarecord');
+            }
+
             // Create a new datarecord
             $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
 
@@ -292,6 +307,8 @@ class EditController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             // Grab the necessary entities
@@ -421,7 +438,7 @@ class EditController extends ODRCustomController
             // Determine where to redirect since the current datareccord is now deleted
             $url = '';
             if ($search_key == '')
-                $search_key = 'dt_id='.$datatype->getId();
+                $search_key = $search_cache_service->encodeSearchKey( array('dt_id' => $datatype->getId()) );
 
             if ( count($remaining) > 0 ) {
                 // Return to the list of datarecords since at least one datarecord of this datatype still exists
@@ -2676,7 +2693,7 @@ exit();
                     // Some sort of error encounted...bad search query, invalid permissions, or empty datarecord list
                     /** @var SearchController $search_controller */
                     $search_controller = $this->get('odr_search_controller', $request);
-                    return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
+                    return $search_controller->renderAction($encoded_search_key, 0, 1, 'searching', $request);
                 }
                 else if ($data['redirect']) {
                     $url = $this->generateUrl('odr_record_edit', array('datarecord_id' => $datarecord_id, 'search_key' => $encoded_search_key, 'offset' => 1));
