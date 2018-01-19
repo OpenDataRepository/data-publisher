@@ -26,19 +26,29 @@
                     <option value="{{ datatype.id }}">{{ datatype.shortname }}</option>
                 {% if childtypes != null and datatype.externalIdField != null %}
                     {% for childtype in childtypes %}
-                        <option value="{{ childtype.id }}" rel="child{% if childtype.getexternalidfield == null %} warn{% endif %}">|-- {{ childtype.shortname }} (child)</option>
+                        {% set multiple_allowed = false %}
+                        {% if datatree_array['multiple_allowed'][childtype.id] is defined %}
+                            {% set multiple_allowed = true %}
+                        {% endif %}
+
+                        <option value="{{ childtype.id }}" class="child{% if childtype.getexternalidfield == null %} warn{% endif %}{% if multiple_allowed %} multiple{% else %} single{% endif %}">|-- {{ childtype.shortname }} (child)</option>
                     {% endfor %}
                 {% endif %}
                 {% if linked_types != null and datatype.externalIdField != null %}
                     {% for linked_type in linked_types %}
-                        <option value="{{ linked_type.id }}" rel="{% if linked_type.getexternalidfield == null %}invalid {% endif %}link">|-- {{ linked_type.shortname }} ({% if linked_type.getexternalidfield == null %}invalid {% endif %}link)</option>
+                        <option value="{{ linked_type.id }}" class="{% if linked_type.getexternalidfield == null %}invalid {% endif %}link">|-- {{ linked_type.shortname }} ({% if linked_type.getexternalidfield == null %}invalid {% endif %}link)</option>
                     {% endfor %}
                 {%  endif %}
                 </select>
 
-                <span id="childtype_import_warning" style="margin-left:15px;">
+                <span id="childtype_multiple_import_warning" style="margin-left:15px;">
                     <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                     <span>&nbsp;This child Datatype doesn't have an "External ID" Datafield...every row in the CSV file WILL become a new child Datarecord.</span>
+                </span>
+
+                <span id="childtype_single_import_warning" style="margin-left:15px;">
+                    <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
+                    <span>&nbsp;This child Datatype doesn't have an "External ID" Datafield...if a parent Datarecord in the CSV file already has a child Datarecord, then the contents of the child Datarecord WILL be overwritten.</span>
                 </span>
 
                 <span id="invalid_linked_datatype_warning" style="margin-left:15px;">
@@ -89,6 +99,7 @@
             'columns': columns,
             'datatype': datatype,
             'datafields': datafields,
+            'datatree_array': datatree_array,
             'fieldtypes': fieldtypes,
             'allowed_fieldtypes': allowed_fieldtypes,
             'presets': presets,
@@ -124,7 +135,8 @@
 <script>
     $(function() {
         $("#file_upload_div").hide();
-        $("#childtype_import_warning").hide();
+        $("#childtype_single_import_warning").hide();
+        $("#childtype_multiple_import_warning").hide();
         $("#invalid_linked_datatype_warning").hide();
 
     {% if presets == null %}
@@ -137,8 +149,9 @@
         });
 
         $("#target_datatype").unbind('change').change(function() {
-            // Hide both warnings...they'll get shown if required
-            $("#childtype_import_warning").hide();
+            // Hide all warnings...they'll get shown if required
+            $("#childtype_single_import_warning").hide();
+            $("#childtype_multiple_import_warning").hide();
             $("#invalid_linked_datatype_warning").hide();
 
             if ( $(this).val() != "{{ datatype.id }}" ) {
@@ -146,22 +159,32 @@
                 $("#delimiter_select").trigger('change');
 
                 // Show the correct warning if necessary
-                var datatree_type = $(this).children(':selected').attr('rel');
-                if (datatree_type == 'child warn')
-                    $("#childtype_import_warning").show();
-                else if (datatree_type == 'invalid link')
+                var option = $(this).children(':selected');
+                if ( $(option).hasClass('warn') && $(option).hasClass('child') ) {
+                    if ( $(option).hasClass('single') )
+                        $("#childtype_single_import_warning").show();
+                    else if ( $(option).hasClass('multiple') )
+                        $("#childtype_multiple_import_warning").show();
+                }
+                else if ( $(option).hasClass('invalid') && $(option).hasClass('link') ) {
                     $("#invalid_linked_datatype_warning").show();
+                }
             }
         });
     {% else %}
         $("#target_datatype").val("{{ datatype.id }}");
         {% if parent_datatype != null and parent_datatype.id != datatype.id %}
         // Show the correct warning if necessary
-        var datatree_type = $("#target_datatype").children(':selected').attr('rel');
-        if (datatree_type == 'child warn')
-            $("#childtype_import_warning").show();
-        else if (datatree_type == 'invalid link')
+        var option = $("#target_datatype").children(':selected');
+        if ( $(option).hasClass('warn') && $(option).hasClass('child') ) {
+            if ( $(option).hasClass('single') )
+                $("#childtype_single_import_warning").show();
+            else if ( $(option).hasClass('multiple') )
+                $("#childtype_multiple_import_warning").show();
+        }
+        else if ( $(option).hasClass('invalid') && $(option).hasClass('link') ) {
             $("#invalid_linked_datatype_warning").show();
+        }
         {% endif %}
 
         var delimiter = "{{ presets.delimiter }}";
@@ -223,12 +246,11 @@
 //alert(url);
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: 'json',
             success: function(data, textStatus, jqXHR) {
                 $("#csvUploadForm").remove();
                 $("#layout_content").append( data.d.html );
@@ -259,12 +281,11 @@
         var url = '{{ path('odr_csv_import_delimiter_changed', {'delimiter': ''}) }}';
         url += delimiter;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: 'json',
             success: function(data, textStatus, jqXHR) {
                 // Don't need to do anything specific on success
             },
@@ -299,20 +320,15 @@
     }
 
     function doCancel() {
-
         var url = '{{ path('odr_csv_cancel_import') }}';
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: 'json',
             success: function(data, textStatus, jqXHR) {
-//                alert('csv import cancelled');
-//                window.location.reload();
-
-                var url = '{{ path('odr_csv_import', {'datatype_id': datatype.id}) }}';
+                var url = '{{ path('odr_csv_import', {'datatype_id': datatype.grandparent.id}) }}';
                 UpdateURL(url);
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -345,16 +361,15 @@
         $("#import_button").attr('disabled', 'disabled');
         $("#import_button").html('Loading...');
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: 'json',
             success: function(data, textStatus, jqXHR) {
                 alert('Beginning CSV Import...');
 
-                var url = '{{ path('odr_job_list') }}';
+                var url = '{{ path('odr_job_list', {'section': 'csv_import'}) }}';
                 UpdateURL(url);
             },
             error: function(jqXHR, textStatus, errorThrown) {

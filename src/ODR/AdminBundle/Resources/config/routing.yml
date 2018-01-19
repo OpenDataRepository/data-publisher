@@ -1045,8 +1045,10 @@ odr_csv_download:
 #-----------------------------------------
 # Job Controller
 odr_job_list:
-    path:  /jobs/list
-    defaults: { _controller: ODRAdminBundle:Job:list }
+    path:  /jobs/list/{section}
+    defaults: { _controller: ODRAdminBundle:Job:list, section: '' }
+    requirements:
+        section: '|migrate|mass_edit|csv_import_validate|csv_import|csv_export'
 
 odr_job_refresh:
     path:  /jobs/refresh/{job_type}/{job_id}

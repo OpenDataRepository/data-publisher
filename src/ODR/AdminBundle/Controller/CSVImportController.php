@@ -21,6 +21,7 @@ use ODR\AdminBundle\Entity\Boolean as ODRBoolean;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataFieldsMeta;
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
@@ -174,6 +175,7 @@ class CSVImportController extends ODRCustomController
                         'linked_types' => $linked_types,
                         'upload_type' => 'csv',
 
+                        'datatree_array' => $datatree_array,
                         'parent_datatype' => $datatype, // user hasn't selected which datatype to import into yet
 
                         'presets' => null,
@@ -291,7 +293,6 @@ class CSVImportController extends ODRCustomController
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
-
             /** @var DataType $source_datatype */
             $source_datatype = $repo_datatype->find($source_datatype_id);
             if ($source_datatype == null)
@@ -339,10 +340,7 @@ class CSVImportController extends ODRCustomController
             if ( $source_datatype_id !== $target_datatype_id && isset($datatree_array['linked_from'][$target_datatype_id]) && in_array($source_datatype_id, $datatree_array['linked_from'][$target_datatype_id]) ) {
                 /* "Importing into" a linked datatype */
                 $linked_importing = true;
-                $parent_datatype = $repo_datatype->find($datatree_array['linked_from'][$target_datatype_id]);
-
-                if ($parent_datatype == null)
-                    throw new ODRBadRequestException('Invalid Target Datatype');
+                $parent_datatype = $source_datatype;
 
                 // User should not have had the option to link to a datatype that lacks an external ID field...
                 if ($target_datatype->getExternalIdField() == null)
@@ -454,6 +452,8 @@ class CSVImportController extends ODRCustomController
                             'parent_datatype' => $parent_datatype,  // as expected if importing into a child datatype, or null if importing into top-level datatype, or equivalent to the local datatype if importing links
                             'datatype' => $target_datatype,         // as expected if importing into a top-level or child datatype, or equivalent to the remote datatype if importing links
                             'linked_importing' => $linked_importing,
+
+                            'datatree_array' => $datatree_array,
 
                             'columns' => $file_headers,
                             'datafields' => $datafields,
@@ -944,9 +944,9 @@ class CSVImportController extends ODRCustomController
 //print_r($post);
 //return;
 
-            if ( !isset($post['datatype_id']) )
+            if ( !isset($post['datatype_id']) && !is_numeric($post['datatype_id']) )
                 throw new ODRException('Invalid Form');
-            $datatype_id = $post['datatype_id'];
+            $datatype_id = intval($post['datatype_id']);
 
             // --------------------
             // Pull data from the post
@@ -972,16 +972,30 @@ class CSVImportController extends ODRCustomController
 
             // If the import is for a child or linked datatype, then one of the columns from the csv file has to be mapped to the parent (or local if linked import) datatype's external id datafield
             $parent_datatype_id = '';
-            if ( isset($post['parent_datatype_id']) )
-                $parent_datatype_id = $post['parent_datatype_id'];
+            if ( isset($post['parent_datatype_id']) ) {
+                if ( !is_numeric($post['parent_datatype_id']) )
+                    throw new ODRException('Invalid Form');
+                else
+                    $parent_datatype_id = intval($post['parent_datatype_id']);
+            }
             $parent_external_id_column = '';
-            if ( isset($post['parent_external_id_column']) )
-                $parent_external_id_column = $post['parent_external_id_column'];
+            if ( isset($post['parent_external_id_column']) ) {
+                if ( !is_numeric($post['parent_external_id_column']) )
+                    throw new ODRException('Invalid Form');
+                else
+                    $parent_external_id_column = intval($post['parent_external_id_column']);
+            }
 
             // If the import is for a linked datatype, then another column from the csv file also has to be mapped to the remote datatype's external id datafield
             $remote_external_id_column = '';
-            if ( isset($post['remote_external_id_column']) )
+            if ( isset($post['remote_external_id_column']) ) {
                 $remote_external_id_column = $post['remote_external_id_column'];
+
+                if ( $remote_external_id_column !== '' && !is_numeric($remote_external_id_column) )
+                    throw new ODRException('Invalid Form');
+                else
+                    $remote_external_id_column = intval($remote_external_id_column);
+            }
 
 
             // ----------------------------------------
@@ -1031,8 +1045,19 @@ class CSVImportController extends ODRCustomController
             }
 
             // If importing into top-level dataype, $datatype is the top-level datatype and $parent_datatype is null
+            $import_into_top_level = false;
+            if ($parent_datatype == null)
+                $import_into_top_level = true;
+
             // If importing into child datatype, $datatype is the child datatype and $parent_datatype is $datatype's parent
+            $import_into_child_datatype = false;
+            if (!$import_into_top_level && $datatype->getParent()->getId() == $parent_datatype_id)
+                $import_into_child_datatype = true;
+
             // If importing linked datatype, $datatype is the remote datatype and $parent_datatype is the local datatype
+            $import_as_linked_datatype = false;
+            if (!$import_into_top_level && $datatype->getParent()->getId() !== $parent_datatype_id)
+                $import_as_linked_datatype = true;
 
 
             // --------------------
@@ -1112,6 +1137,17 @@ class CSVImportController extends ODRCustomController
                             $file_columns[] = $col_num;
                     }
                 }
+            }
+
+            // If importing into a child datatype, then $remote_external_column_id needs to be set to
+            //  the child datatype's external id field if it has one
+            if ($import_into_child_datatype && $datatype->getExternalIdField() != null) {
+                // ...check the datafield mapping to see if the user mapped the child datatype's external id field to a column in the CSV file
+                $child_datatype_external_id = $datatype->getExternalIdField()->getId();
+
+                $remote_external_id_column = array_search($child_datatype_external_id, $datafield_mapping);
+                if ($remote_external_id_column == false)    // array_search failed to find a mapping
+                    $remote_external_id_column = '';
             }
 
 //return;
@@ -1216,7 +1252,7 @@ class CSVImportController extends ODRCustomController
                 'parent_external_id_column' => $parent_external_id_column,
                 'parent_datatype_id' => $parent_datatype_id,
 
-                // Only used when importing into a linked datatype
+                // Will have a value if importing into a linked datatype, or a child datatype that has its external column mapped
                 'remote_external_id_column' => $remote_external_id_column,
             );
 
@@ -1296,7 +1332,7 @@ class CSVImportController extends ODRCustomController
 //print_r($results);
 
                 if ($results[0]['multiple_allowed'] == true) {
-                    /* any number of child datarecords are allowed, no need to do anything */
+                    /* any number of child/linked datarecords are allowed, no need to do validate here */
                 }
                 else {
                     // Since only a single child/linked datarecord is allowed, and the importer will create a link or a child datarecord for each line of the csv file...
@@ -1307,24 +1343,43 @@ class CSVImportController extends ODRCustomController
                     $rel_type_adj = '';
 
                     $results = array();
-                    if ($remote_external_id_column == '') {
-                        // Grab a list of all child datarecords grouped by parent datarecord
-                        // TODO - external id for child datarecords...currently CSV Importing only can create child datarecords
-                        $query = $em->createQuery(
-                           'SELECT e.value AS parent_external_id, child.id AS child_external_id
-                            FROM ODRAdminBundle:'.$parent_typeclass.' AS e
-                            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                            JOIN ODRAdminBundle:DataRecord AS parent WITH drf.dataRecord = parent
-                            JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
-                            WHERE drf.dataField = :parent_external_id_field AND child.dataType = :child_datatype
-                            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
-                        )->setParameters( array('parent_external_id_field' => $parent_datatype->getExternalIdField()->getId(), 'child_datatype' => $datatype->getId()) );
-                        $results = $query->getArrayResult();
+                    if ($import_into_child_datatype) {
+                        if ($remote_external_id_column == '') {
+                            // Grab a list of all child datarecords grouped by parent datarecord
+                            $query = $em->createQuery(
+                               'SELECT e.value AS parent_external_id, child.id AS child_external_id
+                                FROM ODRAdminBundle:'.$parent_typeclass.' AS e
+                                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                                JOIN ODRAdminBundle:DataRecord AS parent WITH drf.dataRecord = parent
+                                JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
+                                WHERE drf.dataField = :parent_external_id_field AND child.dataType = :child_datatype
+                                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
+                            )->setParameters(array('parent_external_id_field' => $parent_datatype->getExternalIdField()->getId(), 'child_datatype' => $datatype->getId()));
+                            $results = $query->getArrayResult();
+                        }
+                        else {
+                            // Grab a list of the external id value for the child datarecords, grouped by parent datarecord
+                            $child_typeclass = $datatype->getExternalIdField()->getFieldType()->getTypeClass();
+
+                            $query = $em->createQuery(
+                               'SELECT e_1.value AS parent_external_id, e_2.value AS child_external_id
+                                FROM ODRAdminBundle:'.$parent_typeclass.' AS e_1
+                                JOIN ODRAdminBundle:DataRecordFields AS drf_1 WITH e_1.dataRecordFields = drf_1
+                                JOIN ODRAdminBundle:DataRecord AS parent WITH drf_1.dataRecord = parent
+                                JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
+                                JOIN ODRAdminBundle:DataRecordFields AS drf_2 WITH drf_2.dataRecord = child
+                                JOIN ODRAdminBundle:'.$child_typeclass.' AS e_2 WITH e_2.dataRecordFields = drf_2
+                                WHERE drf_1.dataField = :parent_external_id_field AND drf_2.dataField = :remote_external_id_field
+                                AND e_1.deletedAt IS NULL AND drf_1.deletedAt IS NULL AND parent.deletedAt IS NULL
+                                AND child.deletedAt IS NULL AND drf_2.deletedAt IS NULL AND e_2.deletedAt IS NULL'
+                            )->setParameters(array('parent_external_id_field' => $parent_datatype->getExternalIdField()->getId(), 'remote_external_id_field' => $datatype->getExternalIdField()->getId()));
+                            $results = $query->getArrayResult();
+                        }
 
                         $rel_type_noun = 'child';
                         $rel_type_adj = 'child';
                     }
-                    else {
+                    else if ($import_as_linked_datatype) {
                         // Grab a list of all relevant linked datatrecords
                         $child_typeclass = $datatype->getExternalIdField()->getFieldType()->getTypeClass();
 
@@ -1345,6 +1400,9 @@ class CSVImportController extends ODRCustomController
                         $rel_type_noun = 'link';
                         $rel_type_adj = 'linked';
                     }
+                    else {
+                        throw new ODRException('Parameter mismatching going on...aborting import');
+                    }
 //print_r($results);
 
                     // Convert the DQL result into a more managable array
@@ -1362,7 +1420,11 @@ class CSVImportController extends ODRCustomController
                     $line_num = 0;
                     $parent_external_ids = array();
                     foreach ($reader as $row) {
+                        // Skip header row
                         $line_num++;
+                        if ($line_num == 1)
+                            continue;
+
                         $value = trim( $row[$parent_external_id_column] );
 
                         // Locate duplicates of the parent datarecord's external id (which would create multiple child/linked datarecords when only one is allowed)
@@ -1383,8 +1445,20 @@ class CSVImportController extends ODRCustomController
 
                         // Locate parent datarecords that already have a child/linked datarecord (which would have another child/linked datarecord after the import)
                         if ( isset($datatree[$value]) ) {
-                            if ($remote_external_id_column == '' || trim( $row[$remote_external_id_column] ) != $datatree[$value] ) {
-                                // If there's a duplicate, and the value doesn't point to a remote datarecord that is already linked to this local datarecord...throw an error
+                            if ($remote_external_id_column == '') {
+                                // The child datatype does not have an external ID field assigned
+                                // Since the child datatype only allows a single child datarecord, the importer can assume that the user wants to overwrite its contents
+                                $errors[] = array(
+                                    'level' => 'Warning',
+                                    'body' => array(
+                                        'line_num' => $line_num,
+                                        'message' => 'The Datarecord pointed to by the external ID "'.$value.'" already has its single permitted '.$rel_type_adj.' Datarecord of the Datatype "'.$datatype->getShortName().'"...running the import will overwrite the contents of the existing '.$rel_type_adj.' Datarecord',
+                                    ),
+                                );
+                            }
+                            else if ( trim( $row[$remote_external_id_column] ) != $datatree[$value] ) {
+                                // The child/linked datatype does have an external ID field assigned
+                                // However, the value for the child/linked datarecord's external ID in the CSV file doesn't match the value in the database...so it makes sense to refuse to continue here
                                 $errors[] = array(
                                     'level' => 'Error',
                                     'body' => array(
@@ -1453,7 +1527,7 @@ class CSVImportController extends ODRCustomController
                         'parent_external_id_column' => $parent_external_id_column,
                         'parent_datatype_id' => $parent_datatype_id,
 
-                        // Only used when creating links via importing
+                        // Will have a value if importing into a linked datatype, or a child datatype that has its external column mapped
                         'remote_external_id_column' => $remote_external_id_column,
                     )
                 );
@@ -1617,7 +1691,8 @@ class CSVImportController extends ODRCustomController
             if ( isset($post['parent_external_id_column']) )
                 $parent_external_id_column = $post['parent_external_id_column'];
 
-            // If the import is for a linked datatype, then another column from the csv file also has to be mapped to the remote datatype's external id datafield
+            // If the import is for a child or linked datatype, then another column from the csv
+            //  file also has to be mapped to the child/remote datatype's external id datafield
             $remote_external_id_column = '';
             if ( isset($post['remote_external_id_column']) )
                 $remote_external_id_column = $post['remote_external_id_column'];
@@ -1676,19 +1751,36 @@ class CSVImportController extends ODRCustomController
                 }
             }
 
+            // ----------------------------------------
+            // If importing into top-level dataype, $datatype is the top-level datatype and $parent_datatype is null
+            $import_into_top_level = false;
+            if ($parent_datatype == null)
+                $import_into_top_level = true;
+
+            // If importing into child datatype, $datatype is the child datatype and $parent_datatype is $datatype's parent
+            $import_into_child_datatype = false;
+            if (!$import_into_top_level && $datatype->getParent()->getId() == $parent_datatype->getId())
+                $import_into_child_datatype = true;
+
+            // If importing linked datatype, $datatype is the remote datatype and $parent_datatype is the local datatype
+            $import_as_linked_datatype = false;
+            if (!$import_into_top_level && $datatype->getParent()->getId() !== $parent_datatype->getId())
+                $import_as_linked_datatype = true;
+            // ----------------------------------------
+
 
             // ----------------------------------------
             // Attempt to locate the datarecord that this row of data will import into...
 
             // If importing into top-level dataype, $datarecord_id will be for a top-level datarecord
-            // If importing into child datatype, $datarecord_id will point to the child datarecord...its parent datarecord was located in the preceding block
-            // If "importing" linked datatype, $datarecord_id will point to the remote datarecord...the local datarecord was located in the preceding block
+            // If importing into child datatype, $datarecord_id will point to the child datarecord...its parent datarecord was located earlier
+            // If "importing" linked datatype, $datarecord_id will point to the remote datarecord...the local datarecord was located earlier
             $datarecord_id = null;
-
             $external_id_field = $datatype->getExternalIdField();
-            if ($external_id_field !== null) {
 
-                //$typeclass = $external_id_field->getFieldType()->getTypeClass();
+            // Don't need to validate anything related to external ID fields if not using them...
+            if ($external_id_field != null) {
+                // Locate the expected external ID value
                 $value = '';
                 if ($remote_external_id_column == '') {
                     // Find the value for the external ID from $datafield_mapping
@@ -1700,36 +1792,77 @@ class CSVImportController extends ODRCustomController
                     }
                 }
                 else {
-                    // Target datarecord is on the remote side of a link...find the external ID from $remote_external_id_column
+                    // Target datarecord is on the child/remote side of the relationship...find the external ID from $remote_external_id_column
                     $value = trim( $line[$remote_external_id_column] );
                 }
 
-                // Locate the datarecord pointed to by this external ID
-                if ( $parent_external_id_column !== '' && $remote_external_id_column == '' ) {
+
+                if ($import_into_top_level) {
+                    // Importing into top-level datatype...attempt to locate the top-level datarecord
+                    $dr = parent::getDatarecordByExternalId($em, $external_id_field->getId(), $value);
+                    if ($dr !== null)
+                        $datarecord_id = $dr->getId();
+
+                    // Doesn't matter if the top-level datarecord is missing, a new one can be created
+                }
+                else if ($import_as_linked_datatype) {
+                    // Importing into linked datatype...attempt to locate the remote datarecord
+                    $dr = parent::getDatarecordByExternalId($em, $external_id_field->getId(), $value);
+                    if ($dr !== null)
+                        $datarecord_id = $dr->getId();
+
+                    // The remote datarecord MUST exist...can't link to a non-existant datarecord
+                    if ($datarecord_id == null) {
+                        $errors[] = array(
+                            'level' => 'Error',
+                            'body' => array(
+                                'line_num' => $line_num,
+                                'message' => 'The value "'.$value.'" in column "'.$column_names[$remote_external_id_column].'" is supposed to match the external ID of a Datarecord in the Datatype "'.$datatype->getShortName().'", but no such Datarecord exists',
+                            ),
+                        );
+                    }
+                }
+                else if ($import_into_child_datatype) {
                     // Importing into child datatype...attempt to locate the child datarecord
                     $parent_external_id = trim( $line[$parent_external_id_column] );
                     $dr = parent::getChildDatarecordByExternalId($em, $external_id_field->getId(), $value, $parent_datatype->getExternalIdField()->getId(), $parent_external_id);
                     if ($dr !== null)
                         $datarecord_id = $dr->getId();
+
+                    // Doesn't matter if the child datarecord is missing, a new one can be created
                 }
                 else {
-                    // Importing into top-level or linked datatype...attempt to locate the expected datarecord (or remote if linked)
-                    $dr = parent::getDatarecordByExternalId($em, $external_id_field->getId(), $value);
-                    if ($dr !== null)
-                        $datarecord_id = $dr->getId();
-                }
-
-
-                // If importing into top-level or child datatype, a missing datarecord is acceptable...it will be created during csvworkerAction() later
-                // If importing into a linked datatype, the remote datarecord MUST exist...can't link to a datarecord that doesn't exist
-                if ($remote_external_id_column !== '' && $datarecord_id == null) {
+                    // Don't think this can even happen, but don't continue if it does
                     $errors[] = array(
                         'level' => 'Error',
                         'body' => array(
                             'line_num' => $line_num,
-                            'message' => 'The value "'.$value.'" in column "'.$column_names[$remote_external_id_column].'" is supposed to match the external ID of a Datarecord in the Datatype "'.$datatype->getShortName().'", but no such Datarecord exists',
+                            'message' => 'Parameter mismatch...somehow not importing into anything (top-level/child/linked datatype)??',
                         ),
                     );
+                }
+            }
+
+
+            // For the purposes of checking files/images in a child datarecord...
+            if ($external_id_field == null && $import_into_child_datatype) {
+                /** @var DataTree $datatree */
+                $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $parent_datatype->getId(), 'descendant' => $datatype->getId()) );
+                if ($datatree == null) {
+                    $errors[] = array(
+                        'level' => 'Error',
+                        'body' => array(
+                            'line_num' => $line_num,
+                            'message' => 'Parameter mismatch...datatree entry does not exist??',
+                        ),
+                    );
+                }
+
+                // Doesn't make sense to locate something in a multiple-allowed child datatype that doesn't have an external ID...
+                if ($datatree->getMultipleAllowed() == false) {
+                    $dr = parent::getChildDatarecordByParent($em, $datatype->getId(), $parent_external_id_field->getId(), $parent_external_id_value);
+                    if ($dr !== null)
+                        $datarecord_id = $dr->getId();
                 }
             }
 
@@ -2069,7 +2202,6 @@ class CSVImportController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-
             // Update the job tracker even if an error occurred...right? TODO
             if ($tracked_job_id !== -1) {
                 $em = $this->getDoctrine()->getManager();
@@ -2084,6 +2216,9 @@ class CSVImportController extends ODRCustomController
                 $em->persist($tracked_job);
                 $em->flush();
             }
+
+            // Since this is only called via beanstalk, return exceptions as json
+            $request->setRequestFormat('json');
 
             $source = 0xc2313827;
             if ($e instanceof ODRException)
@@ -2190,11 +2325,6 @@ class CSVImportController extends ODRCustomController
                     throw new ODRException('Invalid Form');
             }
 
-            $linked_importing = false;
-            if ( isset($presets['remote_external_id_column']) && $presets['remote_external_id_column'] !== '' ) {
-                $linked_importing = true;
-            }
-
 
             // Also locate any child or linked datatypes for this datatype
             $datatree_array = $dti_service->getDatatreeArray();
@@ -2234,8 +2364,19 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // If importing into top-level dataype, $datatype is the top-level datatype and $parent_datatype is null
+            $import_into_top_level = false;
+            if ($parent_datatype == null)
+                $import_into_top_level = true;
+
             // If importing into child datatype, $datatype is the child datatype and $parent_datatype is $datatype's parent
+//            $import_into_child_datatype = false;
+//            if (!$import_into_top_level && $datatype->getParent()->getId() == $parent_datatype_id)
+//                $import_into_child_datatype = true;
+
             // If importing linked datatype, $datatype is the remote datatype and $parent_datatype is the local datatype
+            $import_as_linked_datatype = false;
+            if (!$import_into_top_level && $datatype->getParent()->getId() !== $parent_datatype_id)
+                $import_as_linked_datatype = true;
             // ----------------------------------------
 
 
@@ -2346,9 +2487,11 @@ class CSVImportController extends ODRCustomController
                         'presets' => $presets,
                         'errors' => $error_messages,
 
+                        'datatree_array' => $datatree_array,
+
                         // These get passed to layout.html.twig
                         'parent_datatype' => $parent_datatype,
-                        'linked_importing' => $linked_importing,
+                        'linked_importing' => $import_as_linked_datatype,
 
                         'columns' => $file_headers,
                         'datafields' => $datafields,
@@ -2514,17 +2657,35 @@ class CSVImportController extends ODRCustomController
             $parent_datatype_id = $job_data['parent_datatype_id'];
             $remote_external_id_column = $job_data['remote_external_id_column'];
 
-//print_r($job_data);
-//return;
+//print_r($job_data);  return;
+
+            // ----------------------------------------
+            // If importing into top-level dataype, $datatype is the top-level datatype and $parent_datatype_id is the empty string
+            $import_into_top_level = false;
+            if ($parent_datatype_id == '')
+                $import_into_top_level = true;
+
+            // If importing into child datatype, $datatype is the child datatype and $parent_datatype is $datatype's parent
+//            $import_into_child_datatype = false;
+//            if (!$import_into_top_level && $datatype->getParent()->getId() == $parent_datatype_id)
+//                $import_into_child_datatype = true;
+
+            // If importing linked datatype, $datatype is the remote datatype and $parent_datatype is the local datatype
+            $import_as_linked_datatype = false;
+            if (!$import_into_top_level && $datatype->getParent()->getId() !== $parent_datatype_id)
+                $import_as_linked_datatype = true;
+            // ----------------------------------------
+
 
             // For readability, linking datarecords with csv importing uses a different controller action
             $router = $this->get('router');
             $url = $this->container->getParameter('site_baseurl');
 
-            if ($remote_external_id_column == '')
-                $url .= $router->generate('odr_csv_import_worker');
-            else
+
+            if ($import_as_linked_datatype)
                 $url .= $router->generate('odr_csv_link_worker');
+            else
+                $url .= $router->generate('odr_csv_import_worker');
 
 
             // ----------------------------------------
@@ -2665,7 +2826,7 @@ print_r($new_mapping);
                         'parent_external_id_column' => $parent_external_id_column,
                         'parent_datatype_id' => $parent_datatype_id,
 
-                        // Only used when creating links via importing
+                        // Will have a value if importing into a linked datatype, or a child datatype that has its external column mapped
                         'remote_external_id_column' => $remote_external_id_column,
                     )
                 );
@@ -2764,12 +2925,20 @@ print_r($new_mapping);
             if ($datatype == null)
                 throw new ODRException('Invalid Form...Datatype is deleted');
 
+            // ----------------------------------------
+            // If importing into a child dataype, $parent_external_id_column must not be the empty string
+            // It makes no sense to import into a child datarecord when the parent datarecord can't be identified
+            $import_into_child_datatype = true;
+            if ($parent_external_id_column == '')
+                $import_into_child_datatype = false;
+
 
             // ----------------------------------------
             // Attempt to locate the child datarecord's parent, if neccessary
             $parent_datarecord = null;
             $parent_external_id_field = null;
             $parent_external_id_value = '';
+            $multiple_allowed = false;
 
             if ($parent_external_id_column !== '') {
                 // $datatype_id points to a child datatype
@@ -2793,7 +2962,17 @@ print_r($new_mapping);
                 // csvvalidateAction() purposely only gives a warning so the user is not prevented from importing the rest of the file
                 $parent_datarecord = parent::getDatarecordByExternalId($em, $parent_external_id_field->getId(), $parent_external_id_value);
                 if ($parent_datarecord == null)
-                    throw new ODRException('Parent Datarecord does not exist');
+                    throw new ODRException('Parent Datarecord pointed to by datafield '.$parent_external_id_field->getId().', value "'.$parent_external_id_value.'" does not exist');
+
+                // If importing into a child datatype, figure out whether multiple child datarecords are allowed
+                if ($import_into_child_datatype) {
+                    /** @var DataTree $datatree */
+                    $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $parent_datatype->getId(), 'descendant' => $datatype->getId()) );
+                    if ($datatree == null)
+                        throw new ODRException('Datatree entry does not exist');
+
+                    $multiple_allowed = $datatree->getMultipleAllowed();
+                }
             }
 
             // ----------------------------------------
@@ -2803,26 +2982,68 @@ print_r($new_mapping);
             $external_id_field = $datatype->getExternalIdField();
             $external_id_value = '';
 
-            if ( $external_id_field !== null) {
-                $datafield_id = $external_id_field->getId();
-//                $typeclass = $external_id_field->getFieldType()->getTypeClass();
+            if (!$import_into_child_datatype) {
+                if ($external_id_field != null) {
+                    // Pull the external ID value from the CSV file
+                    $datafield_id = $external_id_field->getId();
+                    foreach ($mapping as $column_num => $df_id) {
+                        if ($df_id == $datafield_id)
+                            $external_id_value = trim( $line[$column_num] );
+                    }
 
-                foreach ($mapping as $column_num => $df_id) {
-                    if ($df_id == $datafield_id)
-                        $external_id_value = trim( $line[$column_num] );
+                    // Have an external ID field, so attempt to locate a top-level datarecord
+                    $datarecord = parent::getDatarecordByExternalId($em, $external_id_field->getId(), $external_id_value);
                 }
+                else {
+                    // Otherwise, no external ID...leave $datarecord as null so a new datarecord gets created
+                }
+            }
+            else {
+                if ($external_id_field != null) {
+                    // Pull the external ID value from the CSV file
+                    $datafield_id = $external_id_field->getId();
+                    foreach ($mapping as $column_num => $df_id) {
+                        if ($df_id == $datafield_id)
+                            $external_id_value = trim( $line[$column_num] );
+                    }
 
-                if ($parent_external_id_column !== '') {
-                    // Need to locate a child datarecord
+                    // Have an external ID field, so attempt to locate the child datarecord with the parent
                     $datarecord = parent::getChildDatarecordByExternalId($em, $external_id_field->getId(), $external_id_value, $parent_external_id_field->getId(), $parent_external_id_value);
                 }
                 else {
-                    // Need to locate a top-level datarecord
-                    $datarecord = parent::getDatarecordByExternalId($em, $external_id_field->getId(), $external_id_value);
+                    // Otherwise, no external ID...
+                    if (!$multiple_allowed) {
+                        // ...if only a single child datarecord is allowed for this datatype, attempt to locate it
+                        $child_datatype_id = $datatype->getId();
+                        $datarecord = parent::getChildDatarecordByParent($em, $child_datatype_id, $parent_external_id_field->getId(), $parent_external_id_value);
+                    }
+                    else {
+                        // ...otherwise, multiple child datarecords are allowed...don't attempt to locate a child datarecord here so the import process always creates a new child datarecord
+                    }
                 }
             }
-//return;
+/*
+if ( is_null($parent_datarecord) )
+    print "parent_datarecord: ''\n";
+else
+    print "parent_datarecord: ".$parent_datarecord->getId()."\n";
+if ( is_null($parent_external_id_field) )
+    print "parent_external_id_field: ''\n";
+else
+    print "parent_external_id_field: ".$parent_external_id_field->getId()."\n";
+print "parent_external_id_value: '".$parent_external_id_value."'\n";
 
+if ( is_null($datarecord) )
+    print "datarecord: ''\n";
+else
+    print "datarecord: ".$datarecord->getId()."\n";
+if ( is_null($external_id_field) )
+    print "external_id_field: ''\n";
+else
+    print "external_id_field: ".$external_id_field->getId()."\n";
+print "external_id_value: '".$external_id_value."'\n";
+exit();
+*/
             // One of four possibilities at this point...
             // 1) $parent_datarecord != null, $datarecord != null   -- importing into an existing child datarecord
             // 2) $parent_datarecord != null, $datarecord == null   -- importing into a new child datarecord
@@ -3277,6 +3498,9 @@ print_r($new_mapping);
                 $em->flush();
             }
 
+            // Since this is only called via beanstalk, return exceptions as json
+            $request->setRequestFormat('json');
+
             $source = 0x121707ab;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
@@ -3431,6 +3655,9 @@ print_r($new_mapping);
                 $em->persist($tracked_job);
                 $em->flush();
             }
+
+            // Since this is only called via beanstalk, return exceptions as json
+            $request->setRequestFormat('json');
 
             $source = 0xf520f9b1;
             if ($e instanceof ODRException)
