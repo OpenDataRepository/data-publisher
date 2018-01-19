@@ -31,6 +31,7 @@
     {% include 'ODRAdminBundle:CSVImport:uniqueness_warnings.html.twig' with {
         'datatype': datatype,
         'datafields': datafields,
+        'datatree_array': datatree_array,
         'file_encoding_converted': file_encoding_converted
     } %}
 
@@ -496,7 +497,7 @@
                 success: function(data, textStatus, jqXHR) {
                     alert('Beginning validation of CSV Import...');
 
-                    var url = '{{ path('odr_job_list') }}';
+                    var url = '{{ path('odr_job_list', {'section': 'csv_import_validate'}) }}';
                     UpdateURL(url);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {

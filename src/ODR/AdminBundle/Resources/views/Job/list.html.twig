@@ -9,15 +9,13 @@
     <div class="ODRAccordionWrapper ODRFormAccordion {#Pointer#}">
 
     {% for job_type, job_name in jobs %}
-        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <h3 class="ODRJobList_header ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a>{{ job_name }}</a>
             <span class="Pointer" style="float:right"><i class="fa fa-lg fa-play ODRJobTrackingToggle" title="Displaying snapshot of job progress" rel="{{ job_type }}"></i></span>
         </h3>
 
-        {% if job_type == 'recache' %}
-            {% include 'ODRAdminBundle:Job:recache.html.twig' %}
-        {% elseif job_type == 'csv_export' %}
+        {% if job_type == 'csv_export' %}
             {% include 'ODRAdminBundle:Job:csv_export.html.twig' %}
         {% elseif job_type == 'csv_import_validate' %}
             {% include 'ODRAdminBundle:Job:csv_import_validate.html.twig' %}
@@ -46,39 +44,17 @@
     </div><!-- end of .ODRAccordionWrapper -->
 </div><!-- End of .content -->
 
-<style>
-    .accordion-content {
-        margin-bottom: 15px;
-    }
-
-/*
-    .ODRProgressBar {
-        width: 300px;
-    }
-*/
-    .ui-progressbar {
-        position: relative;
-        min-width: 300px;
-    }
-
-    .ODRProgressBarLabel {
-        position: absolute;
-        left: 45%;
-        top: 4px;
-        font-weight: bold;
-        text-shadow: 1px 1px 0 #fff;
-    }
-</style>
-
 <script>
     $(function() {
         var window_intervals = {};
-        {% for job_type, job_name in jobs %}
+{% for job_type, job_name in jobs %}
         window_intervals["{{ job_type }}"] = window.clearInterval( window.ODRJobTracking_{{ job_type }}_interval );
-        {% endfor %}
+{% endfor %}
 
-        $(".ODRJobTrackingToggle").unbind('click');
-        $(".ODRJobTrackingToggle").click(function() {
+        $(".ODRJobTrackingToggle").unbind('click').click(function(event) {
+            // Don't also trigger the header show/hide toggle
+            event.stopPropagation();
+
             var job_type = $(this).attr('rel');
             var delay = 10000;
 
@@ -100,7 +76,6 @@
                 window_intervals[ job_type ] = window.clearInterval( window_intervals[ job_type ] );
             }
         });
-
 
         $(".ODRJobList_general_wrapper").each(function() {
             var job_type = $(this).attr('rel');
@@ -151,7 +126,7 @@
                 "ordering": false,
                 "searching": false,
                 "paging": false,
-//                autoWidth: false,
+                // "autoWidth": false,  // doesn't work as expected
 
                 "language": {
                     "emptyTable": "No Jobs found"
@@ -166,11 +141,6 @@
                     type: "GET",
                     dataSrc: "d",
                     complete: function() {
-                        $(".ODRDeleteJob").unbind('click');
-                        $(".ODRDeleteJob").click(function () {
-                            deleteJob( $(this).attr('rel') );
-                        });
-
                         if (typeof doProgressBars == 'function')
                             doProgressBars();
                     }
@@ -183,6 +153,33 @@
                 console.log(message);
             });
         });
+
+        $("table.dataTable").on("click", "span.ODRDeleteJob", function() {
+            deleteJob( $(this).attr('rel') );
+        });
+
+        // Hide all job list headers by default
+        $(".ODRJobList_header").next().hide();
+
+        $(".ODRJobList_header").unbind('click').click(function() {
+            if ( $(this).next().is(':hidden') ) {
+                $(this).next().show();
+
+                // Need to ensure the width attribute doesn't exist, or it'll override the redraw
+                var table = $(this).next().find('table');
+                $(table).removeAttr('style');
+
+                table.DataTable().columns.adjust().draw();
+            }
+            else {
+                $(this).next().hide();
+            }
+        });
+
+        // If one of the headers is supposed to be shown, unhide it
+        if ( '{{ show_section }}' !== '' ) {
+            $("#ODRJobList_{{ show_section }}").parent().parent().prev().trigger('click');
+        }
     });
 
     function doProgressBars() {
@@ -223,19 +220,12 @@
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Delete the row and redraw the table
-                    var table = $(row).parent().parent();
-                    $(table).DataTable().row( $(row) ).remove().draw();
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    if ( data.d.html !== undefined )
-                        alert(data.d.html);
-                    else
-                        alert(data.d);
-                }
+                // Delete the row and redraw the table
+                var table = $(row).parent().parent();
+                $(table).DataTable().row( $(row) ).remove().draw();
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -253,7 +243,6 @@
             }
         });
     }
-
 </script>
 
 {% endspaceless %}

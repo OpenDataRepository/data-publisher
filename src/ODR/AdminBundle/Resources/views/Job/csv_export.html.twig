@@ -81,11 +81,6 @@
                 type: "GET",
                 dataSrc: "d",
                 complete: function() {
-                    $(".ODRDeleteJob").unbind('click');
-                    $(".ODRDeleteJob").click(function () {
-                        deleteJob( $(this).attr('rel') );
-                    });
-
                     if (typeof doProgressBars == 'function')
                         doProgressBars();
                 }

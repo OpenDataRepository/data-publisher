@@ -4025,6 +4025,50 @@ class ODRCustomController extends Controller
 
 
     /**
+     * Locates and returns a single child datarecord based on its parent's external id...this assumes
+     * that only a single child datarecord is allowed in this child datatype
+     * @todo - move to datarecord info service?
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $child_datatype_id
+     * @param integer $parent_datafield_id
+     * @param string $parent_external_id_value
+     *
+     * @return DataRecord|null
+     */
+    protected function getChildDatarecordByParent($em, $child_datatype_id, $parent_datafield_id, $parent_external_id_value)
+    {
+        // Get required information
+        $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+
+        /** @var DataFields $parent_datafield */
+        $parent_datafield = $repo_datafield->find($parent_datafield_id);
+        $parent_typeclass = $parent_datafield->getFieldType()->getTypeClass();
+
+        // Attempt to locate the datarecord using the given external id
+        $query = $em->createQuery(
+           'SELECT dr
+            FROM ODRAdminBundle:DataRecord AS dr
+            JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
+            JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = parent
+            JOIN ODRAdminBundle:'.$parent_typeclass.' AS e WITH e.dataRecordFields = drf
+            WHERE dr.dataType = :datatype_id AND e.value = :parent_value AND e.dataField = :parent_datafield
+            AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
+        )->setParameters( array('datatype_id' => $child_datatype_id, 'parent_value' => $parent_external_id_value, 'parent_datafield' => $parent_datafield_id) );
+        $results = $query->getResult();
+
+        // Return the datarecord if it exists, and also return null if there's more than one...the
+        //  function is called to determine whether the parent datarecord has a single child datarecord
+        //  that it can overwrite during importing
+        $datarecord = null;
+        if ( isset($results[0]) && count($results) == 1 )
+            $datarecord = $results[0];
+
+        return $datarecord;
+    }
+
+
+    /**
      * Does the actual work of resizing an image to some arbitrary dimension.
      * TODO - need source for this...pretty sure it's copy/pasted from somewhere
      *
