@@ -1,5 +1,5 @@
 {% spaceless %}
-
+    {# This twig file is never called when "importing into" a linked datatype #}
     {% set external_id_field = datatype.getexternalidfield %}
 
     <div class="csv_import_header pure-u-2-3">
@@ -12,11 +12,31 @@
         {% endif %}
 
         {% if external_id_field == null %}
-            {# notify that the datatype doesn't have an external id field #}
-            <div class="pure-u-1">
-                <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
-                <span>&nbsp;This Datatype doesn't have an "External ID" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported will ALWAYS create new Datarecords.</span>
-            </div>
+            {% if datatype.grandparent.id == datatype.id %}
+                {# notify that the top-level datatype doesn't have an external id field #}
+                <div class="pure-u-1">
+                    <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
+                    <span>&nbsp;This Datatype doesn't have an "External ID" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported will ALWAYS create new Datarecords.</span>
+                </div>
+            {% else %}
+                {% set multiple_allowed = false %}
+                {% if datatree_array['multiple_allowed'][datatype.id] is defined %}
+                    {% set multiple_allowed = true %}
+                {% endif %}
+
+                {# notify that the child datatype doesn't have an external id field #}
+                {% if multiple_allowed %}
+                    <div class="pure-u-1">
+                        <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
+                        <span>&nbsp;This Datatype doesn't have an "External ID" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported will ALWAYS create new Datarecords.</span>
+                    </div>
+                {% else %}
+                    <div class="pure-u-1">
+                        <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
+                        <span>&nbsp;This Datatype doesn't have an "External ID" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported MAY OVERWRITE existing Datarecords.</span>
+                    </div>
+                {% endif %}
+            {% endif %}
         {% else %}
             {# notify that the external id field is not mapped #}
             <div id="external_id_field_warning" class="pure-u-1">
@@ -35,12 +55,6 @@
             {% endif %}
         {% endfor %}
     </div>
-
-<style>
-    .ODRHidden {
-        display: none;
-    }
-</style>
 
 <script>
     function updateHeaderWarnings() {
