@@ -11,11 +11,11 @@ odr_search_results:
     methods: [ POST ]
 
 odr_search_render:
-    path: /search/render/{search_key}/{theme_id}/{offset}/{source}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Default:render, theme_id: 0, offset: 1, source: 'searching' }
+    path: /search/render/{search_theme_id}/{search_key}/{offset}/{source}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Default:render, offset: 1, source: 'searching' }
     requirements:
+        search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
-        theme_id: \d+
         offset: \d+
         source: searching|linking
 

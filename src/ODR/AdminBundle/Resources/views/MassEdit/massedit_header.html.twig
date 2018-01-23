@@ -10,20 +10,8 @@
 
 <script>
     function returnToSearchResults() {
-        var search_key = "{{ search_key }}";
-        var offset = "{{ offset }}";
-
-        // Ensure offset exists
-        if ( offset == '' )
-            offset = '1';
-
-        var url = '{{ path('odr_search_render', { 'search_key': '0' } ) }}';
-        url = url.substring(0, (url.length-1));
-        url += search_key;
-        if (offset !== '')
-            url += '/' + offset;
-
         // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
+        var url = '{{ path('odr_search_render', { 'search_theme_id': search_theme_id, 'search_key': search_key, 'offset': '1' } ) }}';
         UpdateURL(url);
     }
 </script>

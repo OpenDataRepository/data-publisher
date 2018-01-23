@@ -5,6 +5,7 @@
     <div class="pure-u-sm-1-4"></div>
     <form id="search_form" class="pure-form pure-u-sm-1-2 pure-u-md-7-8">
         <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}" />
+        <input type="hidden" id="selected_theme_id" value="{{ preferred_theme_id }}" />
 
         <fieldset id="search_top">
             <div>
@@ -484,7 +485,6 @@
             dataType: 'json',
             data: $("#search_form").serialize(),
             success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
                 {% if source == "searching" %}
                     // Overwrite any currently existing tab id, since a new search was performed
                     if ( window.sessionStorage.getItem('odr_tab_id') ) {
@@ -502,15 +502,15 @@
                     window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
                     // Now that the search has been performed and cached, render the results
-                    var url = '{{ path('odr_search_render', { 'search_key': '', 'offset': '1' } ) }}';
-                    url = url.substr(0, url.length-1);
-                    url += '/' + data.d.search_key + '/1';
+                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1' } ) }}';
+                    url = url.substr(0, url.length-2);
+                    url += $("#selected_theme_id").val() + '/' + data.d.search_key + '/1';
 
                     // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
                     UpdateURL(url);
 
                 {% elseif source == "linking" %}
-                    var url = '{{ path('odr_search_render', { 'search_key': '', 'offset': '1', 'source': 'linking' } ) }}';
+                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'source': 'linking' } ) }}';
                     url = url.substr(0, url.length-10);
                     url += data.d.search_key + '/1/linking';
 
@@ -524,10 +524,9 @@
                         }
                     });
                 {% endif %}
-                }
-                else {
-                    alert( data.d );
-                }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 $("#loading-overlay").fadeOut('fast');

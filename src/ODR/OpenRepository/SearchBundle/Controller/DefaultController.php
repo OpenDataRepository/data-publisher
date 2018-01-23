@@ -363,6 +363,8 @@ print '$links: '.print_r($links, true)."\n";
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             $cookies = $request->cookies;
@@ -383,7 +385,6 @@ print '$links: '.print_r($links, true)."\n";
 
 
             // Locate the datatype referenced by the search slug, if possible...
-            $target_datatype = null;
             if ($search_slug == '') {
                 if ( $cookies->has('prev_searched_datatype') ) {
                     $search_slug = $cookies->get('prev_searched_datatype');
@@ -402,17 +403,16 @@ print '$links: '.print_r($links, true)."\n";
                     }
                 }
             }
-            else {
-                /** @var DataTypeMeta $meta_entry */
-                $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('searchSlug' => $search_slug) );
-                if ($meta_entry == null)
-                    throw new ODRNotFoundException('Datatype');
 
-                $target_datatype = $meta_entry->getDataType();
-                if ($target_datatype == null)
-                    throw new ODRNotFoundException('Datatype');     // TODO - this just dumps out an error page
-            }
-            /** @var DataType $target_datatype */
+            // Now that a search slug is guaranteed to exist, locate the desired datatype
+            /** @var DataTypeMeta $meta_entry */
+            $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('searchSlug' => $search_slug) );
+            if ($meta_entry == null)
+                throw new ODRNotFoundException('Datatype');
+
+            $target_datatype = $meta_entry->getDataType();
+            if ($target_datatype == null)
+                throw new ODRNotFoundException('Datatype');     // TODO - this just dumps out an error page
 
 
             // Check if user has permission to view datatype
@@ -542,6 +542,12 @@ print '$links: '.print_r($links, true)."\n";
 
 
             // ----------------------------------------
+            // TODO - modify search page to allow users to select from available themes
+            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
+            $preferred_theme_id = $theme_info_service->getPreferredTheme($admin_user, $target_datatype_id, 'search_results');
+
+
+            // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
             $site_baseurl = $this->container->getParameter('site_baseurl');
             if ($this->container->getParameter('kernel.environment') === 'dev')
@@ -571,6 +577,10 @@ print '$links: '.print_r($links, true)."\n";
                     'target_datatype' => $target_datatype,
                     'related_datatypes' => $related_datatypes,
                     'searchable_datafields' => $searchable_datafields,
+
+                    // theme selection
+                    'available_themes' => $available_themes,
+                    'preferred_theme_id' => $preferred_theme_id,
                 )
             );
 
@@ -618,6 +628,8 @@ print '$links: '.print_r($links, true)."\n";
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var ODRCustomController $odrcc */
@@ -628,7 +640,8 @@ print '$links: '.print_r($links, true)."\n";
             /** @var DataType $target_datatype */
             $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($target_datatype_id);
             if ($target_datatype == null)
-                return $odrcc->deletedEntityError('Datatype');
+                throw new ODRNotFoundException('Datatype');
+
 
             // ------------------------------
             // Grab user and their permissions if possible
@@ -646,6 +659,8 @@ print '$links: '.print_r($links, true)."\n";
             $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $datatype_permissions);
             // Grab all searchable datafields 
             $searchable_datafields = self::getSearchableDatafields($em, $related_datatypes, $logged_in, $datatype_permissions, $datafield_permissions);
+            // Save which theme the user wants to use to render the search box with
+            $preferred_theme_id = $theme_info_service->getPreferredTheme($admin_user, $target_datatype->getId(), 'search_results');
 
 
             // Grab all the users
@@ -714,6 +729,7 @@ print '$links: '.print_r($links, true)."\n";
 //                        'search_slug' => $search_slug,
                         'site_baseurl' => $site_baseurl,
 //                        'search_string' => $search_string,
+                        'preferred_theme_id' => $preferred_theme_id,
 
                         // required for background image
                         'background_image_id' => null,
@@ -732,9 +748,11 @@ print '$links: '.print_r($links, true)."\n";
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x18742232 ' . $e->getMessage();
+            $source = 0x5078a3e1;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -745,16 +763,16 @@ print '$links: '.print_r($links, true)."\n";
 
     /**
      * Renders a Short/Textresults list of all datarecords stored in a given memcached key
-     * 
+     *
+     * @param integer $search_theme_id  If non-zero, which theme to use to render this list
      * @param string $search_key The terms the user is searching for
-     * @param integer $theme_id  If non-zero, which theme to use to render this list
      * @param integer $offset    Which page of the search results to render
      * @param string $source     "searching" if searching from frontpage, or "linking" if searching for datarecords to link
      * @param Request $request
      * 
      * @return Response
      */
-    public function renderAction($search_key, $theme_id, $offset, $source, Request $request)
+    public function renderAction($search_theme_id, $search_key, $offset, $source, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -810,7 +828,13 @@ print '$links: '.print_r($links, true)."\n";
             // Attempt to grab the list of datarecords from the cache...
             $search_params = $odrcc->getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype_id, $search_key, $request);
             if ($search_params['redirect'] == 1) {
-                $url = $this->generateUrl('odr_search_render', array('search_key' => $search_params['encoded_search_key']));
+                $url = $this->generateUrl(
+                    'odr_search_render',
+                    array(
+                        'search_theme_id' => $search_theme_id,
+                        'search_key' => $search_params['encoded_search_key']
+                    )
+                );
                 return $odrcc->searchPageRedirect($user, $url);
             }
 
@@ -850,16 +874,36 @@ print '$links: '.print_r($links, true)."\n";
             $theme_type = null;
 
             // If a theme isn't specified...
-            $specified_theme = true;
-            if ($theme_id == 0) {
+            if ($search_theme_id == 0) {
                 // ...attempt to get the user's preferred theme for this datatype
-                $theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
-                $specified_theme = false;
+                $search_theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+
+                if ($source == 'searching') {
+                    // Get common_js.html.twig to redirect to the search results URL with their preferred theme
+                    // Don't want to do this when displaying the "linking to datarecords" UI
+                    $url = $this->generateUrl(
+                        'odr_search_render',
+                        array(
+                            'search_theme_id' => $search_theme_id,
+                            'search_key' => $encoded_search_key
+                        )
+                    );
+
+                    $return['r'] = 2;
+                    $return['d'] = array('url' => $url);
+
+                    $response = new Response(json_encode($return));
+                    $response->headers->set('Content-Type', 'application/json');
+                    return $response;
+                }
+                else {
+                    // Don't redirect when viewing a search results page for datarecord linking purposes
+                }
             }
 
             // Ensure the theme exists before attempting to use it
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($search_theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -870,17 +914,18 @@ print '$links: '.print_r($links, true)."\n";
 //            if (!$theme->isShared() && $theme->getCreatedBy()->getId() !== $user->getId())
 //                throw new ODRForbiddenException('Theme is non-public');
 
-            // If the user specified a theme originally, then set that as the user's preferred
-            //  theme for this session
-            if ($specified_theme)
-                $theme_service->setSessionTheme($datatype->getId(), $theme);
+            // Set the currently selected theme as the user's preferred theme for this session
+            $theme_service->setSessionTheme($datatype->getId(), $theme);
 
 
             // -----------------------------------
             // Render and return the page
             $path_str = $this->generateUrl(
                 'odr_search_render',
-                array('search_key' => $encoded_search_key)
+                array(
+                    'search_theme_id' => $search_theme_id,
+                    'search_key' => $encoded_search_key
+                )
             );
 
             $target = 'results';
@@ -904,11 +949,10 @@ print '$links: '.print_r($links, true)."\n";
             );
         } catch (\Exception $e) {
             $source = 0x66d3804b;
-            if ($e instanceof ODRException) {
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            } else {
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
-            }
         }
 
         $response = new Response(json_encode($return));
@@ -946,19 +990,23 @@ print '$links: '.print_r($links, true)."\n";
 
             // Encode the default search key for this datatype, and generate a route for it
             $search_key = $search_cache_service->encodeSearchKey(array('dt_id' => $datatype_id));
-            $url = $this->generateUrl('odr_search_render', array('search_key' => $search_key));
+            $url = $this->generateUrl(
+                'odr_search_render',
+                array(
+                    'search_theme_id' => 0,     // use whatever default theme this datatype has
+                    'search_key' => $search_key
+                )
+            );
 
             // Return the URL to redirect to
             $return['d'] = array('search_slug' => $datatype->getSearchSlug(), 'url' => $url);
         }
         catch (\Exception $e) {
             $source = 0xc49e75eb;
-            if ($e instanceof ODRException) {
+            if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            }
-            else {
+            else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
-            }
         }
 
         $response = new Response(json_encode($return));
@@ -997,7 +1045,13 @@ print '$links: '.print_r($links, true)."\n";
 
                 $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
-                $url = $this->generateUrl('odr_search_render', array('search_key' => $search_params['encoded_search_key']));
+                $url = $this->generateUrl(
+                    'odr_search_render',
+                    array(
+                        'search_theme_id' => 0,     // use whatever default theme this datatype has
+                        'search_key' => $search_params['encoded_search_key']
+                    )
+                );
                 return $odrcc->searchPageRedirect($user, $url);
             }
 
@@ -1007,9 +1061,11 @@ print '$links: '.print_r($links, true)."\n";
             );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x19846813 ' . $e->getMessage();
+            $source = 0xd809c18a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));

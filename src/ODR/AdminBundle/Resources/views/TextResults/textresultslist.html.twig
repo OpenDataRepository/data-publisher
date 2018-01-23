@@ -26,6 +26,7 @@
         'datatype': datatype,
         'theme': theme,
         'page_type': 'table',
+        'search_key': search_key,
     } %}
 
     <div id="TextResults_wrapper" class="ODRTableOuterWrap">
@@ -292,19 +293,13 @@
 {% if count > 0 and user_role == 'ROLE_ADMIN' %}
     {% if can_edit_datarecord or is_datatype_admin %}
     function doMassEdit() {
-        var url = '{{ path('odr_mass_edit_render', { 'datatype_id': 0, 'search_key': '', 'offset': '' }) }}';
-        url = url.substr(0, url.length-2);
-        url += '{{ datatype.id }}' + '/' + '{{ search_key }}' + '/' + '{{ offset }}';
-
+        var url = '{{ path('odr_mass_edit_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
         UpdateURL(url);
     }
     {% endif %}
 
     function doCSVExport() {
-        var url = '{{ path('odr_csv_export_render', { 'datatype_id': 0, 'search_key': '', 'offset': '' }) }}';
-        url = url.substr(0, url.length-2);
-        url += '{{ datatype.id }}' + '/' + '{{ search_key }}' + '/' + '{{ offset }}';
-
+        var url = '{{ path('odr_csv_export_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
         UpdateURL(url);
     }
 {% endif %}
@@ -314,4 +309,4 @@
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
 {% set offset = '' %}   {# at the moment, offset is set to 1 by default, but not used by textresults #}
-{{ js.write(target, search_key, offset) }}
+{{ js.write(target, search_theme_id, search_key, offset) }}

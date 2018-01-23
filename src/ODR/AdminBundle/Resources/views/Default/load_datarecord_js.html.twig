@@ -1,9 +1,7 @@
-{% macro write(target, search_key, offset) %}
+{% macro write(target, search_theme_id, search_key, offset) %}
 <script>
-
-    var recaching = false;
-
     function loadDataRecord(datarecord_id, target) {
+        var search_theme_id = "{{ search_theme_id }}";
         var search_key = "{{ search_key }}";
         var offset = "{{ offset }}";
 
@@ -19,18 +17,16 @@
 
         url = url.substring(0, (url.length - 1));
         url += datarecord_id;
-        if (search_key != '') {
-            url += '/' + search_key;
+
+        if (search_key !== '') {
+            url += '/' + search_theme_id + '/' + search_key;
 
             if (offset !== '')
                 url += '/' + offset;
         }
 
-        if (recaching == false) {
-            // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
-            UpdateURL(url);
-        }
+        // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
+        UpdateURL(url);
     }
-
 </script>
 {% endmacro %}

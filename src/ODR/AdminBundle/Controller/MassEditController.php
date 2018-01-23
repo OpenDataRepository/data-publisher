@@ -62,13 +62,14 @@ class MassEditController extends ODRCustomController
      * Sets up a mass edit request made from a search results page.
      * 
      * @param integer $datatype_id The database id of the DataType the search was performed on.
-     * @param integer $offset
+     * @param integer $search_theme_id
      * @param string $search_key   The search key identifying which datarecords to potentially mass edit
+     * @param integer $offset
      * @param Request $request
      * 
      * @return Response
      */
-    public function massEditAction($datatype_id, $offset, $search_key, Request $request)
+    public function massEditAction($datatype_id, $search_theme_id, $search_key, $offset, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -87,6 +88,24 @@ class MassEditController extends ODRCustomController
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
+
+            // If $search_theme_id is set...
+            if ($search_theme_id != 0) {
+                // ...require a search key to also be set
+                if ($search_key == '')
+                    throw new ODRBadRequestException();
+
+                // ...require the referenced theme to exist
+                /** @var Theme $search_theme */
+                $search_theme = $em->getRepository('ODRAdminBundle:Theme')->find($search_theme_id);
+                if ($search_theme == null)
+                    throw new ODRNotFoundException('Search Theme');
+
+                // ...require it to match the datatype being rendered
+                if ($search_theme->getDataType()->getId() !== $datatype->getId())
+                    throw new ODRBadRequestException();
+            }
+
 
             // --------------------
             // Determine user privileges
@@ -148,7 +167,14 @@ class MassEditController extends ODRCustomController
                 // If there is no tab id for some reason, or the user is attempting to view a datarecord from a search that returned no results...
                 if ( $odr_tab_id === '' || $data['redirect'] == true || ($encoded_search_key !== '' && $datarecord_list === '') ) {
                     // ...get the search controller to redirect to "no results found" page
-                    $url = $this->generateUrl('odr_search_render', array('search_key' => $data['encoded_search_key']));
+                    $url = $this->generateUrl(
+                        'odr_search_render',
+                        array(
+                            'search_theme_id' => $search_theme_id,
+                            'search_key' => $data['encoded_search_key']
+                        )
+                    );
+
                     return parent::searchPageRedirect($user, $url);
                 }
 
@@ -167,6 +193,7 @@ class MassEditController extends ODRCustomController
             $header_html = $templating->render(
                 'ODRAdminBundle:MassEdit:massedit_header.html.twig',
                 array(
+                    'search_theme_id' => $search_theme_id,
                     'search_key' => $encoded_search_key,
                     'offset' => $offset,
                 )
@@ -384,7 +411,11 @@ class MassEditController extends ODRCustomController
                 $search_controller = $this->get('odr_search_controller', $request);
                 $search_controller->setContainer($this->container);
 
-                return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
+                /** @var ThemeInfoService $theme_info_service */
+                $theme_info_service = $this->container->get('odr.theme_info_service');
+                $search_theme_id = $theme_info_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+
+                return $search_controller->renderAction($search_theme_id, $encoded_search_key, 1, 'searching', $request);
             }
 
             // TODO - delete the datarecord list/search key out of the user's session?

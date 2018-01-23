@@ -31,6 +31,7 @@
         <div class="pure-u-1 pure-u-md-2-3 pure-u-xl-2-3" style="text-align: right">
             {% include 'ODRAdminBundle:Default:search_header.html.twig'
             with {
+                'search_theme_id': search_theme_id,
                 'search_key': search_key,
                 'offset': offset,
                 'page_length': page_length,
@@ -45,6 +46,6 @@
 </div>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
-{{ js.write('record', search_key, offset) }}
+{{ js.write('record', search_theme_id, search_key, offset) }}
 
 {% endspaceless %}

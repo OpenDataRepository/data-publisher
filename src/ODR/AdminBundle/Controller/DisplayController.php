@@ -26,6 +26,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -58,13 +59,14 @@ class DisplayController extends ODRCustomController
      * Returns the "Results" version of the given DataRecord.
      * 
      * @param integer $datarecord_id The database id of the datarecord to return.
+     * @param integer $search_theme_id
      * @param string $search_key     Used for search header, an optional string describing which search result list $datarecord_id is a part of
      * @param integer $offset        Used for search header, an optional integer indicating which page of the search result list $datarecord_id is on
      * @param Request $request
      * 
      * @return Response
      */
-    public function viewAction($datarecord_id, $search_key, $offset, Request $request) 
+    public function viewAction($datarecord_id, $search_theme_id, $search_key, $offset, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -116,6 +118,23 @@ class DisplayController extends ODRCustomController
                     throw new ODRNotFoundException('Datatype');
             }
 
+            // If $search_theme_id is set...
+            if ($search_theme_id != 0) {
+                // ...require a search key to also be set
+                if ($search_key == '')
+                    throw new ODRBadRequestException();
+
+                // ...require the referenced theme to exist
+                /** @var Theme $search_theme */
+                $search_theme = $em->getRepository('ODRAdminBundle:Theme')->find($search_theme_id);
+                if ($search_theme == null)
+                    throw new ODRNotFoundException('Search Theme');
+
+                // ...require it to match the datatype being rendered
+                if ($search_theme->getDataType()->getId() !== $datatype->getId())
+                    throw new ODRBadRequestException();
+            }
+
 
             // ----------------------------------------
             // Determine user privileges
@@ -144,7 +163,7 @@ class DisplayController extends ODRCustomController
                     // Some sort of error encounted...bad search query, invalid permissions, or empty datarecord list
                     /** @var SearchController $search_controller */
                     $search_controller = $this->get('odr_search_controller', $request);
-                    return $search_controller->renderAction($encoded_search_key, 0, 1, 'searching', $request);
+                    return $search_controller->renderAction($search_theme_id, $encoded_search_key, 1, 'searching', $request);
                 }
                 else if ($data['redirect']) {
                     $url = $this->generateUrl('odr_display_view', array('datarecord_id' => $datarecord_id, 'search_key' => $encoded_search_key, 'offset' => 1));
@@ -214,6 +233,7 @@ class DisplayController extends ODRCustomController
                     'datatype' => $datatype,
 
                     // values used by search_header.html.twig
+                    'search_theme_id' => $search_theme_id,
                     'search_key' => $encoded_search_key,
                     'offset' => $offset,
                     'page_length' => $search_header['page_length'],

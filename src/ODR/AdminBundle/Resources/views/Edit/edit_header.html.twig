@@ -61,6 +61,7 @@
     $(function() {
         $(".MenuDesignArea").remove();
     });
+
 {% if is_datatype_admin == 1 %}
     function publicRecord(datarecord_id) {
         var url = '{{ path('odr_record_public', { 'datarecord_id': 0 }) }}';
@@ -122,8 +123,20 @@
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
                 }
-                {# success redirects user away from page, don't need a complete function #}
             });
         }
     }
@@ -153,6 +166,19 @@
                 error: function(jqXHR, textStatus, errorThrown) {
                     // Don't need to do anything specific on an error
                 },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
             });
         }
     }
@@ -161,6 +187,6 @@
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
-{{ js.write('results', search_key, offset) }}
+{{ js.write('results', search_theme_id, search_key, offset) }}
 
 {% endspaceless %}

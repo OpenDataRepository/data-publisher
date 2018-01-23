@@ -65,11 +65,11 @@
             "processing": true,   // only displays a little "processing..." blurb
             "deferRender": true,
             "createdRow": function( row, data, index ) {
-            {% if allow_multiple_links or not local_datarecord_is_ancestor %}
+{% if allow_multiple_links or not local_datarecord_is_ancestor %}
                 $(row).prepend('<td><input type="checkbox" class="ODRCurrentLink ODRLinkCheckbox dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');" /></td>');
-            {% else %}
+{% else %}
                 $(row).prepend('<td><input type="radio" name="radio_group_orig" id="hidden_radio" style="display:none;"/><input type="radio" name="radio_group_orig" class="ODRCurrentLink ODRLinkCheckbox dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');" /></td>');
-            {% endif %}
+{% endif %}
             },
 
         });
@@ -167,11 +167,10 @@
         url = url.substr(0, (url.length-1));
         url += '{{ local_datarecord.id }}';
 {% if search_key != '' %}
-        url += '/' + '{{ search_key }}';
+        url += '/' + '{{ search_theme_id }}' + '/' + '{{ search_key }}';
 {% endif %}
 
-//alert(url);
-//return;
+//alert(url);  return;
         UpdateURL(url);
     }
 
@@ -179,8 +178,7 @@
         var post_data = $("#LinkDataRecordForm").serialize();
         var url = $("#LinkDataRecordForm").attr('action');
 
-//alert(url);
-//return;
+//alert(url);  return;
 
         $.ajax({
             type: 'POST',
@@ -211,31 +209,27 @@
     }
 
     function startSearch() {
-    {% if local_datarecord_is_ancestor %}
+{% if local_datarecord_is_ancestor %}
         // Grab datarecords from descendant side
         var url = '{{ path('odr_search_box', {'target_datatype_id': descendant_datatype.id } ) }}';
-    {% else %}
+{% else %}
         // Grab datarecords from ancestor side
         var url = '{{ path('odr_search_box', {'target_datatype_id': ancestor_datatype.id } ) }}';
-    {% endif %}
-        var dataType = "json";
+{% endif %}
 
-//alert(url);
-//return;
+//alert(url);  return;
 
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    $("#search_button").html('Reset Search');
-                    $(".search_content").html( data.d.html );
-                }
-                else {
-                    alert(data.d.html);
-                }
+                $("#search_button").html('Reset Search');
+                $(".search_content").html( data.d.html );
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers

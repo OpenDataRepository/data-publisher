@@ -310,6 +310,8 @@ class EditController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
             // Grab the necessary entities
@@ -445,7 +447,14 @@ class EditController extends ODRCustomController
 
             if ( count($remaining) > 0 ) {
                 // Return to the list of datarecords since at least one datarecord of this datatype still exists
-                $url = $this->generateUrl('odr_search_render', array('search_key' => $search_key));
+                $preferred_theme_id = $theme_info_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+                $url = $this->generateUrl(
+                    'odr_search_render',
+                    array(
+                        'search_theme_id' => $preferred_theme_id,
+                        'search_key' => $search_key
+                    )
+                );
             }
             else {
                 // ...otherwise, return to the list of datatypes
@@ -2058,7 +2067,8 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Don't actually need a search_key for a child reload, but parameter is expected
+            // Don't actually need these for a child reload, but the parameters are expected
+            $search_theme_id = '';
             $search_key = '';
 
             // Grab necessary objects
@@ -2094,7 +2104,7 @@ class EditController extends ODRCustomController
 
 
             $return['d'] = array(
-                'html' => self::GetDisplayData($search_key, $parent_datarecord_id, 'child', $child_datatype_id, $request),
+                'html' => self::GetDisplayData($search_theme_id, $search_key, $parent_datarecord_id, 'child', $child_datatype_id, $request),
             );
         }
         catch (\Exception $e) {
@@ -2128,7 +2138,8 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Don't actually need a search_key for a datafield reload, but the parameter is expected
+            // Don't actually need these for a child reload, but the parameters are expected
+            $search_theme_id = '';
             $search_key = '';
 
             // Grab necessary objects
@@ -2165,7 +2176,7 @@ class EditController extends ODRCustomController
 
 
             $return['d'] = array(
-                'html' => self::GetDisplayData($search_key, $datarecord_id, 'datafield', $datafield_id, $request),
+                'html' => self::GetDisplayData($search_theme_id, $search_key, $datarecord_id, 'datafield', $datafield_id, $request),
             );
         }
         catch (\Exception $e) {
@@ -2185,6 +2196,7 @@ class EditController extends ODRCustomController
     /**
      * Renders the HTML required to edit datafield values for a given record.
      *
+     * @param integer $search_theme_id
      * @param string $search_key
      * @param integer $initial_datarecord_id  The datarecord that originally requested this Edit mode render
      * @param string $template_name           One of 'default', 'child_datarecord', or 'datafield'
@@ -2197,7 +2209,7 @@ class EditController extends ODRCustomController
      *
      * @return string
      */
-    private function GetDisplayData($search_key, $initial_datarecord_id, $template_name, $target_id, Request $request)
+    private function GetDisplayData($search_theme_id, $search_key, $initial_datarecord_id, $template_name, $target_id, Request $request)
     {
         // Required objects
         /** @var \Doctrine\ORM\EntityManager $em */
@@ -2388,6 +2400,7 @@ exit();
             $html = $templating->render(
                 'ODRAdminBundle:Edit:edit_ajax.html.twig',
                 array(
+                    'search_theme_id' => $search_theme_id,
                     'search_key' => $search_key,
 
                     'datatype_array' => $stacked_datatype_array,
@@ -2632,13 +2645,14 @@ exit();
      * Renders the edit form for a DataRecord if the user has the requisite permissions.
      * 
      * @param integer $datarecord_id The database id of the DataRecord the user wants to edit
+     * @param integer $search_theme_id
      * @param string $search_key     Used for search header, an optional string describing which search result list $datarecord_id is a part of
      * @param integer $offset        Used for search header, an optional integer indicating which page of the search result list $datarecord_id is on
      * @param Request $request
      * 
      * @return Response
      */
-    public function editAction($datarecord_id, $search_key, $offset, Request $request)
+    public function editAction($datarecord_id, $search_theme_id, $search_key, $offset, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2673,13 +2687,31 @@ exit();
             $datatype_id = $datatype->getId();
 
 
-            // Grab the theme to use to display this
+            // Grab the "master" theme for this datatype, going to use it to render the datarecord
             // TODO - alternate themes?
-            // Currently only Master themes are used for Edit.
+            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            $theme = $repo_theme->findBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
+
+            // If $search_theme_id is set...
+            if ($search_theme_id != 0) {
+                // ...require a search key to also be set
+                if ($search_key == '')
+                    throw new ODRBadRequestException();
+
+                // ...require the referenced theme to exist
+                /** @var Theme $search_theme */
+                $search_theme = $repo_theme->find($search_theme_id);
+                if ($search_theme == null)
+                    throw new ODRNotFoundException('Search Theme');
+
+                // ...require it to match the datatype being rendered
+                if ($search_theme->getDataType()->getId() !== $datatype->getId())
+                    throw new ODRBadRequestException();
+            }
 
 
             // --------------------
@@ -2713,10 +2745,18 @@ exit();
                     // Some sort of error encounted...bad search query, invalid permissions, or empty datarecord list
                     /** @var SearchController $search_controller */
                     $search_controller = $this->get('odr_search_controller', $request);
-                    return $search_controller->renderAction($encoded_search_key, 0, 1, 'searching', $request);
+                    return $search_controller->renderAction($search_theme_id, $encoded_search_key, 1, 'searching', $request);
                 }
                 else if ($data['redirect']) {
-                    $url = $this->generateUrl('odr_record_edit', array('datarecord_id' => $datarecord_id, 'search_key' => $encoded_search_key, 'offset' => 1));
+                    $url = $this->generateUrl(
+                        'odr_record_edit',
+                        array(
+                            'datarecord_id' => $datarecord_id,
+                            'search_theme_id' => $search_theme_id,
+                            'search_key' => $encoded_search_key,
+                            'offset' => 1
+                        )
+                    );
                     return parent::searchPageRedirect($user, $url);
                 }
             }
@@ -2796,7 +2836,8 @@ exit();
 
                     'is_top_level' => $is_top_level,
 
-                    // values used by search_header.html.twig 
+                    // values used by search_header.html.twig
+                    'search_theme_id' => $search_theme_id,
                     'search_key' => $encoded_search_key,
                     'offset' => $offset,
                     'page_length' => $search_header['page_length'],
@@ -2808,7 +2849,14 @@ exit();
                 )
             );
 
-            $record_page_html = self::GetDisplayData($encoded_search_key, $datarecord->getId(), 'default', $datarecord->getId(), $request);      // TODO - replace the second $datarecord->getId() with $original_datarecord->getId()?
+            $record_page_html = self::GetDisplayData(
+                $search_theme_id,
+                $encoded_search_key,
+                $datarecord->getId(),
+                'default',
+                $datarecord->getId(),      // TODO - replace this with $original_datarecord->getId()?
+                $request
+            );
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),

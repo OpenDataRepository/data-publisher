@@ -114,12 +114,12 @@ odr_view_permissions_result:
 
 
 odr_apply_theme:
-    path:  /session/apply_theme/apply/{datatype_id}/{theme_id}/{session}
+    path:  /session/apply_theme/apply/{datatype_id}/{theme_id}/{persist}
     defaults: { _controller: ODRAdminBundle:ODRUser:applytheme }
     requirements:
         datatype_id:  \d+
         theme_id:  \d+
-        session: 0|1
+        persist: 0|1
 #-----------------------------------------
 
 #-----------------------------------------
@@ -336,11 +336,12 @@ odr_design_derivative_themes:
         datatype_id:  \d+
 
 odr_modify_theme:
-    path:  /design/modify_view/{datatype_id}/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Theme:modifytheme }
+    path:  /design/modify_view/{datatype_id}/{theme_id}/{search_key}
+    defaults: { _controller: ODRAdminBundle:Theme:modifytheme, search_key: '' }
     requirements:
         datatype_id:  \d+
         theme_id:  \d+
+        search_key: '[a-zA-Z0-9\-\_]*'
 
 odr_clone_theme:
     path:  /design/copy_view/{theme_id}
@@ -575,10 +576,11 @@ odr_markdown_help_dialog:
 #-----------------------------------------
 # Edit Controller
 odr_record_edit:
-    path:  /edit/{datarecord_id}/{search_key}/{offset}
-    defaults: { _controller: ODRAdminBundle:Edit:edit, search_key: '', offset: '' }
+    path:  /edit/{datarecord_id}/{search_theme_id}/{search_key}/{offset}
+    defaults: { _controller: ODRAdminBundle:Edit:edit, search_theme_id: 0, search_key: '', offset: '' }
     requirements:
         datarecord_id:  \d+
+        search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
 
@@ -621,7 +623,7 @@ odr_record_add:
         datatype_id:  \d+
 
 odr_record_delete:
-    path:  /edit/deletedatarecord/{datarecord_id}/{search_key}
+    path:  /edit/deletedatarecord/{datarecord_id}/{search_key}    # this path doesn't need {search_theme_id} or {offset}
     defaults: { _controller: ODRAdminBundle:Edit:deletedatarecord }
     requirements:
         datarecord_id:  \d+
@@ -709,13 +711,14 @@ odr_design_link_datatype:
     methods: [ POST ]
 
 odr_record_get_linkable_datarecords:
-    path:  /edit/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}/{search_key}
-    defaults: { _controller: ODRAdminBundle:Link:getlinkabledatarecords, search_key: '' }
+    path:  /edit/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}/{search_theme_id}/{search_key}
+    defaults: { _controller: ODRAdminBundle:Link:getlinkabledatarecords, search_theme_id: '', search_key: '' }
     requirements:
         ancestor_datatype_id:  \d+
         descendant_datatype_id:  \d+
         local_datarecord_id:  \d+
-        search_key: '[a-zA-Z0-9\-\_]*'
+        search_theme_id: \d+|''
+        search_key: '|[a-zA-Z0-9\-\_]*'
 
 odr_link_datarecords:
     path:  /edit/linkrecords
@@ -727,10 +730,11 @@ odr_link_datarecords:
 #-----------------------------------------
 # Display Controller
 odr_display_view:
-    path:  /view/{datarecord_id}/{search_key}/{offset}
-    defaults: { _controller: ODRAdminBundle:Display:view, search_key: '', offset: '' }
+    path:  /view/{datarecord_id}/{search_theme_id}/{search_key}/{offset}
+    defaults: { _controller: ODRAdminBundle:Display:view, search_theme_id: 0, search_key: '', offset: '' }
     requirements:
         datarecord_id:  \d+
+        search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
 
@@ -976,10 +980,11 @@ odr_flow_upload:
 #-----------------------------------------
 # MassEdit Controller
 odr_mass_edit_render:
-    path: /admin/massedit/{datatype_id}/{search_key}/{offset}
+    path: /admin/massedit/{datatype_id}/{search_theme_id}/{search_key}/{offset}
     defaults: { _controller: ODRAdminBundle:MassEdit:massEdit, offset: '' }
     requirements:
         datatype_id: \d+
+        search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
 
@@ -1004,10 +1009,11 @@ odr_mass_update_worker_values:
 #-----------------------------------------
 # CSVExport Controller
 odr_csv_export_render:
-    path: /admin/csvexport/{datatype_id}/{search_key}/{offset}
+    path: /admin/csvexport/{datatype_id}/{search_theme_id}/{search_key}/{offset}
     defaults: { _controller: ODRAdminBundle:CSVExport:csvExport, offset: '' }
     requirements:
         datatype_id: \d+
+        search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
 

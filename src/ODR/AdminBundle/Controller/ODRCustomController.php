@@ -176,6 +176,9 @@ class ODRCustomController extends Controller
         $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
 
+        // TODO - do things with potentially "invalid" $themes passed to this function...stuff that should trigger an overhang.js message instead of an error
+
+
         // Grab the tab's id, if it exists
         $params = $request->query->all();
         $odr_tab_id = '';
@@ -304,6 +307,7 @@ class ODRCustomController extends Controller
 
                     // required for load_datarecord_js.html.twig
                     'target' => $target,
+                    'search_theme_id' => $theme->getId(),
                     'search_key' => $search_key,
                     'offset' => $offset,
 
@@ -352,6 +356,7 @@ class ODRCustomController extends Controller
 
                     // required for load_datarecord_js.html.twig
                     'target' => $target,
+                    'search_theme_id' => $theme->getId(),
                     'search_key' => $search_key,
                     'offset' => $offset,
 
