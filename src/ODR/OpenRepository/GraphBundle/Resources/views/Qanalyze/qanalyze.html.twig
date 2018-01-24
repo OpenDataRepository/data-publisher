@@ -336,7 +336,7 @@
                     var file_data = [];
                     if(txt) {
                         var lines = txt.split(/\n/);
-                        for(var i=0;i<lines.length;i = i+3) {
+                        for(var i=0;i<lines.length;i++) {
                             var line = lines[i];
                             if(!line.match(/^#/) && (line.match(/^[0-9]/) || line.match(/^\.[0-9]/))) {
                                 var data = "";
