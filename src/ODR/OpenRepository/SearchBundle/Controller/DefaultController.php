@@ -910,12 +910,12 @@ print '$links: '.print_r($links, true)."\n";
             if ($theme->getDataType()->getId() !== $datatype->getId())
                 throw new ODRBadRequestException('The specified Theme does not belong to this Datatype');
 
-            // NOTE - pretending this isn't an issue here, renderList() will take care of it...
+            // NOTE - pretending that both of these aren't ssues here, renderList() will take care of it...
 //            if (!$theme->isShared() && $theme->getCreatedBy()->getId() !== $user->getId())
 //                throw new ODRForbiddenException('Theme is non-public');
 
             // Set the currently selected theme as the user's preferred theme for this session
-            $theme_service->setSessionTheme($datatype->getId(), $theme);
+//            $theme_service->setSessionTheme($datatype->getId(), $theme);
 
 
             // -----------------------------------

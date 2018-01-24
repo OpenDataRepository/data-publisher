@@ -176,9 +176,33 @@ class ODRCustomController extends Controller
         $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
 
-        // TODO - do things with potentially "invalid" $themes passed to this function...stuff that should trigger an overhang.js message instead of an error
+        // ----------------------------------------
+        // Determine whether the user is allowed to use the $theme that was passed into this
+        $display_theme_warning = false;
+
+        // Ensure the theme is valid for this datatype
+        if ($theme->getDataType()->getId() !== $datatype->getId())
+            throw new ODRBadRequestException('The specified Theme does not belong to this Datatype');
+
+        // If the theme isn't usable by everybody...
+        if (!$theme->isShared()) {
+            // ...and the user didn't create this theme...
+            if ($theme->getCreatedBy()->getId() !== $user->getId()) {
+                // ...then this user can't use this theme
+
+                // Find a theme they can use
+                $theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+                $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+
+                $display_theme_warning = true;
+            }
+        }
+
+        // Might as well set the session default theme here
+        $theme_service->setSessionTheme($datatype->getId(), $theme);
 
 
+        // ----------------------------------------
         // Grab the tab's id, if it exists
         $params = $request->query->all();
         $odr_tab_id = '';
@@ -302,6 +326,7 @@ class ODRCustomController extends Controller
                     'odr_tab_id' => $odr_tab_id,
 
                     'logged_in' => $logged_in,
+                    'display_theme_warning' => $display_theme_warning,
 
                     'pagination_html' => $pagination_html,
 
@@ -353,6 +378,7 @@ class ODRCustomController extends Controller
                     'theme_array' => $theme_array,
 
                     'logged_in' => $logged_in,
+                    'display_theme_warning' => $display_theme_warning,
 
                     // required for load_datarecord_js.html.twig
                     'target' => $target,

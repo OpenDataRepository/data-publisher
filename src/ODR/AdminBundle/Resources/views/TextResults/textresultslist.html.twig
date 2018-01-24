@@ -212,6 +212,14 @@
             }
         });
 {% endif %}
+
+{% if display_theme_warning %}
+        $("#ODRMainMenu").overhang({
+            type: "warn",
+            message: "The originally requested layout is marked as private.  The database's default layout is being displayed instead.",
+            closeConfirm: true
+        });
+{% endif %}
     });
 
     // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...
