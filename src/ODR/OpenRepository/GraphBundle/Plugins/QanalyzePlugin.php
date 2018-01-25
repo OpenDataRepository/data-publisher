@@ -59,9 +59,9 @@ class QanalyzePlugin
     {
 
         try {
+
 //            $str = '<pre>'.print_r($datafield, true)."\n".print_r($datarecord, true)."\n".print_r($render_plugin, true)."\n".'</pre>';
 //            return $str;
-/*
             // Grab various properties from the render plugin array
             $render_plugin_options = $render_plugin['renderPluginInstance'][0]['renderPluginOptions'];
 
@@ -71,8 +71,6 @@ class QanalyzePlugin
                 if ( $option['active'] == 1 )
                     $options[ $option['optionName'] ] = $option['optionValue'];
             }
-*/
-/*
             // Grab value of datafield
             $value = '';
             if ( isset($datarecord['dataRecordFields'][ $datafield['id'] ]) ) {
@@ -105,7 +103,7 @@ class QanalyzePlugin
                 // No datarecordfield entry for this datarecord/datafield pair...because of the allowed fieldtypes, the plugin can just use the empty string in this case
                 $value = '';
             }
-*/
+
 
             // ----------------------------------------
             // The names of the files uploaded to this child datarecord should have two parts...
@@ -114,9 +112,12 @@ class QanalyzePlugin
             // Render and return the graph html
 
 
-            $output = $this->templating->render(
-                'ODROpenRepositoryGraphBundle:Qanalyze:qanalyze.html.twig'
-            );
+            $output = "";
+            if($value > 0) {
+                $output = $this->templating->render(
+                   'ODROpenRepositoryGraphBundle:Qanalyze:qanalyze.html.twig'
+                );
+            }
             return $output;
         }
         catch (\Exception $e) {
