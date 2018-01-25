@@ -24,6 +24,7 @@
     var analysis_file_id = ""
     var phase_set_file_id = "";
     var sample_name = "";
+    var phase_sets = new Array();
 
     // Load data from CSV File
     // Present modal with selector for phases
@@ -41,6 +42,25 @@
         jQuery(".qanalyze-start-button")
             .unbind('click')
             .click(function(ele) {
+                // Reset all variables
+                analysis_file_id = ""
+                phase_set_file_id = "";
+                sample_name = "";
+                phase_sets = new Array();
+
+                // Load data from CSV File
+                // Present modal with selector for phases
+                // Submit data to QAnalyze
+                qanalyze_data = {
+                    "sample": {
+                        "name": "",
+                        "data": []
+                    },
+                    "selected_phase_group": "",
+                    "phases": []
+                };
+
+
             console.log('click')
             jQuery(ele.target).parent().parent().parent().find(".ODRFileDownload").each(
                 function() {
@@ -79,7 +99,6 @@
         })
     });
 
-    var phase_sets = new Array();
 
     function selectPhase(set_name) {
         var set_list = "";
@@ -355,7 +374,11 @@
                         data = line.split(/\t/);
                     }
 
-                    if (undefined !== data[0] && undefined !== data[1]) {
+                    if (undefined !== data[0]
+                        && undefined !== data[1]
+                        && "" !== data[0]
+                        && "" !== data[1]
+                    ) {
                         var phase_name = data[0];
                         var phase_id = Number(data[1]);
                         console.log("DATA", data)
