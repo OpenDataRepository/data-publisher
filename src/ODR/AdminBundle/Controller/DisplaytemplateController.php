@@ -59,6 +59,7 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Symfony\Component\Form\FormError;
@@ -100,6 +101,8 @@ class DisplaytemplateController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataFields $datafield */
@@ -285,21 +288,8 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // ----------------------------------------
-            // See if any cached search results need to be deleted...
-            $cached_searches = $cache_service->get('cached_search_results');
-            if ( $cached_searches != false && isset($cached_searches[$grandparent_datatype_id]) ) {
-                // Delete all cached search results for this datatype that were run with criteria for this specific datafield
-                foreach ($cached_searches[$grandparent_datatype_id] as $search_checksum => $search_data) {
-                    $searched_datafields = $search_data['searched_datafields'];
-                    $searched_datafields = explode(',', $searched_datafields);
-
-                    if ( in_array($datafield_id, $searched_datafields) )
-                        unset( $cached_searches[$grandparent_datatype_id][$search_checksum] );
-                }
-
-                // Save the collection of cached searches back to memcached
-                $cache_service->set('cached_search_results', $cached_searches);
-            }
+            // Delete any cached search results that use this now-deleted datafield
+            $search_cache_service->clearByDatafieldId($datafield_id);
         }
         catch (\Exception $e) {
             $source = 0x4fc66d72;
@@ -341,6 +331,8 @@ class DisplaytemplateController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var RadioOptions $radio_option */
@@ -414,21 +406,9 @@ class DisplaytemplateController extends ODRCustomController
                 $cache_service->delete('cached_table_data_'.$dr_id);
             }
 
-            // See if any cached search results need to be deleted...
-            $cached_searches = $cache_service->get('cached_search_results');
-            if ( $cached_searches != false && isset($cached_searches[$grandparent_datatype_id]) ) {
-                // Delete all cached search results for this datatype that were run with criteria for this specific datafield
-                foreach ($cached_searches[$grandparent_datatype_id] as $search_checksum => $search_data) {
-                    $searched_datafields = $search_data['searched_datafields'];
-                    $searched_datafields = explode(',', $searched_datafields);
 
-                    if ( in_array($datafield_id, $searched_datafields) )
-                        unset( $cached_searches[$grandparent_datatype_id][$search_checksum] );
-                }
-
-                // Save the collection of cached searches back to memcached
-                $cache_service->set('cached_search_results', $cached_searches);
-            }
+            // Delete any cached search results involving this datafield
+            $search_cache_service->clearByDatafieldId($datafield_id);
         }
         catch (\Exception $e) {
             $source = 0x00b86c51;
@@ -582,6 +562,8 @@ class DisplaytemplateController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataType $datatype */
@@ -955,16 +937,7 @@ class DisplaytemplateController extends ODRCustomController
             }
 
             // ...cached searches
-            $cached_searches = $cache_service->get('cached_search_results');
-            if ($cached_searches != false) {
-                foreach ($datatypes_to_delete as $num => $dt_id) {
-                    if ( isset($cached_searches[$dt_id]) )
-                        unset($cached_searches[$dt_id]);
-                }
-
-                // Save the collection of cached searches back to memcached
-                $cache_service->set('cached_search_results', $cached_searches);
-            }
+            $search_cache_service->clearByDatatypeId($datatype_id);
 
             // ...cached datatype data
             foreach ($datatypes_to_delete as $num => $dt_id) {
@@ -3498,6 +3471,8 @@ exit();
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataType $datatype */
@@ -3712,12 +3687,7 @@ exit();
                     // If the sort datafield changed, then cached search results need to be updated as well
                     if ($update_sort_order) {
                         $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
-
-                        $cached_searches = $cache_service->get('cached_search_results');
-                        if ( isset($cached_searches[$datatype->getId()]) ) {
-                            unset( $cached_searches[$datatype->getId()] );
-                            $cache_service->set('cached_search_results', $cached_searches);
-                        }
+                        $search_cache_service->clearByDatatypeId($datatype->getId());
                     }
                 }
                 else {

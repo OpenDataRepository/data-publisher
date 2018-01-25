@@ -49,6 +49,7 @@ use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -61,13 +62,14 @@ class MassEditController extends ODRCustomController
      * Sets up a mass edit request made from a search results page.
      * 
      * @param integer $datatype_id The database id of the DataType the search was performed on.
-     * @param integer $offset
+     * @param integer $search_theme_id
      * @param string $search_key   The search key identifying which datarecords to potentially mass edit
+     * @param integer $offset
      * @param Request $request
      * 
      * @return Response
      */
-    public function massEditAction($datatype_id, $offset, $search_key, Request $request)
+    public function massEditAction($datatype_id, $search_theme_id, $search_key, $offset, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -86,6 +88,24 @@ class MassEditController extends ODRCustomController
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
+
+            // If $search_theme_id is set...
+            if ($search_theme_id != 0) {
+                // ...require a search key to also be set
+                if ($search_key == '')
+                    throw new ODRBadRequestException();
+
+                // ...require the referenced theme to exist
+                /** @var Theme $search_theme */
+                $search_theme = $em->getRepository('ODRAdminBundle:Theme')->find($search_theme_id);
+                if ($search_theme == null)
+                    throw new ODRNotFoundException('Search Theme');
+
+                // ...require it to match the datatype being rendered
+                if ($search_theme->getDataType()->getId() !== $datatype->getId())
+                    throw new ODRBadRequestException();
+            }
+
 
             // --------------------
             // Determine user privileges
@@ -147,7 +167,14 @@ class MassEditController extends ODRCustomController
                 // If there is no tab id for some reason, or the user is attempting to view a datarecord from a search that returned no results...
                 if ( $odr_tab_id === '' || $data['redirect'] == true || ($encoded_search_key !== '' && $datarecord_list === '') ) {
                     // ...get the search controller to redirect to "no results found" page
-                    $url = $this->generateUrl('odr_search_render', array('search_key' => $data['encoded_search_key']));
+                    $url = $this->generateUrl(
+                        'odr_search_render',
+                        array(
+                            'search_theme_id' => $search_theme_id,
+                            'search_key' => $data['encoded_search_key']
+                        )
+                    );
+
                     return parent::searchPageRedirect($user, $url);
                 }
 
@@ -166,6 +193,7 @@ class MassEditController extends ODRCustomController
             $header_html = $templating->render(
                 'ODRAdminBundle:MassEdit:massedit_header.html.twig',
                 array(
+                    'search_theme_id' => $search_theme_id,
                     'search_key' => $encoded_search_key,
                     'offset' => $offset,
                 )
@@ -178,7 +206,7 @@ class MassEditController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x50ff5a99;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -383,7 +411,11 @@ class MassEditController extends ODRCustomController
                 $search_controller = $this->get('odr_search_controller', $request);
                 $search_controller->setContainer($this->container);
 
-                return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
+                /** @var ThemeInfoService $theme_info_service */
+                $theme_info_service = $this->container->get('odr.theme_info_service');
+                $search_theme_id = $theme_info_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+
+                return $search_controller->renderAction($search_theme_id, $encoded_search_key, 1, 'searching', $request);
             }
 
             // TODO - delete the datarecord list/search key out of the user's session?
@@ -587,7 +619,7 @@ return;
         catch (\Exception $e) {
             $source = 0xf0de8b70;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -750,7 +782,7 @@ return;
         catch (\Exception $e) {
             $source = 0xb506e43f;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -806,12 +838,13 @@ return;
             $repo_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions');
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
@@ -1055,15 +1088,8 @@ $ret .= '  Set current to '.$count."\n";
                 // Mark this datarecord as updated
                 $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-                // See if any cached search results need to be deleted...
-                $cached_searches = $cache_service->get('cached_search_results');
-                if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
-                    // Just delete all cached search results for this datatype...TODO - make it more precise than that...
-                    unset ( $cached_searches[$datatype_id] );
-
-                    // Save the collection of cached searches
-                    $cache_service->set('cached_search_results', $cached_searches);
-                }
+                // Delete all search results for this datatype...TODO - more precise than that?
+                $search_cache_service->clearByDatatypeId($datatype_id);
 
 $ret .=  "---------------\n";
                 $return['d'] = $ret;
@@ -1072,7 +1098,7 @@ $ret .=  "---------------\n";
         catch (\Exception $e) {
             $source = 0x99001e8b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

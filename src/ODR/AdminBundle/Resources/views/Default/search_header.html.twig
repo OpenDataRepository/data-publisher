@@ -26,8 +26,6 @@
 <script>
 
     jQuery(function() {
-
-
         // Setup IntroJS Walkthrough
         jQuery('#ODRHelpButton')
             .attr('data-step', '1')
@@ -87,18 +85,13 @@
     }
 
     function returnToSearchResults() {
-        var search_key = "{{ search_key }}";
         var offset = "{{ offset }}";
-        var current = {{ search_result_current }};
-        var page_length = {{ page_length }};
 
         // Ensure offset exists
         if ( offset == '' )
-            offset = Math.floor( (current-1) / page_length ) + 1;
+            offset = Math.floor( ({{ search_result_current }}-1) / {{ page_length }} ) + 1;
 
-        var url = '{{ path('odr_search_render', { 'search_key': '0' } ) }}';
-        url = url.substring(0, (url.length-1));
-        url += search_key;
+        var url = '{{ path('odr_search_render', { 'search_theme_id': search_theme_id, 'search_key': search_key } ) }}';
         if (offset !== '')
             url += '/' + offset;
 
@@ -107,7 +100,6 @@
     }
 
     function changeResult(direction) {
-        var search_key = "{{ search_key }}";
         var offset = "{{ offset }}";
         var page_length = {{ page_length }};
         var data_record_id = '';
@@ -144,7 +136,7 @@
 
         var url = '{{ redirect_path }}';
         url = url.substring(0, (url.length-1));
-        url += data_record_id + '/' + search_key;
+        url += data_record_id + '/' + '{{ search_theme_id }}' + '/' + '{{ search_key }}';
         if (offset !== '')
             url += '/' + offset;
 

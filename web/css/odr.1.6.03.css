@@ -3693,3 +3693,8 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 .ODRJobList_header {
     margin-top: 15px;
 }
+
+.overhang {
+    position: relative;
+    letter-spacing: normal;
+}

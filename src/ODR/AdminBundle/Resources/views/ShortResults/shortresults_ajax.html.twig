@@ -5,12 +5,12 @@
 {% for dr_id, datarecord in datarecord_array %}
     <div class="ODRShortResults pure-u-1" id="ShortResults_{{ dr_id }}">
         <div class="ODRShortResultsHeader pure-u-1 Pointer" id="ShortResultsHeader_{{ dr_id }}">
-            {% if target == 'results' %}
+            {% if intent == 'searching' %}
                 <span>Record {{ counter }} - Click here to view</span>
                 {% if can_edit_datarecord %}
                 <span class="ODRShortResultsHeader_edit">Click here to edit</span>
                 {% endif %}
-            {% elseif target == 'linking' %}
+            {% elseif intent == 'linking' %}
                 <span>
                     <label for="Input_{{ dr_id }}">
                         <div class="SearchResults_link_box" id="Input_{{ dr_id }}">
@@ -40,7 +40,7 @@
     {% set counter = counter + 1 %}
 {% endfor %}
 
-{% if target == 'linking' %}
+{% if intent == 'linking' %}
 <div id="TextResults_link_div">
     <button class="pure-button" type="button" onclick="selectAll();">Select All</button>
     &nbsp;
@@ -57,7 +57,7 @@
 {% endif %}
 
 <script>
-{% if target == 'results' %}
+{% if intent == 'searching' %}
     jQuery(function() {
         $(".ODRShortResultsHeader").unbind('click').click(function() {
             var id = jQuery(this).attr('id').replace(/ShortResultsHeader_/,'');
@@ -72,7 +72,7 @@
             loadDataRecord(id, 'edit');
         });
     });
-{% elseif target == 'linking' %}
+{% elseif intent == 'linking' %}
     // Need to be able to store all datarecords returned from the search incase "Select All" is clicked
     var all_datarecords = [];
 

@@ -52,6 +52,7 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
@@ -3470,13 +3471,9 @@ exit();
 
             // Delete all cached search results for this datatype
             // TODO - more precise deletion of cached search results...new datarecord created should delete all search results without datafields, update to a datafield should delete all search results with that datafield
-            $cached_searches = $cache_service->get('cached_search_results');
-            if ( $cached_searches != false && isset($cached_searches[$datatype_id]) ) {
-                unset( $cached_searches[$datatype_id] );
-
-                // Save the collection of cached searches back to memcached
-                $cache_service->set('cached_search_results', $cached_searches);
-            }
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+            $search_cache_service->clearByDatatypeId($datatype_id);
 
             $return['d'] = $status;
         }

@@ -6,3 +6,10 @@ parameters:
 services:
     odr_custom_controller:
         class: ODR\AdminBundle\Controller\ODRCustomController
+
+
+    odr.search_cache_service:
+        class: ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService
+        arguments:
+            odr_cache_service: "@odr.cache_service"
+            logger: "@logger"

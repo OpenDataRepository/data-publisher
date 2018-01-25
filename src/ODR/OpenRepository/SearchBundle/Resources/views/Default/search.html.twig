@@ -5,6 +5,7 @@
     <div class="pure-u-sm-1-4"></div>
     <form id="search_form" class="pure-form pure-u-sm-1-2 pure-u-md-7-8">
         <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}" />
+        <input type="hidden" id="selected_theme_id" value="{{ preferred_theme_id }}" />
 
         <fieldset id="search_top">
             <div>
@@ -225,7 +226,7 @@
             var datafield_id = datafield_id_data[1];
 
             var value = $(this).val();
-            if ( value != '' )
+            if (value != '')
                 $("#datafield_" + datafield_id + "_ex").prop('selectedIndex', '1').change();
         });
 
@@ -234,7 +235,7 @@
             var datafield_id = datafield_id_data[1];
 
             var value = $(this).val();
-            if ( value == '0' )
+            if (value != 1)
                 $("#datafield_" + datafield_id + "_fn").val('');
         });
 
@@ -418,63 +419,14 @@
     }
 
     function doSearch() {
-        //
-        var search_key = '';
-        var prev_field = '';
-        var divider = '|';
 
-        var datatype_id = $("#datatype_id").val();
-        search_key = $("#datatype_id").attr('name') + '=' + datatype_id;
-
-        if ( $("#textbox_general").val().trim() != '' )
-            search_key += divider + $("#textbox_general").attr('name') + '=' + encodeURIComponent( $("#textbox_general").val().trim() );
-
-        $("#search_form .ODRInput").each(function() {
-            var name = $(this).attr('name');
-            var type = $(this).attr('type');
-            var value = '';
-
-            if ( $(this).val() !== undefined )
-                value = $(this).val().trim();
-
-            if ( $(this).hasClass('ODRFileDatafieldName') ) {
-                var df_id_data = $(this).attr('id').split(/_/);
-                var df_id = df_id_data[1];
-
-                var exist_value = $("#datafield_" + df_id + "_ex").val();
-                if ( exist_value == '') {
-                    /* do nothing */
-                }
-                else if ( exist_value == 0 ) {
-                    value = '""';   // If user wanted datarecords that do not have files/images, set this datafield's value to empty string
-                }
-                else if ( exist_value == 1 && value == '' ) {
-                    value = '!""';  // If user wanted datarecords that do have files/images, but didn't specify a filename, set this datafield's value to 'not empty'
-                }
-            }
-
-            // Don't want empty values clogging the string
-            if (name == undefined || value == '')
-                return;
-
-            value = encodeURIComponent(value);
-
-            if (search_key != '')
-                search_key += divider;
-            search_key += name + '=' + value;
-
-            {#$('#dt_' + datatype_id + '_pub').removeClass('ODRSearchDisabled');#}
-        });
+        // Values for Radio datafields need to be manually set
         $(".ODRRadioSearchDiv").each(function() {
 
             var data = $(this).attr('id').split(/_/);
             var datafield_id = data[1];
 
             var str = '';
-            if (search_key != '')
-                str = divider;
-            str += datafield_id + '=';
-
             var first_selection = true;
             var has_selections = false;
 
@@ -496,39 +448,44 @@
             });
 
             if (has_selections)
-                search_key += str;
+                $("#datafield_" + datafield_id).val(str);
         });
-{#
-        $(".ODRDatatype_require_public").each(function() {
-            if ( !$(this).hasClass('ODRSearchDisabled') ) {
-                var name = $(this).attr('name');
-                var value = $(this).val();
 
-                if (search_key != '')
-                    search_key += divider;
-                search_key += name + '=' + value;
+        // Ensure the two parts of the search criteria for a file/image match
+        $(".ODRFileDatafieldName").each(function() {
+            var df_id_data = $(this).attr('id').split(/_/);
+            var df_id = df_id_data[1];
+
+            var value = $(this).val().trim();
+            var exist_value = $("#datafield_" + df_id + "_ex option:selected").val();
+
+            if ( exist_value == '') {
+                $(this).val('');
+            }
+            else if ( exist_value == 0 ) {
+                $(this).val('""');   // If user wanted datarecords that do not have files/images, set this datafield's value to empty string
+            }
+            else if ( exist_value == 1 && value == '' ) {
+                $(this).val('!""');  // If user wanted datarecords that do have files/images, but didn't specify a filename, set this datafield's value to 'not empty'
             }
         });
-#}
-//alert( 'search_key: ' + search_key );
-//return;
 
         // Request search results
-        var url = '{{ path( 'odr_search_results', { 'search_key': '' } ) }}';
-        url += search_key;
+        var url = '{{ path('odr_search_results') }}';
 
         $("#loading-overlay").fadeIn('fast');
         $("#loading").html('<span>Searching...</span>');
         $("#loading").fadeIn('fast');
 
+        // TODO - need to communicate which theme to use...
+
         $.ajax({
-            type: 'GET',
+            type: 'POST',
             url: url,
             dataType: 'json',
-//data: search_key,
+            data: $("#search_form").serialize(),
             success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
-                {% if source == "searching" %}
+                {% if intent == "searching" %}
                     // Overwrite any currently existing tab id, since a new search was performed
                     if ( window.sessionStorage.getItem('odr_tab_id') ) {
                         // Tell the server to stop storing data for the old tab
@@ -545,17 +502,17 @@
                     window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
                     // Now that the search has been performed and cached, render the results
-                    var url = '{{ path('odr_search_render', { 'search_key': '', 'offset': '1' } ) }}';
-                    url = url.substr(0, url.length-1);
-                    url += '/' + search_key + '/1';
+                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1' } ) }}';
+                    url = url.substr(0, url.length-2);
+                    url += $("#selected_theme_id").val() + '/' + data.d.search_key + '/1';
 
                     // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
                     UpdateURL(url);
 
-                {% elseif source == "linking" %}
-                    var url = '{{ path('odr_search_render', { 'search_key': '', 'offset': '1', 'source': 'linking' } ) }}';
+                {% elseif intent == "linking" %}
+                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
                     url = url.substr(0, url.length-10);
-                    url += search_key + '/1/linking';
+                    url += data.d.search_key + '/1/linking';
 
                     // Render the html into the search_content div on this page
                     $.ajax({
@@ -567,10 +524,9 @@
                         }
                     });
                 {% endif %}
-                }
-                else {
-                    alert( data.d );
-                }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 $("#loading-overlay").fadeOut('fast');
@@ -594,77 +550,81 @@
 </script>
 
 <script>
-$(window).on('load',function() {
-    {% if background_image_id != null %}
-    // After the rest of the page is loaded, start loading the bg image
-    var url = "{{ path('odr_image_download', {'image_id': 0 }) }}";
-    url = url.substring(0, url.length-1);
-    url += "{{ background_image_id }}";
+    $(window).on('load',function() {
+{% if background_image_id != null %}
+        // After the rest of the page is loaded, start loading the bg image
+        var url = "{{ path('odr_image_download', {'image_id': 0 }) }}";
+        url = url.substring(0, url.length-1);
+        url += "{{ background_image_id }}";
 
-    if (window.location.hash === '')
-        $("#odr_bg").attr('src', url);
-    {% endif %}
+        if (window.location.hash === '')
+            $("#odr_bg").attr('src', url);
+{% endif %}
 
-    // Setup IntroJS Walkthrough
-    jQuery('#ODRHelpButton')
-        .attr('data-step', '1')
-        .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br /><br />  For quicker navigation, use your left and right arrow keys to go through the tutorial.');
-    jQuery('#textbox_general')
-        .attr('data-step', '2')
-        .attr('data-intro', 'This is the "general search" box. Enter terms in this field that you want to find in any of the available search fields.');
-    jQuery('.ODRGeneralSearchList')
-        .attr('data-step', '3')
-        .attr('data-intro', 'Clicking this icon brings up a panel that lists the fields in this database that will be searched when using the "general search" box.');
-    jQuery('.ODRSearchHelp')
-        .attr('data-step', '4')
-        .attr('data-intro', 'All search fields can make use of operators and logic to build more refined searches.  Clicking this icon presents instructions on using operators to build more complex searches.');
-    jQuery('.ODRSearchHelper:first')
-        .attr('data-step', '5')
-        .attr('data-intro', 'Click this link to open or close "Advanced Search".  Advanced search allows you to refine searches to specific fields or field selections.');
+{% if intent == 'searching' %}
+        // Setup IntroJS Walkthrough
+        jQuery('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br /><br />  For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+        jQuery('#textbox_general')
+            .attr('data-step', '2')
+            .attr('data-intro', 'This is the "general search" box. Enter terms in this field that you want to find in any of the available search fields.');
+        jQuery('.ODRGeneralSearchList')
+            .attr('data-step', '3')
+            .attr('data-intro', 'Clicking this icon brings up a panel that lists the fields in this database that will be searched when using the "general search" box.');
+        jQuery('.ODRSearchHelp')
+            .attr('data-step', '4')
+            .attr('data-intro', 'All search fields can make use of operators and logic to build more refined searches.  Clicking this icon presents instructions on using operators to build more complex searches.');
+        jQuery('.ODRSearchHelper:first')
+            .attr('data-step', '5')
+            .attr('data-intro', 'Click this link to open or close "Advanced Search".  Advanced search allows you to refine searches to specific fields or field selections.');
 
-    // Initialize the help button
-    jQuery('#ODRHelpButton').unbind('click').click(function() {
-        introJs()
-            .onbeforechange(introJsStepBeforeChangeHandler)
-            .onbeforeexit(introJsExitHandler)
-            .start();
+        // Initialize the help button
+        jQuery('#ODRHelpButton').unbind('click').click(function() {
+            introJs()
+                .onbeforechange(introJsStepBeforeChangeHandler)
+                .onbeforeexit(introJsExitHandler)
+                .start();
+        });
+{% endif %}
     });
-});
 
-var introjs_starting_search_type = "basic";
-function introJsExitHandler() {
-    if ( introjs_starting_search_type === "basic" && $("#search_type").val() !== 'basic' ) {
-        changeSearch()
+{% if intent == 'searching' %}
+    var introjs_starting_search_type = "basic";
+    function introJsExitHandler() {
+        if ( introjs_starting_search_type === "basic" && $("#search_type").val() !== 'basic' ) {
+            changeSearch()
+        }
     }
-}
 
-function introJsStepBeforeChangeHandler(elem) {
-    if(jQuery(elem).hasClass("ODRGeneralSearchList")) {
-        if(!jQuery("#ODRGeneralSearchList_div").is(":visible")) {
-            jQuery(elem).click();
+    function introJsStepBeforeChangeHandler(elem) {
+        if(jQuery(elem).hasClass("ODRGeneralSearchList")) {
+            if(!jQuery("#ODRGeneralSearchList_div").is(":visible")) {
+                jQuery(elem).click();
+            }
+        }
+        if(jQuery(elem).hasClass("ODRSearchHelp")) {
+            if(!jQuery("#ODRSearchHelp_div").is(":visible")) {
+                jQuery(elem).click();
+            }
+            if(jQuery("#ODRGeneralSearchList_div").is(":visible")) {
+                jQuery(".ODRGeneralSearchList").click();
+            }
+        }
+        if(jQuery(elem).hasClass("ODRSearchHelper")) {
+            if(jQuery("#ODRSearchHelp_div").is(":visible")) {
+                jQuery(".ODRSearchHelp").click();
+            }
+            if ( $("#search_type").val() === 'basic' ) {
+                introjs_starting_search_type = "basic";
+                changeSearch();
+            }
+            else {
+                introjs_starting_search_type = "advanced";
+            }
         }
     }
-    if(jQuery(elem).hasClass("ODRSearchHelp")) {
-        if(!jQuery("#ODRSearchHelp_div").is(":visible")) {
-            jQuery(elem).click();
-        }
-        if(jQuery("#ODRGeneralSearchList_div").is(":visible")) {
-            jQuery(".ODRGeneralSearchList").click();
-        }
-    }
-    if(jQuery(elem).hasClass("ODRSearchHelper")) {
-        if(jQuery("#ODRSearchHelp_div").is(":visible")) {
-            jQuery(".ODRSearchHelp").click();
-        }
-        if ( $("#search_type").val() === 'basic' ) {
-            introjs_starting_search_type = "basic";
-            changeSearch();
-        }
-        else {
-            introjs_starting_search_type = "advanced";
-        }
-    }
-}
+{% endif %}
 </script>
 
 {% endspaceless %}
