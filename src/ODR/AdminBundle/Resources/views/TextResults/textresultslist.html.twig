@@ -1,5 +1,9 @@
 {% spaceless %}
 
+{# The "intent" variable passed in is always "searching" for this file...
+   ODRCustomController::renderList() renders ODRAdminBundle:Link:link_datarecord_form.html.twig
+   when intent == 'linking' #}
+
 {% set theme = theme_array[datatype.id] %}
 
 {% set can_edit_datarecord = false %}
@@ -14,11 +18,7 @@
 
 <div class="ODRFormWrap">
     <div class="header">
-    {% if target == "results" %}
         <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
-    {% else %}
-        <h2>Edit Records - {{ datatype.dataTypeMeta.shortName }}</h2>
-    {% endif %}
     </div>
 
     {# Page/View Options #}
@@ -68,14 +68,9 @@
     </div>
     {% endif %}
 </div>
-
-<div class="Cursor" style="float:right;">
-
-</div>
 {% endif %}
 
-<script type="text/javascript">
-
+<script>
     $(function() {
         $(".MenuDesignArea").remove();
 
@@ -311,10 +306,9 @@
         UpdateURL(url);
     }
 {% endif %}
-
 </script>
 {% endspaceless %}
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
 {% set offset = '' %}   {# at the moment, offset is set to 1 by default, but not used by textresults #}
-{{ js.write(target, search_theme_id, search_key, offset) }}
+{{ js.write(search_theme_id, search_key, offset) }}

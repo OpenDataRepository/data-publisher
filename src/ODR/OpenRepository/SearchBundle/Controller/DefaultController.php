@@ -564,7 +564,7 @@ print '$links: '.print_r($links, true)."\n";
                     'user_list' => $user_list,
                     'logged_in' => $logged_in,
                     'window_title' => $target_datatype->getShortName(),
-                    'source' => 'searching',
+                    'intent' => 'searching',
                     'search_slug' => $search_slug,
                     'site_baseurl' => $site_baseurl,
                     'search_string' => $search_string,
@@ -591,10 +591,8 @@ print '$links: '.print_r($links, true)."\n";
         catch (\Exception $e) {
             $source = 0xd75fa46d;
             if ($e instanceof ODRException)
-//                return self::searchPageError($e->getMessage(), $request, $e->getStatusCode());
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
-//                return self::searchPageError($e->getMessage(), $request, 500);
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
@@ -724,11 +722,8 @@ print '$links: '.print_r($links, true)."\n";
 
                         'user_list' => $user_list,
                         'logged_in' => $logged_in,
-//                        'window_title' => $target_datatype->getShortName(),
-                        'source' => 'linking',
-//                        'search_slug' => $search_slug,
+                        'intent' => 'linking',
                         'site_baseurl' => $site_baseurl,
-//                        'search_string' => $search_string,
                         'preferred_theme_id' => $preferred_theme_id,
 
                         // required for background image
@@ -767,12 +762,12 @@ print '$links: '.print_r($links, true)."\n";
      * @param integer $search_theme_id  If non-zero, which theme to use to render this list
      * @param string $search_key The terms the user is searching for
      * @param integer $offset    Which page of the search results to render
-     * @param string $source     "searching" if searching from frontpage, or "linking" if searching for datarecords to link
+     * @param string $intent     "searching" if searching from frontpage, or "linking" if searching for datarecords to link
      * @param Request $request
      * 
      * @return Response
      */
-    public function renderAction($search_theme_id, $search_key, $offset, $source, Request $request)
+    public function renderAction($search_theme_id, $search_key, $offset, $intent, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -791,8 +786,6 @@ print '$links: '.print_r($links, true)."\n";
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
 
-
-//            $templating = $this->get('templating');
 
             /** @var ODRCustomController $odrcc */
             $odrcc = $this->get('odr_custom_controller', $request);
@@ -855,7 +848,7 @@ print '$links: '.print_r($links, true)."\n";
 
             // -----------------------------------
             // Bypass list entirely if only one datarecord
-            if ( count($datarecords) == 1 && $source !== 'linking' ) {
+            if ( count($datarecords) == 1 && $intent !== 'linking' ) {
                 $datarecord_id = $datarecords[0];
 
                 // Can't use $this->redirect, because it won't update the hash...
@@ -878,7 +871,7 @@ print '$links: '.print_r($links, true)."\n";
                 // ...attempt to get the user's preferred theme for this datatype
                 $search_theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
 
-                if ($source == 'searching') {
+                if ($intent == 'searching') {
                     // Get common_js.html.twig to redirect to the search results URL with their preferred theme
                     // Don't want to do this when displaying the "linking to datarecords" UI
                     $url = $this->generateUrl(
@@ -910,7 +903,7 @@ print '$links: '.print_r($links, true)."\n";
             if ($theme->getDataType()->getId() !== $datatype->getId())
                 throw new ODRBadRequestException('The specified Theme does not belong to this Datatype');
 
-            // NOTE - pretending that both of these aren't ssues here, renderList() will take care of it...
+            // NOTE - pretending that both of these aren't issues here...renderList() will take care of it
 //            if (!$theme->isShared() && $theme->getCreatedBy()->getId() !== $user->getId())
 //                throw new ODRForbiddenException('Theme is non-public');
 
@@ -928,17 +921,13 @@ print '$links: '.print_r($links, true)."\n";
                 )
             );
 
-            $target = 'results';
-            if ($source == 'linking')
-                $target = $source;
-
             $html = $odrcc->renderList(
                 $datarecords,
                 $datatype,
                 $theme,
                 $user,
                 $path_str,
-                $target,
+                $intent,
                 $encoded_search_key,
                 $offset,
                 $request

@@ -252,7 +252,7 @@
     </form>
 
 {% if field_typename == "Boolean" %}
-    <script type="text/javascript">
+    <script>
         window.{{ field_typeclass }}Interval_{{ unique_id }} = null;
         $("#EditForm_{{ unique_id }}").find("input[name='{{ input_name }}']").unbind('change').change(function() {
             window.{{ field_typeclass }}Interval_{{ unique_id }} = window.clearInterval( window.{{ field_typeclass }}Interval_{{ unique_id }} );
@@ -271,8 +271,7 @@
 {% elseif field_typename == "File" or field_typename == "Image" %}
     {# handled elsewhere by flow.js #}
 {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Paragraph Text" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
-    <script type="text/javascript">
-
+    <script>
         window.{{ field_typeclass }}Interval_{{ unique_id }} = null;
         $("#EditForm_{{ unique_id }}").find("{% if field_typename == 'Paragraph Text' %}textarea{% else %}input{% endif %}[name='{{ input_name }}']").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
             window.{{ field_typeclass }}Interval_{{ unique_id }} = window.clearInterval( window.{{ field_typeclass }}Interval_{{ unique_id }} );
@@ -313,6 +312,5 @@
         });
     </script>
 {% endif %}
-
 
 {% endspaceless %}

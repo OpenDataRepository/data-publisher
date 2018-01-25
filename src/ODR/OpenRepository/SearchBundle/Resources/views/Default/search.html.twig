@@ -485,7 +485,7 @@
             dataType: 'json',
             data: $("#search_form").serialize(),
             success: function(data, textStatus, jqXHR) {
-                {% if source == "searching" %}
+                {% if intent == "searching" %}
                     // Overwrite any currently existing tab id, since a new search was performed
                     if ( window.sessionStorage.getItem('odr_tab_id') ) {
                         // Tell the server to stop storing data for the old tab
@@ -509,8 +509,8 @@
                     // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
                     UpdateURL(url);
 
-                {% elseif source == "linking" %}
-                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'source': 'linking' } ) }}';
+                {% elseif intent == "linking" %}
+                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
                     url = url.substr(0, url.length-10);
                     url += data.d.search_key + '/1/linking';
 
@@ -550,77 +550,81 @@
 </script>
 
 <script>
-$(window).on('load',function() {
-    {% if background_image_id != null %}
-    // After the rest of the page is loaded, start loading the bg image
-    var url = "{{ path('odr_image_download', {'image_id': 0 }) }}";
-    url = url.substring(0, url.length-1);
-    url += "{{ background_image_id }}";
+    $(window).on('load',function() {
+{% if background_image_id != null %}
+        // After the rest of the page is loaded, start loading the bg image
+        var url = "{{ path('odr_image_download', {'image_id': 0 }) }}";
+        url = url.substring(0, url.length-1);
+        url += "{{ background_image_id }}";
 
-    if (window.location.hash === '')
-        $("#odr_bg").attr('src', url);
-    {% endif %}
+        if (window.location.hash === '')
+            $("#odr_bg").attr('src', url);
+{% endif %}
 
-    // Setup IntroJS Walkthrough
-    jQuery('#ODRHelpButton')
-        .attr('data-step', '1')
-        .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br /><br />  For quicker navigation, use your left and right arrow keys to go through the tutorial.');
-    jQuery('#textbox_general')
-        .attr('data-step', '2')
-        .attr('data-intro', 'This is the "general search" box. Enter terms in this field that you want to find in any of the available search fields.');
-    jQuery('.ODRGeneralSearchList')
-        .attr('data-step', '3')
-        .attr('data-intro', 'Clicking this icon brings up a panel that lists the fields in this database that will be searched when using the "general search" box.');
-    jQuery('.ODRSearchHelp')
-        .attr('data-step', '4')
-        .attr('data-intro', 'All search fields can make use of operators and logic to build more refined searches.  Clicking this icon presents instructions on using operators to build more complex searches.');
-    jQuery('.ODRSearchHelper:first')
-        .attr('data-step', '5')
-        .attr('data-intro', 'Click this link to open or close "Advanced Search".  Advanced search allows you to refine searches to specific fields or field selections.');
+{% if intent == 'searching' %}
+        // Setup IntroJS Walkthrough
+        jQuery('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br /><br />  For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+        jQuery('#textbox_general')
+            .attr('data-step', '2')
+            .attr('data-intro', 'This is the "general search" box. Enter terms in this field that you want to find in any of the available search fields.');
+        jQuery('.ODRGeneralSearchList')
+            .attr('data-step', '3')
+            .attr('data-intro', 'Clicking this icon brings up a panel that lists the fields in this database that will be searched when using the "general search" box.');
+        jQuery('.ODRSearchHelp')
+            .attr('data-step', '4')
+            .attr('data-intro', 'All search fields can make use of operators and logic to build more refined searches.  Clicking this icon presents instructions on using operators to build more complex searches.');
+        jQuery('.ODRSearchHelper:first')
+            .attr('data-step', '5')
+            .attr('data-intro', 'Click this link to open or close "Advanced Search".  Advanced search allows you to refine searches to specific fields or field selections.');
 
-    // Initialize the help button
-    jQuery('#ODRHelpButton').unbind('click').click(function() {
-        introJs()
-            .onbeforechange(introJsStepBeforeChangeHandler)
-            .onbeforeexit(introJsExitHandler)
-            .start();
+        // Initialize the help button
+        jQuery('#ODRHelpButton').unbind('click').click(function() {
+            introJs()
+                .onbeforechange(introJsStepBeforeChangeHandler)
+                .onbeforeexit(introJsExitHandler)
+                .start();
+        });
+{% endif %}
     });
-});
 
-var introjs_starting_search_type = "basic";
-function introJsExitHandler() {
-    if ( introjs_starting_search_type === "basic" && $("#search_type").val() !== 'basic' ) {
-        changeSearch()
+{% if intent == 'searching' %}
+    var introjs_starting_search_type = "basic";
+    function introJsExitHandler() {
+        if ( introjs_starting_search_type === "basic" && $("#search_type").val() !== 'basic' ) {
+            changeSearch()
+        }
     }
-}
 
-function introJsStepBeforeChangeHandler(elem) {
-    if(jQuery(elem).hasClass("ODRGeneralSearchList")) {
-        if(!jQuery("#ODRGeneralSearchList_div").is(":visible")) {
-            jQuery(elem).click();
+    function introJsStepBeforeChangeHandler(elem) {
+        if(jQuery(elem).hasClass("ODRGeneralSearchList")) {
+            if(!jQuery("#ODRGeneralSearchList_div").is(":visible")) {
+                jQuery(elem).click();
+            }
+        }
+        if(jQuery(elem).hasClass("ODRSearchHelp")) {
+            if(!jQuery("#ODRSearchHelp_div").is(":visible")) {
+                jQuery(elem).click();
+            }
+            if(jQuery("#ODRGeneralSearchList_div").is(":visible")) {
+                jQuery(".ODRGeneralSearchList").click();
+            }
+        }
+        if(jQuery(elem).hasClass("ODRSearchHelper")) {
+            if(jQuery("#ODRSearchHelp_div").is(":visible")) {
+                jQuery(".ODRSearchHelp").click();
+            }
+            if ( $("#search_type").val() === 'basic' ) {
+                introjs_starting_search_type = "basic";
+                changeSearch();
+            }
+            else {
+                introjs_starting_search_type = "advanced";
+            }
         }
     }
-    if(jQuery(elem).hasClass("ODRSearchHelp")) {
-        if(!jQuery("#ODRSearchHelp_div").is(":visible")) {
-            jQuery(elem).click();
-        }
-        if(jQuery("#ODRGeneralSearchList_div").is(":visible")) {
-            jQuery(".ODRGeneralSearchList").click();
-        }
-    }
-    if(jQuery(elem).hasClass("ODRSearchHelper")) {
-        if(jQuery("#ODRSearchHelp_div").is(":visible")) {
-            jQuery(".ODRSearchHelp").click();
-        }
-        if ( $("#search_type").val() === 'basic' ) {
-            introjs_starting_search_type = "basic";
-            changeSearch();
-        }
-        else {
-            introjs_starting_search_type = "advanced";
-        }
-    }
-}
+{% endif %}
 </script>
 
 {% endspaceless %}

@@ -57,7 +57,7 @@
     </div>
 </div>
 
-<script type="text/javascript">
+<script>
     $(function() {
         $(".MenuDesignArea").remove();
     });
@@ -187,6 +187,6 @@
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
-{{ js.write('results', search_theme_id, search_key, offset) }}
+{{ js.write(search_theme_id, search_key, offset) }}
 
 {% endspaceless %}

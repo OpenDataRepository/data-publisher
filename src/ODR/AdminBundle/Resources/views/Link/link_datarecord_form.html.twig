@@ -1,5 +1,9 @@
 {% spaceless %}
 
+{# The "intent" variable passed in is always "linking" for this file...
+   ODRCustomController::renderList() renders ODRAdminBundle:TextResults:textresultslist.html.twig
+   when intent == 'searching' #}
+
 {% set remote_datatype = descendant_datatype %}
 {% if local_datarecord.datatype.id == descendant_datatype.id %}
     {% set remote_datatype = ancestor_datatype %}

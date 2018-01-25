@@ -132,7 +132,7 @@ class ODRCustomController extends Controller
      * @param User $user          Which user is requesting this list
      * @param string $path_str
      *
-     * @param string $target      "Results" or "Record"...where to redirect when a datarecord from this list is selected
+     * @param string $intent      "searching" if searching from frontpage, or "linking" if searching for datarecords to link
      * @param string $search_key  Used for search header, an optional string describing which search result list $datarecord_id is a part of
      * @param integer $offset     Used for search header, an optional integer indicating which page of the search result list $datarecord_id is on
      *
@@ -140,7 +140,7 @@ class ODRCustomController extends Controller
      *
      * @return string
      */
-    public function renderList($datarecords, $datatype, $theme, $user, $path_str, $target, $search_key, $offset, Request $request)
+    public function renderList($datarecords, $datatype, $theme, $user, $path_str, $intent, $search_key, $offset, Request $request)
     {
         // -----------------------------------
         // Grab necessary objects
@@ -187,7 +187,7 @@ class ODRCustomController extends Controller
         // If the theme isn't usable by everybody...
         if (!$theme->isShared()) {
             // ...and the user didn't create this theme...
-            if ($theme->getCreatedBy()->getId() !== $user->getId()) {
+            if ($user === 'anon.' || $theme->getCreatedBy()->getId() !== $user->getId()) {
                 // ...then this user can't use this theme
 
                 // Find a theme they can use
@@ -327,11 +327,11 @@ class ODRCustomController extends Controller
 
                     'logged_in' => $logged_in,
                     'display_theme_warning' => $display_theme_warning,
+                    'intent' => $intent,
 
                     'pagination_html' => $pagination_html,
 
                     // required for load_datarecord_js.html.twig
-                    'target' => $target,
                     'search_theme_id' => $theme->getId(),
                     'search_key' => $search_key,
                     'offset' => $offset,
@@ -360,7 +360,7 @@ class ODRCustomController extends Controller
             // -----------------------------------
             //
             $template = 'ODRAdminBundle:TextResults:textresultslist.html.twig';
-            if ($target == 'linking')
+            if ($intent == 'linking')
                 $template = 'ODRAdminBundle:Link:link_datarecord_form_search.html.twig';
 
             $final_html = $templating->render(
@@ -379,9 +379,9 @@ class ODRCustomController extends Controller
 
                     'logged_in' => $logged_in,
                     'display_theme_warning' => $display_theme_warning,
+                    'intent' => $intent,
 
                     // required for load_datarecord_js.html.twig
-                    'target' => $target,
                     'search_theme_id' => $theme->getId(),
                     'search_key' => $search_key,
                     'offset' => $offset,
