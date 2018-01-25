@@ -298,11 +298,8 @@
 
                         // Show the div that's linked to the clicked button
                         var id = $(this).attr('rel');
-                        {#
-                        $("#FieldArea_" + id).fadeIn(
-                            ODR_scrollIntoView( $("#FieldArea_" + id) )
-                        );
-                        #}
+                        $("#FieldArea_" + id).fadeIn();
+                        {#ODR_scrollIntoView( $("#FieldArea_" + id) )#}
 
                         // Resize any elements that were revealed
                         onWindowResize();
