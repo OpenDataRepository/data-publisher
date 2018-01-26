@@ -847,12 +847,10 @@ function LinkRecord(ancestor_datatype_id, descendant_datatype_id, local_datareco
     url = url.substring(0, (url.length - 5));
     url += ancestor_datatype_id + '/' + descendant_datatype_id + '/' + local_datarecord_id;
 {% if search_key != '' %}
-    url += '/' + '{{ search_key }}';
+    url += '/' + '{{ search_theme_id }}' + '/' + '{{ search_key }}';
 {% endif %}
 
-//alert( url );
-//return;
-
+//alert( url );  return;
     UpdateURL(url);
 }
 

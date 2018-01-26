@@ -51,7 +51,7 @@
                             'is_short_form': is_short_form,
                         } %}
                         <div>
-                            <button type="button" class="pure-button pure-button-primary" onclick="window.history.back()">Return to previous page</button>
+                            <button type="button" class="pure-button pure-button-primary ODRReturn">Return to previous page</button>
                         </div>
                     </div>
                 </div>
@@ -248,6 +248,27 @@
                         }
                     }
                 });
+            });
+
+            $(".ODRReturn").unbind('click').click(function() {
+{% if not is_short_form %}
+                {# Don't need to change any value in the URL #}
+                window.history.back();
+{% elseif search_key != '' %}
+                {# Want to render the search results list with the theme that was just being modified #}
+                var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '' }) }}';
+                url = url.substr(0, url.length-2);
+                url += {{ theme.id }} + '/' + '{{ search_key }}' + '/1';
+
+                UpdateURL(url);
+{% else %}
+                {# For when there's no search key for some reason... #}
+                var url = '{{ path('odr_default_search_render', { 'datatype_id': 0 }) }}';
+                url = url.substr(0, url.length-1);
+                url += {{ initial_datatype_id }};
+
+                UpdateURL(url);
+{% endif %}
             });
 
             initPage();

@@ -1653,12 +1653,12 @@ class ODRUserController extends ODRCustomController
      *
      * @param integer $datatype_id
      * @param integer $theme_id
-     * @param bool $session If false, then save this choice to the database
+     * @param bool $persist If true, then save this choice to the database
      * @param Request $request
      *
      * @return Response
      */
-    public function applythemeAction($datatype_id, $theme_id, $session = false, Request $request)
+    public function applythemeAction($datatype_id, $theme_id, $persist = false, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1717,7 +1717,7 @@ class ODRUserController extends ODRCustomController
                 $theme_service->setSessionTheme($datatype->getId(), $theme);
 
                 // If the user indicated they wanted to save this as their default, do so
-                if (!$session)
+                if ($persist)
                     $theme_service->setUserDefaultTheme($user, $theme);
             }
 

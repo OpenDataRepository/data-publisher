@@ -487,11 +487,12 @@ class ThemeController extends ODRCustomController
      *
      * @param int $datatype_id
      * @param int $theme_id
+     * @param string $search_key
      * @param Request $request
      *
      * @return Response
      */
-    public function modifythemeAction($datatype_id, $theme_id, Request $request)
+    public function modifythemeAction($datatype_id, $theme_id, $search_key = '', Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -542,7 +543,7 @@ class ThemeController extends ODRCustomController
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
-                'html' => self::DisplayTheme($datatype, $theme, 'edit')
+                'html' => self::DisplayTheme($datatype, $theme, 'edit', $search_key)
             );
 
         }
@@ -869,12 +870,13 @@ class ThemeController extends ODRCustomController
      * @param DataType $datatype The datatype that originally requested this Theme rendering
      * @param Theme $theme The theme to render
      * @param string $display_mode Determines what messaging to display in editor.
+     * @param string $search_key
      *
      * @throws \Exception
      *
      * @return string
      */
-    private function DisplayTheme($datatype, $theme, $display_mode = "wizard")
+    private function DisplayTheme($datatype, $theme, $display_mode = "wizard", $search_key = '')
     {
         /** @var DatatypeInfoService $dti_service */
         $dti_service = $this->container->get('odr.datatype_info_service');
@@ -937,6 +939,7 @@ class ThemeController extends ODRCustomController
                 'display_mode' => $display_mode,
 
                 'is_short_form' => $is_short_form,
+                'search_key' => $search_key,
             )
         );
 

@@ -44,6 +44,8 @@
 
             // Close Menu
             $("#ODRNav").hide();
+            $(".overhang").remove();
+
             // always scroll to the top of the page?
 //            window.scrollTo(0,0);
 
@@ -106,12 +108,6 @@
             UpdateURL(url);
         });
 
-{#
-        // Menu click handler
-        $("#ODRMainMenu a").click(function() {
-
-        })
-#}
     });
 
     function createJGrowlError(response) {
@@ -264,7 +260,7 @@
                     $(this).prev().removeClass('ODRAccordionSelected');
                 });
                 $(this).next().fadeIn();
-                ODR_scrollIntoView( $(this).next() );
+                {#ODR_scrollIntoView( $(this).next() );#}
                 $(this).addClass('ODRAccordionSelected');
 
                 // Resize any elements that were revealed
@@ -302,9 +298,8 @@
 
                         // Show the div that's linked to the clicked button
                         var id = $(this).attr('rel');
-                        $("#FieldArea_" + id).fadeIn(
-                            ODR_scrollIntoView( $("#FieldArea_" + id) )
-                        );
+                        $("#FieldArea_" + id).fadeIn();
+                        {#ODR_scrollIntoView( $("#FieldArea_" + id) )#}
 
                         // Resize any elements that were revealed
                         onWindowResize();
@@ -333,7 +328,7 @@
                     // Should only fire once
                     var value = $(this).val();
                     $("#FieldArea_" + value).fadeIn();
-                    ODR_scrollIntoView( $("#FieldArea_" + value) );
+                    {#ODR_scrollIntoView( $("#FieldArea_" + value) );#}
                 });
 
                 // Resize any elements that were revealed
@@ -342,9 +337,9 @@
         });
     }
 
+{#
     // Modified from http://stackoverflow.com/a/18151491
     function ODR_scrollIntoView(element) {
-        /*
         var element_top = $(element).offset().top;
         var element_height = $(element).height();
         // Leave a margin of 100px at the top
@@ -361,8 +356,8 @@
             offset = 0;
 
         $('html, body').scrollTo(offset);
-        */
     }
+#}
 
     var WindowResizeInterval = "";
     function onWindowResize() {
@@ -446,9 +441,8 @@
     }
 
     function reloadPage() {
-        // Reload the window
+        // TODO - should check if URL has hash value...
         var url = window.location.hash.substr(1);
-        // TODO need to check if URL has hash value...
         LoadContentFullAjax( url );
     }
 

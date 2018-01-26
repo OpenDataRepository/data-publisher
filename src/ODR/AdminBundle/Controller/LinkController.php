@@ -742,12 +742,13 @@ class LinkController extends ODRCustomController
      * @param integer $ancestor_datatype_id   The DataType that is being linked from
      * @param integer $descendant_datatype_id The DataType that is being linked to
      * @param integer $local_datarecord_id    The DataRecord being modified.
+     * @param integer $search_theme_id
      * @param string $search_key              The current search on this tab
      * @param Request $request
      *
      * @return Response
      */
-    public function getlinkabledatarecordsAction($ancestor_datatype_id, $descendant_datatype_id, $local_datarecord_id, $search_key, Request $request)
+    public function getlinkabledatarecordsAction($ancestor_datatype_id, $descendant_datatype_id, $local_datarecord_id, $search_theme_id, $search_key, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -800,6 +801,23 @@ class LinkController extends ODRCustomController
             );
             if ($datatree == null)
                 throw new ODRNotFoundException('DataTree');
+
+            // If $search_theme_id is set...
+            if ($search_theme_id != 0) {
+                // ...require a search key to also be set
+                if ($search_key == '')
+                    throw new ODRBadRequestException();
+
+                // ...require the referenced theme to exist
+                /** @var Theme $search_theme */
+                $search_theme = $em->getRepository('ODRAdminBundle:Theme')->find($search_theme_id);
+                if ($search_theme == null)
+                    throw new ODRNotFoundException('Search Theme');
+
+                // ...require it to match the datatype being rendered
+                if ($search_theme->getDataType()->getId() !== $local_datatype->getId())
+                    throw new ODRBadRequestException();
+            }
 
 
             // --------------------
@@ -1001,6 +1019,7 @@ if ($debug) {
                 'html' => $templating->render(
                     'ODRAdminBundle:Link:link_datarecord_form.html.twig',
                     array(
+                        'search_theme_id' => $search_theme_id,
                         'search_key' => $search_key,
 
                         'local_datarecord' => $local_datarecord,

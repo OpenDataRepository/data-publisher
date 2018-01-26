@@ -222,7 +222,7 @@ class ThemeInfoService
     /**
      * Attempts to return the id of the user's preferred theme for the given datatype/theme_type.
      *
-     * @param ODRUser $user
+     * @param string|ODRUser $user  Either 'anon.' or an ODRUser object
      * @param integer $datatype_id
      * @param string $theme_type
      * @param array $top_level_themes should only be used by ThemeService

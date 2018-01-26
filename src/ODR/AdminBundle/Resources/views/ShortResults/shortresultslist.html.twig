@@ -26,11 +26,7 @@
 <div class="ODRFormWrap">
     <div class="header">
     {% if datatype != null %}
-        {% if target == "results" %}
-            <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
-        {% else %}
-            <h2>Edit Records - {{ datatype.dataTypeMeta.shortName }}</h2>
-        {% endif %}
+        <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
     {% endif %}
     </div>
 
@@ -39,10 +35,16 @@
         {{ pagination_html | raw }}
 
         {# Page/View Options #}
+        {% set page_type = 'search_results' %}
+        {% if intent == 'linking' %}
+            {% set page_type = 'linking' %}
+        {% endif %}
+
         {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
             'datatype': datatype,
             'theme': theme,
-            'page_type': 'search_results',
+            'page_type': page_type,
+            'search_key': search_key,
         } %}
 
         {% include 'ODRAdminBundle:ShortResults:shortresults_ajax.html.twig' with {
@@ -54,7 +56,7 @@
             'offset': offset,
             'can_edit_datarecord': can_edit_datarecord,
 
-            'target': target,
+            'intent': intent,
         } %}
 
         {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
@@ -67,7 +69,7 @@
 
 </div><!-- End of .ODRFormWrap -->
 
-{% if target == 'results' and user_role == 'ROLE_ADMIN' and count > 0 %}
+{% if intent == 'searching' and user_role == 'ROLE_ADMIN' and count > 0 %}
 <div class="ODRExportButtons Cursor">
     <div style="float:left;">
         {% if can_edit_datarecord or is_datatype_admin %}
@@ -93,7 +95,6 @@
 {% endif %}
 
 <script>
-
     $(function() {
         $(".MenuDesignArea").remove();
 
@@ -104,7 +105,7 @@
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
-        {% if user_role == 'ROLE_ADMIN' and count > 0 and use_jupyterhub %}
+{% if intent == 'searching' and user_role == 'ROLE_ADMIN' and count > 0 and use_jupyterhub %}
         // Get the app list to display on the page
         $.ajax({
             cache: false,
@@ -125,7 +126,15 @@
                 }
             }
         });
-        {% endif %}
+{% endif %}
+
+{% if intent == 'searching' and display_theme_warning %}
+        $("#ODRMainMenu").overhang({
+            type: "warn",
+            message: "The originally requested layout is marked as private.  The database's default layout is being displayed instead.",
+            closeConfirm: true
+        });
+{% endif %}
     });
 
 
@@ -167,28 +176,22 @@
 
     }
 
-{% if target == 'results' and count > 0 and user_role == 'ROLE_ADMIN' %}
+{% if intent == 'searching' and count > 0 and user_role == 'ROLE_ADMIN' %}
     {% if can_edit_datarecord or is_datatype_admin %}
     function doMassEdit() {
-        var url = '{{ path('odr_mass_edit_render', { 'datatype_id': 0, 'search_key': '', 'offset': '' }) }}';
-        url = url.substr(0, url.length-2);
-        url += '{{ datatype.id }}' + '/' + '{{ search_key }}' + '/' + '{{ offset }}';
-
+        var url = '{{ path('odr_mass_edit_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
         UpdateURL(url);
     }
     {% endif %}
 
     function doCSVExport() {
-        var url = '{{ path('odr_csv_export_render', { 'datatype_id': 0, 'search_key': '', 'offset': '' }) }}';
-        url = url.substr(0, url.length-2);
-        url += '{{ datatype.id }}' + '/' + '{{ search_key }}' + '/' + '{{ offset }}';
-
+        var url = '{{ path('odr_csv_export_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
         UpdateURL(url);
     }
 {% endif %}
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
-{{ js.write(target, search_key, offset) }}
+{{ js.write(search_theme_id, search_key, offset) }}
 
 {% endspaceless %}
