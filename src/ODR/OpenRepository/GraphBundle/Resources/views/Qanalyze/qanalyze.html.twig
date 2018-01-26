@@ -30,6 +30,7 @@
     // Present modal with selector for phases
     // Submit data to QAnalyze
     var qanalyze_data = {
+        "mode": 'chemin',
         "sample": {
             "name": "",
             "data": []
@@ -52,6 +53,7 @@
                 // Present modal with selector for phases
                 // Submit data to QAnalyze
                 qanalyze_data = {
+                    "mode": 'chemin',
                     "sample": {
                         "name": "",
                         "data": []
@@ -262,7 +264,7 @@
         var form = document.createElement("form");
         form.setAttribute("method", "post");
         form.setAttribute("enctype", "x-www-form-urlencoded");
-        form.setAttribute("action", "https://www.qanalyze.com/chemin");
+        form.setAttribute("action", "https://www.qanalyze.com/chemin?mode=chemin");
 
         function submitToPopup(f) {
             form.target = 'qanalyze';
