@@ -1720,6 +1720,9 @@ $ret .= '  Set current to '.$count."\n";
                     $dtm->setDescription("New DataType Description");
                     $dtm->setXmlShortName('');
 
+                    $dtm->setSearchNotesUpper(null);
+                    $dtm->setSearchNotesLower(null);
+
                     $dtm->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
 
                     $dtm->setExternalIdField(null);

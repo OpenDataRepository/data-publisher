@@ -1,0 +1,30 @@
+{% spaceless %}
+
+{% set content = '' %}
+{% if position == 'upper' %}
+    {% set content = target_datatype.dataTypeMeta.searchNotesUpper %}
+{% elseif position == 'lower' %}
+    {% set content = target_datatype.dataTypeMeta.searchNotesUpper %}
+{% endif %}
+
+    {% set content = '## asdf' %}
+
+<div class="ODRSearchPageNotes_wrapper pure-u-1">
+
+    <div class="ODRSearchPageNotes_rendered pure-u-1">
+        {{ content|markdown }}
+    </div>
+
+    {% if is_datatype_admin %}
+    <div class="ODRSearchPageNotes_edit pure-u-1 ODRHidden">
+        <form action="">
+            <textarea id="ODRSearchPageNotes_text_{{ lower }}" class="pure-u-1">{{ content }}</textarea>
+        </form>
+        <div class="pure-u-1">
+            <button class="pure-button pure-button-primary ODRSearchPageNotes_save" rel="{{ position }}">Save</button>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endspaceless %}

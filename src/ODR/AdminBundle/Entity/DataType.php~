@@ -874,6 +874,26 @@ class DataType
     }
 
     /**
+     * Get searchNotesUpper
+     *
+     * @return string
+     */
+    public function getSearchNotesUpper()
+    {
+        return $this->getDataTypeMeta()->getSearchNotesUpper();
+    }
+
+    /**
+     * Get searchNotesLower
+     *
+     * @return string
+     */
+    public function getSearchNotesLower()
+    {
+        return $this->getDataTypeMeta()->getSearchNotesLower();
+    }
+
+    /**
      * Get publicDate
      *
      * @return \DateTime

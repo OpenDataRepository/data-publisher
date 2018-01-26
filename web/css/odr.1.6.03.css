@@ -1815,11 +1815,6 @@ footer {
 }
 
 
-
-.Hide {
-    display: none;
-}
-
 #content {
     border: none;
 }
@@ -3697,4 +3692,14 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 .overhang {
     position: relative;
     letter-spacing: normal;
+}
+
+.ODRSearchPageNotes_wrapper {
+    margin: 7px;
+
+    box-sizing: border-box;
+    padding: 8px;
+    background: white none;
+    border-radius: 4px;
+    border: 1px solid #7fb9d8;
 }

@@ -1983,6 +1983,9 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_meta->setDescription("New Child Type");
             $datatype_meta->setXmlShortName('');
 
+            $datatype_meta->setSearchNotesUpper(null);
+            $datatype_meta->setSearchNotesLower(null);
+
             $datatype_meta->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
 
             $datatype_meta->setExternalIdField(null);
