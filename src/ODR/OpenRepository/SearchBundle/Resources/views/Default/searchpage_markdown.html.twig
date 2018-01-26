@@ -1,28 +1,34 @@
 {% spaceless %}
 
+{% set upper_value = target_datatype.dataTypeMeta.searchNotesUpper %}
+{% set lower_value = target_datatype.dataTypeMeta.searchNotesLower %}
+
 {% set content = '' %}
 {% if position == 'upper' %}
-    {% set content = target_datatype.dataTypeMeta.searchNotesUpper %}
+    {% set content = upper_value %}
 {% elseif position == 'lower' %}
-    {% set content = target_datatype.dataTypeMeta.searchNotesUpper %}
+    {% set content = lower_value %}
 {% endif %}
 
-    {% set content = '## asdf' %}
+{% if position == 'upper' %}
+<form id="ODRSearchPageNotes_form">
+    <input type="hidden" id="upper_old" name="upper_old" value="{{ upper_value }}" />
+    <input type="hidden" id="upper_value" name="upper_value" value="{{ upper_value }}" />
+    <input type="hidden" id="lower_old" name="lower_old" value="{{ lower_value }}" />
+    <input type="hidden" id="lower_value" name="lower_value" value="{{ lower_value }}" />
+</form>
+{% endif %}
 
 <div class="ODRSearchPageNotes_wrapper pure-u-1">
 
-    <div class="ODRSearchPageNotes_rendered pure-u-1">
+    <div id="{{ position }}_rendered" class="ODRSearchPageNotes_rendered pure-u-1">
         {{ content|markdown }}
     </div>
 
     {% if is_datatype_admin %}
-    <div class="ODRSearchPageNotes_edit pure-u-1 ODRHidden">
-        <form action="">
-            <textarea id="ODRSearchPageNotes_text_{{ lower }}" class="pure-u-1">{{ content }}</textarea>
-        </form>
-        <div class="pure-u-1">
-            <button class="pure-button pure-button-primary ODRSearchPageNotes_save" rel="{{ position }}">Save</button>
-        </div>
+    <div class="ODRSearchPageNotes_edit pure-u-1" style="display: none;">   {# using display:none; style instead of ODRHidden class on purpose, makes styling easier #}
+        <textarea id="{{ position }}_raw" class="pure-u-1">{{ content }}</textarea>
+        <button class="pure-button pure-button-primary ODRSearchPageNotes_save FRight">Save</button>
     </div>
     {% endif %}
 </div>
