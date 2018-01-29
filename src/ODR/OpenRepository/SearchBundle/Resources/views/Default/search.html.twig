@@ -5,6 +5,10 @@
         {% set is_datatype_admin = true %}
     {% endif %}
 
+    <div id="markdown_help_dialog_wrapper">
+        {% include 'ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig' %}
+    </div>
+
     <div class="pure-u-1 pure-u-md-1-3 ODRContentWrapper">
         <div class="ODRThemeElement">
             <div class="ODRInnerBox">
@@ -190,6 +194,13 @@
             {% endif %}
 
             {% if is_datatype_admin %}
+
+            $(".ODRMarkdownHelp_open").unbind('click').click(function(event) {
+                event.preventDefault();
+
+                {# defined in ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig #}
+                openMarkdownHelpDialog();
+            });
 
             function toggleEditMode() {
                 var edit = $(".ODRSearchPageNotes_edit");

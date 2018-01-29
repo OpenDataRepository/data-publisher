@@ -1,28 +1,26 @@
 {% spaceless %}
 
-    <div>
-        <div class="pure-u-1-2">
-            <textarea id="ODRMarkdown_source" class="pure-u-3-4" style="height: 600px; overflow: auto;" readonly>
----
-The # symbol at the beginning of a line denotes a heading.
+<div class="pure-u-1 ODRContentWrapper">
+    <div class="ODRThemeElement">
+        <div class="ODRInnerBox">
 
-# h1 Heading
-## h2 Heading
+            <div id="ODRMarkdown_content" class="ODRAccordionWrapper ODRTabAccordion">
+                <div id="ODRMarkdown_tabheader" class="pure-u-1 ODRTabButtonHeader">
+                    <button class="pure-button ODRTabButton" rel="emphasis">Emphasis</button>
+                    <button class="pure-button ODRTabButton" rel="headings">Headings</button>
+                    <button class="pure-button ODRTabButton" rel="links">Links</button>
+                    <button class="pure-button ODRTabButton" rel="lists">Lists</button>
+                    <button class="pure-button ODRTabButton" rel="code">Code</button>
+                </div>
 
-You're allowed to use up to six # characters in a row, but most websites (ODR included) tend to use specific styling for those elements.
+                <div>
+                    <div class="pure-u-1-2"><h1>Text using Markdown syntax</h1></div>
+                    <div class="pure-u-1-2"><h1>Text viewed in a browser</h1></div>
+                </div>
 
-
-## Horizontal Rules
-___
-Three hyphens, underscores, or asterisks in a row creates a horizontal line
-
----
-Text right above three hyphens is a shortcut for the h2 Heading
----
-
-***
-
-
+                <div id="ODRMarkdown_emphasis" class="ODRFieldArea pure-u-1">
+                    <div class="pure-u-1-2">
+                        <textarea class="ODRMarkdown_source" id="ODRMarkdown_emphasis_source" readonly>
 ## Emphasis
 
 Using a _single_ \* or \_ character creates _italic_ text.
@@ -34,8 +32,56 @@ Using ___three___ \* or \_ characters in a row creates ***bold and italic*** tex
 You **can _also_ combine** one __type of *emphasis* inside__ another.
 
 Placing a \\ character before the \* or \_ characters will cause them \*\*to not\*\* be interpreted for emphasizing text.
+                        </textarea>
+                    </div>
+                    <div class="pure-u-1-2">
+                        <div class="ODRMarkdown_result" id="ODRMarkdown_emphasis_result"></div>
+                    </div>
+                </div>
 
+                <div id="ODRMarkdown_headings" class="ODRFieldArea pure-u-1">
+                    <div class="pure-u-1-2">
+                        <textarea class="ODRMarkdown_source" id="ODRMarkdown_headings_source" readonly>
+## Headings
 
+The # symbol at the beginning of a line denotes a heading.
+
+# h1 Heading
+## h2 Heading
+
+You're allowed to use up to six # characters in a row, but most websites (ODR included) tend to use specific styling for those elements.
+
+___
+Three hyphens, underscores, or asterisks in a row creates a horizontal line
+
+---
+Text right above three hyphens is a shortcut for the h2 Heading
+---
+                        </textarea>
+                    </div>
+                    <div class="pure-u-1-2">
+                        <div class="ODRMarkdown_result" id="ODRMarkdown_headings_result"></div>
+                    </div>
+                </div>
+
+                <div id="ODRMarkdown_links" class="ODRFieldArea pure-u-1">
+                    <div class="pure-u-1-2">
+                        <textarea class="ODRMarkdown_source" id="ODRMarkdown_links_source" readonly>
+## Links
+
+Typing something like [this](http://www.opendatarepository.org) will create a link.
+
+You can also create a [link](http://www.opendatarepository.org "sample tooltip") that displays a tooltip when hovering over it.
+                        </textarea>
+                    </div>
+                    <div class="pure-u-1-2">
+                        <div class="ODRMarkdown_result" id="ODRMarkdown_links_result"></div>
+                    </div>
+                </div>
+
+                <div id="ODRMarkdown_lists" class="ODRFieldArea pure-u-1">
+                    <div class="pure-u-1-2">
+                        <textarea class="ODRMarkdown_source" id="ODRMarkdown_lists_source" readonly>
 ## Lists
 
 Unordered
@@ -53,24 +99,16 @@ Ordered
 1. Lorem ipsum dolor sit amet
 2. Nulla sem tortor, cursus id accumsan a, aliquam viverra mi
 3. In convallis arcu nisl, ac tempor eros tempus vel
+                        </textarea>
+                    </div>
+                    <div class="pure-u-1-2">
+                        <div class="ODRMarkdown_result" id="ODRMarkdown_lists_result"></div>
+                    </div>
+                </div>
 
-1. You can use sequential numbers...
-1. ...or keep all the numbers as `1.`
-
-Start numbering with offset:
-
-57. foo
-1. bar
-1. No extra line between the list members compresses the list
-
-
-## Links
-
-[link text](http://dev.nodeca.com)
-
-[link with title](http://nodeca.github.io/pica/demo/ "title text!")
-
-
+                <div id="ODRMarkdown_code" class="ODRFieldArea pure-u-1">
+                    <div class="pure-u-1-2">
+                        <textarea class="ODRMarkdown_source" id="ODRMarkdown_code_source" readonly>
 ## Code
 
 Inline `code block`
@@ -83,10 +121,15 @@ var b = 10;
 
 var c = a + b;
 ```
-            </textarea>
-        </div>
-        <div id="ODRMarkdown_result" class="pure-u-1-2" style="height: 600px; overflow: auto; text-align: left;">
+                        </textarea>
+                    </div>
+                    <div class="pure-u-1-2">
+                        <div class="ODRMarkdown_result" id="ODRMarkdown_code_result"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+</div>
 
 {% endspaceless %}

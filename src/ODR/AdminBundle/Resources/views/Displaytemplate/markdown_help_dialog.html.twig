@@ -30,11 +30,7 @@
             success: function(data) {
                 $("#ODRMarkdownHelpDialogWrapper").html( data.d.html );
 
-                var md = window.markdownit();
-                md.disable(['table', 'strikethrough', 'blockquote']);
-                var markdown_text = md.render( $("#ODRMarkdown_source").val() );
-
-                $("#ODRMarkdown_result").html(markdown_text);
+                setupMarkdownTabs();
 
                 // remove loading spinner
                 $(".ODRRemodalLoading").fadeOut('150', function() {
@@ -44,12 +40,6 @@
 
                     // Resize ODRFileDownloadModal to take up full height
                     resetRemodalInnerHeight();
-
-                    $("#ODRMarkdown_source").scrollTo(0);
-                    $("#ODRMarkdown_result").scrollTo(0);
-
-                    setupScrollHandler("#ODRMarkdown_source", "#ODRMarkdown_result");
-                    setupScrollHandler("#ODRMarkdown_result", "#ODRMarkdown_source");
                 });
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -72,21 +62,47 @@
         });
     }
 
-    function setupScrollHandler(source, dest) {
-        $(source).unbind('scroll').scroll(function() {
-            // Ignore the scroll event if this isn't the element currently being scrolled
-            if ( !$(source).is(":hover") )
-                return;
+    function setupMarkdownTabs() {
+        //
+        var markdown_header_buttons = $("#ODRMarkdown_tabheader > .ODRTabButton");
+        var markdown_help_contents = $("#ODRMarkdown_content > .ODRFieldArea");
 
-            // Do a rough calculation of how far down the dest element should be scrolled
-            var percentage = $(source).prop('scrollTop') / ( $(source).prop('scrollHeight') - $(source).prop('offsetHeight') );
-            var dest_scrolltop = percentage * ( $(dest).prop('scrollHeight') - $(dest).prop('offsetHeight') );
+        // Apply the markdown plugin
+        var md = window.markdownit();
+        md.disable(['table', 'strikethrough', 'blockquote']);
 
-            $(dest).scrollTo(dest_scrolltop);
+        $(".ODRMarkdown_source").each(function() {
+            var pieces = $(this).attr('id').split(/_/);
+            var dest_id = '#' + pieces[0] + '_' + pieces[1] + '_result';
+
+            var markdown_text = md.render( $(this).val() );
+            $(dest_id).html(markdown_text);
         });
+
+        // Attach click handlers to the tab buttons
+        markdown_header_buttons.each(function() {
+            $(this).unbind('click').click(function() {
+
+                var header = $(this).attr('rel');
+
+                if ( $("#ODRMarkdown_" + header).is(':hidden') ) {
+                    //
+                    $(markdown_help_contents).hide();
+                    $("#ODRMarkdown_" + header).show();
+
+                    //
+                    $(markdown_header_buttons).removeClass('pure-button-active');
+                    $(this).addClass('pure-button-active');
+                }
+            })
+        });
+
+        // Do the initial selection
+        $(markdown_help_contents).hide();
+        $(markdown_header_buttons).first().trigger('click');
     }
 </script>
 
-    <!-- End of Markdown Help Dialog Form -->
+<!-- End of Markdown Help Dialog Form -->
 
 {% endspaceless %}

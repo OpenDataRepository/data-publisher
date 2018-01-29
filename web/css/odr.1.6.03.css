@@ -3719,3 +3719,14 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     padding-bottom: 12px;
 }
 
+.ODRMarkdown_source {
+    overflow: auto;
+    height: 500px;
+    width: 75%;
+}
+.ODRMarkdown_result {
+    overflow: auto;
+    height: 500px;
+    width: 75%;
+    text-align: left;
+}
