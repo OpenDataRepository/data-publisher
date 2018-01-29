@@ -2484,6 +2484,7 @@ form .row {
 }
 
 /* Borders around top-level TEDs/Groups */
+.ODRContentWrapper > .ODRThemeElement > .ODRInnerBox,
 .ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
 .ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
@@ -2497,6 +2498,8 @@ form .row {
     border: 2px solid rgba(185, 186, 246, 0.25); 
     border-radius: 4px;
 }
+.ODRContentWrapper > .ODRThemeElement > .ODRInnerBox,
+.ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
 .ODRShortResult > .ODRShortResults > .DataRecordShort,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement,
 .ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,
@@ -3681,7 +3684,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 #ODRReturnToSearchResults {
-    padding-top: 9px;
+    padding-top: 10px;
     padding-bottom: 10px;
 }
 
@@ -3695,15 +3698,24 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 .ODRSearchPageNotes_wrapper {
-    margin: 7px;
-
     box-sizing: border-box;
-    padding-left: 8px;
-    padding-bottom: 5px;
+    padding: 4px 4px 4px 8px;
 }
 
-.ODRSearchPageNotes_edit {
-    background: white none;
-    border-radius: 4px;
-    border: 1px solid #7fb9d8;
+.ODRSearchPageNotes_wrapper p {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 6px;
+    padding-bottom: 4px;
 }
+#odr_bg {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+#search_form {
+    padding-left: 8px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+

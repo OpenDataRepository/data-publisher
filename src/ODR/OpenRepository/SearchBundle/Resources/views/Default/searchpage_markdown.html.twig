@@ -19,16 +19,17 @@
 </form>
 {% endif %}
 
-<div class="ODRSearchPageNotes_wrapper pure-u-1">
+<div id="ODRSearchPageNotes_{{ position }}" class="ODRSearchPageNotes_wrapper pure-u-1{%  if(content == "") %} ODRHidden{% endif %}">
 
     <div id="{{ position }}_rendered" class="ODRSearchPageNotes_rendered pure-u-1">
         {{ content|markdown }}
     </div>
 
     {% if is_datatype_admin %}
-    <div class="ODRSearchPageNotes_edit pure-u-1" style="display: none;">   {# using display:none; style instead of ODRHidden class on purpose, makes styling easier #}
-        <textarea id="{{ position }}_raw" class="pure-u-1">{{ content }}</textarea>
-        <button class="pure-button pure-button-primary ODRSearchPageNotes_save FRight">Save</button>
+    <div class="ODRSearchPageNotes_edit pure-u-1 ODRHidden">
+        <p>Enter text or <a href="https://en.wikipedia.org/wiki/Markdown#Example" target="_blank">MarkDown</a> in the box below to have it appear in this location on the page.</p>
+        <textarea rows="4" id="{{ position }}_raw" class="pure-u-1 ODRSearchPageNotes_textarea">{{ content }}</textarea>
+        <button class="pure-button pure-button-primary ODRSearchPageNotes_save FRight">Save Notes</button>
     </div>
     {% endif %}
 </div>
