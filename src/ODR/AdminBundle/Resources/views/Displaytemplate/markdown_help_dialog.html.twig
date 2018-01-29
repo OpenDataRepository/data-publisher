@@ -12,10 +12,21 @@
             title: 'Markdown Help',
             loading: true,
             body: markdown_help_body,
+            buttons: [
+                {
+                    id: 'ODRMarkdownHelp_close',
+                    text: 'Close'
+                }
+            ]
         };
         openODRRemodal(modal_options);
 
         loadMarkdownHelpDialog();
+
+        // Attach an event handler to the close button
+        $("#ODRMarkdownHelp_close").unbind('click').click(function() {
+            closeODRRemodal();
+        });
     }
 
     function loadMarkdownHelpDialog() {

@@ -6,8 +6,8 @@
 
             <div id="ODRMarkdown_content" class="ODRAccordionWrapper ODRTabAccordion">
                 <div id="ODRMarkdown_tabheader" class="pure-u-1 ODRTabButtonHeader">
-                    <button class="pure-button ODRTabButton" rel="emphasis">Emphasis</button>
                     <button class="pure-button ODRTabButton" rel="headings">Headings</button>
+                    <button class="pure-button ODRTabButton" rel="emphasis">Emphasis</button>
                     <button class="pure-button ODRTabButton" rel="links">Links</button>
                     <button class="pure-button ODRTabButton" rel="lists">Lists</button>
                     <button class="pure-button ODRTabButton" rel="code">Code</button>
@@ -16,27 +16,6 @@
                 <div>
                     <div class="pure-u-1-2"><h1>Text using Markdown syntax</h1></div>
                     <div class="pure-u-1-2"><h1>Text viewed in a browser</h1></div>
-                </div>
-
-                <div id="ODRMarkdown_emphasis" class="ODRFieldArea pure-u-1">
-                    <div class="pure-u-1-2">
-                        <textarea class="ODRMarkdown_source" id="ODRMarkdown_emphasis_source" readonly>
-## Emphasis
-
-Using a _single_ \* or \_ character creates _italic_ text.
-
-Using **two** \* or \_ characters in a row creates __bold text__.
-
-Using ___three___ \* or \_ characters in a row creates ***bold and italic*** text.
-
-You **can _also_ combine** one __type of *emphasis* inside__ another.
-
-Placing a \\ character before the \* or \_ characters will cause them \*\*to not\*\* be interpreted for emphasizing text.
-                        </textarea>
-                    </div>
-                    <div class="pure-u-1-2">
-                        <div class="ODRMarkdown_result" id="ODRMarkdown_emphasis_result"></div>
-                    </div>
                 </div>
 
                 <div id="ODRMarkdown_headings" class="ODRFieldArea pure-u-1">
@@ -49,18 +28,29 @@ The # symbol at the beginning of a line denotes a heading.
 # h1 Heading
 ## h2 Heading
 
-You're allowed to use up to six # characters in a row, but most websites (ODR included) tend to use specific styling for those elements.
-
 ___
 Three hyphens, underscores, or asterisks in a row creates a horizontal line
-
----
-Text right above three hyphens is a shortcut for the h2 Heading
----
                         </textarea>
                     </div>
                     <div class="pure-u-1-2">
                         <div class="ODRMarkdown_result" id="ODRMarkdown_headings_result"></div>
+                    </div>
+                </div>
+
+                <div id="ODRMarkdown_emphasis" class="ODRFieldArea pure-u-1">
+                    <div class="pure-u-1-2">
+                        <textarea class="ODRMarkdown_source" id="ODRMarkdown_emphasis_source" readonly>
+## Emphasis
+
+Using a _single_ underscore or asterisk character creates _italic_ text.
+
+Using **two** of those characters in a row creates __bold text__.
+
+You **can _also_ combine** one __type of *emphasis* inside__ another.
+                        </textarea>
+                    </div>
+                    <div class="pure-u-1-2">
+                        <div class="ODRMarkdown_result" id="ODRMarkdown_emphasis_result"></div>
                     </div>
                 </div>
 
@@ -86,13 +76,11 @@ You can also create a [link](http://www.opendatarepository.org "sample tooltip")
 
 Unordered
 
-+ Create a list by starting a line with `+`, `-`, or `*`
-+ Sub-lists are made by indenting 2 spaces:
-  - Marker character change forces new list start:
-    * Praesent dapibus id libero sit amet consectetur
-    + Proin nec libero ac orci aliquet elementum
-    - Nullam venenatis ligula vitae justo facilisis rutrum
-+ Very easy!
+* Create a list by starting a line with the `*` character
+* Sub-lists are made by indenting 2 spaces:
+  * Praesent dapibus id libero sit amet consectetur
+  * Proin nec libero ac orci aliquet elementum
+* Back to original indentation
 
 Ordered
 
@@ -127,6 +115,7 @@ var c = a + b;
                         <div class="ODRMarkdown_result" id="ODRMarkdown_code_result"></div>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
