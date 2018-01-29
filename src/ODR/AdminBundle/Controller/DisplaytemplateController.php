@@ -1983,6 +1983,9 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_meta->setDescription("New Child Type");
             $datatype_meta->setXmlShortName('');
 
+            $datatype_meta->setSearchNotesUpper(null);
+            $datatype_meta->setSearchNotesLower(null);
+
             $datatype_meta->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
 
             $datatype_meta->setExternalIdField(null);
@@ -5199,6 +5202,74 @@ if ($debug)
         }
         catch (\Exception $e) {
             $source = 0x6c5fbda1;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Saves changes to search notes from the search page.
+     *
+     * @param integer $datatype_id
+     * @param string $position
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function savesearchnotesAction($datatype_id, /*$position,*/ Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $post = $request->request->all();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            if ( !isset($post['upper_value']) || !isset($post['lower_value']) )
+                throw new ODRBadRequestException('Invalid Form');
+
+
+            // Set the properties array correctly and save to the database
+            $properties = array(
+                'searchNotesUpper' => $post['upper_value'],
+                'searchNotesLower' => $post['lower_value'],
+            );
+            parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+
+            // TODO - return something?
+        }
+        catch (\Exception $e) {
+            $source = 0xc3bf4313;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else

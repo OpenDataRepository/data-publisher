@@ -2750,6 +2750,9 @@ class ODRCustomController extends Controller
             'description' => $old_meta_entry->getDescription(),
             'xml_shortName' => $old_meta_entry->getXmlShortName(),
 
+            'searchNotesUpper' => $old_meta_entry->getSearchNotesUpper(),
+            'searchNotesLower' => $old_meta_entry->getSearchNotesLower(),
+
             'publicDate' => $old_meta_entry->getPublicDate(),
             'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
             'master_revision' => $old_meta_entry->getMasterRevision(),
@@ -2808,6 +2811,9 @@ class ODRCustomController extends Controller
             $new_datatype_meta->setDescription( $old_meta_entry->getDescription() );
             $new_datatype_meta->setXmlShortName( $old_meta_entry->getXmlShortName() );
 
+            $new_datatype_meta->setSearchNotesUpper(null);
+            $new_datatype_meta->setSearchNotesLower(null);
+
             $new_datatype_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
             $new_datatype_meta->setMasterRevision( $old_meta_entry->getMasterRevision() );
@@ -2861,6 +2867,11 @@ class ODRCustomController extends Controller
             $new_datatype_meta->setDescription( $properties['description'] );
         if ( isset($properties['xml_shortName']) )
             $new_datatype_meta->setXmlShortName( $properties['xml_shortName'] );
+
+        if ( isset($properties['searchNotesUpper']) )
+            $new_datatype_meta->setSearchNotesUpper( $properties['searchNotesUpper'] );
+        if ( isset($properties['searchNotesLower']) )
+            $new_datatype_meta->setSearchNotesLower( $properties['searchNotesLower'] );
 
         if ( isset($properties['publicDate']) )
             $new_datatype_meta->setPublicDate( $properties['publicDate'] );

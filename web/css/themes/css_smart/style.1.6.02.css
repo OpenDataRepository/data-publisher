@@ -396,6 +396,7 @@ footer ul li:first-child {
     padding-left: 0.6em;
 }
 
+.pure-skin-odr .pure-form textarea,
 .pure-skin-odr .pure-form .ODRRecord input[type="text"],
 .pure-skin-odr .pure-form .ODRRecord input[type="password"],
 .pure-skin-odr .pure-form .ODRRecord input[type="email"],

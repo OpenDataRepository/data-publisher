@@ -571,6 +571,13 @@ odr_markdown_help_dialog:
     path:  /design/displaytemplate/markdownhelp
     defaults: { _controller: ODRAdminBundle:Displaytemplate:markdownhelp }
 
+odr_save_search_notes:
+    path:  /design/displaytemplate/save_notes/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:savesearchnotes }
+    requirements:
+        datatype_id: \d+
+
+
 #-----------------------------------------
 
 #-----------------------------------------

@@ -1815,11 +1815,6 @@ footer {
 }
 
 
-
-.Hide {
-    display: none;
-}
-
 #content {
     border: none;
 }
@@ -2489,6 +2484,7 @@ form .row {
 }
 
 /* Borders around top-level TEDs/Groups */
+.ODRContentWrapper > .ODRThemeElement > .ODRInnerBox,
 .ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
 .ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
@@ -2502,6 +2498,8 @@ form .row {
     border: 2px solid rgba(185, 186, 246, 0.25); 
     border-radius: 4px;
 }
+.ODRContentWrapper > .ODRThemeElement > .ODRInnerBox,
+.ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
 .ODRShortResult > .ODRShortResults > .DataRecordShort,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement,
 .ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,
@@ -3686,7 +3684,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 #ODRReturnToSearchResults {
-    padding-top: 9px;
+    padding-top: 10px;
     padding-bottom: 10px;
 }
 
@@ -3697,4 +3695,39 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 .overhang {
     position: relative;
     letter-spacing: normal;
+}
+
+.ODRSearchPageNotes_wrapper {
+    box-sizing: border-box;
+    padding: 4px 4px 4px 8px;
+}
+
+.ODRSearchPageNotes_wrapper p {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 6px;
+    padding-bottom: 4px;
+}
+#odr_bg {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+#search_form {
+    padding-left: 8px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+.ODRMarkdown_source {
+    overflow: auto;
+    height: 500px;
+    width: 75%;
+}
+.ODRMarkdown_result {
+    overflow: auto;
+    height: 500px;
+    width: 75%;
+    text-align: left;
+    color: #2b2e38;
 }

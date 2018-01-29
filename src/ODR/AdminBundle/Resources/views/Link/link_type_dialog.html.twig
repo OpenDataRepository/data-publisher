@@ -1,14 +1,9 @@
 {% spaceless %}
 
 <!-- Link DataType Dialog -->
-{#
-<div class="pure-form pure-g" style="display: none;" id="dialog_link_datatype" title="Link to a remote Datatype...">
-    <div class="form_contents pure-u-1"></div>
-</div><!-- End of #dialog_link_datatype -->
-#}
 
 <script>
-    var link_datatype_dialog_body = '<div id="ODRLinkDatatypeFormWrapper" class="Hide"> </div>';
+    var link_datatype_dialog_body = '<div id="ODRLinkDatatypeFormWrapper" class="ODRHidden"> </div>';
 
     function openLinkDatatypeDialog(local_datatype_id, theme_element_id) {
         // open dialog

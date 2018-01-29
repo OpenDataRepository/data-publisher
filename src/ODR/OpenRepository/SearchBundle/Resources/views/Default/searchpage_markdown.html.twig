@@ -1,0 +1,37 @@
+{% spaceless %}
+
+{% set upper_value = target_datatype.dataTypeMeta.searchNotesUpper %}
+{% set lower_value = target_datatype.dataTypeMeta.searchNotesLower %}
+
+{% set content = '' %}
+{% if position == 'upper' %}
+    {% set content = upper_value %}
+{% elseif position == 'lower' %}
+    {% set content = lower_value %}
+{% endif %}
+
+{% if position == 'upper' %}
+<form id="ODRSearchPageNotes_form">
+    <input type="hidden" id="upper_old" name="upper_old" value="{{ upper_value }}" />
+    <input type="hidden" id="upper_value" name="upper_value" value="{{ upper_value }}" />
+    <input type="hidden" id="lower_old" name="lower_old" value="{{ lower_value }}" />
+    <input type="hidden" id="lower_value" name="lower_value" value="{{ lower_value }}" />
+</form>
+{% endif %}
+
+<div id="ODRSearchPageNotes_{{ position }}" class="ODRSearchPageNotes_wrapper pure-u-1{%  if(content == "") %} ODRHidden{% endif %}">
+
+    <div id="{{ position }}_rendered" class="ODRSearchPageNotes_rendered pure-u-1">
+        {{ content|markdown }}
+    </div>
+
+    {% if is_datatype_admin %}
+    <div class="ODRSearchPageNotes_edit pure-u-1 ODRHidden">
+        <p>Enter text or <a class="ODRMarkdownHelp_open">MarkDown</a> in the box below to have it appear in this location on the page.</p>
+        <textarea rows="4" id="{{ position }}_raw" class="pure-u-1 ODRSearchPageNotes_textarea">{{ content }}</textarea>
+        <button class="pure-button pure-button-primary ODRSearchPageNotes_save FRight">Save Notes</button>
+    </div>
+    {% endif %}
+</div>
+
+{% endspaceless %}
