@@ -833,6 +833,7 @@ class EditController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            // TODO - should a new permission be added to control this...potentially one related to changing public status of datarecords?
             if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
@@ -997,6 +998,7 @@ class EditController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            // TODO - should a new permission be added to control this...potentially one related to changing public status of datarecords?
             if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
@@ -1578,6 +1580,7 @@ class EditController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
+            // TODO - create a new permission specifically for changing public status of datarecords?
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
@@ -2903,19 +2906,22 @@ exit();
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                return parent::deletedEntityError('Datarecord');
+                throw new ODRNotFoundException('Datarecord');
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
-                return parent::deletedEntityError('Datafield');
+                throw new ODRNotFoundException('Datafield');
 
             $datatype = $datafield->getDataType();
             if ($datatype->getDeletedAt() !== null)
-                return parent::deletedEntityError('Datatype');
+                throw new ODRNotFoundException('Datatype');
 
 
             // ----------------------------------------
@@ -2923,14 +2929,10 @@ exit();
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                return parent::permissionDeniedError('You need to be a super-admin to view datafield history, for now');    // TODO - less restrictive requirements?
+                throw new ODRForbiddenException();
 
-            // Ensure user has permissions to be doing this
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_edit' ])) )
-                return parent::permissionDeniedError("edit");
+            if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
+                throw new ODRForbiddenException();
             // ----------------------------------------
 
 
@@ -3037,9 +3039,11 @@ exit();
             );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x29534288935 ' . $e->getMessage();
+            $source = 0xb2073584;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));

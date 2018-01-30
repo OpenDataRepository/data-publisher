@@ -123,6 +123,9 @@ class PermissionsManagementService
     /**
      * Returns whether the given user can view the given Datatype.
      *
+     * Users with this permission are able to...
+     *  - view non-public datatypes
+     *
      * @param ODRUser $user
      * @param DataType $datatype
      *
@@ -160,6 +163,11 @@ class PermissionsManagementService
      * Returns whether the given user can view the given Datarecord.  If the user has this
      * permission, then they automatically have permission to view the Datatype.
      *
+     * Users with this permission are able to...
+     *  - view non-public datatypes (due to automatically having the "can_view_datatype" permission)
+     *  - view non-public datarecords
+     *  - view non-public files/images (if they are also able to view the datafield itself)
+     *
      * @param ODRUser $user
      * @param DataRecord $datarecord
      *
@@ -184,6 +192,8 @@ class PermissionsManagementService
         if ( isset($datatype_permissions[ $datatype->getId() ])
             && isset($datatype_permissions[ $datatype->getId() ]['dr_view'])
         ) {
+            // TODO - add datarecord_restriction to this
+
             // User has the can_view_datarecord permission
             return true;
         }
@@ -197,6 +207,11 @@ class PermissionsManagementService
     /**
      * Returns whether the given user can create a new Datarecord for this Datatype.  If the user
      * has this permission, then they automatically have permission to view the Datatype.
+     *
+     * Users with this permission are able to...
+     *  - create new datarecords for this datatype
+     *
+     * TODO - eventually work a datarecord restriction into this?  would have to auto-set datarecord properties and/or datafield contents to match...
      *
      * @param ODRUser $user
      * @param DataType $datatype
@@ -229,7 +244,15 @@ class PermissionsManagementService
     /**
      * Returns whether the given user can edit this Datarecord.  If the user has this permission,
      * then they automatically have permission to view the Datatype.
-     * TODO - Eventually need the ability to allow/deny based on a search result...
+     *
+     * This permission isn't directly stored in the database, but is automatically granted when the
+     * user has the "can_edit_datafield" permission for at least one Datafield in this Datarecord's
+     * Datatype.  It is also granted if the user has the "can_edit_datafield" permission for any of
+     * this Datatype's children.
+     *
+     * Users with this permission are able to...
+     *  - access the edit page of this datarecord
+     *  - add/remove linked datarecords to this datarecord (assuming other permissions exist)
      *
      * @param ODRUser $user
      * @param DataRecord $datarecord
@@ -250,6 +273,8 @@ class PermissionsManagementService
         if ( isset($datatype_permissions[ $datatype->getId() ])
             && isset($datatype_permissions[ $datatype->getId() ]['dr_edit'])
         ) {
+            // TODO - add datarecord_restriction to this
+
             // User has the can_edit_datarecord permission
             return true;
         }
@@ -263,7 +288,11 @@ class PermissionsManagementService
     /**
      * Returns whether the given user can delete a Datarecord in the given Datatype.  If the user
      * has this permission, then they automatically have permission to view the Datatype.
-     * TODO - Eventually need the ability to allow/deny based on a search result...
+     *
+     * Users with this permission are able to...
+     *  - deleting existing datarecords of this datatype
+     *
+     * TODO - Eventually need the ability to allow/deny based on a search result?  Implementing this would allow people to be restricted to deleting datarecords they created, for instance...
      *
      * @param ODRUser $user
      * @param DataType $datatype
@@ -293,12 +322,22 @@ class PermissionsManagementService
     }
 
 
-    // TODO - add the can_design_datatype permission?  it's ignored due to is_datatype_admin permission...
+    // TODO - implement a permission specifically for linking datarecords?  or modify linking datarecords to use the "can_add/delete_datarecord" permissions?
+
+    // TODO - implement some kind of "can_change_public_status" permission?  currently need to have the "is_datatype_admin" to change public status...
+
+    // TODO - implement the "can_design_datatype" permission?  it's currently controlled by the "is_datatype_admin" permission...
 
 
     /**
      * Returns whether the given user is considered an admin of the given Datatype.  If the user
      * has this permission, then they automatically have permission to view the Datatype.
+     *
+     * Users with this permission are able to...
+     *  - run CSV Imports for this datatype
+     *  - modify the "master" theme for a datatype
+     *  - change public status of datarecords for this datatype
+     *  - create/modify/delete user groups for this datatype
      *
      * @param ODRUser $user
      * @param DataType $datatype
@@ -331,6 +370,9 @@ class PermissionsManagementService
     /**
      * Returns whether the given user can view the given Datafield.  The caller MUST check whether
      * the user is permitted to view the Datarecord as well.
+     *
+     * Users with this permission are able to...
+     *  - always see this datafield (must be logged-in, has no effect if datafield is public)
      *
      * @param ODRUser $user
      * @param DataFields $datafield
@@ -366,6 +408,11 @@ class PermissionsManagementService
 
     /**
      * Returns whether the given user can edit the given Datafield for the given Datarecord.
+     *
+     * Users with this permission are able to...
+     *  - change the content of this datafield
+     *  - upload/delete files/images from this datafield
+     *  - change public status of files/images in this datafield
      *
      * @param ODRUser $user
      * @param DataFields $datafield

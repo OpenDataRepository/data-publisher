@@ -188,22 +188,6 @@ odr_manage_group_permissions:
     requirements:
         group_id:  \d+
 
-odr_group_permissions_reload_childtype:
-    path:  /admin/group/permissions/reload/childtype/{group_id}/{source_datatype_id}/{childtype_id}
-    defaults: { _controller: ODRAdminBundle:ODRGroup:reloadchildtype }
-    requirements:
-        group_id:  \d+
-        source_datatype_id:  \d+
-        childtype_id:  \d+
-
-#odr_group_permissions_reload_theme_element:
-#    path:  /admin/group/permissions/reload/theme_element/{group_id}/{source_datatype_id}/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:ODRGroup:reloadthemeelement }
-#    requirements:
-#        group_id:  \d+
-#        source_datatype_id:  \d+
-#        theme_element_id:  \d+
-
 
 odr_save_group_datatype_permission:
     path:  /admin/group/savepermissions/datatype/{group_id}/{datatype_id}/{value}/{permission}

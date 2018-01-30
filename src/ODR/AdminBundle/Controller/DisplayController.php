@@ -683,53 +683,43 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
-            // Locate the file in the database
+
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
-                return parent::deletedEntityError('File');
+                throw new ODRNotFoundException('File');
+
             $datafield = $file->getDataField();
-            if ($datafield == null)
-                return parent::deletedEntityError('DataField');
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
             $datarecord = $file->getDataRecord();
-            if ($datarecord == null)
-                return parent::deletedEntityError('DataRecord');
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
             $datatype = $datarecord->getDataType();
-            if ($datatype == null)
-                return parent::deletedEntityError('DataType');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
 
             // Files that aren't done encrypting shouldn't be downloaded
             if ($file->getEncryptKey() == '')
-                return parent::deletedEntityError('File');
+                throw new ODRException('File');
+
 
             // ----------------------------------------
             // Ensure user has permissions to be doing this
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            // Grab the user's permission list
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                $can_view_datatype = true;
-
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                $can_view_datarecord = true;
-
-            $can_view_datafield = false;
-            if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                $can_view_datafield = true;
-
-            // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-            if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
-                return parent::permissionDeniedError();
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canEditDatarecord($user, $datarecord) )
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatafield($user, $datafield) )
+                throw new ODRForbiddenException();
             // ----------------------------------------
 
 
@@ -742,18 +732,20 @@ class DisplayController extends ODRCustomController
                 $temp_filename .= '.'.$file->getExt();
 
                 // Ensure that the memcached marker for the decryption of this file does not exist
-                $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
+                $file_decryptions = $cache_service->get('file_decryptions');
                 if ($file_decryptions != false && isset($file_decryptions[$temp_filename])) {
                     unset($file_decryptions[$temp_filename]);
-                    $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
+                    $cache_service->set('file_decryptions', $file_decryptions);
                 }
             }
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x68387321: ' . $e->getMessage();
+            $source = 0x81bed420;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));

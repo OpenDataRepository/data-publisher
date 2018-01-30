@@ -107,7 +107,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4996d75a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -193,7 +193,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xe68cb492;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -256,7 +256,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xf78fc1d5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -380,7 +380,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8f1ef340;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -495,7 +495,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1f79b99c;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -588,7 +588,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xb66e0e95;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -695,7 +695,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1a83c7b1;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -839,7 +839,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x09f55927;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -991,7 +991,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xbee40f81;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1063,187 +1063,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xf41ca927;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Triggers a re-render and reload of a child DataType div in the design.
-     * @deprecated
-     *
-     * @param integer $group_id            The group being modified
-     * @param integer $source_datatype_id  The database id of the top-level Datatype
-     * @param integer $childtype_id        The database id of the child DataType that needs to be re-rendered.
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function reloadchildtypeAction($group_id, $source_datatype_id, $childtype_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            throw new ODRNotImplementedException();
-
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var DataType $source_datatype */
-            $source_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($source_datatype_id);
-            if ($source_datatype == null)
-                throw new ODRNotFoundException('Source Datatype');
-
-            /** @var DataType $childtype */
-            $childtype = $em->getRepository('ODRAdminBundle:DataType')->find($childtype_id);
-            if ($childtype == null)
-                throw new ODRNotFoundException('Datatype');
-
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $childtype->getId(), 'themeType' => 'master') );
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
-
-            /** @var Group $group */
-            $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
-            if ($group == null)
-                throw new ODRNotFoundException('Group');
-            if ($group->getPurpose() !== '')
-                throw new ODRBadRequestException('Unable to modify permissions for a default Group');
-
-
-            // --------------------
-            // Ensure user has permissions to be doing this
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            // Require admin user to have at least admin role to do this...
-            if ( $user->hasRole('ROLE_ADMIN') ) {
-                // Grab permissions of both target user and admin
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-
-                // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
-                if ( !isset($datatype_permissions[$source_datatype_id]) || !isset($datatype_permissions[$source_datatype_id]['dt_admin']) )
-                    throw new ODRForbiddenException();
-            }
-            else {
-                throw new ODRForbiddenException();
-            }
-            // --------------------
-
-            $return['d'] = array(
-                'datatype_id' => $childtype_id,
-                'html' => self::GetDisplayData($group, $source_datatype_id, 'child_datatype', $childtype_id, $request),
-            );
-        }
-        catch (\Exception $e) {
-            $source = 0x6995341d;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Triggers a re-render and reload of a ThemeElement in the design.
-     * @deprecated
-     *
-     * @param integer $group_id            The group being modified
-     * @param integer $source_datatype_id  The database id of the top-level datatype being rendered?
-     * @param integer $theme_element_id    The database id of the ThemeElement that needs to be re-rendered.
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function reloadthemeelementAction($group_id, $source_datatype_id, $theme_element_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            throw new ODRNotImplementedException();
-
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var DataType $source_datatype */
-            $source_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($source_datatype_id);
-            if ($source_datatype == null)
-                throw new ODRNotFoundException('Source Datatype');
-
-            /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
-            if ($theme_element == null)
-                throw new ODRNotFoundException('ThemeElement');
-
-            $theme = $theme_element->getTheme();
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
-            if ($theme->getThemeType() !== 'master')
-                throw new ODRBadRequestException("Not allowed to re-render a ThemeElement that doesn't belong to the master Theme");
-
-            $datatype = $theme->getDataType();
-            if ($datatype->getDeletedAt() != null)
-                throw new ODRNotFoundException('Datatype');
-
-            /** @var Group $group */
-            $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
-            if ($group == null)
-                throw new ODRNotFoundException('Group');
-            if ($group->getPurpose() !== '')
-                throw new ODRBadRequestException('Unable to modify permissions for a default Group');
-
-
-            // --------------------
-            // Ensure user has permissions to be doing this
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            // Require admin user to have at least admin role to do this...
-            if ( $user->hasRole('ROLE_ADMIN') ) {
-                // Grab permissions of both target user and admin
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-
-                // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
-                if ( !isset($datatype_permissions[$source_datatype_id]) || !isset($datatype_permissions[$source_datatype_id]['dt_admin']) )
-                    throw new ODRForbiddenException();
-            }
-            else {
-                throw new ODRForbiddenException();
-            }
-            // --------------------
-
-            $datatype_id = null;
-            $return['d'] = array(
-                'theme_element_id' => $theme_element_id,
-                'html' => self::GetDisplayData($group, $source_datatype_id, 'theme_element', $theme_element_id, $request),
-            );
-        }
-        catch (\Exception $e) {
-            $source = 0xcaf44744;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1284,7 +1104,7 @@ class ODRGroupController extends ODRCustomController
         /** @var ThemeInfoService $theme_service */
         $theme_service = $this->container->get('odr.theme_info_service');
 
-        /** @var User $user */
+        /** @var ODRUser $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
         // Load permissions for the specified group
@@ -1318,38 +1138,8 @@ class ODRGroupController extends ODRCustomController
 
 
         // Don't need to check whether these entities are deleted or not
-        if ($template_name == 'default') {
-            $datatype = $repo_datatype->find($target_id);
-            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-        }
-        else if ($template_name == 'child_datatype') {
-            throw new ODRNotImplementedException();     // to match with the rest of the controller...
-
-            $child_datatype = $repo_datatype->find($target_id);
-            $theme = $repo_theme->findOneBy( array('dataType' => $child_datatype->getId(), 'themeType' => 'master') );
-
-            // Need to determine the top-level datatype to be able to load all necessary data for rendering this child datatype
-            if ( isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) && $datatree_array['descendant_of'][ $child_datatype->getId() ] !== '' ) {
-                $datatype = $child_datatype->getGrandparent();
-            }
-            else if ( !isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) || $datatree_array['descendant_of'][ $child_datatype->getId() ] == '' ) {
-                // Was actually a re-render request for a top-level datatype...re-rendering should still work properly if various flags are set right
-                $datatype = $child_datatype;
-            }
-        }
-        else if ($template_name == 'theme_element') {
-            throw new ODRNotImplementedException();     // to match with the rest of the controller...
-
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($target_id);
-            $theme = $theme_element->getTheme();
-
-            // This could be a theme element from a child datatype...make sure objects get set properly if it is
-            $datatype = $theme->getDataType();
-            if ( isset($datatree_array['descendant_of'][ $datatype->getId() ]) && $datatree_array['descendant_of'][ $datatype->getId() ] !== '' ) {
-                $child_datatype = $theme->getDataType();
-                $datatype = $child_datatype->getGrandparent();
-            }
-        }
+        $datatype = $repo_datatype->find($target_id);
+        $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
 
 
         // ----------------------------------------
@@ -1368,96 +1158,20 @@ class ODRGroupController extends ODRCustomController
         // ----------------------------------------
         // Render the required version of the page
         $templating = $this->get('templating');
+        $html = $templating->render(
+            'ODRAdminBundle:ODRGroup:permissions_ajax.html.twig',
+            array(
+                'group' => $group,
+                'datatype_permissions' => $datatype_permissions,
+                'datafield_permissions' => $datafield_permissions,
 
-        $html = '';
-        if ($template_name == 'default') {
-            $html = $templating->render(
-                'ODRAdminBundle:ODRGroup:permissions_ajax.html.twig',
-                array(
-                    'group' => $group,
-                    'datatype_permissions' => $datatype_permissions,
-                    'datafield_permissions' => $datafield_permissions,
+                'datatype_array' => $datatype_array,
+                'initial_datatype_id' => $source_datatype_id,
+                'theme_array' => $theme_array,
 
-                    'datatype_array' => $datatype_array,
-                    'initial_datatype_id' => $source_datatype_id,
-                    'theme_array' => $theme_array,
-
-                    'prevent_all_changes' => $prevent_all_changes,
-                )
-            );
-        }
-        else if ($template_name == 'child_datatype') {
-            // Set variables properly incase this was a theme_element for a child/linked datatype
-            $target_datatype_id = $child_datatype->getId();
-            $is_top_level = 1;
-            if ($child_datatype->getId() !== $datatype->getId())
-                $is_top_level = 0;
-
-
-            // TODO - not really preventing this earlier i think...
-            // If the top-level datatype id found doesn't match the original datatype id of the design page, then this is a request for a linked datatype
-            $is_link = 0;
-            if ($source_datatype_id != $datatype->getId()) {
-                $is_top_level = 0;
-                $is_link = 1;
-            }
-
-            $html = $templating->render(
-                'ODRAdminBundle:ODRGroup:permissions_childtype.html.twig',
-                array(
-                    'group' => $group,
-                    'datatype_array' => $datatype_array,
-                    'target_datatype_id' => $target_datatype_id,
-                    'theme_array' => $theme_array,
-
-                    'datatype_permissions' => $datatype_permissions,
-                    'datafield_permissions' => $datafield_permissions,
-
-                    'is_top_level' => $is_top_level,
-                    'prevent_all_changes' => $prevent_all_changes,
-                )
-            );
-        }
-        else if ($template_name == 'theme_element') {
-            // Set variables properly incase this was a theme_element for a child/linked datatype
-            $target_datatype_id = $datatype->getId();
-            $is_top_level = 1;
-            if ($child_datatype !== null) {
-                $target_datatype_id = $child_datatype->getId();
-                $is_top_level = 0;
-            }
-
-            // TODO - not really preventing this earlier i think...
-            // If the top-level datatype id found doesn't match the original datatype id of the design page, then this is a request for a linked datatype
-            $is_link = 0;
-            if ($source_datatype_id != $datatype->getId())
-                $is_link = 1;
-
-            // design_fieldarea.html.twig attempts to render all theme_elements in the given theme...
-            // Since this is a request to only re-render one of them, unset all theme_elements in the theme other than the one the user wants to re-render
-            foreach ($datatype_array[ $target_datatype_id ]['themes'][ $theme->getId() ]['themeElements'] as $te_num => $te) {
-                if ( $te['id'] != $target_id )
-                    unset( $datatype_array[ $target_datatype_id ]['themes'][ $theme->getId() ]['themeElements'][$te_num] );
-            }
-
-//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
-
-            $html = $templating->render(
-                'ODRAdminBundle:ODRGroup:permissions_fieldarea.html.twig',
-                array(
-                    'group' => $group,
-                    'datatype_permissions' => $datatype_permissions,
-                    'datafield_permissions' => $datafield_permissions,
-
-                    'datatype_array' => $datatype_array,
-                    'target_datatype_id' => $target_datatype_id,
-                    'theme_id' => $theme->getId(),
-
-                    'is_top_level' => $is_top_level,
-                    'prevent_all_changes' => $prevent_all_changes,
-                )
-            );
-        }
+                'prevent_all_changes' => $prevent_all_changes,
+            )
+        );
 
         return $html;
     }
@@ -1695,7 +1409,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x87b4186b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1845,7 +1559,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xaf7407e0;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

@@ -31,6 +31,7 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Services
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -129,6 +130,10 @@ class FlowController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             // uploads to file/image datafields MUST have datarecord/datafield ids
             if ( ($upload_type == 'file' || $upload_type == 'image') && ($datarecord_id == 0 || $datafield_id == 0) )
                 return self::flowAbort('Invalid parameters');
@@ -168,18 +173,8 @@ class FlowController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_id = $user->getId();
 
-            $user_permissions = parent::getUserPermissionsArray($em, $user_id);
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dr_edit' ]) )
-                $can_edit_datarecord = true;
-
-            $is_datatype_admin = false;
-            if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ]) )
-                $is_datatype_admin = true;
-
+            $can_edit_datarecord = $pm_service->canEditDatarecord($user, $datarecord);
+            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
 
             // Ensure user has permissions to be doing this
             if ($upload_type == 'csv' || $upload_type == 'xml') {
@@ -192,10 +187,7 @@ class FlowController extends ODRCustomController
             }
 
             if ($datafield !== null) {
-                $can_edit_datafield = false;
-                if ( isset($datafield_permissions[ $datafield_id ]) && isset($datafield_permissions[ $datafield_id ][ 'edit' ]) )
-                    $can_edit_datafield = true;
-
+                $can_edit_datafield = $pm_service->canEditDatafield($user, $datafield, $datarecord);
                 if ( !$can_edit_datafield )
                     return self::flowAbort('Not allowed to edit this Datafield');
 

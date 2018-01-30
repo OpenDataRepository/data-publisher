@@ -28,8 +28,9 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-// Forms
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -56,16 +57,23 @@ class XSDController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            throw new ODRNotImplementedException();
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DataType $datatype_id */
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
             // Ensure this is a top-level datatype
-            $top_level_datatypes = parent::getTopLevelDatatypes();
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
 //print '<pre>'.print_r($top_level_datatypes, true).'</pre>'; exit();
             if ( !in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('Unable to generate an XML Schema Document for a Datatype that is not top level');
@@ -79,29 +87,9 @@ class XSDController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            if ( $user === 'anon.' ) {
-                if ( $datatype->isPublic() ) {
-                    /* anonymous users aren't restricted from viewing a public datatype */
-                }
-                else {
-                    // ...otherwise, datatype is not public, don't let anonymous users see it
-                    throw new ODRForbiddenException();
-                }
-            }
-            else {
-                // Grab user's permissions
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
 
-                // If user has view permissions, show non-public sections of the datarecord
-                $has_view_permission = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $has_view_permission = true;
-
-                // If datatype is not public and user doesn't have the correct permissions, don't let them view the datatype
-                if ( !($datatype->isPublic() || $has_view_permission) )
-                    throw new ODRForbiddenException();
-            }
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
             // ----------------------------------------
 
 
@@ -123,7 +111,7 @@ class XSDController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xd6c39f82;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getstatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -142,6 +130,8 @@ class XSDController extends ODRCustomController
      */
     private function XSD_GetDisplayData($em, $version, $datatype_id, Request $request)
     {
+        throw new ODRNotImplementedException();
+
         /** @var PermissionsManagementService $pm_service */
         $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -159,15 +149,7 @@ class XSDController extends ODRCustomController
         // Determine user privileges
         /** @var User $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-        $user_permissions = array();
-
-        if ($user === 'anon.') {
-            // public datatype, anybody can view
-        }
-        else {
-            // Grab user's permissions
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-        }
+        $user_permissions = $pm_service->getUserPermissionsArray($user);
         // ----------------------------------------
 
 
