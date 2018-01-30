@@ -418,6 +418,7 @@ print '$links: '.print_r($links, true)."\n";
             // Check if user has permission to view datatype
             $target_datatype_id = $target_datatype->getId();
 
+            // TODO - can't use permissions service because don't have an actual datarecord...
             $can_view_datarecord = false;
             if ( isset($datatype_permissions[ $target_datatype_id ]) && isset($datatype_permissions[ $target_datatype_id ][ 'dr_view' ]) )
                 $can_view_datarecord = true;
@@ -448,6 +449,7 @@ print '$links: '.print_r($links, true)."\n";
                 // Determine whether the user is allowed to view the background image datafield
                 $df = $target_datatype->getBackgroundImageField();
 
+                // TODO - can't use permissions service because don't have an actual datarecord...
                 $can_view_datafield = false;
                 if ( isset($datafield_permissions[$df->getId()]) && isset($datafield_permissions[$df->getId()]['view']) )
                     $can_view_datafield = true;
@@ -1158,7 +1160,7 @@ if (isset($debug['timing'])) {
         $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
         // Don't allow user to search the datatype if it's non-public and they can't view it
-        if ( !$target_datatype->isPublic() && !( isset($datatype_permissions[$target_datatype_id]) && $datatype_permissions[$target_datatype_id]['dt_view'] == 1) )
+        if ( !$pm_service->canViewDatatype($user, $target_datatype) )
             return array( 'error' => true, 'redirect' => false, 'message' => 'Permission Denied');
 
 
