@@ -492,13 +492,17 @@ class ODRCustomController extends Controller
 
         $search_params = $search_cache_service->decodeSearchKey($search_key);
 
+        // Use the permissions of the currently logged in user
+        $search_as_super_admin = false;
+
         // Determine whether the search key needs to be filtered based on the user's permissions
-        $datafield_array = $search_controller->getSearchDatafieldsForUser($em, $user, $datatype_id, $datatype_permissions, $datafield_permissions);
-        $search_controller->buildSearchArray($search_params, $datafield_array, $datatype_permissions);
+        $datafield_array = $search_controller->getSearchDatafieldsForUser($em, $datatype_id, $search_as_super_admin, $datatype_permissions, $datafield_permissions);
+        $search_controller->buildSearchArray($search_params, $datafield_array, $search_as_super_admin, $datatype_permissions);
 
         if ( $search_key !== $datafield_array['filtered_search_key'] )
             return array('redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key'], 'datarecord_list' => '');
 
+        // TODO - can't use permissions service here because don't have an actual datarecord...
         $can_view_datarecord = false;
         if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
             $can_view_datarecord = true;
@@ -515,7 +519,7 @@ class ODRCustomController extends Controller
             || !isset($cached_searches[$datatype_id][$search_checksum]) ) {
 
             // Saved search doesn't exist, redo the search and reload the results
-            $ret = $search_controller->performSearch($request, $search_key);
+            $ret = $search_controller->performSearch($search_params);
             if ($ret['error'] == true)
                 throw new \Exception( $ret['message'] );
             else if ($ret['redirect'] == true)

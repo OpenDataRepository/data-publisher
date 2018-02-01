@@ -150,12 +150,13 @@ class DefaultController extends Controller
      * TODO - the results from this don't match with DatatypeInfoService::getAssociatedDatatypes()...links to links aren't found
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $target_datatype_id      If set, which top-level datatype to save child/linked datatypes for
-     * @param array $datatype_permissions      If set, the current user's permissions array
+     * @param bool $search_as_super_admin
+     * @param integer $target_datatype_id      Which top-level datatype to save child/linked datatypes for
+     * @param array $datatype_permissions      The current user's permissions array
      *
      * @return array
      */
-    private function getRelatedDatatypes($em, $target_datatype_id = null, $datatype_permissions = array())
+    private function getRelatedDatatypes($em, $search_as_super_admin, $target_datatype_id, $datatype_permissions)
     {
         //
         $query = $em->createQuery(
@@ -191,8 +192,18 @@ class DefaultController extends Controller
                     $datatype_names[$ancestor_id] = $ancestor_name;
                 }
 
+                // TODO - can't use permissions service because don't have an actual datatype...
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[$descendant_id]) && isset($datatype_permissions[$descendant_id]['dt_view']) )
+                    $can_view_datatype = true;
+
+                // If searching as a super admin, then bypass all permissions
+                if ($search_as_super_admin)
+                    $can_view_datatype = true;
+
+
                 // Only save this datatype if the user is allowed to view it
-                if ( $datatype_is_public || (isset($datatype_permissions[$descendant_id]) && isset($datatype_permissions[$descendant_id]['dt_view'])) ) {
+                if ( $can_view_datatype || $datatype_is_public ) {
                     $descendant_of[$ancestor_id][] = $descendant_id;
                     $datatype_names[$descendant_id] = $descendant_name;
                 }
@@ -204,8 +215,17 @@ class DefaultController extends Controller
                     $datatype_names[$ancestor_id] = $ancestor_name;
                 }
 
+                // TODO - can't use permissions service because don't have an actual datatype...
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[$descendant_id]) && isset($datatype_permissions[$descendant_id]['dt_view']) )
+                    $can_view_datatype = true;
+
+                // If searching as a super admin, then bypass all permissions
+                if ($search_as_super_admin)
+                    $can_view_datatype = true;
+
                 // Only save this datatype if the user is allowed to view it
-                if ( $datatype_is_public || (isset($datatype_permissions[$descendant_id]) && isset($datatype_permissions[$descendant_id]['dt_view'])) ) {
+                if ( $can_view_datatype || $datatype_is_public ) {
                     $links[$ancestor_id][] = $descendant_id;
                     $datatype_names[$descendant_id] = $descendant_name;
                 }
@@ -435,7 +455,8 @@ print '$links: '.print_r($links, true)."\n";
             // Need to grab all searchable datafields for the target_datatype and its descendants
 
             // Grab ids of all datatypes related to the requested datatype that the user can view
-            $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $datatype_permissions);
+            $search_as_super_admin = false;
+            $related_datatypes = self::getRelatedDatatypes($em, $search_as_super_admin, $target_datatype_id, $datatype_permissions);
 
             // Grab all searchable datafields
             $searchable_datafields = self::getSearchableDatafields($em, $related_datatypes, $logged_in, $datatype_permissions, $datafield_permissions);
@@ -656,7 +677,9 @@ print '$links: '.print_r($links, true)."\n";
 
             // ----------------------------------------
             // Grab ids of all datatypes related to the requested datatype that the user can view
-            $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $datatype_permissions);
+            $search_as_super_admin = false;
+            $related_datatypes = self::getRelatedDatatypes($em, $search_as_super_admin, $target_datatype_id, $datatype_permissions);
+
             // Grab all searchable datafields 
             $searchable_datafields = self::getSearchableDatafields($em, $related_datatypes, $logged_in, $datatype_permissions, $datafield_permissions);
             // Save which theme the user wants to use to render the search box with
@@ -818,6 +841,7 @@ print '$links: '.print_r($links, true)."\n";
             $datatype_id = $search_params['dt_id'];
             if ( $datatype_id == '' || !is_numeric($datatype_id) )
                 throw new \Exception('Invalid search string');
+            $datatype_id = intval($datatype_id);
 
 
             // Attempt to grab the list of datarecords from the cache...
@@ -1022,14 +1046,26 @@ print '$links: '.print_r($links, true)."\n";
         $return['d'] = '';
 
         try {
-            // Run a search based off the POST
-            $search_params = self::performSearch($request);
+            // ----------------------------------------
+            // Going to use the data in the POST request to build a new search key
+            $search_params = $request->request->all();
 
+            // The POST data probably has a whole pile of empty keys...not entirely sure why
+            foreach ($search_params as $key => $value) {
+                if (trim($value) == '')
+                    unset( $search_params[$key] );
+            }
+            ksort($search_params);
+
+            // Run a search based off those parameters
+            $search_params = self::performSearch($search_params);
+
+
+            // ----------------------------------------
             if ( $search_params['error'] == true ) {
                 throw new \Exception( $search_params['message'] );
             }
             else if ( $search_params['redirect'] == true ) {
-                // Theoretically, this should never be true...
                 /** @var ODRCustomController $odrcc */
                 $odrcc = $this->get('odr_custom_controller', $request);
                 $odrcc->setContainer($this->container);
@@ -1068,14 +1104,14 @@ print '$links: '.print_r($links, true)."\n";
     /**
      * Searches a DataType for all DataRecords matching the user-defined search criteria, then
      * caches the result.
-     * 
+     *
      * @param Request $request
-     * @param string $search_key If set, then use that for the search terms
-     *                           If not set, then look in the POST for the search terms
+     * @param array $search_params
+     * @param bool $search_as_super_admin if true, then bypass all permissions filtering
      *
      * @return boolean|array true if no error, or array with necessary data otherwise
      */
-    public function performSearch(Request $request, $search_key = '')
+    public function performSearch($search_params, $search_as_super_admin = false)
     {
         // Grab default objects
         /** @var \Doctrine\ORM\EntityManager $em */
@@ -1089,7 +1125,7 @@ print '$links: '.print_r($links, true)."\n";
         $search_cache_service = $this->container->get('odr.search_cache_service');
 
         /** @var ODRCustomController $odrcc */
-        $odrcc = $this->get('odr_custom_controller', $request);
+        $odrcc = $this->get('odr_custom_controller');
         $odrcc->setContainer($this->container);
 
 
@@ -1115,27 +1151,6 @@ if (isset($debug['timing'])) {
 }
 
         // ----------------------------------------
-        // Load the array version of what was searched
-        $search_params = array();
-
-        if ($search_key == '') {
-            // Going to use the data in the POST request to build a new search key
-            $search_params = $request->request->all();
-
-            // The POST data probably has a whole pile of empty keys...not entirely sure why
-            foreach ($search_params as $key => $value) {
-                if (trim($value) == '')
-                    unset( $search_params[$key] );
-            }
-            ksort($search_params);
-//            print '<pre>'.print_r($search_params, true).'</pre>';  exit();
-        }
-        else {
-            $search_params = $search_cache_service->decodeSearchKey($search_key);
-        }
-
-
-        // ----------------------------------------
         // If the datatype isn't specified, throw an error
         if ( !isset($search_params['dt_id']) )
             return array( 'error' => true, 'redirect' => false, 'message' => 'Invalid search query');
@@ -1144,13 +1159,12 @@ if (isset($debug['timing'])) {
         $target_datatype_id = $search_params['dt_id'];
         if ( !is_numeric($target_datatype_id) )
             return array( 'error' => true, 'redirect' => false, 'message' => 'This Datatype is deleted');
+        $target_datatype_id = intval($target_datatype_id);
 
         /** @var DataType $target_datatype */
         $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($target_datatype_id);
         if ($target_datatype == null)
             return array( 'error' => true, 'redirect' => false, 'message' => 'This Datatype is deleted');
-
-        $target_datatype_id = intval($target_datatype_id);
 
 
         // Determine level of user's permissions...
@@ -1159,14 +1173,16 @@ if (isset($debug['timing'])) {
         $datatype_permissions = $pm_service->getDatatypePermissions($user);
         $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
-        // Don't allow user to search the datatype if it's non-public and they can't view it
-        if ( !$pm_service->canViewDatatype($user, $target_datatype) )
-            return array( 'error' => true, 'redirect' => false, 'message' => 'Permission Denied');
+        if ( !$search_as_super_admin ) {
+            // Don't allow user to search the datatype if it's non-public and they can't view it
+            if (!$pm_service->canViewDatatype($user, $target_datatype))
+                return array('error' => true, 'redirect' => false, 'message' => 'Permission Denied');
+        }
 
 
         // ----------------------------------------
         // Get a list of all datafields the user is allowed to search on
-        $datafield_array = self::getSearchDatafieldsForUser($em, $user, $target_datatype_id, $datatype_permissions, $datafield_permissions);
+        $datafield_array = self::getSearchDatafieldsForUser($em, $target_datatype_id, $search_as_super_admin, $datatype_permissions, $datafield_permissions);
 
 if (isset($debug['timing'])) {
     print 'user permissions loaded in '.((microtime(true) - $start_time) * 1000)."ms \n\n";
@@ -1176,7 +1192,7 @@ if (isset($debug['timing'])) {
         // ----------------------------------------
         // Expand $datafield_array with the results of parsing the search key
         $parse_all = true;
-        /*$dropped_datafields = */self::buildSearchArray($search_params, $datafield_array, $datatype_permissions, $parse_all, $debug);
+        /*$dropped_datafields = */self::buildSearchArray($search_params, $datafield_array, $search_as_super_admin, $datatype_permissions, $parse_all, $debug);
 
 
         $search_key = $search_cache_service->encodeSearchKey($search_params);
@@ -1204,7 +1220,7 @@ if (isset($debug['timing'])) {
 
         // ----------------------------------------
         // Grab all datatypes related to the one being searched
-        $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $datatype_permissions);
+        $related_datatypes = self::getRelatedDatatypes($em, $search_as_super_admin, $target_datatype_id, $datatype_permissions);
 
         // Build the arrays that will be used to determine which datarecords matched the search
         $matched_datarecords = array();
@@ -1411,14 +1427,14 @@ if (isset($debug['timing'])) {
      * Returns an array of all valid datafields that the user is allowed to search on
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user
      * @param integer $target_datatype_id
+     * @param bool $search_as_super_admin If true, then bypass all permissions filtering
      * @param array $datatype_permissions
      * @param array $datafield_permissions
      *
      * @return array
      */
-    public function getSearchDatafieldsForUser($em, $user, $target_datatype_id, $datatype_permissions, $datafield_permissions)
+    public function getSearchDatafieldsForUser($em, $target_datatype_id, $search_as_super_admin, $datatype_permissions, $datafield_permissions)
     {
         //
         $datafield_array = array(
@@ -1427,13 +1443,8 @@ if (isset($debug['timing'])) {
             'metadata' => array(),
         );
 
-        // Determine level of user's permissions...
-        $logged_in = false;
-        if ($user !== null && $user !== 'anon.')
-            $logged_in = true;
-
         // Get an array structure of all child/linked datatypes related to the target datatype, filtered by the user's datatype permissions
-        $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $datatype_permissions);
+        $related_datatypes = self::getRelatedDatatypes($em, $search_as_super_admin, $target_datatype_id, $datatype_permissions);
 
         // The next DQL query needs a comma separated list of datatype ids...
         $datatype_list = array();
@@ -1469,9 +1480,15 @@ if (isset($debug['timing'])) {
             if ($public_date == '2200-01-01 00:00:00')
                 $datafield_is_public = false;
 
+            // TODO - don't have an actual datafield to use for the permissions management service...
             $has_view_permission = false;
             if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
                 $has_view_permission = true;
+
+            // If searching as super admin, then always have view permissions
+            if ($search_as_super_admin)
+                $has_view_permission = true;
+
 
             if ( !$datafield_is_public && !$has_view_permission ) {
                 // the user lacks the view permission for this datafield...don't save in $datafield_array
@@ -1511,11 +1528,12 @@ if (isset($debug['timing'])) {
      *
      * @param array $original_search_params
      * @param array $datafield_array
+     * @param bool $search_as_super_admin If true, then bypass all permissions filtering
      * @param array $datatype_permissions
      * @param boolean $parse_all          If false, then will only return the filtered search key...if actually searching, this MUST be true
      * @param array $debug
      */
-    public function buildSearchArray($original_search_params, &$datafield_array, $datatype_permissions, $parse_all = false, $debug = array())
+    public function buildSearchArray($original_search_params, &$datafield_array, $search_as_super_admin, $datatype_permissions, $parse_all = false, $debug = array())
     {
         // May end up needing a redirect if the user doesn't have the required datafield
         //  permissions to see all the datafields in $datafield_array...
@@ -1840,7 +1858,18 @@ if ( isset($debug['basic']))
         //  2) searching datafields of child/linked dataypes must be restricted to public datarecords, or the user would be able to see non-public datarecords
         //  3) searching datafields of just the target datatype can't be restricted by non-public child/linked datatypes...or the user would be able to infer the existence of non-public child/linked datarecords
         foreach ($searched_datatypes as $num => $dt_id) {
-            if ( !( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_view']) ) ) {
+
+            // Store whether this user has the "can_view_datarecord" permission for this datatype...
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            // If searching as a super admin, then bypass all permissions
+            if ($search_as_super_admin)
+                $can_view_datarecord = true;
+
+
+            if ( !$can_view_datarecord ) {
                 $datafield_array['metadata'][$dt_id] = array();   // clears updated/created (by) on purpose
 
                 // Get rid of any created/modified searching
@@ -2879,19 +2908,19 @@ if ( isset($debug['search_string_parsing']) ) {
         $tmp = '';
         for ($i = 0; $i < strlen($str); $i++) {
             $char = $str[$i];
-        
+
             if ($char == "\"") {
                 if ($in_quotes) {
                     // found closing quote
                     $in_quotes = false;
-        
+
                     // save fragment
                     $tmp .= "\"";
                     $pieces[] = $tmp;
                     $tmp = '';
-        
+
                     // skip over next character?
-        //            $i++;
+//                    $i++;
                 }
                 else {
                     // found opening quote
@@ -2943,7 +2972,7 @@ if ( isset($debug['search_string_parsing']) ) {
                             // only count this as an operator if the 'O' is part of the substring ' OR '
                             if ( $i != 0 && $str[$i-1] == ' ' && ($str[$i+1] == 'R' || $str[$i+1] == 'r') && $str[$i+2] == ' ' ) {
                                 $pieces[] = '||';
-        //                        $i++;
+//                                $i++;
                                 $i += 2;
 /*
                                 // cut out the 'AND' token that was added as a result of the preceding space
@@ -3100,7 +3129,7 @@ if ( isset($debug['search_string_parsing']) )
                 }
                 $negate = false;
                 $inequality = false;
-        
+
                 $str .= ':term_'.$count;
                 $parameters['term_'.$count] = $piece;
                 $count++;
@@ -3123,7 +3152,7 @@ if ( isset($debug['search_string_parsing']) ) {
      *
      * @param string $str The string to test
      *
-     * @return boolean 
+     * @return boolean
      */
     private function isConnective($str) {
         if ( $str == '&&' || $str == '||' )
@@ -3138,7 +3167,7 @@ if ( isset($debug['search_string_parsing']) ) {
      *
      * @param string $str The string to test
      *
-     * @return boolean 
+     * @return boolean
      */
     private function isLogicalOperator($str) {
         if ( $str == '&&' || $str == '||' || $str == '!' )
@@ -3153,7 +3182,7 @@ if ( isset($debug['search_string_parsing']) ) {
      *
      * @param string $str The string to test
      *
-     * @return boolean 
+     * @return boolean
      */
     private function isInequality($str) {
         if ( $str == '>=' || $str == '<=' || $str == '<' || $str == '>' )

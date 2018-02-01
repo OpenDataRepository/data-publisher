@@ -331,6 +331,8 @@ class EditController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            if ( !$pm_service->canEditDatarecord($user, $datarecord) )
+                throw new ODRForbiddenException();
             if ( !$pm_service->canDeleteDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
@@ -534,7 +536,9 @@ class EditController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canDeleteDatarecord($user, $datatype) || !$pm_service->canEditDatarecord($user, $parent_datarecord) )
+            if ( !$pm_service->canEditDatarecord($user, $parent_datarecord) )
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canDeleteDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -2724,12 +2728,10 @@ exit();
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
             $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
-            $can_view_datatype = $pm_service->canViewDatatype($user, $datatype);
-            $can_view_datarecord = $pm_service->canViewDatarecord($user, $datarecord);
-            $can_edit_datarecord = $pm_service->canEditDatarecord($user, $datarecord);
-
             // Ensure user has permissions to be doing this
-            if (!$can_view_datatype || !$can_view_datarecord || !$can_edit_datarecord)
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canEditDatarecord($user, $datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
