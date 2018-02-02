@@ -9,6 +9,11 @@
     {% endif %}
 {% endfor %}
 
+{% set can_add_record = 0 %}
+{% if datatype_permissions[childtype.id] is defined
+    and datatype_permissions[childtype.id]['dr_add'] is defined %}
+    {% set can_add_record = 1 %}
+{% endif %}
 {#
 --------------------</br>
 multiple_allowed: {{ multiple_allowed }}</br>

@@ -5,16 +5,11 @@
 {% set datarecord = datarecord_array[target_datarecord_id] %}
 
 {% set can_edit_record = 0 %}
-{% set can_add_record = 0 %}
-{% set can_delete_record = 0 %}
 {% if datatype_permissions[ datatype.id ] is defined
     and datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
     {% set can_edit_record = 1 %}
 {% endif %}
-{% if datatype_permissions[ datatype.id ] is defined
-    and datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
-    {% set can_add_record = 1 %}
-{% endif %}
+{% set can_delete_record = 0 %}
 {% if datatype_permissions[ datatype.id ] is defined
     and datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
     {% set can_delete_record = 1 %}
@@ -96,7 +91,7 @@
                         {% set child_datatype_id = theme_datatype.dataType.id %}
 
                         {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
-                        {% if datatype_array[child_datatype_id] is defined and datatype['descendants'][child_datatype_id] is defined %}
+                        {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
                             {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
 
                             {# pass all child datarecords of this child datatype at once... #}
@@ -115,9 +110,6 @@
 
                                 'datatype_permissions': datatype_permissions,
                                 'datafield_permissions': datafield_permissions,
-
-                                'can_add_record': can_add_record,
-                                'can_edit_record': can_edit_record,
 
                                 'is_top_level': 0,
                                 'is_link': theme_datatype.is_link,

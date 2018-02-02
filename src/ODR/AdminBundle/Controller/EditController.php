@@ -236,7 +236,9 @@ class EditController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if ( !$pm_service->canAddDatarecord($user, $datatype) || !$pm_service->canEditDatarecord($user, $parent_datarecord) )
+            if ( !$pm_service->canAddDatarecord($user, $datatype) )
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canEditDatarecord($user, $parent_datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -260,7 +262,7 @@ class EditController extends ODRCustomController
 
             // Get record_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
-                'new_datarecord_id' => $datarecord->getId(),
+                'new_datarecord_id' => $datarecord->getId(),    // TODO - this isn't used due to asynch call to reloadChild() in edit_ajax.html.twig
                 'datatype_id' => $datatype_id,
                 'parent_id' => $parent_datarecord->getId(),
             );

@@ -58,7 +58,7 @@
                         {% set child_datatype_id = theme_datatype.dataType.id %}
 
                         {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
-                        {% if datatype_array[child_datatype_id] is defined and datatype['descendants'][child_datatype_id] is defined %}
+                        {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
                             {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
 
                             {# filtering also means there may not be anything in the datarecord array... #}
