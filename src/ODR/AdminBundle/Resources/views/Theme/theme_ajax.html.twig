@@ -214,6 +214,13 @@
                 );
             });
 
+            if ( $("#UpdateThemeForm_isTableTheme").is(':checked') ) {
+                // Table themes can't use anything from child/linked datatypes at the moment
+                // Hide all theme elements containing them so that the "Show Hidden Elements"
+                //  checkbox can't show them
+                $(".ODRChildDatatype").parent().parent().addClass('ODRHidden');
+            }
+
             $("#ODRCheckSourceTheme").unbind('click').click(function() {
                 var theme_id = $(this).attr('rel');
 
@@ -825,6 +832,18 @@
                 dataType: 'json',
                 success: function(data) {
                     notifySaved();
+
+                    //
+                    if ( $("#UpdateThemeForm_isTableTheme").is(':checked') ) {
+                        // Table themes can't use anything from child/linked datatypes at the moment
+                        // Hide all theme elements containing them so that the "Show Hidden Elements"
+                        //  checkbox can't show them
+                        $(".ODRChildDatatype").parent().parent().addClass('ODRHidden');
+                    }
+                    else {
+                        // Search results themes that aren't tables can display child/linked datatypes
+                        $(".ODRChildDatatype").parent().parent().removeClass('ODRHidden');
+                    }
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     // Don't need to do anything specific on an error

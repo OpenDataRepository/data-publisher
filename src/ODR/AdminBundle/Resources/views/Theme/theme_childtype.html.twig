@@ -2,7 +2,7 @@
 
 {% set datatype = datatype_array[target_datatype_id] %}
 
-<div class="ODRDataType{% if is_link == 1 %} ODRLinkedType{% endif %}{% if is_top_level == 0 %} ODRAccordionWrapper ODRFormAccordion{% endif %} pure-u-1" id="DataType_{{ datatype.id }}" {#rel="{{ datatype_tree.theme_datatype.id }}"#}>
+<div class="ODRDataType{% if is_link == 1 %} ODRLinkedType{% endif %}{% if is_top_level == 0 %} ODRAccordionWrapper ODRFormAccordion ODRChildDatatype{% endif %} pure-u-1" id="DataType_{{ datatype.id }}" {#rel="{{ datatype_tree.theme_datatype.id }}"#}>
 
     {% if is_top_level == 0 %}
         {# current datatype is a child or linked datatype #}
