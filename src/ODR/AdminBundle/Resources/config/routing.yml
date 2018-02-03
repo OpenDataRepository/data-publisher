@@ -720,6 +720,7 @@ odr_link_datarecords:
 
 #-----------------------------------------
 # Display Controller
+
 odr_display_view:
     path:  /view/{datarecord_id}/{search_theme_id}/{search_key}/{offset}
     defaults: { _controller: ODRAdminBundle:Display:view, search_theme_id: 0, search_key: '', offset: '' }
@@ -728,6 +729,30 @@ odr_display_view:
         search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
+
+
+#
+# Support for old routes and GET routes
+#
+odr_legacy_results_view:
+    path:  /results/view/{datarecord_id}/{search_key}/{offset}
+    defaults: { _controller: ODRAdminBundle:Display:legacy_view, search_key: '', offset: '' }
+    requirements:
+        datarecord_id:  \d+
+        search_key: '[a-zA-Z0-9\-\=\|\_]*'
+        offset: \d+
+
+odr_legacy_display_view:
+    path:  /view/{datarecord_id}/{search_key}/{offset}
+    defaults: { _controller: ODRAdminBundle:Display:legacy_view, search_key: '', offset: '' }
+    requirements:
+        datarecord_id:  \d+
+        search_key: '[^\/]*'
+        offset: \d+
+
+#
+# END Support for old routes and GET routes
+#
 
 odr_file_download_start:
     path:  /view/downloadfilestart/{file_id}

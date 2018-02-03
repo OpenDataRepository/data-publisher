@@ -56,6 +56,56 @@ class DisplayController extends ODRCustomController
 {
 
     /**
+     * @param $datarecord_id
+     * @param $search_key
+     * @param $offset
+     * @param Request $request
+     */
+    public function legacy_viewAction($datarecord_id, $search_key, $offset, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+
+            $search_theme_id = 0;
+            // Need to reformat to create proper search key and forward internally to view controller
+
+            $search_param_elements = preg_split("/\|/",$search_key);
+            $search_params = array();
+            foreach($search_param_elements as $search_param_element) {
+                $search_param_data = preg_split("/\=/",$search_param_element);
+                $search_params[$search_param_data[0]] = $search_param_data[1];
+            }
+            $new_search_key = $search_cache_service->encodeSearchKey($search_params);
+
+            // Generate new style search key from passed search key
+            return $this->redirectToRoute(
+                "odr_display_view",
+                array(
+                    'datarecord_id' => $datarecord_id,
+                    'search_theme_id' => $search_theme_id,
+                    'search_key' => $new_search_key,
+                    'offset' => $offset
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x173caf23a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+    /**
      * Returns the "Results" version of the given DataRecord.
      * 
      * @param integer $datarecord_id The database id of the datarecord to return.

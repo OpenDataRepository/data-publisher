@@ -491,18 +491,27 @@ class ODRCustomController extends Controller
         $search_controller->setContainer($this->container);
 
         $search_params = $search_cache_service->decodeSearchKey($search_key);
-
-        // Use the permissions of the currently logged in user
-        $search_as_super_admin = false;
+        // Reorder the search key for redirect check
+        $search_key_check = $search_cache_service->encodeSearchKey($search_params);
 
         // Determine whether the search key needs to be filtered based on the user's permissions
-        $datafield_array = $search_controller->getSearchDatafieldsForUser($em, $datatype_id, $search_as_super_admin, $datatype_permissions, $datafield_permissions);
-        $search_controller->buildSearchArray($search_params, $datafield_array, $search_as_super_admin, $datatype_permissions);
+        $datafield_array = $search_controller->getSearchDatafieldsForUser(
+            $em,
+            $user,
+            $datatype_id,
+            $datatype_permissions,
+            $datafield_permissions
+        );
+        $search_controller->buildSearchArray(
+            $search_params,
+            $datafield_array,
+            $datatype_permissions
+        );
 
-        if ( $search_key !== $datafield_array['filtered_search_key'] )
+        if ( $search_key_check !== $datafield_array['filtered_search_key'] )
             return array('redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key'], 'datarecord_list' => '');
 
-        // TODO - can't use permissions service here because don't have an actual datarecord...
+        $search_key = $datafield_array['filtered_search_key'];
         $can_view_datarecord = false;
         if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
             $can_view_datarecord = true;
@@ -519,7 +528,7 @@ class ODRCustomController extends Controller
             || !isset($cached_searches[$datatype_id][$search_checksum]) ) {
 
             // Saved search doesn't exist, redo the search and reload the results
-            $ret = $search_controller->performSearch($search_params);
+            $ret = $search_controller->performSearch($request, $search_key);
             if ($ret['error'] == true)
                 throw new \Exception( $ret['message'] );
             else if ($ret['redirect'] == true)
@@ -1146,6 +1155,211 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @todo - move to the permissions service?
+     * @deprecated
+     *
+     * Gets and returns the permissions array for the given group.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $user_id
+     * @param boolean $force_rebuild
+     *
+     * @throws ODRException
+     *
+     * @return array
+     */
+    public function getUserPermissionsArray($em, $user_id, $force_rebuild = false)
+    {
+        try {
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
+//$force_rebuild = true;
+            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
+            $user_permissions = $cache_service->get('user_'.$user_id.'_permissions');
+            if ( !$force_rebuild && $user_permissions != false )
+                return $user_permissions;
+
+
+            // ----------------------------------------
+            // ...otherwise, get which groups the user belongs to
+            $query = $em->createQuery(
+               'SELECT g.id AS group_id
+                FROM ODRAdminBundle:UserGroup AS ug
+                JOIN ODRAdminBundle:Group AS g WITH ug.group = g
+                WHERE ug.user = :user_id
+                AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
+            )->setParameters( array('user_id' => $user_id) );
+            $results = $query->getArrayResult();
+//exit('<pre>'.print_r($results, true).'</pre>' );
+
+            $user_groups = array();
+            foreach ($results as $result)
+                $user_groups[] = $result['group_id'];
+
+
+            // ----------------------------------------
+            // For each group the user belongs to, attempt to load that group's permissions from the cache
+            $group_permissions = array();
+            foreach ($user_groups as $num => $group_id) {
+                // Attempt to load the permissions for this group
+                $permissions = $cache_service->get('group_'.$group_id.'_permissions');
+
+                if ( $force_rebuild || $permissions == false ) {
+                    $permissions = self::rebuildGroupPermissionsArray($em, $group_id);
+                    $cache_service->set('group_'.$group_id.'_permissions', $permissions);
+                }
+
+                $group_permissions[$group_id] = $permissions;
+            }
+
+
+            // ----------------------------------------
+            // Merge these group permissions into a single array for this user
+            $user_permissions = array('datatypes' => array(), 'datafields' => array());
+            foreach ($group_permissions as $group_id => $group_permission) {
+                // TODO - datarecord restriction?
+
+                foreach ($group_permission['datatypes'] as $dt_id => $dt_permissions) {
+                    foreach ($dt_permissions as $permission => $num)
+                        $user_permissions['datatypes'][$dt_id][$permission] = 1;
+
+                    // If the user is an admin for the datatype, ensure they're allowed to edit datarecords of the datatype
+                    if ( isset($user_permissions['datatypes'][$dt_id]['dt_admin']) )
+                        $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
+                }
+
+                foreach ($group_permission['datafields'] as $dt_id => $datafields) {
+                    foreach ($datafields as $df_id => $df_permissions) {
+                        if ( isset($df_permissions['view']) ) {
+                            $user_permissions['datafields'][$df_id]['view'] = 1;
+                        }
+
+                        if ( isset($df_permissions['edit']) ) {
+                            $user_permissions['datafields'][$df_id]['edit'] = 1;
+
+                            $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
+                        }
+                    }
+                }
+            }
+
+            // If child datatypes have the "dr_edit" permission, ensure their parents do as well
+            $datatree_array = $dti_service->getDatatreeArray();
+
+            foreach ($user_permissions['datatypes'] as $dt_id => $dt_permissions) {
+                if ( isset($dt_permissions['dr_edit']) ) {
+
+                    $parent_datatype_id = $dt_id;
+                    while( isset($datatree_array['descendant_of'][$parent_datatype_id]) && $datatree_array['descendant_of'][$parent_datatype_id] !== '' ) {
+                        $parent_datatype_id = $datatree_array['descendant_of'][$parent_datatype_id];
+                        $user_permissions['datatypes'][$parent_datatype_id]['dr_edit'] = 1;
+                    }
+                }
+            }
+
+            // Store that array in the cache
+            $cache_service->set('user_'.$user_id.'_permissions', $user_permissions);
+
+            // ----------------------------------------
+            // Return the permissions for all groups this user belongs to
+            return $user_permissions;
+        }
+        catch (\Exception $e) {
+            throw new ODRException( $e->getMessage() );
+        }
+    }
+
+
+    /**
+     * @todo - move to the permissions service?
+     * @deprecated
+     *
+     * Rebuilds the cached version of a group's datatype/datafield permissions array
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $group_id
+     *
+     * @return array
+     */
+    protected function rebuildGroupPermissionsArray($em, $group_id)
+    {
+        // Load all permission entities from the database for the given group
+        $query = $em->createQuery(
+           'SELECT g, gm, gdtp, dt, gdfp, df, df_dt
+            FROM ODRAdminBundle:Group AS g
+            JOIN g.groupMeta AS gm
+            LEFT JOIN g.groupDatatypePermissions AS gdtp
+            LEFT JOIN gdtp.dataType AS dt
+            LEFT JOIN g.groupDatafieldPermissions AS gdfp
+            LEFT JOIN gdfp.dataField AS df
+            LEFT JOIN df.dataType AS df_dt
+            WHERE g.id = :group_id
+            AND g.deletedAt IS NULL AND gm.deletedAt IS NULL AND gdtp.deletedAt IS NULL AND gdfp.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND df_dt.deletedAt IS NULL'
+        )->setParameters( array('group_id' => $group_id) );
+        $results = $query->getArrayResult();
+//exit( '<pre>'.print_r($results, true).'</pre>' );
+
+        // Read the query result to find...
+        $datarecord_restriction = '';
+        $datatype_permissions = array();
+        $datafield_permissions = array();
+
+        foreach ($results as $group) {
+            // Extract datarecord restriction first
+            $datarecord_restriction = $group['groupMeta'][0]['datarecord_restriction'];
+
+            // Build the permissions list for datatypes
+            foreach ($group['groupDatatypePermissions'] as $num => $permission) {
+                if ( !isset($permission['dataType']['id']) )
+                    continue;
+
+                $dt_id = $permission['dataType']['id'];
+                $datatype_permissions[$dt_id] = array();
+
+                if ($permission['can_view_datatype'])
+                    $datatype_permissions[$dt_id]['dt_view'] = 1;
+                if ($permission['can_view_datarecord'])
+                    $datatype_permissions[$dt_id]['dr_view'] = 1;
+                if ($permission['can_add_datarecord'])
+                    $datatype_permissions[$dt_id]['dr_add'] = 1;
+                if ($permission['can_delete_datarecord'])
+                    $datatype_permissions[$dt_id]['dr_delete'] = 1;
+//                if ($permission['can_design_datatype'])
+//                    $datatype_permissions[$dt_id]['dt_design'] = 1;
+                if ($permission['is_datatype_admin'])
+                    $datatype_permissions[$dt_id]['dt_admin'] = 1;
+            }
+
+            // Build the permissions list for datafields
+            foreach ($group['groupDatafieldPermissions'] as $num => $permission) {
+                $dt_id = $permission['dataField']['dataType']['id'];
+                if ( !isset($datafield_permissions[$dt_id]) )
+                    $datafield_permissions[$dt_id] = array();
+
+                $df_id = $permission['dataField']['id'];
+                $datafield_permissions[$dt_id][$df_id] = array();
+
+                if ($permission['can_view_datafield'])
+                    $datafield_permissions[$dt_id][$df_id]['view'] = 1;
+                if ($permission['can_edit_datafield'])
+                    $datafield_permissions[$dt_id][$df_id]['edit'] = 1;
+            }
+        }
+
+        // ----------------------------------------
+        // Return the final array
+        return array(
+            'datarecord_restriction' => $datarecord_restriction,
+            'datatypes' => $datatype_permissions,
+            'datafields' => $datafield_permissions,
+        );
+    }
+
+
+    /**
      * Utility function so other controllers can return 403 errors easily.
      * @deprecated
      *
@@ -1171,6 +1385,35 @@ class ODRCustomController extends Controller
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         $response->setStatusCode(403);
+        return $response;
+    }
+
+
+    /**
+     * Utility function so other controllers can notify of deleted entities easily.
+     * @deprecated
+     *
+     * @param string $entity
+     *
+     * @return Response
+     */
+    public function deletedEntityError($entity = '')
+    {
+        $str = '';
+        if ($entity !== '')
+            $str = "<h2>This ".$entity." has been deleted!</h2>";
+//        else
+//            $str = "<h2>Permission Denied</h2>";
+
+        $return = array();
+        $return['r'] = 1;   // TODO - switch to 404?
+        $return['t'] = 'html';
+        $return['d'] = array(
+            'html' => $str
+        );
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
 
@@ -2581,8 +2824,8 @@ class ODRCustomController extends Controller
             $new_datatype_meta->setDescription( $old_meta_entry->getDescription() );
             $new_datatype_meta->setXmlShortName( $old_meta_entry->getXmlShortName() );
 
-            $new_datatype_meta->setSearchNotesUpper(null);
-            $new_datatype_meta->setSearchNotesLower(null);
+            $new_datatype_meta->setSearchNotesLower($old_meta_entry->getSearchNotesLower());
+            $new_datatype_meta->setSearchNotesUpper($old_meta_entry->getSearchNotesUpper());
 
             $new_datatype_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 

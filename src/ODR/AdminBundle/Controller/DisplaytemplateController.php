@@ -3637,6 +3637,7 @@ exit();
                     }
 
 
+                    // TODO - This really should use "clone" and be way simpler
                     $properties = array(
                         'renderPlugin' => $datatype->getRenderPlugin()->getId(),
 
@@ -3653,6 +3654,8 @@ exit();
                         'xml_shortName' => $submitted_data->getXmlShortName(),
 
                         'publicDate' => $submitted_data->getPublicDate(),
+                        'searchNotesLower' => $submitted_data->getSearchNotesLower(),
+                        'searchNotesLower' => $submitted_data->getSearchNotesUpper()
                     );
 
                     // These properties can be null...
