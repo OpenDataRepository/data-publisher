@@ -522,7 +522,7 @@ class ODRCustomController extends Controller
 
         // ----------------------------------------
         // Otherwise, the search_key is fine...check to see if a cached version exists
-        $search_checksum = md5($search_key);
+        $search_checksum = md5($search_key_check);
 
         // Attempt to load the search result for this search_key
         $data = array();
@@ -544,6 +544,8 @@ class ODRCustomController extends Controller
         // ----------------------------------------
         // Now that the search result is guaranteed to exist, grab it
         $cached_search_params = $cached_searches[$datatype_id][$search_checksum];
+        if ( is_null($cached_search_params) )
+            throw new ODRException('Search was run, but result not found in cache', 500, 0x3da651a2);
 
         // Pull the individual pieces of info out of the search results
         $data['redirect'] = false;
