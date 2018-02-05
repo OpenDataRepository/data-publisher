@@ -161,6 +161,8 @@
                     {# Need to extract the offset, then redirect to a URL with the desired theme id #}
                     var hash = window.location.hash;
                     var offset = hash.substr(hash.lastIndexOf('/') + 1);
+                    if ( isNaN(offset) )
+                        offset = '1';
 
                     var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': 0 }) }}';
                     url = url.substr(0, url.length-4);
@@ -344,6 +346,8 @@
 {% else %}
                 var hash = window.location.hash;
                 var offset = hash.substr(hash.lastIndexOf('/') + 1);
+                if ( isNaN(offset) )
+                    offset = '1';
 
                 var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': 0 }) }}';
                 url = url.substr(0, url.length-4);

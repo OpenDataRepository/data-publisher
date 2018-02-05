@@ -41,6 +41,7 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Component\HttpFoundation\Cookie;
@@ -56,10 +57,14 @@ class DisplayController extends ODRCustomController
 {
 
     /**
+     * Fixes searches to follow the new URL system and redirects the user.
+     *
      * @param $datarecord_id
      * @param $search_key
      * @param $offset
      * @param Request $request
+     *
+     * @return Response
      */
     public function legacy_viewAction($datarecord_id, $search_key, $offset, Request $request)
     {
@@ -69,9 +74,6 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
-
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
 
@@ -98,13 +100,15 @@ class DisplayController extends ODRCustomController
             );
         }
         catch (\Exception $e) {
-            $source = 0x173caf23a;
+            $source = 0x9c453393;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
+
+
     /**
      * Returns the "Results" version of the given DataRecord.
      * 

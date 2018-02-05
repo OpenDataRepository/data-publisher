@@ -32,6 +32,11 @@ class ThemeDataField
     private $displayOrder;
 
     /**
+     * @var integer
+     */
+    private $hidden;
+
+    /**
      * @var string
      */
     private $cssWidthMed;
@@ -113,6 +118,30 @@ class ThemeDataField
     public function getDisplayOrder()
     {
         return $this->displayOrder;
+    }
+
+    /**
+     * Set hidden
+     *
+     * @param integer $hidden
+     *
+     * @return ThemeDataField
+     */
+    public function setHidden($hidden)
+    {
+        $this->hidden = $hidden;
+
+        return $this;
+    }
+
+    /**
+     * Get hidden
+     *
+     * @return integer
+     */
+    public function getHidden()
+    {
+        return $this->hidden;
     }
 
     /**
@@ -343,34 +372,5 @@ class ThemeDataField
     public function getDeletedBy()
     {
         return $this->deletedBy;
-    }
-    /**
-     * @var integer
-     */
-    private $hidden;
-
-
-    /**
-     * Set hidden
-     *
-     * @param integer $hidden
-     *
-     * @return ThemeDataField
-     */
-    public function setHidden($hidden)
-    {
-        $this->hidden = $hidden;
-
-        return $this;
-    }
-
-    /**
-     * Get hidden
-     *
-     * @return integer
-     */
-    public function getHidden()
-    {
-        return $this->hidden;
     }
 }
