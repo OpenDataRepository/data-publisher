@@ -2865,9 +2865,9 @@ form .row {
     opacity: 0.10;
     color: rgba(152, 152, 152, 1);
     background: rgba(255, 255, 255, 1);
-    margin-top: 30%;
     z-index: 100;
     position: absolute;
+    top: 70px;
 }
 
 
