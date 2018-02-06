@@ -52,6 +52,11 @@ class ThemeDataType
     private $deletedAt;
 
     /**
+     * @var \ODR\AdminBundle\Entity\Theme
+     */
+    private $childTheme;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
     private $dataType;
@@ -201,6 +206,30 @@ class ThemeDataType
     public function getDeletedAt()
     {
         return $this->deletedAt;
+    }
+
+    /**
+     * Set childTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $childTheme
+     *
+     * @return ThemeDataType
+     */
+    public function setChildTheme(\ODR\AdminBundle\Entity\Theme $childTheme = null)
+    {
+        $this->childTheme = $childTheme;
+
+        return $this;
+    }
+
+    /**
+     * Get childTheme
+     *
+     * @return \ODR\AdminBundle\Entity\Theme
+     */
+    public function getChildTheme()
+    {
+        return $this->childTheme;
     }
 
     /**

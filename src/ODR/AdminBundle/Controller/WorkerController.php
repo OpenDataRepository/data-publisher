@@ -27,6 +27,7 @@ use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
 
@@ -1988,294 +1989,11 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
-     * Migration function, fills in parent/grandparent property of the datatype.
-     *
      * @param Request $request
      *
      * @return Response
      */
-    public function datatypemigrateAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        $save = false;
-//        $save = true;
-
-        try {
-
-            throw new ODRBadRequestException('NOT NEEDED ANYMORE');
-
-            // ----------------------------------------
-            // Load required objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                throw new ODRForbiddenException();
-
-
-            // Load all datatypes, deleted or not
-            $em->getFilters()->disable('softdeleteable');
-
-            $query = $em->createQuery(
-               'SELECT dt.id, dt.deletedAt
-                FROM ODRAdminBundle:DataType AS dt
-                ORDER BY dt.id'
-            );
-            $results = $query->getArrayResult();
-
-            print '<pre>';
-            foreach ($results as $num => $dt) {
-                $dt_id = $dt['id'];
-                $cache_service->delete('cached_datatype_'.$dt_id);
-
-                if ( $dt['deletedAt'] == null )
-                    print 'datatype '.$dt_id.':'."\n";
-                else
-                    print 'deleted datatype '.$dt_id.':'."\n";
-
-                $sub_query = $em->createQuery(
-                   'SELECT dt, ancestor, descendant
-
-                    FROM ODRAdminBundle:DataTree AS dt
-                    JOIN dt.dataTreeMeta AS dtm
-                    JOIN dt.ancestor AS ancestor
-                    JOIN dt.descendant AS descendant
-
-                    WHERE dt.descendant = :dt_id AND dtm.is_link = 0
-                    ORDER BY dt.deletedAt ASC'
-                )->setParameters( array('dt_id' => $dt_id) );
-                $sub_results = $sub_query->getArrayResult();
-
-                if ( count($sub_results) == 0 ) {
-                    /** @var DataType $datatype */
-                    $datatype = $repo_datatype->find($dt_id);
-
-                    $datatype->setParent($datatype);
-                    $datatype->setGrandparent($datatype);
-
-                    if ($save) {
-                        $em->persist($datatype);
-                        $em->flush();
-                        $em->refresh($datatype);
-                    }
-
-                    print "\tsetting parent to datatype ".$dt_id."\n";
-                    print "\tsetting grandparent to datatype ".$dt_id."\n";
-                }
-                else if ( count($sub_results) == 1 ) {
-
-                    $dt = $sub_results[0];
-                    /** @var DataType $datatype */
-                    $datatype = $repo_datatype->find($dt_id);
-                    /** @var DataType $ancestor */
-                    $ancestor = $repo_datatype->find($dt['ancestor']['id']);
-
-                    $datatype->setParent($ancestor);
-                    $datatype->setGrandparent($ancestor->getGrandparent());
-
-                    if ($save) {
-                        $em->persist($datatype);
-                        $em->flush();
-                        $em->refresh($datatype);
-                    }
-
-                    print "\tsetting parent to datatype ".$ancestor->getId()."\n";
-                    if ($save)
-                        print "\tsetting grandparent to datatype ".$ancestor->getGrandparent()->getId()."\n";
-                }
-                else {
-
-                    if ( $sub_results[0]['deletedAt'] == null ) {
-                        // Due to sort ASC, null values should be at the top
-                        // A null value here means this is the current datatree entry, and therefore should be the one used
-
-                        $dt = $sub_results[0];
-                        /** @var DataType $datatype */
-                        $datatype = $repo_datatype->find($dt_id);
-                        /** @var DataType $ancestor */
-                        $ancestor = $repo_datatype->find($dt['ancestor']['id']);
-
-                        $datatype->setParent($ancestor);
-                        $datatype->setGrandparent($ancestor->getGrandparent());
-
-                        if ($save) {
-                            $em->persist($datatype);
-                            $em->flush();
-                            $em->refresh($datatype);
-                        }
-
-                        print "\tsetting parent to datatype ".$ancestor->getId()."\n";
-                        if ($save)
-                            print "\tsetting grandparent to datatype ".$ancestor->getGrandparent()->getId()."\n";
-                    }
-                    else {
-                        // ...otherwise, there is no non-deleted datatree entry
-                        // The desired one is at the bottom of the array
-
-                        $dt = $sub_results[ count($sub_results) - 1 ];
-                        /** @var DataType $datatype */
-                        $datatype = $repo_datatype->find($dt_id);
-                        /** @var DataType $ancestor */
-                        $ancestor = $repo_datatype->find($dt['ancestor']['id']);
-
-                        $datatype->setParent($ancestor);
-                        $datatype->setGrandparent($ancestor->getGrandparent());
-
-                        if ($save) {
-                            $em->persist($datatype);
-                            $em->flush();
-                            $em->refresh($datatype);
-                        }
-
-                        print "\tsetting parent to datatype ".$ancestor->getId()."\n";
-                        if ($save)
-                            print "\tsetting grandparent to datatype ".$ancestor->getGrandparent()->getId()."\n";
-                    }
-                }
-
-                print "\n";
-            }
-
-
-            // ----------------------------------------
-            // Force all datatypes into a setup_state of "incomplete"
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataType AS dt
-                SET dt.setup_step = :setup_step'
-            )->setParameters( array('setup_step' => DataType::STATE_INCOMPLETE) );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Updated '.$rows.' datatypes to have the "incomplete" setup step'."\n";
-            }
-
-
-            // Locate all datatypes that have a search_results theme
-            $query = $em->createQuery(
-               'SELECT DISTINCT(dt.id) AS dt_id
-                FROM ODRAdminBundle:Theme AS t
-                JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
-                WHERE t.themeType IN (:theme_types)
-                AND t.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters( array('theme_types' => array('search_results', 'table') ) );
-            $results = $query->getArrayResult();
-
-            $datatype_ids = array();
-            foreach ($results as $result)
-                $datatype_ids[] = $result['dt_id'];
-
-
-            // All datatypes that have a "search_results" theme are considered "operational
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataType AS dt
-                SET dt.setup_step = :setup_step
-                WHERE dt.id IN (:datatype_ids)'
-            )->setParameters( array('setup_step' => DataType::STATE_OPERATIONAL, 'datatype_ids' => $datatype_ids) );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Updated '.$rows.' datatypes to have the "operational" setup step'."\n";
-            }
-
-            // Ensure all top-level datatypes have a search abbreviation
-            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
-            $query = $em->createQuery(
-               'SELECT dtm.id AS dtm_id
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                WHERE dt.id IN (:top_level_datatypes)
-                AND (dtm.searchSlug IS NULL OR dtm.searchSlug = :empty_string)'
-            )->setParameters( array('top_level_datatypes' => $top_level_datatypes, 'empty_string' => '') );
-            $results = $query->getArrayResult();
-
-            $dtm_ids = array();
-            foreach ($results as $result)
-                $dtm_ids[] = $result['dtm_id'];
-
-            // Easier to use a native query for this...
-            $conn = $em->getConnection();
-            $query =
-                'UPDATE odr_data_type_meta AS dtm
-                 SET dtm.search_slug = dtm.data_type_id
-                 WHERE dtm.id IN ('.implode(',', $dtm_ids).')';
-            if ($save) {
-                $params = array();
-                $rows = $conn->executeUpdate($query, $params);
-                print 'Fixed '.$rows.' datatype_meta entries to have a search slug'."\n";
-            }
-
-            $em->getFilters()->enable('softdeleteable');
-            print '</pre>';
-
-
-            // ----------------------------------------
-            $cache_service->delete('cached_datatree_array');
-            $datatree_array = $dti_service->getDatatreeArray();
-
-            $query = $em->createQuery(
-               'SELECT dt, parent
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN dt.parent AS parent'
-            );
-            $results = $query->getArrayResult();
-
-            print '<pre>';
-            foreach ($results as $num => $dt) {
-                $dt_id = $dt['id'];
-                $parent_id = $dt['parent']['id'];
-
-                $cache_service->delete('cached_datatype_'.$dt_id);
-
-                if ( isset($datatree_array['descendant_of'][$dt_id]) ) {
-                    if ( $datatree_array['descendant_of'][$dt_id] == '' ) {
-                        if ( $dt_id == $parent_id ){
-                            print 'datatype '.$dt_id.' is correctly marked as a top-level datatype'."\n";
-                        }
-                    }
-                    else if ( $datatree_array['descendant_of'][$dt_id] == $parent_id ) {
-                        print 'datatype '.$dt_id.' is correctly marked as child of datatype '.$parent_id."\n";
-                    }
-                    else {
-                        print 'error with datatype '.$dt_id.'...marked as having parent datatype '.$parent_id.' but should have '.$datatree_array['descendant_of'][$dt_id]."\n";
-                    }
-                }
-                else {
-                    print 'datatype '.$dt_id.' not found in datatree array'."\n";
-                }
-            }
-            print '</pre>';
-        }
-        catch (\Exception $e) {
-            $em->getFilters()->enable('softdeleteable');
-
-            $source = 0xabcdef00;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * @param Request $request
-     */
-    public function thememigrateAction(Request $request)
+    public function childthememigrateAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2289,433 +2007,211 @@ $ret .= '  Set current to '.$count."\n";
         $em = $this->getDoctrine()->getManager();
 
         try {
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
 
-            throw new ODRBadRequestException('NOT NEEDED ANYMORE');
-
-            // ----------------------------------------
-            // Load required objects
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+            $repo_theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDataType');
 
-
-            print '<pre>';
-            // ----------------------------------------
-            // First off, ensure that all themes without a valid "theme_type" are deleted
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:Theme AS t
-                SET t.deletedAt = :new_date
-                WHERE t.themeType = :empty_string
-                AND t.deletedAt IS NULL'
-            )->setParameters( array('new_date' => new \DateTime(), 'empty_string' => '') );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Deleted '.$rows.' themes where theme_type == ""'."\n";
-            }
-
-            // Also ensure no "derivative" theme_type exists either...this shouldn't do anything, but making sure
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:Theme AS t
-                SET t.deletedAt = :new_date
-                WHERE t.themeType = :empty_string
-                AND t.deletedAt IS NULL'
-            )->setParameters( array('new_date' => new \DateTime(), 'empty_string' => 'derivative') );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Deleted '.$rows.' themes where theme_type == "derivative"'."\n";
-            }
-
-
-            // ----------------------------------------
-            // Get a list of all table themes, even deleted ones
+            // Want to be able to update deleted entities as well
             $em->getFilters()->disable('softdeleteable');
 
+            // Manually load all top-level themes
             $query = $em->createQuery(
-               'SELECT t.id AS id
+               'SELECT partial t.{id, themeType}, partial dt.{id}
                 FROM ODRAdminBundle:Theme AS t
-                WHERE t.themeType = :theme_type'
-            )->setParameters( array('theme_type' => 'table') );
-            $results = $query->getArrayResult();
-
-            $table_theme_ids = array();
-            foreach ($results as $num => $theme)
-                $table_theme_ids[] = $theme['id'];
-
-
-            // Store the 'table' flag in the themeMeta entry...
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:ThemeMeta AS tm
-                SET tm.isTableTheme = :is_table_theme
-                WHERE tm.theme IN (:theme_ids)'
-            )->setParameters( array('is_table_theme' => true, 'theme_ids' => $table_theme_ids) );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Updated "isTableTheme" property for '.$rows.' theme meta entries'."\n";
-            }
-
-
-            // Temporarily change all of these themes to be a 'search_results' theme instead
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:Theme AS t
-                SET t.themeType = :new_theme_type
-                WHERE t.themeType = :old_theme_type'
-            )->setParameters( array('old_theme_type' => 'table', 'new_theme_type' => 'search_results') );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Changed themeType property for '.$rows.' theme entries from "table" into "search_results"'."\n";
-            }
-
-            // Set all themes to not be default...
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:ThemeMeta AS tm
-                SET tm.isDefault = :not_default'
-            )->setParameters( array('not_default' => false) );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Set '.$rows.' themes as "not default"'."\n";
-            }
-
-            $em->getFilters()->enable('softdeleteable');
-            print "\n";
-
-            // ----------------------------------------
-            //
-            $query = $em->createQuery(
-               'SELECT t, tm, pt, st, dt, dt_g
-
-                FROM ODRAdminBundle:Theme AS t
-                JOIN t.themeMeta AS tm
-
-                LEFT JOIN t.parentTheme AS pt
-                LEFT JOIN t.sourceTheme AS st
-
-                LEFT JOIN t.dataType AS dt
-                JOIN dt.grandparent AS dt_g
-
-                WHERE t.deletedAt IS NULL AND tm.deletedAt IS NULL
-                AND dt.deletedAt IS NULL AND dt_g.deletedAt IS NULL'
+                JOIN t.dataType AS dt
+                WHERE t = t.parentTheme'
             );
-            $results = $query->getArrayResult();
+            $top_level_themes = $query->getArrayResult();
 
-//            print_r($results);
-
-            // ----------------------------------------
-            /*
-             * - datatype 1
-             *     - child datatype 2
-             *     - child datatype 3
-             * 	   - link to datatype 4
-             * - datatype 4
-             *
-             * theme 1 is "master" for datatype 1, parent_theme_id == 1, source_theme_id == 1
-             * theme 2 is "master" for datatype 2, parent_theme_id == 1, source_theme_id == 2
-             * theme 3 is "master" for datatype 3, parent_theme_id == 1, source_theme_id == 3
-             * theme 4 is "master" for datatype 4, parent_theme_id == 4, source_theme_id == 4
-             *
-             * creates a "search results" theme for datatype 1
-             * - theme 5 is "search_results" for datatype 1, parent_theme_id == 5, source_theme_id == 1
-             * - theme 6 is "search_results" for datatype 2, parent_theme_id == 5, source_theme_id == 2
-             * - theme 7 is "search_results" for datatype 3, parent_theme_id == 5, source_theme_id == 3
-             *
-             * creates a "search results" theme for datatype 4
-             * - theme 8 is "search_results" for datatype 4, parent_theme_id == 8, source_theme_id == 4
-             *
-             * copies the existing "search results" theme of datatype 1 to make a new one
-             * - theme 9 is "search_results" for datatype 1, parent_theme_id == 9, source_theme_id == 1
-             * - theme 10 is "search_results" for datatype 2, parent_theme_id == 9, source_theme_id == 2
-             * - theme 11 is "search_results" for datatype 3, parent_theme_id == 9, source_theme_id == 3
-             *
-             * No copy made of theme 8, so both theme groups 5 and 9 use theme 8 to display datatype 4?
-             */
-
-            $theme_list = array();
-            foreach ($results as $num => $theme) {
+            print '<pre>'."\n";
+            foreach ($top_level_themes as $num => $theme) {
                 $theme_id = $theme['id'];
+                $datatype_id = $theme['dataType']['id'];
                 $theme_type = $theme['themeType'];
 
-                $parent_theme_id = -1;
-                if ( isset($theme['parentTheme']) && isset($theme['parentTheme']['id']) )
-                    $parent_theme_id = $theme['parentTheme']['id'];
-                $source_theme_id = -1;
-                if ( isset($theme['sourceTheme']) && isset($theme['sourceTheme']['id']) )
-                    $source_theme_id = $theme['sourceTheme']['id'];
+                print "\n".'top_level_datatype: '.$datatype_id.' ('.$theme_type.')'."\n";
 
+                $query = $em->createQuery(
+                   'SELECT
+                        partial t.{id},
+                        partial dt.{id},
+                        partial te.{id},
+                        partial tdt.{id, deletedAt},
+                        partial c_dt.{id},
+                        partial gp_dt.{id}
 
-                $dt_id = $theme['dataType']['id'];
-                $g_dt_id = $theme['dataType']['grandparent']['id'];
+                    FROM ODRAdminBundle:Theme AS t
+                    JOIN t.dataType AS dt
+                    JOIN t.themeElements AS te
+                    JOIN te.themeDataType AS tdt
+                    JOIN tdt.dataType AS c_dt
+                    JOIN c_dt.grandparent AS gp_dt
+                    WHERE t.parentTheme = :theme_id'
+                )->setParameters( array('theme_id' => $theme_id) );
+                $results = $query->getArrayResult();
 
-                if ( !isset($theme_list[$dt_id]) )
-                    $theme_list[$dt_id] = array();
-                if ( !isset($theme_list[$dt_id][$theme_type]) )
-                    $theme_list[$dt_id][$theme_type] = array();
+//                print '<pre>'.print_r($results, true).'</pre>';  break;
 
-                $theme_list[$dt_id][$theme_type][] = array(
-                    'theme_id' => $theme_id,
-                    'parent_theme_id' => $parent_theme_id,
-                    'source_theme_id' => $source_theme_id,
-                    'grandparent_datatype_id' => $g_dt_id
-                );
-            }
+                foreach ($results as $num => $t) {
+                    $dt_id = $t['dataType']['id'];
+                    $t_id = $t['id'];
 
-            print_r($theme_list);
+                    print ' -- datatype: '.$dt_id.'  theme: '.$t_id."\n";
 
-            foreach ($theme_list as $dt_id => $themes) {
+                    foreach ($t['themeElements'] as $num => $te) {
+                        foreach ($te['themeDataType'] as $num => $tdt) {
+                            $tdt_id = $tdt['id'];
+                            $c_dt_id = $tdt['dataType']['id'];
+                            $gp_dt_id = $tdt['dataType']['grandparent']['id'];
 
-                print 'Updating themes for Datatype '.$dt_id.'...'."\n";
+                            $is_deleted = false;
+                            if ( !is_null($tdt['deletedAt']) )
+                                $is_deleted = true;
 
-                // ----------------------------------------
-                // Do some sanity checks...
-                if ( !isset($themes['master']) )
-                    throw new ODRException('Datatype '.$dt_id.' lacks a master theme, aborting');
-                if ( count($themes['master']) > 1 )
-                    throw new ODRException('Datatype '.$dt_id.' has more than one master theme, aborting');
+                            print ' -- -- child_datatype_id: '.$c_dt_id;
+                            if ($is_deleted)
+                                print '  DELETED';
+                            print "\n";
 
-                // ----------------------------------------
-                // Deal with the master theme first...
-                $master_theme_data = $themes['master'][0];
-                $master_theme_id = $master_theme_data['theme_id'];
+                            // Attempt to locate the correct theme_id to store in the theme_datatype's child_theme_id field
+                            $query = $em->createQuery(
+                               'SELECT t.id
+                                FROM ODRAdminBundle:Theme AS t
+                                WHERE t.dataType = :datatype_id AND t.parentTheme = :theme_id'
+                            )->setParameters( array('datatype_id' => $c_dt_id, 'theme_id' => $theme_id) );
+                            $sub_results = $query->getArrayResult();
 
-                print ' - master theme '.$master_theme_id.'...'."\n";
-
-                /** @var Theme $master_theme */
-                $master_theme = $repo_theme->find($master_theme_id);
-                if ($master_theme == null)
-                    throw new ODRException('Datatype '.$dt_id.' referenced a non-existent master theme '.$master_theme_id);
-
-                // If source theme id is not set, then set it to this theme's id
-                if ( $master_theme_data['source_theme_id'] == -1 ) {
-                    $master_theme->setSourceTheme($master_theme);
-                    print ' - - set source theme to '.$master_theme_id."\n";
-                }
-                else {
-                    print ' - - source theme is already set to '.$master_theme->getSourceTheme()->getId().', would have set it to '.$master_theme_id."\n";
-                    if ( $master_theme_id != $master_theme->getSourceTheme()->getId() )
-                        print ' - - - MISMATCH'."\n";
-                }
-
-                // If parent theme id is not set, then set it to the datatype's grandparent's master theme
-                $grandparent_datatype_id = $master_theme_data['grandparent_datatype_id'];
-                $parent_theme_id = $theme_list[$grandparent_datatype_id]['master'][0]['theme_id'];
-                if ( $master_theme_data['parent_theme_id'] == -1 ) {
-                    /** @var Theme $parent_theme */
-                    $parent_theme = $repo_theme->find($parent_theme_id);
-                    if ($parent_theme == null)
-                        throw new ODRException('Datatype '.$dt_id.' master theme '.$master_theme_id.' attempted to locate a non-existent grandparent datatype master theme '.$parent_theme_id);
-
-                    $master_theme->setParentTheme($parent_theme);
-                    print ' - - set parent theme to datatype '.$grandparent_datatype_id.' master, theme '.$parent_theme_id."\n";
-                }
-                else {
-                    print ' - - parent theme is already set to '.$master_theme->getParentTheme()->getId().', would have set it to '.$parent_theme_id."\n";
-                    if ( $parent_theme_id != $master_theme->getParentTheme()->getId() )
-                        print ' - - - MISMATCH'."\n";
-                }
-
-                // Save changes to the master theme
-                if ($save)
-                    $em->persist($master_theme);
-
-
-                // ----------------------------------------
-                if ( isset($themes['search_results']) ) {
-                    // Deal with search result themes...
-                    foreach ($themes['search_results'] as $num => $search_results_theme_data) {
-                        $search_results_theme_id = $search_results_theme_data['theme_id'];
-                        $parent_theme_id = $search_results_theme_data['parent_theme_id'];
-                        $source_theme_id = $search_results_theme_data['source_theme_id'];
-                        $grandparent_datatype_id = $search_results_theme_data['grandparent_datatype_id'];
-
-                        print ' - search results theme '.$search_results_theme_id.'...'."\n";
-
-                        /** @var Theme $search_results_theme */
-                        $search_results_theme = $repo_theme->find($search_results_theme_id);
-                        if ($search_results_theme == null)
-                            throw new ODRException('Datatype '.$dt_id.' referenced a non-existent search results theme '.$search_results_theme_id);
-
-
-                        // If source theme id is not set, then set it to the datatype's master theme
-                        $datatype_master_theme_id = $theme_list[$dt_id]['master'][0]['theme_id'];
-                        if ($source_theme_id == -1) {
-                            /** @var Theme $source_theme */
-                            $source_theme = $repo_theme->find($datatype_master_theme_id);
-                            if ($source_theme == null)
-                                throw new ODRException('Datatype '.$dt_id.' search results theme '.$search_results_theme_id.' attempted to locate a non-existent datatype master theme '.$datatype_master_theme_id);
-
-                            $search_results_theme->setSourceTheme($source_theme);
-                            print ' - - set source theme to grandparent datatype '.$grandparent_datatype_id.' master theme '.$datatype_master_theme_id."\n";
-                        }
-                        else {
-                            print ' - - source theme is already set to '.$search_results_theme->getSourceTheme()->getId().', would have set it to '.$datatype_master_theme_id."\n";
-                            if ( $datatype_master_theme_id != $search_results_theme->getSourceTheme()->getId() )
-                                print ' - - - MISMATCH'."\n";
-                        }
-
-                        // If this is a search results theme for a top-level datatype...
-                        if ($dt_id == $grandparent_datatype_id) {
-                            // ...then the parent_theme_id should be set to itself
-                            if ( $parent_theme_id == -1 ) {
-                                $search_results_theme->setParentTheme($search_results_theme);
-                                print ' - - set parent theme to '.$search_results_theme_id."\n";
+                            if ( count($sub_results) > 1 ) {
+                                // Should only ever be one result, in theory?
+                                print ' ***** query returned '.count($sub_results).' results, should only return 0 or 1 results *****'."\n";
                             }
                             else {
-                                print ' - - parent theme is already set to '.$search_results_theme->getParentTheme()->getId().', would have set it to '.$search_results_theme_id."\n";
-                                if ( $search_results_theme_id != $search_results_theme->getParentTheme()->getId() )
-                                    print ' - - - MISMATCH'."\n";
+                                // Determine whether the child datatype id belongs to a linked datatype
+                                $is_linked_datatype = false;
+                                if ( intval($gp_dt_id) !== intval($datatype_id) )
+                                    $is_linked_datatype = true;
+
+
+                                if ( $is_linked_datatype || count($sub_results) == 0 ) {
+                                    if (!$is_deleted) {
+                                        /** @var Theme $parent_theme */
+                                        $parent_theme = $repo_theme->find($theme_id);
+                                        /** @var Theme $source_theme */
+                                        $source_theme = $repo_theme->findOneBy( array('dataType' => $c_dt_id, 'themeType' => 'master') );
+                                        /** @var DataType $linked_datatype */
+                                        $linked_datatype = $repo_datatype->find($c_dt_id);
+
+                                        // Create a new theme entry for this linked datatype
+                                        // Doesn't matter if one already exists, create a new one anyways
+                                        $new_theme = new Theme();
+                                        $new_theme->setThemeType($theme_type);
+                                        $new_theme->setParentTheme($parent_theme);
+                                        $new_theme->setSourceTheme($source_theme);
+                                        $new_theme->setDataType($linked_datatype);
+
+                                        $new_theme->setCreated( $parent_theme->getCreated() );
+                                        $new_theme->setCreatedBy( $parent_theme->getCreatedBy() );
+                                        $new_theme->setUpdated( $parent_theme->getUpdated() );
+                                        $new_theme->setUpdatedBy( $parent_theme->getUpdatedBy() );
+                                        $new_theme->setDeletedAt( $parent_theme->getDeletedAt() );
+                                        $new_theme->setDeletedBy( $parent_theme->getDeletedBy() );
+
+                                        if ($save) {
+                                            $em->persist($new_theme);
+                                            $em->flush();
+                                            $em->refresh($new_theme);
+                                        }
+
+                                        $new_theme_meta = new ThemeMeta();
+                                        $new_theme_meta->setTheme($new_theme);
+                                        $new_theme_meta->setTemplateName( $parent_theme->getTemplateName() );
+                                        $new_theme_meta->setTemplateDescription( $parent_theme->getTemplateDescription() );
+                                        $new_theme_meta->setIsDefault( $parent_theme->isDefault() );
+                                        $new_theme_meta->setDisplayOrder( $parent_theme->getDisplayOrder());
+                                        $new_theme_meta->setShared( $parent_theme->isShared() );
+//                                        $new_theme_meta->setSourceSyncCheck( $parent_theme->getSourceSyncCheck() );
+                                        $new_theme_meta->setSourceSyncCheck(null);
+                                        $new_theme_meta->setIsTableTheme( $parent_theme->getIsTableTheme() );
+
+                                        $new_theme_meta->setCreated( $parent_theme->getCreated() );
+                                        $new_theme_meta->setCreatedBy( $parent_theme->getCreatedBy() );
+                                        $new_theme_meta->setUpdated( $parent_theme->getUpdated() );
+                                        $new_theme_meta->setUpdatedBy( $parent_theme->getUpdatedBy() );
+                                        $new_theme_meta->setDeletedAt( $parent_theme->getDeletedAt() );
+
+                                        if ($save) {
+                                            $new_theme->addThemeMetum($new_theme_meta);
+                                            $em->persist($new_theme);
+
+                                            $em->persist($new_theme_meta);
+                                            $em->flush();
+                                            $em->refresh($new_theme_meta);
+                                        }
+                                        print '       >> creating new theme for datatype '.$c_dt_id.', parent_theme '.$parent_theme->getId().', source_theme '.$source_theme->getId()."\n";
+
+                                        if ($save) {
+                                            /** @var ThemeDataType $theme_datatype */
+                                            $theme_datatype = $repo_theme_datatype->find($tdt_id);
+                                            $theme_datatype->setChildTheme($new_theme);
+
+                                            $em->persist($theme_datatype);
+                                            $em->flush();
+                                            $em->refresh($theme_datatype);
+
+                                            print '       >> setting child_theme_id to '.$new_theme->getId()."\n";
+                                        }
+                                        else {
+                                            print '       >> setting child_theme_id to **SOMETHING**'."\n";
+                                        }
+                                    }
+                                }
+                                else if ( count($sub_results) == 1 ) {
+                                    // Found the child datatype, set it
+                                    if ($save) {
+                                        /** @var Theme $child_theme */
+                                        $child_theme = $repo_theme->find( $sub_results[0]['id'] );
+                                        /** @var ThemeDataType $theme_datatype */
+                                        $theme_datatype = $repo_theme_datatype->find($tdt_id);
+
+                                        $theme_datatype->setChildTheme($child_theme);
+
+                                        $em->persist($theme_datatype);
+                                        $em->flush();
+                                        $em->refresh($theme_datatype);
+                                    }
+
+                                    print '       >> setting child_theme_id to '.$sub_results[0]['id']."\n";
+                                }
+                                else {
+                                    // Should only ever be one result, in theory?
+                                    print ' ***** SOMETHING WRONG *****'."\n";
+                                }
                             }
                         }
-                        else {
-
-                            if ( $source_theme_id == -1 ) {
-                                /*
-                                 * Technically, if there's just one search results theme in both this datatype and its grandparent, i should be able to match them up...
-                                 * but do i have a way to figure out multiples?
-                                 */
-
-                                print ' - - set parent theme to grandparent datatype '.$grandparent_datatype_id.' search results theme ***UNKNOWN***'."\n";
-                                print ' - - - MISMATCH'."\n";
-                            }
-                            else {
-                                print ' - - parent theme is already set to '.$search_results_theme->getParentTheme()->getId().', would have set it to ***UNKNOWN***'."\n";
-                                print ' - - - MISMATCH'."\n";
-                            }
-
-                        }
-
-                        // Save changes to this search results theme
-                        if ($save)
-                            $em->persist($search_results_theme);
                     }
                 }
 
-                print "\n";
+                // Wipe cache entry for this theme
+                $cache_service->delete('cached_theme_'.$theme_id);
             }
-
-            if ($save)
-                $em->flush();
-
-
-            // ----------------------------------------
-            // Need to set all master themes as default
-            $em->getFilters()->disable('softdeleteable');
-
-            $query = $em->createQuery(
-               'SELECT t.id AS theme_id
-                FROM ODRAdminBundle:Theme AS t
-                JOIN ODRAdminBundle:Theme AS parent_theme WITH t.parentTheme = parent_theme
-                WHERE t.themeType = :theme_type AND t.id = parent_theme.id'
-            )->setParameters( array('theme_type' => 'master') );
-            $results = $query->getArrayResult();
-
-            $all_master_themes = array();
-            foreach ($results as $result)
-                $all_master_themes[] = $result['theme_id'];
-
-            $em->getFilters()->enable('softdeleteable');
-
-            // Need to set the oldest non-deleted search_results/table theme as default
-            $query = $em->createQuery(
-               'SELECT t.id AS theme_id, t.created AS created, dt.id AS dt_id, t.themeType
-                FROM ODRAdminBundle:Theme AS t
-                JOIN ODRAdminBundle:Theme AS parent_theme WITH t.parentTheme = parent_theme
-                JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
-                WHERE t.themeType IN (:theme_types) AND t.id = parent_theme.id
-                ORDER BY dt.id'
-            )->setParameters( array('theme_types' => ThemeInfoService::SHORT_FORM_THEMETYPES) );
-            $results = $query->getArrayResult();
-
-            $tmp = array();
-            foreach ($results as $result) {
-                $dt_id = $result['dt_id'];
-                $t_id = $result['theme_id'];
-                $created = $result['created']->format('Y-m-d H:i:s');
-
-                if ( !isset($tmp[$dt_id]) ) {
-                    $tmp[$dt_id] = array(
-                        'theme_id' => $t_id,
-                        'created' => $created,
-                    );
-                }
-                else {
-                    $previous_created = $tmp[$dt_id]['created'];
-                    if ($created < $previous_created) {
-                        $tmp[$dt_id] = array(
-                            'theme_id' => $t_id,
-                            'created' => $created,
-                        );
-                    }
-                }
-            }
-
-            $all_default_themes = array();
-            foreach ($tmp as $data)
-                $all_default_themes[] = $data['theme_id'];
-
-            // Set all the themes to be default
-            $all_default_themes = array_merge($all_master_themes, $all_default_themes);
-            $all_default_themes = array_unique($all_default_themes);
-            sort($all_default_themes);
-
-
-            $em->getFilters()->disable('softdeleteable');
-            // Get all theme meta entries that belong to these themes
-            $query = $em->createQuery(
-               'SELECT parent_theme.id AS parent_theme_id, t.id AS theme_id, tm.id AS tm_id
-                FROM ODRAdminBundle:Theme AS parent_theme
-                JOIN ODRAdminBundle:Theme AS t WITH t.parentTheme = parent_theme
-                JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
-                WHERE parent_theme.id IN (:all_default_themes)'
-            )->setParameters( array('all_default_themes' => $all_default_themes) );
-            $results = $query->getArrayResult();
-
-            $theme_meta_ids = array();
-            foreach ($results as $result)
-                $theme_meta_ids[] = $result['tm_id'];
-
-
-            // Set all the themes to be default
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:ThemeMeta AS tm
-                SET tm.isDefault = :is_default
-                WHERE tm.id IN (:theme_meta_ids)'
-            )->setParameters( array('is_default' => true, 'theme_meta_ids' => $theme_meta_ids) );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Changed '.$rows.' themes to be default'."\n";
-            }
-            $em->getFilters()->enable('softdeleteable');
-
-
-            // ----------------------------------------
-            $em->getFilters()->disable('softdeleteable');
-
-            // Change all the themes that used to be "table" themes back into "table" themes
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:Theme AS t
-                SET t.themeType = :new_theme_type
-                WHERE t.id IN (:table_theme_ids)'
-            )->setParameters( array('new_theme_type' => 'table', 'table_theme_ids' => $table_theme_ids) );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Changed '.$rows.' themes back into "table" themes'."\n";
-            }
-
-            // Run one last set of queries to force all themes to be shared by default
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:ThemeMeta AS tm
-                SET tm.shared = :shared'
-            )->setParameters( array('shared' => true) );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Set '.$rows.' themes as "shared"'."\n";
-            }
-
-            $em->getFilters()->enable('softdeleteable');
-
             print '</pre>';
+
+            // Re-enable softdeleteable filter
+            $em->getFilters()->enable('softdeleteable');
+
+            // Wipe a few more cache entries to be on the safe side
+            $cache_service->delete('top_level_datatypes');
+            $cache_service->delete('top_level_themes');
         }
         catch (\Exception $e) {
             // Don't want any changes made being saved to the database
+            $em->getFilters()->enable('softdeleteable');
             $em->clear();
 
-            $source = 0xabcdef11;
+            $source = 0x0a4b8452;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else

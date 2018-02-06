@@ -1209,6 +1209,9 @@ odr_fix_missing_meta_entries:
 #odr_theme_migrate:
 #    path: /admin/theme_migrate
 #    defaults: { _controller: ODRAdminBundle:Worker:thememigrate }
+odr_child_theme_migrate:
+    path: /admin/child_theme_migrate
+    defaults: { _controller: ODRAdminBundle:Worker:childthememigrate }
 
 #-----------------------------------------
 
