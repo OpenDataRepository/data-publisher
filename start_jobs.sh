@@ -24,4 +24,4 @@ php app/console odr_csv_export:finalize >> app/logs/csv_export_finalize.log 2>&1
 
 
 # temporary kludge to get datarecord restrictions working at all
-#php app/console odr_permissions:kludge >> app/logs/permissions.log 2>&1 &
+php app/console odr_permissions:kludge >> app/logs/permissions_kludge.log 2>&1 &
