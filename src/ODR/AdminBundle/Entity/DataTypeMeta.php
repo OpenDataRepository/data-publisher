@@ -68,6 +68,16 @@ class DataTypeMeta
     private $xml_shortName;
 
     /**
+     * @var string
+     */
+    private $searchNotesUpper;
+
+    /**
+     * @var string
+     */
+    private $searchNotesLower;
+
+    /**
      * @var \DateTime
      */
     private $publicDate;
@@ -323,6 +333,54 @@ class DataTypeMeta
     public function getXmlShortName()
     {
         return $this->xml_shortName;
+    }
+
+    /**
+     * Set searchNotesUpper
+     *
+     * @param string $searchNotesUpper
+     *
+     * @return DataTypeMeta
+     */
+    public function setSearchNotesUpper($searchNotesUpper)
+    {
+        $this->searchNotesUpper = $searchNotesUpper;
+
+        return $this;
+    }
+
+    /**
+     * Get searchNotesUpper
+     *
+     * @return string
+     */
+    public function getSearchNotesUpper()
+    {
+        return $this->searchNotesUpper;
+    }
+
+    /**
+     * Set searchNotesLower
+     *
+     * @param string $searchNotesLower
+     *
+     * @return DataTypeMeta
+     */
+    public function setSearchNotesLower($searchNotesLower)
+    {
+        $this->searchNotesLower = $searchNotesLower;
+
+        return $this;
+    }
+
+    /**
+     * Get searchNotesLower
+     *
+     * @return string
+     */
+    public function getSearchNotesLower()
+    {
+        return $this->searchNotesLower;
     }
 
     /**

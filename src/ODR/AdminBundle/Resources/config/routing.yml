@@ -188,22 +188,6 @@ odr_manage_group_permissions:
     requirements:
         group_id:  \d+
 
-odr_group_permissions_reload_childtype:
-    path:  /admin/group/permissions/reload/childtype/{group_id}/{source_datatype_id}/{childtype_id}
-    defaults: { _controller: ODRAdminBundle:ODRGroup:reloadchildtype }
-    requirements:
-        group_id:  \d+
-        source_datatype_id:  \d+
-        childtype_id:  \d+
-
-#odr_group_permissions_reload_theme_element:
-#    path:  /admin/group/permissions/reload/theme_element/{group_id}/{source_datatype_id}/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:ODRGroup:reloadthemeelement }
-#    requirements:
-#        group_id:  \d+
-#        source_datatype_id:  \d+
-#        theme_element_id:  \d+
-
 
 odr_save_group_datatype_permission:
     path:  /admin/group/savepermissions/datatype/{group_id}/{datatype_id}/{value}/{permission}
@@ -571,6 +555,13 @@ odr_markdown_help_dialog:
     path:  /design/displaytemplate/markdownhelp
     defaults: { _controller: ODRAdminBundle:Displaytemplate:markdownhelp }
 
+odr_save_search_notes:
+    path:  /design/displaytemplate/save_notes/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:savesearchnotes }
+    requirements:
+        datatype_id: \d+
+
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -729,6 +720,7 @@ odr_link_datarecords:
 
 #-----------------------------------------
 # Display Controller
+
 odr_display_view:
     path:  /view/{datarecord_id}/{search_theme_id}/{search_key}/{offset}
     defaults: { _controller: ODRAdminBundle:Display:view, search_theme_id: 0, search_key: '', offset: '' }
@@ -737,6 +729,28 @@ odr_display_view:
         search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
+
+#
+# Support for old routes and GET routes
+#
+odr_legacy_results_view:
+    path:  /results/view/{datarecord_id}/{search_key}/{offset}
+    defaults: { _controller: ODRAdminBundle:Display:legacy_view, search_key: '', offset: '' }
+    requirements:
+        datarecord_id:  \d+
+        search_key: '[a-zA-Z0-9\-\=\|\_]*'
+        offset: \d+
+
+odr_legacy_display_view:
+    path:  /view/{datarecord_id}/{search_key}/{offset}
+    defaults: { _controller: ODRAdminBundle:Display:legacy_view, search_key: '', offset: '' }
+    requirements:
+        datarecord_id:  \d+
+        search_key: '[^\/]*'
+        offset: \d+
+#
+# END Support for old routes and GET routes
+#
 
 odr_file_download_start:
     path:  /view/downloadfilestart/{file_id}

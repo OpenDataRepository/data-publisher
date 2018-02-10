@@ -42,3 +42,6 @@
 
 # Dev tools
 .idea/
+
+# Do not track Chemin Map Demo
+web/chemin-map-demo

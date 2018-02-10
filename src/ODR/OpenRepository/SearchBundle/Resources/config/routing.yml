@@ -5,13 +5,33 @@ odr_search_box:
     requirements:
         target_datatype_id: \d+
 
+#
+# Support for old routes and GET routes
+#
+odr_legacy_search_results:
+    path: /search/results/{search_key}
+    defaults: { _controller:ODROpenRepositorySearchBundle:Default:legacy_search }
+    requirements:
+        search_key: '[^\/]*'
+
+odr_legacy_render:
+    path: /search/render/{search_key}/{offset}/{source}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Default:legacy_render, offset: 1, source: 'searching' }
+    requirements:
+        search_key: '[^\/]*'
+        offset: \d+
+        source: searching|linking
+#
+# END Support for old routes and GET routes
+#
+
 odr_search_results:
     path: /search/results
     defaults: { _controller:ODROpenRepositorySearchBundle:Default:search }
     methods: [ POST ]
 
 odr_search_render:
-    path: /search/render/{search_theme_id}/{search_key}/{offset}/{intent}
+    path: /search/display/{search_theme_id}/{search_key}/{offset}/{intent}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:render, offset: 1, intent: 'searching' }
     requirements:
         search_theme_id: \d+

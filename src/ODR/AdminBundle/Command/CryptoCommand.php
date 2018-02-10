@@ -49,8 +49,8 @@ class CryptoCommand extends ContainerAwareCommand
         $logger = $container->get('logger');
         $pheanstalk = $container->get('pheanstalk');
 
-        /** @var CryptoService $crypto_service */
-        $crypto_service = $this->getContainer()->get('odr.crypto_service');
+//        /** @var CryptoService $crypto_service */
+//        $crypto_service = $this->getContainer()->get('odr.crypto_service');
 
         while (true) {
             // Run command until manually stopped
@@ -58,6 +58,9 @@ class CryptoCommand extends ContainerAwareCommand
             try {
                 // Wait for a job?
                 $job = $pheanstalk->watch('crypto_requests')->ignore('default')->reserve();
+
+                /** @var CryptoService $crypto_service */
+                $crypto_service = $this->getContainer()->get('odr.crypto_service');
 
                 // Get Job Data
                 $data = json_decode($job->getData()); 

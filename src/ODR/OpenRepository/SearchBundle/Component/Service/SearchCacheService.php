@@ -71,6 +71,8 @@ class SearchCacheService
      */
     public function encodeSearchKey($search_params)
     {
+        // Always sort the array to ensure it comes out the same
+        ksort($search_params);
         // Encode the search string and strip any padding characters at the end
         $encoded = rtrim( base64_encode(json_encode($search_params)), '=' );
 
@@ -93,6 +95,7 @@ class SearchCacheService
 
         // Return an array instead of an object
         $array = json_decode($decoded, true);
+        ksort($array);
         if ( is_null($array) )
             throw new ODRException('Invalid JSON', 400, 0x6e1c96a1);
         else

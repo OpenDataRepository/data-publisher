@@ -824,11 +824,13 @@ class LinkController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
             if ( !$pm_service->canViewDatatype($user, $ancestor_datatype) )
                 throw new ODRForbiddenException();
 
+            // TODO - should adding a link be controlled by the "can_add_datarecord" permission?
+            // TODO - should removing a link be controlled by the "can_delete_datarecord" permission?
+            // TODO - ...or alternately, add a new permission specifically for linking?
             if ( !$pm_service->canEditDatarecord($user, $local_datarecord) )
                 throw new ODRForbiddenException();
 
@@ -1137,9 +1139,9 @@ if ($debug) {
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
+            // TODO - why has this not been modified to fully use the permissions service again?
             $can_view_ancestor_datatype = false;
             if ( isset($datatype_permissions[$ancestor_datatype_id]) && isset($datatype_permissions[$ancestor_datatype_id]['dt_view']) )
                 $can_view_ancestor_datatype = true;

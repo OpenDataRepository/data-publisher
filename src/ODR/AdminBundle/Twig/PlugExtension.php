@@ -283,15 +283,17 @@ class PlugExtension extends \Twig_Extension
                     //  Edit mode will apparently always pass this check
                     if ( $tdt['hidden'] == 0 && isset($tdt['dataType']) && count($tdt['dataType']) > 0 ) {
 
+                        $child_datatype_id = $tdt['dataType']['id'];
+
                         if ( $tdt['is_link'] == 0 && $mode == 'edit' ) {
-                            // This theme element contains a child datatype, and is therefore never considered "empty" when in Edit mode
-                            return false;
+                            // In edit mode, a theme element is only considered "empty" if there's no child datatype entry due to filtering
+                            if ( isset($datatype['descendants'][$child_datatype_id]) && count($datatype['descendants'][$child_datatype_id]['datatype']) > 0 )
+                                return false;
+                            else
+                                return true;
                         }
                         else {
-                            // This theme element contains a linked datatype...
-                            $child_datatype_id = $tdt['dataType']['id'];
-
-                            // ...it's only considered empty when there are no linked datarecords of this linked datatype
+                            // In display mode, or when displaying linked datatypes in edit mode, the theme element is only considered empty when there are no child/linked datarecords
                             if ( isset($datarecord['children']) && isset($datarecord['children'][$child_datatype_id]) && count($datarecord['children'][$child_datatype_id]) > 0 )
                                 return false;
                             else

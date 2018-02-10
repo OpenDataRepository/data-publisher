@@ -64,6 +64,13 @@ ODR\AdminBundle\Entity\DataTypeMeta:
             nullable: false
             column: xml_short_name
 
+        searchNotesUpper:
+            type: text
+            nullable: true
+        searchNotesLower:
+            type: text
+            nullable: true
+
         publicDate:
             type: datetime
             nullable: false

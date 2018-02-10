@@ -23,6 +23,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -84,6 +85,9 @@ class BridgeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
@@ -96,14 +100,7 @@ class BridgeController extends ODRCustomController
             if ($user === 'anon.')
                 throw new ODRForbiddenException();
 
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_view' ]) )
-                $can_view_datatype  = true;
-
-            if ( !($datatype->isPublic() || $can_view_datatype) )
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
@@ -157,6 +154,9 @@ class BridgeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             // Going to need these...
             $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
             $jupyterhub_server_baseurl = $jupyterhub_config['jupyterhub_baseurl'];
@@ -185,7 +185,7 @@ class BridgeController extends ODRCustomController
             if ($user === 'anon.')
                 throw new ODRForbiddenException();
 
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
             $username = $this->get('odr.jupyterhub_bridge.username_service')->getJupyterhubUsername($user);
 
 

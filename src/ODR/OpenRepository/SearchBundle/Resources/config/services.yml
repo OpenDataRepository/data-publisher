@@ -11,5 +11,5 @@ services:
     odr.search_cache_service:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService
         arguments:
-            odr_cache_service: "@odr.cache_service"
+            cache_service: "@odr.cache_service"
             logger: "@logger"

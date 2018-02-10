@@ -32,6 +32,11 @@ class ThemeDataType
     private $display_type;
 
     /**
+     * @var integer
+     */
+    private $hidden;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -103,6 +108,30 @@ class ThemeDataType
     public function getDisplayType()
     {
         return $this->display_type;
+    }
+
+    /**
+     * Set hidden
+     *
+     * @param integer $hidden
+     *
+     * @return ThemeDataType
+     */
+    public function setHidden($hidden)
+    {
+        $this->hidden = $hidden;
+
+        return $this;
+    }
+
+    /**
+     * Get hidden
+     *
+     * @return integer
+     */
+    public function getHidden()
+    {
+        return $this->hidden;
     }
 
     /**
@@ -287,34 +316,5 @@ class ThemeDataType
     public function getDeletedBy()
     {
         return $this->deletedBy;
-    }
-    /**
-     * @var integer
-     */
-    private $hidden;
-
-
-    /**
-     * Set hidden
-     *
-     * @param integer $hidden
-     *
-     * @return ThemeDataType
-     */
-    public function setHidden($hidden)
-    {
-        $this->hidden = $hidden;
-
-        return $this;
-    }
-
-    /**
-     * Get hidden
-     *
-     * @return integer
-     */
-    public function getHidden()
-    {
-        return $this->hidden;
     }
 }

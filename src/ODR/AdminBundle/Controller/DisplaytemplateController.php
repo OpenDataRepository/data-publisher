@@ -1983,6 +1983,9 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_meta->setDescription("New Child Type");
             $datatype_meta->setXmlShortName('');
 
+            $datatype_meta->setSearchNotesUpper(null);
+            $datatype_meta->setSearchNotesLower(null);
+
             $datatype_meta->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
 
             $datatype_meta->setExternalIdField(null);
@@ -3634,6 +3637,7 @@ exit();
                     }
 
 
+                    // TODO - This really should use "clone" and be way simpler
                     $properties = array(
                         'renderPlugin' => $datatype->getRenderPlugin()->getId(),
 
@@ -3650,6 +3654,8 @@ exit();
                         'xml_shortName' => $submitted_data->getXmlShortName(),
 
                         'publicDate' => $submitted_data->getPublicDate(),
+                        'searchNotesLower' => $submitted_data->getSearchNotesLower(),
+                        'searchNotesLower' => $submitted_data->getSearchNotesUpper()
                     );
 
                     // These properties can be null...
@@ -4589,21 +4595,24 @@ exit();
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
-                return parent::permissionDeniedError("edit");
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -4678,20 +4687,26 @@ exit();
         try {
             throw new ODRNotImplementedException();
 
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            $post = $_POST;
-//print_r($post);
-//return;
-            $datafield_id = $post['datafield_id'];
-
-            $repo_theme_data_field = $em->getRepository('ODRAdminBundle:ThemeDataField');
-
 $debug = true;
 $debug = false;
 
+            $post = $request->request->all();
+//            print_r($post);  return;
+
+            if ( !isset($post['datafield_id']) )
+                throw new ODRBadRequestException();
+            $datafield_id = $post['datafield_id'];
+
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted rows, because we want to display old selected mappings/options
+
 
             // need to do checking that stuff won't crash
             $query = $em->createQuery(
@@ -4723,14 +4738,9 @@ $debug = false;
             // --------------------
             // Determine user privileges
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) ) {
-                $em->getFilters()->enable('softdeleteable');
-                return parent::permissionDeniedError("edit");
-            }
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -5199,6 +5209,74 @@ if ($debug)
         }
         catch (\Exception $e) {
             $source = 0x6c5fbda1;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Saves changes to search notes from the search page.
+     *
+     * @param integer $datatype_id
+     * @param string $position
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function savesearchnotesAction($datatype_id, /*$position,*/ Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $post = $request->request->all();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            if ( !isset($post['upper_value']) || !isset($post['lower_value']) )
+                throw new ODRBadRequestException('Invalid Form');
+
+
+            // Set the properties array correctly and save to the database
+            $properties = array(
+                'searchNotesUpper' => $post['upper_value'],
+                'searchNotesLower' => $post['lower_value'],
+            );
+            parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+
+            // TODO - return something?
+        }
+        catch (\Exception $e) {
+            $source = 0xc3bf4313;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else

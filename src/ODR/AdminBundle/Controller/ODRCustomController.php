@@ -491,21 +491,38 @@ class ODRCustomController extends Controller
         $search_controller->setContainer($this->container);
 
         $search_params = $search_cache_service->decodeSearchKey($search_key);
+        // Reorder the search key for redirect check
+        $search_key_check = $search_cache_service->encodeSearchKey($search_params);
+
+        // Use the permissions of the currently logged in user
+        $search_as_super_admin = false;
 
         // Determine whether the search key needs to be filtered based on the user's permissions
-        $datafield_array = $search_controller->getSearchDatafieldsForUser($em, $user, $datatype_id, $datatype_permissions, $datafield_permissions);
-        $search_controller->buildSearchArray($search_params, $datafield_array, $datatype_permissions);
+        $datafield_array = $search_controller->getSearchDatafieldsForUser(
+            $em,
+            $datatype_id,
+            $search_as_super_admin,
+            $datatype_permissions,
+            $datafield_permissions
+        );
+        $search_controller->buildSearchArray(
+            $search_params,
+            $datafield_array,
+            $search_as_super_admin,
+            $datatype_permissions
+        );
 
-        if ( $search_key !== $datafield_array['filtered_search_key'] )
+        if ( $search_key_check !== $datafield_array['filtered_search_key'] )
             return array('redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key'], 'datarecord_list' => '');
 
+        // TODO - can't use permissions service here because don't have an actual datarecord...
         $can_view_datarecord = false;
         if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
             $can_view_datarecord = true;
 
         // ----------------------------------------
         // Otherwise, the search_key is fine...check to see if a cached version exists
-        $search_checksum = md5($search_key);
+        $search_checksum = md5($search_key_check);
 
         // Attempt to load the search result for this search_key
         $data = array();
@@ -515,7 +532,7 @@ class ODRCustomController extends Controller
             || !isset($cached_searches[$datatype_id][$search_checksum]) ) {
 
             // Saved search doesn't exist, redo the search and reload the results
-            $ret = $search_controller->performSearch($request, $search_key);
+            $ret = $search_controller->performSearch($search_params);
             if ($ret['error'] == true)
                 throw new \Exception( $ret['message'] );
             else if ($ret['redirect'] == true)
@@ -527,6 +544,8 @@ class ODRCustomController extends Controller
         // ----------------------------------------
         // Now that the search result is guaranteed to exist, grab it
         $cached_search_params = $cached_searches[$datatype_id][$search_checksum];
+        if ( is_null($cached_search_params) )
+            throw new ODRException('Search was run, but result not found in cache', 500, 0x3da651a2);
 
         // Pull the individual pieces of info out of the search results
         $data['redirect'] = false;
@@ -935,16 +954,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_theme_meta = null;
         if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
-            // Create a new meta entry and copy the old entry's data over
+            // Clone the existing GroupMeta entry
             $remove_old_entry = true;
 
-            $new_group_meta = new GroupMeta();
-            $new_group_meta->setGroup($group);
-
-            $new_group_meta->setGroupName( $old_meta_entry->getGroupName() );
-            $new_group_meta->setGroupDescription( $old_meta_entry->getGroupDescription() );
-            $new_group_meta->setDatarecordRestriction( $old_meta_entry->getDatarecordRestriction() );
-
+            $new_group_meta = clone $old_meta_entry;
             $new_group_meta->setCreatedBy($user);
         }
         else {
@@ -1020,20 +1033,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_permission = null;
         if ( self::createNewMetaEntry($user, $permission) ) {
-            // Create a new GroupDatatypePermissions entry and copy the old entry's data over
+            // Clone the existing GroupDatatypePermissions entry
             $remove_old_entry = true;
 
-            $new_permission = new GroupDatatypePermissions();
-            $new_permission->setGroup( $permission->getGroup() );
-            $new_permission->setDataType( $permission->getDataType() );
-
-            $new_permission->setCanViewDatatype( $permission->getCanViewDatatype() );
-            $new_permission->setCanViewDatarecord( $permission->getCanViewDatarecord() );
-            $new_permission->setCanAddDatarecord( $permission->getCanAddDatarecord() );
-            $new_permission->setCanDeleteDatarecord( $permission->getCanDeleteDatarecord() );
-            $new_permission->setCanDesignDatatype( $permission->getCanDesignDatatype() );
-            $new_permission->setIsDatatypeAdmin( $permission->getIsDatatypeAdmin() );
-
+            $new_permission = clone $permission;
             $new_permission->setCreatedBy($user);
         }
         else {
@@ -1104,16 +1107,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_permission = null;
         if ( self::createNewMetaEntry($user, $permission) ) {
-            // Create a new GroupDatafieldPermissions entry and copy the old entry's data over
+            // Clone the existing GroupDatafieldPermissions entry
             $remove_old_entry = true;
 
-            $new_permission = new GroupDatafieldPermissions();
-            $new_permission->setGroup( $permission->getGroup() );
-            $new_permission->setDataField( $permission->getDataField() );
-
-            $new_permission->setCanViewDatafield( $permission->getCanViewDatafield() );
-            $new_permission->setCanEditDatafield( $permission->getCanEditDatafield() );
-
+            $new_permission = clone $permission;
             $new_permission->setCreatedBy($user);
         }
         else {
@@ -1138,211 +1135,6 @@ class ODRCustomController extends Controller
 
         // Return the new entry
         return $new_permission;
-    }
-
-
-    /**
-     * @todo - move to the permissions service?
-     * @deprecated
-     *
-     * Gets and returns the permissions array for the given group.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $user_id
-     * @param boolean $force_rebuild
-     *
-     * @throws ODRException
-     *
-     * @return array
-     */
-    public function getUserPermissionsArray($em, $user_id, $force_rebuild = false)
-    {
-        try {
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-
-//$force_rebuild = true;
-            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
-            $user_permissions = $cache_service->get('user_'.$user_id.'_permissions');
-            if ( !$force_rebuild && $user_permissions != false )
-                return $user_permissions;
-
-
-            // ----------------------------------------
-            // ...otherwise, get which groups the user belongs to
-            $query = $em->createQuery(
-               'SELECT g.id AS group_id
-                FROM ODRAdminBundle:UserGroup AS ug
-                JOIN ODRAdminBundle:Group AS g WITH ug.group = g
-                WHERE ug.user = :user_id
-                AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
-            )->setParameters( array('user_id' => $user_id) );
-            $results = $query->getArrayResult();
-//exit('<pre>'.print_r($results, true).'</pre>' );
-
-            $user_groups = array();
-            foreach ($results as $result)
-                $user_groups[] = $result['group_id'];
-
-
-            // ----------------------------------------
-            // For each group the user belongs to, attempt to load that group's permissions from the cache
-            $group_permissions = array();
-            foreach ($user_groups as $num => $group_id) {
-                // Attempt to load the permissions for this group
-                $permissions = $cache_service->get('group_'.$group_id.'_permissions');
-
-                if ( $force_rebuild || $permissions == false ) {
-                    $permissions = self::rebuildGroupPermissionsArray($em, $group_id);
-                    $cache_service->set('group_'.$group_id.'_permissions', $permissions);
-                }
-
-                $group_permissions[$group_id] = $permissions;
-            }
-
-
-            // ----------------------------------------
-            // Merge these group permissions into a single array for this user
-            $user_permissions = array('datatypes' => array(), 'datafields' => array());
-            foreach ($group_permissions as $group_id => $group_permission) {
-                // TODO - datarecord restriction?
-
-                foreach ($group_permission['datatypes'] as $dt_id => $dt_permissions) {
-                    foreach ($dt_permissions as $permission => $num)
-                        $user_permissions['datatypes'][$dt_id][$permission] = 1;
-
-                    // If the user is an admin for the datatype, ensure they're allowed to edit datarecords of the datatype
-                    if ( isset($user_permissions['datatypes'][$dt_id]['dt_admin']) )
-                        $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
-                }
-
-                foreach ($group_permission['datafields'] as $dt_id => $datafields) {
-                    foreach ($datafields as $df_id => $df_permissions) {
-                        if ( isset($df_permissions['view']) ) {
-                            $user_permissions['datafields'][$df_id]['view'] = 1;
-                        }
-
-                        if ( isset($df_permissions['edit']) ) {
-                            $user_permissions['datafields'][$df_id]['edit'] = 1;
-
-                            $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
-                        }
-                    }
-                }
-            }
-
-            // If child datatypes have the "dr_edit" permission, ensure their parents do as well
-            $datatree_array = $dti_service->getDatatreeArray();
-
-            foreach ($user_permissions['datatypes'] as $dt_id => $dt_permissions) {
-                if ( isset($dt_permissions['dr_edit']) ) {
-
-                    $parent_datatype_id = $dt_id;
-                    while( isset($datatree_array['descendant_of'][$parent_datatype_id]) && $datatree_array['descendant_of'][$parent_datatype_id] !== '' ) {
-                        $parent_datatype_id = $datatree_array['descendant_of'][$parent_datatype_id];
-                        $user_permissions['datatypes'][$parent_datatype_id]['dr_edit'] = 1;
-                    }
-                }
-            }
-
-            // Store that array in the cache
-            $cache_service->set('user_'.$user_id.'_permissions', $user_permissions);
-
-            // ----------------------------------------
-            // Return the permissions for all groups this user belongs to
-            return $user_permissions;
-        }
-        catch (\Exception $e) {
-            throw new ODRException( $e->getMessage() );
-        }
-    }
-
-
-    /**
-     * @todo - move to the permissions service?
-     * @deprecated
-     *
-     * Rebuilds the cached version of a group's datatype/datafield permissions array
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $group_id
-     *
-     * @return array
-     */
-    protected function rebuildGroupPermissionsArray($em, $group_id)
-    {
-        // Load all permission entities from the database for the given group
-        $query = $em->createQuery(
-           'SELECT g, gm, gdtp, dt, gdfp, df, df_dt
-            FROM ODRAdminBundle:Group AS g
-            JOIN g.groupMeta AS gm
-            LEFT JOIN g.groupDatatypePermissions AS gdtp
-            LEFT JOIN gdtp.dataType AS dt
-            LEFT JOIN g.groupDatafieldPermissions AS gdfp
-            LEFT JOIN gdfp.dataField AS df
-            LEFT JOIN df.dataType AS df_dt
-            WHERE g.id = :group_id
-            AND g.deletedAt IS NULL AND gm.deletedAt IS NULL AND gdtp.deletedAt IS NULL AND gdfp.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND df_dt.deletedAt IS NULL'
-        )->setParameters( array('group_id' => $group_id) );
-        $results = $query->getArrayResult();
-//exit( '<pre>'.print_r($results, true).'</pre>' );
-
-        // Read the query result to find...
-        $datarecord_restriction = '';
-        $datatype_permissions = array();
-        $datafield_permissions = array();
-
-        foreach ($results as $group) {
-            // Extract datarecord restriction first
-            $datarecord_restriction = $group['groupMeta'][0]['datarecord_restriction'];
-
-            // Build the permissions list for datatypes
-            foreach ($group['groupDatatypePermissions'] as $num => $permission) {
-                if ( !isset($permission['dataType']['id']) )
-                    continue;
-
-                $dt_id = $permission['dataType']['id'];
-                $datatype_permissions[$dt_id] = array();
-
-                if ($permission['can_view_datatype'])
-                    $datatype_permissions[$dt_id]['dt_view'] = 1;
-                if ($permission['can_view_datarecord'])
-                    $datatype_permissions[$dt_id]['dr_view'] = 1;
-                if ($permission['can_add_datarecord'])
-                    $datatype_permissions[$dt_id]['dr_add'] = 1;
-                if ($permission['can_delete_datarecord'])
-                    $datatype_permissions[$dt_id]['dr_delete'] = 1;
-//                if ($permission['can_design_datatype'])
-//                    $datatype_permissions[$dt_id]['dt_design'] = 1;
-                if ($permission['is_datatype_admin'])
-                    $datatype_permissions[$dt_id]['dt_admin'] = 1;
-            }
-
-            // Build the permissions list for datafields
-            foreach ($group['groupDatafieldPermissions'] as $num => $permission) {
-                $dt_id = $permission['dataField']['dataType']['id'];
-                if ( !isset($datafield_permissions[$dt_id]) )
-                    $datafield_permissions[$dt_id] = array();
-
-                $df_id = $permission['dataField']['id'];
-                $datafield_permissions[$dt_id][$df_id] = array();
-
-                if ($permission['can_view_datafield'])
-                    $datafield_permissions[$dt_id][$df_id]['view'] = 1;
-                if ($permission['can_edit_datafield'])
-                    $datafield_permissions[$dt_id][$df_id]['edit'] = 1;
-            }
-        }
-
-        // ----------------------------------------
-        // Return the final array
-        return array(
-            'datarecord_restriction' => $datarecord_restriction,
-            'datatypes' => $datatype_permissions,
-            'datafields' => $datafield_permissions,
-        );
     }
 
 
@@ -1372,35 +1164,6 @@ class ODRCustomController extends Controller
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         $response->setStatusCode(403);
-        return $response;
-    }
-
-
-    /**
-     * Utility function so other controllers can notify of deleted entities easily.
-     * @deprecated
-     *
-     * @param string $entity
-     *
-     * @return Response
-     */
-    public function deletedEntityError($entity = '')
-    {
-        $str = '';
-        if ($entity !== '')
-            $str = "<h2>This ".$entity." has been deleted!</h2>";
-//        else
-//            $str = "<h2>Permission Denied</h2>";
-
-        $return = array();
-        $return['r'] = 1;   // TODO - switch to 404?
-        $return['t'] = 'html';
-        $return['d'] = array(
-            'html' => $str
-        );
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
 
@@ -1612,14 +1375,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_datarecord_meta = null;
         if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
-            // Create a new meta entry and copy the old entry's data over
+            // Clone the existing DatarecordMeta entry
             $remove_old_entry = true;
 
-            $new_datarecord_meta = new DataRecordMeta();
-            $new_datarecord_meta->setDataRecord($datarecord);
-
-            $new_datarecord_meta->setPublicDate( $old_meta_entry->getPublicDate() );
-
+            $new_datarecord_meta = clone $old_meta_entry;
             $new_datarecord_meta->setCreatedBy($user);
         }
         else {
@@ -1688,15 +1447,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_datatree_meta = null;
         if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
-            // Create a new meta entry and copy the old entry's data over
+            // Clone the old DatatreeMeta entry
             $remove_old_entry = true;
 
-            $new_datatree_meta = new DataTreeMeta();
-            $new_datatree_meta->setDataTree($datatree);
-
-            $new_datatree_meta->setMultipleAllowed( $old_meta_entry->getMultipleAllowed() );
-            $new_datatree_meta->setIsLink( $old_meta_entry->getIsLink() );
-
+            $new_datatree_meta = clone $old_meta_entry;
             $new_datatree_meta->setCreatedBy($user);
         }
         else {
@@ -2250,17 +2004,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_file_meta = null;
         if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
-            // Create a new meta entry and copy the old entry's data over
+            // Clone the old FileMeta entry
             $remove_old_entry = true;
 
-            $new_file_meta = new FileMeta();
-            $new_file_meta->setFile($file);
-
-            $new_file_meta->setDescription( $old_meta_entry->getDescription() );
-            $new_file_meta->setOriginalFileName( $old_meta_entry->getOriginalFileName() );
-            $new_file_meta->setExternalId( $old_meta_entry->getExternalId() );
-            $new_file_meta->setPublicDate( $old_meta_entry->getPublicDate() );
-
+            $new_file_meta = clone $old_meta_entry;
             $new_file_meta->setCreatedBy($user);
         }
         else {
@@ -2338,18 +2085,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_image_meta = null;
         if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
-            // Create a new meta entry and copy the old entry's data over
+            // Clone the old ImageMeta entry
             $remove_old_entry = true;
 
-            $new_image_meta = new ImageMeta();
-            $new_image_meta->setImage($image);
-
-            $new_image_meta->setCaption( $old_meta_entry->getCaption() );
-            $new_image_meta->setOriginalFileName( $old_meta_entry->getOriginalFileName() );
-            $new_image_meta->setExternalId( $old_meta_entry->getExternalId() );
-            $new_image_meta->setPublicDate( $old_meta_entry->getPublicDate() );
-            $new_image_meta->setDisplayorder( $old_meta_entry->getDisplayorder() );
-
+            $new_image_meta = clone $old_meta_entry;
             $new_image_meta->setCreatedBy($user);
         }
         else {
@@ -2552,17 +2291,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_radio_option_meta = null;
         if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
-            // Create a new meta entry and copy the old entry's data over
+            // Clone the old RadioOptionsMeta entry
             $remove_old_entry = true;
 
-            $new_radio_option_meta = new RadioOptionsMeta();
-            $new_radio_option_meta->setRadioOption($radio_option);
-
-            $new_radio_option_meta->setOptionName( $old_meta_entry->getOptionName() );
-            $new_radio_option_meta->setXmlOptionName( $old_meta_entry->getXmlOptionName() );
-            $new_radio_option_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
-            $new_radio_option_meta->setIsDefault( $old_meta_entry->getIsDefault() );
-
+            $new_radio_option_meta = clone $old_meta_entry;
             $new_radio_option_meta->setCreatedBy($user);
         }
         else {
@@ -2680,16 +2412,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_entity = null;
         if ( self::createNewMetaEntry($user, $entity) ) {
-            // Create a new entry and copy the previous one's data over
+            // Clone the old RadioSelection entry
             $remove_old_entry = true;
 
-            /** @var RadioSelection $new_entity */
-            $new_entity = new RadioSelection();
-            $new_entity->setRadioOption( $entity->getRadioOption() );
-            $new_entity->setDataRecordFields( $entity->getDataRecordFields() );
-
-            $new_entity->setSelected( $entity->getSelected() );
-
+            $new_entity = clone $entity;
             $new_entity->setCreatedBy($user);
         }
         else {
@@ -2750,6 +2476,9 @@ class ODRCustomController extends Controller
             'description' => $old_meta_entry->getDescription(),
             'xml_shortName' => $old_meta_entry->getXmlShortName(),
 
+            'searchNotesUpper' => $old_meta_entry->getSearchNotesUpper(),
+            'searchNotesLower' => $old_meta_entry->getSearchNotesLower(),
+
             'publicDate' => $old_meta_entry->getPublicDate(),
             'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
             'master_revision' => $old_meta_entry->getMasterRevision(),
@@ -2790,30 +2519,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_datatype_meta = null;
         if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
-            // Create a new meta entry and copy the old entry's data over
+            // Clone the existing DatatypeMeta entry
             $remove_old_entry = true;
 
-            $new_datatype_meta = new DataTypeMeta();
-            $new_datatype_meta->setDataType($datatype);
-
-            $new_datatype_meta->setRenderPlugin( $old_meta_entry->getRenderPlugin() );
-            $new_datatype_meta->setExternalIdField( $old_meta_entry->getExternalIdField() );
-            $new_datatype_meta->setNameField( $old_meta_entry->getNameField() );
-            $new_datatype_meta->setSortField( $old_meta_entry->getSortField() );
-            $new_datatype_meta->setBackgroundImageField( $old_meta_entry->getBackgroundImageField() );
-
-            $new_datatype_meta->setSearchSlug( $old_meta_entry->getSearchSlug() );
-            $new_datatype_meta->setShortName( $old_meta_entry->getShortName() );
-            $new_datatype_meta->setLongName( $old_meta_entry->getLongName() );
-            $new_datatype_meta->setDescription( $old_meta_entry->getDescription() );
-            $new_datatype_meta->setXmlShortName( $old_meta_entry->getXmlShortName() );
-
-            $new_datatype_meta->setPublicDate( $old_meta_entry->getPublicDate() );
-
-            $new_datatype_meta->setMasterRevision( $old_meta_entry->getMasterRevision() );
-            $new_datatype_meta->setMasterPublishedRevision( $old_meta_entry->getMasterPublishedRevision() );
-            $new_datatype_meta->setTrackingMasterRevision( $old_meta_entry->getTrackingMasterRevision() );
-
+            $new_datatype_meta = clone $old_meta_entry;
             $new_datatype_meta->setCreatedBy($user);
         }
         else {
@@ -2861,6 +2570,11 @@ class ODRCustomController extends Controller
             $new_datatype_meta->setDescription( $properties['description'] );
         if ( isset($properties['xml_shortName']) )
             $new_datatype_meta->setXmlShortName( $properties['xml_shortName'] );
+
+        if ( isset($properties['searchNotesUpper']) )
+            $new_datatype_meta->setSearchNotesUpper( $properties['searchNotesUpper'] );
+        if ( isset($properties['searchNotesLower']) )
+            $new_datatype_meta->setSearchNotesLower( $properties['searchNotesLower'] );
 
         if ( isset($properties['publicDate']) )
             $new_datatype_meta->setPublicDate( $properties['publicDate'] );
@@ -3053,35 +2767,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_datafield_meta = null;
         if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
-            // Create a new meta entry and copy the old entry's data over
+            // Clone the old DatafieldMeta entry
             $remove_old_entry = true;
 
-            $new_datafield_meta = new DataFieldsMeta();
-            $new_datafield_meta->setDataField($datafield);
-            $new_datafield_meta->setFieldType( $old_meta_entry->getFieldType() );
-            $new_datafield_meta->setRenderPlugin( $old_meta_entry->getRenderPlugin() );
-
-            $new_datafield_meta->setFieldName( $old_meta_entry->getFieldName() );
-            $new_datafield_meta->setDescription( $old_meta_entry->getDescription() );
-            $new_datafield_meta->setXmlFieldName( $old_meta_entry->getXmlFieldName() );
-            $new_datafield_meta->setMarkdownText( $old_meta_entry->getMarkdownText() );
-            $new_datafield_meta->setRegexValidator( $old_meta_entry->getRegexValidator() );
-            $new_datafield_meta->setPhpValidator( $old_meta_entry->getPhpValidator() );
-            $new_datafield_meta->setRequired( $old_meta_entry->getRequired() );
-            $new_datafield_meta->setIsUnique( $old_meta_entry->getIsUnique() );
-            $new_datafield_meta->setAllowMultipleUploads( $old_meta_entry->getAllowMultipleUploads() );
-            $new_datafield_meta->setShortenFilename( $old_meta_entry->getShortenFilename() );
-            $new_datafield_meta->setChildrenPerRow( $old_meta_entry->getChildrenPerRow() );
-            $new_datafield_meta->setRadioOptionNameSort( $old_meta_entry->getRadioOptionNameSort() );
-            $new_datafield_meta->setRadioOptionDisplayUnselected( $old_meta_entry->getRadioOptionDisplayUnselected() );
-            $new_datafield_meta->setSearchable( $old_meta_entry->getSearchable() );
-            $new_datafield_meta->setPublicDate( $old_meta_entry->getPublicDate() );
-
-            // Master Template Related
-            $new_datafield_meta->setMasterRevision( $old_meta_entry->getMasterRevision() );
-            $new_datafield_meta->setTrackingMasterRevision( $old_meta_entry->getTrackingMasterRevision() );
-            $new_datafield_meta->setMasterPublishedRevision( $old_meta_entry->getMasterPublishedRevision() );
-
+            $new_datafield_meta = clone $old_meta_entry;
             $new_datafield_meta->setCreatedBy($user);
         }
         else {
@@ -3212,20 +2901,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_theme_meta = null;
         if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
-            // Create a new meta entry and copy the old entry's data over
+            // Clone the old ThemeMeta entry
             $remove_old_entry = true;
 
-            $new_theme_meta = new ThemeMeta();
-            $new_theme_meta->setTheme($theme);
-
-            $new_theme_meta->setTemplateName( $old_meta_entry->getTemplateName() );
-            $new_theme_meta->setTemplateDescription( $old_meta_entry->getTemplateDescription() );
-            $new_theme_meta->setIsDefault( $old_meta_entry->getIsDefault() );
-            $new_theme_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
-            $new_theme_meta->setShared( $old_meta_entry->getShared() );
-            $new_theme_meta->setSourceSyncCheck( $old_meta_entry->getSourceSyncCheck() );
-            $new_theme_meta->setIsTableTheme( $old_meta_entry->getIsTableTheme() );
-
+            $new_theme_meta = clone $old_meta_entry;
             $new_theme_meta->setCreatedBy($user);
         }
         else {
@@ -3361,17 +3040,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $theme_element_meta = null;
         if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
-            // Create a new meta entry and copy the old entry's data over
+            // Clone the old ThemeelementMeta entry
             $remove_old_entry = true;
 
-            $theme_element_meta = new ThemeElementMeta();
-            $theme_element_meta->setThemeElement($theme_element);
-
-            $theme_element_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
-            $theme_element_meta->setHidden( $old_meta_entry->getHidden() );
-            $theme_element_meta->setCssWidthMed( $old_meta_entry->getCssWidthMed() );
-            $theme_element_meta->setCssWidthXL( $old_meta_entry->getCssWidthXL() );
-
+            $theme_element_meta = clone $old_meta_entry;
             $theme_element_meta->setCreatedBy($user);
         }
         else {
@@ -3478,18 +3150,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_theme_datafield = null;
         if ( self::createNewMetaEntry($user, $theme_datafield) ) {
-            // Create a new meta entry and copy the old entry's data over
+            // Clone the old ThemeDatafield entry
             $remove_old_entry = true;
 
-            $new_theme_datafield = new ThemeDataField();
-            $new_theme_datafield->setDataField( $theme_datafield->getDataField() );
-            $new_theme_datafield->setThemeElement( $theme_datafield->getThemeElement() );
-
-            $new_theme_datafield->setDisplayOrder( $theme_datafield->getDisplayOrder() );
-            $new_theme_datafield->setCssWidthMed( $theme_datafield->getCssWidthMed() );
-            $new_theme_datafield->setCssWidthXL( $theme_datafield->getCssWidthXL() );
-            $new_theme_datafield->setHidden( $theme_datafield->getHidden() );
-
+            $new_theme_datafield = clone $theme_datafield;
             $new_theme_datafield->setCreatedBy($user);
         }
         else {
@@ -3589,16 +3253,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_theme_datatype = null;
         if ( self::createNewMetaEntry($user, $theme_datatype) ) {
-            // Create a new meta entry and copy the old entry's data over
+            // Clone the old ThemeDatatype entry
             $remove_old_entry = true;
 
-            $new_theme_datatype = new ThemeDataType();
-            $new_theme_datatype->setDataType( $theme_datatype->getDataType() );
-            $new_theme_datatype->setThemeElement( $theme_datatype->getThemeElement() );
-
-            $new_theme_datatype->setDisplayType( $theme_datatype->getDisplayType() );
-            $new_theme_datatype->setHidden( $theme_datatype->getHidden() );
-
+            $new_theme_datatype = clone $theme_datatype;
             $new_theme_datatype->setCreatedBy($user);
         }
         else {
@@ -3731,16 +3389,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_rpm = null;
         if ( self::createNewMetaEntry($user, $render_plugin_map) ) {
-            // Create a new meta entry and copy the old entry's data over
+            // Clone the old RenderPluginMap entry
             $remove_old_entry = true;
 
-            $new_rpm = new RenderPluginMap();
-            $new_rpm->setRenderPluginInstance( $render_plugin_map->getRenderPluginInstance() );
-            $new_rpm->setRenderPluginFields( $render_plugin_map->getRenderPluginFields() );
-
-            $new_rpm->setDataType( $render_plugin_map->getDataType() );
-            $new_rpm->setDataField( $render_plugin_map->getDataField() );
-
+            $new_rpm = clone $render_plugin_map;
             $new_rpm->setCreatedBy($user);
         }
         else {
@@ -3831,15 +3483,10 @@ class ODRCustomController extends Controller
         $remove_old_entry = false;
         $new_rpo = null;
         if ( self::createNewMetaEntry($user, $render_plugin_option) ) {
-            // Create a new meta entry and copy the old entry's data over
+            // Clone the old RenderPluginOptions entry
             $remove_old_entry = true;
 
-            $new_rpo = new RenderPluginOptions();
-            $new_rpo->setRenderPluginInstance( $render_plugin_option->getRenderPluginInstance() );
-            $new_rpo->setOptionName( $render_plugin_option->getOptionName() );
-            $new_rpo->setOptionValue( $render_plugin_option->getOptionValue() );
-            $new_rpo->setActive(true);
-
+            $new_rpo = clone $render_plugin_option;
             $new_rpo->setCreatedBy($user);
         }
         else {

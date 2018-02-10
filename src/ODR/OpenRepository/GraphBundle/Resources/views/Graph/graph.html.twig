@@ -2,7 +2,7 @@
 {# Create a dynamic or static graph - either rollup or individual #}
 {% if odr_chart_legend|length %}
 
-    <div class="pure-u-1 DynamicGraphs Hide">
+    <div class="pure-u-1 DynamicGraphs ODRHidden">
         <div id="{{ odr_chart_id }}_Dynamic_GraphWrapper">
             {% if odr_chart_files|length %}
                 <div id='{{ odr_chart_id }}' class="ODRGraph ODRDynamicGraph pure-u-1">
@@ -44,7 +44,7 @@
 
 // Used to track active plots for resizing
 // Why is this not cleared every time?
-var page_plots = []
+var page_plots = [];
 jQuery(function() {
 
 
@@ -57,11 +57,11 @@ jQuery(function() {
     }
 
     $(".StaticGraphs").unbind('click').click(function() {
-        var parent = $(this).parent()
-        $(this).hide()
-        $(parent).find('.DynamicGraphs').show()
+        var parent = $(this).parent();
+        $(this).hide();
+        $(parent).find('.DynamicGraphs').show();
 
-        var chart_id = $(parent).find('.ODRDynamicGraph').attr('id')
+        var chart_id = $(parent).find('.ODRDynamicGraph').attr('id');
         window['SetupGraphs_' + chart_id]();
     });
 
