@@ -2008,14 +2008,10 @@ class DisplaytemplateController extends ODRCustomController
             $child_datatype->addDataTypeMetum($datatype_meta);
             $em->persist($datatype_meta);
 
-
             // Create a new DataTree entry to link the original datatype and this new child datatype
-            $datatree = new DataTree();
-            $datatree->setAncestor($parent_datatype);
-            $datatree->setDescendant($child_datatype);
-            $datatree->setCreatedBy($user);
-            $em->persist($datatree);
-
+            $is_link = false;
+            $multiple_allowed = true;
+            $datatree = parent::ODR_addDatatree($em, $user, $parent_datatype, $child_datatype, $is_link, $multiple_allowed);
 
             // Create a new master theme for this new child datatype
             $child_theme = new Theme();
@@ -2038,18 +2034,6 @@ class DisplaytemplateController extends ODRCustomController
             $child_theme->setSourceTheme($child_theme);
             $em->persist($child_theme);
 
-            // Create a new DataTreeMeta entity to store properties of the DataTree
-            $datatree_meta = new DataTreeMeta();
-            $datatree_meta->setDataTree($datatree);
-            $datatree_meta->setIsLink(false);
-            $datatree_meta->setMultipleAllowed(true);
-            $datatree_meta->setCreatedBy($user);
-            $datatree_meta->setUpdatedBy($user);
-
-            // Ensure the "in-memory" version of the new Datatree entry knows about its meta entry
-            $datatree->addDataTreeMetum($datatree_meta);
-            $em->persist($datatree_meta);
-
             // Create a new ThemeMeta entity to store properties of the childtype's Theme
             $theme_meta = new ThemeMeta();
             $theme_meta->setTheme($child_theme);
@@ -2068,7 +2052,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Create a new ThemeDatatype entry to let the renderer know it has to render a child datatype in this ThemeElement
-            parent::ODR_addThemeDatatype($em, $user, $child_datatype, $theme_element);
+            parent::ODR_addThemeDatatype($em, $user, $child_datatype, $theme_element, $child_theme);
             $em->flush();
 
 
@@ -3281,8 +3265,10 @@ exit();
 //print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
         // Also grab the cached version of the grandparent datatype's master theme
-        $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
-//print '<pre>'.print_r($theme_array, true).'</pre>'; exit();
+        $master_theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
+        $theme_array = $theme_service->getThemeArray($master_theme->getId());
+//        $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
+print '<pre>'.print_r($theme_array, true).'</pre>'; exit();
 
         // Due to the possibility of linked datatypes the user may not have permissions for, the
         //  datatype array needs to be filtered.  TODO - should it also get stacked in the future?

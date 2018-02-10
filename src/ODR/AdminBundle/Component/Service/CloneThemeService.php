@@ -20,6 +20,7 @@ use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
+use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -113,10 +114,10 @@ class CloneThemeService
     {
         // Need to compute the difference between the Theme and its source to know whether it makes
         //  sense to sync the two Themes...
-        $diff = self::getThemeSourceDiff($theme);
+        $theme_diff_array = self::getThemeSourceDiff($theme);
 
         // If there's at least once ThemeDatafield or ThemeDatatype entry to create, return true
-        if ( count($diff['themes']) > 0 )
+        if ( count($theme_diff_array) > 0 )
             return true;
         else
             return false;
@@ -124,7 +125,26 @@ class CloneThemeService
 
 
     /**
-     * Returns an array of differences between this theme and its source.
+     * Returns the array of differences between the given Theme and its source Theme.
+     *
+     * The returned array is structured as follows...
+     * $theme_diff_array = array(
+     *     [$theme_id] => array(
+     *         ['source_theme_id'] => $source_theme_id,
+     *         ['new_datafields'] => array(
+     *             [$datafield_id] => $source_theme_datafield_id,
+     *             ...
+     *         ),
+     *         ['new_datatypes'] => array(
+     *             [$datatype_id] => $source_theme_datatype_id,
+     *             ...
+     *         )
+     *     ),
+     *     ...
+     * )
+     *
+     * The 'new_datafields' and 'new_datatypes' keys only exist if a ThemeDatafield entry or a
+     * ThemeDatatype entry need to be created, respectively.
      *
      * @param Theme $theme
      *
@@ -139,132 +159,146 @@ class CloneThemeService
         if ($theme->getParentTheme()->getId() !== $theme->getId())
             throw new ODRBadRequestException('Themes for child Datatypes should not be checked for differences...check their parent Theme instead');
 
-        // By definition, there's no difference if the theme is its own source
+        // Logically, there should be no difference if a theme is its own source theme...but if the
+        //  datatype is linked to other datatypes, then this datatype has copies of their themes
+        //  that need to be checked for updates
         $source_theme = $theme->getSourceTheme();
-        if ($source_theme->getId() == $theme->getId())
-            return array('themes' => array());
+//        if ($source_theme->getId() == $theme->getId())
+//            return array('themes' => array());
 
 
         // ----------------------------------------
-        // Get a list of all ThemeDatafield and ThemeDatatype ids that exist in the source Theme
-        $query = $this->em->createQuery(
-            'SELECT
-                t, te,
-                tdf, df,
-                tdt, c_dt
-
-            FROM ODRAdminBundle:Theme AS t
-            LEFT JOIN t.themeElements AS te
-            LEFT JOIN te.themeDataFields AS tdf
-            LEFT JOIN tdf.dataField AS df
-            LEFT JOIN te.themeDataType AS tdt
-            LEFT JOIN tdt.dataType AS c_dt
-            
-            WHERE t.parentTheme = :theme_id'
-        )->setParameters( array('theme_id' => $source_theme->getParentTheme()->getId()) );
-        $results = $query->getArrayResult();
-
-        $source_theme_datafields = array();
-        $source_theme_datatypes = array();
-        foreach ($results as $t_num => $t) {
-            $theme_id = $t['id'];
-
-            foreach ($t['themeElements'] as $te_num => $te) {
-                if ( isset($te['themeDataFields']) ) {
-                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                        $df_id = $tdf['dataField']['id'];
-                        $source_theme_datafields[$df_id] = $theme_id;
-                    }
-                }
-
-                if ( isset($te['themeDataType']) ) {
-                    foreach ($te['themeDataType'] as $tdt_num => $tdt) {
-                        $dt_id = $tdt['dataType']['id'];
-                        $source_theme_datatypes[$dt_id] = $theme_id;
-                    }
-                }
-            }
-        }
-
-        // Get a list of all ThemeDatafield and ThemeDatatype ids that exist in the source Theme
-        $query = $this->em->createQuery(
-            'SELECT
-                t, te,
-                tdf, df,
-                tdt, c_dt
-
-            FROM ODRAdminBundle:Theme AS t
-            LEFT JOIN t.themeElements AS te
-            LEFT JOIN te.themeDataFields AS tdf
-            LEFT JOIN tdf.dataField AS df
-            LEFT JOIN te.themeDataType AS tdt
-            LEFT JOIN tdt.dataType AS c_dt
-            
-            WHERE t.parentTheme = :theme_id'
-        )->setParameters( array('theme_id' => $theme->getParentTheme()->getId()) );
-        $results = $query->getArrayResult();
-
-        foreach ($results as $t_num => $t) {
-            foreach ($t['themeElements'] as $te_num => $te) {
-                if ( isset($te['themeDataFields']) ) {
-                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                        $df_id = $tdf['dataField']['id'];
-                        if ( isset($source_theme_datafields[$df_id]) )
-                            unset($source_theme_datafields[$df_id]);
-                    }
-                }
-
-                if ( isset($te['themeDataType']) ) {
-                    foreach ($te['themeDataType'] as $tdt_num => $tdt) {
-                        $dt_id = $tdt['dataType']['id'];
-                        if ( isset($source_theme_datatypes[$dt_id]) )
-                            unset($source_theme_datatypes[$dt_id]);
-                    }
-                }
-            }
-        }
-
-
-        // ----------------------------------------
-        // Remove all datafields/datatypes that currently exist in this theme from the list of all
-        //  datafields/datatypes that exist in the source theme
-        $themes = array();
-        foreach ($source_theme_datafields as $df_id => $t_id) {
-            if ( !isset($themes[$t_id]) )
-                $themes[$t_id] = array();
-            if ( !isset($themes[$t_id]['new_datafields']) )
-                $themes[$t_id]['new_datafields'] = array();
-
-            $themes[$t_id]['new_datafields'][] = $df_id;
-        }
-        foreach ($source_theme_datatypes as $dt_id => $t_id) {
-            if ( !isset($themes[$t_id]) )
-                $themes[$t_id] = array();
-            if ( !isset($themes[$t_id]['new_datatypes']) )
-                $themes[$t_id]['new_datatypes'] = array();
-
-            $themes[$t_id]['new_datatypes'][] = $dt_id;
-        }
+        $theme_diff_array = array();
+        self::themeSourceDiffWorker($theme->getId(), $source_theme->getId(), $theme_diff_array);
 
         // The result is a list of the themeDatafield/themeDatatype entries that need to be created
-        //  for the current theme to be considered synchronized with its source themes
-        return array('themes' => $themes);
+        //  for this top-level theme to be considered synchronized
+        return $theme_diff_array;
     }
 
 
     /**
-     * Syncs the provided top-level Theme and all its child Themes with their source Themes,
-     * by adding ThemeDatafield entries for new Datafields and ThemeDatatype entries for new
-     * child/linked datatypes.
+     * Given the ids for a theme and its source theme, this function recursively builds an array
+     * detailing which themeDatafield and themeDatatype entries need to cloned so the theme and its
+     * child themes are synchronized with their source themes.
      *
-     * There will only be new ThemeDatatype entries when a new child/linked datatype was
-     * added...a new ThemeDatatype entry for the new child/linked datatype will be attached
-     * to a new ThemeElement.  If the new datatype is not linked, then its master theme will
-     * get cloned as well.
+     * @param integer $theme_id
+     * @param integer $source_theme_id
+     * @param array $theme_diff_array
+     */
+    private function themeSourceDiffWorker($theme_id, $source_theme_id, &$theme_diff_array)
+    {
+        // Need the input parameters as an array for the query...
+        $theme_ids = array($theme_id, $source_theme_id);
+
+
+        // ----------------------------------------
+        // Get all ThemeDatafield and ThemeDatatype entries for both themes
+        $query = $this->em->createQuery(
+            'SELECT
+                partial t.{id}, partial te.{id},
+                partial tdf.{id}, partial df.{id},
+                partial tdt.{id}, partial c_dt.{id}, partial c_t.{id}, partial c_s_t.{id}
+
+            FROM ODRAdminBundle:Theme AS t
+            LEFT JOIN t.themeElements AS te
+
+            LEFT JOIN te.themeDataFields AS tdf
+            LEFT JOIN tdf.dataField AS df
+
+            LEFT JOIN te.themeDataType AS tdt
+            LEFT JOIN tdt.dataType AS c_dt
+            LEFT JOIN tdt.childTheme AS c_t
+            LEFT JOIN c_t.sourceTheme AS c_s_t
+
+            WHERE t IN (:theme_ids)'
+        )->setParameters( array('theme_ids' => $theme_ids) );
+        $results = $query->getArrayResult();
+
+        // Compress the DQL result into a more manageable format
+        $theme_array = array();
+        foreach ($results as $num => $t) {
+            $t_id = $t['id'];
+
+            $theme_array[$t_id] = array(
+                'theme_datafields' => array(),
+                'theme_datatypes' => array(),
+            );
+
+            foreach ($t['themeElements'] as $te_num => $te) {
+                if (isset($te['themeDataFields'])) {
+                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                        $tdf_id = $tdf['id'];
+                        $df_id = $tdf['dataField']['id'];
+
+                        $theme_array[$t_id]['theme_datafields'][$df_id] = $tdf_id;
+                    }
+                }
+
+                if (isset($te['themeDataType'])) {
+                    foreach ($te['themeDataType'] as $tdt_num => $tdt) {
+                        $tdt_id = $tdt['id'];
+                        $c_dt_id = $tdt['dataType']['id'];
+                        $c_t_id = $tdt['childTheme']['id'];
+                        $c_s_t_id = $tdt['childTheme']['sourceTheme']['id'];
+
+                        $theme_array[$t_id]['theme_datatypes'][$c_dt_id] = array('tdt_id' => $tdt_id, 'c_t_id' => $c_t_id, 'c_s_t_id' => $c_s_t_id);
+                    }
+                }
+            }
+        }
+
+
+        // ----------------------------------------
+        // Determine which datafields and child/linked datatypes the theme needs to clone from its source
+        $diff_array = array(
+//            'source_theme_id' => $source_theme_id,
+            'new_datafields' => array(),
+            'new_datatypes' => array(),
+        );
+
+        foreach ($theme_array[$source_theme_id]['theme_datafields'] as $df_id => $tdf_id) {
+            if ( !isset($theme_array[$theme_id]['theme_datafields'][$df_id]) )
+                $diff_array['new_datafields'][$df_id] = $tdf_id;
+        }
+        foreach ($theme_array[$source_theme_id]['theme_datatypes'] as $dt_id => $tdt) {
+            if ( !isset($theme_array[$theme_id]['theme_datatypes'][$dt_id]) )
+                $diff_array['new_datatypes'][$dt_id] = $tdt['tdt_id'];
+        }
+        if ( count($diff_array['new_datafields']) == 0 )
+            unset( $diff_array['new_datafields'] );
+        if ( count($diff_array['new_datatypes']) == 0 )
+            unset( $diff_array['new_datatypes'] );
+
+        // If there actually are differences, store them in the array
+        if ( count($diff_array) > 1 )
+            $theme_diff_array[$theme_id] = $diff_array;
+
+
+        // ----------------------------------------
+        // Check that all themes for any child/linked datatypes are also up to date
+        foreach ($theme_array[$theme_id]['theme_datatypes'] as $dt_id => $tdt) {
+            $child_theme_id = $tdt['c_t_id'];
+            $child_source_theme_id = $tdt['c_s_t_id'];
+
+            self::themeSourceDiffWorker($child_theme_id, $child_source_theme_id, $theme_diff_array);
+        }
+    }
+
+
+    /**
+     * Synchronizes the provided top-level Theme and all its child Themes with their respective
+     * source Themes.  self::getThemeSourceDiff() is run to get a list of which Datafields and
+     * child/linked Datatypes are contained in the source Theme, but don't have corresponding
+     * ThemeDatafield and ThemeDatatype entries in the provided Theme.
      *
-     * After taking care of the ThemeDatatype entries, any remaining new datafields will
-     * get new ThemeDatatype entries attached to the first ThemeElement in the destination
-     * Theme.
+     * If any Datafields in the source Theme are lacking ThemeDatafield entries in the provided Theme,
+     * this function will attempt to locate an existing hidden/empty ThemeElement to clone them
+     * into...if one of those doesn't exist, a new ThemeElement will be created for that purpose,
+     * and automatically hidden afterwards.
+     *
+     * If any child/linked Datatype entries in the source Theme need to be created, this function
+     * will TODO...
      *
      * This function doesn't need to worry about deleted Datafields/Datatypes, as the associated
      * ThemeDatafield/ThemeDatatype entries will have been deleted by the relevant controller
@@ -273,220 +307,173 @@ class CloneThemeService
      * ODR doesn't bother keeping track of the info needed to sync the display_order property.
      *
      * @param ODRUser $user
-     * @param Theme $parent_theme
+     * @param Theme $theme
      *
      * @throws ODRBadRequestException
      *
      * @return bool True if changes were made, false otherwise
      */
-    public function syncThemeWithSource($user, $parent_theme)
+    public function syncThemeWithSource($user, $theme)
     {
         // ----------------------------------------
-        // No sense running this if the theme is its own source
-        if ($parent_theme->getSourceTheme()->getId() === $parent_theme->getId())
-            throw new ODRBadRequestException('Synching a Theme with itself does not make sense');
+        // Logically, there should be no difference if a theme is its own source theme...but if the
+        //  datatype is linked to other datatypes, then this datatype has copies of their themes
+        //  that need to be checked for updates
+//        if ($parent_theme->getSourceTheme()->getId() === $parent_theme->getId())
+//            throw new ODRBadRequestException('Synching a Theme with itself does not make sense');
 
         // Also no sense running this on a theme for a child datatype
-        if ($parent_theme->getParentTheme()->getId() !== $parent_theme->getId())
+        if ($theme->getParentTheme()->getId() !== $theme->getId())
             throw new ODRBadRequestException('Themes for child Datatype should not be synced...sync the parent Theme instead');
 
 
-        // ----------------------------------------
         // Get the diff between this Theme and its source
-        $diff = self::getThemeSourceDiff($parent_theme);
-
+        $theme_diff_array = self::getThemeSourceDiff($theme);
 
         // No sense running this if there's nothing to sync
-        if ( count($diff['themes']) == 0 )
+        if ( count($theme_diff_array) == 0 )
             return false;
 
 
-        $this->logger->info('----------------------------------------');
-        $this->logger->info('CloneThemeService: attempting to sync theme '.$parent_theme->getId().' with its source theme '.$parent_theme->getSourceTheme()->getId());
-
-
-        // Going to need this repository...
+        // ----------------------------------------
+        // Going to need these repositories...
         $repo_theme = $this->em->getRepository('ODRAdminBundle:Theme');
+        $repo_theme_datafield = $this->em->getRepository('ODRAdminBundle:ThemeDataField');
+        $repo_theme_datatype = $this->em->getRepository('ODRAdminBundle:ThemeDataType');
 
-        // Ensure the themeDatatype entries are up to date first...missing themeDatafield entries
-        //  may get created in the process
-        foreach ($diff['themes'] as $theme_id => $data) {
-            /** @var Theme $theme */
-            $theme = $repo_theme->findOneBy(
-                array(
-                    'sourceTheme' => $theme_id,
-                    'parentTheme' => $parent_theme->getId(),
-                )
-            );
 
-            if ($theme == null) {
-                // $parent_theme contain a theme for this child datatype...load the master theme for
-                //  said child datatype
-                /** @var Theme $source_theme */
-                $source_theme = $repo_theme->find($theme_id);
+        $this->logger->info('----------------------------------------');
+        $this->logger->info('CloneThemeService: attempting to sync theme '.$theme->getId().' with its source theme '.$theme->getSourceTheme()->getId());
 
-                // Copy the theme for the child datatype and store it under $parent_theme
-                self::cloneParentTheme($user, $source_theme, $source_theme->getDataType(), $parent_theme->getThemeType(), $parent_theme);
-            }
-            else {
-                // $source_theme theme is a theme for child datatype that belongs to $parent_theme's
-                //  group of themes...need to check whether new themeDatafield/themeDatatype entries
-                //  need to be created
-                $this->logger->debug('----------------------------------------');
 
-                if ( isset($data['new_datafields']) ) {
-                    // Need to create themeDatafield entries inside $source_theme
+        foreach ($theme_diff_array as $theme_id => $diff_array) {
+            $this->logger->debug('----------------------------------------');
 
-                    // Attempt to locate a hidden empty theme element
-                    $query = $this->em->createQuery(
-                       'SELECT te
-                        FROM ODRAdminBundle:ThemeElement AS te
-                        JOIN ODRAdminBundle:ThemeElementMeta AS tem WITH tem.themeElement = te
-                        JOIN ODRAdminBundle:Theme AS t WITH te.theme = t
-                        WHERE t.id = :theme_id AND tem.hidden = :hidden
-                        AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tem.deletedAt IS NULL'
-                    )->setParameters(
-                        array(
-                            'theme_id' => $theme->getId(),
-                            'hidden' => 1
-                        )
-                    );
-                    $results = $query->getResult();
+            /** @var Theme $current_theme */
+            $current_theme = $repo_theme->find($theme_id);
 
-                    $this->logger->debug('CloneThemeService: attempting to locate a theme element to copy themeDatafield entries into for theme '.$theme->getId().'...');
+            // If entries for datafields need to be created...
+            if ( isset($diff_array['new_datafields']) ) {
+                // ...attempt to locate an empty, hidden theme element
+                $query = $this->em->createQuery(
+                   'SELECT te
+                    FROM ODRAdminBundle:ThemeElement AS te
+                    JOIN ODRAdminBundle:ThemeElementMeta AS tem WITH tem.themeElement = te
+                    JOIN ODRAdminBundle:Theme AS t WITH te.theme = t
+                    WHERE t.id = :theme_id AND tem.hidden = :hidden
+                    AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tem.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'theme_id' => $current_theme->getId(),
+                        'hidden' => 1
+                    )
+                );
+                $results = $query->getResult();
 
-                    $target_theme_element = null;
-                    if ( count($results) > 0 ) {
-                        /** @var ThemeElement[] $results */
-                        foreach ($results as $te) {
-                            if ( count($te->getThemeDataFields()) == 0 && count($te->getThemeDataType()) == 0 ) {
-                                $target_theme_element = $te;
-                                break;
-                            }
+                $this->logger->debug('CloneThemeService: attempting to locate a theme element to copy themeDatafield entries into for theme '.$current_theme->getId().'...');
+
+                $target_theme_element = null;
+                if ( count($results) > 0 ) {
+                    /** @var ThemeElement[] $results */
+                    foreach ($results as $te) {
+                        if ( count($te->getThemeDataFields()) == 0 && count($te->getThemeDataType()) == 0 ) {
+                            $target_theme_element = $te;
+                            break;
                         }
-                    }
-
-                    // If the theme element doesn't exist for some reason...
-                    if ($target_theme_element == null) {
-                        // ...create a new theme element
-                        $target_theme_element = new ThemeElement();
-                        $target_theme_element->setTheme($theme);
-
-                        $theme->addThemeElement($target_theme_element);
-                        self::persistObject($target_theme_element);
-
-                        // ...create a new meta entry for the new theme element
-                        $new_tem = new ThemeElementMeta();
-                        $new_tem->setThemeElement($target_theme_element);
-
-                        $new_tem->setDisplayOrder(-1);
-                        $new_tem->setHidden(1);
-                        $new_tem->setCssWidthMed('1-1');
-                        $new_tem->setCssWidthXL('1-1');
-
-                        // Ensure the in-memory version of the new theme element knows about its
-                        //  meta entry
-                        $target_theme_element->addThemeElementMetum($new_tem);
-                        self::persistObject($new_tem);
-
-                        $this->logger->debug('CloneThemeService: -- created a new theme element '.$target_theme_element->getId());
-                    }
-                    else {
-                        $this->logger->debug('CloneThemeService: -- found an existing new theme element '.$target_theme_element->getId());
-                    }
-
-
-                    foreach ($data['new_datafields'] as $num => $datafield_id) {
-                        // Locate the themeDatafield entry that needs to be cloned
-                        $query = $this->em->createQuery(
-                           'SELECT tdf
-                            FROM ODRAdminBundle:ThemeDataField AS tdf
-                            JOIN ODRAdminBundle:ThemeElement AS te WITH tdf.themeElement = te
-                            JOIN ODRAdminBundle:Theme AS t WITH te.theme = t
-                            WHERE tdf.dataField = :datafield_id AND t.id = :theme_id
-                            AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL'
-                        )->setParameters(
-                            array(
-                                'datafield_id' => $datafield_id,
-                                'theme_id' => $theme_id,
-                            )
-                        );
-                        $result = $query->getResult();
-
-                        $this->logger->debug('CloneThemeService: attempting to locate themeDatafield entry based on datafield '.$datafield_id.' inside theme '.$theme->getId().'...');
-
-                        /** @var ThemeDataField $theme_datafield */
-                        $theme_datafield = $result[0];
-
-                        // Clone the theme datafield entry
-                        $new_theme_datafield = clone $theme_datafield;
-                        $new_theme_datafield->setThemeElement($target_theme_element);
-                        $new_theme_datafield->setDisplayOrder(999);
-
-                        $target_theme_element->addThemeDataField($new_theme_datafield);
-                        self::persistObject($new_theme_datafield);
-
-                        $this->logger->debug('CloneThemeService: -- created new theme datafield '.$new_theme_datafield->getId());
                     }
                 }
 
-                if ( isset($data['new_datatypes']) ) {
-                    // Need to create new themeDatatype entries inside $source_theme
+                // If an empty/hidden theme element doesn't exist in this theme...
+                if ($target_theme_element == null) {
+                    // ...create a new theme element
+                    $target_theme_element = new ThemeElement();
+                    $target_theme_element->setTheme($current_theme);
 
-                    foreach ($data['new_datatypes'] as $num => $child_datatype_id) {
-                        // Locate the themeDatatype entry that needs to be cloned
-                        $query = $this->em->createQuery(
-                           'SELECT tdt
-                            FROM ODRAdminBundle:ThemeDatatype AS tdt
-                            JOIN ODRAdminBundle:ThemeElement AS te WITH tdt.themeElement = te
-                            JOIN ODRAdminBundle:Theme AS t WITH te.theme = t
-                            WHERE tdt.dataType = :child_datatype_id AND t.id = :theme_id
-                            AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL'
-                        )->setParameters(
-                            array(
-                                'child_datatype_id' => $child_datatype_id,
-                                'theme_id' => $theme_id,
-                            )
-                        );
-                        $result = $query->getResult();
+                    $current_theme->addThemeElement($target_theme_element);
+                    self::persistObject($target_theme_element);
 
-                        $this->logger->debug('CloneThemeService: attempting to locate themeDatatype entry based on child/linked datatype '.$child_datatype_id.' inside theme '.$theme->getId().'...');
+                    // ...create a new meta entry for the new theme element
+                    $new_tem = new ThemeElementMeta();
+                    $new_tem->setThemeElement($target_theme_element);
 
-                        /** @var ThemeDataType $theme_datatype */
-                        $theme_datatype = $result[0];
+                    $new_tem->setDisplayOrder(-1);
+                    $new_tem->setHidden(1);
+                    $new_tem->setCssWidthMed('1-1');
+                    $new_tem->setCssWidthXL('1-1');
 
-                        // Clone the theme element first...
-                        $new_theme_element = clone $theme_datatype->getThemeElement();
-                        $new_theme_element->setTheme($theme);
+                    // Ensure the in-memory version of the new theme element knows about its meta entry
+                    $target_theme_element->addThemeElementMetum($new_tem);
+                    self::persistObject($new_tem);
 
-                        $theme->addThemeElement($new_theme_element);
-                        self::persistObject($new_theme_element, $user);
+                    $this->logger->debug('CloneThemeService: -- created a new theme element '.$target_theme_element->getId());
+                }
+                else {
+                    $this->logger->debug('CloneThemeService: -- found an existing theme element '.$target_theme_element->getId());
+                }
+
+                foreach ($diff_array['new_datafields'] as $df_id => $tdf_id) {
+                    // Load the themeDatafield entry that needs to be cloned
+                    $this->logger->debug('CloneThemeService: cloning themeDatafield '.$tdf_id.' for datafield '.$df_id.' inside theme '.$current_theme->getId().'...');
+
+                    /** @var ThemeDataField $theme_datafield */
+                    $theme_datafield = $repo_theme_datafield->find($tdf_id);
+
+                    // Clone the theme datafield entry
+                    $new_theme_datafield = clone $theme_datafield;
+                    $new_theme_datafield->setThemeElement($target_theme_element);
+                    $new_theme_datafield->setDisplayOrder(999);
+
+                    $target_theme_element->addThemeDataField($new_theme_datafield);
+                    self::persistObject($new_theme_datafield);
+
+                    $this->logger->debug('CloneThemeService: -- created new theme datafield '.$new_theme_datafield->getId());
+                }
+            }
+
+            // If entries for datatypes need to be created...
+            if ( isset($diff_array['new_datatypes']) ) {
+                foreach ($diff_array['new_datatypes'] as $dt_id => $tdt_id) {
+                    // Load the themeDatatype entry that needs to be cloned
+                    $this->logger->debug('CloneThemeService: cloning themeDatatype '.$tdt_id.' for child/linked datatype '.$dt_id.' into theme '.$current_theme->getId().'...');
+
+                    /** @var ThemeDataType $source_theme_datatype */
+                    $source_theme_datatype = $repo_theme_datatype->find($tdt_id);
+                    $source_theme_element = $source_theme_datatype->getThemeElement();
+
+                    // Going to need these so cloneChildTheme() can load/set properties correctly
+                    $child_datatype = $source_theme_datatype->getDataType();
+                    $child_source_theme = $source_theme_datatype->getChildTheme()->getSourceTheme();
+                    $theme_type = $theme->getThemeType();    // TODO - this doesn't feel right...
 
 
-                        // Clone the theme element's meta entry next...
-                        $new_theme_element_meta = clone $theme_datatype->getThemeElement()->getThemeElementMeta();
-                        $new_theme_element_meta->setHidden(1);
-                        $new_theme_element_meta->setThemeElement($new_theme_element);
+                    // ----------------------------------------
+                    // Clone the theme element...
+                    $new_theme_element = clone $source_theme_element;
+                    $new_theme_element->setTheme($current_theme);
 
-                        $new_theme_element->addThemeElementMetum($new_theme_element_meta);
-                        self::persistObject($new_theme_element_meta);
+                    $theme->addThemeElement($new_theme_element);
+                    self::persistObject($new_theme_element, $user);
+
+                    // ...then the theme element's meta entry
+                    $new_theme_element_meta = clone $source_theme_element->getThemeElementMeta();
+                    $new_theme_element_meta->setHidden(1);
+                    $new_theme_element_meta->setThemeElement($new_theme_element);
+
+                    $new_theme_element->addThemeElementMetum($new_theme_element_meta);
+                    self::persistObject($new_theme_element_meta);
+
+                    $this->logger->debug('CloneThemeService: -- created new theme element '.$new_theme_element->getId());
 
 
-                        // Clone the theme datatype entry last
-                        $new_theme_datatype = clone $theme_datatype;
-                        $new_theme_datatype->setThemeElement($new_theme_element);
-
-                        $new_theme_element->addThemeDataType($new_theme_datatype);
-                        self::persistObject($new_theme_datatype);
-
-                        $this->logger->debug('CloneThemeService: -- created new theme element '.$new_theme_element->getId().', new theme datatype '.$new_theme_datatype->getId());
-                    }
+                    // ----------------------------------------
+                    // Make a copy of $child_datatype's $child_source_theme into $new_theme_element
+                    self::cloneChildTheme($user, $new_theme_element, $child_source_theme, $child_datatype, $theme_type);
                 }
             }
         }
 
         // Mark the theme as updated
-        $this->theme_service->updateThemeCacheEntry($parent_theme, $user);
+        $this->theme_service->updateThemeCacheEntry($theme, $user);
 
         // Return that changes were made
         return true;
@@ -516,35 +503,39 @@ class CloneThemeService
 
 
         // ----------------------------------------
-        // Clone the theme for the top-level datatype first
-        $this->logger->info('CloneThemeService: attempting to clone source theme '.$source_theme->getId().' "'.$source_theme->getThemeType().'" from datatype '.$source_theme->getDataType()->getId().' into a new "'.$dest_theme_type.'" theme');
-        $new_parent_theme = self::cloneParentTheme($user, $source_theme, $source_theme->getDataType(), $dest_theme_type);
+        // Create a new theme for the top-level datatype
+        $datatype = $source_theme->getDataType();
 
-        // Then, for each theme with $source_theme as its parent...
-        $query = $this->em->createQuery(
-           'SELECT t
-            FROM ODRAdminBundle:Theme AS t
-            WHERE t.parentTheme = :parent_theme AND t.id != :top_level_theme
-            AND t.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'parent_theme' => $source_theme->getId(),
-                'top_level_theme' => $source_theme->getId()     // don't want to re-clone the theme for the top-level datatype
-            )
-        );
-        $results = $query->getResult();
+        $new_theme = clone $source_theme;
+        $new_theme->setDataType($datatype);
+        $new_theme->setSourceTheme( $source_theme->getSourceTheme() );
+        $new_theme->setThemeType($dest_theme_type);
+        // Need to flush/refresh before setting parent theme
 
-        /** @var Theme $child_theme */
-        foreach ($results as $child_theme) {
-            // ...clone the relevant theme for each child datatype
-            $child_datatype = $child_theme->getDataType();
-            $this->logger->debug('CloneThemeService: attempting to clone source theme '.$child_theme->getId().' "'.$child_theme->getThemeType().'" from datatype '.$child_theme->getDataType()->getId().' into a new "'.$dest_theme_type.'" theme');
+        $datatype->addTheme($new_theme);
+        self::persistObject($new_theme, $user);
 
-            self::cloneParentTheme($user, $child_theme, $child_datatype, $dest_theme_type, $new_parent_theme);
-        }
+        $new_theme->setParentTheme($new_theme);
+        $this->em->persist($new_theme);
 
-        $this->logger->info('CloneThemeService: finished cloning source theme '.$source_theme->getId());
-        return $new_parent_theme;
+        // Also need to create a new ThemeMeta entry...
+        $new_theme_meta = clone $source_theme->getThemeMeta();
+        $new_theme_meta->setTheme($new_theme);
+        $new_theme_meta->setTemplateName( 'Copy of '.$new_theme_meta->getTemplateName() );
+        $new_theme_meta->setShared(false);
+        $new_theme_meta->setIsDefault(false);
+
+        $new_theme->addThemeMetum($new_theme_meta);
+        self::persistObject($new_theme_meta, $user);
+
+
+        // ----------------------------------------
+        // Now that a theme exists, synchronize it with its source theme
+        // TODO - this needs to actually copy $source_theme instead of creating a brand-new theme from $source_theme->getSourceTheme()...
+        self::syncThemeWithSource($user, $new_theme);
+
+        $this->em->refresh($new_theme);
+        return $new_theme;
     }
 
 
@@ -560,54 +551,32 @@ class CloneThemeService
      * to update an existing Theme with new Datafields and child Datatypes.
      *
      * @param ODRUser $user
-     * @param Theme $source_theme
-     * @param Datatype $dest_datatype
-     * @param string $dest_theme_type
-     * @param Theme|null $dest_parent_theme  MUST be specified when cloning into a child datatype
+     * @param ThemeElement $theme_element Which ThemeElement the new themeDatatype goes into
+     * @param Theme $source_theme Which Theme this should copy from
+     * @param Datatype $dest_datatype Which child/linked Datatype the themeDatatype should point to
+     * @param string $dest_theme_type @see ThemeInfoService::VALID_THEMETYPES
      *
      * @throws ODRBadRequestException
      *
      * @return Theme
      */
-    private function cloneParentTheme($user, $source_theme, $dest_datatype, $dest_theme_type, $dest_parent_theme = null)
+    private function cloneChildTheme($user, $theme_element, $source_theme, $dest_datatype, $dest_theme_type)
     {
         // ----------------------------------------
-        // Don't accidentally create a second 'master' theme for this datatype
-        foreach ($dest_datatype->getThemes() as $theme) {
-            /** @var Theme $theme */
-            if ($theme->getThemeType() == 'master' && $dest_theme_type == 'master')
-                throw new ODRBadRequestException('Datatypes are not allowed to have more than one "master" theme');
-        }
         $this->logger->debug('----------------------------------------');
 
-
-        // ----------------------------------------
-        // Create a new theme for this...doesn't make sense to clone, changing everything
+        // Need to create a new Theme, ThemeMeta, and ThemeDatatype entry
         $new_theme = new Theme();
         $new_theme->setDataType($dest_datatype);
         $new_theme->setThemeType($dest_theme_type);
 
-
-        // This is cloning a theme within the same datatype...should use $source_theme's source
         $new_theme->setSourceTheme( $source_theme->getSourceTheme() );
-        // If the parent theme exists, then this is a theme for a child datatype
-        // If it doesn't exist, it'll be set to use this new theme a couple lines down...
-        $new_theme->setParentTheme($dest_parent_theme);
+        $new_theme->setParentTheme( $theme_element->getTheme()->getParentTheme() );
 
 
         // Ensure the "in-memory" version of $dest_datatype knows about its new theme
         $dest_datatype->addTheme($new_theme);
         self::persistObject($new_theme, $user);
-
-
-        // If $dest_parent_theme is null, then this is a theme for a top-level datatype, therefore
-        //  this theme's parent should be set to itself
-        // This works the same whether just cloning a theme, or whether cloning an entire datatype
-        if ($dest_parent_theme == null)
-            $new_theme->setParentTheme($new_theme);
-
-        $this->em->persist($new_theme);
-
 
         // Clone the source theme's meta entry
         $new_theme_meta = clone $source_theme->getThemeMeta();
@@ -628,6 +597,23 @@ class CloneThemeService
 
         $this->logger->info('CloneThemeService: created new theme '.$new_theme->getId().' "'.$dest_theme_type.'"...datatype set to '.$new_theme->getDataType()->getId().', source theme set to '.$new_theme->getSourceTheme()->getId().', parent theme set to '.$new_theme->getParentTheme()->getId());
         $this->em->refresh($new_theme);
+
+
+        // ----------------------------------------
+        // Create a new themeDatatype entry to point to the child/linked datatype + new Theme
+        $new_theme_datatype = new ThemeDataType();
+        $new_theme_datatype->setDataType($dest_datatype);
+        $new_theme_datatype->setThemeElement($theme_element);
+        $new_theme_datatype->setChildTheme($new_theme);
+
+        $new_theme_datatype->setDisplayType(1);
+        $new_theme_datatype->setHidden(0);
+
+        $theme_element->addThemeDataType($new_theme_datatype);
+        self::persistObject($new_theme_datatype, $user);
+
+        $this->logger->info('CloneThemeService: created new themeDatatype '.$new_theme_datatype->getId().'...datatype set to '.$dest_datatype->getId().', child theme set to '.$new_theme->getId());
+        $this->em->refresh($new_theme_datatype);
 
 
         // ----------------------------------------
@@ -671,20 +657,18 @@ class CloneThemeService
             /** @var ThemeDataType[] $source_theme_dt_array */
             $source_theme_dt_array = $source_te->getThemeDataType();
             foreach ($source_theme_dt_array as $source_tdt) {
-                $new_tdt = clone $source_tdt;
-                $new_tdt->setThemeElement($new_te);
+                // Going to need these so cloneChildTheme() can load/set properties correctly
+                $child_datatype = $source_tdt->getDataType();
+                $child_source_theme = $source_tdt->getChildTheme()->getSourceTheme();
 
-                // Ensure the "in-memory" version of knows about the new theme_datatype entry
-                $new_te->addThemeDataType($new_tdt);
-                self::persistObject($new_tdt, $user);
-
-                $dt = $new_tdt->getDataType();
-                $this->logger->debug('CloneThemeService: -- -- copied theme_datatype '.$source_tdt->getId().' for datatype '.$dt->getId().' "'.$dt->getShortName().'"');
+                // Make a copy of $child_datatype's $child_source_theme into $new_te
+                self::cloneChildTheme($user, $new_te, $child_source_theme, $child_datatype, $dest_theme_type);
             }
         }
 
         // Ensure the relevant cache entry is deleted
         $this->cache_service->delete('cached_theme_'.$new_theme->getParentTheme()->getId());
+        $this->logger->debug('----------------------------------------');
 
         // Return the new theme
         return $new_theme;

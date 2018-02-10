@@ -48,11 +48,10 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
-use ODR\AdminBundle\Component\Service\PermissionsManagementService;
-use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -2067,11 +2066,20 @@ $ret .= '  Set current to '.$count."\n";
                             $c_dt_id = $tdt['dataType']['id'];
                             $gp_dt_id = $tdt['dataType']['grandparent']['id'];
 
+                            // Determine whether the child datatype id belongs to a linked datatype
+                            $is_linked_datatype = false;
+                            if ( intval($gp_dt_id) !== intval($datatype_id) )
+                                $is_linked_datatype = true;
+
                             $is_deleted = false;
                             if ( !is_null($tdt['deletedAt']) )
                                 $is_deleted = true;
 
-                            print ' -- -- child_datatype_id: '.$c_dt_id;
+                            if ($is_linked_datatype)
+                                print ' -- -- linked_datatype_id: '.$c_dt_id;
+                            else
+                                print ' -- -- child_datatype_id: '.$c_dt_id;
+
                             if ($is_deleted)
                                 print '  DELETED';
                             print "\n";
@@ -2086,15 +2094,9 @@ $ret .= '  Set current to '.$count."\n";
 
                             if ( count($sub_results) > 1 ) {
                                 // Should only ever be one result, in theory?
-                                print ' ***** query returned '.count($sub_results).' results, should only return 0 or 1 results *****'."\n";
+                                print '***** query returned '.count($sub_results).' results, should only return 0 or 1 results *****'."\n";
                             }
                             else {
-                                // Determine whether the child datatype id belongs to a linked datatype
-                                $is_linked_datatype = false;
-                                if ( intval($gp_dt_id) !== intval($datatype_id) )
-                                    $is_linked_datatype = true;
-
-
                                 if ( $is_linked_datatype || count($sub_results) == 0 ) {
                                     if (!$is_deleted) {
                                         /** @var Theme $parent_theme */
@@ -2187,7 +2189,7 @@ $ret .= '  Set current to '.$count."\n";
                                 }
                                 else {
                                     // Should only ever be one result, in theory?
-                                    print ' ***** SOMETHING WRONG *****'."\n";
+                                    print '***** SOMETHING WRONG *****'."\n";
                                 }
                             }
                         }
@@ -2212,6 +2214,50 @@ $ret .= '  Set current to '.$count."\n";
             $em->clear();
 
             $source = 0x0a4b8452;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * TODO -
+     *
+     * @param $theme_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function synchtestAction($theme_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CloneThemeService $clone_theme_service */
+            $clone_theme_service = $this->container->get('odr.clone_theme_service');
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            if ($theme == null)
+                throw new ODRNotFoundException('Theme');
+
+            $diff = $clone_theme_service->getThemeSourceDiff($theme);
+            print '<pre>'.print_r($diff, true).'</pre>';
+        }
+        catch (\Exception $e) {
+            $source = 0x0214889b;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else

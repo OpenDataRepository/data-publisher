@@ -305,7 +305,10 @@ class DisplayController extends ODRCustomController
             //  needed for rendering this datarecord
             $datarecord_array = $dri_service->getDatarecordArray($datarecord->getId());
             $datatype_array = $dti_service->getDatatypeArray($datatype->getId());
-            $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user);
+
+            $theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'master');
+            $theme_array = $theme_service->getThemeArray($theme_id);
+//print '<pre>'.print_r($theme_array, true).'</pre>'; exit();
 
 
             // ----------------------------------------
@@ -321,6 +324,10 @@ class DisplayController extends ODRCustomController
                 $dri_service->stackDatarecordArray($datarecord_array, $requested_datarecord->getId());
             $stacked_datatype_array[ $requested_datatype->getId() ] =
                 $dti_service->stackDatatypeArray($datatype_array, $requested_datatype->getId());
+            $stacked_theme_array[ $theme_id ] =
+                $theme_service->stackThemeArray($theme_array, $theme_id);
+//print '<pre>'.print_r($stacked_datatype_array, true).'</pre>'; exit();
+//print '<pre>'.print_r($stacked_theme_array, true).'</pre>'; exit();
 
 
             // ----------------------------------------
@@ -331,10 +338,11 @@ class DisplayController extends ODRCustomController
                 array(
                     'datatype_array' => $stacked_datatype_array,
                     'datarecord_array' => $stacked_datarecord_array,
-                    'theme_array' => $theme_array,
+                    'theme_array' => $stacked_theme_array,
 
                     'initial_datatype_id' => $requested_datatype->getId(),
                     'initial_datarecord_id' => $requested_datarecord->getId(),
+                    'initial_theme_id' => $theme_id,
 
                     'is_top_level' => $is_top_level,
                     'search_key' => $search_key,
@@ -760,7 +768,7 @@ class DisplayController extends ODRCustomController
 
             // Files that aren't done encrypting shouldn't be downloaded
             if ($file->getEncryptKey() == '')
-                throw new ODRException('File');
+                throw new ODRException('This File is not ready for download', 503, 0xe8386807);
 
 
             // ----------------------------------------

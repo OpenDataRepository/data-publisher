@@ -1332,6 +1332,7 @@ class ODRCustomController extends Controller
         $datarecord_meta->setCreatedBy($user);
         $datarecord_meta->setUpdatedBy($user);
 
+        $datarecord->addDataRecordMetum($datarecord_meta);
         $em->persist($datarecord_meta);
 
         return $datarecord;
@@ -1406,6 +1407,43 @@ class ODRCustomController extends Controller
 
         // Return the new entry
         return $new_datarecord_meta;
+    }
+
+
+    /**
+     * Creates and persists a new Datatree entry.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param DataType $ancestor
+     * @param DataType $descendant
+     * @param boolean $is_link
+     * @param boolean $multiple_allowed
+     *
+     * @return DataTree
+     */
+    protected function ODR_addDatatree($em, $user, $ancestor, $descendant, $is_link, $multiple_allowed)
+    {
+        $datatree = new DataTree();
+        $datatree->setAncestor($ancestor);
+        $datatree->setDescendant($descendant);
+        $datatree->setCreatedBy($user);
+
+        $em->persist($datatree);
+        $em->flush();
+        $em->refresh($datatree);
+
+        $datatree_meta = new DataTreeMeta();
+        $datatree_meta->setDataTree($datatree);
+        $datatree_meta->setIsLink($is_link);
+        $datatree_meta->setMultipleAllowed($multiple_allowed);
+        $datatree_meta->setCreatedBy($user);
+        $datatree_meta->setUpdatedBy($user);
+
+        $datatree->addDataTreeMetum($datatree_meta);
+        $em->persist($datatree_meta);
+
+        return $datatree;
     }
 
 
@@ -2993,6 +3031,7 @@ class ODRCustomController extends Controller
         $theme_element_meta->setCreatedBy($user);
         $theme_element_meta->setUpdatedBy($user);
 
+        $theme_element->addThemeElementMetum($theme_element_meta);
         $em->persist($theme_element_meta);
 
         return array('theme_element' => $theme_element, 'theme_element_meta' => $theme_element_meta);
@@ -3107,7 +3146,9 @@ class ODRCustomController extends Controller
         $theme_datafield->setCreatedBy($user);
         $theme_datafield->setUpdatedBy($user);
 
+        $theme_element->addThemeDataField($theme_datafield);
         $em->persist($theme_datafield);
+
         return $theme_datafield;
     }
 
@@ -3198,15 +3239,17 @@ class ODRCustomController extends Controller
      * @param User $user                  The user requesting the creation of this entity
      * @param DataType $datatype          The datatype this entry is for
      * @param ThemeElement $theme_element The theme_element this entry is attached to
+     * @param Theme $child_theme
      *
      * @return ThemeDataType
      */
-    protected function ODR_addThemeDatatype($em, $user, $datatype, $theme_element)
+    protected function ODR_addThemeDatatype($em, $user, $datatype, $theme_element, $child_theme)
     {
         // Create theme entry
         $theme_datatype = new ThemeDataType();
         $theme_datatype->setDataType($datatype);
         $theme_datatype->setThemeElement($theme_element);
+        $theme_datatype->setChildTheme($child_theme);
 
         $theme_datatype->setDisplayType(0);     // 0 is accordion, 1 is tabbed, 2 is dropdown, 3 is list
         $theme_datatype->setHidden(0);
@@ -3214,7 +3257,9 @@ class ODRCustomController extends Controller
         $theme_datatype->setCreatedBy($user);
         $theme_datatype->setUpdatedBy($user);
 
+        $theme_element->addThemeDataType($theme_datatype);
         $em->persist($theme_datatype);
+
         return $theme_datatype;
     }
 

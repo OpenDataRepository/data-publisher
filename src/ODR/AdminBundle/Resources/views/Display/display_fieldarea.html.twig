@@ -1,7 +1,7 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
-{% set theme = theme_array[ datatype.id ] %}
+{% set theme = theme_array[target_theme_id] %}
 
 {% if is_top_level == 0 and (display_type == 1 or display_type == 2) %}    {# tabbed or dropdown display_type #}
     <div id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
@@ -56,10 +56,12 @@
                     {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
                     {% for theme_datatype in theme_element.themeDataType %}
                         {% set child_datatype_id = theme_datatype.dataType.id %}
+                        {% set child_theme_id = theme_datatype.childTheme.id %}
 
                         {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
                         {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
                             {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
+                            {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
 
                             {# filtering also means there may not be anything in the datarecord array... #}
                             {% if datarecord['children'][child_datatype_id] is defined %}
@@ -69,10 +71,11 @@
                                 {% include 'ODRAdminBundle:Display:display_childtype.html.twig' with {
                                     'datatype_array': child_datatype,
                                     'datarecord_array': datarecord_array,
-                                    'theme_array': theme_array,
+                                    'theme_array': child_theme,
 
                                     'target_datatype_id': child_datatype_id,
                                     'parent_datarecord_id': datarecord.id,
+                                    'target_theme_id': child_theme_id,
 
                                     'is_top_level': 0,
                                     'is_link': theme_datatype.is_link,

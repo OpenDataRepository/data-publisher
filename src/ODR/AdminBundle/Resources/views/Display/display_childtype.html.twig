@@ -1,7 +1,7 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
-{% set theme = theme_array[ datatype.id ] %}
+{% set theme = theme_array[target_theme_id] %}
 
 {% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
 
@@ -44,7 +44,12 @@ render_plugin.overrideFields: {{ render_plugin.overrideFields }}</br>
 ----------</br>
 #}
 
-            {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {'datarecord': datarecord, 'datatype': datatype, 'is_top_level': is_top_level, 'display_type': display_type} %}
+            {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {
+                'datarecord': datarecord,
+                'datatype': datatype,
+                'is_top_level': is_top_level,
+                'display_type': display_type
+            } %}
 
             <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
 
@@ -65,6 +70,7 @@ render_plugin.overrideFields: {{ render_plugin.overrideFields }}</br>
                         'target_datatype_id': target_datatype_id,
                         'parent_datarecord_id': parent_datarecord_id,
                         'target_datarecord_id': datarecord.id,
+                        'target_theme_id': target_theme_id,
 
                         'is_top_level': is_top_level,
                         'is_link': is_link,

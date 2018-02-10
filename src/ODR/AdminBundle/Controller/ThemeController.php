@@ -713,10 +713,6 @@ class ThemeController extends ODRCustomController
             // --------------------
 
 
-            // Don't run this on themes that are their own source...this also blocks 'master' themes
-            if ($theme->getSourceTheme()->getId() == $theme->getId())
-                throw new ODRBadRequestException('Not allowed to sync a Theme with itself');
-
             // Don't run this on themes for child datatypes
             if ($theme->getId() !== $theme->getParentTheme()->getId())
                 throw new ODRBadRequestException('Not allowed to clone a Theme for a child Datatype');
@@ -806,7 +802,7 @@ class ThemeController extends ODRCustomController
                 $theme = $theme_service->getDatatypeDefaultTheme($datatype->getId(), 'search_results');
                 if ($theme == null) {
                     // Load this datatype's 'master' Theme
-                    $master_theme = $theme_service->getDatatypeDefaultTheme($datatype->getId());
+                    $master_theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
 
                     // Make a copy of the 'master' Theme
                     /** @var CloneThemeService $clone_theme_service */

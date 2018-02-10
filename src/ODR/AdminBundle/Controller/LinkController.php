@@ -16,13 +16,13 @@ namespace ODR\AdminBundle\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\LinkedDataTree;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
+use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -31,6 +31,7 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -462,13 +463,19 @@ class LinkController extends ODRCustomController
                     $entities_to_remove[] = $datatree_meta;
                 }
 
-                // Soft-delete the old theme_datatype entry
+                // Soft-delete the old theme_datatype entry, and the theme it pointed to
                 /** @var ThemeDataType $theme_datatype */
                 $theme_datatype = $theme_element->getThemeDataType()->first();
                 $theme_datatype->setDeletedBy($user);
                 $em->persist($theme_datatype);
-
                 $entities_to_remove[] = $theme_datatype;
+
+                $theme_to_delete = $theme_datatype->getThemeElement()->getTheme();
+                $theme_to_delete->setDeletedBy($user);
+                $em->persist($theme_to_delete);
+
+                $entities_to_remove[] = $theme_to_delete->getThemeMeta();
+                $entities_to_remove[] = $theme_to_delete;
 
                 $em->flush();
                 foreach ($entities_to_remove as $entity)
@@ -597,31 +604,49 @@ class LinkController extends ODRCustomController
                 // ...create a link between the two datatypes
                 $using_linked_type = 1;
 
-                $datatree = new DataTree();
-                $datatree->setAncestor($local_datatype);
-                $datatree->setDescendant($remote_datatype);
-                $datatree->setCreatedBy($user);
-                $em->persist($datatree);
-                $em->flush($datatree);
-                $em->refresh($datatree);
+                $is_link = true;
+                $multiple_allowed = true;
+                parent::ODR_addDatatree($em, $user, $local_datatype, $remote_datatype, $is_link, $multiple_allowed);
 
-                // Create a new meta entry for this DataTree
-                $datatree_meta = new DataTreeMeta();
-                $datatree_meta->setDataTree( $datatree );
-                $datatree_meta->setIsLink(true);
-                $datatree_meta->setMultipleAllowed(true);
+                // Going to need this...
+                $parent_theme = $theme_element->getTheme()->getParentTheme();
 
-                $datatree_meta->setCreatedBy($user);
-                $datatree_meta->setUpdatedBy($user);
+                // Need to create a new Theme for this link...
+                $child_theme = new Theme();
+                $child_theme->setDataType($remote_datatype);
+                $child_theme->setThemeType('master');
+                $child_theme->setParentTheme($parent_theme);
+                $child_theme->setSourceTheme();
 
-                // Ensure the "in-memory" version of datatree knows about its new meta entry
-                $datatree->addDataTreeMetum($datatree_meta);
-                $em->persist($datatree_meta);
+                $remote_datatype->addTheme($child_theme);
+                $em->persist($child_theme);
+                $em->flush();
+                $em->refresh($child_theme);
 
+                $child_theme_meta = new ThemeMeta();
+                $child_theme_meta->setTheme($child_theme);
+                $child_theme_meta->setTemplateName('');
+                $child_theme_meta->setTemplateDescription('');
+                $child_theme_meta->setIsDefault($parent_theme->isDefault());
+                $child_theme_meta->setDisplayOrder(null);
+                $child_theme_meta->setSourceSyncCheck(null);
+                $child_theme_meta->setShared($parent_theme->isShared());
+                $child_theme_meta->setIsTableTheme($parent_theme->getIsTableTheme());
+
+                $child_theme->addThemeMetum($child_theme_meta);
+                $em->persist($child_theme_meta);
+                $em->flush();
 
                 // Create a new theme_datatype entry between the local and the remote datatype
-                parent::ODR_addThemeDatatype($em, $user, $remote_datatype, $theme_element);
+                parent::ODR_addThemeDatatype($em, $user, $remote_datatype, $theme_element, $child_theme);
                 $em->flush();
+
+
+                // Need to synchronize the ancestor datatype so the remote datatype actually is
+                //  displayed on the page...
+                /** @var CloneThemeService $clone_theme_service */
+                $em->refresh($parent_theme);
+                $clone_theme_service->syncThemeWithSource($user, $parent_theme);
 
 
                 // ----------------------------------------
