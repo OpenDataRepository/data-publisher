@@ -104,7 +104,13 @@ class SearchCacheService
 
 
     /**
-     * Deletes all search results that have been cached for the given datatype.
+     * Deletes all search results that have been cached for the given datatype.  Usually needed
+     * when sweeping changes are made to the datatype...imports, mass updates, datatype deletions.
+     *
+     * Also currently used in places such as creating/deleting/mass updating datarecords.  These
+     * kinds of changes (among others) would require parsing the criteria for each search to
+     * accurately determine which cached search results to delete...this is too irritating to do
+     * without a proper filtering search system.
      *
      * @param int $datatype_id
      */
@@ -122,7 +128,9 @@ class SearchCacheService
 
 
     /**
-     * Deletes all cached search results that involve the given datafield.
+     * Deletes all cached search results that involve the given datafield.  Usually needed after
+     * some change is made to the contents of a datafield, or public status for files/images gets
+     * changed.
      *
      * @param int $datafield_id
      */
@@ -171,6 +179,5 @@ class SearchCacheService
             $this->cache_service->set('cached_search_results', $cached_searches);
         }
     }
-
 
 }

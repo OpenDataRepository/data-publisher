@@ -43,7 +43,6 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
-use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
@@ -671,10 +670,11 @@ return;
             $em = $this->getDoctrine()->getManager();
             $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
@@ -741,19 +741,8 @@ return;
                     // Mark this datarecord as updated
                     $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-                    // See if any cached search results need to be deleted...
-                    $cached_searches = $cache_service->get('cached_search_results');
-                    if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
-                        // Delete all cached search results for this datatype that contained this datarecord
-                        foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
-                            $datarecord_list = explode(',', $search_data['datarecord_list']['all']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
-                            if ( in_array($datarecord_id, $datarecord_list) )
-                                unset ( $cached_searches[$datatype_id][$search_checksum] );
-                        }
-
-                        // Save the collection of cached searches back to memcached
-                        $cache_service->set('cached_search_results', $cached_searches);
-                    }
+                    // TODO - only delete cached search results for this datatype that contained this datarecord
+                    $search_cache_service->clearByDatatypeId($datatype_id);
                 }
             }
 
