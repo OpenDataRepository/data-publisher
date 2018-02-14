@@ -78,7 +78,7 @@ class CloneThemeCommand extends ContainerAwareCommand
 
                 /** @var CloneThemeService $clone_theme_service */
                 $clone_theme_service = $this->getContainer()->get('odr.clone_theme_service');
-                $new_parent_theme = $clone_theme_service->cloneThemeFromParent($user, $source_theme, $dest_theme_type);
+                $new_parent_theme = $clone_theme_service->cloneSourceTheme($user, $source_theme, $dest_theme_type);
 
                 $current_time = new \DateTime();
                 $output->writeln(' -- successfully cloned new "'.$dest_theme_type.'" theme (id '.$new_parent_theme->getId().') for datatype '.$new_parent_theme->getDataType()->getId());

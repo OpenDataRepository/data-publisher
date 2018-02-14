@@ -317,9 +317,7 @@ class DisplayController extends ODRCustomController
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 
-            // "Inflate" the currently flattened $datarecord_array and $datatype_array...
-            // This is required so that render plugins for a datatype can also correctly render
-            //  that datatype's child/linked datatypes
+            // "Inflate" the currently flattened datarecord/datatype/theme arrays
             $stacked_datarecord_array[ $requested_datarecord->getId() ] =
                 $dri_service->stackDatarecordArray($datarecord_array, $requested_datarecord->getId());
             $stacked_datatype_array[ $requested_datatype->getId() ] =

@@ -335,6 +335,8 @@ class LinkController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var CloneThemeService $clone_theme_service */
+            $clone_theme_service = $this->container->get('odr.clone_theme_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -608,45 +610,23 @@ class LinkController extends ODRCustomController
                 $multiple_allowed = true;
                 parent::ODR_addDatatree($em, $user, $local_datatype, $remote_datatype, $is_link, $multiple_allowed);
 
-                // Going to need this...
-                $parent_theme = $theme_element->getTheme()->getParentTheme();
+                // Locate the master theme for the remote datatype
+                $query = $em->createQuery(
+                   'SELECT t
+                    FROM ODRAdminBundle:Theme AS t
+                    WHERE t.dataType = :datatype_id AND t.themeType = :theme_type AND t = t.parentTheme
+                    AND t.deletedAt IS NULL'
+                )->setParameters( array('datatype_id' => $remote_datatype->getId(), 'theme_type' => 'master') );
+                $results = $query->getResult();
 
-                // Need to create a new Theme for this link...
-                $child_theme = new Theme();
-                $child_theme->setDataType($remote_datatype);
-                $child_theme->setThemeType('master');
-                $child_theme->setParentTheme($parent_theme);
-                $child_theme->setSourceTheme();
+                if ( count($results) != 1 )
+                    throw new ODRException('Remote Datatype lacks a master theme?');
 
-                $remote_datatype->addTheme($child_theme);
-                $em->persist($child_theme);
-                $em->flush();
-                $em->refresh($child_theme);
+                /** @var Theme $source_theme */
+                $source_theme = $results[0];
 
-                $child_theme_meta = new ThemeMeta();
-                $child_theme_meta->setTheme($child_theme);
-                $child_theme_meta->setTemplateName('');
-                $child_theme_meta->setTemplateDescription('');
-                $child_theme_meta->setIsDefault($parent_theme->isDefault());
-                $child_theme_meta->setDisplayOrder(null);
-                $child_theme_meta->setSourceSyncCheck(null);
-                $child_theme_meta->setShared($parent_theme->isShared());
-                $child_theme_meta->setIsTableTheme($parent_theme->getIsTableTheme());
-
-                $child_theme->addThemeMetum($child_theme_meta);
-                $em->persist($child_theme_meta);
-                $em->flush();
-
-                // Create a new theme_datatype entry between the local and the remote datatype
-                parent::ODR_addThemeDatatype($em, $user, $remote_datatype, $theme_element, $child_theme);
-                $em->flush();
-
-
-                // Need to synchronize the ancestor datatype so the remote datatype actually is
-                //  displayed on the page...
-                /** @var CloneThemeService $clone_theme_service */
-                $em->refresh($parent_theme);
-                $clone_theme_service->syncThemeWithSource($user, $parent_theme);
+                // Create a copy of that theme in this theme element
+                $clone_theme_service->cloneIntoThemeElement($user, $theme_element, $source_theme, $remote_datatype, 'master');
 
 
                 // ----------------------------------------

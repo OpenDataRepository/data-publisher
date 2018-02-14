@@ -202,11 +202,10 @@ class CSVExportController extends ODRCustomController
         $theme_service = $this->container->get('odr.theme_info_service');
 
 
-        // All of these should already exist
+        // Both of these should already exist
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-        /** @var Theme $theme */
-//        $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+        $theme = $theme_service->getDatatypeMasterTheme($datatype_id);
 
 
         // --------------------
@@ -220,14 +219,15 @@ class CSVExportController extends ODRCustomController
         // ----------------------------------------
         // Grab the cached version of the desired datatype
         $include_links = false;
-        $datatype_data = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
-//print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();
+        $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
+        $theme_array = $theme_service->getThemeArray($theme->getId());
+//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
         // Filter by user permissions
-        $datarecord_data = array();
-        $pm_service->filterByGroupPermissions($datatype_data, $datarecord_data, $user_permissions);
+        $datarecord_array = array();
+        $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
-        $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
+        // Currently only the top-level datatype is rendered...therefore, no need for stacking
 
 
         // ----------------------------------------
@@ -236,9 +236,11 @@ class CSVExportController extends ODRCustomController
         $html = $templating->render(
             'ODRAdminBundle:CSVExport:csvexport_ajax.html.twig',
             array(
-                'datatype_array' => $datatype_data,
-                'initial_datatype_id' => $datatype_id,
+                'datatype_array' => $datatype_array,
                 'theme_array' => $theme_array,
+
+                'initial_datatype_id' => $datatype_id,
+                'initial_theme_id' => $theme->getId(),
 
                 'odr_tab_id' => $odr_tab_id,
             )

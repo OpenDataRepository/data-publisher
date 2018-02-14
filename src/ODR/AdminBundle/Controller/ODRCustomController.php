@@ -262,14 +262,8 @@ class ODRCustomController extends Controller
                 $offset = 1;
 
             // Reduce datarecord_list to just the list that will get rendered
-            $datarecord_list = array();
             $start = ($offset-1) * $page_length;
-            for ($index = $start; $index < ($start + $page_length); $index++) {
-                if ( !isset($datarecords[$index]) )
-                    break;
-
-                $datarecord_list[] = $datarecords[$index];
-            }
+            $datarecord_list = array_slice($datarecords, $start, $page_length);
 
 
             // -----------------------------------
@@ -290,13 +284,16 @@ class ODRCustomController extends Controller
             }
 
             $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
-            $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, $theme->getThemeType(), $include_links);
+            $theme_array = $theme_service->getThemeArray($theme->getId());
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $related_datarecord_array, $user_permissions);
 
             // Stack the datatype and all of its children
-            $datatype_array[ $datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+            $stacked_datatype_array[ $datatype->getId() ] =
+                $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+            $stacked_theme_array[ $theme->getId() ] =
+                $theme_service->stackThemeArray($theme_array, $theme->getId());
 
             // Stack each individual datarecord in the array
             // TODO - is there a faster way of doing this?  Loading/stacking datarecords is likely the slowest part of rendering a search results list now
@@ -313,11 +310,12 @@ class ODRCustomController extends Controller
             $final_html = $templating->render(
                 $template,
                 array(
-                    'datatype_array' => $datatype_array,
+                    'datatype_array' => $stacked_datatype_array,
                     'datarecord_array' => $datarecord_array,
-                    'theme_array' => $theme_array,
+                    'theme_array' => $stacked_theme_array,
 
                     'initial_datatype_id' => $datatype->getId(),
+                    'initial_theme_id' => $theme->getId(),
 
                     'count' => $total_datarecords,
                     'scroll_target' => $scroll_target,
@@ -344,7 +342,7 @@ class ODRCustomController extends Controller
         }
         else if ( $theme->getThemeType() == 'table' ) {
             // -----------------------------------
-            $theme_array = $theme_service->getThemeArray( array($theme->getId()) );
+            $theme_array = $theme_service->getThemeArray($theme->getId());
 
             // Determine the columns to use for the table
             /** @var TableThemeHelperService $tth_service */
@@ -376,6 +374,8 @@ class ODRCustomController extends Controller
                     'user' => $user,
                     'user_permissions' => $datatype_permissions,
                     'theme_array' => $theme_array,
+
+                    'initial_theme_id' => $theme->getId(),
 
                     'logged_in' => $logged_in,
                     'display_theme_warning' => $display_theme_warning,
