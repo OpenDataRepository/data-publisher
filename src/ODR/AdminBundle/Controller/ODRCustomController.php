@@ -1785,11 +1785,11 @@ class ODRCustomController extends Controller
                 break;
             case 'DecimalValue':
                 $table_name = 'odr_decimal_value';
-                $default_value = 0;
+                $default_value = null;
                 break;
             case 'IntegerValue':
                 $table_name = 'odr_integer_value';
-                $default_value = 0;
+                $default_value = null;
                 break;
             case 'LongText':    // paragraph text
                 $table_name = 'odr_long_text';
@@ -1817,7 +1817,7 @@ class ODRCustomController extends Controller
         // Return the storage entity if it already exists
         /** @var ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
         $storage_entity = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
-        if ($storage_entity !== null)
+        if ( !is_null($storage_entity) )
             return $storage_entity;
 
         // Otherwise, locate/create the datarecordfield entity for this datarecord/datafield pair
@@ -1825,7 +1825,7 @@ class ODRCustomController extends Controller
 
         // Determine which value to use for the default value
         $insert_value = null;
-        if ($initial_value !== null)
+        if ( !is_null($initial_value) )
             $insert_value = $initial_value;
         else
             $insert_value = $default_value;
@@ -1863,9 +1863,10 @@ class ODRCustomController extends Controller
 
         // Reload the storage entity
         $storage_entity = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
+        $em->refresh($storage_entity);
 
         // Decimal values need to run setValue() because there's php logic involved
-        if ($typeclass == 'DecimalValue') {
+        if ( $typeclass == 'DecimalValue' && !is_null($initial_value) ) {
             $storage_entity->setValue($insert_value);
 
             $em->persist($storage_entity);
@@ -1904,7 +1905,7 @@ class ODRCustomController extends Controller
             $existing_values['value'] = strval($existing_values['value']);
 
         foreach ($existing_values as $key => $value) {
-            if ( isset($properties[$key]) && $properties[$key] != $value )
+            if ( isset($properties[$key]) && $properties[$key] !== $value )
                 $changes_made = true;
         }
 
@@ -1914,7 +1915,7 @@ class ODRCustomController extends Controller
 
         // If this is an IntegerValue entity, set the value back to an integer or null so it gets saved correctly
         if ($typeclass == 'IntegerValue') {
-            if ($properties['value'] == '')
+            if ($properties['value'] === '')
                 $properties['value'] = null;
             else
                 $properties['value'] = intval($properties['value']);
