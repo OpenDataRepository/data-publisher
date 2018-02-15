@@ -231,7 +231,7 @@ class ThemeInfoService
      * @param string $theme_type
      * @param array $top_level_themes should only be used by ThemeService
      *
-     * @return int|null
+     * @return int
      */
     public function getPreferredTheme($user, $datatype_id, $theme_type, $top_level_themes = null)
     {

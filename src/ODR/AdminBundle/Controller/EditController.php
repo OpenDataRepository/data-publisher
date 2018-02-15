@@ -2224,6 +2224,7 @@ class EditController extends ODRCustomController
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+        $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
 
         /** @var DatatypeInfoService $dti_service */
@@ -2243,9 +2244,6 @@ class EditController extends ODRCustomController
         $datatype_permissions = $user_permissions['datatypes'];
         $datafield_permissions = $user_permissions['datafields'];
 
-        // Going to need this a lot...
-        $datatree_array = $dti_service->getDatatreeArray();
-
 
         // ----------------------------------------
         // Load required objects based on parameters
@@ -2256,11 +2254,15 @@ class EditController extends ODRCustomController
         $grandparent_datarecord = $datarecord->getGrandparent();
         $grandparent_datatype = $grandparent_datarecord->getDataType();
 
+        /** @var Theme $top_level_theme */
+        $top_level_theme_id = $theme_service->getPreferredTheme($user, $grandparent_datatype->getId(), 'master');
+        $top_level_theme = $repo_theme->find($top_level_theme_id);
+
         /** @var DataType $datatype */
         $datatype = null;
+        /** @var Theme $theme */
+        $theme = null;
 
-        /** @var DataType|null $child_datatype */
-        $child_datatype = null;
         /** @var DataFields|null $datafield */
         $datafield = null;
         $datafield_id = null;
@@ -2272,34 +2274,26 @@ class EditController extends ODRCustomController
 
 
         if ($template_name == 'default') {
-            $datatype = $datarecord->getDataType();
+            $datatype = $grandparent_datatype;
+            $theme = $top_level_theme;
 
-            $grandparent_datarecord = $datarecord->getGrandparent();
-            if ( $grandparent_datarecord->getId() !== $datarecord->getId() )
-                $is_top_level = 0;
+//            // TODO - May not necessarily be a render request for a top-level datarecord...
+//            $datatype = $datarecord->getDataType();
+//            if ( $grandparent_datarecord->getId() !== $datarecord->getId() )
+//                $is_top_level = 0;
         }
         else if ($template_name == 'child') {
             $is_top_level = 0;
 
-            $child_datatype = $repo_datatype->find($target_id);
-
-            // Need to determine the top-level datatype to be able to load all necessary data for rendering this child datatype
-            if ( isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) && $datatree_array['descendant_of'][ $child_datatype->getId() ] !== '' ) {
-                $datatype = $child_datatype->getGrandparent();
-            }
-            else if ( isset($datatree_array['linked_from'][ $child_datatype->getId() ]) && in_array($datarecord->getDataType()->getId(), $datatree_array['linked_from'][ $child_datatype->getId() ]) ) {
-                $datatype = $datarecord->getDataType()->getGrandparent();
-            }
-            else {
-                throw new ODRException('Unable to locate grandparent datatype for datatype '.$child_datatype->getId());
-            }
+            $datatype = $repo_datatype->find($target_id);
+            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'parentTheme' => $top_level_theme->getId()) );      // TODO - this likely isn't going to work where linked datatypes are involved
         }
         else if ($template_name == 'datafield') {
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($target_id);
             $datafield_id = $target_id;
 
-            $child_datatype = $datafield->getDataType();
-            $datatype = $child_datatype->getGrandparent();
+            $datatype = $datafield->getDataType();
+            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'parentTheme' => $top_level_theme->getId()) );      // TODO - this likely isn't going to work where linked datatypes are involved
         }
 
 
@@ -2315,21 +2309,15 @@ class EditController extends ODRCustomController
         $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
         // Also need the theme array...
-        $theme_array = $theme_service->getThemesForDatatype($grandparent_datatype->getId(), $user, 'master', $include_links);
+        $theme_array = $theme_service->getThemeArray($top_level_theme->getId());
 
 
         // ----------------------------------------
         // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-        $stacked_datarecord_array = array();
-        $stacked_datatype_array = array();
-        if ($template_name == 'default') {
-            $stacked_datarecord_array[ $datarecord->getId() ] = $dri_service->stackDatarecordArray($datarecord_array, $datarecord->getId());
-            $stacked_datatype_array[ $datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
-        }
-        else if ($template_name == 'child') {
-            $stacked_datarecord_array[ $initial_datarecord_id ] = $dri_service->stackDatarecordArray($datarecord_array, $initial_datarecord_id);
-            $stacked_datatype_array[ $child_datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $child_datatype->getId());
-        }
+        $stacked_datarecord_array[ $datarecord->getId() ] = $dri_service->stackDatarecordArray($datarecord_array, $datarecord->getId());
+        $stacked_datatype_array[ $datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+        $stacked_theme_array[ $theme->getId() ] = $theme_service->stackThemeArray($theme_array, $theme->getId());
+
 
         // ----------------------------------------
         // Render the requested version of this page
@@ -2414,10 +2402,11 @@ exit();
 
                     'datatype_array' => $stacked_datatype_array,
                     'datarecord_array' => $stacked_datarecord_array,
-                    'theme_array' => $theme_array,
+                    'theme_array' => $stacked_theme_array,
 
                     'initial_datatype_id' => $datatype->getId(),
                     'initial_datarecord_id' => $datarecord->getId(),
+                    'initial_theme_id' => $theme->getId(),
 
                     'datatype_permissions' => $datatype_permissions,
                     'datafield_permissions' => $datafield_permissions,
@@ -2433,19 +2422,21 @@ exit();
         }
         else if ($template_name == 'child') {
 
-            // Need to find the ThemeDatatype entry for this child datatype
+            // Find the ThemeDatatype entry that contains the child datatype getting reloaded
             $theme_datatype = null;
-            $parent_datatype = $child_datatype->getParent();
-
-            foreach ($theme_array[$parent_datatype->getId()]['themeElements'] as $te_num => $te) {
-                if ( isset($te['themeDataType']) && $te['themeDataType'][0]['dataType']['id'] == $child_datatype->getId() ) {
-                    $theme_datatype = $te['themeDataType'][0];
-                    break;
+            foreach ($theme_array as $t_id => $t) {
+                foreach ($t['themeElements'] as $te_num => $te) {
+                    if ( isset($te['themeDataType']) ) {
+                        foreach ($te['themeDataType'] as $tdt_num => $tdt) {
+                            if ( $tdt['dataType']['id'] == $datatype->getId() && $tdt['childTheme']['id'] == $theme->getId() )
+                                $theme_datatype = $tdt;
+                        }
+                    }
                 }
             }
 
             if ($theme_datatype == null)
-                throw new ODRException('Unable to locate theme_datatype entry for child datatype '.$child_datatype->getId());
+                throw new ODRException('Unable to locate theme_datatype entry for child datatype '.$datatype->getId());
 
             $is_link = $theme_datatype['is_link'];
             $display_type = $theme_datatype['display_type'];
@@ -2459,10 +2450,11 @@ exit();
                 array(
                     'datatype_array' => $stacked_datatype_array,
                     'datarecord_array' => $stacked_datarecord_array,
-                    'theme_array' => $theme_array,
+                    'theme_array' => $stacked_theme_array,
 
-                    'target_datatype_id' => $child_datatype->getId(),
+                    'target_datatype_id' => $datatype->getId(),
                     'parent_datarecord_id' => $datarecord->getId(),
+                    'target_theme_id' => $theme->getId(),
 
                     'datatype_permissions' => $datatype_permissions,
                     'datafield_permissions' => $datafield_permissions,
@@ -2479,7 +2471,7 @@ exit();
         else if ($template_name == 'datafield') {
 
             // Extract all needed arrays from $datatype_array and $datarecord_array
-            $datatype = $datatype_array[ $child_datatype->getId() ];
+            $datatype = $datatype_array[ $datatype->getId() ];
             $datarecord = $datarecord_array[ $initial_datarecord_id ];
 
             $datafield = null;
