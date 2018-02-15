@@ -96,6 +96,8 @@ class EditController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataType $datatype */
@@ -154,21 +156,10 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Delete the cached string containing the ordered list of datarecords for this datatype
-            $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
+            $cache_service->delete('datatype_'.$datatype_id.'_record_order');
 
-            // See if any cached search results need to be deleted...
-            $cached_searches = $cache_service->get('cached_search_results');
-            if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
-                // Delete all cached search results for this datatype that were NOT run with datafield criteria
-                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
-                    $searched_datafields = $search_data['searched_datafields'];
-                    if ($searched_datafields == '')
-                        unset( $cached_searches[$datatype_id][$search_checksum] );
-                }
-
-                // Save the collection of cached searches back to memcached
-                $cache_service->set('cached_search_results', $cached_searches);
-            }
+            // TODO - only delete all cached search results for this datatype that were NOT run with datafield criteria
+            $search_cache_service->clearByDatatypeId($datatype_id);
 
             // Since this is a new top-level datarecord, there's nothing to mark as updated
         }
@@ -420,19 +411,8 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // See if any cached search results need to be deleted...
-            $cached_searches = $cache_service->get('cached_search_results');
-            if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
-                // Delete all cached search results for this datatype that contained this now-deleted datarecord
-                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
-                    $datarecord_list = explode(',', $search_data['datarecord_list']['all']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
-                    if ( in_array($datarecord_id, $datarecord_list) )
-                        unset ( $cached_searches[$datatype_id][$search_checksum] );
-                }
-
-                // Save the collection of cached searches back to memcached
-                $cache_service->set('cached_search_results', $cached_searches);
-            }
+            // TODO - only delete all cached search results for this datatype that contained this now-deleted datarecord
+            $search_cache_service->clearByDatatypeId($datatype_id);
 
 
             // ----------------------------------------
@@ -509,12 +489,12 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $conn = $em->getConnection();
 
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             // Grab the necessary entities
@@ -634,21 +614,11 @@ class EditController extends ODRCustomController
             // Mark this now-deleted datarecord's parent (and all its parents) as updated
             $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
 
-            // See if any cached search results need to be deleted...
-            $cached_searches = $cache_service->get('cached_search_results');
-            if ( $cached_searches !== false && isset($cached_searches[$grandparent_datatype_id]) ) {
-                // Delete all cached search results for this datatype that contained this now-deleted datarecord
-                foreach ($cached_searches[$grandparent_datatype_id] as $search_checksum => $search_data) {
-                    $complete_datarecord_list = explode(',', $search_data['complete_datarecord_list']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
-                    if ( in_array($datarecord_id, $complete_datarecord_list) )
-                        unset ( $cached_searches[$grandparent_datatype_id][$search_checksum] );
-                }
-
-                // Save the collection of cached searches back to memcached
-                $cache_service->set('cached_search_results', $cached_searches);
-            }
+            // TODO - only delete all cached search results for this datatype that contained this now-deleted datarecord
+            $search_cache_service->clearByDatatypeId($grandparent_datatype_id);
 
 
+            // -----------------------------------
             // Get record_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
@@ -1561,12 +1531,12 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataRecord $datarecord */
@@ -1613,21 +1583,11 @@ class EditController extends ODRCustomController
             // Mark this datarecord as updated
             $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-            // See if any cached search results need to be deleted...
-            $cached_searches = $cache_service->get('cached_search_results');
-            if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
-                // Delete all cached search results for this datatype that contained this now-deleted datarecord
-                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
-                    $datarecord_list = explode(',', $search_data['datarecord_list']['all']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
-                    if ( in_array($datarecord_id, $datarecord_list) )
-                        unset ( $cached_searches[$datatype_id][$search_checksum] );
-                }
-
-                // Save the collection of cached searches back to memcached
-                $cache_service->set('cached_search_results', $cached_searches);
-            }
+            // TODO - only delete cached search results where public status is involved?
+            $search_cache_service->clearByDatatypeId($datatype_id);
 
 
+            // ----------------------------------------
             $return['d'] = array(
                 'public' => $datarecord->isPublic(),
                 'datarecord_id' => $datarecord_id,

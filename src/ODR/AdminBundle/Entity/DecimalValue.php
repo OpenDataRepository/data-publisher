@@ -15,6 +15,7 @@ namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 
+
 /**
  * DecimalValue
  */
@@ -123,7 +124,7 @@ class DecimalValue
     public function setValue($value)
     {
         // Don't try to process an empty/null value
-        if ($value == '' || $value == null) {
+        if ($value === '' || is_null($value)) {     // needs to be '==='... a value of 0 == ''
             $this->original_value = null;
             $this->value = null;
 

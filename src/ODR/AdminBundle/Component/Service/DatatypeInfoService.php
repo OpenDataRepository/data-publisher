@@ -539,26 +539,36 @@ class DatatypeInfoService
             $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             $sortfield = $datatype->getSortField();
 
-            if ($sortfield == null) {
-                // No sort order defined, just order all of this datatype's datarecords by id
-                $query = $this->em->createQuery(
-                   'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.dataType = :datatype AND dr.provisioned = false
-                    AND dr.deletedAt IS NULL
-                    ORDER BY dr.id'
-                )->setParameters( array('datatype' => $datatype_id) );
-                $results = $query->getArrayResult();
+            // Need a list of all datarecords for this datatype
+            $query = $this->em->createQuery(
+               'SELECT dr.id AS dr_id
+                FROM ODRAdminBundle:DataRecord AS dr
+                WHERE dr.dataType = :datatype AND dr.provisioned = false
+                AND dr.deletedAt IS NULL
+                ORDER BY dr.id'
+            )->setParameters( array('datatype' => $datatype_id) );
+            $results = $query->getArrayResult();
 
-                // Flatten the array...
-                foreach ($results as $num => $dr)
-                    $datarecord_list[ $dr['dr_id'] ] = $dr['dr_id'];
+            if ($sortfield == null) {
+                // The datatype doesn't have a sortfield, so going to order by datarecord id
+                foreach ($results as $num => $dr) {
+                    $dr_id = $dr['dr_id'];
+                    $datarecord_list[$dr_id] = $dr_id;
+                }
             }
             else {
-                // Since a sort order is defined, create a query to return all of this datatype's
-                //  datarecords with their sort field value
-                $sort_datafield_fieldtype = $sortfield->getFieldType()->getTypeClass();
+                // The datatype has a sortfield, but this doesn't mean there are database entries
+                //  for the storage entity and/or the datarecordfield for every datarecord.  If
+                //  either of those entities don't exist, the upcoming DQL query WILL NOT have
+                //  that datarecord in its result set.
+                // Therefore, all datarecords for this datatype are assigned an empty string for
+                //  their sort value at this time.
+                foreach ($results as $num => $dr) {
+                    $dr_id = $dr['dr_id'];
+                    $datarecord_list[$dr_id] = '';
+                }
 
+                $sort_datafield_fieldtype = $sortfield->getFieldType()->getTypeClass();
                 $query = $this->em->createQuery(
                    'SELECT dr.id AS dr_id, e.value AS sort_value
                     FROM ODRAdminBundle:DataRecord AS dr
@@ -585,10 +595,10 @@ class DatatypeInfoService
                     foreach ($results as $num => $dr)
                         $datarecord_list[ $dr['dr_id'] ] = $dr['sort_value'];
                 }
-
-                // Order the resulting array based on the sort field value
-                asort($datarecord_list, SORT_NATURAL);
             }
+
+            // Order the resulting array based on the sort field value
+            asort($datarecord_list, SORT_NATURAL);
 
             // Store the sorted datarecord list back in the cache
             $this->cache_service->set('datatype_'.$datatype_id.'_record_order', $datarecord_list);

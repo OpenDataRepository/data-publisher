@@ -217,7 +217,10 @@ class WorkerController extends ODRCustomController
                         $replacement = '';
                         $new_value = preg_replace($pattern, $replacement, $src_entity->getValue());
 
-                        $value = intval($new_value);
+                        if ( is_numeric($new_value) )
+                            $value = intval($new_value);
+                        else
+                            $value = '';        // will get turned into NULL
                     }
                     else if ( ($old_typeclass == 'ShortVarchar' || $old_typeclass == 'MediumVarchar' || $old_typeclass == 'LongVarchar' || $old_typeclass == 'LongText') && ($new_typeclass == 'DecimalValue') ) {
                         // text -> decimal
@@ -225,7 +228,10 @@ class WorkerController extends ODRCustomController
                         $replacement = '';
                         $new_value = preg_replace($pattern, $replacement, $src_entity->getValue());
 
-                        $value = floatval($new_value);
+                        if ( is_numeric($new_value) )
+                            $value = floatval($new_value);
+                        else
+                            $value = '';        // will get turned into NULL
                     }
                     else if ( $old_typeclass == 'DatetimeValue' ) {
                         // date -> anything
@@ -244,7 +250,6 @@ class WorkerController extends ODRCustomController
                     $em->remove($src_entity);
 
                     $new_obj = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-
                     parent::ODR_copyStorageEntity($em, $user, $new_obj, array('value' => $value));
                 }
                 else {
@@ -279,6 +284,9 @@ $ret .= '  Set current to '.$count."\n";
             $return['d'] = $ret;
         }
         catch (\Exception $e) {
+            // This is only ever called from command-line...
+            $request->setRequestFormat('json');
+
             $source = 0x5e17488a;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
