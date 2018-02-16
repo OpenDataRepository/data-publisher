@@ -2906,6 +2906,12 @@ form .row {
     padding-bottom: 0.6em;
 }
 
+.ODRReferenceSingle {
+    padding-left: 0.8em;
+    padding-top: 0.6em;
+    padding-bottom: 0.6em;
+}
+
 .ODRListDisplayHeader {
     padding-left: 1.4em;
     padding-top: 0.8em;

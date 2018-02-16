@@ -88,6 +88,10 @@ services:
         class: ODR\OpenRepository\GraphBundle\Plugins\URLPlugin
         arguments:
             templating: "@templating"
+    graph.currencyplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\CurrencyPlugin
+        arguments:
+            templating: "@templating"
 
     graph.organizationplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\OrganizationPlugin

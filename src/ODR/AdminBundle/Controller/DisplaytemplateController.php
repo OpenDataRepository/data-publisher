@@ -2403,6 +2403,9 @@ class DisplaytemplateController extends ODRCustomController
                     /** @var RenderPlugin $plugin */
                     // TODO Find out why we can't use the ID here - Names are not valid database ids
                     $plugin = $repo_render_plugin->findOneBy( array('pluginName' => $plugin_name) );
+                    if ($plugin == null)
+                        throw new ODRNotFoundException('Unable to locate a RenderPlugin with the plugin_name "'.$plugin_name.'"', true);
+
                     $plugin_id = $plugin->getId();
    
                     $required_fields[$plugin_id] = $fields;
@@ -3655,7 +3658,7 @@ exit();
 
                         'publicDate' => $submitted_data->getPublicDate(),
                         'searchNotesLower' => $submitted_data->getSearchNotesLower(),
-                        'searchNotesLower' => $submitted_data->getSearchNotesUpper()
+                        'searchNotesUpper' => $submitted_data->getSearchNotesUpper()
                     );
 
                     // These properties can be null...
