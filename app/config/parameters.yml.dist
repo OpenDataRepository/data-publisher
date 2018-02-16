@@ -81,6 +81,10 @@ parameters:
             name: 'Qanalyze XRD Analysis'
             filename: QanalyzePlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
+        currency_plugin:
+            name: 'Currency Plugin'
+            filename: CurrencyPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
 
         organization_plugin:
             name: 'Organization Plugin'
@@ -106,7 +110,7 @@ parameters:
         -
             host: 127.0.0.1
             port: 11211
-    memcached_key_prefix: odr_master         # If the physical server handles more than a single instance of ODR, then these two memcached_prefix entries must be unique to this instance of ODR
+    memcached_key_prefix: odr_master         # If the physical server handles more than a single instance of ODR, then each instance of ODR must have a different memcached_key_prefix
     session_memcached_expire: 3600
     session_memcached_prefix: odr_master
     session_memcached_host: 127.0.0.1

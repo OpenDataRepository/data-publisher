@@ -92,13 +92,19 @@ class ReferencesPlugin
                 }
             }
 
+
 //            return '<pre>'.print_r($mapping['file'], true).'</pre>';
+
+            // Going to render the reference differently if it's top-level...
+            $is_top_level = $rendering_options['is_top_level'];
 
             $output = $this->templating->render(
                 'ODROpenRepositoryGraphBundle:References:references.html.twig', 
                 array(
                     'datarecord' => $datarecord,
                     'mapping' => $datafield_mapping,
+
+                    'is_top_level' => $is_top_level,
                 )
             );
 
