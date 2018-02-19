@@ -59,8 +59,8 @@ class CryptoCommand extends ContainerAwareCommand
                 // Wait for a job?
                 $job = $pheanstalk->watch('crypto_requests')->ignore('default')->reserve();
 
-                /** @var CryptoService $crypto_service */
-                $crypto_service = $this->getContainer()->get('odr.crypto_service');
+//                /** @var CryptoService $crypto_service */
+//                $crypto_service = $this->getContainer()->get('odr.crypto_service');
 
                 // Get Job Data
                 $data = json_decode($job->getData()); 
@@ -74,29 +74,32 @@ class CryptoCommand extends ContainerAwareCommand
                     $output->writeln($data->crypto_type.' request for '.$data->object_type.' '.$data->object_id.' from '.$data->redis_prefix.'...');
                 }
 
-                $object_type = $data->object_type;
-                $object_id = $data->object_id;
-                $target_filename = $data->target_filename;
-                $crypto_type = $data->crypto_type;
+                // NOTE - it seems that calling the crypto service directly from this command will
+                //  invariably and inevitably result in mysql "server has gone away" errors, which
+                //  will prevent this command from being able to decrypt anything
 
-                $archive_filepath = $data->archive_filepath;
-                $desired_filename = $data->desired_filename;
-
-                if ($archive_filepath !== '' && $desired_filename !== '') {
-                    // This decrypts the specified file and stores it in a zip archive
-                    $crypto_service->decryptFileForArchive($object_id, $target_filename, $desired_filename, $archive_filepath);
-                }
-                else if ($crypto_type == 'decrypt' && strtolower($object_type) == 'file') {
-                    // This will probably be the most common use of this command
-                    $crypto_service->decryptFile($object_id, $target_filename);
-                }
-                else if ($crypto_type == 'decrypt' && strtolower($object_type) == 'image') {
-                    // This one will probably not be used much at all...
-                    // Usually, these are decrypted inline for immediate viewing
-                    $crypto_service->decryptImage($object_id, $target_filename);
-                }
-                else {
-                    // TODO - move encryption into the crypto service as well...
+//                $object_type = $data->object_type;
+//                $object_id = $data->object_id;
+//                $target_filename = $data->target_filename;
+//                $crypto_type = $data->crypto_type;
+//
+//                $archive_filepath = $data->archive_filepath;
+//                $desired_filename = $data->desired_filename;
+//
+//                if ($archive_filepath !== '' && $desired_filename !== '') {
+//                    // This decrypts the specified file and stores it in a zip archive
+//                    $crypto_service->decryptFileForArchive($object_id, $target_filename, $desired_filename, $archive_filepath);
+//                }
+//                else if ($crypto_type == 'decrypt' && strtolower($object_type) == 'file') {
+//                    // This will probably be the most common use of this command
+//                    $crypto_service->decryptFile($object_id, $target_filename);
+//                }
+//                else if ($crypto_type == 'decrypt' && strtolower($object_type) == 'image') {
+//                    // This one will probably not be used much at all...
+//                    // Usually, these are decrypted inline for immediate viewing
+//                    $crypto_service->decryptImage($object_id, $target_filename);
+//                }
+//                else {
 
                     // Need to use cURL to send a POST request
                     $ch = curl_init();
@@ -158,7 +161,7 @@ class CryptoCommand extends ContainerAwareCommand
 
                     // Done with this cURL object
                     curl_close($ch);
-                }
+//                }
 
                 // Dealt with the job
                 $pheanstalk->delete($job);
