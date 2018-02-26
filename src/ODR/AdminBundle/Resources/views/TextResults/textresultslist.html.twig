@@ -6,12 +6,7 @@
 
 {% set theme = theme_array[datatype.id] %}
 
-{% set can_edit_datarecord = false %}
 {% set is_datatype_admin = false %}
-
-{% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
-    {% set can_edit_datarecord = true %}
-{% endif %}
 {% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
     {% set is_datatype_admin = true %}
 {% endif %}
@@ -27,6 +22,9 @@
         'theme': theme,
         'page_type': 'table',
         'search_key': search_key,
+
+        'has_search_restriction': has_search_restriction,
+        'editable_only': editable_only,
     } %}
 
     <div id="TextResults_wrapper" class="ODRTableOuterWrap">
@@ -45,10 +43,10 @@
     {% endfor %}
 {% endif %}
 
-{% if user_role == 'ROLE_ADMIN' and count > 0 %}
+{% if user_role == 'ROLE_ADMIN' and has_datarecords %}
 <div class="ODRExportButtons Cursor">
     <div style="float:left;">
-    {% if can_edit_datarecord or is_datatype_admin %}
+    {% if can_edit_datatype or is_datatype_admin %}
         <button class="pure-button" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
     {% endif %}
         <button class="pure-button" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>
@@ -78,7 +76,7 @@
 
         var table = $("#TextResults").dataTable({
 
-            "columns": [{{ column_names | raw }} {% if can_edit_datarecord %}{"title":"","searchable":false,"orderable":false}{% endif %}], {# column_names|raw already has trailing comma #}
+            "columns": [{{ column_names | raw }} {% if can_edit_datatype %}{"title":"","searchable":false,"orderable":false}{% endif %}], {# column_names|raw already has trailing comma #}
             "order": [[1, 'asc']],
             "pageLength": {{ page_length }},
             "autoWidth": false,
@@ -171,8 +169,8 @@
             },
 
             "createdRow": function( row, data, index ) {
-                $(row).attr('onclick', 'loadDataRecord(' + data[0] + ');');
-                $(row).addClass('Pointer DataRecord_' + data[0]);
+                $(row).addClass('ODRTableRecord DataRecord_' + data[0]);
+                $(row).attr('rel', data[0]);
             },
 
             "language": {
@@ -185,7 +183,7 @@
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
-{% if user_role == 'ROLE_ADMIN' and count > 0 and use_jupyterhub %}
+{% if user_role == 'ROLE_ADMIN' and has_datarecords and use_jupyterhub %}
         // Get the app list to display on the page
         $.ajax({
             cache: false,
@@ -246,15 +244,22 @@
             if ( json.data[0].length !== original_num_columns ) {
                 reload_page = true;
             }
-{% if can_edit_datarecord %}
+{% if can_edit_datatype %}
             else {
                 for (var i = 0; i < json.data.length; i++) {
-                    json.data[i].push('<span class="ODREditLink" rel="' + json.data[i][0] + '"><u>Edit<u></span>');
+                    // User can edit at least one datarecord for this datatype...ensure user has
+                    //  permission to edit this specific datarecord before tacking on an edit link
+                    var dr_id = parseInt( json.data[i][0] );
+                    if ( json.editable_datarecord_list[dr_id] !== undefined )
+                        json.data[i].push('<span class="ODREditLink">Edit</span>');
+                    else
+                        json.data[i].push('<span></span>');
                 }
             }
 {% endif %}
 
-            // If the json data has fewer columns than expected, splice in enough columns so datatables doesn't throw an alert before reloading the page
+            // If the json data has fewer columns than expected, splice in enough columns so
+            //  datatables doesn't throw an alert before reloading the page
             if ( json.data[0].length < original_num_columns ) {
                 for (var i = 0; i < json.data.length; i++) {
                     for (var j = json.data[i].length; j < original_num_columns; j++)
@@ -270,7 +275,7 @@
     });
 
 
-    // Enable users to download files straight from the table without having to go to the datarecord first
+    // Enable users to download files straight from the table
     $("#TextResults").on('draw.dt', function() {
         // Attach required attributes to any <a> element in the table
         $(this).find('a').each(function() {
@@ -278,12 +283,23 @@
             $(this).attr('target', '_blank');
         });
 
-{% if can_edit_datarecord %}
+        $(".ODRTableRecord").unbind('click').click(function(event) {
+            // Shouldn't do anything, but make sure...
+            event.stopImmediatePropagation();
+
+            // Load view mode of Datarecord
+            var offset = $("#TextResults").DataTable().page.info().page + 1;
+            loadDataRecord( $(this).attr('rel'), 'view', offset );
+        });
+
+{% if can_edit_datatype %}
         $(".ODREditLink").unbind('click').click(function(event) {
             // Don't load view mode for Datarecord
             event.stopImmediatePropagation();
+
             // Load edit mode of Datarecord instead
-            loadDataRecord( $(this).attr('rel'), 'edit' );
+            var offset = $("#TextResults").DataTable().page.info().page + 1;
+            loadDataRecord( $(this).parent().parent().attr('rel'), 'edit', offset );
         });
 {% endif %}
 
@@ -293,8 +309,8 @@
         });
     });
 
-{% if count > 0 and user_role == 'ROLE_ADMIN' %}
-    {% if can_edit_datarecord or is_datatype_admin %}
+{% if has_datarecords and user_role == 'ROLE_ADMIN' %}
+    {% if can_edit_datatype or is_datatype_admin %}
     function doMassEdit() {
         var url = '{{ path('odr_mass_edit_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
         UpdateURL(url);
@@ -307,8 +323,8 @@
     }
 {% endif %}
 </script>
-{% endspaceless %}
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
-{% set offset = '' %}   {# at the moment, offset is set to 1 by default, but not used by textresults #}
-{{ js.write(search_theme_id, search_key, offset) }}
+{{ js.write(search_theme_id, search_key) }}
+
+{% endspaceless %}

@@ -1141,25 +1141,13 @@ if ($debug) {
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
-            // TODO - why has this not been modified to fully use the permissions service again?
-            $can_view_ancestor_datatype = false;
-            if ( isset($datatype_permissions[$ancestor_datatype_id]) && isset($datatype_permissions[$ancestor_datatype_id]['dt_view']) )
-                $can_view_ancestor_datatype = true;
-
-            $can_view_descendant_datatype = false;
-            if ( isset($datatype_permissions[$descendant_datatype_id]) && isset($datatype_permissions[$descendant_datatype_id]['dt_view']) )
-                $can_view_descendant_datatype = true;
-
-            $can_view_local_datarecord = false;
-            if ( isset($datatype_permissions[$local_datatype_id]) && isset($datatype_permissions[$local_datatype_id]['dr_view']) )
-                $can_view_local_datarecord = true;
-
-            $can_edit_ancestor_datarecord = false;
-            if ( isset($datatype_permissions[$ancestor_datatype_id]) && isset($datatype_permissions[$ancestor_datatype_id]['dr_edit']) )
-                $can_edit_ancestor_datarecord = true;
+            $can_view_ancestor_datatype = $pm_service->canViewDatatype($user, $ancestor_datatype);
+            $can_view_descendant_datatype = $pm_service->canViewDatatype($user, $descendant_datatype);
+            $can_view_local_datarecord = $pm_service->canViewDatarecord($user, $local_datarecord);
+            $can_edit_ancestor_datarecord = $pm_service->canEditDatatype($user, $ancestor_datatype);
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
-            if ( !($ancestor_datatype->isPublic() || $can_view_ancestor_datatype) || !($descendant_datatype->isPublic() || $can_view_descendant_datatype) || !($local_datarecord->isPublic() || $can_view_local_datarecord) || !$can_edit_ancestor_datarecord )
+            if ( !$can_view_ancestor_datatype || !$can_view_descendant_datatype || !$can_view_local_datarecord || !$can_edit_ancestor_datarecord )
                 throw new ODRForbiddenException();
 
 

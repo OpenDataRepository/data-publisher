@@ -573,19 +573,14 @@ print_r($grandparent_list);
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
             if ( !$pm_service->isDatatypeAdmin($user, $local_datatype) )
                 throw new ODRForbiddenException();
 
-            $can_edit_local = false;
-            if ( isset($datatype_permissions[ $local_datatype_id ]) && isset($datatype_permissions[ $local_datatype_id ][ 'dr_edit' ]) )
-                $can_edit_local = true;
-
-            $can_edit_remote = false;
-            if ( isset($datatype_permissions[ $remote_datatype_id ]) && isset($datatype_permissions[ $remote_datatype_id ][ 'dr_edit' ]) )
-                $can_edit_remote = true;
+            // TODO - if this report becomes available to non-admins, then datarecord restrictions will become an issue...
+            $can_edit_local = $pm_service->canEditDatatype($user, $local_datatype);
+            $can_edit_remote = $pm_service->canEditDatatype($user, $remote_datatype);
             // --------------------
 
 

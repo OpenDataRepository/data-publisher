@@ -56,6 +56,7 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
@@ -2629,6 +2630,7 @@ exit();
         $return['d'] = "";
 
         try {
+            // ----------------------------------------
             // Get necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -2638,8 +2640,14 @@ exit();
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+
+            $router = $this->get('router');
+            $templating = $this->get('templating');
 
 
+            // ----------------------------------------
             // Get Record In Question
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -2690,15 +2698,40 @@ exit();
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
             $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
+            // Store whether the user is permitted to edit at least one datarecord for this datatype
+            $can_edit_datatype = $pm_service->canEditDatatype($user, $datatype);
+
             // Ensure user has permissions to be doing this
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             if ( !$pm_service->canEditDatarecord($user, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // Going to need this later...
+            $restricted_datarecord_list = $pm_service->getDatarecordRestrictionList($user, $datatype);
             // --------------------
 
 
             // ----------------------------------------
+            // Grab the tab's id, if it exists
+            $params = $request->query->all();
+            $odr_tab_id = '';
+            if ( isset($params['odr_tab_id']) )
+                $odr_tab_id = $params['odr_tab_id'];
+            else
+                $odr_tab_id = $odr_tab_service->createTabId();
+
+            // Determine which list of datarecords to pull from the user's session
+            $cookies = $request->cookies;
+            $only_display_editable_datarecords = true;
+            if ( $cookies->has('datatype_'.$datatype->getId().'_editable_only') )
+                $only_display_editable_datarecords = $cookies->get('datatype_'.$datatype->getId().'_editable_only');
+
+            $editable_only = true;
+            if ( !is_null($restricted_datarecord_list) && !$only_display_editable_datarecords )
+                $editable_only = false;
+
+
             // If this datarecord is being viewed from a search result list...
             $datarecord_list = '';
             $encoded_search_key = '';
@@ -2726,52 +2759,56 @@ exit();
                     );
                     return parent::searchPageRedirect($user, $url);
                 }
-            }
 
 
-            // ----------------------------------------
-            // Grab the tab's id, if it exists
-            $params = $request->query->all();
-            $odr_tab_id = '';
-            if ( isset($params['odr_tab_id']) )
-                $odr_tab_id = $params['odr_tab_id'];
+                // ----------------------------------------
+                // TODO - move this segment into the tab helper service once searching is a service
+                // Ensure viewable/editable datarecord lists exist in user's session
+                if ( is_null($odr_tab_service->getViewableDatarecordList($odr_tab_id)) ) {
+                    $odr_tab_service->setViewableDatarecordList($odr_tab_id, $datarecord_list);
 
-            // Locate a sorted list of datarecords for search_header.html.twig if possible
-            if ( $session->has('stored_tab_data') && $odr_tab_id !== '' ) {
-                // Prefer the use of the sorted lists created during usage of the datatables plugin over the default list created during searching
-                $stored_tab_data = $session->get('stored_tab_data');
-
-                if ( isset($stored_tab_data[$odr_tab_id]) && isset($stored_tab_data[$odr_tab_id]['datarecord_list']) ) {
-                    $dr_list = explode(',', $stored_tab_data[$odr_tab_id]['datarecord_list']);
-                    if ( !in_array($datarecord->getId(), $dr_list) ) {
-                        // There's some sort of mismatch between the URL the user wants and the data stored by the tab id...wipe the tab data and just use the search results
-                        unset( $stored_tab_data[$odr_tab_id] );
+                    // Since searching isn't filtered (yet)...
+                    if ( is_null($datatype->getSortField()) ) {
+                        // ...this datarecord list is just ordered by id
+                        $odr_tab_service->setSortCriteria($odr_tab_id, 0, 'ASC');
                     }
                     else {
-                        // Otherwise, use the sorted list stored in the user's session
-                        $datarecord_list = $stored_tab_data[$odr_tab_id]['datarecord_list'];
-
-                        // Grab start/length from the datatables state object if it exists
-                        if ( isset($stored_tab_data[$odr_tab_id]['state']) ) {
-                            $start = intval($stored_tab_data[$odr_tab_id]['state']['start']);
-                            $length = intval($stored_tab_data[$odr_tab_id]['state']['length']);
-
-                            // Calculate which page datatables says it's on
-                            $datatables_page = 0;
-                            if ($start > 0)
-                                $datatables_page = $start / $length;
-                            $datatables_page++;
-
-                            // If the offset doesn't match the page, update it
-                            if ( $offset !== '' && intval($offset) !== intval($datatables_page) ) {
-                                $new_start = strval( (intval($offset) - 1) * $length );
-
-                                $stored_tab_data[$odr_tab_id]['state']['start'] = $new_start;
-                                $session->set('stored_tab_data', $stored_tab_data);
-                            }
-                        }
+                        // ...this datarecord list is ordered by whatever the sort datafield for this datatype is
+                        $odr_tab_service->setSortCriteria($odr_tab_id, $datatype->getSortField()->getId(), 'ASC');
                     }
                 }
+
+                if ( $pm_service->canEditDatatype($user, $datatype) && is_null($odr_tab_service->getEditableDatarecordList($odr_tab_id)) ) {
+                    if ( !is_null($restricted_datarecord_list) ) {
+                        // Ensure the restricted list is sorted
+                        $dr_list = $dti_service->getSortedDatarecordList($datatype->getId(), $restricted_datarecord_list);
+                        $dr_list = implode(',', array_keys($dr_list));
+
+                        $odr_tab_service->setEditableDatarecordList($odr_tab_id, $dr_list);
+                    }
+                    else
+                        $odr_tab_service->setEditableDatarecordList($odr_tab_id, $datarecord_list);
+                }
+
+
+                // ----------------------------------------
+                // Ensure $offset is pointing to the correct page...
+                $dr_list = '';
+                if ($can_edit_datatype && $editable_only)
+                    $dr_list = $odr_tab_service->getEditableDatarecordList($odr_tab_id);
+                else
+                    $dr_list = $odr_tab_service->getViewableDatarecordList($odr_tab_id);
+
+
+                // Compute which page of the search results this datarecord is on
+                $dr_list = explode(',', $dr_list);
+                $key = array_search($datarecord->getId(), $dr_list);
+
+                $page_length = $odr_tab_service->getPageLength($odr_tab_id);
+                $offset = floor($key / $page_length) + 1;
+
+                // Ensure the session has the correct offset stored
+                $odr_tab_service->updateDatatablesOffset($odr_tab_id, $offset);
             }
 
 
@@ -2784,37 +2821,34 @@ exit();
 
 
             // Build an array of values to use for navigating the search result list, if it exists
-            $search_header = parent::getSearchHeaderValues(
-                $datarecord_list,
-                $datarecord->getId(),
-                $request
-            );
+            $search_header = $odr_tab_service->getSearchHeaderValues($odr_tab_id, $datarecord->getId(), 'editable');
 
-            $router = $this->get('router');
-            $templating = $this->get('templating');
+            $record_header_html = '';
+            if ( !is_null($search_header) ) {
+                $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));
+                $record_header_html = $templating->render(
+                    'ODRAdminBundle:Edit:edit_header.html.twig',
+                    array(
+                        'datatype_permissions' => $datatype_permissions,
+                        'datarecord' => $datarecord,
+                        'datatype' => $datatype,
 
-            $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));
-            $record_header_html = $templating->render(
-                'ODRAdminBundle:Edit:edit_header.html.twig',
-                array(
-                    'datatype_permissions' => $datatype_permissions,
-                    'datarecord' => $datarecord,
-                    'datatype' => $datatype,
+                        'is_top_level' => $is_top_level,
+                        'odr_tab_id' => $odr_tab_id,
 
-                    'is_top_level' => $is_top_level,
-
-                    // values used by search_header.html.twig
-                    'search_theme_id' => $search_theme_id,
-                    'search_key' => $encoded_search_key,
-                    'offset' => $offset,
-                    'page_length' => $search_header['page_length'],
-                    'next_datarecord' => $search_header['next_datarecord'],
-                    'prev_datarecord' => $search_header['prev_datarecord'],
-                    'search_result_current' => $search_header['search_result_current'],
-                    'search_result_count' => $search_header['search_result_count'],
-                    'redirect_path' => $redirect_path,
-                )
-            );
+                        // values used by search_header.html.twig
+                        'search_theme_id' => $search_theme_id,
+                        'search_key' => $encoded_search_key,
+                        'offset' => $offset,
+                        'page_length' => $search_header['page_length'],
+                        'next_datarecord' => $search_header['next_datarecord_id'],
+                        'prev_datarecord' => $search_header['prev_datarecord_id'],
+                        'search_result_current' => $search_header['search_result_current'],
+                        'search_result_count' => $search_header['search_result_count'],
+                        'redirect_path' => $redirect_path,
+                    )
+                );
+            }
 
             $record_page_html = self::GetDisplayData(
                 $search_theme_id,

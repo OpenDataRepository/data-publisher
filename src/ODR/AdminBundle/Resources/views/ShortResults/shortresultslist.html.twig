@@ -3,12 +3,7 @@
 {% set datatype = datatype_array[initial_datatype_id] %}
 {% set theme = theme_array[datatype.id] %}
 
-{% set can_edit_datarecord = false %}
 {% set is_datatype_admin = false %}
-
-{% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
-    {% set can_edit_datarecord = true %}
-{% endif %}
 {% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
     {% set is_datatype_admin = true %}
 {% endif %}
@@ -30,7 +25,7 @@
     {% endif %}
     </div>
 
-{% if count > 0 %}
+{% if has_datarecords %}
     <div class="ODRShortResultWrapper">
         {{ pagination_html | raw }}
 
@@ -45,6 +40,9 @@
             'theme': theme,
             'page_type': page_type,
             'search_key': search_key,
+
+            'has_search_restriction': has_search_restriction,
+            'editable_only': editable_only,
         } %}
 
         {% include 'ODRAdminBundle:ShortResults:shortresults_ajax.html.twig' with {
@@ -53,8 +51,10 @@
             'theme_array': theme_array,
 
             'initial_datatype_id': initial_datatype_id,
+            'editable_datarecord_list': editable_datarecord_list,
+
             'offset': offset,
-            'can_edit_datarecord': can_edit_datarecord,
+            'page_length': page_length,
 
             'intent': intent,
         } %}
@@ -62,6 +62,7 @@
         {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
     </div>
 {% elseif logged_in %}
+    {# TODO - better styling for this #}
     No Datarecords found
 {% else %}
     No Datarecords found...try logging in.
@@ -69,10 +70,10 @@
 
 </div><!-- End of .ODRFormWrap -->
 
-{% if intent == 'searching' and user_role == 'ROLE_ADMIN' and count > 0 %}
+{% if intent == 'searching' and user_role == 'ROLE_ADMIN' and has_datarecords %}
 <div class="ODRExportButtons Cursor">
     <div style="float:left;">
-        {% if can_edit_datarecord or is_datatype_admin %}
+        {% if can_edit_datatype or is_datatype_admin %}
             <button id="ODRMassEdit" class="pure-button" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
         {% endif %}
         <button id="ODRCSVExport" class="pure-button" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>
@@ -105,7 +106,7 @@
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
-{% if intent == 'searching' and user_role == 'ROLE_ADMIN' and count > 0 and use_jupyterhub %}
+{% if intent == 'searching' and user_role == 'ROLE_ADMIN' and has_datarecords and use_jupyterhub %}
         // Get the app list to display on the page
         $.ajax({
             cache: false,
@@ -176,8 +177,8 @@
 
     }
 
-{% if intent == 'searching' and count > 0 and user_role == 'ROLE_ADMIN' %}
-    {% if can_edit_datarecord or is_datatype_admin %}
+{% if intent == 'searching' and has_datarecords and user_role == 'ROLE_ADMIN' %}
+    {% if can_edit_datatype or is_datatype_admin %}
     function doMassEdit() {
         var url = '{{ path('odr_mass_edit_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
         UpdateURL(url);
@@ -192,6 +193,6 @@
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
-{{ js.write(search_theme_id, search_key, offset) }}
+{{ js.write(search_theme_id, search_key) }}
 
 {% endspaceless %}

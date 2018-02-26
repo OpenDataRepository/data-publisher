@@ -1856,6 +1856,15 @@ footer {
 .dataTable {
     width: 100%;
 }
+
+.ODRTableRecord {
+    cursor: pointer;
+}
+
+.ODREditLink {
+    text-decoration: underline;
+}
+
 /* END Search Results Table */
 
 #main {
@@ -2465,10 +2474,8 @@ form .row {
     z-index: 10;
 }
 
-
 .ODRFormHeader {
-    margin-left: 10px;
-    margin-right: 10px;
+    margin: 10px;
 }
 
 .ODRFormHeader button {
@@ -2619,6 +2626,7 @@ form .row {
     margin-top: 0.4em;
     font-size: 0.7em;
     text-align: right;
+    min-height: 2em;
 }
 
 .ODRBrowseTitle {

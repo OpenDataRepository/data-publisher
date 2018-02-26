@@ -173,22 +173,18 @@ class FlowController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_id = $user->getId();
 
-            $can_edit_datarecord = $pm_service->canEditDatarecord($user, $datarecord);
-            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
-
             // Ensure user has permissions to be doing this
             if ($upload_type == 'csv' || $upload_type == 'xml') {
-                if (!$is_datatype_admin)
+                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                     return self::flowAbort('Not allowed to upload csv/xml files for importing');
             }
             else {
-                if (!$can_edit_datarecord)
+                if ( !$pm_service->canEditDatarecord($user, $datarecord) )
                     return self::flowAbort('Not allowed to edit this Datarecord');
             }
 
             if ($datafield !== null) {
-                $can_edit_datafield = $pm_service->canEditDatafield($user, $datafield, $datarecord);
-                if ( !$can_edit_datafield )
+                if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
                     return self::flowAbort('Not allowed to edit this Datafield');
 
                 // If user is trying to upload to a datafield that only allows a single file/image to be uploaded...

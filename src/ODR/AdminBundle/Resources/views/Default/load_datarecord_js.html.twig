@@ -1,9 +1,8 @@
-{% macro write(search_theme_id, search_key, offset) %}
+{% macro write(search_theme_id, search_key) %}
 <script>
-    function loadDataRecord(datarecord_id, target) {
+    function loadDataRecord(datarecord_id, target, offset) {
         var search_theme_id = "{{ search_theme_id }}";
         var search_key = "{{ search_key }}";
-        var offset = "{{ offset }}";
 
         var url = '';
         switch (target) {
