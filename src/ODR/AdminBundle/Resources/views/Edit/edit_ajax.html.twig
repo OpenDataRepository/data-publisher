@@ -3,7 +3,7 @@
 {% set datatype = datatype_array[initial_datatype_id] %}
 {% set datarecord = datarecord_array[initial_datarecord_id] %}
 
-<div class="ODRFormHeader clearfix" style="margin-top: 10px; margin-bottom: 10px;">
+<div class="ODRFormHeader clearfix">
     {% for ancestor in linked_datatype_ancestors %}
         {% if datatype_permissions[ ancestor.id ] is defined and datatype_permissions[ ancestor.id ][ 'dr_edit' ] is defined %}
             <button type="button" class="pure-button" onclick="LinkRecord({{ ancestor.id }},{{ datatype.id }},{{ datarecord.id }});">Link to {{ ancestor.dataTypeMeta.shortName }} Records.</button>

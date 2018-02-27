@@ -114,17 +114,14 @@ class MassEditController extends ODRCustomController
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
-                $can_edit_datarecord = true;
+            $can_view_datatype = $pm_service->canViewDatatype($user, $datatype);
+            $can_edit_datarecord = $pm_service->canEditDatatype($user, $datatype);
 
             // Ensure user has permissions to be doing this
-            // TODO - can't use $pm_service->canEditDatarecord() here because don't actually have a datarecord...
-            if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
+            if ( !$user->hasRole('ROLE_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( !$can_view_datatype || !$can_edit_datarecord )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -177,6 +174,7 @@ class MassEditController extends ODRCustomController
                     return parent::searchPageRedirect($user, $url);
                 }
 
+                // TODO - datarecord restriction needs to be considered here...
                 // Store the datarecord list in the user's session...there is a chance that it could get wiped if it was only stored in memcached
                 $session = $request->getSession();
                 $list = $session->get('mass_edit_datarecord_lists');
@@ -356,17 +354,14 @@ class MassEditController extends ODRCustomController
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
-                $can_edit_datarecord = true;
+            $can_view_datatype = $pm_service->canViewDatatype($user, $datatype);
+            $can_edit_datarecord = $pm_service->canEditDatatype($user, $datatype);
 
             // Ensure user has permissions to be doing this
-            // TODO - can't use $pm_service->canEditDatarecord() here because don't actually have a datarecord...
-            if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
+            if ( !$user->hasRole('ROLE_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( !$can_view_datatype || !$can_edit_datarecord )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -390,6 +385,7 @@ class MassEditController extends ODRCustomController
 
 
             // ----------------------------------------
+            // TODO - datarecord restriction needs to be considered here...
             // Grab datarecord list and search key from user session...not using memcached because the possibility exists that the list could have been deleted
             $list = $session->get('mass_edit_datarecord_lists');
 
