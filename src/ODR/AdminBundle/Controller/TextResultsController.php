@@ -246,9 +246,18 @@ class TextResultsController extends ODRCustomController
                         else
                             $dr_list = $dti_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, $restricted_datarecord_list);
 
-                        // Convert $dr_list from  $dr_id => $sort_value  into a comma-separated list
-                        $dr_list = implode(',', array_keys($dr_list));
-                        // Store the comma-separated list for later use
+                        // At the point, $datarecord_list is a $num => $dr_id array of what matches search result
+                        // $dr_list is a $dr_id => $sort_value array of the datarecords the user can edit
+
+                        // Need to compute and store the intersection of those two arrays
+                        $datarecord_list = explode(',', $datarecord_list);
+                        foreach ($datarecord_list as $num => $dr_id) {
+                            if ( !isset($dr_list[$dr_id]) )
+                                unset( $datarecord_list[$num] );
+                        }
+                        $dr_list = implode(',', $datarecord_list);
+
+                        // $dr_list is now the list of datarecords matchnig this search that the user can edit
                         $odr_tab_service->setEditableDatarecordList($odr_tab_id, $dr_list);
                     }
                     else {

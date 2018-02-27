@@ -25,9 +25,10 @@
     {% endif %}
     </div>
 
-{% if has_datarecords %}
     <div class="ODRShortResultWrapper">
+    {% if has_datarecords %}
         {{ pagination_html | raw }}
+    {% endif %}
 
         {# Page/View Options #}
         {% set page_type = 'search_results' %}
@@ -45,6 +46,7 @@
             'editable_only': editable_only,
         } %}
 
+    {% if has_datarecords %}
         {% include 'ODRAdminBundle:ShortResults:shortresults_ajax.html.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': datarecord_array,
@@ -60,13 +62,16 @@
         } %}
 
         {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
+
+    {% elseif logged_in %}
+        {# TODO - better styling for this #}
+        No Datarecords found
+
+    {% else %}
+        No Datarecords found...try logging in.
+
+    {% endif %}
     </div>
-{% elseif logged_in %}
-    {# TODO - better styling for this #}
-    No Datarecords found
-{% else %}
-    No Datarecords found...try logging in.
-{% endif %}
 
 </div><!-- End of .ODRFormWrap -->
 

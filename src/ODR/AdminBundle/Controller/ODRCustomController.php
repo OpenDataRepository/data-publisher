@@ -272,8 +272,18 @@ class ODRCustomController extends Controller
             if ( !is_null($restricted_datarecord_list) ) {
                 // Ensure the restricted list is sorted
                 $dr_list = $dti_service->getSortedDatarecordList($datatype->getId(), $restricted_datarecord_list);
-                $dr_list = implode(',', array_keys($dr_list));
 
+                // At the point, $datarecords is a $num => $dr_id array of what matches search result
+                // $dr_list is a $dr_id => $sort_value array of the datarecords the user can edit
+
+                // Need to compute and store the intersection of those two arrays
+                foreach ($datarecords as $num => $dr_id) {
+                    if ( !isset($dr_list[$dr_id]) )
+                        unset( $datarecords[$num] );
+                }
+                $dr_list = implode(',', $datarecords);
+
+                // $dr_list is now the list of datarecords matchnig this search that the user can edit
                 $odr_tab_service->setEditableDatarecordList($odr_tab_id, $dr_list);
             }
             else
@@ -422,7 +432,7 @@ class ODRCustomController extends Controller
                     'page_length' => $page_length,
 
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
-                    'all_datarecords' => $datarecords,
+//                    'all_datarecords' => $datarecords,    // TODO - this isn't used?
                     'use_jupyterhub' => $use_jupyterhub,
                 )
             );
@@ -476,7 +486,7 @@ class ODRCustomController extends Controller
                     'offset' => $offset,
 
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
-                    'all_datarecords' => $datarecords,
+//                    'all_datarecords' => $datarecords,    // TODO - this isn't used?
                     'use_jupyterhub' => $use_jupyterhub,
                 )
             );
