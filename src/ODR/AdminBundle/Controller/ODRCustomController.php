@@ -268,7 +268,11 @@ class ODRCustomController extends Controller
             }
         }
 
-        if ( $pm_service->canEditDatatype($user, $datatype) && is_null($odr_tab_service->getEditableDatarecordList($odr_tab_id)) ) {
+        if ( !$pm_service->canEditDatatype($user, $datatype) ) {
+            // If user can't edit the datatype, then store that they can't edit any datarecords
+            $odr_tab_service->setEditableDatarecordList($odr_tab_id, array());
+        }
+        else if ( is_null($odr_tab_service->getEditableDatarecordList($odr_tab_id)) ) {
             if ( !is_null($restricted_datarecord_list) ) {
                 // Ensure the restricted list is sorted
                 $dr_list = $dti_service->getSortedDatarecordList($datatype->getId(), $restricted_datarecord_list);
@@ -299,9 +303,9 @@ class ODRCustomController extends Controller
             $only_display_editable_datarecords = $cookies->get('datatype_'.$datatype->getId().'_editable_only');
 
         // If a datarecord restriction exists, and the user only wants to display editable datarecords...
-        $editable_only = true;
-        if ( !is_null($restricted_datarecord_list) && !$only_display_editable_datarecords )
-            $editable_only = false;
+        $editable_only = false;
+        if ( $can_edit_datatype && !is_null($restricted_datarecord_list) && !$only_display_editable_datarecords )
+            $editable_only = true;
 
         // Determine the correct list of datarecords to use for rendering
         $datarecord_list = array();

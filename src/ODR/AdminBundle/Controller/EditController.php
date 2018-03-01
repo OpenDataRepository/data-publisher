@@ -2727,9 +2727,10 @@ exit();
             if ( $cookies->has('datatype_'.$datatype->getId().'_editable_only') )
                 $only_display_editable_datarecords = $cookies->get('datatype_'.$datatype->getId().'_editable_only');
 
-            $editable_only = true;
-            if ( !is_null($restricted_datarecord_list) && !$only_display_editable_datarecords )
-                $editable_only = false;
+            // If a datarecord restriction exists, and the user only wants to display editable datarecords...
+            $editable_only = false;
+            if ( $can_edit_datatype && !is_null($restricted_datarecord_list) && !$only_display_editable_datarecords )
+                $editable_only = true;
 
 
             // If this datarecord is being viewed from a search result list...
@@ -2778,7 +2779,11 @@ exit();
                     }
                 }
 
-                if ( $pm_service->canEditDatatype($user, $datatype) && is_null($odr_tab_service->getEditableDatarecordList($odr_tab_id)) ) {
+                if ( !$pm_service->canEditDatatype($user, $datatype) ) {
+                    // If user can't edit the datatype, then store that they can't edit any datarecords
+                    $odr_tab_service->setEditableDatarecordList($odr_tab_id, array());
+                }
+                else if ( is_null($odr_tab_service->getEditableDatarecordList($odr_tab_id)) ) {
                     if ( !is_null($restricted_datarecord_list) ) {
                         // Ensure the restricted list is sorted
                         $dr_list = $dti_service->getSortedDatarecordList($datatype->getId(), $restricted_datarecord_list);
@@ -2834,32 +2839,41 @@ exit();
             // Build an array of values to use for navigating the search result list, if it exists
             $search_header = $odr_tab_service->getSearchHeaderValues($odr_tab_id, $datarecord->getId(), 'editable');
 
-            $record_header_html = '';
-            if ( !is_null($search_header) ) {
-                $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));
-                $record_header_html = $templating->render(
-                    'ODRAdminBundle:Edit:edit_header.html.twig',
-                    array(
-                        'datatype_permissions' => $datatype_permissions,
-                        'datarecord' => $datarecord,
-                        'datatype' => $datatype,
-
-                        'is_top_level' => $is_top_level,
-                        'odr_tab_id' => $odr_tab_id,
-
-                        // values used by search_header.html.twig
-                        'search_theme_id' => $search_theme_id,
-                        'search_key' => $encoded_search_key,
-                        'offset' => $offset,
-                        'page_length' => $search_header['page_length'],
-                        'next_datarecord' => $search_header['next_datarecord_id'],
-                        'prev_datarecord' => $search_header['prev_datarecord_id'],
-                        'search_result_current' => $search_header['search_result_current'],
-                        'search_result_count' => $search_header['search_result_count'],
-                        'redirect_path' => $redirect_path,
-                    )
+            // Need this array to exist right now so the part that's not the search header will display
+            if ( is_null($search_header) ) {
+                $search_header = array(
+                    'page_length' => 0,
+                    'next_datarecord_id' => 0,
+                    'prev_datarecord_id' => 0,
+                    'search_result_current' => 0,
+                    'search_result_count' => 0
                 );
             }
+
+            $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));
+            $record_header_html = $templating->render(
+                'ODRAdminBundle:Edit:edit_header.html.twig',
+                array(
+                    'datatype_permissions' => $datatype_permissions,
+                    'datarecord' => $datarecord,
+                    'datatype' => $datatype,
+
+                    'is_top_level' => $is_top_level,
+                    'odr_tab_id' => $odr_tab_id,
+
+                    // values used by search_header.html.twig
+                    'search_theme_id' => $search_theme_id,
+                    'search_key' => $encoded_search_key,
+                    'offset' => $offset,
+
+                    'page_length' => $search_header['page_length'],
+                    'next_datarecord' => $search_header['next_datarecord_id'],
+                    'prev_datarecord' => $search_header['prev_datarecord_id'],
+                    'search_result_current' => $search_header['search_result_current'],
+                    'search_result_count' => $search_header['search_result_count'],
+                    'redirect_path' => $redirect_path,
+                )
+            );
 
             $record_page_html = self::GetDisplayData(
                 $search_theme_id,

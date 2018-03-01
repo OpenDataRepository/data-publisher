@@ -153,9 +153,9 @@ class TextResultsController extends ODRCustomController
                 $only_display_editable_datarecords = $cookies->get('datatype_'.$datatype->getId().'_editable_only');
 
             // If a datarecord restriction exists, and the user only wants to display editable datarecords...
-            $editable_only = true;
-            if ( !is_null($restricted_datarecord_list) && !$only_display_editable_datarecords )
-                $editable_only = false;
+            $editable_only = false;
+            if ( $can_edit_datatype && !is_null($restricted_datarecord_list) && !$only_display_editable_datarecords )
+                $editable_only = true;
 
 
             $datarecord_list = '';
@@ -235,7 +235,11 @@ class TextResultsController extends ODRCustomController
                     $odr_tab_service->setViewableDatarecordList($odr_tab_id, $dr_list);
                 }
 
-                if ( $pm_service->canEditDatatype($user, $datatype) && is_null($odr_tab_service->getEditableDatarecordList($odr_tab_id)) ) {
+                if ( !$pm_service->canEditDatatype($user, $datatype) ) {
+                    // If user can't edit the datatype, then store that they can't edit any datarecords
+                    $odr_tab_service->setEditableDatarecordList($odr_tab_id, array());
+                }
+                else if ( is_null($odr_tab_service->getEditableDatarecordList($odr_tab_id)) ) {
                     if ( !is_null($restricted_datarecord_list) ) {
                         // Get an array of datarecord ids sorted by the given datafield in the given
                         //  sort direction, filtered to include only the datarecord ids in the
