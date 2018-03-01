@@ -2387,6 +2387,9 @@ class DisplaytemplateController extends ODRCustomController
                     /** @var RenderPlugin $plugin */
                     // TODO Find out why we can't use the ID here - Names are not valid database ids
                     $plugin = $repo_render_plugin->findOneBy( array('pluginName' => $plugin_name) );
+                    if ($plugin == null)
+                        throw new ODRNotFoundException('Unable to locate a RenderPlugin with the plugin_name "'.$plugin_name.'"', true);
+
                     $plugin_id = $plugin->getId();
    
                     $required_fields[$plugin_id] = $fields;
@@ -3601,6 +3604,11 @@ exit();
                     if ($new_sortfield !== null)
                         $new_sortfield = $new_sortfield->getId();
 
+
+                    $update_sort_order = false;
+                    if ($old_sortfield !== $new_sortfield)  // These are integers or null at this point
+                        $update_sort_order = true;
+
                     if ($old_external_id_field !== $new_external_id_field || $old_namefield !== $new_namefield || $old_sortfield !== $new_sortfield) {
                         // Locate all datarecords of this datatype's grandparent
                         $grandparent_datatype_id = $datatype->getGrandparent()->getId();
@@ -3640,19 +3648,16 @@ exit();
 
                         'publicDate' => $submitted_data->getPublicDate(),
                         'searchNotesLower' => $submitted_data->getSearchNotesLower(),
-                        'searchNotesLower' => $submitted_data->getSearchNotesUpper()
+                        'searchNotesUpper' => $submitted_data->getSearchNotesUpper()
                     );
 
                     // These properties can be null...
-                    $update_sort_order = false;
                     if ( $submitted_data->getExternalIdField() !== null )
                         $properties['externalIdField'] = $submitted_data->getExternalIdField()->getId();
                     if ( $submitted_data->getNameField() !== null )
                         $properties['nameField'] = $submitted_data->getNameField()->getId();
-                    if ( $submitted_data->getSortField() !== null ) {
+                    if ( $submitted_data->getSortField() !== null )
                         $properties['sortField'] = $submitted_data->getSortField()->getId();
-                        $update_sort_order = true;
-                    }
                     if ( $submitted_data->getBackgroundImageField() !== null )
                         $properties['backgroundImageField'] = $submitted_data->getBackgroundImageField()->getId();
 
@@ -3675,6 +3680,7 @@ exit();
                     // Don't need to update cached versions of datarecords or themes
 
 
+                    // ----------------------------------------
                     // If the sort datafield changed, then cached search results need to be updated as well
                     if ($update_sort_order) {
                         $cache_service->delete('datatype_'.$datatype->getId().'_record_order');

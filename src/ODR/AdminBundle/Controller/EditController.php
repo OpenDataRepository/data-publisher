@@ -56,6 +56,7 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
@@ -96,6 +97,8 @@ class EditController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataType $datatype */
@@ -154,21 +157,10 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Delete the cached string containing the ordered list of datarecords for this datatype
-            $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
+            $cache_service->delete('datatype_'.$datatype_id.'_record_order');
 
-            // See if any cached search results need to be deleted...
-            $cached_searches = $cache_service->get('cached_search_results');
-            if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
-                // Delete all cached search results for this datatype that were NOT run with datafield criteria
-                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
-                    $searched_datafields = $search_data['searched_datafields'];
-                    if ($searched_datafields == '')
-                        unset( $cached_searches[$datatype_id][$search_checksum] );
-                }
-
-                // Save the collection of cached searches back to memcached
-                $cache_service->set('cached_search_results', $cached_searches);
-            }
+            // TODO - only delete all cached search results for this datatype that were NOT run with datafield criteria
+            $search_cache_service->clearByDatatypeId($datatype_id);
 
             // Since this is a new top-level datarecord, there's nothing to mark as updated
         }
@@ -420,19 +412,8 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // See if any cached search results need to be deleted...
-            $cached_searches = $cache_service->get('cached_search_results');
-            if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
-                // Delete all cached search results for this datatype that contained this now-deleted datarecord
-                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
-                    $datarecord_list = explode(',', $search_data['datarecord_list']['all']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
-                    if ( in_array($datarecord_id, $datarecord_list) )
-                        unset ( $cached_searches[$datatype_id][$search_checksum] );
-                }
-
-                // Save the collection of cached searches back to memcached
-                $cache_service->set('cached_search_results', $cached_searches);
-            }
+            // TODO - only delete all cached search results for this datatype that contained this now-deleted datarecord
+            $search_cache_service->clearByDatatypeId($datatype_id);
 
 
             // ----------------------------------------
@@ -509,12 +490,12 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $conn = $em->getConnection();
 
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             // Grab the necessary entities
@@ -634,21 +615,11 @@ class EditController extends ODRCustomController
             // Mark this now-deleted datarecord's parent (and all its parents) as updated
             $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
 
-            // See if any cached search results need to be deleted...
-            $cached_searches = $cache_service->get('cached_search_results');
-            if ( $cached_searches !== false && isset($cached_searches[$grandparent_datatype_id]) ) {
-                // Delete all cached search results for this datatype that contained this now-deleted datarecord
-                foreach ($cached_searches[$grandparent_datatype_id] as $search_checksum => $search_data) {
-                    $complete_datarecord_list = explode(',', $search_data['complete_datarecord_list']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
-                    if ( in_array($datarecord_id, $complete_datarecord_list) )
-                        unset ( $cached_searches[$grandparent_datatype_id][$search_checksum] );
-                }
-
-                // Save the collection of cached searches back to memcached
-                $cache_service->set('cached_search_results', $cached_searches);
-            }
+            // TODO - only delete all cached search results for this datatype that contained this now-deleted datarecord
+            $search_cache_service->clearByDatatypeId($grandparent_datatype_id);
 
 
+            // -----------------------------------
             // Get record_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
@@ -1561,12 +1532,12 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataRecord $datarecord */
@@ -1613,21 +1584,11 @@ class EditController extends ODRCustomController
             // Mark this datarecord as updated
             $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-            // See if any cached search results need to be deleted...
-            $cached_searches = $cache_service->get('cached_search_results');
-            if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
-                // Delete all cached search results for this datatype that contained this now-deleted datarecord
-                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
-                    $datarecord_list = explode(',', $search_data['datarecord_list']['all']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
-                    if ( in_array($datarecord_id, $datarecord_list) )
-                        unset ( $cached_searches[$datatype_id][$search_checksum] );
-                }
-
-                // Save the collection of cached searches back to memcached
-                $cache_service->set('cached_search_results', $cached_searches);
-            }
+            // TODO - only delete cached search results where public status is involved?
+            $search_cache_service->clearByDatatypeId($datatype_id);
 
 
+            // ----------------------------------------
             $return['d'] = array(
                 'public' => $datarecord->isPublic(),
                 'datarecord_id' => $datarecord_id,
@@ -2661,6 +2622,7 @@ exit();
         $return['d'] = "";
 
         try {
+            // ----------------------------------------
             // Get necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -2670,8 +2632,14 @@ exit();
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+
+            $router = $this->get('router');
+            $templating = $this->get('templating');
 
 
+            // ----------------------------------------
             // Get Record In Question
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -2722,15 +2690,41 @@ exit();
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
             $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
+            // Store whether the user is permitted to edit at least one datarecord for this datatype
+            $can_edit_datatype = $pm_service->canEditDatatype($user, $datatype);
+
             // Ensure user has permissions to be doing this
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             if ( !$pm_service->canEditDatarecord($user, $datarecord) )
                 throw new ODRForbiddenException();
+
+            // Going to need this later...
+            $restricted_datarecord_list = $pm_service->getDatarecordRestrictionList($user, $datatype);
             // --------------------
 
 
             // ----------------------------------------
+            // Grab the tab's id, if it exists
+            $params = $request->query->all();
+            $odr_tab_id = '';
+            if ( isset($params['odr_tab_id']) )
+                $odr_tab_id = $params['odr_tab_id'];
+            else
+                $odr_tab_id = $odr_tab_service->createTabId();
+
+            // Determine which list of datarecords to pull from the user's session
+            $cookies = $request->cookies;
+            $only_display_editable_datarecords = true;
+            if ( $cookies->has('datatype_'.$datatype->getId().'_editable_only') )
+                $only_display_editable_datarecords = $cookies->get('datatype_'.$datatype->getId().'_editable_only');
+
+            // If a datarecord restriction exists, and the user only wants to display editable datarecords...
+            $editable_only = false;
+            if ( $can_edit_datatype && !is_null($restricted_datarecord_list) && $only_display_editable_datarecords )
+                $editable_only = true;
+
+
             // If this datarecord is being viewed from a search result list...
             $datarecord_list = '';
             $encoded_search_key = '';
@@ -2758,52 +2752,71 @@ exit();
                     );
                     return parent::searchPageRedirect($user, $url);
                 }
-            }
 
 
-            // ----------------------------------------
-            // Grab the tab's id, if it exists
-            $params = $request->query->all();
-            $odr_tab_id = '';
-            if ( isset($params['odr_tab_id']) )
-                $odr_tab_id = $params['odr_tab_id'];
+                // ----------------------------------------
+                // TODO - move this segment into the tab helper service once searching is a service
+                // Ensure viewable/editable datarecord lists exist in user's session
+                if ( is_null($odr_tab_service->getViewableDatarecordList($odr_tab_id)) ) {
+                    $odr_tab_service->setViewableDatarecordList($odr_tab_id, $datarecord_list);
 
-            // Locate a sorted list of datarecords for search_header.html.twig if possible
-            if ( $session->has('stored_tab_data') && $odr_tab_id !== '' ) {
-                // Prefer the use of the sorted lists created during usage of the datatables plugin over the default list created during searching
-                $stored_tab_data = $session->get('stored_tab_data');
-
-                if ( isset($stored_tab_data[$odr_tab_id]) && isset($stored_tab_data[$odr_tab_id]['datarecord_list']) ) {
-                    $dr_list = explode(',', $stored_tab_data[$odr_tab_id]['datarecord_list']);
-                    if ( !in_array($datarecord->getId(), $dr_list) ) {
-                        // There's some sort of mismatch between the URL the user wants and the data stored by the tab id...wipe the tab data and just use the search results
-                        unset( $stored_tab_data[$odr_tab_id] );
+                    // Since searching isn't filtered (yet)...
+                    if ( is_null($datatype->getSortField()) ) {
+                        // ...this datarecord list is just ordered by id
+                        $odr_tab_service->setSortCriteria($odr_tab_id, 0, 'ASC');
                     }
                     else {
-                        // Otherwise, use the sorted list stored in the user's session
-                        $datarecord_list = $stored_tab_data[$odr_tab_id]['datarecord_list'];
-
-                        // Grab start/length from the datatables state object if it exists
-                        if ( isset($stored_tab_data[$odr_tab_id]['state']) ) {
-                            $start = intval($stored_tab_data[$odr_tab_id]['state']['start']);
-                            $length = intval($stored_tab_data[$odr_tab_id]['state']['length']);
-
-                            // Calculate which page datatables says it's on
-                            $datatables_page = 0;
-                            if ($start > 0)
-                                $datatables_page = $start / $length;
-                            $datatables_page++;
-
-                            // If the offset doesn't match the page, update it
-                            if ( $offset !== '' && intval($offset) !== intval($datatables_page) ) {
-                                $new_start = strval( (intval($offset) - 1) * $length );
-
-                                $stored_tab_data[$odr_tab_id]['state']['start'] = $new_start;
-                                $session->set('stored_tab_data', $stored_tab_data);
-                            }
-                        }
+                        // ...this datarecord list is ordered by whatever the sort datafield for this datatype is
+                        $odr_tab_service->setSortCriteria($odr_tab_id, $datatype->getSortField()->getId(), 'ASC');
                     }
                 }
+
+                if ( !$pm_service->canEditDatatype($user, $datatype) ) {
+                    // If user can't edit the datatype, then store that they can't edit any datarecords
+                    $odr_tab_service->setEditableDatarecordList($odr_tab_id, array());
+                }
+                else if ( is_null($odr_tab_service->getEditableDatarecordList($odr_tab_id)) ) {
+                    if ( !is_null($restricted_datarecord_list) ) {
+                        // Ensure the restricted list is sorted
+                        $dr_list = $dti_service->getSortedDatarecordList($datatype->getId(), $restricted_datarecord_list);
+
+                        // At the point, $datarecord_list is a $num => $dr_id array of what matches search result
+                        // $dr_list is a $dr_id => $sort_value array of the datarecords the user can edit
+
+                        // Need to compute and store the intersection of those two arrays
+                        $datarecord_list = explode(',', $datarecord_list);
+                        foreach ($datarecord_list as $num => $dr_id) {
+                            if ( !isset($dr_list[$dr_id]) )
+                                unset( $datarecord_list[$num] );
+                        }
+                        $dr_list = implode(',', $datarecord_list);
+
+                        // $dr_list is now the list of datarecords matchnig this search that the user can edit
+                        $odr_tab_service->setEditableDatarecordList($odr_tab_id, $dr_list);
+                    }
+                    else
+                        $odr_tab_service->setEditableDatarecordList($odr_tab_id, $datarecord_list);
+                }
+
+
+                // ----------------------------------------
+                // Ensure $offset is pointing to the correct page...
+                $dr_list = '';
+                if ($can_edit_datatype && $editable_only)
+                    $dr_list = $odr_tab_service->getEditableDatarecordList($odr_tab_id);
+                else
+                    $dr_list = $odr_tab_service->getViewableDatarecordList($odr_tab_id);
+
+
+                // Compute which page of the search results this datarecord is on
+                $dr_list = explode(',', $dr_list);
+                $key = array_search($datarecord->getId(), $dr_list);
+
+                $page_length = $odr_tab_service->getPageLength($odr_tab_id);
+                $offset = floor($key / $page_length) + 1;
+
+                // Ensure the session has the correct offset stored
+                $odr_tab_service->updateDatatablesOffset($odr_tab_id, $offset);
             }
 
 
@@ -2816,14 +2829,18 @@ exit();
 
 
             // Build an array of values to use for navigating the search result list, if it exists
-            $search_header = parent::getSearchHeaderValues(
-                $datarecord_list,
-                $datarecord->getId(),
-                $request
-            );
+            $search_header = $odr_tab_service->getSearchHeaderValues($odr_tab_id, $datarecord->getId(), 'editable');
 
-            $router = $this->get('router');
-            $templating = $this->get('templating');
+            // Need this array to exist right now so the part that's not the search header will display
+            if ( is_null($search_header) ) {
+                $search_header = array(
+                    'page_length' => 0,
+                    'next_datarecord_id' => 0,
+                    'prev_datarecord_id' => 0,
+                    'search_result_current' => 0,
+                    'search_result_count' => 0
+                );
+            }
 
             $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));
             $record_header_html = $templating->render(
@@ -2834,14 +2851,16 @@ exit();
                     'datatype' => $datatype,
 
                     'is_top_level' => $is_top_level,
+                    'odr_tab_id' => $odr_tab_id,
 
                     // values used by search_header.html.twig
                     'search_theme_id' => $search_theme_id,
                     'search_key' => $encoded_search_key,
                     'offset' => $offset,
+
                     'page_length' => $search_header['page_length'],
-                    'next_datarecord' => $search_header['next_datarecord'],
-                    'prev_datarecord' => $search_header['prev_datarecord'],
+                    'next_datarecord' => $search_header['next_datarecord_id'],
+                    'prev_datarecord' => $search_header['prev_datarecord_id'],
                     'search_result_current' => $search_header['search_result_current'],
                     'search_result_count' => $search_header['search_result_count'],
                     'redirect_path' => $redirect_path,

@@ -132,6 +132,57 @@ class PermissionsManagementService
 
 
     /**
+     * Returns a comma-separated list of datarecords that this user's datarecord_restrictions
+     * allow them to edit.  Returns null if the user doesn't have a datarecord_restriction for
+     * this datatype.
+     *
+     * TODO - merge multiple datarecord restrictions together?
+     *
+     * @param ODRUser $user
+     * @param Datatype $datatype
+     *
+     * @throws ODRException
+     *
+     * @return null|string
+     */
+    public function getDatarecordRestrictionList($user, $datatype)
+    {
+        $datatype_permissions = self::getDatatypePermissions($user);
+        if ( isset($datatype_permissions[ $datatype->getId() ]['datarecord_restriction']) ) {
+            // ...this further restriction is stored as an encoded search key in the database
+            $search_key = $datatype_permissions[ $datatype->getId() ]['datarecord_restriction'];
+            $search_params = $this->search_cache_service->decodeSearchKey($search_key);
+
+            if ( !isset($search_params['dt_id']) )
+                throw new ODRBadRequestException('Invalid search key', 0xc7054271);
+            $datatype_id = intval($search_params['dt_id']);
+
+
+            // Grab the list of datarecords from this search key
+            $search_checksum = md5($search_key);
+
+            // Attempt to load the search result for this search_key
+            $cached_searches = $this->cache_service->get('cached_search_results');
+            if ( $cached_searches == false
+                || !isset($cached_searches[$datatype_id])
+                || !isset($cached_searches[$datatype_id][$search_checksum])
+            ) {
+                // TODO - need to move searching itself into a service...can't call the function in the search controller because of symfony constraints
+                throw new ODRNotImplementedException('Please wait a few minutes, then refresh the page.', 0xc7054271);
+            }
+
+            $cached_search_params = $cached_searches[$datatype_id][$search_checksum];
+            $complete_datarecord_list = $cached_search_params['complete_datarecord_list'];
+
+            return $complete_datarecord_list;
+        }
+
+        // No datarecord restriction, return null
+        return null;
+    }
+
+
+    /**
      * Returns whether the given user can view the given Datatype.
      *
      * Users with this permission are able to...
@@ -253,6 +304,44 @@ class PermissionsManagementService
 
 
     /**
+     * Returns whether the user can edit any datarecords of this datatype.  A return value of true
+     * DOES NOT mean that the user can edit all datarecords of this datatype...there could be a
+     * further restriction.  See self::getDatarecordRestrictionList()
+     *
+     * @param ODRUser $user
+     * @param Datatype $datatype
+     *
+     * @return bool
+     */
+    public function canEditDatatype($user, $datatype)
+    {
+        // If the user isn't logged in, they can't edit datarecords
+        if ($user === "anon.")
+            return false;
+
+        // Otherwise, the user is logged in
+        $user_permissions = self::getUserPermissionsArray($user);
+        $datatype_permissions = $user_permissions['datatypes'];
+
+        // The user needs to be able to view the datatype before they can edit it...
+        if ( !self::canViewDatatype($user, $datatype) )
+            return false;
+
+        if ( isset($datatype_permissions[ $datatype->getId() ])
+            && isset($datatype_permissions[ $datatype->getId() ]['dr_edit'])
+        ) {
+            // User can edit datarecords for this datatype, assuming they have at least one
+            //  can_edit_datafield permission and a datarecord restriction doesn't get in the way
+            return true;
+        }
+        else {
+            // User can't edit any datarecords for this datatype
+            return false;
+        }
+    }
+
+
+    /**
      * Returns whether the given user can edit this Datarecord.  If the user has this permission,
      * then they automatically have permission to view the Datatype.
      *
@@ -272,7 +361,7 @@ class PermissionsManagementService
      */
     public function canEditDatarecord($user, $datarecord)
     {
-        // If the user isn't logged in, they can't add edit datarecords
+        // If the user isn't logged in, they can't edit datarecords
         if ($user === "anon.")
             return false;
 
@@ -290,36 +379,10 @@ class PermissionsManagementService
         ) {
             // User has the correct permission to edit datarecords of this datatype, however there
             //  might be a further restriction on which datarecords they're allowed to edit...
-            if ( isset($datatype_permissions[ $datatype->getId() ]['datarecord_restriction']) ) {
-                // ...this further restriction is stored as an encoded search key in the database
-                $search_key = $datatype_permissions[ $datatype->getId() ]['datarecord_restriction'];
-                $search_params = $this->search_cache_service->decodeSearchKey($search_key);
-
-                if ( !isset($search_params['dt_id']) )
-                    throw new ODRBadRequestException('Invalid search key', 0xc7054271);
-                $datatype_id = intval($search_params['dt_id']);
-
-
-                // Grab the list of datarecords from this search key
-                $search_checksum = md5($search_key);
-
-                // Attempt to load the search result for this search_key
-                $cached_searches = $this->cache_service->get('cached_search_results');
-                if ( $cached_searches == false
-                    || !isset($cached_searches[$datatype_id])
-                    || !isset($cached_searches[$datatype_id][$search_checksum])
-                ) {
-                    // TODO - need to move searching itself into a service...can't call the function in the search controller because of symfony constraints
-                    throw new ODRNotImplementedException('Please wait a few minutes, then refresh the page.', 0xc7054271);
-                }
-
-                $cached_search_params = $cached_searches[$datatype_id][$search_checksum];
-                $complete_datarecord_list = $cached_search_params['complete_datarecord_list'];
-                $complete_datarecord_list = explode(',', $complete_datarecord_list);
-
-                // If the current datarecord is contained in the list, it passes
-                // TODO - have a nagging feeling this doesn't work with child datarecords...
-                if ( in_array($datarecord->getId(), $complete_datarecord_list) )
+            $restricted_datarecord_list = self::getDatarecordRestrictionList($user, $datatype);
+            if ( !is_null($restricted_datarecord_list) ) {
+                $restricted_datarecord_list = explode(',', $restricted_datarecord_list);
+                if ( in_array($datarecord->getId(), $restricted_datarecord_list) )
                     return true;
                 else
                     return false;

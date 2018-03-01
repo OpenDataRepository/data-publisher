@@ -76,6 +76,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
@@ -165,6 +166,8 @@ class ODRCustomController extends Controller
         $pm_service = $this->container->get('odr.permissions_management_service');
         /** @var ThemeInfoService $theme_service */
         $theme_service = $this->container->get('odr.theme_info_service');
+        /** @var ODRTabHelperService $odr_tab_service */
+        $odr_tab_service = $this->container->get('odr.tab_helper_service');
 
 
         $logged_in = false;
@@ -174,6 +177,9 @@ class ODRCustomController extends Controller
         $user_permissions = $pm_service->getUserPermissionsArray($user);
         $datatype_permissions = $pm_service->getDatatypePermissions($user);
         $datafield_permissions = $pm_service->getDatafieldPermissions($user);
+
+        // Store whether the user is permitted to edit at least one datarecord for this datatype
+        $can_edit_datatype = $pm_service->canEditDatatype($user, $datatype);
 
 
         // ----------------------------------------
@@ -212,27 +218,12 @@ class ODRCustomController extends Controller
         }
         else {
             // ...otherwise, generate a random key to identify this tab
-            $tokenGenerator = $this->container->get('fos_user.util.token_generator');
-            $odr_tab_id = substr($tokenGenerator->generateToken(), 0, 15);
+            $odr_tab_id = $odr_tab_service->createTabId();
         }
 
         // Grab the page length for this tab from the session, if possible
-        $page_length = 100;
-        if ( $odr_tab_id !== '' && $session->has('stored_tab_data') ) {
-            $stored_tab_data = $session->get('stored_tab_data');
-            if ( isset($stored_tab_data[$odr_tab_id]) ) {
-                if ( isset($stored_tab_data[$odr_tab_id]['page_length']) ) {
-                    $page_length = $stored_tab_data[$odr_tab_id]['page_length'];
-                }
-                else {
-                    $stored_tab_data[$odr_tab_id]['page_length'] = $page_length;
-                    $session->set('stored_tab_data', $stored_tab_data);
-                }
-            }
-        }
+        $page_length = $odr_tab_service->getPageLength($odr_tab_id);
 
-        // Save how many datarecords were passed to this function
-        $total_datarecords = count($datarecords);
 
         // -----------------------------------
         // Determine where on the page to scroll to if possible
@@ -251,24 +242,134 @@ class ODRCustomController extends Controller
             }
         }
 
+        // -----------------------------------
+        // Going to need this later...
+        $restricted_datarecord_list = $pm_service->getDatarecordRestrictionList($user, $datatype);
+
+        $has_search_restriction = false;
+        if ( !is_null($restricted_datarecord_list) )
+            $has_search_restriction = true;
+
+
+        // Store the list of datarecord ids that the user can view in their session for this tab
+        // TODO - move this into the tab helper service once searching is a service
+        $viewable_datarecord_list = implode(',', $datarecords);
+        if ( is_null($odr_tab_service->getViewableDatarecordList($odr_tab_id)) ) {
+            $odr_tab_service->setViewableDatarecordList($odr_tab_id, $viewable_datarecord_list);
+
+            // Since searching isn't filtered (yet)...
+            if ( is_null($datatype->getSortField()) ) {
+                // ...this datarecord list is currently ordered by id
+                $odr_tab_service->setSortCriteria($odr_tab_id, 0, 'ASC');
+            }
+            else {
+                // ...this datarecord list is ordered by whatever the sort datafield for this datatype is
+                $odr_tab_service->setSortCriteria($odr_tab_id, $datatype->getSortField()->getId(), 'ASC');
+            }
+        }
+
+        if ( !$pm_service->canEditDatatype($user, $datatype) ) {
+            // If user can't edit the datatype, then store that they can't edit any datarecords
+            $odr_tab_service->setEditableDatarecordList($odr_tab_id, array());
+        }
+        else if ( is_null($odr_tab_service->getEditableDatarecordList($odr_tab_id)) ) {
+            if ( !is_null($restricted_datarecord_list) ) {
+                // Ensure the restricted list is sorted
+                $dr_list = $dti_service->getSortedDatarecordList($datatype->getId(), $restricted_datarecord_list);
+
+                // At the point, $datarecords is a $num => $dr_id array of what matches search result
+                // $dr_list is a $dr_id => $sort_value array of the datarecords the user can edit
+
+                // Need to compute and store the intersection of those two arrays
+                foreach ($datarecords as $num => $dr_id) {
+                    if ( !isset($dr_list[$dr_id]) )
+                        unset( $datarecords[$num] );
+                }
+                $dr_list = implode(',', $datarecords);
+
+                // $dr_list is now the list of datarecords matchnig this search that the user can edit
+                $odr_tab_service->setEditableDatarecordList($odr_tab_id, $dr_list);
+            }
+            else
+                $odr_tab_service->setEditableDatarecordList($odr_tab_id, $viewable_datarecord_list);
+        }
+
+
+        // -----------------------------------
+        // Determine whether the user wants to only display datarecords they can edit
+        $cookies = $request->cookies;
+        $only_display_editable_datarecords = true;
+        if ( $cookies->has('datatype_'.$datatype->getId().'_editable_only') )
+            $only_display_editable_datarecords = $cookies->get('datatype_'.$datatype->getId().'_editable_only');
+
+        // If a datarecord restriction exists, and the user only wants to display editable datarecords...
+        $editable_only = false;
+        if ( $can_edit_datatype && !is_null($restricted_datarecord_list) && $only_display_editable_datarecords )
+            $editable_only = true;
+
+        // Determine the correct list of datarecords to use for rendering
+        $datarecord_list = array();
+        if ($can_edit_datatype && $editable_only)
+            $datarecord_list = $odr_tab_service->getEditableDatarecordList($odr_tab_id);
+        else
+            $datarecord_list = $odr_tab_service->getViewableDatarecordList($odr_tab_id);
+        $datarecord_list = explode(',', $datarecord_list);
+
+
+        // Exploding an empty string results in a nearly empty array...
+        if ( isset($datarecord_list[0]) && $datarecord_list[0] === '' )
+            $datarecord_list = array();
+
+        // Ensure offset exists for shortresults list
+        $offset = intval($offset);
+        if ( (($offset-1) * $page_length) > count($datarecord_list) )
+            $offset = 1;
+
+        // Reduce datarecord_list to just the list that will get rendered
+        $start = ($offset-1) * $page_length;
+        $datarecord_list = array_slice($datarecord_list, $start, $page_length);
+
+
+        // -----------------------------------
+        // Convert the list of editable datarecords into a $dr_id => $num format if it exists
+        $editable_datarecord_list = $odr_tab_service->getEditableDatarecordList($odr_tab_id);
+        if ( !is_null($editable_datarecord_list) && $editable_datarecord_list !== '' ) {
+            $editable_datarecord_list = explode(',', $editable_datarecord_list);
+            $editable_datarecord_list = array_flip($editable_datarecord_list);
+        }
+        else {
+            // Convert empty string into array for twig purposes
+            $editable_datarecord_list = array();
+        }
+
+        $has_datarecords = true;
+        if ( empty($datarecord_list) )
+            $has_datarecords = false;
+
 
         // -----------------------------------
         $final_html = '';
         // All theme types other than table
         if ( $theme->getThemeType() != 'table' ) {
             // -----------------------------------
-            // Ensure offset exists for shortresults list
-            if ( (($offset-1) * $page_length) > count($datarecords) )
-                $offset = 1;
+            // Build the pagination header from the correct list of datarecords
+            $pagination_values = $odr_tab_service->getPaginationHeaderValues($odr_tab_id, $offset, $editable_only);
 
-            // Reduce datarecord_list to just the list that will get rendered
-            $start = ($offset-1) * $page_length;
-            $datarecord_list = array_slice($datarecords, $start, $page_length);
-
-
-            // -----------------------------------
             // Build the html required for the pagination header
-            $pagination_html = self::buildPaginationHeader($total_datarecords, $offset, $path_str, $request);
+            $pagination_html = '';
+            if ( !is_null($pagination_values) ) {
+                $pagination_html = $templating->render(
+                    'ODRAdminBundle:Default:pagination_header.html.twig',
+                    array(
+                        'path_str' => $path_str,
+
+                        'num_pages' => $pagination_values['num_pages'],
+                        'num_datarecords' => $pagination_values['num_datarecords'],
+                        'offset' => $pagination_values['offset'],
+                        'page_length' => $pagination_values['page_length'],
+                    )
+                );
+            }
 
 
             // ----------------------------------------
@@ -276,7 +377,6 @@ class ODRCustomController extends Controller
             $include_links = true;
             $related_datarecord_array = array();
             foreach ($datarecord_list as $num => $dr_id) {
-                // TODO - modify getDatarecordArray() to take an array of ids?  would be marginally more efficient...
                 $datarecord_info = $dri_service->getDatarecordArray($dr_id, $include_links);
 
                 foreach ($datarecord_info as $local_dr_id => $data)
@@ -317,7 +417,7 @@ class ODRCustomController extends Controller
                     'initial_datatype_id' => $datatype->getId(),
                     'initial_theme_id' => $theme->getId(),
 
-                    'count' => $total_datarecords,
+                    'has_datarecords' => $has_datarecords,
                     'scroll_target' => $scroll_target,
                     'user' => $user,
                     'user_permissions' => $datatype_permissions,
@@ -328,14 +428,19 @@ class ODRCustomController extends Controller
                     'intent' => $intent,
 
                     'pagination_html' => $pagination_html,
+                    'editable_datarecord_list' => $editable_datarecord_list,
+                    'can_edit_datatype' => $can_edit_datatype,
+                    'editable_only' => $only_display_editable_datarecords,
+                    'has_search_restriction' => $has_search_restriction,
 
                     // required for load_datarecord_js.html.twig
                     'search_theme_id' => $theme->getId(),
                     'search_key' => $search_key,
                     'offset' => $offset,
+                    'page_length' => $page_length,
 
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
-                    'all_datarecords' => $datarecords,
+//                    'all_datarecords' => $datarecords,    // TODO - this isn't used?
                     'use_jupyterhub' => $use_jupyterhub,
                 )
             );
@@ -365,7 +470,7 @@ class ODRCustomController extends Controller
                 $template,
                 array(
                     'datatype' => $datatype,
-                    'count' => $total_datarecords,
+                    'has_datarecords' => $has_datarecords,
                     'column_names' => $column_names,
                     'num_columns' => $num_columns,
                     'odr_tab_id' => $odr_tab_id,
@@ -381,83 +486,23 @@ class ODRCustomController extends Controller
                     'display_theme_warning' => $display_theme_warning,
                     'intent' => $intent,
 
+                    'can_edit_datatype' => $can_edit_datatype,
+                    'editable_only' => $only_display_editable_datarecords,
+                    'has_search_restriction' => $has_search_restriction,
+
                     // required for load_datarecord_js.html.twig
                     'search_theme_id' => $theme->getId(),
                     'search_key' => $search_key,
                     'offset' => $offset,
 
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
-                    'all_datarecords' => $datarecords,
+//                    'all_datarecords' => $datarecords,    // TODO - this isn't used?
                     'use_jupyterhub' => $use_jupyterhub,
                 )
             );
         }
 
         return $final_html;
-    }
-
-
-    /**
-     * Determines values for the pagination header
-     *
-     * @param integer $num_datarecords The total number of datarecords belonging to the datatype/search result
-     * @param integer $offset          Which page of results the user is currently on
-     * @param string $path_str         The base url used before paging gets involved...$path_str + '/2' would redirect to page 2, $path_str + '/3' would redirect to page 3, etc
-     * @param Request $request
-     *
-     * @return array
-     */
-    protected function buildPaginationHeader($num_datarecords, $offset, $path_str, Request $request)
-    {
-        // Grab necessary objects
-        $session = $request->getSession();
-
-        // Grab the tab's id, if it exists
-        $params = $request->query->all();
-        $odr_tab_id = '';
-        if ( isset($params['odr_tab_id']) )
-            $odr_tab_id = $params['odr_tab_id'];
-
-        // Grab the page length for this tab from the session, if possible
-        $page_length = 100;
-        if ( $odr_tab_id !== '' && $session->has('stored_tab_data') ) {
-            $stored_tab_data = $session->get('stored_tab_data');
-            if ( isset($stored_tab_data[$odr_tab_id]) ) {
-                if ( isset($stored_tab_data[$odr_tab_id]['page_length']) ) {
-                    $page_length = $stored_tab_data[$odr_tab_id]['page_length'];
-                }
-                else {
-                    $stored_tab_data[$odr_tab_id]['page_length'] = $page_length;
-                    $session->set('stored_tab_data', $stored_tab_data);
-                }
-            }
-        }
-
-        // If only one page, don't bother with pagination block
-        $num_pages = ceil( $num_datarecords / $page_length );
-//        if ($num_pages == 1)
-//            return '';
-
-        // Ensure $offset is in bounds
-        if ($offset === '' || $offset < 1)
-            $offset = 1;
-        if ( (($offset-1) * $page_length) > $num_datarecords )
-            $offset = ceil($num_datarecords / $page_length);
-
-
-        // Render the pagination block
-        $templating = $this->get('templating');
-        $html = $templating->render(
-            'ODRAdminBundle:Default:pagination_header.html.twig',
-            array(
-                'num_pages' => $num_pages,
-                'offset' => $offset,
-                'path_str' => $path_str,
-                'num_datarecords' => $num_datarecords,
-                'page_length' => $page_length
-            )
-        );
-        return $html;
     }
 
 
@@ -608,78 +653,6 @@ class ODRCustomController extends Controller
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * Determines values for the search header (next/prev/return to search results) of Results/Records when searching
-     *
-     * @param string $datarecord_list A comma-separated list of datarecord ids that satisfy the search TODO - why comma-separated?  just going to explode() them...
-     * @param integer $datarecord_id  The database id of the datarecord the user is currently at...used to determine where the next/prev datarecord buttons redirect to
-     * @param Request $request
-     *
-     * @return array
-     */
-    protected function getSearchHeaderValues($datarecord_list, $datarecord_id, Request $request)
-    {
-        // Grab necessary objects
-        $session = $request->getSession();
-
-        // Grab the tab's id, if it exists
-        $params = $request->query->all();
-        $odr_tab_id = '';
-        if ( isset($params['odr_tab_id']) )
-            $odr_tab_id = $params['odr_tab_id'];
-
-        // Grab the page length for this tab from the session, if possible
-        $page_length = 100;
-        if ( $odr_tab_id !== '' && $session->has('stored_tab_data') ) {
-            $stored_tab_data = $session->get('stored_tab_data');
-            if ( isset($stored_tab_data[$odr_tab_id]) ) {
-                if ( isset($stored_tab_data[$odr_tab_id]['page_length']) ) {
-                    $page_length = $stored_tab_data[$odr_tab_id]['page_length'];
-                }
-                else {
-                    $stored_tab_data[$odr_tab_id]['page_length'] = $page_length;
-                    $session->set('stored_tab_data', $stored_tab_data);
-                }
-            }
-        }
-
-        $next_datarecord = '';
-        $prev_datarecord = '';
-        $search_result_current = '';
-        $search_result_count = '';
-
-        if ($datarecord_list !== null && trim($datarecord_list) !== '') {
-            // Turn the search results string into an array of datarecord ids
-            $search_results = explode(',', trim($datarecord_list));
-
-            foreach ($search_results as $num => $id) {
-                if ( $datarecord_id == $id ) {
-                    $search_result_current = $num+1;
-                    $search_result_count = count($search_results);
-
-                    if ( $num == count($search_results)-1 )
-                        $next_datarecord = $search_results[0];
-                    else
-                        $next_datarecord = $search_results[$num+1];
-
-                    if ($num == 0)
-                        $prev_datarecord = $search_results[ count($search_results)-1 ];
-                    else
-                        $prev_datarecord = $search_results[$num-1];
-                }
-            }
-        }
-
-        return array(
-            'page_length' => $page_length,
-            'next_datarecord' => $next_datarecord,
-            'prev_datarecord' => $prev_datarecord,
-            'search_result_current' => $search_result_current,
-            'search_result_count' => $search_result_count
-        );
     }
 
 
@@ -1823,11 +1796,11 @@ class ODRCustomController extends Controller
                 break;
             case 'DecimalValue':
                 $table_name = 'odr_decimal_value';
-                $default_value = 0;
+                $default_value = null;
                 break;
             case 'IntegerValue':
                 $table_name = 'odr_integer_value';
-                $default_value = 0;
+                $default_value = null;
                 break;
             case 'LongText':    // paragraph text
                 $table_name = 'odr_long_text';
@@ -1855,7 +1828,7 @@ class ODRCustomController extends Controller
         // Return the storage entity if it already exists
         /** @var ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
         $storage_entity = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
-        if ($storage_entity !== null)
+        if ( !is_null($storage_entity) )
             return $storage_entity;
 
         // Otherwise, locate/create the datarecordfield entity for this datarecord/datafield pair
@@ -1863,7 +1836,7 @@ class ODRCustomController extends Controller
 
         // Determine which value to use for the default value
         $insert_value = null;
-        if ($initial_value !== null)
+        if ( !is_null($initial_value) )
             $insert_value = $initial_value;
         else
             $insert_value = $default_value;
@@ -1901,9 +1874,10 @@ class ODRCustomController extends Controller
 
         // Reload the storage entity
         $storage_entity = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
+        $em->refresh($storage_entity);
 
         // Decimal values need to run setValue() because there's php logic involved
-        if ($typeclass == 'DecimalValue') {
+        if ( $typeclass == 'DecimalValue' && !is_null($initial_value) ) {
             $storage_entity->setValue($insert_value);
 
             $em->persist($storage_entity);
@@ -1942,7 +1916,7 @@ class ODRCustomController extends Controller
             $existing_values['value'] = strval($existing_values['value']);
 
         foreach ($existing_values as $key => $value) {
-            if ( isset($properties[$key]) && $properties[$key] != $value )
+            if ( isset($properties[$key]) && $properties[$key] !== $value )
                 $changes_made = true;
         }
 
@@ -1952,7 +1926,7 @@ class ODRCustomController extends Controller
 
         // If this is an IntegerValue entity, set the value back to an integer or null so it gets saved correctly
         if ($typeclass == 'IntegerValue') {
-            if ($properties['value'] == '')
+            if ($properties['value'] === '')
                 $properties['value'] = null;
             else
                 $properties['value'] = intval($properties['value']);
@@ -3589,10 +3563,11 @@ class ODRCustomController extends Controller
             }
             else {
                 $proportional = false;
-                if ($size->getSizeConstraint() == "width" ||
-                    $size->getSizeConstraint() == "height" ||
-                    $size->getSizeConstraint() == "both") {
-                        $proportional = true;
+                if ($size->getSizeConstraint() == "width"
+                    || $size->getSizeConstraint() == "height"
+                    || $size->getSizeConstraint() == "both"
+                ) {
+                    $proportional = true;
                 }
 
                 $filename = sha1(uniqid(mt_rand(), true));
@@ -3811,13 +3786,14 @@ class ODRCustomController extends Controller
      * @return array Contains height/width after resizing
      */
     public static function smart_resize_image(
-                              $file,
-                              $width              = 0,
-                              $height             = 0,
-                              $proportional       = false,
-                              $output             = 'file',
-                              $delete_original    = true,
-                              $use_linux_commands = false ) {
+        $file,
+        $width              = 0,
+        $height             = 0,
+        $proportional       = false,
+        $output             = 'file',
+        $delete_original    = true,
+        $use_linux_commands = false
+    ) {
 
         if ( $height <= 0 && $width <= 0 ) return false;
 
@@ -3886,15 +3862,15 @@ class ODRCustomController extends Controller
                 $mime = image_type_to_mime_type($info[2]);
                 header("Content-type: $mime");
                 $output = NULL;
-            break;
+                break;
             case 'file':
                 $output = $file;
-            break;
+                break;
             case 'return':
                 return $image_resized;
-            break;
+                break;
             default:
-            break;
+                break;
         }
 
         # Writing image according to type to the output destination

@@ -66,6 +66,11 @@ services:
             entity_manager: "@doctrine.orm.entity_manager"
             logger: "@logger"
 
+    odr.tab_helper_service:
+        class: ODR\AdminBundle\Component\Service\ODRTabHelperService
+        arguments:
+            request_stack: "@request_stack"
+            token_generator: "@fos_user.util.token_generator"
 
     odr.clone_datatype_service:
         class: ODR\AdminBundle\Component\Service\CloneDatatypeService

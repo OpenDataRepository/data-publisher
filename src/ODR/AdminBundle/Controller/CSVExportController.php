@@ -650,10 +650,10 @@ return;
                         }
                         else {
                             // Change nulls to empty string so they get passed to beanstalk properly
-                            if ($value == null)
+                            if ( is_null($value) )
                                 $value = '';
 
-                            $datarecord_data[$df_id] = $value;
+                            $datarecord_data[$df_id] = strval($value);
                         }
                     }
                 }

@@ -34,6 +34,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
@@ -65,8 +66,11 @@ class DefaultController extends Controller
         $html = '';
 
         try {
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+
 
             // Grab user and their permissions if possible
             /** @var User $user */
@@ -97,8 +101,7 @@ class DefaultController extends Controller
                     $site_baseurl .= '/app_dev.php';
 
                 // Generate a random key to identify this tab
-                $tokenGenerator = $this->container->get('fos_user.util.token_generator');
-                $odr_tab_id = substr($tokenGenerator->generateToken(), 0, 15);
+                $odr_tab_id = $odr_tab_service->createTabId();
 
                 $html = $this->renderView(
                     'ODROpenRepositorySearchBundle:Default:index_error.html.twig',
@@ -380,6 +383,8 @@ print '$links: '.print_r($links, true)."\n";
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_info_service */
@@ -559,8 +564,7 @@ print '$links: '.print_r($links, true)."\n";
             }
 
             // Generate a random key to identify this tab
-            $tokenGenerator = $this->container->get('fos_user.util.token_generator');
-            $odr_tab_id = substr($tokenGenerator->generateToken(), 0, 15);
+            $odr_tab_id = $odr_tab_service->createTabId();
 
 
             // ----------------------------------------

@@ -37,10 +37,12 @@ use ODR\AdminBundle\Form\ODRUserProfileForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\Form\FormError;
+use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -428,10 +430,12 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
-
-                // If user lacks super admin and admin roles, not allowed to do this
+            // If the user is a super admin, or doing this action to his own profile for some reason...
+            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
+                // ...then permissions aren't an issue
+            }
+            else {
+                // If user lacks the admin role, then they're not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
                     throw new ODRForbiddenException();
 
@@ -628,10 +632,12 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
-
-                // If user lacks super admin and admin roles, not allowed to do this
+            // If the user is a super admin, or doing this action to his own profile for some reason...
+            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
+                // ...then permissions aren't an issue
+            }
+            else {
+                // If user lacks the admin role, then they're not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
                     throw new ODRForbiddenException();
 
@@ -725,7 +731,7 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Returns the HTML for an admin user to change another user's password
-     * TODO - this is bad practice...the user needs to be able to reset their password via email
+     * TODO - this is bad practice...admins shouldn't be changing other user's passwords
      * 
      * @param integer $user_id The database id of the user to edit.
      * @param Request $request
@@ -757,10 +763,12 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
-
-                // If user lacks super admin and admin roles, not allowed to do this
+            // If the user is a super admin, or doing this action to his own profile for some reason...
+            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
+                // ...then permissions aren't an issue
+            }
+            else {
+                // If user lacks the admin role, then they're not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
                     throw new ODRForbiddenException();
 
@@ -819,7 +827,7 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Saves changes an admin makes to another user's password
-     * TODO - this is bad practice...the user needs to be able to reset their password via email
+     * TODO - this is bad practice...admins shouldn't be changing other user's passwords
      *
      * @param Request $request
      *
@@ -862,10 +870,12 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $target_user_id ) {
-
-                // If user lacks super admin and admin roles, not allowed to do this
+            // If the user is a super admin, or doing this action to his own profile for some reason...
+            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $target_user_id ) {
+                // ...then permissions aren't an issue
+            }
+            else {
+                // If user lacks the admin role, then they're not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
                     throw new ODRForbiddenException();
 
@@ -1386,7 +1396,11 @@ class ODRUserController extends ODRCustomController
 
 
     /**
-     * Changes the number of Datarecords displayed per ShortResults page...TextResults handles its own version
+     * Changes the number of Datarecords displayed per ShortResults page.  This will also end up
+     * changing the session variable the datatables plugin uses to store page length.
+     *
+     * A page currently using the datatables plugin uses TextResultsController::datatablesrowrequestAction()
+     * to change its own length.
      *
      * @param integer $length  How many Datarecords to display on a page.
      * @param Request $request
@@ -1402,7 +1416,8 @@ class ODRUserController extends ODRCustomController
 
         try {
             // Grab necessary objects
-            $session = $request->getSession();
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
 
             // Grab the tab's id, if it exists
             $params = $request->query->all();
@@ -1412,16 +1427,7 @@ class ODRUserController extends ODRCustomController
 
             if ($odr_tab_id !== '') {
                 // Store the change to this tab's page_length in the session
-                $page_length = intval($length);
-                $stored_tab_data = array();
-                if ( $session->has('stored_tab_data') )
-                    $stored_tab_data = $session->get('stored_tab_data');
-
-                if ( !isset($stored_tab_data[$odr_tab_id]) )
-                    $stored_tab_data[$odr_tab_id] = array();
-
-                $stored_tab_data[$odr_tab_id]['page_length'] = $page_length;
-                $session->set('stored_tab_data', $stored_tab_data);
+                $odr_tab_service->setPageLength($odr_tab_id, $length);
             }
         }
         catch (\Exception $e) {
@@ -1434,6 +1440,81 @@ class ODRUserController extends ODRCustomController
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Typically, if a user has the permission to edit datarecords for a datatype, then they're
+     * permitted to edit all datarecords they can view.  However, when a user has a datarecord
+     * restriction, then usually there's a difference between the list of datarecords the user can
+     * view and the list of datarecords they can edit.
+     *
+     * When a user with a datarecord restriction on a datatype does a search on that datatype, by
+     * default ODR hides the datarecords they can't edit.  This controller action allows the user
+     * to invert that setting, and store the preference in a browser cookie.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function toggleshoweditableAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $key = '';
+        $value = '';
+
+        try {
+            // Pull the tab id from the current request
+            $post = $request->request->all();
+            if ( !isset($post['odr_tab_id']) || !isset($post['datatype_id']) )
+                throw new ODRBadRequestException('invalid form');
+
+            $odr_tab_id = $post['odr_tab_id'];
+            $datatype_id = $post['datatype_id'];
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            $cookies = $request->cookies;
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ( is_null($datatype) )
+                throw new ODRNotFoundException('Datatype');
+
+
+            // Load the current value of the cookie
+            $key = 'datatype_'.$datatype->getId().'_editable_only';
+
+            // Can't use boolean here it seems
+            $display = 1;
+            if ( $cookies->has($key) )
+                $display = intval( $cookies->get($key) );
+
+            // Invert the value stored
+            if ($display === 1)
+                $value = 0;
+            else
+                $value = 1;
+
+            // The value is stored back in the cookie after the response is created below
+        }
+        catch (\Exception $e) {
+            $source = 0xbf591415;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->setCookie(new Cookie($key, $value));
         return $response;
     }
 

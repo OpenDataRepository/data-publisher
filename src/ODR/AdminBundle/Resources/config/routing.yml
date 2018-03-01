@@ -97,6 +97,10 @@ odr_session_pagelength:
     defaults: { _controller: ODRAdminBundle:ODRUser:pagelength }
     requirements:
         length: 10|25|50|100
+odr_session_toggle_show_editable:
+    path:  /session/toggle/show_editable
+    defaults: { _controller: ODRAdminBundle:ODRUser:toggleshoweditable }
+    methods: [ POST ]
 
 odr_view_effective_permissions:
     path:  /admin/user/view_as/{user_id}/{datatype_id}
@@ -720,7 +724,6 @@ odr_link_datarecords:
 
 #-----------------------------------------
 # Display Controller
-
 odr_display_view:
     path:  /view/{datarecord_id}/{search_theme_id}/{search_key}/{offset}
     defaults: { _controller: ODRAdminBundle:Display:view, search_theme_id: 0, search_key: '', offset: '' }

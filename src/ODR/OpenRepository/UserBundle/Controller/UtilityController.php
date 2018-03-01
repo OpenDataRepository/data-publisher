@@ -16,6 +16,8 @@ namespace ODR\OpenRepository\UserBundle\Controller;
 
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+// Services
+use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -205,14 +207,9 @@ class UtilityController extends Controller
         // Force an update to the list of datarecords for a search result if the user logs in...
         //  otherwise, the search headers in Display/Edit mode will continue to only display
         //  non-public datarecords...
-        if ( $session->has('stored_tab_data') ) {
-            $stored_tab_data = $session->get('stored_tab_data');
-            foreach ($stored_tab_data as $odr_tab_id => $tab_data) {
-                if ( isset($stored_tab_data[$odr_tab_id]['datarecord_list']) )
-                    unset( $stored_tab_data[$odr_tab_id]['datarecord_list'] );
-            }
 
-            $session->set('stored_tab_data', $stored_tab_data);
-        }
+        /** @var ODRTabHelperService $odr_tab_service */
+        $odr_tab_service = $this->container->get('odr.tab_helper_service');
+        $odr_tab_service->clearDatarecordLists();
     }
 }

@@ -43,7 +43,6 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
-use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
@@ -115,17 +114,14 @@ class MassEditController extends ODRCustomController
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
-                $can_edit_datarecord = true;
+            $can_view_datatype = $pm_service->canViewDatatype($user, $datatype);
+            $can_edit_datarecord = $pm_service->canEditDatatype($user, $datatype);
 
             // Ensure user has permissions to be doing this
-            // TODO - can't use $pm_service->canEditDatarecord() here because don't actually have a datarecord...
-            if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
+            if ( !$user->hasRole('ROLE_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( !$can_view_datatype || !$can_edit_datarecord )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -178,6 +174,7 @@ class MassEditController extends ODRCustomController
                     return parent::searchPageRedirect($user, $url);
                 }
 
+                // TODO - datarecord restriction needs to be considered here...
                 // Store the datarecord list in the user's session...there is a chance that it could get wiped if it was only stored in memcached
                 $session = $request->getSession();
                 $list = $session->get('mass_edit_datarecord_lists');
@@ -362,17 +359,14 @@ class MassEditController extends ODRCustomController
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
-                $can_view_datatype = true;
-
-            $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
-                $can_edit_datarecord = true;
+            $can_view_datatype = $pm_service->canViewDatatype($user, $datatype);
+            $can_edit_datarecord = $pm_service->canEditDatatype($user, $datatype);
 
             // Ensure user has permissions to be doing this
-            // TODO - can't use $pm_service->canEditDatarecord() here because don't actually have a datarecord...
-            if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
+            if ( !$user->hasRole('ROLE_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( !$can_view_datatype || !$can_edit_datarecord )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -396,6 +390,7 @@ class MassEditController extends ODRCustomController
 
 
             // ----------------------------------------
+            // TODO - datarecord restriction needs to be considered here...
             // Grab datarecord list and search key from user session...not using memcached because the possibility exists that the list could have been deleted
             $list = $session->get('mass_edit_datarecord_lists');
 
@@ -676,10 +671,11 @@ return;
             $em = $this->getDoctrine()->getManager();
             $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException();
@@ -746,19 +742,8 @@ return;
                     // Mark this datarecord as updated
                     $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-                    // See if any cached search results need to be deleted...
-                    $cached_searches = $cache_service->get('cached_search_results');
-                    if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
-                        // Delete all cached search results for this datatype that contained this datarecord
-                        foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
-                            $datarecord_list = explode(',', $search_data['datarecord_list']['all']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
-                            if ( in_array($datarecord_id, $datarecord_list) )
-                                unset ( $cached_searches[$datatype_id][$search_checksum] );
-                        }
-
-                        // Save the collection of cached searches back to memcached
-                        $cache_service->set('cached_search_results', $cached_searches);
-                    }
+                    // TODO - only delete cached search results for this datatype that contained this datarecord
+                    $search_cache_service->clearByDatatypeId($datatype_id);
                 }
             }
 

@@ -637,6 +637,7 @@ class CSVImportController extends ODRCustomController
         // Need to rewrite the original csv file...create a new temporary csv file
         $tokenGenerator = $this->container->get('fos_user.util.token_generator');
         $tmp_filename = substr($tokenGenerator->generateToken(), 0, 12);
+
         // TODO - other illegal first characters for filename?
         if ( substr($tmp_filename, 0, 1) == '-' )
             $tmp_filename = 'a'.substr($tmp_filename, 1);

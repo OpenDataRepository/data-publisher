@@ -30,6 +30,7 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 // Symfony
@@ -58,52 +59,38 @@ class TextResultsController extends ODRCustomController
             // Symfony firewall won't permit GET requests to reach this point
             $post = $request->request->all();
 
-            if ( !isset($post['datatype_id']) || !isset($post['theme_id']) || !isset($post['draw']) || !isset($post['start']) )
+            if ( !isset($post['datatype_id'])
+                || !isset($post['theme_id'])
+                || !isset($post['draw'])
+                || !isset($post['start'])
+                || !isset($post['length'])
+                || !isset($post['search_key'])
+            ) {
                 throw new ODRBadRequestException();
-
-            $odr_tab_id = '';
-            if ( isset($post['odr_tab_id']) && trim($post['odr_tab_id']) !== '' )
-                $odr_tab_id = $post['odr_tab_id'];
+            }
 
             $datatype_id = intval( $post['datatype_id'] );
             $theme_id = intval( $post['theme_id'] );
             $draw = intval( $post['draw'] );    // intval() because of recommendation by datatables documentation
             $start = intval( $post['start'] );
+            $page_length = intval( $post['length'] );
+            $search_key = $post['search_key'];
 
-            $session = $request->getSession();
-
-            // Need to deal with requests for a sorted table...
+            // Need to also deal with requests for a sorted table...
             $sort_column = 0;
-            $sort_dir = 'asc';
+            $sort_dir = 'ASC';
             if ( isset($post['order']) && isset($post['order']['0']) ) {
-                $sort_column = $post['order']['0']['column'];
+                $sort_column = intval( $post['order']['0']['column'] );
                 $sort_dir = strtoupper( $post['order']['0']['dir'] );
             }
 
-            // Deal with page_length changes...
-            $length = intval( $post['length'] );
-            if ($odr_tab_id !== '') {
-                $stored_tab_data = array();
-                if ( $session->has('stored_tab_data') )
-                    $stored_tab_data = $session->get('stored_tab_data');
-                $old_length = '';
 
-                // Save page_length for this tab if different or doesn't exist
-                if ( isset($stored_tab_data[$odr_tab_id]) && isset($stored_tab_data[$odr_tab_id]['page_length']) )
-                    $old_length = $stored_tab_data[$odr_tab_id]['page_length'];
-                else
-                    $stored_tab_data[$odr_tab_id] = array();
-
-                if ( $length !== $old_length ) {
-                    $stored_tab_data[$odr_tab_id]['page_length'] = $length;
-                    $session->set('stored_tab_data', $stored_tab_data);
-                }
-            }
-
-            // search_key is optional
-            $search_key = '';
-            if ( isset($post['search_key']) )
-                $search_key = urldecode($post['search_key']);   // Symfony doesn't automatically decode this since it's not coming through a GET request
+            // The tab id won't be in the post request if this is to get rows for linking datarecords
+            // Don't want changes made to that secondary table to overwrite values saved for the
+            //  actual search results table for that tab
+            $odr_tab_id = '';
+            if ( isset($post['odr_tab_id']) && trim($post['odr_tab_id']) !== '' )
+                $odr_tab_id = trim( $post['odr_tab_id'] );
 
 
             // ----------------------------------------
@@ -113,6 +100,8 @@ class TextResultsController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var TableThemeHelperService $tth_service */
@@ -132,11 +121,6 @@ class TextResultsController extends ODRCustomController
             if ($theme->getDataType()->getId() !== $datatype->getId() )
                 throw new ODRBadRequestException();
 
-            // No longer makes sense to restrict to a single theme type...TableThemeHelperService
-            //  can deal with any type of theme it receives
-//            if ($theme->getThemeType() !== 'search_results')
-//                throw new ODRBadRequestException();
-
 
             // ----------------------------------------
             // Determine whether user is logged in or not
@@ -145,18 +129,44 @@ class TextResultsController extends ODRCustomController
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
             $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
+            // Store whether the user is permitted to edit at least one datarecord for this datatype
+            $can_edit_datatype = $pm_service->canEditDatatype($user, $datatype);
+
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
+
+            // Going to need this later...
+            $restricted_datarecord_list = $pm_service->getDatarecordRestrictionList($user, $datatype);
             // ----------------------------------------
 
 
             // ----------------------------------------
-            $list = array();
+            // Save changes to the page_length unless viewing a search results table meant for
+            //  linking datarecords...
+            if ($odr_tab_id !== '')
+                $odr_tab_service->setPageLength($odr_tab_id, $page_length);
+
+            // Determine whether the user wants to only display datarecords they can edit
+            $cookies = $request->cookies;
+            $only_display_editable_datarecords = true;
+            if ( $cookies->has('datatype_'.$datatype->getId().'_editable_only') )
+                $only_display_editable_datarecords = $cookies->get('datatype_'.$datatype->getId().'_editable_only');
+
+            // If a datarecord restriction exists, and the user only wants to display editable datarecords...
+            $editable_only = false;
+            if ( $can_edit_datatype && !is_null($restricted_datarecord_list) && $only_display_editable_datarecords )
+                $editable_only = true;
+
+
+            $datarecord_list = '';
             if ( $search_key == '' ) {
                 // Theoretically this isn't called during regular operation of ODR anymore, but keeping around just in case
 
                 // Grab the sorted list of datarecords for this datatype
                 $list = $dti_service->getSortedDatarecordList($datatype->getId());
+                // Convert the list into a comma-separated string
+                $datarecord_list = array_keys($list);
+                $datarecord_list = implode(',', $datarecord_list);
             }
             else {
                 // Get all datarecords from the search key...these are already sorted
@@ -166,151 +176,161 @@ class TextResultsController extends ODRCustomController
                 // Don't check for a redirect here, right?  would need to modify datatables.js to deal with it... TODO
 
                 // Convert the comma-separated list into an array
-                if ( $data['redirect'] == false && trim($datarecord_list) !== '')
-                    $list = explode(',', $datarecord_list);
+//                if ( $data['redirect'] == false && trim($datarecord_list) !== '')
+//                    $list = explode(',', $datarecord_list);
             }
-
-            // Save how many datarecords there are in total...this list is already filtered to contain
-            //  just the public datarecords if the user lacks the relevant view permission
-            // TODO - this absolutely won't work when datarecord permissions becomes a thing
-            $datarecord_count = count($list);
 
 
             // ----------------------------------------
-            if ($sort_column >= 2) {    // column 0 is datarecord id, column 1 is default sort column...
+            // If the datarecord lists don't exist in the user's session, then they need to get created
+            // If the sorting criteria changed, then the datarecord lists need to get rebuilt
+            $sort_df_id = 0;
+            if ( !is_null($datatype->getSortField()) )
+                $sort_df_id = $datatype->getSortField()->getId();
 
+            if ($sort_column >= 2) {    // column 0 is datarecord id, column 1 is default sort column...
                 // Locate the datafield pointed to by $sort_column
                 $sort_column -= 2;
                 $df = $tth_service->getDatafieldAtColumn($user, $datatype->getId(), $theme->getId(), $sort_column);
+                $sort_df_id = $df['id'];
+            }
 
-                $datafield_id = $df['id'];
-                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-
-                // Because the drf entry and the storage entity may not exist, pre-initialize the array of datarecord ids and values so datarecords with non-existent drf/storage entities don't get dropped from this sorting
-                $query_results = array();
-                foreach ($list as $num => $dr_id)
-                    $query_results[$dr_id] = '';
+            // Convert sort direction into a boolean for later...
+            $sort_ascending = true;
+            if ($sort_dir == 'DESC')
+                $sort_ascending = false;
 
 
-                if ($typeclass == 'Radio') {
-                    // Get the list of radio options
-                    $query = $em->createQuery(
-                       'SELECT rom.optionName AS option_name, dr.id AS dr_id
-                        FROM ODRAdminBundle:RadioOptions AS ro
-                        JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
-                        JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
-                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
-                        JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                        WHERE dr.id IN (:datarecords) AND drf.dataField = :datafield_id AND rs.selected = 1
-                        AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL
-                        AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-                    )->setParameters( array('datarecords' => $list, 'datafield_id' => $datafield_id) );
-                    $results = $query->getArrayResult();
+            // If linking, this array should be empty
+            $editable_datarecord_list = array();
 
-                    // Build an array so php can sort the list
-                    foreach ($results as $num => $result) {
-                        $option_name = $result['option_name'];
-                        $dr_id = $result['dr_id'];
+            if ($odr_tab_id !== '') {
+                // This is for a search page
 
-                        // Since this is a single select/radio datafield, there will be at most one option per datarecord id here...wouldn't be the case if a multiple select/radio datafield
-                        // Therefore, using the datarecord id as a key is perfectly viable here
-                        $query_results[$dr_id] = $option_name;
+                // If the sorting criteria has changed for the lists of datarecord ids...
+                if ( $odr_tab_service->hasSortCriteriaChanged($odr_tab_id, $sort_df_id, $sort_dir) ) {
+                    // ...then wipe the existing datarecord lists so they can get rebuilt
+                    $odr_tab_service->clearDatarecordLists($odr_tab_id);
+
+                    // Might as well store the new criteria they will be using here
+                    $odr_tab_service->setSortCriteria($odr_tab_id, $sort_df_id, $sort_dir);
+                }
+
+
+                // -----------------------------------
+                // Store the list of datarecord ids that the user can view in their session for this tab
+                // TODO - move this into the tab helper service once searching is a service
+                if ( is_null($odr_tab_service->getViewableDatarecordList($odr_tab_id)) ) {
+                    // Get an array of datarecord ids sorted by the given datafield in the given sort
+                    //  direction, filtered to include only the datarecord ids in $datarecord_list
+                    $dr_list = array();
+                    if ($sort_df_id == 0)
+                        $dr_list = $dti_service->getSortedDatarecordList($datatype_id, $datarecord_list);
+                    else
+                        $dr_list = $dti_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, $datarecord_list);
+
+                    // Convert $dr_list from  $dr_id => $sort_value  into a comma-separated list
+                    $dr_list = implode(',', array_keys($dr_list));
+                    // Store the comma-separated list for later use
+                    $odr_tab_service->setViewableDatarecordList($odr_tab_id, $dr_list);
+                }
+
+                if ( !$pm_service->canEditDatatype($user, $datatype) ) {
+                    // If user can't edit the datatype, then store that they can't edit any datarecords
+                    $odr_tab_service->setEditableDatarecordList($odr_tab_id, array());
+                }
+                else if ( is_null($odr_tab_service->getEditableDatarecordList($odr_tab_id)) ) {
+                    if ( !is_null($restricted_datarecord_list) ) {
+                        // Get an array of datarecord ids sorted by the given datafield in the given
+                        //  sort direction, filtered to include only the datarecord ids in the
+                        //  edit-restricted datarecord list
+                        $dr_list = array();
+                        if ($sort_df_id == 0)
+                            $dr_list = $dti_service->getSortedDatarecordList($datatype_id, $restricted_datarecord_list);
+                        else
+                            $dr_list = $dti_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, $restricted_datarecord_list);
+
+                        // At the point, $datarecord_list is a $num => $dr_id array of what matches search result
+                        // $dr_list is a $dr_id => $sort_value array of the datarecords the user can edit
+
+                        // Need to compute and store the intersection of those two arrays
+                        $datarecord_list = explode(',', $datarecord_list);
+                        foreach ($datarecord_list as $num => $dr_id) {
+                            if ( !isset($dr_list[$dr_id]) )
+                                unset( $datarecord_list[$num] );
+                        }
+                        $dr_list = implode(',', $datarecord_list);
+
+                        // $dr_list is now the list of datarecords matchnig this search that the user can edit
+                        $odr_tab_service->setEditableDatarecordList($odr_tab_id, $dr_list);
+                    }
+                    else {
+                        // No datarecord restriction, so just use the viewable list
+                        $dr_list = $odr_tab_service->getViewableDatarecordList($odr_tab_id);
+                        $odr_tab_service->setEditableDatarecordList($odr_tab_id, $dr_list);
                     }
                 }
-                else if ($typeclass == 'File') {
-                    // Get the list of file names...have to left join the file table because datarecord id is required, but there may not always be a file uploaded
-                    $query = $em->createQuery(
-                       'SELECT fm.originalFileName AS file_name, dr.id AS dr_id
-                        FROM ODRAdminBundle:DataRecord AS dr
-                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                        LEFT JOIN ODRAdminBundle:File AS f WITH f.dataRecordFields = drf
-                        LEFT JOIN ODRAdminBundle:FileMeta AS fm WITH fm.file = f
-                        WHERE dr.id IN (:datarecords) AND drf.dataField = :datafield_id
-                        AND f.deletedAt IS NULL AND fm.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-                    )->setParameters( array('datarecords' => $list, 'datafield_id' => $datafield_id) );
-                    $results = $query->getArrayResult();
 
-                    // Build an array from the query results so php can sort it
-                    foreach ($results as $num => $result) {
-                        $dr_id = $result['dr_id'];
-                        $filename = $result['file_name'];
 
-                        $query_results[$dr_id] = $filename;
-                    }
+                // The viewable/editable datarecord lists stored in the user's session are now
+                //  guaranteed to match the sorting criteria specified by the datatables plugin
+
+
+                // -----------------------------------
+                // Determine the correct list of datarecords to use for rendering
+                if ($can_edit_datatype && $editable_only)
+                    $datarecord_list = $odr_tab_service->getEditableDatarecordList($odr_tab_id);
+                else
+                    $datarecord_list = $odr_tab_service->getViewableDatarecordList($odr_tab_id);
+                $datarecord_list = explode(',', $datarecord_list);
+
+                // Exploding an empty string results in a nearly empty array...
+                if ( isset($datarecord_list[0]) && $datarecord_list[0] === '' )
+                    $datarecord_list = array();
+
+
+                // -----------------------------------
+                // Convert the list of editable datarecords into a $dr_id => $num format
+                $editable_datarecord_list = $odr_tab_service->getEditableDatarecordList($odr_tab_id);
+                if ( !is_null($editable_datarecord_list) && $editable_datarecord_list !== '' ) {
+                    $editable_datarecord_list = explode(',', $editable_datarecord_list);
+                    $editable_datarecord_list = array_flip($editable_datarecord_list);
                 }
                 else {
-                    // Get the list of datarecords and their values
-                    $query = $em->createQuery(
-                       'SELECT dr.id AS dr_id, e.value AS value
-                        FROM ODRAdminBundle:DataRecord AS dr
-                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                        JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
-                        WHERE dr.id IN (:datarecords) AND drf.dataField = :datafield_id
-                        AND dr.deletedAt IS NULL AND e.deletedAt IS NULL AND drf.deletedAt IS NULL'
-                    )->setParameters( array('datarecords' => $list, 'datafield_id' => $datafield_id) );
-                    $results = $query->getArrayResult();
-
-                    // Build an array from the query results so php can sort it
-                    foreach ($results as $num => $result) {
-                        $dr_id = $result['dr_id'];
-                        $value = $result['value'];
-
-                        if ($typeclass == 'IntegerValue') {
-                            $value = intval($value);
-                        }
-                        else if ($typeclass == 'DecimalValue') {
-                            $value = floatval($value);
-                        }
-                        else if ($typeclass == 'DatetimeValue') {
-                            $value = $value->format('Y-m-d');
-                            if ($value == '9999-12-31')
-                                $value = '';
-                        }
-
-                        $query_results[$dr_id] = $value;
-                    }
+                    // Convert empty string into array for twig purposes
+                    $editable_datarecord_list = array();
                 }
-
-                // Get PHP to sort the list of datarecords
-                natsort($query_results);
-
-                if ($sort_dir == 'DESC')
-                    $query_results = array_reverse($query_results, true);
-
-                // Redo the list of datarecords based on the sorted order
-                $list = array();
-                foreach ($query_results as $dr_id => $value)
-                    $list[] = $dr_id;
             }
+            else {
+                // This is for a linking page
 
-            // Only save the subset of records pointed to by the $start and $length values
-            $datarecord_list = array();
-            for ($index = $start; $index < ($start + $length); $index++) {
-                if ( !isset($list[$index]) )
-                    break;
+                // This technically will run a sort every time...since this is only for linking,
+                //  the slower speed isn't really going to be noticed
 
-                $datarecord_list[] = $list[$index];
+                // Get an array of datarecord ids sorted by the given datafield in the given sort
+                //  direction, filtered to include only the datarecord ids in $datarecord_list
+                $dr_list = array();
+                if ($sort_df_id == 0)
+                    $dr_list = $dti_service->getSortedDatarecordList($datatype_id, $datarecord_list);
+                else
+                    $dr_list = $dti_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, $datarecord_list);
+
+                // Convert $dr_list from  $dr_id => $sort_value  into a  $num => $dr_id  array
+                $datarecord_list = array_keys($dr_list);
             }
 
 
             // ----------------------------------------
-            // Save the sorted list of datarecords in the user's session
-            if ($odr_tab_id !== '') {
-                $stored_tab_data = array();
-                if ( $session->has('stored_tab_data') )
-                    $stored_tab_data = $session->get('stored_tab_data');
+            // Save how many datarecords there are in total...this list is already filtered to contain
+            //  just the public datarecords if the user lacks the relevant view permission
+            $datarecord_count = count($datarecord_list);
 
-                if ( !isset($stored_tab_data[$odr_tab_id]) )
-                    $stored_tab_data[$odr_tab_id] = array();
-
-                $stored_tab_data[$odr_tab_id]['datarecord_list'] = implode(',', $list);
-                $session->set('stored_tab_data', $stored_tab_data);
-//print_r($stored_tab_data);
-            }
+            // Reduce datarecord_list to just the list that will get rendered
+            $datarecord_list = array_slice($datarecord_list, $start, $page_length);
 
 
             // ----------------------------------------
-            // Get the rows that will fulfill the request
+            // Get the rows that will fulfill the datatables request
             $data = array();
             if ( $datarecord_count > 0 )
                 $data = $tth_service->getRowData($user, $datarecord_list, $datatype->getId(), $theme->getId());
@@ -321,6 +341,7 @@ class TextResultsController extends ODRCustomController
                 'recordsTotal' => $datarecord_count,
                 'recordsFiltered' => $datarecord_count,
                 'data' => $data,
+                'editable_datarecord_list' => $editable_datarecord_list,
             );
             $return = $json;
         }
@@ -352,25 +373,28 @@ class TextResultsController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            $session = $request->getSession();
-
             // Grab data from post...
-            $post = $_POST;
+            $post = $request->request->all();
+
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
 
             // Don't want to store the tab_id as part of the datatables state array
+            if ( !isset($post['odr_tab_id']) )
+                throw new ODRBadRequestException('invalid request');
+
             $odr_tab_id = $post['odr_tab_id'];
             unset( $post['odr_tab_id'] );
 
-            // Save the sorted list of datarecords in the user's session
-            $stored_tab_data = array();
-            if ( $session->has('stored_tab_data') )
-                $stored_tab_data = $session->get('stored_tab_data');
 
-            if ( !isset($stored_tab_data[$odr_tab_id]) )
-                $stored_tab_data[$odr_tab_id] = array();
+            // Get any existing data for this tab
+            $tab_data = $odr_tab_service->getTabData($odr_tab_id);
+            if ( is_null($tab_data) )
+                $tab_data = array();
 
-            $stored_tab_data[$odr_tab_id]['state'] = $post;
-            $session->set('stored_tab_data', $stored_tab_data);
+            // Update the state variable in this tab's data
+            $tab_data['state'] = $post;
+            $odr_tab_service->setTabData($odr_tab_id, $tab_data);
         }
         catch (\Exception $e) {
             $source = 0x25baf2e3;
@@ -400,30 +424,26 @@ class TextResultsController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            $session = $request->getSession();
-
             // Grab data from post...
-            $post = $_POST;
+            $post = $request->request->all();
 
-            if ( isset($post['odr_tab_id']) ) {
-                $odr_tab_id = $post['odr_tab_id'];
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
 
-                // Grab the requested state object from the user's session
-                $stored_tab_data = array();
-                if ( $session->has('stored_tab_data') )
-                    $stored_tab_data = $session->get('stored_tab_data');
+            if ( !isset($post['odr_tab_id']) )
+                throw new ODRBadRequestException('invalid request');
 
-                if ( !isset($stored_tab_data[$odr_tab_id]) )
-                    $stored_tab_data[$odr_tab_id] = array();
+            $odr_tab_id = $post['odr_tab_id'];
 
-                $state = array();
-                if ( isset($stored_tab_data[$odr_tab_id]['state']) )
-                    $state = $stored_tab_data[$odr_tab_id]['state'];
-
-                $return = $state;
+            // Determine whether the requested state array exists in the user's session...
+            $tab_data = $odr_tab_service->getTabData($odr_tab_id);
+            if ( is_null($tab_data) || !isset($tab_data['state']) ) {
+                // ...doesn't exist, just return an empty array
+                $return = array();
             }
             else {
-                $return = array();
+                // ...return the requested state array
+                $return = $tab_data['state'];
             }
         }
         catch (\Exception $e) {

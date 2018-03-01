@@ -34,7 +34,7 @@
     {% endif %}
 
     <div class="pure-u-1">
-        <button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }});">View DataRecord</button>
+        <button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }}, 'view', {{ offset }});">View DataRecord</button>
         <button type="button" class="pure-button pure-button-primary" onclick="exportXML({{ datarecord.id }})">Export DataRecord</button>
 
         {% if is_datatype_admin == 1 %}
@@ -53,13 +53,17 @@
             <button type="button" class="pure-button pure-button-primary" onclick="addDataRecord( {{ datatype.id }} );">Add New DataRecord</button>
         {% endif %}
 
-        <button type="button" class="pure-button pure-button-primary" onclick="openFileDownloadDialog( {{ datarecord.id }} );">Download Files...</button>
+        <button type="button" class="pure-button pure-button-primary" onclick="openFileDownloadDialog( {{ datarecord.id }}, 0, 0 );">Download Files...</button>
     </div>
 </div>
 
 <script>
     $(function() {
         $(".MenuDesignArea").remove();
+
+        // Need a tab id in html5 sessionStorage if one doesn't exist
+        if ( !window.sessionStorage.getItem('odr_tab_id') )
+            window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
     });
 
 {% if is_datatype_admin == 1 %}
@@ -187,6 +191,6 @@
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
-{{ js.write(search_theme_id, search_key, offset) }}
+{{ js.write(search_theme_id, search_key) }}
 
 {% endspaceless %}
