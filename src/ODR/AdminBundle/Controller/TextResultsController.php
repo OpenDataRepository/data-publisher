@@ -154,7 +154,7 @@ class TextResultsController extends ODRCustomController
 
             // If a datarecord restriction exists, and the user only wants to display editable datarecords...
             $editable_only = false;
-            if ( $can_edit_datatype && !is_null($restricted_datarecord_list) && !$only_display_editable_datarecords )
+            if ( $can_edit_datatype && !is_null($restricted_datarecord_list) && $only_display_editable_datarecords )
                 $editable_only = true;
 
 

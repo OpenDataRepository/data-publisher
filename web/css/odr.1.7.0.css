@@ -3276,6 +3276,10 @@ form .row {
     display: block;
 }
 
+#login_wrapper {
+    text-align:center;
+    margin-top:10px;
+}
 
 .ODROAuthProviderList {
     text-align: center;

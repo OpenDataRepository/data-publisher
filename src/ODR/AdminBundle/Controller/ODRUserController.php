@@ -430,10 +430,12 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
-
-                // If user lacks super admin and admin roles, not allowed to do this
+            // If the user is a super admin, or doing this action to his own profile for some reason...
+            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
+                // ...then permissions aren't an issue
+            }
+            else {
+                // If user lacks the admin role, then they're not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
                     throw new ODRForbiddenException();
 
@@ -630,10 +632,12 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
-
-                // If user lacks super admin and admin roles, not allowed to do this
+            // If the user is a super admin, or doing this action to his own profile for some reason...
+            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
+                // ...then permissions aren't an issue
+            }
+            else {
+                // If user lacks the admin role, then they're not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
                     throw new ODRForbiddenException();
 
@@ -727,7 +731,7 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Returns the HTML for an admin user to change another user's password
-     * TODO - this is bad practice...the user needs to be able to reset their password via email
+     * TODO - this is bad practice...admins shouldn't be changing other user's passwords
      * 
      * @param integer $user_id The database id of the user to edit.
      * @param Request $request
@@ -759,10 +763,12 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
-
-                // If user lacks super admin and admin roles, not allowed to do this
+            // If the user is a super admin, or doing this action to his own profile for some reason...
+            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
+                // ...then permissions aren't an issue
+            }
+            else {
+                // If user lacks the admin role, then they're not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
                     throw new ODRForbiddenException();
 
@@ -821,7 +827,7 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Saves changes an admin makes to another user's password
-     * TODO - this is bad practice...the user needs to be able to reset their password via email
+     * TODO - this is bad practice...admins shouldn't be changing other user's passwords
      *
      * @param Request $request
      *
@@ -864,10 +870,12 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $target_user_id ) {
-
-                // If user lacks super admin and admin roles, not allowed to do this
+            // If the user is a super admin, or doing this action to his own profile for some reason...
+            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $target_user_id ) {
+                // ...then permissions aren't an issue
+            }
+            else {
+                // If user lacks the admin role, then they're not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
                     throw new ODRForbiddenException();
 
