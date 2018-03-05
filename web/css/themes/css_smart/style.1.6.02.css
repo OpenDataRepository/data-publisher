@@ -34,10 +34,10 @@ file_header: #7fb9d8;
 }
 
 body {
-    background: url("images/background.png") repeat-y;
-    background-size: 100% auto;
+    background: url("images/subtle_dots.png") repeat;
+    /* background-size: 100% auto;
     background-position: center top;
-    background-attachment: fixed;
+    background-attachment: fixed; */
     font-family: "Lato-Reg", sans-serif;
 }
 

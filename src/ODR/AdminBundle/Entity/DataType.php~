@@ -952,4 +952,33 @@ class DataType
     {
         return $this->getDataTypeMeta()->getRenderPlugin();
     }
+    /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $metadataFor;
+
+
+    /**
+     * Set metadataFor
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $metadataFor
+     *
+     * @return DataType
+     */
+    public function setMetadataFor(\ODR\AdminBundle\Entity\DataType $metadataFor = null)
+    {
+        $this->metadataFor = $metadataFor;
+
+        return $this;
+    }
+
+    /**
+     * Get metadataFor
+     *
+     * @return \ODR\AdminBundle\Entity\DataType
+     */
+    public function getMetadataFor()
+    {
+        return $this->metadataFor;
+    }
 }

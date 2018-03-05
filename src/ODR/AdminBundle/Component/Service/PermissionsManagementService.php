@@ -649,9 +649,11 @@ class PermissionsManagementService
                 }
 
                 // If it exists, store a restriction on which datarecords this permission applies to
-                $top_level_dt_id = $group_permission['top_level_datatype_id'];
-                if ( isset($group_permission['datarecord_restriction']) && $group_permission['datarecord_restriction'] !== '' )
-                    $user_permissions['datatypes'][$top_level_dt_id]['datarecord_restriction'] = $group_permission['datarecord_restriction'];
+                if(isset($group_permission['top_level_datatype_id'])) {
+                    $top_level_dt_id = $group_permission['top_level_datatype_id'];
+                    if ( isset($group_permission['datarecord_restriction']) && $group_permission['datarecord_restriction'] !== '' )
+                        $user_permissions['datatypes'][$top_level_dt_id]['datarecord_restriction'] = $group_permission['datarecord_restriction'];
+                }
 
                 // TODO - how to handle multiple datarecord_restrictions on the same datatype?
             }

@@ -40,6 +40,7 @@
             <th>CSV Import</th>
 
             <th>Layout</th>
+            <th>Meta Data</th>
             <th>Manage Groups</th>
             <th>Delete</th>
         </tr>
@@ -147,6 +148,13 @@
             </td>
 
             {# master layout designer link #}
+            <td>
+                {% if is_datatype_admin %}
+                    <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
+                {% endif %}
+            </td>
+
+            {# metadata layout designer link #}
             <td>
                 {% if is_datatype_admin %}
                     <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>

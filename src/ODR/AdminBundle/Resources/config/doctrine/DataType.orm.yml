@@ -114,6 +114,11 @@ ODR\AdminBundle\Entity\DataType:
             inversedBy: null
             orphanRemoval: false
 
+    oneToOne:
+        metadata_for:
+            targetEntity: DataType
+            inversedBy: metadata
+
     manyToOne:
         parent:
             targetEntity: DataType

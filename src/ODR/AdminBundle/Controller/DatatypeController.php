@@ -516,94 +516,168 @@ class DatatypeController extends ODRCustomController
                     $em->flush();
 
 
-                    // ----------------------------------------
-                    // If the datatype is being created from a master template...
-                    if ($form['master_type_id']->getData() > 0) {
-                        // ...do nothing. the datatype creation service will copy the master template's groups for the new datatype
+
+                    // TODO Need to handle creating metadata type here
+                    $datatypes_to_process = array();
+                    array_push($datatypes_to_process, $datatype);
+
+                    // If is_master_type - automatically create master_type_metadata and set metadata_for_id
+                    if($datatype->getIsMasterType()){
+                        $metadata_datatype = clone $datatype;
+
+                        // Set this to be metadata for new datatype
+                        $metadata_datatype->setParent($metadata_datatype);
+                        $metadata_datatype->setGrandparent($metadata_datatype);
+                        $metadata_datatype->setMetadataFor($datatype);
+
+                        // Set new datatype meta
+                        $metadata_datatype_meta = clone $datatype->getDataTypeMeta();
+                        $metadata_datatype_meta->setDataType($metadata_datatype);
+
+                        // Associate the metadata
+                        $metadata_datatype->addDataTypeMetum($metadata_datatype_meta);
+
+                        // New Datatype
+                        $em->persist($metadata_datatype);
+                        // New Datatype Meta
+                        $em->persist($metadata_datatype_meta);
+
+                        // Write to db
+                        $em->flush();
+
+                        // Set MetadataFor
+                        $metadata_datatype->setMetadataFor($datatype);
+                        $em->persist($metadata_datatype);
+
+                        // Set search slug
+                        $metadata_datatype_meta->setSearchSlug($metadata_datatype->getId());
+                        $em->persist($metadata_datatype_meta);
+                        $em->flush();
+
+                        array_push($datatypes_to_process, $metadata_datatype);
                     }
-                    else {
-                        // ...otherwise, this is a new custom datatype.  It'll need a default master theme...
-                        $theme = new Theme();
-                        $theme->setDataType($datatype);
-                        $theme->setThemeType('master');
-                        $theme->setCreatedBy($admin);
-                        $theme->setUpdatedBy($admin);
+                    else if($datatype->getMasterDataType()) {
+                        // If is non-master datatype, clone master-related metadata type
+                        $master_datatype = $datatype->getMasterDataType();
+                        $master_metadata = $em->getRepository('ODRAdminBundle:DataType')
+                            ->findOneBy(
+                                array(
+                                    'metadataFor' => $master_datatype->getId(),
+                                )
+                            );
 
-                        $em->persist($theme);
-                        $em->flush();
-                        $em->refresh($theme);
+                        if($master_metadata != null) {
+                            $metadata_datatype = clone $datatype;
+                            // Unset is master type
+                            $metadata_datatype->setIsMasterType(0);
+                            $metadata_datatype->setGrandparent($metadata_datatype);
+                            $metadata_datatype->setParent($metadata_datatype);
+                            $metadata_datatype->setMasterDataType($master_metadata);
 
-                        // "master" themes for top-level datatypes are considered their own parent and source
-                        $theme->setParentTheme($theme);
-                        $theme->setSourceTheme($theme);
-                        $em->persist($theme);
+                            // Set new datatype meta
+                            $metadata_datatype_meta = clone $datatype->getDataTypeMeta();
+                            $metadata_datatype_meta->setDataType($metadata_datatype);
 
-                        // ...and an associated meta entry
-                        $theme_meta = new ThemeMeta();
-                        $theme_meta->setTheme($theme);
-                        $theme_meta->setTemplateName('');
-                        $theme_meta->setTemplateDescription('');
-                        $theme_meta->setIsDefault(true);
-                        $theme_meta->setShared(true);
-                        $theme_meta->setIsTableTheme(false);
-                        $theme_meta->setCreatedBy($admin);
-                        $theme_meta->setUpdatedBy($admin);
+                            // Associate the metadata
+                            $metadata_datatype->addDataTypeMetum($metadata_datatype_meta);
 
-                        $em->persist($theme_meta);
+                            // New Datatype
+                            $em->persist($metadata_datatype);
+                            // New Datatype Meta
+                            $em->persist($metadata_datatype_meta);
+                            $em->flush();
 
-                        // This dataype is now technically viewable since it has basic theme data...
-                        // Nobody is able to view it however, since it has no permission entries
-                        $datatype->setSetupStep(DataType::STATE_INCOMPLETE);
-                        $em->persist($datatype);
-                        $em->flush();
+                            array_push($datatypes_to_process, $metadata_datatype);
 
-                        // Delete the cached version of the datatree array and the list of top-level datatypes
-                        $cache_service->delete('cached_datatree_array');
-                        $cache_service->delete('top_level_datatypes');
-                        $cache_service->delete('top_level_themes');
-
-                        // Create the groups for the new datatype here so the datatype can be viewed
-                        $pm_service->createGroupsForDatatype($admin, $datatype);
-
-                        // Ensure the user who created this datatype becomes a member of the new datatype's "is_datatype_admin" group
-                        if ( !$admin->hasRole('ROLE_SUPER_ADMIN') ) {
-                            // createUserGroup() updates the database so all super admins automatically have permissions to this new datatype
-
-                            /** @var Group $admin_group */
-                            $admin_group = $em->getRepository('ODRAdminBundle:Group')->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'admin') );
-                            $pm_service->createUserGroup($admin, $admin_group, $admin);
-
-                            // Delete cached version of this user's permissions
-                            $cache_service->delete('user_'.$admin->getId().'_permissions');
                         }
                     }
 
+                    // Do we forward to main datatype or metadata?
+                    foreach($datatypes_to_process as $datatype) {
+                        // ----------------------------------------
+                        // If the datatype is being created from a master template...
+                        if ($datatype->getMasterDatatype()) {
+                            // Start the job to create the datatype from the template
+                            $pheanstalk = $this->get('pheanstalk');
+                            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+                            $api_key = $this->container->getParameter('beanstalk_api_key');
 
-                    // ----------------------------------------
-                    // If Master datatype is not null, then schedule a background process to clone it into the new datatype
-                    if ($datatype->getMasterDataType()) {
-                        // Start the job to create the datatype from the template
-                        $pheanstalk = $this->get('pheanstalk');
-                        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-                        $api_key = $this->container->getParameter('beanstalk_api_key');
+                            // Insert the new job into the queue
+                            $priority = 1024;   // should be roughly default priority
+                            $payload = json_encode(
+                                array(
+                                    "user_id" => $admin->getId(),
+                                    "datatype_id" => $datatype->getId(),
 
-                        // Insert the new job into the queue
-                        $priority = 1024;   // should be roughly default priority
-                        $payload = json_encode(
-                            array(
-                                "user_id" => $admin->getId(),
-                                "datatype_id" => $datatype->getId(),
+                                    "redis_prefix" => $redis_prefix,    // debug purposes only
+                                    "api_key" => $api_key,
+                                )
+                            );
 
-                                "redis_prefix" => $redis_prefix,    // debug purposes only
-                                "api_key" => $api_key,
-                            )
-                        );
+                            $delay = 0;
+                            $pheanstalk->useTube('create_datatype')->put($payload, $priority, $delay);
+                        }
+                        else {
+                            // ...otherwise, this is a new custom datatype.  It'll need a default master theme...
+                            $theme = new Theme();
+                            $theme->setDataType($datatype);
+                            $theme->setThemeType('master');
+                            $theme->setCreatedBy($admin);
+                            $theme->setUpdatedBy($admin);
 
-                        $delay = 0;
-                        $pheanstalk->useTube('create_datatype')->put($payload, $priority, $delay);
+                            $em->persist($theme);
+                            $em->flush();
+                            $em->refresh($theme);
+
+                            // "master" themes for top-level datatypes are considered their own parent and source
+                            $theme->setParentTheme($theme);
+                            $theme->setSourceTheme($theme);
+                            $em->persist($theme);
+
+                            // ...and an associated meta entry
+                            $theme_meta = new ThemeMeta();
+                            $theme_meta->setTheme($theme);
+                            $theme_meta->setTemplateName('');
+                            $theme_meta->setTemplateDescription('');
+                            $theme_meta->setIsDefault(true);
+                            $theme_meta->setShared(true);
+                            $theme_meta->setIsTableTheme(false);
+                            $theme_meta->setCreatedBy($admin);
+                            $theme_meta->setUpdatedBy($admin);
+
+                            $em->persist($theme_meta);
+
+                            // This dataype is now technically viewable since it has basic theme data...
+                            // Nobody is able to view it however, since it has no permission entries
+                            $datatype->setSetupStep(DataType::STATE_INCOMPLETE);
+                            $em->persist($datatype);
+                            $em->flush();
+
+                            // Delete the cached version of the datatree array and the list of top-level datatypes
+                            $cache_service->delete('cached_datatree_array');
+                            $cache_service->delete('top_level_datatypes');
+                            $cache_service->delete('top_level_themes');
+
+                            // Create the groups for the new datatype here so the datatype can be viewed
+                            $pm_service->createGroupsForDatatype($admin, $datatype);
+
+                            // Ensure the user who created this datatype becomes a member of the new datatype's "is_datatype_admin" group
+                            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') ) {
+                                // createUserGroup() updates the database so all super admins automatically have permissions to this new datatype
+
+                                /** @var Group $admin_group */
+                                $admin_group = $em->getRepository('ODRAdminBundle:Group')->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'admin') );
+                                $pm_service->createUserGroup($admin, $admin_group, $admin);
+
+                                // Delete cached version of this user's permissions
+                                $cache_service->delete('user_'.$admin->getId().'_permissions');
+                            }
+                        }
+
                     }
 
                     // Forward to DisplayTemplate
+                    // TODO - This is not good.  A long copy above may not be finished by the time the time the user arrives at design system.
                     $url = $this->generateUrl('odr_design_master_theme', array('datatype_id' => $datatype->getId()), false);
                     $return['d']['redirect_url'] = $url;
                 }

@@ -28,7 +28,7 @@
             <th></th>
             <th>Database Name</th>
             <th>Metadata Layout</th>
-            <th>Master Layout</th>
+            <th>Record Layout</th>
             <th>Test Record</th>
         </tr>
     </thead>
@@ -76,7 +76,7 @@
                 {% endif %}
             </td>
 
-            {# master layout designer link #}
+            {# record layout designer link #}
             <td>
             {% if datatype_meta.searchSlug == '' %}
                 <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
@@ -95,7 +95,7 @@
             {% if datarecord_count == 0 %}
                 <a id="ODRDatarecordList_{{ datatype.id }}_add" class="Pointer" onclick="addDataRecord('{{ datatype_baseurl }}',{{ datatype.id }});"><i class="fa fa-lg fa-plus-circle"></i>&nbsp;Create Test Record</a>
             {% else %}
-                <a id="ODRDatarecordList_{{ datatype.id }}_view" class="ODRSearchPreview" title="View {{ datatype_meta.shortName }} DataRecords" rel="{{ datatype.id }}"><i class="fa fa-lg fa-list"></i>&nbsp;View Test Record</a>
+                <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_search_render', {'search_key': 'dt_id='~datatype.id} ) }}" title="View {{ datatype_meta.shortName }} DataRecords"><i class="fa fa-lg fa-list"></i>&nbsp;View Test Record</a>
             {% endif %}
             </td>
         </tr>
@@ -133,45 +133,6 @@
         });
 
         $("#ODRDatatypeList").removeAttr('style');
-
-        $(".ODRSearchPreview").unbind('click').click(function(event) {
-            // Prevent the default <a> behavior
-            event.preventDefault();
-
-            var datatype_id = $(this).attr('rel');
-
-            var url = '{{ path('odr_default_search_render', { 'datatype_id': 0 }) }}';
-            url = url.substring(0, (url.length - 1));
-            url += datatype_id;
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function(data) {
-                    //
-                    var baseurl = '{{ path('odr_search', { 'search_slug': '' } ) }}' + data.d.search_slug;
-                    window.location = baseurl + '#' + data.d.url;
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    // Don't need to do anything specific on an error
-                },
-                complete: function(jqXHR) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
-                }
-            });
-        });
     });
 
     function addDataRecord(urlpath, datatype_id) {
