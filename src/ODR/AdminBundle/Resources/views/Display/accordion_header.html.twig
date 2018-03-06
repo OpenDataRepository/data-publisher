@@ -1,34 +1,45 @@
 {% spaceless %}
-    {% if is_top_level == 0 and display_type == 0 %}     {# accordion display_type...unlike edit page, don't want list display_type (3) here as well #}
-        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-            <span class="ui-icon ui-icon-triangle-1-s"></span>
 
-        {% if datarecord.nameField_value != datarecord.id %}
-            <a>{{ datarecord.nameField_value }}</a>
-        {% else %}
-            <a>{{ datatype.dataTypeMeta.shortName }}</a>
-        {% endif %}
+{% if is_top_level == 0 and display_type == 0 %}     {# accordion display_type...unlike edit page, don't want list display_type (3) here as well #}
+    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <span class="ui-icon ui-icon-triangle-1-s"></span>
 
-            <span class="DatatypeTools">
-                {% if is_link == 1 %}
-                    <span style="margin-left: 15px;" title="This is a linked Datatype">
-                        <i class="fa fa-link Cursor"></i>
-                    </span>
-                {% endif %}
-
-                {% if datarecord.id != datarecord.grandparent.id %}
-                    <span rel="{{ datatype.id }}">
-                        <i id="datarecord_{{ datarecord.id }}_public" class="tooltip fa fa-globe
-                            {% if datarecord.dataRecordMeta.publicDate|is_public %}
-                                ODRActiveIcon
-                            {% endif %} Cursor"
-                           title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}"></i>
-                    </span>
-                {% endif %}
-            </span>
-        </h3>
+    {% if datarecord.nameField_value != datarecord.id %}
+        <a>{{ datarecord.nameField_value }}</a>
+    {% else %}
+        <a>{{ datatype.dataTypeMeta.shortName }}</a>
     {% endif %}
 
-    {# tabbed and dropdown display_type have already been handled in Default::fieldarea_header.html.twig #}
+        <span class="DatatypeTools">
+        {% if is_link == 1 %}
+            <span title="This is a linked Datatype">
+                <i class="fa fa-link Cursor"></i>
+            </span>
+        {% endif %}
+
+            <span rel="{{ datatype.id }}">
+                {% set class_str = "tooltip fa fa-globe Cursor" %}
+                {% if datarecord.dataRecordMeta.publicDate|is_public %}
+                    {% set class_str = class_str ~ " ODRActiveIcon" %}
+                {% endif %}
+
+                {% set title_str = "Record is Public" %}
+                {% if datarecord.dataRecordMeta.publicDate|is_public %}
+                    {% set title_str = "Record is Not Public" %}
+                {% endif %}
+
+                {% if is_link == 1 %}
+                    {% set title_str = "Linked " ~ title_str %}
+                {% else %}
+                    {% set title_str = "Child " ~ title_str %}
+                {% endif %}
+
+                <i id="datarecord_{{ datarecord.id }}_public" class="{{ class_str }}" title="{{ title_str }}" rel="{{ datarecord.id }}"></i>
+            </span>
+        </span>
+    </h3>
+{% endif %}
+
+{# tabbed and dropdown display_type have already been handled in Default::fieldarea_header.html.twig #}
 
 {% endspaceless %}

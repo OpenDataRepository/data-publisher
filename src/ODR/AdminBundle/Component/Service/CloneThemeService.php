@@ -614,13 +614,12 @@ class CloneThemeService
             foreach ($source_theme_dt_array as $source_tdt) {
                 // Going to need these so self::cloneIntoThemeElement() can load/set properties correctly
                 $child_datatype = $source_tdt->getDataType();
-
-                // TODO - make this actually clone the correct theme, instead of just taking a shortcut through the source theme
-//                $child_source_theme = $source_tdt->getChildTheme()->getSourceTheme();
-                $child_source_theme = $source_tdt->getChildTheme();    // THIS DOESN'T FEEL RIGHT
+                $child_source_theme = $source_tdt->getChildTheme();
 
                 // Make a copy of $child_datatype's $child_source_theme into $new_te
                 self::cloneIntoThemeElement($user, $new_te, $child_source_theme, $child_datatype, $dest_theme_type, $source_tdt);
+
+                $this->logger->debug('CloneThemeService: -- -- attached child theme '.$source_tdt->getChildTheme()->getId().' (child_datatype '.$child_datatype->getId().') to theme_datatype '.$source_tdt->getId());
             }
 
 //            $this->logger->debug('----------------------------------------');
@@ -650,7 +649,7 @@ class CloneThemeService
     {
         // ----------------------------------------
         $this->logger->debug('----------------------------------------');
-        $this->logger->debug('CloneThemeService: cloning source theme '.$source_theme->getId().' into theme_element '.$theme_element->getId().' of theme '.$theme_element->getTheme()->getId().'...');
+        $this->logger->debug('CloneThemeService: cloning source theme '.$source_theme->getId().' (datatype '.$dest_datatype->getId().') into theme_element '.$theme_element->getId().' of theme '.$theme_element->getTheme()->getId().' (datatype '.$theme_element->getTheme()->getDataType()->getId().')...');
 
         // Need to create a new Theme, ThemeMeta, and ThemeDatatype entry
         $new_theme = new Theme();
@@ -703,9 +702,10 @@ class CloneThemeService
         }
         else {
             // There's an existing ThemeDatatype entry to clone
+            /** @var ThemeDataType $source_theme_datatype */
             $new_theme_datatype = clone $source_theme_datatype;
 
-            $logger_msg = 'cloned existing';
+            $logger_msg = 'cloned existing theme_datatype '.$source_theme_datatype->getId().' to create';
         }
 
         $new_theme_datatype->setDataType($dest_datatype);
@@ -715,20 +715,20 @@ class CloneThemeService
         $theme_element->addThemeDataType($new_theme_datatype);
         self::persistObject($new_theme_datatype, $user);
 
-        $this->logger->info('CloneThemeService: '.$logger_msg.' themeDatatype '.$new_theme_datatype->getId().'...datatype set to '.$dest_datatype->getId().', child theme set to '.$new_theme->getId());
+        $this->logger->info('CloneThemeService: '.$logger_msg.' theme_datatype '.$new_theme_datatype->getId().'...datatype set to '.$dest_datatype->getId().', child theme set to '.$new_theme->getId());
         $this->em->refresh($new_theme_datatype);
 
 
         // ----------------------------------------
         // For each theme element the source theme has...
-        self::cloneThemeContents($user, $source_theme, $new_theme, $dest_theme_type);       // TODO - this seems to not be pulling any theme elements from source themes for linked datatypes?
+        self::cloneThemeContents($user, $source_theme, $new_theme, $dest_theme_type);
 
 
         // ----------------------------------------
         // Ensure the relevant cache entry is deleted
         $this->cache_service->delete('cached_theme_'.$new_theme->getParentTheme()->getId());
 
-        $this->logger->debug('CloneThemeService: finished cloning source theme '.$source_theme->getId().' into theme_element '.$theme_element->getId().' of theme '.$theme_element->getTheme()->getId().'...');
+        $this->logger->debug('CloneThemeService: finished cloning source theme '.$source_theme->getId().' (datatype '.$dest_datatype->getId().') into theme_element '.$theme_element->getId().' of theme '.$theme_element->getTheme()->getId().' (datatype '.$theme_element->getTheme()->getDataType()->getId().')...');
         $this->logger->debug('----------------------------------------');
 
         // Return the new theme

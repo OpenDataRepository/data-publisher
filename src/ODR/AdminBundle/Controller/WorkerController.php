@@ -33,6 +33,7 @@ use ODR\OpenRepository\UserBundle\Entity\User;
 
 use ODR\AdminBundle\Entity\DataFieldsMeta;
 use ODR\AdminBundle\Entity\DataRecordMeta;
+use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\FileMeta;
 use ODR\AdminBundle\Entity\ImageMeta;
@@ -1996,6 +1997,105 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
+     * Given two datatypes...an "ancestor" datatype that links to a "remote" datatype...the theme
+     * cloner will now end up creating a copy of the remote datatype's master theme and attaching
+     * it to the themes of the ancestor datatype as if it's just another child datatype.
+     *
+     * This isn't really an issue when A isn't linked to, or A links to B...but when A -> B -> C,
+     * then the theme cloner needs B to be complete before it can generate A correctly.  This
+     * function reorders the list of themes used by the migration below so that A won't be done
+     * before B, which won't be done before C, etc.
+     *
+     * @return array
+     */
+    private function computedependencies()
+    {
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        // Load all top-level themes
+        $query = $em->createQuery(
+           'SELECT partial t.{id, themeType}, partial dt.{id}
+            FROM ODRAdminBundle:Theme AS t
+            JOIN t.dataType AS dt
+            WHERE t = t.parentTheme'
+        );
+        $top_level_themes = $query->getArrayResult();
+
+        // Load all linked datatree entries
+        $query = $em->createQuery(
+           'SELECT dt, partial ancestor.{id}, partial descendant.{id}
+            FROM ODRAdminBundle:DataTree AS dt
+            JOIN dt.dataTreeMeta AS dtm
+            JOIN dt.ancestor AS ancestor
+            JOIN dt.descendant AS descendant
+            WHERE dtm.is_link = 1
+            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+            AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+        );
+        $datatree_array = $query->getArrayResult();
+
+
+        // Going to store which datatypes are linked to/from other datatypes...
+        $all_datatypes = array();
+        foreach ($top_level_themes as $num => $t) {
+            $dt_id = $t['dataType']['id'];
+
+            if ( !isset($all_datatypes[$dt_id]) ) {
+                $all_datatypes[$dt_id] = array(
+                    'ancestors' => array(),
+                    'descendants' => array(),
+                );
+            }
+        }
+
+        foreach ($datatree_array as $num => $dt) {
+            $ancestor_id = $dt['ancestor']['id'];
+            $descendant_id = $dt['descendant']['id'];
+
+            $all_datatypes[$descendant_id]['ancestors'][] = $ancestor_id;
+            $all_datatypes[$ancestor_id]['descendants'][] = $descendant_id;
+        }
+
+
+        // While there are still datatypes that need processing...
+        $index = 0;
+        $theme_list = array();
+        while ( count($all_datatypes) > 0 ) {
+            // ...locate the datatypes that don't depend on other linked datatypes to already be processed...
+            foreach ($all_datatypes as $dt_id => $tmp) {
+                if ( empty($tmp['descendants']) ) {
+                    // ...then locate all of this datatype's top-level themes...
+                    foreach ($top_level_themes as $num => $t) {
+                        if ( $t['dataType']['id'] == $dt_id ) {
+                            // ...and store them in array that's going to get returned
+                            $theme_list[$index] = $t;
+                            $index++;
+
+                            unset( $top_level_themes[$num] );
+                        }
+                    }
+
+                    // Also, for each datatype that links to this particular datatype...
+                    foreach ($tmp['ancestors'] as $num => $ancestor_id) {
+                        // ...remove the linked datatype from the list of descendants so
+                        $key = array_search($dt_id, $all_datatypes[$ancestor_id]['descendants']);
+                        if ( $key !== false )
+                            unset( $all_datatypes[$ancestor_id]['descendants'][$key] );
+                    }
+
+                    // All themes for this datatype are scheduled for processing, don't need the entry anymore
+                    unset( $all_datatypes[$dt_id] );
+                }
+            }
+        }
+
+        //
+        return $theme_list;
+    }
+
+
+    /**
      * @param Request $request
      *
      * @return Response
@@ -2016,22 +2116,20 @@ $ret .= '  Set current to '.$count."\n";
         try {
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var CloneThemeService $clone_theme_service */
+            $clone_theme_service = $this->container->get('odr.clone_theme_service');
 
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
             $repo_theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDataType');
 
+            // Get a list of top-level themes ordered so that the theme cloner won't run into
+            //  null pointer exceptions...
+            $top_level_themes = self::computedependencies();
+//            print '<pre>'.print_r($top_level_themes, true).'</pre>';  exit();
+
             // Want to be able to update deleted entities as well
             $em->getFilters()->disable('softdeleteable');
-
-            // Manually load all top-level themes
-            $query = $em->createQuery(
-               'SELECT partial t.{id, themeType}, partial dt.{id}
-                FROM ODRAdminBundle:Theme AS t
-                JOIN t.dataType AS dt
-                WHERE t = t.parentTheme'
-            );
-            $top_level_themes = $query->getArrayResult();
 
             print '<pre>'."\n";
             foreach ($top_level_themes as $num => $theme) {
@@ -2107,74 +2205,68 @@ $ret .= '  Set current to '.$count."\n";
                             else {
                                 if ( $is_linked_datatype || count($sub_results) == 0 ) {
                                     if (!$is_deleted) {
-                                        /** @var Theme $parent_theme */
-                                        $parent_theme = $repo_theme->find($theme_id);
-                                        /** @var Theme $source_theme */
-                                        $source_theme = $repo_theme->findOneBy( array('dataType' => $c_dt_id, 'themeType' => 'master') );
+
+                                        // ----------------------------------------
+                                        /** @var ThemeDataType $theme_datatype */
+                                        $theme_datatype = $repo_theme_datatype->find($tdt_id);
+                                        $theme_element = $theme_datatype->getThemeElement();
+
                                         /** @var DataType $linked_datatype */
                                         $linked_datatype = $repo_datatype->find($c_dt_id);
 
-                                        // Create a new theme entry for this linked datatype
-                                        // Doesn't matter if one already exists, create a new one anyways
-                                        $new_theme = new Theme();
-                                        $new_theme->setThemeType($theme_type);
-                                        $new_theme->setParentTheme($parent_theme);
-                                        $new_theme->setSourceTheme($source_theme);
-                                        $new_theme->setDataType($linked_datatype);
+                                        // Load the linked datatype's master theme
+                                        $query = $em->createQuery(
+                                           'SELECT t
+                                            FROM ODRAdminBundle:Theme AS t
+                                            WHERE t.dataType = :datatype_id AND t.themeType = :theme_type
+                                            AND t.parentTheme = t.sourceTheme'
+                                        )->setParameters(
+                                            array(
+                                                'datatype_id' => $c_dt_id,
+                                                'theme_type' => 'master',
+                                            )
+                                        );
+                                        $sub_result = $query->getResult();
+                                        /** @var Theme $linked_datatype_master_theme */
+                                        $linked_datatype_master_theme = $sub_result[0];
 
-                                        $new_theme->setCreated( $parent_theme->getCreated() );
-                                        $new_theme->setCreatedBy( $parent_theme->getCreatedBy() );
-                                        $new_theme->setUpdated( $parent_theme->getUpdated() );
-                                        $new_theme->setUpdatedBy( $parent_theme->getUpdatedBy() );
-                                        $new_theme->setDeletedAt( $parent_theme->getDeletedAt() );
-                                        $new_theme->setDeletedBy( $parent_theme->getDeletedBy() );
 
-                                        if ($save) {
-                                            $em->persist($new_theme);
-                                            $em->flush();
-                                            $em->refresh($new_theme);
-                                        }
+                                        $query = $em->createQuery(
+                                           'SELECT dt
+                                            FROM ODRAdminBundle:DataTree AS dt
+                                            WHERE dt.ancestor = :ancestor_datatype AND dt.descendant = :descendant_datatype
+                                            ORDER BY dt.created DESC'
+                                        )->setParameters(
+                                            array(
+                                                'ancestor_datatype' => $theme_element->getTheme()->getDataType()->getId(),
+                                                'descendant_datatype' => $linked_datatype->getId(),
+                                            )
+                                        );
+                                        $sub_result = $query->getResult();
+                                        /** @var DataTree $most_recent_datatree */
+                                        $most_recent_datatree = $sub_result[0];
+                                        $user = $most_recent_datatree->getCreatedBy();
 
-                                        $new_theme_meta = new ThemeMeta();
-                                        $new_theme_meta->setTheme($new_theme);
-                                        $new_theme_meta->setTemplateName( $parent_theme->getTemplateName() );
-                                        $new_theme_meta->setTemplateDescription( $parent_theme->getTemplateDescription() );
-                                        $new_theme_meta->setIsDefault( $parent_theme->isDefault() );
-                                        $new_theme_meta->setDisplayOrder( $parent_theme->getDisplayOrder());
-                                        $new_theme_meta->setShared( $parent_theme->isShared() );
-//                                        $new_theme_meta->setSourceSyncCheck( $parent_theme->getSourceSyncCheck() );
-                                        $new_theme_meta->setSourceSyncCheck(null);
-                                        $new_theme_meta->setIsTableTheme( $parent_theme->getIsTableTheme() );
-
-                                        $new_theme_meta->setCreated( $parent_theme->getCreated() );
-                                        $new_theme_meta->setCreatedBy( $parent_theme->getCreatedBy() );
-                                        $new_theme_meta->setUpdated( $parent_theme->getUpdated() );
-                                        $new_theme_meta->setUpdatedBy( $parent_theme->getUpdatedBy() );
-                                        $new_theme_meta->setDeletedAt( $parent_theme->getDeletedAt() );
+                                        print '       >> cloning source theme '.$linked_datatype_master_theme->getId().' for linked datatype '.$linked_datatype->getId().' (linked by user '.$user->getId().') into theme_element '.$theme_element->getId().' of theme '.$theme_element->getTheme()->getId()."\n";
 
                                         if ($save) {
-                                            $new_theme->addThemeMetum($new_theme_meta);
-                                            $em->persist($new_theme);
+                                            $em->getFilters()->enable('softdeleteable');
+                                            //
+                                            $clone_theme_service->cloneIntoThemeElement(
+                                                $user,                                      // the user that created the link to this linked datatype
+                                                $theme_element,                             // the theme element to clone into
+                                                $linked_datatype_master_theme,              // the master theme of the linked datatype to make a copy of
+                                                $linked_datatype,                           // the linked datatype itself
+                                                $theme_element->getTheme()->getThemeType(), // the type of theme that is getting a copy of the linked datatype's master theme
+                                                $theme_datatype                             // don't create a new themeDatatype entry, attach the newly created theme to this one
+                                            );
 
-                                            $em->persist($new_theme_meta);
+                                            // cloneIntoThemeElement() will have created a new theme_datatype entry, so get rid of the old one
+                                            $em->remove($theme_datatype);
                                             $em->flush();
-                                            $em->refresh($new_theme_meta);
-                                        }
-                                        print '       >> creating new theme for datatype '.$c_dt_id.', parent_theme '.$parent_theme->getId().', source_theme '.$source_theme->getId()."\n";
+                                            print '       >> deleted old theme_datatype entry'."\n";
 
-                                        if ($save) {
-                                            /** @var ThemeDataType $theme_datatype */
-                                            $theme_datatype = $repo_theme_datatype->find($tdt_id);
-                                            $theme_datatype->setChildTheme($new_theme);
-
-                                            $em->persist($theme_datatype);
-                                            $em->flush();
-                                            $em->refresh($theme_datatype);
-
-                                            print '       >> setting child_theme_id to '.$new_theme->getId()."\n";
-                                        }
-                                        else {
-                                            print '       >> setting child_theme_id to **SOMETHING**'."\n";
+                                            $em->getFilters()->disable('softdeleteable');
                                         }
                                     }
                                 }

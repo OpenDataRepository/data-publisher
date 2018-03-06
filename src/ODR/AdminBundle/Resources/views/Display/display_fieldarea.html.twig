@@ -4,17 +4,27 @@
 {% set theme = theme_array[target_theme_id] %}
 
 {% if is_top_level == 0 and (display_type == 1 or display_type == 2) %}    {# tabbed or dropdown display_type #}
-    <div id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
+    <span id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
         <span rel="{{ datatype.id }}">
-            <i id="datarecord_{{ datarecord.id }}_public"
-               class="fa fa-globe Cursor
-                {% if datarecord.dataRecordMeta.publicDate|is_public %}
-                    ODRActiveIcon
-                {% endif %}"
-               title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}">
-            </i>
+            {% set class_str = "tooltip fa fa-globe Cursor" %}
+            {% if datarecord.dataRecordMeta.publicDate|is_public %}
+                {% set class_str = class_str ~ " ODRActiveIcon" %}
+            {% endif %}
+
+            {% set title_str = "Record is Public" %}
+            {% if datarecord.dataRecordMeta.publicDate|is_public %}
+                {% set title_str = "Record is Not Public" %}
+            {% endif %}
+
+            {% if is_link == 1 %}
+                {% set title_str = "Linked " ~ title_str %}
+            {% else %}
+                {% set title_str = "Child " ~ title_str %}
+            {% endif %}
+
+            <i id="datarecord_{{ datarecord.id }}_public" class="{{ class_str }}" title="{{ title_str }}" rel="{{ datarecord.id }}"></i>
         </span>
-    </div>
+    </span>
 {% endif %}
 
 
