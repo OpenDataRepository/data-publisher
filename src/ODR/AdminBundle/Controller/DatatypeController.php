@@ -89,9 +89,11 @@ class DatatypeController extends ODRCustomController
             if ($section == "templates") {
                 // Only want master templates to be displayed in this section
                 $query = $em->createQuery(
-                   'SELECT dt, dtm, dt_cb, dt_ub
+                   'SELECT dt, dtm, md, md_dtm, dt_cb, dt_ub
                     FROM ODRAdminBundle:DataType AS dt
                     JOIN dt.dataTypeMeta AS dtm
+                    LEFT JOIN dt.metadata_datatype AS md
+                    JOIN md.dataTypeMeta as md_dtm
                     JOIN dt.createdBy AS dt_cb
                     JOIN dt.updatedBy AS dt_ub
                     WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
@@ -100,9 +102,11 @@ class DatatypeController extends ODRCustomController
             }
             else {
                 $query = $em->createQuery(
-                   'SELECT dt, dtm, dt_cb, dt_ub
+                   'SELECT dt, dtm, md, md_dtm dt_cb, dt_ub
                     FROM ODRAdminBundle:DataType AS dt
                     JOIN dt.dataTypeMeta AS dtm
+                    LEFT JOIN dt.metadata_datatype AS md
+                    JOIN md.dataTypeMeta as md_dtm
                     JOIN dt.createdBy AS dt_cb
                     JOIN dt.updatedBy AS dt_ub
                     WHERE dt.id IN (:datatypes) AND dt.is_master_type = 0
@@ -119,6 +123,9 @@ class DatatypeController extends ODRCustomController
                 $dt['dataTypeMeta'] = $result['dataTypeMeta'][0];
                 $dt['createdBy'] = UserUtility::cleanUserData($result['createdBy']);
                 $dt['updatedBy'] = UserUtility::cleanUserData($result['updatedBy']);
+                if(isset($result['metadata_datatype'])) {
+                    $dt['metadata_datatype']['dataTypeMeta'] = $result['metadata_datatype']['dataTypeMeta'][0];
+                }
 
                 $datatypes[$dt_id] = $dt;
             }
@@ -516,11 +523,13 @@ class DatatypeController extends ODRCustomController
                     $em->flush();
 
 
-
-                    // TODO Need to handle creating metadata type here
                     $datatypes_to_process = array();
                     array_push($datatypes_to_process, $datatype);
 
+                    /*
+                     * Create Datatype Metadata Object (a second datatype to store one record with the properties
+                     * for the parent datatype).
+                     */
                     // If is_master_type - automatically create master_type_metadata and set metadata_for_id
                     if($datatype->getIsMasterType()){
                         $metadata_datatype = clone $datatype;
@@ -528,10 +537,11 @@ class DatatypeController extends ODRCustomController
                         // Set this to be metadata for new datatype
                         $metadata_datatype->setParent($metadata_datatype);
                         $metadata_datatype->setGrandparent($metadata_datatype);
-                        $metadata_datatype->setMetadataFor($datatype);
 
                         // Set new datatype meta
                         $metadata_datatype_meta = clone $datatype->getDataTypeMeta();
+                        $metadata_datatype_meta->setShortName($metadata_datatype_meta->getShortName() . " Properties");
+                        $metadata_datatype_meta->setLongName($metadata_datatype_meta->getLongtName() . " Properties");
                         $metadata_datatype_meta->setDataType($metadata_datatype);
 
                         // Associate the metadata
@@ -545,9 +555,9 @@ class DatatypeController extends ODRCustomController
                         // Write to db
                         $em->flush();
 
-                        // Set MetadataFor
-                        $metadata_datatype->setMetadataFor($datatype);
-                        $em->persist($metadata_datatype);
+                        // Set Metadata Datatype for Datatype
+                        $datatype->setMetadataDatatype($metadata_datatype);
+                        $em->persist($datatype);
 
                         // Set search slug
                         $metadata_datatype_meta->setSearchSlug($metadata_datatype->getId());
@@ -559,15 +569,10 @@ class DatatypeController extends ODRCustomController
                     else if($datatype->getMasterDataType()) {
                         // If is non-master datatype, clone master-related metadata type
                         $master_datatype = $datatype->getMasterDataType();
-                        $master_metadata = $em->getRepository('ODRAdminBundle:DataType')
-                            ->findOneBy(
-                                array(
-                                    'metadataFor' => $master_datatype->getId(),
-                                )
-                            );
+                        $master_metadata = $master_datatype->getMetadataDatatype();
 
                         if($master_metadata != null) {
-                            $metadata_datatype = clone $datatype;
+                            $metadata_datatype = clone $master_metadata;
                             // Unset is master type
                             $metadata_datatype->setIsMasterType(0);
                             $metadata_datatype->setGrandparent($metadata_datatype);
@@ -576,6 +581,8 @@ class DatatypeController extends ODRCustomController
 
                             // Set new datatype meta
                             $metadata_datatype_meta = clone $datatype->getDataTypeMeta();
+                            // $metadata_datatype_meta->setShortName($metadata_datatype_meta->getShortName() . " Properties");
+                            // $metadata_datatype_meta->setLongName($metadata_datatype_meta->getLongtName() . " Properties");
                             $metadata_datatype_meta->setDataType($metadata_datatype);
 
                             // Associate the metadata
@@ -585,14 +592,27 @@ class DatatypeController extends ODRCustomController
                             $em->persist($metadata_datatype);
                             // New Datatype Meta
                             $em->persist($metadata_datatype_meta);
+                            // Set Metadata Datatype
+                            $datatype->setMetadataDatatype($metadata_datatype);
+                            $em->persist($datatype);
                             $em->flush();
 
                             array_push($datatypes_to_process, $metadata_datatype);
 
                         }
                     }
+                    else {
+                        // Do we automatcially create a metadata datatype?
+                        // Probably not since it is confusing to know what to put there.
+                    }
+                    /*
+                     * END Create Datatype Metadata Object
+                     */
 
-                    // Do we forward to main datatype or metadata?
+
+                    /*
+                     * Clone theme or create theme as needed for new datatype(s)
+                     */
                     foreach($datatypes_to_process as $datatype) {
                         // ----------------------------------------
                         // If the datatype is being created from a master template...
@@ -673,10 +693,15 @@ class DatatypeController extends ODRCustomController
                                 $cache_service->delete('user_'.$admin->getId().'_permissions');
                             }
                         }
-
                     }
+                    /*
+                     * END Clone theme or create theme as needed for new datatype(s)
+                     */
 
-                    // Forward to DisplayTemplate
+
+                    // Note: Since the system will always create metadata database second, this redirect will push
+                    // the user edit their metadata template first as it is the last thing set to $datatype above.
+                    // Perhaps this should be more explicitly chosen.
                     // TODO - This is not good.  A long copy above may not be finished by the time the time the user arrives at design system.
                     $url = $this->generateUrl('odr_design_master_theme', array('datatype_id' => $datatype->getId()), false);
                     $return['d']['redirect_url'] = $url;

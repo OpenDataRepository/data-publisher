@@ -69,11 +69,7 @@
 
             {# metadata layout designer link #}
             <td>
-                {% if datatype_meta.searchSlug == '' %}
-                    <a id="ODRDatatypeList_{{ datatype.id }}_metadata_layout" class="address" href="#{{ path('odr_design_metadata_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Metadata Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
-                {% else %}
-                    <a id="ODRDatatypeList_{{ datatype.id }}_metadata_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_metadata_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Metadata Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
-                {% endif %}
+                <a id="ODRDatatypeList_{{ datatype.datatype_metadata.id }}_master_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.datatype_metadata.id }) }}" title="Edit {{ datatype.datatype_metadata.datatype_meta.shortName }} Metadata Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
             </td>
 
             {# record layout designer link #}

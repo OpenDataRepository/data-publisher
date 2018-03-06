@@ -36,7 +36,6 @@ ODR\AdminBundle\Entity\DataType:
             default: false
             column: is_master_type
 
-
         created:
             type: datetime
             gedmo:
@@ -115,9 +114,21 @@ ODR\AdminBundle\Entity\DataType:
             orphanRemoval: false
 
     oneToOne:
+        metadata_datatype:
+            targetEntity: DataType
+            inversedBy: metadata_for
+
         metadata_for:
             targetEntity: DataType
-            inversedBy: metadata
+            inversedBy: metadata_datatype
+
+#        metadataDatatype:
+#            targetEntity: DataType
+#            inversedBy: metadataFor
+#
+#        metadataFor:
+#            targetEntity: DataType
+#            inversedBy: metadataDatatype
 
     manyToOne:
         parent:

@@ -952,11 +952,43 @@ class DataType
     {
         return $this->getDataTypeMeta()->getRenderPlugin();
     }
+
+
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $metadataDatatype;
+
     /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
     private $metadataFor;
 
+
+    /**
+     * Set metadataDatatype
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $metadataDatatype
+     *
+     * @return DataType
+     */
+    public function setMetadataDatatype(\ODR\AdminBundle\Entity\DataType $metadataDatatype = null)
+    {
+        $this->metadataDatatype = $metadataDatatype;
+
+        return $this;
+    }
+
+    /**
+     * Get metadataDatatype
+     *
+     * @return \ODR\AdminBundle\Entity\DataType
+     */
+    public function getMetadataDatatype()
+    {
+        return $this->metadataDatatype;
+    }
 
     /**
      * Set metadataFor
@@ -982,9 +1014,72 @@ class DataType
         return $this->metadataFor;
     }
     /**
+     * @var integer
+     */
+    private $metadataDatatypeId;
+
+    /**
+     * @var integer
+     */
+    private $metadataForId;
+
+
+    /**
+     * Set metadataDatatypeId
+     *
+     * @param integer $metadataDatatypeId
+     *
+     * @return DataType
+     */
+    public function setMetadataDatatypeId($metadataDatatypeId)
+    {
+        $this->metadataDatatypeId = $metadataDatatypeId;
+
+        return $this;
+    }
+
+    /**
+     * Get metadataDatatypeId
+     *
+     * @return integer
+     */
+    public function getMetadataDatatypeId()
+    {
+        return $this->metadataDatatypeId;
+    }
+
+    /**
+     * Set metadataForId
+     *
+     * @param integer $metadataForId
+     *
+     * @return DataType
+     */
+    public function setMetadataForId($metadataForId)
+    {
+        $this->metadataForId = $metadataForId;
+
+        return $this;
+    }
+
+    /**
+     * Get metadataForId
+     *
+     * @return integer
+     */
+    public function getMetadataForId()
+    {
+        return $this->metadataForId;
+    }
+    /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
-    private $metadata_for;
+    private $metadataDatatype;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $metadataFor;
 
 
 }

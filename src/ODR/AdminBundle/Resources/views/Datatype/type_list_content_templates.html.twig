@@ -69,11 +69,8 @@
 
             {# metadata layout designer link #}
             <td>
-                {% if datatype_meta.searchSlug == '' %}
-                    <a id="ODRDatatypeList_{{ datatype.id }}_metadata_layout" class="address" href="#{{ path('odr_design_metadata_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Metadata Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
-                {% else %}
-                    <a id="ODRDatatypeList_{{ datatype.id }}_metadata_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_metadata_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Metadata Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
-                {% endif %}
+                <a id="ODRDatatypeList_{{ datatype.metadata_datatype.id }}_master_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.metadata_datatype.id }) }}" title="Edit {{ datatype.metadata_datatype.dataTypeMeta.shortName }} Metadata Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
+                <!-- <a id="ODRDatatypeList_{{ datatype.id }}_metadata_layout" class="address" href="#{{ path('odr_design_metadata_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype_meta.shortName }} Metadata Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a> -->
             </td>
 
             {# master layout designer link #}

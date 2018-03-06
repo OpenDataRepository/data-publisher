@@ -86,6 +86,7 @@ class DatatypeInfoService
             FROM ODRAdminBundle:DataType AS dt
             JOIN ODRAdminBundle:DataType AS grandparent WITH dt.grandparent = grandparent
             WHERE dt.setup_step IN (:setup_steps) AND dt.id = grandparent.id
+            AND dt.metadataFor IS NULL
             AND dt.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
         )->setParameters( array('setup_steps' => DataType::STATE_VIEWABLE) );
         $results = $query->getArrayResult();
