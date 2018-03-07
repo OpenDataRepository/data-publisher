@@ -196,15 +196,16 @@
             </label>
             <span
                 {% if has_multiple_uploads == 1 %}
-                    title="This DataField can't be set to only accept a single file, because at least one DataRecord already has multiple files attached to this DataField"
-                {% elseif has_multiple_uploads == 0 and used_by_table_theme == true %}
-                    title="This DataField is currently being used in this DataType's TextResults display, which can only handle one file per DataField"
+                    title="This option can't be changed because at least one Datarecord already has multiple {{ typename }}s uploaded to this Datafield"
                 {% endif %}>
 
             {{ form_errors(datafield_form.allow_multiple_uploads) }}
-            {% if has_multiple_uploads == 1 or (has_multiple_uploads == 0 and used_by_table_theme == true) %}
+            {% if has_multiple_uploads == 1 %}
                 <input type="hidden" name="{{ datafield_form.allow_multiple_uploads.vars.full_name }}" value="1" />
                 {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'disabled': 'disabled', 'style': 'width:auto'} }) }}
+            {% elseif used_by_table_theme == true %}
+                {# TODO - warn when changing this would end up changing table layouts? #}
+                {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'style': 'width:auto'} }) }}
             {% else %}
                 {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'style': 'width:auto'} }) }}
             {% endif %}

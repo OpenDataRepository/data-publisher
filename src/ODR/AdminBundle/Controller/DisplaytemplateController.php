@@ -4126,8 +4126,8 @@ exit();
                     $force_slideout_reload = true;
 
                 // If the datafield is in use by a Table theme, then don't let it have multiple uploads
-                if ($used_by_table_theme && $submitted_data->getAllowMultipleUploads() == true)
-                    $datafield_form->addError( new FormError("This Datafield is being used by a Table theme...it can't be set to allow multiple uploads") );
+//                if ($used_by_table_theme && $submitted_data->getAllowMultipleUploads() == true)
+//                    $datafield_form->addError( new FormError("This Datafield is being used by a Table theme...it can't be set to allow multiple uploads") );
 
 //$datafield_form->addError( new FormError("Do not save") );
 
