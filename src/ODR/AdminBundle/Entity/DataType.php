@@ -1071,15 +1071,16 @@ class DataType
     {
         return $this->metadataForId;
     }
-    /**
-     * @var \ODR\AdminBundle\Entity\DataType
-     */
-    private $metadataDatatype;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
-    private $metadataFor;
+    private $metadata_datatype;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $metadata_for;
 
 
 }
