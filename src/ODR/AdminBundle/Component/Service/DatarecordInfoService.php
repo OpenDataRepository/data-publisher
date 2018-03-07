@@ -301,6 +301,7 @@ class DatarecordInfoService
 
         $datarecord_data = $query->getArrayResult();
 
+        // TODO - if $datarecord_data is empty, then $grandparent_datarecord_id was deleted...should this return something special in that case?
 /*
         if ($timing) {
             $t1 = microtime(true);

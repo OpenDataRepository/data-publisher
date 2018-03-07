@@ -520,6 +520,8 @@ class ODRCustomController extends Controller
     {
         /** @var CacheService $cache_service*/
         $cache_service = $this->container->get('odr.cache_service');
+        /** @var ODRTabHelperService $odr_tab_service */
+        $odr_tab_service = $this->container->get('odr.tab_helper_service');
         /** @var SearchCacheService $search_cache_service */
         $search_cache_service = $this->container->get('odr.search_cache_service');
 
@@ -578,6 +580,14 @@ class ODRCustomController extends Controller
                 return array('redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key'], 'datarecord_list' => '');
 
             $cached_searches = $cache_service->get('cached_search_results');
+
+            // If the cached search results needs to be rebuilt, the lists of datarecords stored in
+            //  the user's session should also be rebuilt
+            $params = $request->query->all();
+            if ( isset($params['odr_tab_id']) ) {
+                $odr_tab_id = $params['odr_tab_id'];
+                $odr_tab_service->clearDatarecordLists($odr_tab_id);
+            }
         }
 
         // ----------------------------------------

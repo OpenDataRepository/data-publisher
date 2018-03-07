@@ -676,6 +676,7 @@ class ThemeInfoService
 
         $theme_data = $query->getArrayResult();
 
+        // TODO - if $theme_data is empty, then $parent_theme_id was deleted...should this return something special in that case?
 /*
         if ($timing) {
             $t1 = microtime(true);

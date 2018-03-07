@@ -95,6 +95,8 @@ class EditController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
@@ -163,6 +165,13 @@ class EditController extends ODRCustomController
             $search_cache_service->clearByDatatypeId($datatype_id);
 
             // Since this is a new top-level datarecord, there's nothing to mark as updated
+
+            // If a list of datarecords is stored in the user's session, then it needs to be cleared
+            $params = $request->query->all();
+            if ( isset($params['odr_tab_id']) ) {
+                $odr_tab_id = $params['odr_tab_id'];
+                $odr_tab_service->clearDatarecordLists($odr_tab_id);
+            }
         }
         catch (\Exception $e) {
             $source = 0x2d4d92e6;

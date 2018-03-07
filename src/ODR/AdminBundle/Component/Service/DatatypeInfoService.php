@@ -394,6 +394,7 @@ class DatatypeInfoService
 
         $datatype_data = $query->getArrayResult();
 
+        // TODO - if $datatype_data is empty, then $grandparent_datatype_id was deleted...should this return something special in that case?
 /*
         if ($timing) {
             $t1 = microtime(true);
