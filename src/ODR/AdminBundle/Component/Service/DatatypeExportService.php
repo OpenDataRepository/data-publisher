@@ -100,6 +100,8 @@ class DatatypeExportService
         /** @var DataType $datatype */
         $datatype = $this->em->getRepository('ODRAdminBundle:DataRecord')->find($datatype_id);
 
+        $master_theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
+
         $user_permissions = $this->pm_service->getUserPermissionsArray($user);
 
 
@@ -109,13 +111,14 @@ class DatatypeExportService
 
         $datarecord_array = array();
         $datatype_array = $this->dti_service->getDatatypeArray($datatype->getId(), $include_links);
-        $theme_array = $this->theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
+        $theme_array = $this->theme_service->getThemeArray($master_theme->getId());
 
         // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
         $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
         // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
         $stacked_datatype_array[ $datatype->getId() ] = $this->dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+        $stacked_theme_array[ $master_theme->getId() ] = $this->theme_service->stackThemeArray($theme_array, $master_theme->getId());
 
 
         // ----------------------------------------
@@ -127,9 +130,10 @@ class DatatypeExportService
             $template,
             array(
                 'datatype_array' => $stacked_datatype_array,
-                'theme_array' => $theme_array,
+                'theme_array' => $stacked_theme_array,
 
                 'initial_datatype_id' => $datatype->getId(),
+                'initial_theme_id' => $master_theme->getId(),
 
                 'using_metadata' => $using_metadata,
                 'baseurl' => $baseurl,

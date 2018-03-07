@@ -1,9 +1,9 @@
-{% macro input(datatype_array, datarecord_array, theme_array, target_datatype_id, parent_datarecord_id, is_top_level, is_link, using_metadata, baseurl, version) %}
+{% macro input(datatype_array, datarecord_array, theme_array, target_datatype_id, parent_datarecord_id, target_theme_id, is_top_level, is_link, using_metadata, baseurl, version) %}
 
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
-{% set theme = theme_array[datatype.id] %}
+{% set theme = theme_array[target_theme_id] %}
 {% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
 
 {# all lists of datarecords are wrapped #}
@@ -31,11 +31,12 @@
         {% include 'ODRAdminBundle:XMLExport:datarecord_fieldarea.xml.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': datarecord_array,
+            'theme_array': theme_array,
 
             'target_datatype_id': target_datatype_id,
             'parent_datarecord_id': parent_datarecord_id,
             'target_datarecord_id': datarecord.id,
-            'theme_array': theme_array,
+            'target_theme_id': target_theme_id,
 
             'is_top_level': is_top_level,
             'is_link': is_link,

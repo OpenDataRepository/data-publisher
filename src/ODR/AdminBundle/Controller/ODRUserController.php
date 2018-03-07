@@ -1665,6 +1665,10 @@ class ODRUserController extends ODRCustomController
             if ( !in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('Only available for top-level Datatypes');
 
+            $top_level_themes = $theme_service->getTopLevelThemes();
+            if ( !in_array($theme_id, $top_level_themes) )
+                throw new ODRBadRequestException('Only available for top-level Themes');
+
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -1689,14 +1693,15 @@ class ODRUserController extends ODRCustomController
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
             $include_links = true;
             $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
-//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
+            $theme_array = $theme_service->getThemeArray($theme->getId());
 
             // Filter by the target user's permissions
             $datarecord_array = array();
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
-            $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $admin_user, $theme->getThemeType(), $include_links);
+            $stacked_datatype_array[ $datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+            $stacked_theme_array[ $theme->getId() ] = $theme_service->stackThemeArray($theme_array, $theme->getId());
+
 
             // ----------------------------------------
             // Render the datatype from the target user's point of view
@@ -1707,10 +1712,12 @@ class ODRUserController extends ODRCustomController
                     array(
                         'datatype_permissions' => $datatype_permissions,
                         'datafield_permissions' => $datafield_permissions,
-                        'theme_array' => $theme_array,
 
-                        'datatype_array' => $datatype_array,
+                        'datatype_array' => $stacked_datatype_array,
+                        'theme_array' => $stacked_theme_array,
+
                         'initial_datatype_id' => $datatype->getId(),
+                        'initial_theme_id' => $theme->getId(),
                     )
                 )
             );
