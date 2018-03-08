@@ -89,29 +89,31 @@ class DatatypeController extends ODRCustomController
             if ($section == "templates") {
                 // Only want master templates to be displayed in this section
                 $query = $em->createQuery(
-                   'SELECT dt, dtm, md, md_dtm, dt_cb, dt_ub
+                     'SELECT dt, dtm, dt_cb, dt_ub
                     FROM ODRAdminBundle:DataType AS dt
                     JOIN dt.dataTypeMeta AS dtm
-                    LEFT JOIN dt.metadata_datatype AS md
-                    JOIN md.dataTypeMeta as md_dtm
                     JOIN dt.createdBy AS dt_cb
                     JOIN dt.updatedBy AS dt_ub
                     WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
                     AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
                 )->setParameters( array('datatypes' => $top_level_datatypes) );
+                    // 'SELECT dt, dtm, md, md_dtm, dt_cb, dt_ub
+                    // LEFT JOIN dt.metadata_datatype AS md
+                    // JOIN md.dataTypeMeta as md_dtm
             }
             else {
                 $query = $em->createQuery(
-                   'SELECT dt, dtm, md, md_dtm dt_cb, dt_ub
+                    'SELECT dt, dtm, dt_cb, dt_ub
                     FROM ODRAdminBundle:DataType AS dt
                     JOIN dt.dataTypeMeta AS dtm
-                    LEFT JOIN dt.metadata_datatype AS md
-                    JOIN md.dataTypeMeta as md_dtm
                     JOIN dt.createdBy AS dt_cb
                     JOIN dt.updatedBy AS dt_ub
                     WHERE dt.id IN (:datatypes) AND dt.is_master_type = 0
                     AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
                 )->setParameters( array('datatypes' => $top_level_datatypes) );
+                // 'SELECT dt, dtm, md, md_dtm, dt_cb, dt_ub
+                // LEFT JOIN dt.metadata_datatype AS md
+                // JOIN md.dataTypeMeta as md_dtm
             }
             $results = $query->getArrayResult();
 
@@ -541,7 +543,7 @@ class DatatypeController extends ODRCustomController
                         // Set new datatype meta
                         $metadata_datatype_meta = clone $datatype->getDataTypeMeta();
                         $metadata_datatype_meta->setShortName($metadata_datatype_meta->getShortName() . " Properties");
-                        $metadata_datatype_meta->setLongName($metadata_datatype_meta->getLongtName() . " Properties");
+                        $metadata_datatype_meta->setLongName($metadata_datatype_meta->getLongName() . " Properties");
                         $metadata_datatype_meta->setDataType($metadata_datatype);
 
                         // Associate the metadata
@@ -578,11 +580,13 @@ class DatatypeController extends ODRCustomController
                             $metadata_datatype->setGrandparent($metadata_datatype);
                             $metadata_datatype->setParent($metadata_datatype);
                             $metadata_datatype->setMasterDataType($master_metadata);
+                            // Clone has wrong state - set to initial
+                            $metadata_datatype->setSetupStep(DataType::STATE_INITIAL);
 
                             // Set new datatype meta
                             $metadata_datatype_meta = clone $datatype->getDataTypeMeta();
-                            // $metadata_datatype_meta->setShortName($metadata_datatype_meta->getShortName() . " Properties");
-                            // $metadata_datatype_meta->setLongName($metadata_datatype_meta->getLongtName() . " Properties");
+                            $metadata_datatype_meta->setShortName($datatype->getDataTypeMeta()->getShortName() . " Properties");
+                            $metadata_datatype_meta->setLongName($datatype->getDataTypeMeta()->getLongName() . " Properties");
                             $metadata_datatype_meta->setDataType($metadata_datatype);
 
                             // Associate the metadata

@@ -958,60 +958,61 @@ class DataType
     /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
-    private $metadataDatatype;
+    // private $metadataDatatype;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
-    private $metadataFor;
+    // private $metadataFor;
 
 
     /**
-     * Set metadataDatatype
+     * Set metadata_datatype
      *
-     * @param \ODR\AdminBundle\Entity\DataType $metadataDatatype
+     * @param \ODR\AdminBundle\Entity\DataType $metadata_datatype
      *
      * @return DataType
      */
-    public function setMetadataDatatype(\ODR\AdminBundle\Entity\DataType $metadataDatatype = null)
+    public function setMetadataDatatype(\ODR\AdminBundle\Entity\DataType $metadata_datatype = null)
     {
-        $this->metadataDatatype = $metadataDatatype;
+        $this->metadata_datatype = $metadata_datatype;
+        $metadata_datatype->setMetadataFor($this);
 
         return $this;
     }
 
     /**
-     * Get metadataDatatype
+     * Get metadata_datatype
      *
      * @return \ODR\AdminBundle\Entity\DataType
      */
     public function getMetadataDatatype()
     {
-        return $this->metadataDatatype;
+        return $this->metadata_datatype;
     }
 
     /**
-     * Set metadataFor
+     * Set metadata_for
      *
-     * @param \ODR\AdminBundle\Entity\DataType $metadataFor
+     * @param \ODR\AdminBundle\Entity\DataType $metadata_for
      *
      * @return DataType
      */
-    public function setMetadataFor(\ODR\AdminBundle\Entity\DataType $metadataFor = null)
+    public function setMetadataFor(\ODR\AdminBundle\Entity\DataType $metadata_for = null)
     {
-        $this->metadataFor = $metadataFor;
+        $this->metadata_for = $metadata_for;
 
         return $this;
     }
 
     /**
-     * Get metadataFor
+     * Get metadata_for
      *
      * @return \ODR\AdminBundle\Entity\DataType
      */
     public function getMetadataFor()
     {
-        return $this->metadataFor;
+        return $this->metadata_for;
     }
     /**
      * @var integer
