@@ -34,7 +34,7 @@
     {% endif %}
 
     <div class="pure-u-1">
-        <button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }}, 'view', {{ offset }});">View DataRecord</button>
+        <button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }}, 'view', '{{ offset }}');">View DataRecord</button>
         <button type="button" class="pure-button pure-button-primary" onclick="exportXML({{ datarecord.id }})">Export DataRecord</button>
 
         {% if is_datatype_admin == 1 %}
