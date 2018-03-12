@@ -112,7 +112,8 @@ class ODRTabHelperService
         $pos = array_search($current_datarecord_id, $search_results);
         if ($pos === false) {
             // TODO - what to do when datarecord isn't in search results
-            throw new ODRBadRequestException('The datarecord '.$current_datarecord_id.' does not match the current search key', 0xc0f79d1d);
+//            throw new ODRBadRequestException('The datarecord '.$current_datarecord_id.' does not match the current search key', 0xc0f79d1d);
+            return null;
         }
         $pos = intval($pos);
 

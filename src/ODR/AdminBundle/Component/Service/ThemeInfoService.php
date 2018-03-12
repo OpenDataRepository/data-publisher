@@ -170,60 +170,6 @@ class ThemeInfoService
 
 
     /**
-     * @deprecated
-     * TODO - now that local/ancestor datatypes have a copy of the theme for a linked datatypes...THIS NEEDS TO BE CHANGED
-     *
-     * Given a top-level datatype id, this function figures out the ids of the themes the user
-     * would prefer to use for all of the associated datatypes, and then returns their cached
-     * entries back to the caller.
-     *
-     * Note that the keys of the returned array are datatype ids, not theme ids.
-     *
-     * @param integer $grandparent_datatype_id
-     * @param ODRUser $user
-     * @param string $theme_type
-     * @param bool $include_links
-     *
-     * @return array
-     */
-    public function getThemesForDatatype($grandparent_datatype_id, $user, $theme_type = 'master', $include_links = true)
-    {
-        $include_links = false;
-        // Ensure the provided theme type is valid
-        if ( !in_array($theme_type, self::VALID_THEMETYPES) )
-            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0xd4ded515);
-
-        // ----------------------------------------
-        $associated_datatypes = array();
-        if ($include_links) {
-            // Need to locate all linked datatypes for the provided datatype
-            $associated_datatypes = $this->cache_service->get('associated_datatypes_for_'.$grandparent_datatype_id);
-            if ($associated_datatypes == false) {
-                $associated_datatypes = $this->dti_service->getAssociatedDatatypes( array($grandparent_datatype_id) );
-
-                // Save the list of associated datatypes back into the cache
-                $this->cache_service->set('associated_datatypes_for_'.$grandparent_datatype_id, $associated_datatypes);
-            }
-        }
-        else {
-            // Don't want any datatypes that are linked to from the given grandparent datatype
-            $associated_datatypes[] = $grandparent_datatype_id;
-        }
-
-        // Now that there's a list of the datatypes that we need themes for...
-        $top_level_themes = self::getTopLevelThemes();
-        $parent_theme_ids = array();
-        foreach ($associated_datatypes as $num => $dt_id) {
-            // ...figure out which theme the user is using for this datatype
-            $parent_theme_ids[] = self::getPreferredTheme($user, $dt_id, $theme_type, $top_level_themes);
-        }
-
-        // Now that the themes are known, return the cached theme array entries for those themes
-        return self::getThemeArray($parent_theme_ids);
-    }
-
-
-    /**
      * Attempts to return the id of the user's preferred theme for the given datatype/theme_type.
      *
      * @param string|ODRUser $user  Either 'anon.' or an ODRUser object
@@ -628,8 +574,7 @@ class ThemeInfoService
 
 
     /**
-     * Loads and returns a cached data array for the specified theme ids.  Note that the keys for
-     * the returned array are datatype ids.
+     * Loads and returns a cached data array for the specified theme ids.
      * 
      * @param integer $parent_theme_id
      * 
