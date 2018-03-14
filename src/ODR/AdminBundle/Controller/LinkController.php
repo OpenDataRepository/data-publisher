@@ -112,6 +112,16 @@ class LinkController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to create a link to a remote Datatype in a ThemeElement that already has Datafields');
 
 
+            // TODO - this is currently blocked...otherwise linking/unlinking a datatype would get
+            // TODO -  attached to a "copy" of the theme for the linked datatype...it wouldn't get
+            // TODO -  located and synchronized to any other theme
+            // Ensure this isn't being called on a linked datatype
+            $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
+            $grandparent_datatype_id = $local_datatype->getGrandparent()->getId();
+            if ($grandparent_datatype_id !== $parent_theme_datatype_id)
+                throw new ODRBadRequestException('Unable to link to or unlink from a Datatype inside a Linked Datatype');
+
+
             // ----------------------------------------
             // Locate the previously linked datatype if it exists
             /** @var DataType|null $current_remote_datatype */
@@ -393,6 +403,15 @@ class LinkController extends ODRCustomController
             $theme_datafields = $em->getRepository('ODRAdminBundle:ThemeDataField')->findBy( array('themeElement' => $theme_element_id) );
             if ( count($theme_datafields) > 0 )
                 throw new ODRBadRequestException('Unable to link a remote Datatype into a ThemeElement that already has Datafields');
+
+            // TODO - this is currently blocked...otherwise linking/unlinking a datatype would get
+            // TODO -  attached to a "copy" of the theme for the linked datatype...it wouldn't get
+            // TODO -  located and synchronized to any other theme
+            // Ensure this isn't being called on a linked datatype
+            $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
+            $grandparent_datatype_id = $local_datatype->getGrandparent()->getId();
+            if ($grandparent_datatype_id !== $parent_theme_datatype_id)
+                throw new ODRBadRequestException('Unable to link to or unlink from a Datatype inside a Linked Datatype');
 
 
             // ----------------------------------------

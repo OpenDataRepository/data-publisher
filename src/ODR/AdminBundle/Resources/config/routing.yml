@@ -215,14 +215,14 @@ odr_save_group_datafield_permission:
 # Render Plugin routes
 odr_render_plugin_dialog:
     path:  /design/displaytemplate/plugindialog/{datatype_id}/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:plugindialog }
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:renderplugindialog }
     requirements:
         datatype_id:  \d+
         datafield_id:  \d+
 
 odr_load_plugin_data:
     path:  /design/displaytemplate/plugindata/{datatype_id}/{datafield_id}/{render_plugin_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:pluginsettings }
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:renderpluginsettings }
     requirements:
         datatype_id:  \d+
         datafield_id:  \d+

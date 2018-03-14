@@ -271,7 +271,7 @@ class CloneThemeService
             unset( $diff_array['new_datatypes'] );
 
         // If there actually are differences, store them in the array
-        if ( count($diff_array) > 1 )
+        if ( count($diff_array) > 0 )
             $theme_diff_array[$theme_id] = $diff_array;
 
 

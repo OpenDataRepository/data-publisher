@@ -587,6 +587,7 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // TODO - prevent datatype deletion when called from a linked dataype?  not sure if this is possible...
             // TODO - prevent datatype deletion when jobs are in progress?
 
 
@@ -1266,6 +1267,16 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to add a Datafield into a ThemeElement that already has a child/linked Datatype');
 
 
+            // TODO - this is currently blocked...otherwise the new datafield would get attached
+            // TODO -  to a "copy" of the theme for the linked datatype...it wouldn't get located
+            // TODO -  and synchronized to any other theme
+            // Ensure this isn't being called on a linked datatype
+            $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
+            $grandparent_datatype_id = $datatype->getGrandparent()->getId();
+            if ($grandparent_datatype_id !== $parent_theme_datatype_id)
+                throw new ODRBadRequestException('Unable to create a new child Datatype inside a Linked Datatype');
+
+
             // ----------------------------------------
             // Grab objects required to create a datafield entity
             /** @var FieldType $fieldtype */
@@ -1378,6 +1389,16 @@ class DisplaytemplateController extends ODRCustomController
             // Don't allow cloning of a datafield outside the master theme
             if ($theme->getThemeType() !== 'master')
                 throw new ODRBadRequestException('Unable to clone a datafield outside of a "master" theme');
+
+            // TODO - this is currently blocked...otherwise the copied datafield would get attached
+            // TODO -  to a "copy" of the theme for the linked datatype...it wouldn't get located
+            // TODO -  and synchronized to any other theme
+            // Ensure this isn't being called on a linked datatype
+            $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
+            $grandparent_datatype_id = $datatype->getGrandparent()->getId();
+            if ($grandparent_datatype_id !== $parent_theme_datatype_id)
+                throw new ODRBadRequestException('Unable to copy a Datafield inside a Linked Datatype');
+
 
             // TODO - allow cloning of radio datafields
             if ($old_datafield->getFieldType()->getTypeClass() == 'Radio')
@@ -1949,6 +1970,16 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to add a child Datatype into a ThemeElement that already has Datafields');
 
 
+            // TODO - this is currently blocked...otherwise the new child datatype would get attached
+            // TODO -  to a "copy" of the theme for the linked datatype...it wouldn't get located
+            // TODO -  and synchronized to any other theme
+            // Ensure this isn't being called on a linked datatype
+            $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
+            $grandparent_datatype_id = $parent_datatype->getGrandparent()->getId();
+            if ($grandparent_datatype_id !== $parent_theme_datatype_id)
+                throw new ODRBadRequestException('Unable to create a new child Datatype inside a Linked Datatype');
+
+
             // ----------------------------------------
             // Defaults
             /** @var RenderPlugin $render_plugin */
@@ -2102,7 +2133,7 @@ class DisplaytemplateController extends ODRCustomController
      * 
      * @return Response
      */
-    public function plugindialogAction($datatype_id, $datafield_id, Request $request)
+    public function renderplugindialogAction($datatype_id, $datafield_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2235,7 +2266,7 @@ class DisplaytemplateController extends ODRCustomController
      * 
      * @return Response
      */
-    public function pluginsettingsAction($datatype_id, $datafield_id, $render_plugin_id, Request $request)
+    public function renderpluginsettingsAction($datatype_id, $datafield_id, $render_plugin_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
