@@ -2057,6 +2057,13 @@ $ret .= '  Set current to '.$count."\n";
             $all_datatypes[$ancestor_id]['descendants'][] = $descendant_id;
         }
 
+        // Apparently the ancestors/descendants parts of the array can be empty?
+        foreach ($all_datatypes as $dt_id => $tmp) {
+            if ( !isset($tmp['ancestors']) )
+                $all_datatypes[$dt_id]['ancestors'] = array();
+            if ( !isset($tmp['descendants']) )
+                $all_datatypes[$dt_id]['descendants'] = array();
+        }
 
         // While there are still datatypes that need processing...
         $index = 0;
@@ -2126,7 +2133,7 @@ $ret .= '  Set current to '.$count."\n";
             // Get a list of top-level themes ordered so that the theme cloner won't run into
             //  null pointer exceptions...
             $top_level_themes = self::computedependencies();
-//            print '<pre>'.print_r($top_level_themes, true).'</pre>';  exit();
+//exit( '<pre>'.print_r($top_level_themes, true).'</pre>' );
 
             // Want to be able to update deleted entities as well
             $em->getFilters()->disable('softdeleteable');
