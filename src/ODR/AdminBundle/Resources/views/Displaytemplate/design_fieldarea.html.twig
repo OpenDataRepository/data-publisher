@@ -63,7 +63,7 @@
                 {% set datafield_id = theme_datafield.dataField.id %}
 
                 {% if datatype['dataFields'][datafield_id] is not defined %}
-                    <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {% if not is_datatype_admin %}ODRForbidden{% endif %}" id="Field_{{ datafield.id }}" ></div>
+                    <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {% if not is_datatype_admin %}ODRForbidden{% endif %}" id="Field_{{ datafield_id }}" ></div>
                 {% else %}
                     {% set datafield = datatype['dataFields'][datafield_id] %}
 

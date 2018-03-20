@@ -821,8 +821,8 @@ class ThemeController extends ODRCustomController
                 throw new ODRBadRequestException();
 
             // Don't allow on a 'master' theme
-            if ($theme->getThemeType() == 'master')
-                throw new ODRBadRequestException('ThemeController::modifythemeAction() called on a master theme');
+//            if ($theme->getThemeType() == 'master')
+//                throw new ODRBadRequestException('ThemeController::modifythemeAction() called on a master theme');
 
 
             // --------------------

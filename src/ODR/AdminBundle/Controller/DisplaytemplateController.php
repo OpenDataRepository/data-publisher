@@ -551,6 +551,8 @@ class DisplaytemplateController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
+        $conn = null;
+
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -966,7 +968,7 @@ class DisplaytemplateController extends ODRCustomController
         }
         catch (\Exception $e) {
             // Don't commit changes if any error was encountered...
-            if ($conn->isTransactionActive())
+            if ( !is_null($conn) && $conn->isTransactionActive() )
                 $conn->rollBack();
 
             $source = 0xa6304ef8;

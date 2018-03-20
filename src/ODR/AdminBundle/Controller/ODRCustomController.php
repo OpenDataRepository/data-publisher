@@ -440,7 +440,7 @@ class ODRCustomController extends Controller
                     'page_length' => $page_length,
 
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
-//                    'all_datarecords' => $datarecords,    // TODO - this isn't used?
+                    'all_datarecords' => $datarecords,    // this is used by datarecord linking
                     'use_jupyterhub' => $use_jupyterhub,
                 )
             );
@@ -496,7 +496,7 @@ class ODRCustomController extends Controller
                     'offset' => $offset,
 
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
-//                    'all_datarecords' => $datarecords,    // TODO - this isn't used?
+                    'all_datarecords' => $datarecords,    // This is used by the datarecord linking
                     'use_jupyterhub' => $use_jupyterhub,
                 )
             );

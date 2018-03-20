@@ -78,9 +78,10 @@ class CloneThemeService
      * Saves and reloads the provided object from the database.
      *
      * @param mixed $obj
-     * @param ODRUser|null $user
+     * @param ODRUser $user
+     * @param bool $delay_flush
      */
-    private function persistObject($obj, $user = null)
+    private function persistObject($obj, $user, $delay_flush = false)
     {
         //
         if (method_exists($obj, "setCreated"))
@@ -98,8 +99,11 @@ class CloneThemeService
         }
 
         $this->em->persist($obj);
-        $this->em->flush();
-        $this->em->refresh($obj);
+
+        if (!$delay_flush) {
+            $this->em->flush();
+            $this->em->refresh($obj);
+        }
     }
 
 
@@ -391,7 +395,7 @@ class CloneThemeService
                     $target_theme_element->setTheme($current_theme);
 
                     $current_theme->addThemeElement($target_theme_element);
-                    self::persistObject($target_theme_element);
+                    self::persistObject($target_theme_element, $user);
 
                     // ...create a new meta entry for the new theme element
                     $new_tem = new ThemeElementMeta();
@@ -404,7 +408,7 @@ class CloneThemeService
 
                     // Ensure the in-memory version of the new theme element knows about its meta entry
                     $target_theme_element->addThemeElementMetum($new_tem);
-                    self::persistObject($new_tem);
+                    self::persistObject($new_tem, $user);
 
                     $this->logger->debug('CloneThemeService: -- created a new theme element '.$target_theme_element->getId());
                 }
@@ -424,10 +428,12 @@ class CloneThemeService
                     $new_theme_datafield->setDisplayOrder(999);
 
                     $target_theme_element->addThemeDataField($new_theme_datafield);
-                    self::persistObject($new_theme_datafield);
+                    self::persistObject($new_theme_datafield, $user, true);    // These don't need to be flushed/refreshed immediately...
 
                     $this->logger->debug('CloneThemeService: -- -- cloned theme datafield '.$tdf_id.' for datafield '.$df_id.' "'.$theme_datafield->getDataField()->getFieldName().'"');
                 }
+
+                $this->em->flush();
             }
 
             // If entries for datatypes need to be created...
@@ -461,7 +467,7 @@ class CloneThemeService
                     $new_theme_element_meta->setThemeElement($new_theme_element);
 
                     $new_theme_element->addThemeElementMetum($new_theme_element_meta);
-                    self::persistObject($new_theme_element_meta);
+                    self::persistObject($new_theme_element_meta, $user);
 
                     $this->logger->debug('CloneThemeService: -- created new theme element '.$new_theme_element->getId());
 
@@ -475,6 +481,12 @@ class CloneThemeService
 
         // Mark the theme as updated
         $this->theme_service->updateThemeCacheEntry($theme, $user);
+
+        // Also need to wipe any cached datatype data, otherwise themes for new child/linked
+        //  datatypes won't show up
+        $this->cache_service->delete('cached_datatype_'.$theme->getDataType()->getId());
+        $this->cache_service->delete('associated_datatypes_for_'.$theme->getDataType()->getId());   // this is already a top-level theme for a grandparent datatype
+
         $this->logger->info('----------------------------------------');
 
         // Return that changes were made
@@ -505,8 +517,8 @@ class CloneThemeService
             throw new ODRBadRequestException("Don't clone a child Datatype's Theme...either sync or clone this Datatype's grandparent's Theme");
 
         // ...also make some attempt to prevent duplicate "master" themes
-        if ($dest_theme_type == 'master')
-            throw new ODRBadRequestException('Datatypes should only have one "master" theme');
+//        if ($dest_theme_type == 'master')
+//            throw new ODRBadRequestException('Datatypes should only have one "master" theme');
 
 
         $this->logger->info('----------------------------------------');
@@ -602,11 +614,13 @@ class CloneThemeService
 
                 // Ensure the "in-memory" version knows about the new theme_datafield entry
                 $new_te->addThemeDataField($new_tdf);
-                self::persistObject($new_tdf, $user);
+                self::persistObject($new_tdf, $user, true);    // These don't need to be flushed/refreshed immediately...
 
                 $df = $new_tdf->getDataField();
                 $this->logger->debug('CloneThemeService: -- -- copied theme_datafield '.$source_tdf->getId().' for datafield '.$df->getId().' "'.$df->getFieldName().'"');
             }
+
+            $this->em->flush();
 
             // Also clone each ThemeDatatype entry in each of these theme elements
             /** @var ThemeDataType[] $source_theme_dt_array */
@@ -730,238 +744,6 @@ class CloneThemeService
 
         $this->logger->debug('CloneThemeService: finished cloning source theme '.$source_theme->getId().' (datatype '.$dest_datatype->getId().') into theme_element '.$theme_element->getId().' of theme '.$theme_element->getTheme()->getId().' (datatype '.$theme_element->getTheme()->getDataType()->getId().')...');
         $this->logger->debug('----------------------------------------');
-
-        // Return the new theme
-        return $new_theme;
-    }
-
-
-
-
-
-
-
-
-
-
-    /**
-     * This function is for the CloneDatatypeService to copy the master template's themes into the
-     * Datatype being cloned.
-     *
-     * @param ODRUser $user
-     * @param Theme $source_theme
-     * @param Datatype[] $mapping Array keys are master template datatype ids, array values
-     *                            are the Datatype entries that have been cloned from the templates
-     *
-     * @throws ODRBadRequestException
-     *
-     * @return Theme
-     */
-    public function cloneThemeFromTemplate($user, $source_theme, $mapping)
-    {
-        // ----------------------------------------
-        // If the source theme does not belong to a top-level datatype, then refuse to clone
-        if ($source_theme->getId() !== $source_theme->getParentTheme()->getId())
-            throw new ODRBadRequestException("Don't clone a child Datatype's Theme...either sync or clone this Datatype's grandparent's Theme");
-        $this->logger->info('----------------------------------------');
-
-
-        // ----------------------------------------
-        // Clone the theme for the top-level datatype first
-        $source_datatype = $source_theme->getDataType();
-        $dest_datatype = $mapping[ $source_datatype->getId() ];
-
-        $this->logger->info('CloneThemeService: attempting to clone source theme '.$source_theme->getId().' "'.$source_theme->getThemeType().'" from datatype '.$source_datatype->getId().' into destination datatype '.$dest_datatype->getId().' "'.$dest_datatype->getShortName().'"');
-        $this->logger->info('----------------------------------------');
-        $new_parent_theme = self::cloneTemplateTheme($user, $source_theme, $mapping, $source_theme->getThemeType());
-
-        // Then, for each theme with $source_theme as its parent...
-        $query = $this->em->createQuery(
-           'SELECT t
-            FROM ODRAdminBundle:Theme AS t
-            WHERE t.parentTheme = :parent_theme AND t.id != :top_level_theme
-            AND t.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'parent_theme' => $source_theme->getId(),
-                'top_level_theme' => $source_theme->getId()     // don't want to re-clone the theme for the top-level datatype
-            )
-        );
-        $results = $query->getResult();
-
-        /** @var Theme $child_theme */
-        foreach ($results as $child_theme) {
-            // ...clone the relevant theme for each child datatype
-            $source_datatype = $child_theme->getDataType();
-            $child_datatype = $mapping[ $source_datatype->getId() ];
-
-            $this->logger->debug('----------------------------------------');
-            $this->logger->debug('CloneThemeService: attempting to clone source theme '.$child_theme->getId().' "'.$child_theme->getThemeType().'" from datatype '.$source_datatype->getId().' into destination datatype '.$child_datatype->getId().' "'.$child_datatype->getShortName().'"');
-            self::cloneTemplateTheme($user, $child_theme, $mapping, $child_theme->getThemeType(), $new_parent_theme);
-        }
-
-        $this->logger->info('CloneThemeService: finished cloning source theme '.$source_theme->getId());
-        return $new_parent_theme;
-    }
-
-
-    /**
-     * Clones the provided Theme and its ThemeElements, ThemeDatafields, ThemeDatatypes, and Meta
-     * entries, and attaches the clone to the specified datatype under the specified theme_type.
-     *
-     * This will ALWAYS create a new Theme.
-     *
-     * This function is private because the rest of ODR doesn't need the ability to clone an
-     * arbitrary Theme, and should instead go through self::cloneSourceTheme() to create a new
-     * Theme for a top-level datatype and all its children...or use self::syncThemeWithSource()
-     * to update an existing Theme with new Datafields and child Datatypes.
-     *
-     * @param ODRUser $user
-     * @param Theme $source_theme
-     * @param Datatype[] $mapping
-     * @param string $dest_theme_type
-     * @param Theme|null $dest_parent_theme  MUST be specified when cloning into a child datatype
-     *
-     * @throws ODRBadRequestException
-     *
-     * @return Theme
-     */
-    private function cloneTemplateTheme($user, $source_theme, $mapping, $dest_theme_type, $dest_parent_theme = null)
-    {
-        // ----------------------------------------
-        // Need to...
-        $source_datatype = $source_theme->getDataType();
-        $dest_datatype = $mapping[ $source_datatype->getId() ];
-
-        // Don't accidentally create a second 'master' theme for this datatype
-        foreach ($dest_datatype->getThemes() as $theme) {
-            /** @var Theme $theme */
-            if ($theme->getThemeType() == 'master' && $dest_theme_type == 'master')
-                throw new ODRBadRequestException('Datatypes are not allowed to have more than one "master" theme');
-        }
-
-        // Going to need these...
-        // TODO - modify datatype cloning so this info is contained in $mapping
-        $repo_datafield = $this->em->getRepository('ODRAdminBundle:DataFields');
-
-
-        // ----------------------------------------
-        // Create a new theme for this...doesn't make sense to clone, changing everything
-        $new_theme = new Theme();
-        $new_theme->setDataType($dest_datatype);
-        $new_theme->setThemeType($dest_theme_type);
-        $new_theme->setSourceTheme(null);
-        $new_theme->setParentTheme($dest_parent_theme);
-
-        // Ensure the "in-memory" version of $dest_datatype knows about its new theme
-        $dest_datatype->addTheme($new_theme);
-        self::persistObject($new_theme, $user);
-
-
-        // This is part of cloning a datatype...unfortunately, this function has no way to
-        //  determine source theme if the destination theme_type isn't 'master'
-        if ($dest_theme_type == 'master')
-            $new_theme->setSourceTheme($new_theme);
-
-        // CloneDatatypeService has to set the sourceTheme property for every other theme created
-
-
-
-        // If $dest_parent_theme is null, then this is a theme for a top-level datatype, therefore
-        //  this theme's parent should be set to itself
-        // This works the same whether just cloning a theme, or whether cloning an entire datatype
-        if ($dest_parent_theme == null)
-            $new_theme->setParentTheme($new_theme);
-
-        $this->em->persist($new_theme);
-
-        // Clone the source theme's meta entry
-        $new_theme_meta = clone $source_theme->getThemeMeta();
-        $new_theme_meta->setTheme($new_theme);
-
-        // Ensure the "in-memory" representation of $new_theme knows about the new theme meta entry
-        $new_theme->addThemeMetum($new_theme_meta);
-        self::persistObject($new_theme_meta, $user);
-
-        $this->logger->info('CloneThemeService: created new theme '.$new_theme->getId().' "'.$dest_theme_type.'"...parent theme set to '.$new_theme->getParentTheme()->getId());
-        $this->em->refresh($new_theme);
-        if ($new_theme->getSourceTheme() != null)
-            $this->logger->info('CloneThemeService: -- source theme set to '.$new_theme->getSourceTheme()->getId());
-        else
-            $this->logger->info('CloneThemeService: -- WARNING: source theme set to null...CloneDatatypeService should be setting this later...');
-
-        // ----------------------------------------
-        // For each theme element the source theme has...
-        foreach ($source_theme->getThemeElements() as $source_te) {
-            /** @var ThemeElement $source_te */
-            // ...create a new theme element
-            $new_te = clone $source_te;
-            $new_te->setTheme($new_theme);
-
-            // Ensure the "in-memory" representation of $new_theme knows about the new theme entry
-            $new_theme->addThemeElement($new_te);
-            self::persistObject($new_te, $user);
-
-            // ...copy its meta entry
-            $new_te_meta = clone $source_te->getThemeElementMeta();
-            $new_te_meta->setThemeElement($new_te);
-
-            // Ensure the "in-memory" representation of $new_te knows about its meta entry
-            $new_te->addThemeElementMetum($new_te_meta);
-            self::persistObject($new_te_meta, $user);
-
-            $this->logger->debug('CloneThemeService: -- copied theme_element '.$source_te->getId().' into new datatype theme_element '.$new_te->getId());
-
-            // Also clone each ThemeDatafield entry in each of these theme elements
-            /** @var ThemeDataField[] $source_theme_df_array */
-            $source_theme_df_array = $source_te->getThemeDataFields();
-            foreach ($source_theme_df_array as $source_tdf) {
-                $new_tdf = clone $source_tdf;
-                $new_tdf->setThemeElement($new_te);
-
-                // This ThemeDatafield entry needs to point to the cloned datafield in the new
-                //  Datatype...pointing to the old one would be useless
-                /** @var DataFields $cloned_datafield */
-                $this->logger->debug('CloneThemeService: -- -- attempting to locate correct datafield by datatype id '.$dest_datatype->getId().', masterDatafield '.$source_tdf->getDataField()->getId().'...' );
-                $cloned_datafield = $repo_datafield->findOneBy(
-                    array(
-                        'dataType' => $dest_datatype->getId(),
-                        'masterDataField' => $source_tdf->getDataField()->getId(),
-                    )
-                );
-                $new_tdf->setDataField($cloned_datafield);
-
-                // Ensure the "in-memory" version knows about the new theme_datafield entry
-                $new_te->addThemeDataField($new_tdf);
-                self::persistObject($new_tdf, $user);
-
-                $df = $new_tdf->getDataField();
-                $this->logger->debug('CloneThemeService: -- -- copied theme_datafield '.$source_tdf->getId().' for datafield '.$df->getId().' "'.$df->getFieldName().'"');
-            }
-
-            // Also clone each ThemeDatatype entry in each of these theme elements
-            /** @var ThemeDataType[] $source_theme_dt_array */
-            $source_theme_dt_array = $source_te->getThemeDataType();
-            foreach ($source_theme_dt_array as $source_tdt) {
-                $new_tdt = clone $source_tdt;
-                $new_tdt->setThemeElement($new_te);
-
-                // This ThemeDatatype entry needs to point to the cloned child datatype in the new
-                //  Datatype...pointing to the old one would be useless
-                $tdt_dest_datatype = $mapping[ $source_tdt->getDataType()->getId() ];
-                $new_tdt->setDataType($tdt_dest_datatype);
-
-                // Ensure the "in-memory" version of knows about the new theme_datatype entry
-                $new_te->addThemeDataType($new_tdt);
-                self::persistObject($new_tdt, $user);
-
-                $dt = $new_tdt->getDataType();
-                $this->logger->debug('CloneThemeService: -- -- copied theme_datatype '.$source_tdt->getId().' for datatype '.$dt->getId().' "'.$dt->getShortName().'"');
-            }
-        }
-
-        // Ensure the relevant cache entry is deleted
-        $this->cache_service->delete('cached_theme_'.$new_theme->getParentTheme()->getId());
 
         // Return the new theme
         return $new_theme;

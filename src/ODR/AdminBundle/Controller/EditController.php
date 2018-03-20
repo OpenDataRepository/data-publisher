@@ -292,6 +292,8 @@ class EditController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
+        $conn = null;
+
         try {
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -453,7 +455,7 @@ class EditController extends ODRCustomController
         }
         catch (\Exception $e) {
             // Don't commit changes if any error was encountered...
-            if ($conn->isTransactionActive())
+            if ( !is_null($conn) && $conn->isTransactionActive() )
                 $conn->rollBack();
 
             $source = 0x2fb5590f;
@@ -483,6 +485,8 @@ class EditController extends ODRCustomController
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
+
+        $conn = null;
 
         try {
             // Get Entity Manager and setup repo
@@ -631,7 +635,7 @@ class EditController extends ODRCustomController
         }
         catch (\Exception $e) {
             // Don't commit changes if any error was encountered...
-            if ($conn->isTransactionActive())
+            if ( !is_null($conn) && $conn->isTransactionActive() )
                 $conn->rollBack();
 
             $source = 0x82bb1bb6;

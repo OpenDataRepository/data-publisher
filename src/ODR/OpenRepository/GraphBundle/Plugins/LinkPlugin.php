@@ -106,7 +106,9 @@ class LinkPlugin
                 );
             }
             else {
-                // ...if not, then render using the default layout.  After all, it's not too useful to only have a link to this datarecord's view page when you're actually on this datarecord's view page...
+                // ...if not, then render using the default layout.  After all, it's not too useful
+                //  to only have a link to this datarecord's view page when you're actually on this
+                //  datarecord's view page...
                 $parent_datarecord_id = '';
                 $target_datarecord_id = '';
                 foreach ($datarecords as $dr_id => $dr) {
@@ -115,16 +117,23 @@ class LinkPlugin
                     break;
                 }
 
+                // Should only ever be one theme in here at a time...
+                $target_theme_id = '';
+                foreach ($theme_array as $t_id => $t)
+                    $target_theme_id = $t_id;
+
+
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Link:link_default.html.twig',
                     array(
                         'datatype_array' => array($datatype['id'] => $datatype),
                         'datarecord_array' => $datarecords,
+                        'theme_array' => $theme_array,
 
                         'target_datatype_id' => $datatype['id'],
                         'parent_datarecord_id' => $parent_datarecord_id,
                         'target_datarecord_id' => $target_datarecord_id,
-                        'theme_array' => $theme_array,
+                        'target_theme_id' => $target_theme_id,
 
                         'is_top_level' => $rendering_options['is_top_level'],
                         'is_link' => $rendering_options['is_link'],

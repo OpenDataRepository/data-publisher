@@ -310,22 +310,25 @@ class ThemeInfoService
 
 
     /**
-     * Clears the user's preferred theme for this datatype for this session.
+     * Clears the user's preferred theme for this datatype for this session.  If a theme_type is
+     * specified, then only that theme_type for the datatype is cleared.
      *
      * @param integer $datatype_id
      * @param string $theme_type
      */
-    public function resetSessionTheme($datatype_id, $theme_type)
+    public function resetSessionTheme($datatype_id, $theme_type = '')
     {
-        // Ensure the provided theme type is valid
-        if ( !in_array($theme_type, self::VALID_THEMETYPES) )
-            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0x68a0df80);
+        $theme_class = '';
+        if ($theme_type !== '') {
+            // Ensure the provided theme type is valid
+            if (!in_array($theme_type, self::VALID_THEMETYPES))
+                throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0x68a0df80);
 
-        // Themes are stored in the session by which "class" they belong to
-        $theme_class = 'long_form';
-        if ( in_array($theme_type, self::SHORT_FORM_THEMETYPES) )
-            $theme_class = 'short_form';
-
+            // Themes are stored in the session by which "class" they belong to
+            $theme_class = 'long_form';
+            if (in_array($theme_type, self::SHORT_FORM_THEMETYPES))
+                $theme_class = 'short_form';
+        }
 
         // Load any existing session themes
         $session_themes = array();
@@ -333,10 +336,11 @@ class ThemeInfoService
             $session_themes = $this->session->get('session_themes');
 
         // Unset the theme for this session if it exists
-        if (isset($session_themes[$datatype_id])
-            && isset($session_themes[$datatype_id][$theme_class])
-        ) {
-            unset( $session_themes[$datatype_id][$theme_class] );
+        if (isset($session_themes[$datatype_id]) ) {
+            if ($theme_class === '')
+                unset( $session_themes[$datatype_id] );
+            else if ( isset($session_themes[$datatype_id][$theme_class]) )
+                unset( $session_themes[$datatype_id][$theme_class] );
         }
 
         // Save back to session
