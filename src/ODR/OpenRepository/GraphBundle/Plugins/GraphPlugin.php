@@ -217,14 +217,22 @@ class GraphPlugin
             $odr_chart_ids['rollup'] = $odr_chart_id;
             $odr_chart_output_files['rollup'] = '/uploads/files/graphs/' . $filename;
 
-            // Pulled up here so build graph can access the data.
+
+            // ----------------------------------------
+            // Should only be one element in $theme_array...
+            $theme = null;
+            foreach ($theme_array as $t_id => $t)
+                $theme = $t;
+
+            // Pulled up here so build graph can access the data
             $page_data = array(
                 'datatype_array' => array($datatype['id'] => $datatype),
                 'datarecord_array' => $datarecords,
                 'theme_array' => $theme_array,
-                'target_datatype_id' => $datatype['id'],
 
-                // TODO - figure out what these do
+                'target_datatype_id' => $datatype['id'],
+                'target_theme_id' => $theme['id'],
+
                 'is_top_level' => $rendering_options['is_top_level'],
                 'is_link' => $rendering_options['is_link'],
                 'display_type' => $rendering_options['display_type'],

@@ -1,7 +1,7 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[initial_datatype_id] %}
-{% set theme = theme_array[datatype.id] %}
+{% set theme = theme_array[initial_theme_id] %}
 
 {% set is_datatype_admin = false %}
 {% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
@@ -53,6 +53,7 @@
             'theme_array': theme_array,
 
             'initial_datatype_id': initial_datatype_id,
+            'initial_theme_id': initial_theme_id,
             'editable_datarecord_list': editable_datarecord_list,
 
             'offset': offset,

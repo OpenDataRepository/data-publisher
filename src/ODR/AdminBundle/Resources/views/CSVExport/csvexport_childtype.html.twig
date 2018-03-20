@@ -7,11 +7,15 @@
     <div class="ODRFieldArea pure-u-1" id="FieldArea_{{ datatype.id }}">
         {% include 'ODRAdminBundle:CSVExport:csvexport_fieldarea.html.twig' with {
             'datatype_array': datatype_array,
-            'target_datatype_id': target_datatype_id,
             'theme_array': theme_array,
+
+            'target_datatype_id': initial_datatype_id,
+            'target_theme_id': initial_theme_id,
+
             'is_top_level': is_top_level
         } %}
     </div><!-- End of #FieldArea_{{ datatype.id }} -->
 
 </div><!-- End of #DataType_{{ datatype.id }} -->
+
 {% endspaceless %}

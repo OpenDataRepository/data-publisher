@@ -1,7 +1,7 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
-{% set theme = theme_array[datatype.id] %}
+{% set theme = theme_array[target_theme_id] %}
 {% set datarecord = datarecord_array[target_datarecord_id] %}
 
 {% set can_edit_record = 0 %}
@@ -89,10 +89,12 @@
                     {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
                     {% for theme_datatype in theme_element.themeDataType %}
                         {% set child_datatype_id = theme_datatype.dataType.id %}
+                        {% set child_theme_id = theme_datatype.childTheme.id %}
 
                         {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
                         {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
                             {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
+                            {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
 
                             {# pass all child datarecords of this child datatype at once... #}
                             {% set datarecord_array = {} %}
@@ -103,10 +105,11 @@
                             {% include 'ODRAdminBundle:Edit:edit_fieldarea_childtype.html.twig' with {
                                 'datatype_array': child_datatype,
                                 'datarecord_array': datarecord_array,
-                                'theme_array': theme_array,
+                                'theme_array': child_theme,
 
                                 'target_datatype_id': child_datatype_id,
                                 'parent_datarecord': datarecord,
+                                'target_theme_id': child_theme_id,
 
                                 'datatype_permissions': datatype_permissions,
                                 'datafield_permissions': datafield_permissions,

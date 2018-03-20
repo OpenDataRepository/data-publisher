@@ -1,4 +1,3 @@
-{% set datatype = datatype_array[initial_datatype_id] %}
 
 {% set is_top_level = 1 %}
 {% set is_link = 0 %}
@@ -6,5 +5,5 @@
 {
     {# using macro on purpose #}
     {% import "ODRAdminBundle:XMLExport:datatype_childtype.json.twig" as mychildform %}
-    {{ mychildform.input(datatype_array, theme_array, initial_datatype_id, is_top_level, is_link, using_metadata, baseurl, version) }}
+    {{ mychildform.input(datatype_array, theme_array, initial_datatype_id, initial_theme_id, is_top_level, is_link, using_metadata, baseurl, version) }}
 }

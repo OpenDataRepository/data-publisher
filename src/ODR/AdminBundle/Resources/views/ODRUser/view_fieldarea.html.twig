@@ -1,28 +1,31 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
-{% set theme = theme_array[datatype.id] %}
+{% set theme = theme_array[target_theme_id] %}
 
 {% for theme_element in theme.themeElements %}
 
     <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
-        <div class="ODRInnerBox">
+    <div class="ODRInnerBox">
 
-            {% if theme_element.themeDataFields is defined %}
+        {% if theme_element.themeDataFields is defined %}
+            {% for theme_datafield in theme_element.themeDataFields %}
+                {# Output via results_datafield or markdown #}
+                {% if theme_datafield.dataField is defined %}
+                    {% set datafield_id = theme_datafield.dataField.id %}
 
-                {% for theme_datafield in theme_element.themeDataFields %}
-                    {# Output via results_datafield or markdown #}
-                    {% if theme_datafield.dataField is defined %}
-                        {% set datafield_id = theme_datafield.dataField.id %}
+                    {% if datatype['dataFields'][datafield_id] is not defined %}
+                        {# user doesn't have permissions to see this datafield #}
+                        <div class="pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"></div>
+                    {% else %}
+                        {% set datafield = datatype['dataFields'][datafield_id] %}
 
-                        {% if datatype['dataFields'][datafield_id] is defined %}
-                            {% set datafield = datatype['dataFields'][datafield_id] %}
-
+                        {% if theme_datafield.hidden == 0 %}
                             <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datafield.id }}" >
-
                                 {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
                                     {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
                                 {% else %}
+
                                     {% include 'ODRAdminBundle:ODRUser:view_datafield.html.twig' with {
                                         'theme': theme,
                                         'theme_datafield': theme_datafield,
@@ -33,36 +36,41 @@
                                         'datafield_permissions': datafield_permissions,
                                     } %}
                                 {% endif %}
-                            </div>
                         {% endif %}
+                        </div>
                     {% endif %}
-                {% endfor %}
+                {% endif %}
+            {% endfor %}
 
-            {% elseif theme_element.themeDataType is defined %}
+        {% elseif theme_element.themeDataType is defined %}
+            {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
+            {% for theme_datatype in theme_element.themeDataType %}
+                {% set child_datatype_id = theme_datatype.dataType.id %}
+                {% set child_theme_id = theme_datatype.childTheme.id %}
 
-                {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
-                {% for theme_datatype in theme_element.themeDataType %}
-                    {% set child_datatype_id = theme_datatype.dataType.id %}
+                {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
+                {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
+                    {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
+                    {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
 
-                    {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
-                    {% if datatype['descendants'][child_datatype_id] is defined and datatype_array[child_datatype_id] is defined %}
+                    {% include 'ODRAdminBundle:ODRUser:view_childtype.html.twig' with {
+                        'datatype_permissions': datatype_permissions,
+                        'datafield_permissions': datafield_permissions,
 
-                        {% include 'ODRAdminBundle:ODRUser:view_childtype.html.twig' with {
-                            'datatype_array': datatype_array,
-                            'target_datatype_id': child_datatype_id,
-                            'theme_array': theme_array,
+                        'datatype_array': child_datatype,
+                        'theme_array': child_theme,
 
-                            'datatype_permissions': datatype_permissions,
-                            'datafield_permissions': datafield_permissions,
+                        'target_datatype_id': child_datatype_id,
+                        'target_theme_id': child_theme_id,
 
-                            'is_top_level': 0,
-                        } %}
-                    {% endif %}
-                {% endfor %}
+                        'is_top_level': 0,
+                    } %}
+                {% endif %}
+            {% endfor %}
 
-            {% endif %}
+        {% endif %}
 
-        </div><!-- End of .ODRInnerBox -->
+    </div><!-- End of .ODRInnerBox -->
     </div><!-- End of .ThemeElement -->
 
 {% endfor %}

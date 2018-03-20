@@ -551,6 +551,8 @@ class DisplaytemplateController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
+        $conn = null;
+
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -587,6 +589,7 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // TODO - prevent datatype deletion when called from a linked dataype?  not sure if this is possible...
             // TODO - prevent datatype deletion when jobs are in progress?
 
 
@@ -965,7 +968,7 @@ class DisplaytemplateController extends ODRCustomController
         }
         catch (\Exception $e) {
             // Don't commit changes if any error was encountered...
-            if ($conn->isTransactionActive())
+            if ( !is_null($conn) && $conn->isTransactionActive() )
                 $conn->rollBack();
 
             $source = 0xa6304ef8;
@@ -1266,6 +1269,16 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to add a Datafield into a ThemeElement that already has a child/linked Datatype');
 
 
+            // TODO - this is currently blocked...otherwise the new datafield would get attached
+            // TODO -  to a "copy" of the theme for the linked datatype...it wouldn't get located
+            // TODO -  and synchronized to any other theme
+            // Ensure this isn't being called on a linked datatype
+            $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
+            $grandparent_datatype_id = $datatype->getGrandparent()->getId();
+            if ($grandparent_datatype_id !== $parent_theme_datatype_id)
+                throw new ODRBadRequestException('Unable to create a new child Datatype inside a Linked Datatype');
+
+
             // ----------------------------------------
             // Grab objects required to create a datafield entity
             /** @var FieldType $fieldtype */
@@ -1378,6 +1391,16 @@ class DisplaytemplateController extends ODRCustomController
             // Don't allow cloning of a datafield outside the master theme
             if ($theme->getThemeType() !== 'master')
                 throw new ODRBadRequestException('Unable to clone a datafield outside of a "master" theme');
+
+            // TODO - this is currently blocked...otherwise the copied datafield would get attached
+            // TODO -  to a "copy" of the theme for the linked datatype...it wouldn't get located
+            // TODO -  and synchronized to any other theme
+            // Ensure this isn't being called on a linked datatype
+            $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
+            $grandparent_datatype_id = $datatype->getGrandparent()->getId();
+            if ($grandparent_datatype_id !== $parent_theme_datatype_id)
+                throw new ODRBadRequestException('Unable to copy a Datafield inside a Linked Datatype');
+
 
             // TODO - allow cloning of radio datafields
             if ($old_datafield->getFieldType()->getTypeClass() == 'Radio')
@@ -1949,6 +1972,16 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to add a child Datatype into a ThemeElement that already has Datafields');
 
 
+            // TODO - this is currently blocked...otherwise the new child datatype would get attached
+            // TODO -  to a "copy" of the theme for the linked datatype...it wouldn't get located
+            // TODO -  and synchronized to any other theme
+            // Ensure this isn't being called on a linked datatype
+            $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
+            $grandparent_datatype_id = $parent_datatype->getGrandparent()->getId();
+            if ($grandparent_datatype_id !== $parent_theme_datatype_id)
+                throw new ODRBadRequestException('Unable to create a new child Datatype inside a Linked Datatype');
+
+
             // ----------------------------------------
             // Defaults
             /** @var RenderPlugin $render_plugin */
@@ -2008,14 +2041,10 @@ class DisplaytemplateController extends ODRCustomController
             $child_datatype->addDataTypeMetum($datatype_meta);
             $em->persist($datatype_meta);
 
-
             // Create a new DataTree entry to link the original datatype and this new child datatype
-            $datatree = new DataTree();
-            $datatree->setAncestor($parent_datatype);
-            $datatree->setDescendant($child_datatype);
-            $datatree->setCreatedBy($user);
-            $em->persist($datatree);
-
+            $is_link = false;
+            $multiple_allowed = true;
+            $datatree = parent::ODR_addDatatree($em, $user, $parent_datatype, $child_datatype, $is_link, $multiple_allowed);
 
             // Create a new master theme for this new child datatype
             $child_theme = new Theme();
@@ -2038,18 +2067,6 @@ class DisplaytemplateController extends ODRCustomController
             $child_theme->setSourceTheme($child_theme);
             $em->persist($child_theme);
 
-            // Create a new DataTreeMeta entity to store properties of the DataTree
-            $datatree_meta = new DataTreeMeta();
-            $datatree_meta->setDataTree($datatree);
-            $datatree_meta->setIsLink(false);
-            $datatree_meta->setMultipleAllowed(true);
-            $datatree_meta->setCreatedBy($user);
-            $datatree_meta->setUpdatedBy($user);
-
-            // Ensure the "in-memory" version of the new Datatree entry knows about its meta entry
-            $datatree->addDataTreeMetum($datatree_meta);
-            $em->persist($datatree_meta);
-
             // Create a new ThemeMeta entity to store properties of the childtype's Theme
             $theme_meta = new ThemeMeta();
             $theme_meta->setTheme($child_theme);
@@ -2068,7 +2085,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Create a new ThemeDatatype entry to let the renderer know it has to render a child datatype in this ThemeElement
-            parent::ODR_addThemeDatatype($em, $user, $child_datatype, $theme_element);
+            parent::ODR_addThemeDatatype($em, $user, $child_datatype, $theme_element, $child_theme);
             $em->flush();
 
 
@@ -2118,7 +2135,7 @@ class DisplaytemplateController extends ODRCustomController
      * 
      * @return Response
      */
-    public function plugindialogAction($datatype_id, $datafield_id, Request $request)
+    public function renderplugindialogAction($datatype_id, $datafield_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2251,7 +2268,7 @@ class DisplaytemplateController extends ODRCustomController
      * 
      * @return Response
      */
-    public function pluginsettingsAction($datatype_id, $datafield_id, $render_plugin_id, Request $request)
+    public function renderpluginsettingsAction($datatype_id, $datafield_id, $render_plugin_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -3205,8 +3222,12 @@ exit();
         $theme_service = $this->container->get('odr.theme_info_service');
 
 
-        // Going to need this a lot...
+        // Going to need these...
         $datatree_array = $dti_service->getDatatreeArray();
+
+        /** @var DataType $grandparent_datatype */
+        $grandparent_datatype = $repo_datatype->find($source_datatype_id);
+        $master_theme = $theme_service->getDatatypeMasterTheme($source_datatype_id);
 
 
         // ----------------------------------------
@@ -3216,8 +3237,6 @@ exit();
         /** @var Theme $theme */
         $theme = null;
 
-        /** @var DataType|null $child_datatype */
-        $child_datatype = null;
         /** @var ThemeElement|null $theme_element */
         $theme_element = null;
         /** @var DataFields|null $datafield */
@@ -3225,44 +3244,31 @@ exit();
 
 
         if ($template_name == 'default') {
-            $datatype = $repo_datatype->find($target_id);
-//            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            $datatype = $grandparent_datatype;
+            $theme = $master_theme;
         }
         else if ($template_name == 'child_datatype') {
-            $child_datatype = $repo_datatype->find($target_id);
-//            $theme = $repo_theme->findOneBy( array('dataType' => $child_datatype->getId(), 'themeType' => 'master') );
+            $datatype = $repo_datatype->find($target_id);
+            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );      // TODO - this likely isn't going to work where linked datatypes are involved
 
-            // Need to determine the top-level datatype to be able to load all necessary data for rendering this child datatype
-            if ( isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) && $datatree_array['descendant_of'][ $child_datatype->getId() ] !== '' ) {
-                $datatype = $child_datatype->getGrandparent();
-            }
-            else if ( !isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) || $datatree_array['descendant_of'][ $child_datatype->getId() ] == '' ) {
-                // Was actually a re-render request for a top-level datatype...re-rendering should still work properly if various flags are set right
-                $datatype = $child_datatype;
+            // Check whether this was actually a re-render request for a top-level datatype...
+            if ( !isset($datatree_array['descendant_of'][ $datatype->getId() ]) || $datatree_array['descendant_of'][ $datatype->getId() ] == '' ) {
+                // ...it is, re-rendering should still work properly if various flags are set right
+                $datatype = $grandparent_datatype;
             }
         }
         else if ($template_name == 'theme_element') {
             $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($target_id);
             $theme = $theme_element->getTheme();
 
-            // This could be a theme element from a child datatype...make sure objects get set properly if it is
             $datatype = $theme->getDataType();
-            if ( isset($datatree_array['descendant_of'][ $datatype->getId() ]) && $datatree_array['descendant_of'][ $datatype->getId() ] !== '' ) {
-                $child_datatype = $theme->getDataType();
-                $datatype = $child_datatype->getGrandparent();
-            }
         }
         else if ($template_name == 'datafield') {
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($target_id);
-            $child_datatype = $datafield->getDataType();
-            $theme = $repo_theme->findOneBy( array('dataType' => $child_datatype->getId(), 'themeType' => 'master') );
-
-            // This could be a datafield from a child datatype...make sure objects get set properly if it is
             $datatype = $datafield->getDataType();
-            if ( isset($datatree_array['descendant_of'][ $datatype->getId() ]) && $datatree_array['descendant_of'][ $datatype->getId() ] !== '' ) {
-                $child_datatype = $theme->getDataType();
-                $datatype = $child_datatype->getGrandparent();
-            }
+            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );      // TODO - this likely isn't going to work where linked datatypes are involved
+
+            $datatype = $datafield->getDataType();
         }
 
 
@@ -3274,24 +3280,30 @@ exit();
 
         // Store whether the user is an admin of this datatype...this usually is true, but the user
         //  may not have the permission if this function is reloading stuff for a linked datatype
-        $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
+        $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $grandparent_datatype);
 
 
         // ----------------------------------------
         // Grab the cached version of the grandparent datatype
         $include_links = true;
-        $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
+        $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId(), $include_links);
 //print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
-        // Also grab the cached version of the grandparent datatype's master theme
-        $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
+        // Also grab the cached version of the theme
+        $theme_array = $theme_service->getThemeArray($master_theme->getId());
 //print '<pre>'.print_r($theme_array, true).'</pre>'; exit();
 
         // Due to the possibility of linked datatypes the user may not have permissions for, the
-        //  datatype array needs to be filtered.  TODO - should it also get stacked in the future?
+        //  datatype array needs to be filtered.
         $datarecord_array = array();
         $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 //print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
+
+        // "Inflate" the currently flattened datatype and theme arrays
+        $stacked_datatype_array[ $datatype->getId() ] =
+            $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+        $stacked_theme_array[ $theme->getId() ] =
+            $theme_service->stackThemeArray($theme_array, $theme->getId());
 
 
         // ----------------------------------------
@@ -3324,9 +3336,11 @@ exit();
             $html = $templating->render(
                 'ODRAdminBundle:Displaytemplate:design_ajax.html.twig',
                 array(
-                    'datatype_array' => $datatype_array,
+                    'datatype_array' => $stacked_datatype_array,
+                    'theme_array' => $stacked_theme_array,
+
                     'initial_datatype_id' => $datatype->getId(),
-                    'theme_array' => $theme_array,
+                    'initial_theme_id' => $theme->getId(),
 
                     'datatype_permissions' => $datatype_permissions,
 
@@ -3338,26 +3352,28 @@ exit();
         else if ($template_name == 'child_datatype') {
 
             // Set variables properly incase this was a theme_element for a child/linked datatype
-            $target_datatype_id = $child_datatype->getId();
-            $is_top_level = 1;
-            if ($child_datatype->getId() !== $datatype->getId())
-                $is_top_level = 0;
-
+            $target_datatype_id = $datatype->getId();
+            $is_top_level = 0;
+            if ($datatype->getId() == $grandparent_datatype->getId()) {
+                $target_datatype_id = $grandparent_datatype->getId();
+                $is_top_level = 1;
+            }
 
             // If the top-level datatype id found doesn't match the original datatype id of the
             //  design page, then this is a request for a linked datatype
             $is_link = 0;
-            if ($source_datatype_id != $datatype->getId()) {
-                $is_top_level = 0;
+            if ($source_datatype_id != $grandparent_datatype->getId())
                 $is_link = 1;
-            }
+
 
             $html = $templating->render(
                 'ODRAdminBundle:Displaytemplate:design_childtype.html.twig',
                 array(
-                    'datatype_array' => $datatype_array,
+                    'datatype_array' => $stacked_datatype_array,
+                    'theme_array' => $stacked_theme_array,
+
                     'target_datatype_id' => $target_datatype_id,
-                    'theme_array' => $theme_array,
+                    'target_theme_id' => $theme->getId(),
 
                     'datatype_permissions' => $datatype_permissions,
                     'is_datatype_admin' => $is_datatype_admin,
@@ -3371,33 +3387,35 @@ exit();
 
             // Set variables properly incase this was a theme_element for a child/linked datatype
             $target_datatype_id = $datatype->getId();
-            $is_top_level = 1;
-            if ($child_datatype !== null) {
-                $target_datatype_id = $child_datatype->getId();
-                $is_top_level = 0;
+            $is_top_level = 0;
+            if ($datatype->getId() == $grandparent_datatype->getId()) {
+                $target_datatype_id = $grandparent_datatype->getId();
+                $is_top_level = 1;
             }
 
             // If the top-level datatype id found doesn't match the original datatype id of the
             //  design page, then this is a request for a linked datatype
             $is_link = 0;
-            if ($source_datatype_id != $datatype->getId())
+            if ($source_datatype_id != $grandparent_datatype->getId())
                 $is_link = 1;
 
             // design_fieldarea.html.twig attempts to render all theme_elements in the given theme,
             //  but this request is to only re-render one of them...unset all theme_elements except
             //  the one that's being re-rendered
-            foreach ($theme_array[$target_datatype_id]['themeElements'] as $te_num => $te) {
+            foreach ($stacked_theme_array[ $theme->getId() ]['themeElements'] as $te_num => $te) {
                 if ( $te['id'] != $target_id )
-                    unset( $theme_array[$target_datatype_id]['themeElements'][$te_num] );
+                    unset( $stacked_theme_array[ $theme->getId() ]['themeElements'][$te_num] );
             }
 //print '<pre>'.print_r($theme_array, true).'</pre>'; exit();
 
             $html = $templating->render(
                 'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig',
                 array(
-                    'datatype_array' => $datatype_array,
+                    'datatype_array' => $stacked_datatype_array,
+                    'theme_array' => $stacked_theme_array,
+
                     'target_datatype_id' => $target_datatype_id,
-                    'theme_array' => $theme_array,
+                    'target_theme_id' => $theme->getId(),
 
                     'datatype_permissions' => $datatype_permissions,
                     'is_datatype_admin' => $is_datatype_admin,
@@ -3413,10 +3431,10 @@ exit();
             $datafield_array = null;
             $theme_datafield_array = null;
 
-            if ( isset($datatype_array[ $child_datatype->getId() ]['dataFields'][ $datafield->getId() ]) )
-                $datafield_array = $datatype_array[ $child_datatype->getId() ]['dataFields'][ $datafield->getId() ];
+            if ( isset($datatype_array[ $datatype->getId() ]['dataFields'][ $datafield->getId() ]) )
+                $datafield_array = $datatype_array[ $datatype->getId() ]['dataFields'][ $datafield->getId() ];
 
-            foreach ($theme_array[ $child_datatype->getId() ]['themeElements'] as $te_num => $te) {
+            foreach ($theme_array[ $theme->getId() ]['themeElements'] as $te_num => $te) {
                 if ( isset($te['themeDataFields']) ) {
                     foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
                         if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $datafield->getId() ) {

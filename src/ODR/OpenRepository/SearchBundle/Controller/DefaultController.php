@@ -1391,9 +1391,11 @@ if (isset($debug['timing'])) {
             foreach ($matched_datarecords as $dr_id => $num)
                 $datarecord_ids .= $dr_id.',';
 
-            foreach ($descendants_of_datarecord[0] as $dt_id => $top_level_datarecords) {
-                foreach ($top_level_datarecords as $gp_id => $tmp)
-                    $grandparent_ids .= $gp_id.',';
+            if ( !empty($descendants_of_datarecord[0]) ) {
+                foreach ($descendants_of_datarecord[0] as $dt_id => $top_level_datarecords) {
+                    foreach ($top_level_datarecords as $gp_id => $tmp)
+                        $grandparent_ids .= $gp_id.',';
+                }
             }
         }
 

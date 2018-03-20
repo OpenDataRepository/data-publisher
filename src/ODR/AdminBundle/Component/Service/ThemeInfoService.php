@@ -170,56 +170,6 @@ class ThemeInfoService
 
 
     /**
-     * Given a top-level datatype id, this function figures out the ids of the themes the user
-     * would prefer to use for all of the associated datatypes, and then returns their cached
-     * entries back to the caller.
-     *
-     * Note that the keys of the returned array are datatype ids, not theme ids.
-     *
-     * @param integer $grandparent_datatype_id
-     * @param ODRUser $user
-     * @param string $theme_type
-     * @param bool $include_links
-     *
-     * @return array
-     */
-    public function getThemesForDatatype($grandparent_datatype_id, $user, $theme_type = 'master', $include_links = true)
-    {
-        // Ensure the provided theme type is valid
-        if ( !in_array($theme_type, self::VALID_THEMETYPES) )
-            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0xd4ded515);
-
-        // ----------------------------------------
-        $associated_datatypes = array();
-        if ($include_links) {
-            // Need to locate all linked datatypes for the provided datatype
-            $associated_datatypes = $this->cache_service->get('associated_datatypes_for_'.$grandparent_datatype_id);
-            if ($associated_datatypes == false) {
-                $associated_datatypes = $this->dti_service->getAssociatedDatatypes( array($grandparent_datatype_id) );
-
-                // Save the list of associated datatypes back into the cache
-                $this->cache_service->set('associated_datatypes_for_'.$grandparent_datatype_id, $associated_datatypes);
-            }
-        }
-        else {
-            // Don't want any datatypes that are linked to from the given grandparent datatype
-            $associated_datatypes[] = $grandparent_datatype_id;
-        }
-
-        // Now that there's a list of the datatypes that we need themes for...
-        $top_level_themes = self::getTopLevelThemes();
-        $parent_theme_ids = array();
-        foreach ($associated_datatypes as $num => $dt_id) {
-            // ...figure out which theme the user is using for this datatype
-            $parent_theme_ids[] = self::getPreferredTheme($user, $dt_id, $theme_type, $top_level_themes);
-        }
-
-        // Now that the themes are known, return the cached theme array entries for those themes
-        return self::getThemeArray($parent_theme_ids);
-    }
-
-
-    /**
      * Attempts to return the id of the user's preferred theme for the given datatype/theme_type.
      *
      * @param string|ODRUser $user  Either 'anon.' or an ODRUser object
@@ -227,7 +177,7 @@ class ThemeInfoService
      * @param string $theme_type
      * @param array $top_level_themes should only be used by ThemeService
      *
-     * @return int|null
+     * @return int
      */
     public function getPreferredTheme($user, $datatype_id, $theme_type, $top_level_themes = null)
     {
@@ -280,13 +230,12 @@ class ThemeInfoService
         }
 
         // ...If for some reason there's no default theme for this theme_type, return the datatype's master theme
-        // TODO - throw an error instead?
         $theme = self::getDatatypeDefaultTheme($datatype_id, 'master');
         if ($theme != null)
             return $theme->getId();
 
         // ...if there's not even a master theme for this datatype, something is horribly wrong
-        throw new ODRException('Unable to locate master theme for datatype '.$datatype_id, 0xba003ad0);
+        throw new ODRException('Unable to locate master theme for datatype '.$datatype_id, 500, 0xba003ad0);
     }
 
 
@@ -361,22 +310,25 @@ class ThemeInfoService
 
 
     /**
-     * Clears the user's preferred theme for this datatype for this session.
+     * Clears the user's preferred theme for this datatype for this session.  If a theme_type is
+     * specified, then only that theme_type for the datatype is cleared.
      *
      * @param integer $datatype_id
      * @param string $theme_type
      */
-    public function resetSessionTheme($datatype_id, $theme_type)
+    public function resetSessionTheme($datatype_id, $theme_type = '')
     {
-        // Ensure the provided theme type is valid
-        if ( !in_array($theme_type, self::VALID_THEMETYPES) )
-            throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0x68a0df80);
+        $theme_class = '';
+        if ($theme_type !== '') {
+            // Ensure the provided theme type is valid
+            if (!in_array($theme_type, self::VALID_THEMETYPES))
+                throw new ODRBadRequestException('"'.$theme_type.'" is not a supported theme type', 0x68a0df80);
 
-        // Themes are stored in the session by which "class" they belong to
-        $theme_class = 'long_form';
-        if ( in_array($theme_type, self::SHORT_FORM_THEMETYPES) )
-            $theme_class = 'short_form';
-
+            // Themes are stored in the session by which "class" they belong to
+            $theme_class = 'long_form';
+            if (in_array($theme_type, self::SHORT_FORM_THEMETYPES))
+                $theme_class = 'short_form';
+        }
 
         // Load any existing session themes
         $session_themes = array();
@@ -384,10 +336,11 @@ class ThemeInfoService
             $session_themes = $this->session->get('session_themes');
 
         // Unset the theme for this session if it exists
-        if (isset($session_themes[$datatype_id])
-            && isset($session_themes[$datatype_id][$theme_class])
-        ) {
-            unset( $session_themes[$datatype_id][$theme_class] );
+        if (isset($session_themes[$datatype_id]) ) {
+            if ($theme_class === '')
+                unset( $session_themes[$datatype_id] );
+            else if ( isset($session_themes[$datatype_id][$theme_class]) )
+                unset( $session_themes[$datatype_id][$theme_class] );
         }
 
         // Save back to session
@@ -538,7 +491,8 @@ class ThemeInfoService
 
 
     /**
-     * Return a datatype's default Theme for this theme_type, as set by a datatype admin.
+     * Return a datatype's default Theme for this theme_type, as set by a datatype admin.  If the
+     * datatype's "master" theme is desired, self::getDatatypeMasterTheme() should be used instead.
      *
      * @param integer $datatype_id
      * @param string $theme_type
@@ -547,7 +501,7 @@ class ThemeInfoService
      */
     public function getDatatypeDefaultTheme($datatype_id, $theme_type = 'master')
     {
-        //
+        // Ensure the provided theme_type is valid
         $theme_types = array();
         if ($theme_type == 'master' || $theme_type == 'custom_view') {
             // User wants themes that work on Display/Edit pages
@@ -562,13 +516,13 @@ class ThemeInfoService
         }
 
 
-        //
+        // Query the database for the default top-level theme for this datatype
         $query = $this->em->createQuery(
            'SELECT t
             FROM ODRAdminBundle:Theme AS t
             JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
             WHERE t.dataType = :datatype_id AND tm.isDefault = :is_default
-            AND t.themeType IN (:theme_types)
+            AND t = t.parentTheme AND t.themeType IN (:theme_types)
             AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
         )->setParameters(
             array(
@@ -590,29 +544,59 @@ class ThemeInfoService
 
 
     /**
-     * Loads and returns a cached data array for the specified theme ids.  Note that the keys for
-     * the returned array are datatype ids.
+     * Returns the given datatype's "master" theme.
+     *
+     * @param integer $datatype_id
+     *
+     * @return Theme
+     */
+    public function getDatatypeMasterTheme($datatype_id)
+    {
+        // Query the database to get this datatype's master theme
+        $query = $this->em->createQuery(
+           'SELECT t
+            FROM ODRAdminBundle:Theme AS t
+            JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
+            WHERE t.dataType = :datatype_id AND t.themeType = :theme_type
+            AND t = t.parentTheme
+            AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'datatype_id' => $datatype_id,
+                'theme_type' => 'master',
+            )
+        );
+        $result = $query->getResult();
+
+        // Sanity check...
+        if ( count($result) !== 1 )
+            throw new ODRException('This datatype does not have a "master" theme', 500, 0x2e0a8d28);
+
+        // Return this datatype's master theme
+        return $result[0];
+    }
+
+
+    /**
+     * Loads and returns a cached data array for the specified theme ids.
      * 
-     * @param int[] $parent_theme_ids
+     * @param integer $parent_theme_id
      * 
      * @return array
      */
-    public function getThemeArray($parent_theme_ids)
+    public function getThemeArray($parent_theme_id)
     {
-        // Themes are stored by
+        // Attempt to the cached version of this theme
+        $theme_data = $this->cache_service->get('cached_theme_'.$parent_theme_id);
+
+        // If the requested entry doesn't exist, rebuild it
+        if ($theme_data == false)
+            $theme_data = self::buildThemeData($parent_theme_id);
+
+        // Organize by theme id
         $theme_array = array();
-        foreach ($parent_theme_ids as $num => $parent_theme_id) {
-            // Attempt to the cached version of this theme
-            $theme_data = $this->cache_service->get('cached_theme_'.$parent_theme_id);
-
-            // If the requested entry doesn't exist, rebuild it
-            if ($theme_data == false)
-                $theme_data = self::buildThemeData($parent_theme_id);
-
-            // Organize by datatype id
-            foreach ($theme_data as $dt_id => $data)
-                $theme_array[$dt_id] = $data;
-        }
+        foreach ($theme_data as $t_id => $data)
+            $theme_array[$t_id] = $data;
 
         return $theme_array;
     }
@@ -650,7 +634,7 @@ class ThemeInfoService
 
                 te, tem,
                 tdf, partial df.{id},
-                tdt, partial c_dt.{id}
+                tdt, partial c_dt.{id}, partial c_t.{id}
                 
             FROM ODRAdminBundle:Theme AS t
             LEFT JOIN t.themeMeta AS tm
@@ -667,6 +651,7 @@ class ThemeInfoService
 
             LEFT JOIN te.themeDataType AS tdt
             LEFT JOIN tdt.dataType AS c_dt
+            LEFT JOIN tdt.childTheme AS c_t
             
             WHERE t.parentTheme = :parent_theme_id
             AND t.deletedAt IS NULL AND te.deletedAt IS NULL
@@ -761,14 +746,11 @@ class ThemeInfoService
             $theme_data[$theme_num]['themeElements'] = $new_te_array;
         }
 
-        // Organize by datatype id
+        // Organize by theme id
         $formatted_theme_data = array();
         foreach ($theme_data as $num => $t_data) {
-//            $t_id = $t_data['id'];
-//            $formatted_theme_data[$t_id] = $t_data;
-
-            $dt_id = $t_data['dataType']['id'];
-            $formatted_theme_data[$dt_id] = $t_data;
+            $t_id = $t_data['id'];
+            $formatted_theme_data[$t_id] = $t_data;
         }
 
 /*
@@ -783,6 +765,38 @@ class ThemeInfoService
         // Save the formatted datarecord data back in the cache, and return it
         $this->cache_service->set('cached_theme_'.$parent_theme_id, $formatted_theme_data);
         return $formatted_theme_data;
+    }
+
+
+    /**
+     * "Inflates" the normally flattened $theme_array...
+     *
+     * @param array $theme_array
+     * @param integer $initial_theme_id
+     *
+     * @return array
+     */
+    public function stackThemeArray($theme_array, $initial_theme_id)
+    {
+        $current_theme = array();
+        if ( isset($theme_array[$initial_theme_id]) ) {
+            $current_theme = $theme_array[$initial_theme_id];
+
+            // For each descendant this theme has...
+            foreach ($current_theme['themeElements'] as $te_num => $te) {
+                if ( isset($te['themeDataType']) ) {
+                    foreach ($te['themeDataType'] as $tdt_num => $tdt) {
+                        $child_theme_id = $tdt['childTheme']['id'];
+
+                        $tmp = array( $child_theme_id => self::stackThemeArray($theme_array, $child_theme_id) );
+                        $current_theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['childTheme'] = array('id' => $child_theme_id, 'theme' => $tmp);
+                    }
+                }
+            }
+
+        }
+
+        return $current_theme;
     }
 
 

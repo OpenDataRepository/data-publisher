@@ -82,8 +82,10 @@
 
             {% include 'ODRAdminBundle:Displaytemplate:design_area.html.twig' with {
                 'datatype_array': datatype_array,
-                'initial_datatype_id': initial_datatype_id,
                 'theme_array': theme_array,
+
+                'initial_datatype_id': initial_datatype_id,
+                'initial_theme_id': initial_theme_id,
 
                 'datatype_permissions': datatype_permissions,
                 'is_datatype_admin': is_datatype_admin,
@@ -307,9 +309,12 @@
             });
         });
 
-        // Prevent resizing of theme_elements and datafields inside linked datatypes the user can't modify
+{#
+        // This would prevent resizing of theme_elements and datafields inside linked datatypes
+        // This restriction is no longer needed because datatypes make copies of linked themes now
         $(".ODRThemeElement.ODRForbidden").resizable("destroy");
         $(".ODRDataField.ODRForbidden").resizable("destroy");
+#}
     }
 
 
@@ -328,6 +333,8 @@
         });
 
         $(".ODRAddChildtype").unbind('click').click(function() {
+
+            // TODO - currently blocked in the backend for linked datatypes
 
             if ( $(this).hasClass('fa-muted') )
                 return;
@@ -372,6 +379,8 @@
         });
 
         $(".ODRAddDatafield").unbind('click').click(function() {
+
+            // TODO - currently blocked in the backend for linked datatypes
 
             if ( $(this).hasClass('fa-muted') )
                 return;
@@ -463,6 +472,9 @@
         });
 
         $(".ODRDeleteDatatype").unbind('click').click(function() {
+
+            // TODO - block this in the backend where linked datatypes are involved?  Can't do it right now without changing a route...
+
             // I think this option is always available, but just incase...
             if ( $(this).hasClass('fa-muted') )
                 return;
@@ -556,6 +568,9 @@
         });
 
         $(".ODRDatatypeProperties").unbind('click').click(function() {
+
+            // The backend currently filters the properties displayed to the user
+
             // Grab the id of the Datatype to load
             var datatype_id = $(this).attr('rel');
 
@@ -711,6 +726,8 @@
         initResizeables();
 
         $(".ODRLinkDatatype").unbind('click').click(function() {
+
+            // TODO - currently blocked in the backend for linked datatypes
 
             if ( $(this).hasClass('fa-muted') )
                 return;
@@ -890,10 +907,12 @@
                 }
             });
         });
-
-        // Prevent re-ordering of theme_elements and datafields belonging to linked datatypes that the user can't modify
+{#
+        // This would prevent re-ordering of theme_elements and datafields inside linked datatypes
+        // This restriction is no longer needed because datatypes make copies of linked themes now
         $(".ODRThemeElement.ODRForbidden").parent().sortable("destroy");
         $(".ODRDataField.ODRForbidden").parent().sortable("destroy");
+#}
 
         // Don't want to call disabledSelection() on the object properties panel
         $("#content").find(".ODRInnerBox").disableSelection();
@@ -1666,6 +1685,9 @@
 
 
     function CopyDatafield(datafield_id) {
+
+        // TODO - currently blocked in the backend for linked datatypes
+
         // Grab theme_element id
         var theme_element_id_data = $("#Field_" + datafield_id).parent().parent().attr('id').split(/_/);
         var theme_element_id = theme_element_id_data[1];

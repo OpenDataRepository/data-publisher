@@ -1,8 +1,9 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = theme_array[target_theme_id] %}
 
-<div class="ODRDataType{% if is_link == 1 %} ODRLinkedType{% endif %}{% if is_top_level == 0 %} ODRAccordionWrapper ODRFormAccordion ODRChildDatatype{% endif %} pure-u-1" id="DataType_{{ datatype.id }}" {#rel="{{ datatype_tree.theme_datatype.id }}"#}>
+<div class="ODRDataType{% if is_link == 1 %} ODRLinkedType{% endif %}{% if is_top_level == 0 %} ODRAccordionWrapper ODRFormAccordion ODRChildDatatype{% endif %} pure-u-1" id="DataType_{{ datatype.id }}">
 
     {% if is_top_level == 0 %}
         {# current datatype is a child or linked datatype #}
@@ -22,8 +23,10 @@
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datatype.id }}">
             {% include 'ODRAdminBundle:Theme:theme_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
-                'target_datatype_id': target_datatype_id,
                 'theme_array': theme_array,
+
+                'target_datatype_id': target_datatype_id,
+                'target_theme_id': target_theme_id,
 
                 'datatype_permissions': datatype_permissions,
                 'is_datatype_admin': is_datatype_admin,
@@ -53,8 +56,10 @@
         <div class="ODRFieldArea pure-u-1" id="FieldArea_{{ datatype.id }}">
             {% include 'ODRAdminBundle:Theme:theme_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
-                'target_datatype_id': target_datatype_id,
                 'theme_array': theme_array,
+
+                'target_datatype_id': target_datatype_id,
+                'target_theme_id': target_theme_id,
 
                 'datatype_permissions': datatype_permissions,
                 'is_datatype_admin': is_datatype_admin,
