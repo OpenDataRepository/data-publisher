@@ -1215,6 +1215,10 @@ odr_test_synch:
     requirements:
         theme_id: \d+
 
+odr_fix_datatree_entries:
+    path: /admin/fix_datatree_entries
+    defaults: { _controller: ODRAdminBundle:Worker:fixdatatreeentries }
+
 #-----------------------------------------
 
 #-----------------------------------------

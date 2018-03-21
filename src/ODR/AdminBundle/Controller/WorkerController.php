@@ -2375,4 +2375,153 @@ $ret .= '  Set current to '.$count."\n";
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function fixdatatreeentriesAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            $query = $em->createQuery(
+               'SELECT partial dt.{id}, partial ancestor.{id}, partial descendant.{id}
+                FROM ODRAdminBundle:DataTree AS dt
+                JOIN dt.ancestor AS ancestor
+                JOIN dt.descendant AS descendant'
+            );
+            $results = $query->getArrayResult();
+
+            $dt_array = array();
+            foreach ($results as $result) {
+                $dt_id = $result['id'];
+                $ancestor_id = $result['ancestor']['id'];
+                $descendant_id = $result['descendant']['id'];
+
+                if (!isset($dt_array[$ancestor_id]))
+                    $dt_array[$ancestor_id] = array();
+
+                $dt_array[$ancestor_id][$descendant_id] = array('dt_id' => $dt_id, 'used' => 0);
+            }
+//            exit( '<pre>'.print_r($dt_array, true).'</pre>' );
+
+            $query = $em->createQuery(
+                'SELECT t.id AS theme_id, dt.id AS datatype_id, c_dt.id AS child_datatype_id
+                FROM ODRAdminBundle:Theme AS t
+                JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
+                JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
+                JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.themeElement = te
+                JOIN ODRAdminBundle:DataType AS c_dt WITH tdt.dataType = c_dt
+                WHERE t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL
+                AND dt.deletedAt IS NULL AND c_dt.deletedAt IS NULL
+                ORDER BY dt.id, c_dt.id'
+            );
+            $results = $query->getArrayResult();
+
+            $extra_ancestors = array();
+            $extra_descendants = array();
+            foreach ($results as $result) {
+                $ancestor_id = $result['datatype_id'];
+                $descendant_id = $result['child_datatype_id'];
+
+                if ( isset($dt_array[$ancestor_id]) ) {
+                    if ( isset($dt_array[$ancestor_id][$descendant_id]) ) {
+                        $dt_array[$ancestor_id][$descendant_id]['used'] = 1;
+                    }
+                    else {
+                        if ( !isset($extra_descendants[$ancestor_id]) )
+                            $extra_descendants[$ancestor_id] = array();
+                        $extra_descendants[$ancestor_id][] = $descendant_id;
+                    }
+                }
+                else {
+                    if ( !isset($extra_ancestors[$ancestor_id]) )
+                        $extra_ancestors[$ancestor_id] = array();
+                    $extra_ancestors[$ancestor_id][] = $descendant_id;
+                }
+            }
+
+            print '<pre>List of datatree entries: '.print_r($dt_array, true).'</pre>';
+            print '<pre>Ancestors in themes but not in datatree: '.print_r($extra_ancestors, true).'</pre>';
+            print '<pre>Descendants in themes but not in datatree: '.print_r($extra_descendants, true).'</pre>';
+//            exit();
+
+            $entries_to_fix = array();
+            foreach ($dt_array as $ancestor_id => $tmp) {
+                foreach ($tmp as $descendant_id => $data) {
+                    $dt_id = $data['dt_id'];
+
+                    if ($data['used'] == 0) {
+                        $entries_to_fix[$dt_id] = array(
+                            'ancestor_id' => $ancestor_id,
+                            'descendant_id' => $descendant_id,
+                        );
+                    }
+                }
+            }
+            $datatree_ids = array_keys($entries_to_fix);
+
+            print '<pre>Datatree entries that need deleting: '.print_r($entries_to_fix, true).'</pre>';
+            print '<pre>Datatree ids: '.print_r($datatree_ids, true).'</pre>';
+//            exit();
+
+            $conn = $em->getConnection();
+            $conn->beginTransaction();
+
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataTree AS dt
+                SET dt.deletedAt = :now, dt.deletedBy = :user
+                WHERE dt.id IN (:datatree_ids) AND dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'user' => $user->getId(),
+                    'datatree_ids' => $datatree_ids,
+                )
+            );
+            $query->execute();
+
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataTreeMeta AS dtm
+                SET dtm.deletedAt = :now
+                WHERE dtm.dataTree IN (:datatree_ids) AND dtm.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'datatree_ids' => $datatree_ids,
+                )
+            );
+            $query->execute();
+
+            if ($save)
+                $conn->commit();
+            else
+                $conn->rollBack();
+        }
+        catch (\Exception $e) {
+            $source = 0xed5c5053;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 }
