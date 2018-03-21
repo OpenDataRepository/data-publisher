@@ -483,9 +483,9 @@ class TableThemeHelperService
             if ($datatype_id !== $dt_id)
                 unset( $datatype_array[$dt_id] );
         }
-        foreach ($theme_array as $dt_id => $t) {
-            if ($datatype_id !== $dt_id)
-                unset( $theme_array[$dt_id] );
+        foreach ($theme_array as $t_id => $t) {
+            if ($theme_id !== $t_id)
+                unset( $theme_array[$t_id] );
         }
 
         // Filter out everything the user isn't allowed to view
@@ -498,7 +498,7 @@ class TableThemeHelperService
         // ----------------------------------------
         $df_count = -1;
 
-        foreach ($theme_array[$datatype_id]['themeElements'] as $te_num => $te) {
+        foreach ($theme_array[$theme_id]['themeElements'] as $te_num => $te) {
             // Ignore theme elements that are hidden
             if ( $te['themeElementMeta']['hidden'] == 1 )
                 continue;
