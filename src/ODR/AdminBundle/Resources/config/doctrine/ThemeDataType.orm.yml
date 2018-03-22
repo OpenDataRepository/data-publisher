@@ -41,6 +41,17 @@ ODR\AdminBundle\Entity\ThemeDataType:
             nullable: true
 
     manyToOne:
+        # intentionally not defining mappedBy/inversedBy...don't want the Theme entity to have
+        #  properties/functions referring back to here
+        childTheme:
+            targetEntity: Theme
+            cascade: {  }
+            joinColumns:
+                child_theme_id:
+                    nullable: true
+                    referencedColumnName: id
+            orphanRemoval: false
+
         dataType:
             targetEntity: DataType
             cascade: {  }

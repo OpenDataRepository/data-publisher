@@ -16,13 +16,13 @@ namespace ODR\AdminBundle\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\LinkedDataTree;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
+use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -31,6 +31,7 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -109,6 +110,16 @@ class LinkController extends ODRCustomController
             $theme_datafields = $em->getRepository('ODRAdminBundle:ThemeDataField')->findBy( array('themeElement' => $theme_element_id) );
             if ( count($theme_datafields) > 0 )
                 throw new ODRBadRequestException('Unable to create a link to a remote Datatype in a ThemeElement that already has Datafields');
+
+
+            // TODO - this is currently blocked...otherwise linking/unlinking a datatype would get
+            // TODO -  attached to a "copy" of the theme for the linked datatype...it wouldn't get
+            // TODO -  located and synchronized to any other theme
+            // Ensure this isn't being called on a linked datatype
+            $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
+            $grandparent_datatype_id = $local_datatype->getGrandparent()->getId();
+            if ($grandparent_datatype_id !== $parent_theme_datatype_id)
+                throw new ODRBadRequestException('Unable to link to or unlink from a Datatype inside a Linked Datatype');
 
 
             // ----------------------------------------
@@ -309,6 +320,8 @@ class LinkController extends ODRCustomController
         $return['t'] = 'html';
         $return['d'] = '';
 
+        $conn = null;
+
         try {
             // Grab the data from the POST request
             $post = $request->request->all();
@@ -334,6 +347,8 @@ class LinkController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var CloneThemeService $clone_theme_service */
+            $clone_theme_service = $this->container->get('odr.clone_theme_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -391,6 +406,15 @@ class LinkController extends ODRCustomController
             if ( count($theme_datafields) > 0 )
                 throw new ODRBadRequestException('Unable to link a remote Datatype into a ThemeElement that already has Datafields');
 
+            // TODO - this is currently blocked...otherwise linking/unlinking a datatype would get
+            // TODO -  attached to a "copy" of the theme for the linked datatype...it wouldn't get
+            // TODO -  located and synchronized to any other theme
+            // Ensure this isn't being called on a linked datatype
+            $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
+            $grandparent_datatype_id = $local_datatype->getGrandparent()->getId();
+            if ($grandparent_datatype_id !== $parent_theme_datatype_id)
+                throw new ODRBadRequestException('Unable to link to or unlink from a Datatype inside a Linked Datatype');
+
 
             // ----------------------------------------
             // Get the most recent version of the datatree array
@@ -441,119 +465,22 @@ class LinkController extends ODRCustomController
 
             // If a previous remote dataype is specified, then it got changed to something else...
             if ($previous_remote_datatype_id !== '') {
-                // Delete the old datatree and theme_datatype entries if they exist
-                $entities_to_remove = array();
+                // Going to mass-delete a pile of stuff...wrap it in a transaction, since DQL doesn't
+                //  allow multi-table updates
+                $conn = $em->getConnection();
+                $conn->beginTransaction();
 
-                // Soft-delete the old datatree entry
-                /** @var DataTree $datatree */
-                $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
-                    array(
-                        'ancestor' => $local_datatype_id,
-                        'descendant' => $previous_remote_datatype_id
-                    )
-                );
-                if ($datatree !== null) {
-                    $datatree_meta = $datatree->getDataTreeMeta();
+                // Soft-delete all theme entries linking the local and the remote datatype together
+                self::deleteLinkedThemes($em, $user, $local_datatype_id, $previous_remote_datatype_id);
 
-                    $datatree->setDeletedBy($user);
-                    $em->persist($datatree);
+                // Locate and delete all Datatree and LinkedDatatree entries for the previous link
+                $datarecords_to_update = self::deleteDatatreeEntries($em, $user, $local_datatype_id, $previous_remote_datatype_id);
 
-                    $entities_to_remove[] = $datatree;
-                    $entities_to_remove[] = $datatree_meta;
-                }
+                // Mark all Datarecords that used to link to the remote datatype as updated
+                self::updateDatarecordEntries($em, $user, $datarecords_to_update);
 
-                // Soft-delete the old theme_datatype entry
-                /** @var ThemeDataType $theme_datatype */
-                $theme_datatype = $theme_element->getThemeDataType()->first();
-                $theme_datatype->setDeletedBy($user);
-                $em->persist($theme_datatype);
-
-                $entities_to_remove[] = $theme_datatype;
-
-                $em->flush();
-                foreach ($entities_to_remove as $entity)
-                    $em->remove($entity);
-                $em->flush();
-
-
-                // Locate and delete any existing LinkedDatatree entries for the previous link
-                $query = $em->createQuery(
-                   'SELECT ancestor.id AS ancestor_id, ldt.id AS ldt_id
-                    FROM ODRAdminBundle:DataRecord AS ancestor
-                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                    WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
-                    AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-                )->setParameters(
-                    array(
-                        'ancestor_datatype' => $local_datatype_id,
-                        'descendant_datatype' => $previous_remote_datatype_id
-                    )
-                );
-                $results = $query->getArrayResult();
-//print '<pre>'.print_r($results, true).'</pre>'; exit();
-
-
-                // Need to get two lists...one of all the LinkedDatatree entries that need deleting,
-                //  and another for all of the ancestor datarecords that need updating
-                $ldt_ids = array();
-                $datarecord_ids = array();
-                foreach ($results as $result) {
-                    $dr_id = $result['ancestor_id'];
-                    $ldt_id = $result['ldt_id'];
-
-                    $datarecord_ids[] = $dr_id;
-                    $ldt_ids[] = $ldt_id;
-                }
-                $datarecord_ids = array_unique($datarecord_ids);
-
-
-                if ( count($ldt_ids) > 0 ) {
-                    // Perform a DQL mass update to soft-delete all the LinkedDatatree entries
-                    $query = $em->createQuery(
-                       'UPDATE ODRAdminBundle:LinkedDataTree AS ldt
-                        SET ldt.deletedAt = :now, ldt.deletedBy = :user_id
-                        WHERE ldt.id IN (:ldt_ids)'
-                    )->setParameters(
-                        array(
-                            'now' => new \DateTime(),
-                            'user_id' => $user->getId(),
-                            'ldt_ids' => $ldt_ids
-                        )
-                    );
-                    $query->execute();
-                }
-
-                // Locate all datarecords that need to be marked as updated
-                // Using DQL mass update, since there could be so many datarecords that need to be
-                //  updated that their hydrated forms don't all fit in memory at once
-                $datarecords_to_update = $datarecord_ids;
-                while ( count($datarecord_ids) > 0 ) {
-                    // Locate the parent of each datarecord in $datarecord_ids
-                    $query = $em->createQuery(
-                       'SELECT parent.id AS parent_id
-                        FROM ODRAdminBundle:DataRecord AS dr
-                        JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
-                        WHERE dr.id IN (:datarecord_ids)
-                        AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
-                    )->setParameters( array('datarecord_ids' => $datarecord_ids) );
-                    $sub_results = $query->getArrayResult();
-
-                    // Flatten the results array so array_diff and array_merge work
-                    $parent_ids = array();
-                    foreach ($sub_results as $result)
-                        $parent_ids[] = $result['parent_id'];
-
-                    // Continue looking for parent datarecords...
-                    $datarecord_ids = array_diff($parent_ids, $datarecord_ids);
-
-                    // These parent datarecords are going to need updating as well
-                    $datarecords_to_update = array_merge($datarecords_to_update, $datarecord_ids);
-                }
-
-                // Remove any duplicate entries from the list of datarecords to update
-                $datarecords_to_update = array_unique($datarecords_to_update);
-//print '<pre>'.print_r($datarecords_to_update, true).'</pre>';  exit();
+                // Done making mass updates, commit everything
+                $conn->commit();
 
 
                 // ----------------------------------------
@@ -565,28 +492,8 @@ class LinkController extends ODRCustomController
                 $dti_service->updateDatatypeCacheEntry($local_datatype, $user);
                 // Mark the ancestor datatype's theme as having been updated
                 $theme_service->updateThemeCacheEntry($theme, $user);
-
-                // Mark all the datarecords as updated in a single DQL mass update
-                $query = $em->createQuery(
-                   'UPDATE ODRAdminBundle:DataRecord AS dr
-                    SET dr.updated = :updated, dr.updatedBy = :updated_by
-                    WHERE dr.id IN (:datarecord_ids)'
-                )->setParameters(
-                    array(
-                        'updated' => new \DateTime(),
-                        'updated_by' => $user->getId(),
-                        'datarecord_ids' => $datarecords_to_update
-                    )
-                );
-                $query->execute();
-
-                // For each datarecord that was updated...
-                foreach ($datarecords_to_update as $num => $dr_id) {
-                    // ...delete the cache entry that stores what this datarecord is linked to
-                    $cache_service->delete('associated_datarecords_for_'.$dr_id);
-                    // ...delete its cached entry
-                    $cache_service->delete('cached_datarecord_'.$dr_id);
-                }
+                // Also delete the list of top-level themes, just incase...
+                $cache_service->delete('top_level_themes');
             }
 
 
@@ -597,31 +504,27 @@ class LinkController extends ODRCustomController
                 // ...create a link between the two datatypes
                 $using_linked_type = 1;
 
-                $datatree = new DataTree();
-                $datatree->setAncestor($local_datatype);
-                $datatree->setDescendant($remote_datatype);
-                $datatree->setCreatedBy($user);
-                $em->persist($datatree);
-                $em->flush($datatree);
-                $em->refresh($datatree);
+                $is_link = true;
+                $multiple_allowed = true;
+                parent::ODR_addDatatree($em, $user, $local_datatype, $remote_datatype, $is_link, $multiple_allowed);
 
-                // Create a new meta entry for this DataTree
-                $datatree_meta = new DataTreeMeta();
-                $datatree_meta->setDataTree( $datatree );
-                $datatree_meta->setIsLink(true);
-                $datatree_meta->setMultipleAllowed(true);
+                // Locate the master theme for the remote datatype
+                $query = $em->createQuery(
+                   'SELECT t
+                    FROM ODRAdminBundle:Theme AS t
+                    WHERE t.dataType = :datatype_id AND t.themeType = :theme_type AND t = t.parentTheme
+                    AND t.deletedAt IS NULL'
+                )->setParameters( array('datatype_id' => $remote_datatype->getId(), 'theme_type' => 'master') );
+                $results = $query->getResult();
 
-                $datatree_meta->setCreatedBy($user);
-                $datatree_meta->setUpdatedBy($user);
+                if ( count($results) != 1 )
+                    throw new ODRException('Remote Datatype lacks a master theme?');
 
-                // Ensure the "in-memory" version of datatree knows about its new meta entry
-                $datatree->addDataTreeMetum($datatree_meta);
-                $em->persist($datatree_meta);
+                /** @var Theme $source_theme */
+                $source_theme = $results[0];
 
-
-                // Create a new theme_datatype entry between the local and the remote datatype
-                parent::ODR_addThemeDatatype($em, $user, $remote_datatype, $theme_element);
-                $em->flush();
+                // Create a copy of that theme in this theme element
+                $clone_theme_service->cloneIntoThemeElement($user, $theme_element, $source_theme, $remote_datatype, 'master');
 
 
                 // ----------------------------------------
@@ -647,6 +550,10 @@ class LinkController extends ODRCustomController
             );
         }
         catch (\Exception $e) {
+            // Don't commit changes if any error was encountered...
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollBack();
+
             $source = 0xa1ee8e79;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
@@ -731,6 +638,352 @@ class LinkController extends ODRCustomController
 
         // Otherwise, no cycles found in this section of the graph
         return false;
+    }
+
+
+    /**
+     * Locates all theme entities that link $remote_datatype_id into $local_datatype_id, and
+     * deletes them.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param ODRUser $user
+     * @param int $local_datatype_id
+     * @param int $remote_datatype_id
+     */
+    private function deleteLinkedThemes($em, $user, $local_datatype_id, $remote_datatype_id)
+    {
+        $ids_to_delete = array(
+            'themes' => array(),
+            'theme_elements' => array(),
+            'theme_datafields' => array(),
+            'theme_datatypes' => array(),
+        );
+
+        // Locate all ThemeElements in all Themes of $local_datatype_id that contain links to
+        //  $remote_datatype_id
+        $query = $em->createQuery(
+           'SELECT te.id AS theme_element_id
+            FROM ODRAdminBundle:ThemeDataType AS tdt
+            JOIN ODRAdminBundle:ThemeElement AS te WITH tdt.themeElement = te
+            JOIN ODRAdminBundle:Theme AS t WITH te.theme = t
+            WHERE tdt.dataType = :remote_datatype_id AND t.dataType = :local_datatype_id
+            AND tdt.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'remote_datatype_id' => $remote_datatype_id,
+                'local_datatype_id' => $local_datatype_id
+            )
+        );
+        $results = $query->getArrayResult();
+
+        // For each of those ThemeElements, build up a list of ids of various theme-related entities
+        //  that need to get deleted so rendering doesn't break later on...
+        foreach ($results as $result) {
+            $te_id = $result['theme_element_id'];
+            self::deleteLinkedTheme_worker($em, $te_id, $ids_to_delete);
+        }
+
+        // Remove any duplicates from the 'theme_elements' section of the array
+        $ids_to_delete['theme_elements'] = array_unique( $ids_to_delete['theme_elements'] );
+
+        // Find all top-level themes that the soon-to-be-deleted themes belong to
+        $query = $em->createQuery(
+           'SELECT parent.id AS parent_id
+            FROM ODRAdminBundle:Theme AS t
+            JOIN ODRAdminBundle:Theme AS parent WITH t.parentTheme = parent
+            WHERE t.id IN (:theme_ids)
+            AND t.deletedAt IS NULL AND parent.deletedAt IS NULL'
+        )->setParameters( array('theme_ids' => $ids_to_delete['themes']) );
+        $results = $query->getArrayResult();
+
+        $top_level_themes = array();
+        foreach ($results as $result)
+            $top_level_themes[] = $result['parent_id'];
+
+
+        // ----------------------------------------
+        // There are six different entities to mark as deleted based on the prior criteria...
+        // ...theme entries
+        $query = $em->createQuery(
+           'UPDATE ODRAdminBundle:Theme AS t
+            SET t.deletedAt = :now, t.deletedBy = :deleted_by
+            WHERE t.id IN (:theme_ids) AND t.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'now' => new \DateTime(),
+                'deleted_by' => $user->getId(),
+                'theme_ids' => $ids_to_delete['themes'],
+            )
+        );
+        $rows = $query->execute();
+
+        // ...theme_meta entries
+        $query = $em->createQuery(
+           'UPDATE ODRAdminBundle:ThemeMeta AS tm
+            SET tm.deletedAt = :now
+            WHERE tm.theme IN (:theme_ids) AND tm.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'now' => new \DateTime(),
+                'theme_ids' => $ids_to_delete['themes'],
+            )
+        );
+        $rows = $query->execute();
+
+        // ...theme_element entries
+        $query = $em->createQuery(
+           'UPDATE ODRAdminBundle:ThemeElement AS te
+            SET te.deletedAt = :now, te.deletedBy = :deleted_by
+            WHERE te.id IN (:theme_element_ids) AND te.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'now' => new \DateTime(),
+                'deleted_by' => $user->getId(),
+                'theme_element_ids' => $ids_to_delete['theme_elements'],
+            )
+        );
+        $rows = $query->execute();
+
+        // ...theme_element_meta entries
+        $query = $em->createQuery(
+           'UPDATE ODRAdminBundle:ThemeElementMeta AS tem
+            SET tem.deletedAt = :now
+            WHERE tem.themeElement IN (:theme_element_ids) AND tem.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'now' => new \DateTime(),
+                'theme_element_ids' => $ids_to_delete['theme_elements'],
+            )
+        );
+        $rows = $query->execute();
+
+        // ...theme_datafield entries
+        $query = $em->createQuery(
+           'UPDATE ODRAdminBundle:ThemeDataField AS tdf
+            SET tdf.deletedAt = :now, tdf.deletedBy = :deleted_by
+            WHERE tdf.id IN (:theme_datafield_ids) AND tdf.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'now' => new \DateTime(),
+                'deleted_by' => $user->getId(),
+                'theme_datafield_ids' => $ids_to_delete['theme_datafields'],
+            )
+        );
+        $rows = $query->execute();
+
+        // ...theme_datatype entries
+        $query = $em->createQuery(
+           'UPDATE ODRAdminBundle:ThemeDataType AS tdt
+            SET tdt.deletedAt = :now, tdt.deletedBy = :deleted_by
+            WHERE tdt.id IN (:theme_datatype_ids) AND tdt.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'now' => new \DateTime(),
+                'deleted_by' => $user->getId(),
+                'theme_datatype_ids' => $ids_to_delete['theme_datatypes'],
+            )
+        );
+        $rows = $query->execute();
+
+
+        // ----------------------------------------
+        // Cache entries need to be wiped too...
+        /** @var CacheService $cache_service */
+        $cache_service = $this->container->get('odr.cache_service');
+        foreach ($top_level_themes as $t_id)
+            $cache_service->delete('cached_theme_'.$t_id);
+    }
+
+
+    /**
+     * Recursively iterates through the given theme_element to determine the ids of all Theme
+     * stuff that needs to be marked as deleted when unlinking a linked datatype.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param int $theme_element_id
+     * @param array $ids_to_delete
+     */
+    private function deleteLinkedTheme_worker($em, $theme_element_id, &$ids_to_delete)
+    {
+        $query = $em->createQuery(
+           'SELECT partial te.{id}, partial tdt.{id},
+               partial c_t.{id}, partial c_te.{id}, partial c_tdf.{id}, partial c_tdt.{id}
+            FROM ODRAdminBundle:ThemeElement AS te
+            LEFT JOIN te.themeDataType AS tdt
+            LEFT JOIN tdt.childTheme AS c_t
+            LEFT JOIN c_t.themeElements AS c_te
+            LEFT JOIN c_te.themeDataFields AS c_tdf
+            LEFT JOIN c_te.themeDataType AS c_tdt
+            WHERE te.id = :theme_element_id
+            AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL
+            AND c_t.deletedAt IS NULL AND c_te.deletedAt IS NULL
+            AND c_tdf.deletedAt IS NULL AND c_tdt.deletedAt IS NULL'
+        )->setParameters( array('theme_element_id' => $theme_element_id) );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result) {
+            $tdt_id = $result['themeDataType'][0]['id'];
+            $ids_to_delete['theme_datatypes'][] = $tdt_id;
+
+            $c_t_id = $result['themeDataType'][0]['childTheme']['id'];
+            $ids_to_delete['themes'][] = $c_t_id;
+
+            foreach ($result['themeDataType'][0]['childTheme']['themeElements'] as $te_num => $te) {
+                // This will create a duplicate id in the theme_elements section if this theme_element
+                //  has a theme_datatype entry...
+                $te_id = $te['id'];
+                $ids_to_delete['theme_elements'][] = $te_id;
+
+                if ( isset($te['themeDataFields']) ) {
+                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                        $tdf_id = $tdf['id'];
+                        $ids_to_delete['theme_datafields'][] = $tdf_id;
+                    }
+                }
+
+                if ( isset($te['themeDataType']) && isset($te['themeDataType'][0]) )
+                    self::deleteLinkedTheme_worker($em, $te_id, $ids_to_delete);
+            }
+        }
+    }
+
+
+    /**
+     * Deletes all datatree and linked_datatree entries linking the given local and remote datatypes,
+     * and returns an array of datarecord ids that need updated as a result.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param ODRUser $user
+     * @param int $local_datatype_id
+     * @param int $remote_datatype_id
+     *
+     * @return int[]
+     */
+    private function deleteDatatreeEntries($em, $user, $local_datatype_id, $remote_datatype_id)
+    {
+        // Delete the Datatree entry tying the local and the remote datatype together
+        /** @var DataTree $datatree */
+        $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+            array(
+                'ancestor' => $local_datatype_id,
+                'descendant' => $remote_datatype_id
+            )
+        );
+        if ( !is_null($datatree) ) {
+            $datatree_meta = $datatree->getDataTreeMeta();
+
+            $datatree->setDeletedBy($user);
+            $em->persist($datatree);
+
+            $em->remove($datatree);
+            $em->remove($datatree_meta);
+        }
+
+
+        // Locate all LinkedDatatree entries between the local and the remote datatype
+        $query = $em->createQuery(
+           'SELECT ancestor.id AS ancestor_id, ldt.id AS ldt_id
+            FROM ODRAdminBundle:DataRecord AS ancestor
+            JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+            JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+            WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
+            AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'ancestor_datatype' => $local_datatype_id,
+                'descendant_datatype' => $remote_datatype_id
+            )
+        );
+        $results = $query->getArrayResult();
+
+
+        // Need to get two lists...one of all the LinkedDatatree entries that need deleting,
+        //  and another for all of the ancestor datarecords that need updating
+        $ldt_ids = array();
+        $datarecord_ids = array();
+        foreach ($results as $result) {
+            $dr_id = $result['ancestor_id'];
+            $ldt_id = $result['ldt_id'];
+
+            $datarecord_ids[] = $dr_id;
+            $ldt_ids[] = $ldt_id;
+        }
+        $datarecord_ids = array_unique($datarecord_ids);
+
+        if ( count($ldt_ids) > 0 ) {
+            // Perform a DQL mass update to soft-delete all the LinkedDatatree entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:LinkedDataTree AS ldt
+                SET ldt.deletedAt = :now, ldt.deletedBy = :user_id
+                WHERE ldt.id IN (:ldt_ids) AND ldt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'user_id' => $user->getId(),
+                    'ldt_ids' => $ldt_ids
+                )
+            );
+            $query->execute();
+        }
+
+        // Return a list of datarecord ids that need to get recached
+        return $datarecord_ids;
+    }
+
+
+    /**
+     * Given a list of datarecord ids compiled by self::deleteDatatreeEntries, marks all those
+     * datarecord ids as updated and deletes related cache entries.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param ODRUser $user
+     * @param int[] $datarecord_ids
+     */
+    private function updateDatarecordEntries($em, $user, $datarecord_ids)
+    {
+        // Mark all datarecords that linked to a datarecord in the remote datatype as updated
+        $query = $em->createQuery(
+           'UPDATE ODRAdminBundle:DataRecord AS dr
+            SET dr.updated = :now, dr.updatedBy = :user_id
+            WHERE dr.id IN (:datarecord_ids) AND dr.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'now' => new \DateTime(),
+                'user_id' => $user->getId(),
+                'datarecord_ids' => $datarecord_ids,
+            )
+        );
+        $query->execute();
+
+        // Locate the grandparent ids of all datarecords that got updated for cache clearing purposes
+        $query = $em->createQuery(
+           'SELECT grandparent.id AS grandparent_id
+            FROM ODRAdminBundle:DataRecord AS dr
+            JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
+            WHERE dr.id IN (:datarecord_ids)
+            AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'datarecord_ids' => $datarecord_ids
+            )
+        );
+        $results = $query->getArrayResult();
+
+        // Delete cache entries for all datarecords that got updated...
+        $updated = array();
+        $cache_service = $this->container->get('odr.cache_service');
+        foreach ($results as $result) {
+            $grandparent_id = $result['grandparent_id'];
+
+            if ( !isset($updated[$grandparent_id]) ) {
+                $updated[$grandparent_id] = 1;
+
+                // ...delete the cache entry that stores what this datarecord is linked to
+                $cache_service->delete('associated_datarecords_for_'.$grandparent_id);
+                // ...delete its cached entry
+                $cache_service->delete('cached_datarecord_'.$grandparent_id);
+            }
+        }
     }
 
 

@@ -7,7 +7,11 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * TODO
+ * When the Graph Plugin is executed as part of twig rendering, it creates an <img> tag with a src
+ * attribute that points to staticAction() in this controller.  When the browser attempts to load
+ * the image, this controller action calls the Graph Plugin again with a slightly different set of
+ * options that will cause it to return a link to the cached graph image.  If the graph image isn't
+ * cached, the Graph Plugin will get phantomJS server to generate/save the image first.
  */
 
 namespace ODR\OpenRepository\GraphBundle\Controller;
@@ -52,7 +56,6 @@ class GraphController extends ODRCustomController
                 $is_rollup = true;
                 $datarecord_id = preg_replace("/rollup_/","",$datarecord_id);
             }
-
 
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -113,7 +116,11 @@ class GraphController extends ODRCustomController
 
             $datarecord_array = $dri_service->getDatarecordArray($datarecord->getId(), $include_links);
             $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
-            $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user);
+
+            // This is only going to be rendering the graph as an image, so the master theme can
+            //  be used here without any issue
+            $theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
+            $theme_array = $theme_service->getThemeArray($theme->getId());
 
 
             // ----------------------------------------
@@ -129,32 +136,35 @@ class GraphController extends ODRCustomController
                 }
             }
 
-            // Determine if this is a single or rollup graph.
-            // If single only send the one datarecord
-
             // Load and execute the render plugin
             $datatype = $datatype_array[$datatype_id];
             $render_plugin = $datatype['dataTypeMeta']['renderPlugin'];
-//            $theme = $datatype['themes'][$requested_theme->getId()];
-            $svc = $this->container->get($render_plugin['pluginClassName']);
+
+
             // Build Graph - Static Option
-            // {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type} %}
-            $rendering_options = array();
-            $rendering_options['is_top_level'] = $is_top_level;
-            // TODO Figure out where display_type comes from.  Is it deprecated?
-            $rendering_options['display_type'] = 100000;
-            $rendering_options['is_link'] = false;
-            $rendering_options['build_graph'] = true;
-            if ($is_rollup) {
+            // {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type, 'theme_type': theme.themeType} %}
+            $rendering_options = array(
+                'build_graph' => true,
+
+                // The value of these four options shouldn't really matter since this call is
+                //  only telling the graph plugin to render/save a graph
+                'is_top_level' => $is_top_level,
+                'is_link' => 0,
+                'display_type' => 0,
+                'theme_type' => 'master',
+            );
+
+            if ($is_rollup)
                 $rendering_options['datarecord_id'] = 'rollup';
-            }
-            else {
+            else
                 $rendering_options['datarecord_id'] = $datarecord_id;
-            }
 
 
+            // ----------------------------------------
             // Render the static graph
+            $svc = $this->container->get($render_plugin['pluginClassName']);
             $filename = $svc->execute($datarecord_array, $datatype, $render_plugin, $theme_array, $rendering_options);
+
             return $this->redirect($filename);
         }
         catch (\Exception $e) {

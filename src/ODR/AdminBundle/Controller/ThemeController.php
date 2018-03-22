@@ -483,85 +483,6 @@ class ThemeController extends ODRCustomController
 
 
     /**
-     * Opens the page to modify a single non-master theme.
-     *
-     * @param int $datatype_id
-     * @param int $theme_id
-     * @param string $search_key
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function modifythemeAction($datatype_id, $theme_id, $search_key = '', Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
-
-            /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ($datatype == null)
-                throw new ODRNotFoundException('Datatype');
-
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
-
-            if ($theme->getDataType()->getId() !== $datatype->getId())
-                throw new ODRBadRequestException();
-
-            // Don't allow on a 'master' theme
-            if ($theme->getThemeType() == 'master')
-                throw new ODRBadRequestException('ThemeController::modifythemeAction() called on a master theme');
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            // Require users to be logged in and able to view the datatype before doing this...
-            if ($user === "anon.")
-                throw new ODRForbiddenException();
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
-                throw new ODRForbiddenException();
-
-            if ($theme->getCreatedBy()->getId() !== $user->getId())
-                throw new ODRForbiddenException();
-            // --------------------
-
-
-            $return['d'] = array(
-                'datatype_id' => $datatype->getId(),
-                'html' => self::DisplayTheme($datatype, $theme, 'edit', $search_key)
-            );
-
-        }
-        catch (\Exception $e) {
-            $source = 0x1b840b54;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
      * Allows users to clone themes for creating customized views.
      *
      * @param int $theme_id
@@ -635,9 +556,10 @@ class ThemeController extends ODRCustomController
             if ($dest_theme_type == 'master')
                 $dest_theme_type = 'custom_view';
 
-            $new_theme = $clone_theme_service->cloneThemeFromParent($user, $theme, $dest_theme_type);
 
             // This actually seems to be fast enough that it doesn't need the TrackedJobService...
+            $new_theme = $clone_theme_service->cloneSourceTheme($user, $theme, $dest_theme_type);
+
 
             $return['d'] = array(
                 'new_theme_id' => $new_theme->getId()
@@ -713,10 +635,6 @@ class ThemeController extends ODRCustomController
             // --------------------
 
 
-            // Don't run this on themes that are their own source...this also blocks 'master' themes
-            if ($theme->getSourceTheme()->getId() == $theme->getId())
-                throw new ODRBadRequestException('Not allowed to sync a Theme with itself');
-
             // Don't run this on themes for child datatypes
             if ($theme->getId() !== $theme->getParentTheme()->getId())
                 throw new ODRBadRequestException('Not allowed to clone a Theme for a child Datatype');
@@ -768,6 +686,8 @@ class ThemeController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var CloneThemeService $clone_theme_service */
+            $clone_theme_service = $this->container->get('odr.clone_theme_service');
 
 
             /** @var DataType $datatype */
@@ -806,12 +726,10 @@ class ThemeController extends ODRCustomController
                 $theme = $theme_service->getDatatypeDefaultTheme($datatype->getId(), 'search_results');
                 if ($theme == null) {
                     // Load this datatype's 'master' Theme
-                    $master_theme = $theme_service->getDatatypeDefaultTheme($datatype->getId());
+                    $master_theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
 
                     // Make a copy of the 'master' Theme
-                    /** @var CloneThemeService $clone_theme_service */
-                    $clone_theme_service = $this->container->get('odr.clone_theme_service');
-                    $theme = $clone_theme_service->cloneThemeFromParent($user, $master_theme, 'search_results');
+                    $theme = $clone_theme_service->cloneSourceTheme($user, $master_theme, 'search_results');
 
                     // Since this is the first 'search_results' theme, it should get marked as
                     //  both 'shared' and 'default'
@@ -865,6 +783,85 @@ class ThemeController extends ODRCustomController
 
 
     /**
+     * Opens the page to modify a single non-master theme.
+     *
+     * @param int $datatype_id
+     * @param int $theme_id
+     * @param string $search_key
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function modifythemeAction($datatype_id, $theme_id, $search_key = '', Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            if ($theme == null)
+                throw new ODRNotFoundException('Theme');
+
+            if ($theme->getDataType()->getId() !== $datatype->getId())
+                throw new ODRBadRequestException();
+
+            // Don't allow on a 'master' theme
+//            if ($theme->getThemeType() == 'master')
+//                throw new ODRBadRequestException('ThemeController::modifythemeAction() called on a master theme');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Require users to be logged in and able to view the datatype before doing this...
+            if ($user === "anon.")
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+            if ($theme->getCreatedBy()->getId() !== $user->getId())
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            $return['d'] = array(
+                'datatype_id' => $datatype->getId(),
+                'html' => self::DisplayTheme($datatype, $theme, 'edit', $search_key)
+            );
+
+        }
+        catch (\Exception $e) {
+            $source = 0x1b840b54;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Renders and returns the HTML to modify a non-master Theme for a Datatype.
      *
      * @param DataType $datatype The datatype that originally requested this Theme rendering
@@ -891,20 +888,28 @@ class ThemeController extends ODRCustomController
         /** @var ODRUser $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+        $user_permissions = $pm_service->getUserPermissionsArray($user);
         $datatype_permissions = $pm_service->getDatatypePermissions($user);
         $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
 
 
         // ----------------------------------------
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $include_links = false;
-        $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
+        $datatype_array = $dti_service->getDatatypeArray($datatype->getId());
+        $theme_array = $theme_service->getThemeArray($theme->getId());
 
-        $theme_array = $theme_service->getThemeArray(array($theme->getId()));     // TODO - need to get links?
+        // Delete everything from the datatype array that the user isn't allowed to see
+        $datarecord_array = array();
+        $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+        // "Inflate" the currently flattened datatype and theme arrays
+        $stacked_datatype_array[ $datatype->getId() ] =
+            $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+        $stacked_theme_array[ $theme->getId() ] =
+            $theme_service->stackThemeArray($theme_array, $theme->getId());
+
 
         // ----------------------------------------
-
-
         // Store whether this is a "short" form or not...
         // TODO - wasn't this distinction supposed to be removed in the near future?
         $is_short_form = in_array($theme->getThemeType(), $theme_service::SHORT_FORM_THEMETYPES);
@@ -925,9 +930,10 @@ class ThemeController extends ODRCustomController
         $html = $templating->render(
             'ODRAdminBundle:Theme:theme_ajax.html.twig',
             array(
-                'datatype_array' => $datatype_array,
+                'datatype_array' => $stacked_datatype_array,
+                'theme_array' => $stacked_theme_array,
+
                 'initial_datatype_id' => $datatype->getId(),
-                'theme_array' => $theme_array,
 
                 'theme_datatype' => $datatype,
                 'theme' => $theme,
@@ -1557,24 +1563,36 @@ class ThemeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+
             // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $source_datatype) )
+            $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $source_datatype);
+            if (!$is_datatype_admin)
                 throw new ODRForbiddenException();
             // --------------------
 
 
             // ----------------------------------------
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            $include_links = false;
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
+            $datatype_array = $dti_service->getDatatypeArray($source_datatype->getId());
+            $theme_array = $theme_service->getThemeArray($theme->getParentTheme()->getId());
 
-            $theme_array = $theme_service->getThemeArray(array($theme->getId()));     // TODO - need to get links?
+            // Delete everything from the datatype array that the user isn't allowed to see
+            $datarecord_array = array();
+            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
+            // "Inflate" the currently flattened datatype and theme arrays
+            $stacked_datatype_array[ $datatype->getId() ] =
+                $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+            $stacked_theme_array[ $theme->getId() ] =
+                $theme_service->stackThemeArray($theme_array, $theme->getId());
 
+            // ----------------------------------------
             // Filter out all theme_elements that aren't the one to reload
-            foreach ($theme_array[$source_datatype_id]['themeElements'] as $num => $te) {
+            foreach ($stacked_theme_array[ $theme->getId() ]['themeElements'] as $num => $te) {
                 if ( $te['id'] != $theme_element_id )
-                    unset( $theme_array[$source_datatype_id]['themeElements'][$num] );
+                    unset( $stacked_theme_array[ $theme->getId() ]['themeElements'][$num] );
             }
 
 
@@ -1584,12 +1602,14 @@ class ThemeController extends ODRCustomController
             $html = $templating->render(
                 'ODRAdminBundle:Theme:theme_fieldarea.html.twig',
                 array(
-                    'datatype_array' => $datatype_array,
-                    'target_datatype_id' => $source_datatype->getId(),
-                    'theme_array' => $theme_array,
+                    'datatype_array' => $stacked_datatype_array,
+                    'theme_array' => $stacked_theme_array,
 
-                    'datatype_permissions' => $pm_service->getDatatypePermissions($user),
-                    'is_datatype_admin' => $pm_service->isDatatypeAdmin($user, $datatype),
+                    'target_datatype_id' => $datatype->getId(),
+                    'target_theme_id' => $theme->getId(),
+
+                    'datatype_permissions' => $datatype_permissions,
+                    'is_datatype_admin' => $is_datatype_admin,
 
                     'is_top_level' => 0,    // the values for these two don't matter, for the moment
                     'is_link' => 0,

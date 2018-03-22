@@ -34,7 +34,7 @@
     {% endif %}
 
     <div class="pure-u-1">
-        <button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }}, 'view', {{ offset }});">View DataRecord</button>
+        <button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }}, 'view', '{{ offset }}');">View DataRecord</button>
         <button type="button" class="pure-button pure-button-primary" onclick="exportXML({{ datarecord.id }})">Export DataRecord</button>
 
         {% if is_datatype_admin == 1 %}
@@ -152,10 +152,15 @@
             url = url.substring(0, (url.length - 1));
             url += datatype_id;
 
+            // The tab id should always exist at this point...need to pass it to the controller
+            //  action so any lists of datarecords stored for this tab are deleted
+            data = {'odr_tab_id': window.sessionStorage.getItem('odr_tab_id')};
+
             $.ajax({
                 cache: false,
                 type: 'GET',
                 url: url,
+                data: data,
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
                     // Reload this area of the page

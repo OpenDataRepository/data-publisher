@@ -24,8 +24,6 @@ use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\GroupMeta;
 use ODR\AdminBundle\Entity\GroupDatafieldPermissions;
 use ODR\AdminBundle\Entity\GroupDatatypePermissions;
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\UserGroup;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -33,7 +31,6 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Forms
 use ODR\AdminBundle\Form\UpdateGroupForm;
 // Services
@@ -1093,7 +1090,7 @@ class ODRGroupController extends ODRCustomController
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-        $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+
 
         /** @var CacheService $cache_service */
         $cache_service = $this->container->get('odr.cache_service');
@@ -1104,9 +1101,8 @@ class ODRGroupController extends ODRCustomController
         /** @var ThemeInfoService $theme_service */
         $theme_service = $this->container->get('odr.theme_info_service');
 
-        /** @var ODRUser $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+        // ----------------------------------------
         // Load permissions for the specified group
         $permissions = $cache_service->get('group_'.$group->getId().'_permissions');
         if ($permissions == false) {
@@ -1118,7 +1114,6 @@ class ODRGroupController extends ODRCustomController
         $datatype_permissions = $permissions['datatypes'];
         $datafield_permissions = $permissions['datafields'];
 
-
         $prevent_all_changes = false;
         if ($group->getPurpose() !== '')
             $prevent_all_changes = true;
@@ -1127,32 +1122,20 @@ class ODRGroupController extends ODRCustomController
         // ----------------------------------------
         // Load required objects based on parameters
         /** @var DataType $datatype */
-        $datatype = null;
-        /** @var Theme $theme */
-        $theme = null;
-
-        /** @var DataType|null $child_datatype */
-        $child_datatype = null;
-        /** @var ThemeElement|null $theme_element */
-        $theme_element = null;
-
-
-        // Don't need to check whether these entities are deleted or not
-        $datatype = $repo_datatype->find($target_id);
-        $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+        $datatype = $repo_datatype->find($source_datatype_id);
+        $theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
 
 
         // ----------------------------------------
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
         $include_links = false;
         $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
-//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
+        $theme_array = $theme_service->getThemeArray($theme->getId());
 
-        $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
-
-
-        // ----------------------------------------
         // No need to filter display by user permissions...the only people who can currently access this functionality already have permissions to view/edit everything
+
+        $stacked_datatype_array[ $datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+        $stacked_theme_array[ $theme->getId() ] = $theme_service->stackThemeArray($theme_array, $theme->getId());
 
 
         // ----------------------------------------
@@ -1165,9 +1148,12 @@ class ODRGroupController extends ODRCustomController
                 'datatype_permissions' => $datatype_permissions,
                 'datafield_permissions' => $datafield_permissions,
 
-                'datatype_array' => $datatype_array,
+                'datatype_array' => $stacked_datatype_array,
+                'theme_array' => $stacked_theme_array,
+
                 'initial_datatype_id' => $source_datatype_id,
-                'theme_array' => $theme_array,
+                'initial_theme_id' => $theme->getId(),
+
 
                 'prevent_all_changes' => $prevent_all_changes,
             )

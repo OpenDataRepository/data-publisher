@@ -35,6 +35,7 @@
 
             'initial_datatype_id': initial_datatype_id,
             'initial_datarecord_id': dr_id,
+            'initial_theme_id': initial_theme_id,
 
             'is_top_level': 1,
             'search_key': '',
@@ -66,7 +67,7 @@
     jQuery(function() {
         $(".ODRShortResultsHeader").unbind('click').click(function() {
             var id = jQuery(this).attr('id').replace(/ShortResultsHeader_/,'');
-            loadDataRecord(id, 'view', {{ offset }});
+            loadDataRecord(id, 'view', '{{ offset }}');
         });
 
         $(".ODRShortResultsHeader_edit").unbind('click').click(function(event) {
@@ -74,7 +75,7 @@
             event.stopImmediatePropagation();
 
             var id = $(this).parent().attr('id').replace(/ShortResultsHeader_/,'');
-            loadDataRecord(id, 'edit', {{ offset }});
+            loadDataRecord(id, 'edit', '{{ offset }}');
         });
     });
 {% elseif intent == 'linking' %}

@@ -1,7 +1,7 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
-{% set theme = theme_array[datatype.id] %}
+{% set theme = theme_array[target_theme_id] %}
 
 {% set is_datatype_admin = false %}
 {% if datatype_permissions[target_datatype_id] is defined and datatype_permissions[target_datatype_id][ 'dt_admin' ] is defined %}
@@ -28,8 +28,10 @@
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datatype.id }}">
             {% include 'ODRAdminBundle:MassEdit:massedit_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
-                'target_datatype_id': target_datatype_id,
                 'theme_array': theme_array,
+
+                'target_datatype_id': target_datatype_id,
+                'target_theme_id': target_theme_id,
 
                 'datatype_permissions': datatype_permissions,
                 'datafield_permissions': datafield_permissions,
@@ -44,8 +46,10 @@
         <div class="ODRFieldArea pure-u-1" id="FieldArea_{{ datatype.id }}">
             {% include 'ODRAdminBundle:MassEdit:massedit_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
-                'target_datatype_id': target_datatype_id,
                 'theme_array': theme_array,
+
+                'target_datatype_id': target_datatype_id,
+                'target_theme_id': target_theme_id,
 
                 'datatype_permissions': datatype_permissions,
                 'datafield_permissions': datafield_permissions,

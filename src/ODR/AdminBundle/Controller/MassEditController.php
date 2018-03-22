@@ -244,10 +244,7 @@ class MassEditController extends ODRCustomController
         if ($datatype == null)
             throw new ODRNotFoundException('Datatype');
 
-        /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-        if ($theme == null)
-            throw new ODRNotFoundException('Theme');
+        $theme = $theme_service->getDatatypeMasterTheme($datatype_id);
 
 
         // --------------------
@@ -264,13 +261,19 @@ class MassEditController extends ODRCustomController
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
         $include_links = false;
         $datatype_array = $dti_service->getDatatypeArray($datatype_id, $include_links);
+        $theme_array = $theme_service->getThemeArray($theme->getId());
 //print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
         // Filter by user permissions
         $datarecord_array = array();
         $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
-        $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
+        // Technically don't need to stack these arrays since linked datatypes aren't involved, but
+        //  do it for consistency with other rendering modes
+        $stacked_datatype_array[ $datatype->getId() ] =
+            $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+        $stacked_theme_array[ $theme->getId() ] =
+            $theme_service->stackThemeArray($theme_array, $theme->getId());
 
 
         // ----------------------------------------
@@ -279,9 +282,11 @@ class MassEditController extends ODRCustomController
         $html = $templating->render(
             'ODRAdminBundle:MassEdit:massedit_ajax.html.twig',
             array(
-                'datatype_array' => $datatype_array,
+                'datatype_array' => $stacked_datatype_array,
+                'theme_array' => $stacked_theme_array,
+
                 'initial_datatype_id' => $datatype_id,
-                'theme_array' => $theme_array,
+                'initial_theme_id' => $theme->getId(),
 
                 'odr_tab_id' => $odr_tab_id,
                 'datatype_permissions' => $datatype_permissions,

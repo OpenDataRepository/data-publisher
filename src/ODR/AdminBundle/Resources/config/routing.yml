@@ -215,14 +215,14 @@ odr_save_group_datafield_permission:
 # Render Plugin routes
 odr_render_plugin_dialog:
     path:  /design/displaytemplate/plugindialog/{datatype_id}/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:plugindialog }
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:renderplugindialog }
     requirements:
         datatype_id:  \d+
         datafield_id:  \d+
 
 odr_load_plugin_data:
     path:  /design/displaytemplate/plugindata/{datatype_id}/{datafield_id}/{render_plugin_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:pluginsettings }
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:renderpluginsettings }
     requirements:
         datatype_id:  \d+
         datafield_id:  \d+
@@ -1212,12 +1212,18 @@ odr_fix_missing_meta_entries:
     path: /admin/fix_meta_entries
     defaults: { _controller: ODRAdminBundle:Worker:fixmissingmetaentries }
 
-#odr_datatype_migrate:
-#    path:  /admin/datatype_migrate
-#    defaults: { _controller: ODRAdminBundle:Worker:datatypemigrate }
-#odr_theme_migrate:
-#    path: /admin/theme_migrate
-#    defaults: { _controller: ODRAdminBundle:Worker:thememigrate }
+odr_child_theme_migrate:
+    path: /admin/child_theme_migrate
+    defaults: { _controller: ODRAdminBundle:Worker:childthememigrate }
+odr_test_synch:
+    path: /admin/synch_test/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Worker:synchtest }
+    requirements:
+        theme_id: \d+
+
+odr_fix_datatree_entries:
+    path: /admin/fix_datatree_entries
+    defaults: { _controller: ODRAdminBundle:Worker:fixdatatreeentries }
 
 #-----------------------------------------
 

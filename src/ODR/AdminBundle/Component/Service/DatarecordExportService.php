@@ -109,6 +109,8 @@ class DatarecordExportService
         $datarecord = $this->em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
         $datatype = $datarecord->getDataType();
 
+        $master_theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
+
         $user_permissions = $this->pm_service->getUserPermissionsArray($user);
 
         // ----------------------------------------
@@ -116,7 +118,7 @@ class DatarecordExportService
         $include_links = true;
         $datarecord_array = $this->dri_service->getDatarecordArray($datarecord->getId(), $include_links);
         $datatype_array = $this->dti_service->getDatatypeArray($datatype->getId(), $include_links);
-        $theme_array = $this->theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
+        $theme_array = $this->theme_service->getThemeArray($master_theme->getId());
 
         // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
         $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
@@ -124,6 +126,7 @@ class DatarecordExportService
         // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
         $stacked_datarecord_array[ $datarecord_id ] = $this->dri_service->stackDatarecordArray($datarecord_array, $datarecord_id);
         $stacked_datatype_array[ $datatype->getId() ] = $this->dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+        $stacked_theme_array[ $master_theme->getId() ] = $this->theme_service->stackThemeArray($theme_array, $master_theme->getId());
 
 
         // ----------------------------------------
@@ -136,10 +139,11 @@ class DatarecordExportService
             array(
                 'datatype_array' => $stacked_datatype_array,
                 'datarecord_array' => $stacked_datarecord_array,
-                'theme_array' => $theme_array,
+                'theme_array' => $stacked_theme_array,
 
                 'initial_datatype_id' => $datatype->getId(),
                 'initial_datarecord_id' => $datarecord->getId(),
+                'initial_theme_id' => $master_theme->getId(),
 
                 'using_metadata' => $using_metadata,
                 'baseurl' => $baseurl,

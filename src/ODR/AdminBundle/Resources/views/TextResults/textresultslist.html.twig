@@ -4,7 +4,7 @@
    ODRCustomController::renderList() renders ODRAdminBundle:Link:link_datarecord_form.html.twig
    when intent == 'linking' #}
 
-{% set theme = theme_array[datatype.id] %}
+{% set theme = theme_array[initial_theme_id] %}
 
 {% set is_datatype_admin = false %}
 {% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}

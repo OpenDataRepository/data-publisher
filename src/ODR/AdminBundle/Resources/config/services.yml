@@ -131,6 +131,11 @@ services:
         class: ODR\AdminBundle\Component\Service\TableThemeHelperService
         arguments:
             container: "@service_container"    # needed in order to execute arbitrary render plugins
+            cache_service: "@odr.cache_service"
+            datarecord_info_service: "@odr.datarecord_info_service"
+            datatype_info_service: "@odr.datatype_info_service"
+            permissions_service: "@odr.permissions_management_service"
+            theme_service: "@odr.theme_info_service"
             router: "@router"
             logger: "@logger"
 

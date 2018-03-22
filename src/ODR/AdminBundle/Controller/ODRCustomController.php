@@ -384,13 +384,16 @@ class ODRCustomController extends Controller
             }
 
             $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
-            $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, $theme->getThemeType(), $include_links);
+            $theme_array = $theme_service->getThemeArray($theme->getId());
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $related_datarecord_array, $user_permissions);
 
             // Stack the datatype and all of its children
-            $datatype_array[ $datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+            $stacked_datatype_array[ $datatype->getId() ] =
+                $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+            $stacked_theme_array[ $theme->getId() ] =
+                $theme_service->stackThemeArray($theme_array, $theme->getId());
 
             // Stack each individual datarecord in the array
             // TODO - is there a faster way of doing this?  Loading/stacking datarecords is likely the slowest part of rendering a search results list now
@@ -407,11 +410,12 @@ class ODRCustomController extends Controller
             $final_html = $templating->render(
                 $template,
                 array(
-                    'datatype_array' => $datatype_array,
+                    'datatype_array' => $stacked_datatype_array,
                     'datarecord_array' => $datarecord_array,
-                    'theme_array' => $theme_array,
+                    'theme_array' => $stacked_theme_array,
 
                     'initial_datatype_id' => $datatype->getId(),
+                    'initial_theme_id' => $theme->getId(),
 
                     'has_datarecords' => $has_datarecords,
                     'scroll_target' => $scroll_target,
@@ -436,14 +440,14 @@ class ODRCustomController extends Controller
                     'page_length' => $page_length,
 
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
-//                    'all_datarecords' => $datarecords,    // TODO - this isn't used?
+                    'all_datarecords' => $datarecords,    // this is used by datarecord linking
                     'use_jupyterhub' => $use_jupyterhub,
                 )
             );
         }
         else if ( $theme->getThemeType() == 'table' ) {
             // -----------------------------------
-            $theme_array = $theme_service->getThemeArray( array($theme->getId()) );
+            $theme_array = $theme_service->getThemeArray($theme->getId());
 
             // Determine the columns to use for the table
             /** @var TableThemeHelperService $tth_service */
@@ -476,6 +480,8 @@ class ODRCustomController extends Controller
                     'user_permissions' => $datatype_permissions,
                     'theme_array' => $theme_array,
 
+                    'initial_theme_id' => $theme->getId(),
+
                     'logged_in' => $logged_in,
                     'display_theme_warning' => $display_theme_warning,
                     'intent' => $intent,
@@ -490,7 +496,7 @@ class ODRCustomController extends Controller
                     'offset' => $offset,
 
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
-//                    'all_datarecords' => $datarecords,    // TODO - this isn't used?
+                    'all_datarecords' => $datarecords,    // This is used by the datarecord linking
                     'use_jupyterhub' => $use_jupyterhub,
                 )
             );
@@ -520,6 +526,8 @@ class ODRCustomController extends Controller
     {
         /** @var CacheService $cache_service*/
         $cache_service = $this->container->get('odr.cache_service');
+        /** @var ODRTabHelperService $odr_tab_service */
+        $odr_tab_service = $this->container->get('odr.tab_helper_service');
         /** @var SearchCacheService $search_cache_service */
         $search_cache_service = $this->container->get('odr.search_cache_service');
 
@@ -578,6 +586,14 @@ class ODRCustomController extends Controller
                 return array('redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key'], 'datarecord_list' => '');
 
             $cached_searches = $cache_service->get('cached_search_results');
+
+            // If the cached search results needs to be rebuilt, the lists of datarecords stored in
+            //  the user's session should also be rebuilt
+            $params = $request->query->all();
+            if ( isset($params['odr_tab_id']) ) {
+                $odr_tab_id = $params['odr_tab_id'];
+                $odr_tab_service->clearDatarecordLists($odr_tab_id);
+            }
         }
 
         // ----------------------------------------
@@ -1299,6 +1315,7 @@ class ODRCustomController extends Controller
         $datarecord_meta->setCreatedBy($user);
         $datarecord_meta->setUpdatedBy($user);
 
+        $datarecord->addDataRecordMetum($datarecord_meta);
         $em->persist($datarecord_meta);
 
         return $datarecord;
@@ -1373,6 +1390,43 @@ class ODRCustomController extends Controller
 
         // Return the new entry
         return $new_datarecord_meta;
+    }
+
+
+    /**
+     * Creates and persists a new Datatree entry.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param DataType $ancestor
+     * @param DataType $descendant
+     * @param boolean $is_link
+     * @param boolean $multiple_allowed
+     *
+     * @return DataTree
+     */
+    protected function ODR_addDatatree($em, $user, $ancestor, $descendant, $is_link, $multiple_allowed)
+    {
+        $datatree = new DataTree();
+        $datatree->setAncestor($ancestor);
+        $datatree->setDescendant($descendant);
+        $datatree->setCreatedBy($user);
+
+        $em->persist($datatree);
+        $em->flush();
+        $em->refresh($datatree);
+
+        $datatree_meta = new DataTreeMeta();
+        $datatree_meta->setDataTree($datatree);
+        $datatree_meta->setIsLink($is_link);
+        $datatree_meta->setMultipleAllowed($multiple_allowed);
+        $datatree_meta->setCreatedBy($user);
+        $datatree_meta->setUpdatedBy($user);
+
+        $datatree->addDataTreeMetum($datatree_meta);
+        $em->persist($datatree_meta);
+
+        return $datatree;
     }
 
 
@@ -2961,6 +3015,7 @@ class ODRCustomController extends Controller
         $theme_element_meta->setCreatedBy($user);
         $theme_element_meta->setUpdatedBy($user);
 
+        $theme_element->addThemeElementMetum($theme_element_meta);
         $em->persist($theme_element_meta);
 
         return array('theme_element' => $theme_element, 'theme_element_meta' => $theme_element_meta);
@@ -3075,7 +3130,9 @@ class ODRCustomController extends Controller
         $theme_datafield->setCreatedBy($user);
         $theme_datafield->setUpdatedBy($user);
 
+        $theme_element->addThemeDataField($theme_datafield);
         $em->persist($theme_datafield);
+
         return $theme_datafield;
     }
 
@@ -3166,15 +3223,17 @@ class ODRCustomController extends Controller
      * @param User $user                  The user requesting the creation of this entity
      * @param DataType $datatype          The datatype this entry is for
      * @param ThemeElement $theme_element The theme_element this entry is attached to
+     * @param Theme $child_theme
      *
      * @return ThemeDataType
      */
-    protected function ODR_addThemeDatatype($em, $user, $datatype, $theme_element)
+    protected function ODR_addThemeDatatype($em, $user, $datatype, $theme_element, $child_theme)
     {
         // Create theme entry
         $theme_datatype = new ThemeDataType();
         $theme_datatype->setDataType($datatype);
         $theme_datatype->setThemeElement($theme_element);
+        $theme_datatype->setChildTheme($child_theme);
 
         $theme_datatype->setDisplayType(0);     // 0 is accordion, 1 is tabbed, 2 is dropdown, 3 is list
         $theme_datatype->setHidden(0);
@@ -3182,7 +3241,9 @@ class ODRCustomController extends Controller
         $theme_datatype->setCreatedBy($user);
         $theme_datatype->setUpdatedBy($user);
 
+        $theme_element->addThemeDataType($theme_datatype);
         $em->persist($theme_datatype);
+
         return $theme_datatype;
     }
 

@@ -395,6 +395,7 @@ class DatatypeInfoService
 
         $datatype_data = $query->getArrayResult();
 
+        // TODO - if $datatype_data is empty, then $grandparent_datatype_id was deleted...should this return something special in that case?
 /*
         if ($timing) {
             $t1 = microtime(true);
@@ -711,7 +712,7 @@ class DatatypeInfoService
                 $datarecord_list[$dr_id] = $filename;
             }
         }
-        else if ($typeclass == 'Single Radio' || $typeclass == 'Single Select') {
+        else if ($typeclass == 'Radio') {
             $query = $this->em->createQuery(
                'SELECT rom.optionName AS option_name, dr.id AS dr_id
                 FROM ODRAdminBundle:RadioOptions AS ro
@@ -777,10 +778,14 @@ class DatatypeInfoService
         }
 
         // Sort by value
+        $flag = SORT_NATURAL;
+        if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
+            $flag = SORT_NUMERIC;   // apparently natural sort doesn't always sort these two typeclasses correctly
+
         if ($sort_ascending)
-            asort($datarecord_list, SORT_NATURAL);
+            asort($datarecord_list, $flag);
         else
-            arsort($datarecord_list, SORT_NATURAL);
+            arsort($datarecord_list, $flag);
 
 
         if ( is_null($subset_str) ) {

@@ -34,6 +34,31 @@ class TableThemeHelperService
     private $container;
 
     /**
+     * @var CacheService
+     */
+    private $cache_service;
+
+    /**
+     * @var DatarecordInfoService
+     */
+    private $dri_service;
+
+    /**
+     * @var DatatypeInfoService
+     */
+    private $dti_service;
+
+    /**
+     * @var PermissionsManagementService
+     */
+    private $pm_service;
+
+    /**
+     * @var ThemeInfoService
+     */
+    private $theme_service;
+
+    /**
      * @var Router
      */
     private $router;
@@ -53,16 +78,30 @@ class TableThemeHelperService
      * TableThemeHelperService constructor.
      *
      * @param ContainerInterface $container
+     * @param CacheService $cache_service
+     * @param DatarecordInfoService $dri_service
+     * @param DatatypeInfoService $dti_service
+     * @param PermissionsManagementService $pm_service
+     * @param ThemeInfoService $theme_service
      * @param Router $router
      * @param Logger $logger
      */
     public function __construct(
         ContainerInterface $container,
+        CacheService $cache_service,
+        DatarecordInfoService $dri_service,
+        DatatypeInfoService $dti_service,
+        PermissionsManagementService $pm_service,
+        ThemeInfoService $theme_service,
         Router $router,
         Logger $logger
-    )
-    {
+    ) {
         $this->container = $container;
+        $this->cache_service = $cache_service;
+        $this->dri_service = $dri_service;
+        $this->dti_service = $dti_service;
+        $this->pm_service = $pm_service;
+        $this->theme_service = $theme_service;
         $this->router = $router;
         $this->logger = $logger;
 
@@ -93,14 +132,6 @@ class TableThemeHelperService
      */
     public function getColumnNames($user, $datatype_id, $theme_id)
     {
-        /** @var DatatypeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatype_info_service');
-        /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
-        /** @var ThemeInfoService $theme_service */
-        $theme_service = $this->container->get('odr.theme_info_service');
-
-
         // ----------------------------------------
         // First and second columns are always datarecord id and sort value, respectively
         $column_names  = '{"title":"datarecord_id","visible":false,"searchable":false},';
@@ -109,29 +140,29 @@ class TableThemeHelperService
 
         // Get the datatype and theme data
         $include_links = false;
-        $datatype_array = $dti_service->getDatatypeArray($datatype_id, $include_links);
-        $theme_array = $theme_service->getThemeArray( array($theme_id) );
+        $datatype_array = $this->dti_service->getDatatypeArray($datatype_id, $include_links);
+        $theme_array = $this->theme_service->getThemeArray($theme_id);
 
         // Don't want any child datatypes, or themes for child datatypes, in their respective arrays
         foreach ($datatype_array as $dt_id => $dt) {
             if ($datatype_id !== $dt_id)
                 unset( $datatype_array[$dt_id] );
         }
-        foreach ($theme_array as $dt_id => $t) {
-            if ($datatype_id !== $dt_id)
-                unset( $theme_array[$dt_id] );
+        foreach ($theme_array as $t_id => $t) {
+            if ($theme_id !== $t_id)
+                unset( $theme_array[$t_id] );
         }
 
         // Filter out the datafields the user isn't allowed to view
-        $user_permissions = $pm_service->getUserPermissionsArray($user);
+        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
 
         $datarecord_array = array();
-        $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+        $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 
         // ----------------------------------------
         // Need to store the names of each of the datafields
-        foreach ($theme_array[$datatype_id]['themeElements'] as $te_num => $te) {
+        foreach ($theme_array[$theme_id]['themeElements'] as $te_num => $te) {
             // Ignore theme elements that are hidden
             if ( $te['themeElementMeta']['hidden'] == 1 )
                 continue;
@@ -182,46 +213,39 @@ class TableThemeHelperService
      * @param int $datatype_id
      * @param int $theme_id
      *
+     * @throws ODRException
+     *
      * @return array
      */
     public function getRowData($user, $datarecord_ids, $datatype_id, $theme_id)
     {
-        /** @var CacheService $cache_service */
-        $cache_service = $this->container->get('odr.cache_service');
-        /** @var DatatypeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatype_info_service');
-        /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
-        /** @var ThemeInfoService $theme_service */
-        $theme_service = $this->container->get('odr.theme_info_service');
-
         // ----------------------------------------
         // Get the datatype and theme data
         $include_links = false;
-        $datatype_array = $dti_service->getDatatypeArray($datatype_id, $include_links);
-        $theme_array = $theme_service->getThemeArray( array($theme_id) );
+        $datatype_array = $this->dti_service->getDatatypeArray($datatype_id, $include_links);
+        $theme_array = $this->theme_service->getThemeArray($theme_id);
 
         // Don't want any child datatypes, or themes for child datatypes, in their respective arrays
         foreach ($datatype_array as $dt_id => $dt) {
             if ($datatype_id !== $dt_id)
                 unset( $datatype_array[$dt_id] );
         }
-        foreach ($theme_array as $dt_id => $t) {
-            if ($datatype_id !== $dt_id)
-                unset( $theme_array[$dt_id] );
+        foreach ($theme_array as $t_id => $t) {
+            if ($theme_id !== $t_id)
+                unset( $theme_array[$t_id] );
         }
 
         // Filter out everything the user isn't allowed to view
-        $user_permissions = $pm_service->getUserPermissionsArray($user);
-        $datatype_permissions = $pm_service->getDatatypePermissions($user);
+        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
+        $datatype_permissions = $this->pm_service->getDatatypePermissions($user);
 
         $datarecord_array = array();
-        $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+        $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
         // Grab the cached version of each of the requested datarecords
         $datarecord_array = array();
         foreach ($datarecord_ids as $num => $dr_id) {
-            $dr_data = $cache_service->get('cached_table_data_'.$dr_id);
+            $dr_data = $this->cache_service->get('cached_table_data_'.$dr_id);
             if ($dr_data == false)
                 $dr_data = self::buildTableData($dr_id);
 
@@ -235,55 +259,64 @@ class TableThemeHelperService
 
 
         // ----------------------------------------
+        // Build an array of valid datafields
+        $datafield_ids = array();
+        foreach ($theme_array[$theme_id]['themeElements'] as $te_num => $te) {
+            // Ignore hidden themeElements
+            if ( $te['themeElementMeta']['hidden'] == 1 )
+                continue;
+
+            if ( isset($te['themeDataFields']) ) {
+                foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                    $df_id = $tdf['dataField']['id'];
+
+                    // If the data in the datafield still exists after filtering...
+                    if ( isset($datatype_array[$datatype_id]['dataFields'][$df_id]) ) {
+                        $df = $datatype_array[$datatype_id]['dataFields'][$df_id];
+
+                        // ...and the datafield isn't "hidden" for this theme...
+                        if ( $tdf['hidden'] == 1 )
+                            continue;
+
+                        // ...and the field's type name is on the list of valid fieldtypes...
+                        $typename = $df['dataFieldMeta']['fieldType']['typeName'];
+                        if (!in_array($typename, $this->valid_fieldtypes))
+                            continue;
+
+                        // ...then store the datafield id
+                        $datafield_ids[] = $df_id;
+                    }
+                }
+            }
+        }
+
+
+        // ----------------------------------------
         // Build the final array of data
         $rows = array();
         foreach ($datarecord_array as $dr_id => $dr) {
             $dr_data = array();
 
-            foreach ($theme_array[$datatype_id]['themeElements'] as $te_num => $te) {
-                // Ignore theme elements that are hidden
-                if ( $te['themeElementMeta']['hidden'] == 1 )
-                    continue;
-
-                if ( isset($te['themeDataFields']) ) {
-                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                        $df_id = $tdf['dataField']['id'];
-
-                        // If the data in the datafield still exists after filtering...
-                        if ( isset($datatype_array[$datatype_id]['dataFields'][$df_id]) ) {
-                            $df = $datatype_array[$datatype_id]['dataFields'][$df_id];
-
-                            // ...and the datafield isn't "hidden" for this theme...
-                            if ( $tdf['hidden'] == 1 )
-                                continue;
-
-                            // ...and the field's type name is on the list of valid fieldtypes...
-                            $typename = $df['dataFieldMeta']['fieldType']['typeName'];
-                            if ( !in_array($typename, $this->valid_fieldtypes) )
-                                continue;
-
-                            // ...then pull the data from the cached entry
-                            if ( !isset($dr[$df_id]) ) {
-                                // Data isn't set, so it's problem empty or null...store empty string
-                                $dr_data[] = '';
-                            }
-                            else if (is_array($dr[$df_id])) {
-                                // Need to ensure that names/links to non-public Files aren't displayed
-                                //  to people that don't have permission to view them
-                                $file_publicDate = $dr[$df_id]['publicDate'];
-                                $file_url = $dr[$df_id]['url'];
-
-                                if ($can_view_datarecord || $file_publicDate != '2200-01-01')
-                                    $dr_data[] = $file_url;
-                                else
-                                    $dr_data[] = '';
-                            }
-                            else {
-                                // ...store it in the final array
-                                $dr_data[] = $dr[$df_id];
-                            }
-                        }
+            foreach ($datafield_ids as $num => $df_id) {
+                // Attempt to pull the data from the cached entry...
+                if ( !isset($dr[$df_id]) ) {
+                    // ...ata isn't set, so it's probably empty or null...store empty string
+                    $dr_data[] = '';
                     }
+                    else if (is_array($dr[$df_id])) {
+                    // Need to ensure that names/links to non-public Files aren't displayed
+                        //  to people that don't have permission to view them
+                        $file_publicDate = $dr[$df_id]['publicDate'];
+                        $file_url = $dr[$df_id]['url'];
+
+                        if ($can_view_datarecord || $file_publicDate != '2200-01-01')
+                            $dr_data[] = $file_url;
+                        else
+                            $dr_data[] = '';
+                }
+                else {
+                    // ...store it in the final array
+                    $dr_data[] = $dr[$df_id];
                 }
             }
 
@@ -314,28 +347,20 @@ class TableThemeHelperService
      *
      * @param int $datarecord_id
      *
-     * @throws \Exception
+     * @throws ODRException
      *
      * @return array
      */
     private function buildTableData($datarecord_id)
     {
-        /** @var CacheService $cache_service */
-        $cache_service = $this->container->get('odr.cache_service');
-        /** @var DatarecordInfoService $dri_service */
-        $dri_service = $this->container->get('odr.datarecord_info_service');
-        /** @var DatatypeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatype_info_service');
-
-
         // Need the cached data for the given datarecord...
         $include_links = false;
-        $dr_data = $dri_service->getDatarecordArray($datarecord_id, $include_links);
+        $dr_data = $this->dri_service->getDatarecordArray($datarecord_id, $include_links);
         $dr = $dr_data[$datarecord_id];
 
         // Also need the datatype info in order to determine render plugin for datafields
         $dt_id = $dr_data[$datarecord_id]['dataType']['id'];
-        $dt_data = $dti_service->getDatatypeArray($dt_id, $include_links);
+        $dt_data = $this->dti_service->getDatatypeArray($dt_id, $include_links);
         $datatype_array = $dt_data[$dt_id];
 
 
@@ -355,7 +380,7 @@ class TableThemeHelperService
                     $df_value = $plugin->execute($df, $dr, $render_plugin, 'table');
                 }
                 catch (\Exception $e) {
-                    throw new \Exception( 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$df['id'].' Datarecord '.$dr['id'].': '.$e->getMessage() );
+                    throw new ODRException( 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$df['id'].' Datarecord '.$dr['id'].': '.$e->getMessage(), 500, 0x23568871, $e );
                 }
             }
             else if ( !isset($dr['dataRecordFields']) || !isset($dr['dataRecordFields'][$df_id]) ) {
@@ -428,7 +453,7 @@ class TableThemeHelperService
         }
 
         // Save and return the cached version of the data
-        $cache_service->set('cached_table_data_'.$datarecord_id, $data);
+        $this->cache_service->set('cached_table_data_'.$datarecord_id, $data);
         return $data;
     }
 
@@ -447,40 +472,33 @@ class TableThemeHelperService
      */
     public function getDatafieldAtColumn($user, $datatype_id, $theme_id, $column_num)
     {
-        /** @var DatatypeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatype_info_service');
-        /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
-        /** @var ThemeInfoService $theme_service */
-        $theme_service = $this->container->get('odr.theme_info_service');
-
         // ----------------------------------------
         // Get the datatype and theme data
         $include_links = false;
-        $datatype_array = $dti_service->getDatatypeArray($datatype_id, $include_links);
-        $theme_array = $theme_service->getThemeArray( array($theme_id) );
+        $datatype_array = $this->dti_service->getDatatypeArray($datatype_id, $include_links);
+        $theme_array = $this->theme_service->getThemeArray($theme_id);
 
         // Don't want any child datatypes, or themes for child datatypes, in their respective arrays
         foreach ($datatype_array as $dt_id => $dt) {
             if ($datatype_id !== $dt_id)
                 unset( $datatype_array[$dt_id] );
         }
-        foreach ($theme_array as $dt_id => $t) {
-            if ($datatype_id !== $dt_id)
-                unset( $theme_array[$dt_id] );
+        foreach ($theme_array as $t_id => $t) {
+            if ($theme_id !== $t_id)
+                unset( $theme_array[$t_id] );
         }
 
         // Filter out everything the user isn't allowed to view
-        $user_permissions = $pm_service->getUserPermissionsArray($user);
+        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
 
         $datarecord_array = array();
-        $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+        $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 
         // ----------------------------------------
         $df_count = -1;
 
-        foreach ($theme_array[$datatype_id]['themeElements'] as $te_num => $te) {
+        foreach ($theme_array[$theme_id]['themeElements'] as $te_num => $te) {
             // Ignore theme elements that are hidden
             if ( $te['themeElementMeta']['hidden'] == 1 )
                 continue;
