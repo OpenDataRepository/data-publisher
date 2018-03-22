@@ -930,7 +930,7 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Delete cached entries for Group and User permissions involving this Datafield
+            // Delete cached entries for Group and User permissions involving this Datatype
             foreach ($groups_to_delete as $num => $group_id)
                 $cache_service->delete('group_'.$group_id.'_permissions');
 

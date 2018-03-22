@@ -888,8 +888,8 @@ class CloneDatatypeService
                 foreach ($user_list as $u) {
                     if ( $u->hasRole('ROLE_SUPER_ADMIN') ) {
                         // ...add the super admin to this new admin group
-                        $this->pm_service->createUserGroup($u, $new_group, $this->user);
-                        $this->logger->debug('-- added user '.$u->getId().' to admin group');
+                        $this->pm_service->createUserGroup($u, $new_group, $this->user, true);    // These don't need to be flushed/refreshed immediately...
+                        $this->logger->debug('-- added super_admin user '.$u->getId().' to admin group');
 
                         // Don't bother deleting this user's cached permissions here...
                         // There's no guarantee they won't access the datatype before all the
@@ -900,13 +900,15 @@ class CloneDatatypeService
                 // If the user isn't a super-admin, then add them to the admin group as well...
                 // ...otherwise, they won't be able to see the new datatype either
                 if (!$this->user->hasRole('ROLE_SUPER_ADMIN')) {
-                    $this->pm_service->createUserGroup($this->user, $new_group, $this->user);
+                    $this->pm_service->createUserGroup($this->user, $new_group, $this->user, true);    // These don't need to be flushed/refreshed immediately...
                     $this->logger->debug('-- added user '.$this->user->getId().' to admin group');
 
                     // If the user's cached permissions were deleted here, the user would likely
                     //  get a stale/incomplete version when accessing the datatype later on
                 }
             }
+
+            $this->em->flush();
 
             // Don't need to delete cached permissions for any other users or groups...nobody
             //  belongs to them yet
@@ -990,9 +992,9 @@ class CloneDatatypeService
                     $this->logger->debug('CloneDatatypeService: cloned GroupDatatypePermission entry from master template Group '.$master_group->getId().' to Group '.$group->getId().' for new datatype '.$datatype->getId());
                 }
             }
-
-            $this->em->flush();
         }
+
+        $this->em->flush();
     }
 
 

@@ -1199,13 +1199,6 @@ odr_permissions_clear:
 #    requirements:
 #        object_type: 'file|File|image|Image'
 
-odr_fix_database_dates:
-    path: /admin/fix_dates
-    defaults: { _controller: ODRAdminBundle:Worker:fixdatabasedates }
-odr_fix_missing_meta_entries:
-    path: /admin/fix_meta_entries
-    defaults: { _controller: ODRAdminBundle:Worker:fixmissingmetaentries }
-
 odr_child_theme_migrate:
     path: /admin/child_theme_migrate
     defaults: { _controller: ODRAdminBundle:Worker:childthememigrate }
@@ -1215,9 +1208,33 @@ odr_test_synch:
     requirements:
         theme_id: \d+
 
+#-----------------------------------------
+
+#-----------------------------------------
+# Validation Controller
+
+# Ensures dates aren't in a "0000-00-00 ..." format
+odr_fix_database_dates:
+    path: /admin/fix_dates
+    defaults: { _controller: ODRAdminBundle:Validation:fixdatabasedates }
+
+# Locates entities without meta entries
+odr_fix_missing_meta_entries:
+    path: /admin/fix_meta_entries
+    defaults: { _controller: ODRAdminBundle:Validation:fixmissingmetaentries }
+# Locates meta entries that refer to deleted entities
+odr_find_extra_meta_entries:
+    path: /admin/delete_extra_meta_entries
+    defaults: { _controller: ODRAdminBundle:Validation:deleteextrametaentries }
+
+# Ensures the values stored in the Theme -> ThemeElement -> ThemeDataType tables match the DataTree entities
 odr_fix_datatree_entries:
     path: /admin/fix_datatree_entries
-    defaults: { _controller: ODRAdminBundle:Worker:fixdatatreeentries }
+    defaults: { _controller: ODRAdminBundle:Validation:fixdatatreeentries }
+
+odr_find_orphaned_entities:
+    path: /admin/find_orphaned_entities
+    defaults: { _controller: ODRAdminBundle:Validation:findorphanedentities }
 
 #-----------------------------------------
 

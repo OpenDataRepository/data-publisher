@@ -961,10 +961,11 @@ if ($debug)
      * @param ODRUser $user
      * @param Group $group
      * @param ODRUser $admin_user
+     * @param bool $delay_flush
      *
      * @return UserGroup
      */
-    public function createUserGroup($user, $group, $admin_user)
+    public function createUserGroup($user, $group, $admin_user, $delay_flush = false)
     {
         // Check to see if the User already belongs to this Group
         $query = $this->em->createQuery(
@@ -995,7 +996,8 @@ if ($debug)
 
             // Save all changes
             $this->em->persist($user_group);
-            $this->em->flush();
+            if (!$delay_flush)
+                $this->em->flush();
         }
 
         return $user_group;
