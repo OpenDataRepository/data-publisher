@@ -18,6 +18,13 @@ ODR\AdminBundle\Entity\DataRecord:
             nullable: false
             default: true
 
+        unique_id:
+            type: string
+            length: 32
+            nullable: true
+            default: ''
+            column: unique_id
+
 #        external_id:
 #            type: string
 #            length: 255

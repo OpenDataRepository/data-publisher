@@ -2115,7 +2115,7 @@ $ret .= '  Set current to '.$count."\n";
         $return['d'] = '';
 
         $save = false;
-//        $save = true;
+        $save = true;
 
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();

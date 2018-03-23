@@ -3287,17 +3287,14 @@ exit();
         // Grab the cached version of the grandparent datatype
         $include_links = true;
         $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId(), $include_links);
-//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
         // Also grab the cached version of the theme
         $theme_array = $theme_service->getThemeArray($master_theme->getId());
-//print '<pre>'.print_r($theme_array, true).'</pre>'; exit();
 
         // Due to the possibility of linked datatypes the user may not have permissions for, the
         //  datatype array needs to be filtered.
         $datarecord_array = array();
         $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
         // "Inflate" the currently flattened datatype and theme arrays
         $stacked_datatype_array[ $datatype->getId() ] =

@@ -269,6 +269,12 @@ odr_list_types:
     requirements:
         section: databases|templates
 
+odr_datatype_landing:
+    path:  /admin/type/landing/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Datatype:landing }
+    requirements:
+        datatype_id: \d+
+
 odr_create_type:
     path:  /admin/type/create/{create_master}
     defaults: { _controller: ODRAdminBundle:Datatype:create }

@@ -22,6 +22,13 @@ ODR\AdminBundle\Entity\DataType:
             default: 0
             column: revision
 
+        unique_id:
+            type: string
+            length: 32
+            nullable: true
+            default: ''
+            column: unique_id
+
         setup_step:
             type: string
             length: 32
@@ -35,6 +42,13 @@ ODR\AdminBundle\Entity\DataType:
             nullable: false
             default: false
             column: is_master_type
+
+        datatype_type:
+            type: string
+            length: 32
+            default: ''
+            nullable: true
+            column: datatype_type
 
         created:
             type: datetime

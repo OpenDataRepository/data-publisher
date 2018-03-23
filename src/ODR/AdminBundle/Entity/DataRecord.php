@@ -630,4 +630,33 @@ class DataRecord
     {
         return $this->getDataRecordMeta()->getPublicDate();
     }
+    /**
+     * @var string
+     */
+    private $unique_id;
+
+
+    /**
+     * Set uniqueId
+     *
+     * @param string $uniqueId
+     *
+     * @return DataRecord
+     */
+    public function setUniqueId($uniqueId)
+    {
+        $this->unique_id = $uniqueId;
+
+        return $this;
+    }
+
+    /**
+     * Get uniqueId
+     *
+     * @return string
+     */
+    public function getUniqueId()
+    {
+        return $this->unique_id;
+    }
 }

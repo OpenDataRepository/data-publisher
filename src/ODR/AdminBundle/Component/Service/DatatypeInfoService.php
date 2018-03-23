@@ -349,7 +349,9 @@ class DatatypeInfoService
         // Get all non-layout data for the requested datatype
         $query = $this->em->createQuery(
            'SELECT
-                dt, dtm,
+                dt, dtm, 
+                partial md.{id},
+                partial mf.{id},
                 partial dt_cb.{id, username, email, firstName, lastName},
                 partial dt_ub.{id, username, email, firstName, lastName},
 
@@ -365,6 +367,8 @@ class DatatypeInfoService
             LEFT JOIN dt.dataTypeMeta AS dtm
             LEFT JOIN dt.createdBy AS dt_cb
             LEFT JOIN dt.updatedBy AS dt_ub
+            LEFT JOIN dt.metadata_datatype AS md
+            LEFT JOIN dt.metadata_for AS mf
 
             LEFT JOIN dtm.renderPlugin AS dt_rp
             LEFT JOIN dt_rp.renderPluginInstance AS dt_rpi WITH (dt_rpi.dataType = dt)

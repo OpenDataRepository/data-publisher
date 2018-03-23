@@ -47,6 +47,178 @@ use ODR\AdminBundle\Component\Utility\UserUtility;
 class DatatypeController extends ODRCustomController
 {
 
+
+    public function landingAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // ----------------------------------------
+            // Check if this is a master template based datatype that is still in the creation process...
+            // TODO Change the checker to re-route to landing when complete? not sure
+            if ($datatype->getSetupStep() == "initial" && $datatype->getMasterDataType() != null) {
+                // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
+                $templating = $this->get('templating');
+                $return['t'] = "html";
+                $return['d'] = array(
+                    'html' => $templating->render(
+                        'ODRAdminBundle:Datatype:create_status_checker.html.twig',
+                        array(
+                            "datatype" => $datatype
+                        )
+                    )
+                );
+            }
+            else {
+                // Ensure user has permissions to be doing this
+                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                    throw new ODRForbiddenException();
+
+
+                // TODO This is a copy of DisplayTemplateController::GetDisplayData
+                // TODO Refactor to a service in DTI Service....
+                /** @var DatatypeInfoService $dti_service */
+                $dti_service = $this->container->get('odr.datatype_info_service');
+                /** @var ThemeInfoService $theme_service */
+                $theme_service = $this->container->get('odr.theme_info_service');
+
+                $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+                $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+
+                // Going to need these...
+                $datatree_array = $dti_service->getDatatreeArray();
+
+
+                $source_datatype_id = $datatype_id;
+
+                /*
+                 * We will always load the related grandparent.  Children can be listed
+                 * as part of the interface.
+                 */
+                /** @var DataType $grandparent_datatype */
+                $grandparent_datatype = $repo_datatype->find($source_datatype_id);
+
+                $master_theme = $theme_service->getDatatypeMasterTheme($source_datatype_id);
+
+                // ----------------------------------------
+                // Load required objects based on parameters...don't need to check whether they're deleted
+                /** @var DataType $datatype */
+                $datatype = null;
+                /** @var Theme $theme */
+                $theme = null;
+
+                /** @var ThemeElement|null $theme_element */
+                $theme_element = null;
+                /** @var DataFields|null $datafield */
+                $datafield = null;
+
+                $datatype = $grandparent_datatype;
+                $theme = $master_theme;
+
+                // Get display Data Only
+                // ----------------------------------------
+                /** @var User $user */
+                $user = $this->container->get('security.token_storage')->getToken()->getUser();
+                $user_permissions = $pm_service->getUserPermissionsArray($user);
+                $datatype_permissions = $pm_service->getDatatypePermissions($user);
+
+                // Store whether the user is an admin of this datatype...this usually is true, but the user
+                //  may not have the permission if this function is reloading stuff for a linked datatype
+                $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $grandparent_datatype);
+
+                // ----------------------------------------
+                // Grab the cached version of the grandparent datatype
+                $include_links = true;
+                $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId(), $include_links);
+
+                // Also grab the cached version of the theme
+                $theme_array = $theme_service->getThemeArray($master_theme->getId());
+
+                // Due to the possibility of linked datatypes the user may not have permissions for, the
+                //  datatype array needs to be filtered.
+                $datarecord_array = array();
+                $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+                // "Inflate" the currently flattened datatype and theme arrays
+                $stacked_datatype_array[ $datatype->getId() ] =
+                    $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+                $stacked_theme_array[ $theme->getId() ] =
+                    $theme_service->stackThemeArray($theme_array, $theme->getId());
+
+
+                // ----------------------------------------
+                // Need an array of fieldtype ids and typenames for notifications when changing fieldtypes
+                $fieldtype_array = array();
+                /** @var FieldType[] $fieldtypes */
+                $fieldtypes = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
+                foreach ($fieldtypes as $fieldtype)
+                    $fieldtype_array[ $fieldtype->getId() ] = $fieldtype->getTypeName();
+
+                // Store whether this datatype has datarecords..affects warnings when changing fieldtypes
+                $query = $em->createQuery(
+                    'SELECT COUNT(dr) AS dr_count
+                          FROM ODRAdminBundle:DataRecord AS dr
+                          WHERE dr.dataType = :datatype_id'
+                )->setParameters( array('datatype_id' => $datatype->getId()) );
+                $results = $query->getArrayResult();
+
+                $has_datarecords = false;
+                if ( $results[0]['dr_count'] > 0 )
+                    $has_datarecords = true;
+
+
+                // ----------------------------------------
+                // Render the required version of the page
+                $templating = $this->get('templating');
+
+                $html = $templating->render(
+                    'ODRAdminBundle:Datatype:landing.html.twig',
+                    array(
+                        'user' => $user,
+                        'datatype_array' => $stacked_datatype_array,
+                        'initial_datatype_id' => $datatype->getId(),
+                        'datatype_permissions' => $datatype_permissions,
+                        'fieldtype_array' => $fieldtype_array,
+                        'has_datarecords' => $has_datarecords,
+                    )
+                );
+
+                $return['d'] = array(
+                    'datatype_id' => $datatype->getId(),
+                    'html' => $html,
+                );
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x83492adfe;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
     /**
      * Builds and returns a list of the actions a user can perform to each top-level DataType.
      *

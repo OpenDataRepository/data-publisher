@@ -1084,4 +1084,62 @@ class DataType
     private $metadata_for;
 
 
+    /**
+     * @var string
+     */
+    private $unique_id;
+
+    /**
+     * @var string
+     */
+    private $datatype_type;
+
+
+    /**
+     * Set uniqueId
+     *
+     * @param string $uniqueId
+     *
+     * @return DataType
+     */
+    public function setUniqueId($uniqueId)
+    {
+        $this->unique_id = $uniqueId;
+
+        return $this;
+    }
+
+    /**
+     * Get uniqueId
+     *
+     * @return string
+     */
+    public function getUniqueId()
+    {
+        return $this->unique_id;
+    }
+
+    /**
+     * Set datatypeType
+     *
+     * @param string $datatypeType
+     *
+     * @return DataType
+     */
+    public function setDatatypeType($datatypeType)
+    {
+        $this->datatype_type = $datatypeType;
+
+        return $this;
+    }
+
+    /**
+     * Get datatypeType
+     *
+     * @return string
+     */
+    public function getDatatypeType()
+    {
+        return $this->datatype_type;
+    }
 }
