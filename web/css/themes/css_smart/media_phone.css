@@ -1,6 +1,21 @@
 /* Smartphones (portrait and landscape) ----------- */
 @media only screen and (min-device-width : 320px) and (max-device-width : 480px) {
     /* Styles */
+    .hidden-lg-b {
+        display: none;
+    }
+
+    .hidden-xl-b {
+        display: none;
+    }
+
+    .hidden-tablet {
+        display: none;
+    }
+
+    .hidden-phone {
+        display: none;
+    }
 }
 
 /* Smartphones (landscape) ----------- */

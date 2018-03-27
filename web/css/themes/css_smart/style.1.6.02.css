@@ -13,6 +13,7 @@ child header/h1: #6fa5c7
 file_header: #7fb9d8;
  */
 
+
 @font-face {
     font-family: "Lato-Bol";
     src: url("fonts/Lato-Bol.ttf") format("truetype");
@@ -492,6 +493,10 @@ footer ul li:first-child {
     box-sizing: border-box;
 }
 
+#ODRDatatypeList th {
+    text-align: left !important;
+}
+
 .ODRTableWrap,
 #ODRDatatypeList_wrapper {
     box-sizing: border-box;
@@ -703,7 +708,7 @@ footer ul li:first-child {
  */
 ul#wizardStatus{
     list-style:none;
-    margin:15px 0;
+    margin: 15px 0;
     padding:0;
     text-align:center;
 }
@@ -772,7 +777,8 @@ ul#wizardStatus li:last-child:before{
     display:none
 }
 
-ul#wizardStatus li.current{
+ul#wizardStatus li.current,
+ul#wizardStatus li.current a {
     background-color:#0597c5;
     color:#fff;
 }
@@ -813,8 +819,10 @@ ul#wizardStatus li.completed:before{
 }
 
 .ODRThemeDesignSettings div {
-    margin-top: 6px;
-    margin-left: 6px;
+    margin: 6px 6px 6px 6px;
+}
+.ODRThemeDesignSettings p {
+    padding-left: 10px;
 }
 
 .ThemeDesignArea .ODRDataField {
@@ -844,7 +852,7 @@ ul#wizardStatus li.completed:before{
 }
 
 #ThemeDesignWrapper {
-    min-width: 1364px;
+    min-width: 1706px;
     overflow: hidden;
 }
 
@@ -852,29 +860,41 @@ ul#wizardStatus li.completed:before{
     background: white;
     border-radius: 4px;
     width: 305px;
-    height: 700px;
-    overflow-y: scroll;
+    height: 1200px;
+    overflow-y: visible;
     float: left;
     /* z-index needed to prevent overlap for some reason */
     z-index: 99;
 }
 
 #ThemeLeftColumn > div.ODRThemeElement:first-of-type > .ODRInnerBox {
-    min-height: 700px;
-    height: 100%;
+    min-height: 1100px;
+    /* height: 100%; */
 }
 
 #ThemeDesignArea {
-    width: 1024px;
+    width: 1366px;
     margin-left: 15px;
     margin-right: 20px;
+    margin-top: 8px;
     float: left;
 }
 
+/*
 #ThemeDesignArea .ui-resizable-se {
     bottom: -4px;
     background-image: none;
     color: #888;
+}
+*/
+
+#ThemeDesignArea #ODRDatatypeDesign,
+#ThemeDesignArea #ODRDatatypeDesign h3:first-child {
+    border-radius: 4px 4px 0 0;
+}
+
+#ThemeDesignArea #ODRDatatypeDesign {
+    border: 1px solid rgba(0,0,255, 0.2);
 }
 
 #ODRThemeShowHidden {
@@ -1030,3 +1050,74 @@ h3.ODRThemeVisibleHiddenElement {
     margin-right: -8px;
 }
 /* END jGrowl Styling */
+
+
+.dataTable th {
+    text-align: left !important;
+}
+
+.dataTable i.fa {
+    padding-left: 10px;
+    cursor: pointer;
+}
+
+
+
+/***
+   Design improvements for displaytemplate interface.
+ */
+#ThemeDesignArea .ODRDataField label,
+#ThemeDesignArea .ODRDataField {
+    cursor: pointer;
+    padding-bottom: 2px;
+}
+#ThemeDesignArea .ODRFieldSelected a,
+#ThemeDesignArea .ODRFieldSelected {
+    background: rgba(0,0,255,0.1);
+}
+
+.ODRSortHandle {
+    cursor: move;
+    color: rgba(125, 125, 255, 0.6);
+    font-size: 24px;
+    position: absolute;
+    top: 12px;
+    z-index: 200;
+}
+
+.ODRDragHandle {
+    cursor: grab;
+    cursor: -webkit-grab;
+    color: rgba(125,125,255,0.6);
+    font-size: 36px;
+    position: absolute;
+    top: 0;
+    z-index: 200;
+}
+#ThemeDesignArea .ui-resizeable-e {
+    right: -10px;
+}
+#ThemeDesignArea .ui-resizeable-w {
+    cursor: no-drop;
+    left: -10px;
+}
+
+#ODRDatatypeToolsBlock a {
+    cursor: pointer;
+}
+
+#ODRDatatypeToolsBlock i {
+    min-width: 20px;
+}
+
+#ODRDatatypeToolsBlock .faded i,
+#ODRDatatypeToolsBlock .faded {
+    opacity: 20%;
+    color: lightgrey;
+}
+
+
+
+/***
+   End Design improvements for displaytemplate interface.
+ */

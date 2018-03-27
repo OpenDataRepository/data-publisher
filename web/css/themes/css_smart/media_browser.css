@@ -1,12 +1,43 @@
 /* Desktops and laptops ----------- */
 @media only screen  and (min-width : 1224px) {
     /* Styles */
+    .hidden-lg-b {
+        display: none;
+    }
+
+    .hidden-xl-b {
+        display: none;
+    }
+
+    .hidden-tablet {
+        display: none;
+    }
+
+    .hidden-phone {
+        display: none;
+    }
+
 }
 
 
 /* Large screens ----------- */
 @media only screen  and (min-width : 1824px) {
     /* Styles */
+    .hidden-lg-b {
+        display: none;
+    }
+
+    .hidden-xl-b {
+        display: none;
+    }
+
+    .hidden-tablet {
+        display: none;
+    }
+
+    .hidden-phone {
+        display: none;
+    }
 }
 
 

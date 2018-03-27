@@ -1621,7 +1621,7 @@ footer .ODRLogoImage img {
     }
 }
 /* pure-hidden-lg */
-@media screen and (min-width:1024px) and (max-width:1279px) {
+@media screen and (min-width:1024px) and (max-width:1439px) {
     .pure-visible-xs{display:none}
     .pure-visible-sm{display:none}
     .pure-visible-md{display:none}
@@ -1638,7 +1638,7 @@ footer .ODRLogoImage img {
     }
 }
 /* pure-hidden-xl */
-@media screen and (min-width:1280px) {
+@media screen and (min-width:1440px) {
     .pure-visible-xs{display:none}
     .pure-visible-sm{display:none}
     .pure-visible-md{display:none}
@@ -2778,7 +2778,8 @@ form .row {
 }
 
 .fa-globe {
-    color: #aaf;
+    /* color: #aaf; */
+    color: red;
 }
 
 .IconRed {
@@ -3293,7 +3294,8 @@ form .row {
 .ODRActiveIcon {
     /*border: 1px solid #00FF00;
     border-radius: 8px; */
-    color: gold;
+    /* color: darkolivegreen; */
+    color: darkseagreen;
 }
 
 /*

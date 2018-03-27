@@ -258,35 +258,25 @@ class DatatypeController extends ODRCustomController
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
 
             // Grab each top-level datatype from the repository
-            if ($section == "templates") {
-                // Only want master templates to be displayed in this section
-                $query = $em->createQuery(
-                     'SELECT dt, dtm, dt_cb, dt_ub
-                    FROM ODRAdminBundle:DataType AS dt
-                    JOIN dt.dataTypeMeta AS dtm
-                    JOIN dt.createdBy AS dt_cb
-                    JOIN dt.updatedBy AS dt_ub
-                    WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
-                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-                )->setParameters( array('datatypes' => $top_level_datatypes) );
-                    // 'SELECT dt, dtm, md, md_dtm, dt_cb, dt_ub
-                    // LEFT JOIN dt.metadata_datatype AS md
-                    // JOIN md.dataTypeMeta as md_dtm
-            }
-            else {
-                $query = $em->createQuery(
-                    'SELECT dt, dtm, dt_cb, dt_ub
-                    FROM ODRAdminBundle:DataType AS dt
-                    JOIN dt.dataTypeMeta AS dtm
-                    JOIN dt.createdBy AS dt_cb
-                    JOIN dt.updatedBy AS dt_ub
-                    WHERE dt.id IN (:datatypes) AND dt.is_master_type = 0
-                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-                )->setParameters( array('datatypes' => $top_level_datatypes) );
-                // 'SELECT dt, dtm, md, md_dtm, dt_cb, dt_ub
-                // LEFT JOIN dt.metadata_datatype AS md
-                // JOIN md.dataTypeMeta as md_dtm
-            }
+            $is_master_type = ($section == "templates") ? 1 : 0;
+
+            $query = $em->createQuery(
+                 'SELECT dt, dtm, md, mf, dt_cb, dt_ub
+                FROM ODRAdminBundle:DataType AS dt
+                LEFT JOIN dt.dataTypeMeta AS dtm
+                LEFT JOIN dt.metadata_datatype AS md
+                LEFT JOIN dt.metadata_for AS mf
+                LEFT JOIN dt.createdBy AS dt_cb
+                LEFT JOIN dt.updatedBy AS dt_ub
+                WHERE dt.id IN (:datatypes) AND dt.is_master_type = (:is_master_type)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datatypes' => $top_level_datatypes,
+                    'is_master_type' => $is_master_type
+                )
+            );
+
             $results = $query->getArrayResult();
 
             $datatypes = array();
@@ -297,10 +287,15 @@ class DatatypeController extends ODRCustomController
                 $dt['dataTypeMeta'] = $result['dataTypeMeta'][0];
                 $dt['createdBy'] = UserUtility::cleanUserData($result['createdBy']);
                 $dt['updatedBy'] = UserUtility::cleanUserData($result['updatedBy']);
-                if(isset($result['metadata_datatype'])) {
-                    $dt['metadata_datatype']['dataTypeMeta'] = $result['metadata_datatype']['dataTypeMeta'][0];
+                if(isset($result['metadata_datatype']) && count($result['metadata_datatype']) > 0) {
+                    // $dt['metadata_datatype']['dataTypeMeta'] = $result['metadata_datatype']['dataTypeMeta'][0];
+                    $dt['metadata_datatype'] = $result['metadata_datatype'];
+                }
+                if(isset($result['metadata_for']) && count($result['metadata_for']) > 0) {
+                    $dt['metadata_for'] = $result['metadata_for'];
                 }
 
+                $dt['associated_datatypes'] = $dti_service->getAssociatedDatatypes(array($dt_id));
                 $datatypes[$dt_id] = $dt;
             }
 
@@ -308,10 +303,14 @@ class DatatypeController extends ODRCustomController
             $can_view_public_datarecords = array();
             $can_view_nonpublic_datarecords = array();
             foreach ($datatypes as $dt_id => $dt) {
-                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_view']) )
+                if (
+                    isset($datatype_permissions[$dt_id])
+                    && isset($datatype_permissions[$dt_id]['dr_view'])
+                ) {
                     $can_view_nonpublic_datarecords[] = $dt_id;
-                else
+                } else {
                     $can_view_public_datarecords[] = $dt_id;
+                }
             }
 
             // Figure out how many datarecords the user can view for each of the datatypes
@@ -324,7 +323,11 @@ class DatatypeController extends ODRCustomController
                     WHERE dt IN (:datatype_ids) AND dr.provisioned = false
                     AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
                     GROUP BY dt.id'
-                )->setParameters( array('datatype_ids' => $can_view_nonpublic_datarecords) );
+                )->setParameters(
+                    array(
+                        'datatype_ids' => $can_view_nonpublic_datarecords
+                    )
+                );
                 $results = $query->getArrayResult();
 
                 foreach ($results as $result) {
@@ -344,7 +347,12 @@ class DatatypeController extends ODRCustomController
                     WHERE dt IN (:datatype_ids) AND dr.provisioned = false AND drm.publicDate != :public_date
                     AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL
                     GROUP BY dt.id'
-                )->setParameters( array('datatype_ids' => $can_view_public_datarecords, 'public_date' => '2200-01-01 00:00:00') );
+                )->setParameters(
+                    array(
+                        'datatype_ids' => $can_view_public_datarecords,
+                        'public_date' => '2200-01-01 00:00:00'
+                    )
+                );
                 $results = $query->getArrayResult();
 
                 foreach ($results as $result) {
@@ -424,13 +432,16 @@ class DatatypeController extends ODRCustomController
             // Grab a list of top top-level datatypes
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
 
+            // Master Templates must have Database Properties/metadata
             $query = $em->createQuery(
-               'SELECT dt, dtm, dt_cb, dt_ub
+               'SELECT dt, dtm, md, dt_cb, dt_ub
                 FROM ODRAdminBundle:DataType AS dt
-                JOIN dt.dataTypeMeta AS dtm
-                JOIN dt.createdBy AS dt_cb
-                JOIN dt.updatedBy AS dt_ub
+                LEFT JOIN dt.dataTypeMeta AS dtm
+                LEFT JOIN dt.metadata_datatype AS md
+                LEFT JOIN dt.createdBy AS dt_cb
+                LEFT JOIN dt.updatedBy AS dt_ub
                 WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
+                AND md.id IS NOT NULL
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
             )->setParameters( array('datatypes' => $top_level_datatypes) );
             $master_templates = $query->getArrayResult();
@@ -480,6 +491,10 @@ class DatatypeController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            $create_master = false;
+            if($creating_master_template > 0) {
+                $create_master = true;
+            }
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -498,7 +513,7 @@ class DatatypeController extends ODRCustomController
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
             // --------------------
 
-            if ($template_choice != 0 && $creating_master_template == 1)
+            if ($template_choice != 0 && $create_master)
                 throw new ODRBadRequestException('Currently unable to copy a new Master Template from an existing Master Template');
 
             // Build a form for creating a new datatype, if needed
@@ -509,6 +524,8 @@ class DatatypeController extends ODRCustomController
                     'master_type_id' => $template_choice,
                 )
             );
+
+            // TODO - need to autogenerate this for now and then create database and properties....
 
             $form = $this->createForm(CreateDatatypeForm::class, $new_datatype_data, $params);
 
@@ -536,7 +553,7 @@ class DatatypeController extends ODRCustomController
                         'datatype_permissions' => $datatype_permissions,
                         'master_templates' => $master_templates,
                         'master_type_id' => $template_choice,
-                        'creating_master_template' => $creating_master_template,
+                        'create_master' => $create_master,
                         'form' => $form->createView()
                     )
                 )

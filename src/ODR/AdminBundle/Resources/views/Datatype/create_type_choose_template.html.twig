@@ -1,30 +1,13 @@
 {% spaceless %}
 
-<ul id="wizardStatus">
-    {% if not create_master %}
-    <li class="current">Step 1. <span class="wizardStatusText">Choose a template.</span></li>
-    {% else %}
-    <li class="current">Step 1. <span class="wizardStatusText">Initial instructions.</span></li>
-    {% endif %}
-    <li class="">Step 2. <span class="wizardStatusText">Database information.</span></li>
-    <li class="">Step 3. <span class="wizardStatusText">Add or change fields.</span></li>
-    <li>Step 4. <span class="wizardStatusText">Setup search templates.</span></li>
-    <!-- <li>Step 4. <span class="wizardStatusText">Book/Order repair</span></li> -->
-</ul>
-
-{% if not create_master %}
-    <div class="ODRContentWrapper pure-u-1">
-        <div class="ODRThemeElement pure-u-1">
-            <div class="ODRInnerBox pure-u-1">
-                <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Choose a Template</h3>
-                <div class="ODRBodyContent">
-                    <p>Select a pre-defined template or create a completely custom database by selecting from the database templates column.</p>
-                    <p>If you choose a template, most of the work of creating a database will be automatically completed.  Creating a custom database requires the administrator to add all fields to the database using the template editor.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-{% endif %}
+    {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+        'wizard_step': 1,
+        'datatype_id': 0,
+        'edit_properties': false,
+        'create_master': create_master,
+        'master_templates': master_templates,
+        'master_type_id': 0,
+    } %}
 
 <div class="ODRContentWrapper pure-u-1">
     <div class="ODRThemeElement pure-u-1">

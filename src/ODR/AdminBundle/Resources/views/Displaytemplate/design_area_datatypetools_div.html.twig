@@ -1,16 +1,52 @@
 {% spaceless %}
 
-<span id="DataTypeTools_{{ datatype.id }}" class="DataTypeTools ODRHidden">
-    {#<i id="ODRDatatype_{{ datatype.id }}_properties" class="Pointer tooltip fa fa-cog ODRDatatypeProperties" title="DataType Properties" rel="{{ datatype.id }}"></i>#}
 
-{#{% if is_link == 0 and datatype_tree.fieldarea_reload == 0 %}#}   {# always display datatype properties...only display the remainder if not a linked type #}
+    {# Convert this to JSON Data so we can use it in the toolbox #}
+    <script>
+
+        if (datatype_properties === undefined) {
+            var datatype_properties = [];
+        }
+
+        datatype_properties[{{ datatype.id }}] = {};
+        datatype_properties[{{ datatype.id }}].is_top_level = 1;
+        datatype_properties[{{ datatype.id }}].render_plugin_id = 1;
+        datatype_properties[{{ datatype.id }}].render_plugin_name = 'Default Render';
+        datatype_properties[{{ datatype.id }}].is_public = 0;
+        datatype_properties[{{ datatype.id }}].is_link = 0;
+
+
+        // Set properties to values other than default
+        {% if is_link != 0 %}
+            datatype_properties[{{ datatype.id }}].is_link = 1;
+        {% endif %}
+
+        {% if is_top_level == 0 %} {# not allowed to delete top-level datatypes from here #}
+            datatype_properties[{{ datatype.id }}].is_top_level = 0;
+        {% endif %}
+
+        {% if datatype.dataTypeMeta.renderPlugin.id != 1 %}
+            datatype_properties[{{ datatype.id }}].render_plugin_id = {{ datatype.dataTypeMeta.renderPlugin.id }};
+            datatype_properties[{{ datatype.id }}].render_plugin_name = {{ datatype.dataTypeMeta.renderPlugin.pluginName }};
+        {% endif %}
+
+        {% if datatype.dataTypeMeta.publicDate|is_public %}
+            datatype_properties[{{ datatype.id }}].is_public = 1;
+        {% endif %}
+
+        console.log(datatype_properties[{{ datatype.id }}]);
+
+
+    </script>
+
+    {#
+
+<span id="DataTypeTools_{{ datatype.id }}" class="DataTypeTools ODRHidden">
 {% if is_link == 0 %}
     <i id="ODRDatatype_{{ datatype.id }}_addTE" class="Pointer tooltip fa fa-edit ODRAddThemeElement" title="Add Group Box" rel="{{ theme_id }}"></i>
-    {% if is_top_level == 0 %} {# not allowed to delete top-level datatypes from here #}
+    {% if is_top_level == 0 %}
         <i id="ODRDatatype_{{ datatype.id }}_delete" class="Pointer tooltip fa fa-trash-o ODRDeleteDatatype" title="Delete DataType" rel="{{ datatype.id }}"></i>
     {% endif %}
-
-    {#<i id="ODRDatatype_{{ datatype.id }}_undeleteDatafields" class="Pointer tooltip fa fa-undo ODRUndeleteFields" title="Undelete Datafields" rel="{{ datatype.id }}"></i>#}
 
     {% if datatype.dataTypeMeta.renderPlugin.id != 1 %}
         <i id="ODRDatatype_{{ datatype.id }}_renderPlugin" class="Pointer tooltip fa fa-bar-chart-o ODRRenderPlugin ODRActiveIcon" title="RenderPlugin Settings (using {{ datatype.dataTypeMeta.renderPlugin.pluginName }})" rel="{{ datatype.id }}"></i>
@@ -22,5 +58,6 @@
 {% endif %}
 
 </span>
+    #}
 
 {% endspaceless %}

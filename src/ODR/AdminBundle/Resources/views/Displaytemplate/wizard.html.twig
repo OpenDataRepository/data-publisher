@@ -1,0 +1,152 @@
+{% spaceless %}
+
+    <ul id="wizardStatus">
+        {# Only template-based databases will see this page. #}
+        {% if create_master > 0 %}
+            <li class="{% if wizard_step == 1 %}current{% endif %}">
+                <span class="wizardStatusText">Initial Instructions.</span>
+            </li>
+        {% else %}
+            <li class="{% if wizard_step == 1 %}current{% endif %}">
+                <span class="wizardStatusText">Choose Template.</span>
+            </li>
+        {% endif %}
+        <li class="{% if wizard_step == 2 %}current{% endif %}">
+            <span class="wizardStatusText">Database Properties.</span>
+        </li>
+        <li class="{% if wizard_step == 3 %}current{% endif %}">
+            {% if datatype_id > 0 %}
+            <a href="#{{ path('odr_design_master_theme', {'datatype_id': datatype_id}) }}">
+                <span class="wizardStatusText">Edit Database Design.</span>
+            </a>
+            {% else %}
+                <span class="wizardStatusText">Edit Database Design.</span>
+            {% endif %}
+        </li>
+        <li class="{% if wizard_step == 4 %}current{% endif %}">
+            {% if datatype_id > 0 %}
+            <a href="#{{ path('odr_datatype_landing', {'datatype_id': datatype_id}) }}">
+                <span class="wizardStatusText">Manage Database.</span>
+            </a>
+            {% else %}
+                <span class="wizardStatusText">Manage Database.</span>
+            {% endif %}
+        </li>
+    </ul>
+    {% if wizard_step == 1 and not create_master %}
+        <div class="ODRContentWrapper pure-u-1">
+            <div class="ODRThemeElement pure-u-1">
+                <div class="ODRInnerBox pure-u-1">
+                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Choose Template</h3>
+                    <div class="ODRBodyContent">
+                        <p>Select a pre-defined template or create a completely custom database by selecting from the
+                            database templates column.</p>
+                        <p>If you choose a template, most of the work of creating a database will be automatically
+                            completed. Creating a custom database requires the administrator to add all fields to the
+                            database using the template editor.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    {% if wizard_step == 2 %}
+        <div class="ODRContentWrapper pure-u-1">
+            <div class="ODRThemeElement pure-u-1">
+                <div class="ODRInnerBox pure-u-1">
+                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Database Properties.</h3>
+                    {% if create_master %} {# Master Template Creation #}
+                        <div class="ODRBodyContent">
+                            <p>Please choose a name for your database template and
+                                enter a description so users can identify the purpose of the template.</p>
+                        </div>
+                    {% elseif master_type_id == 0 %} {# Custom Database #}
+                        <div class="ODRBodyContent">
+                            <p>Please choose a name for your database and enter the relevant info to ensure proper attribution of your database.</p>
+                            <p>After completing the information below, you will be forwarded to the database management
+                                system to design your database by adding fields and display preferences.</p>
+                        </div>
+                    {% else %} {# Database from template #}
+                        <div class="ODRBodyContent">
+                            <p>Please choose a name for your database and enter the relevant info to ensure proper attribution of your database.</p>
+                            {% for datatype in master_templates %}
+                                {% if datatype.id == master_type_id %}
+                                    <p>You have chosen the
+                                        {{ datatype.dataTypeMeta[0].shortName }}
+                                        template for your database.  After submitting the information below
+                                        your database will be created according to the requirements of the
+                                        database template.
+                                    </p>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    {% if wizard_step == 3 %}
+        <div class="ODRContentWrapper pure-u-1">
+            <div class="ODRThemeElement pure-u-1">
+                <div class="ODRInnerBox pure-u-1">
+                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Edit Database Design</h3>
+
+                    <div class="ODRBodyContent">
+                        <p>The database may be extended or modified using this design system.  The system will alert you when a change will
+                            break compatibility with the parent template.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    {% if wizard_step == 4 %}
+        <div class="ODRContentWrapper pure-u-1">
+            <div class="ODRThemeElement pure-u-1">
+                <div class="ODRInnerBox pure-u-1">
+                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Choose a Template</h3>
+                    <div class="ODRBodyContent">
+                        <p>Select a pre-defined template or create a completely custom database by selecting from the
+                            database templates column.</p>
+                        <p>If you choose a template, most of the work of creating a database will be automatically
+                            completed. Creating a custom database requires the administrator to add all fields to the
+                            database using the template editor.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    {% if wizard_step == 5 %}
+        <div class="ODRContentWrapper pure-u-1">
+            <div class="ODRThemeElement pure-u-1">
+                <div class="ODRInnerBox pure-u-1">
+                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Choose a Template</h3>
+                    <div class="ODRBodyContent">
+                        <p>Select a pre-defined template or create a completely custom database by selecting from the
+                            database templates column.</p>
+                        <p>If you choose a template, most of the work of creating a database will be automatically
+                            completed. Creating a custom database requires the administrator to add all fields to the
+                            database using the template editor.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    {% if wizard_step == "wait" %}
+        <div class="ODRContentWrapper pure-u-1">
+            <div class="ODRThemeElement pure-u-1">
+                <div class="ODRInnerBox pure-u-1">
+                    <div class="ODRCenterText pure-hidden-xs pure-u-1 pure-u-lg-4-24 pure-u-md-5-24 pure-u-sm-8-24">
+                        <i class="fa fa-5x fa-cog fa-spin"></i>
+                    </div>
+                    <div class="ODRCenterText pure-hidden-sm pure-hidden-md pure-hidden-lg pure-hidden-xl pure-u-1-6">
+                        <i class="fa fa-2x fa-cog fa-spin"></i>
+                    </div>
+                    <div class="pure-u-5-6 pure-u-lg-20-24 pure-u-md-19-24 pure-u-sm-16-24 pure-u-">
+                        <p>Please wait while the system generates your database from the requested template.</p>
+                        <p>This operation should take no more than 30 seconds.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+{% endspaceless %}

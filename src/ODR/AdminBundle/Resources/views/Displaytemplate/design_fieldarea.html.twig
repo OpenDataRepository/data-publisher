@@ -23,6 +23,37 @@
 
         {# TODO Allow linked datatypes to be edited directly - need to warn user if used by other databases #}
         {% if is_datatype_admin %}
+            {# Convert to JS Data for New interface #}
+            <script>
+
+                if (theme_element_properties === undefined) {
+                    var theme_element_properties = [];
+                }
+
+                theme_element_properties[{{ theme_element.id }}] = {};
+                theme_element_properties[{{ theme_element.id }}].has_childtype = 0;
+                theme_element_properties[{{ theme_element.id }}].has_datafields = 0;
+                theme_element_properties[{{ theme_element.id }}].child_is_link = 0;
+
+
+                // Set properties to values other than default
+                {% if has_childtype %}
+                theme_element_properties[{{ theme_element.id }}].has_childtype = 1;
+                {% endif %}
+
+                {% if has_datafields %}
+                theme_element_properties[{{ theme_element.id }}].has_datafields = 1;
+                {% endif %}
+
+                {% if child_is_link %}
+                theme_element_properties[{{ theme_element.id }}].child_is_link = 1;
+                {% endif %}
+
+                console.log(theme_element_properties[{{ theme_element.id }}]);
+
+            </script>
+
+            {#
             <div id="ThemeElementTools_{{ theme_element.id }}" class="ThemeElementTools pure-u-1"><span style="float:right;">
                 <i id="ODRThemeElement_{{ theme_element.id }}_addDF"
                    class="Pointer tooltip fa fa-plus-square {% if has_childtype %}fa-muted{% endif %} ODRAddDatafield"
@@ -55,6 +86,7 @@
                    title="Delete ThemeElement">
                 </i>
             </span></div>
+            #}
         {% endif %}
 
         {% if theme_element.themeDataFields is defined %}

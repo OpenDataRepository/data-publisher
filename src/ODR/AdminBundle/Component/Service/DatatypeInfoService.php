@@ -395,7 +395,11 @@ class DatatypeInfoService
                 dt.grandparent = :grandparent_datatype_id
                 AND dt.deletedAt IS NULL
             ORDER BY dt.id, df.id, rom.displayOrder, ro.id'
-        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        )->setParameters(
+            array(
+                'grandparent_datatype_id' => $grandparent_datatype_id
+            )
+        );
 
         $datatype_data = $query->getArrayResult();
 

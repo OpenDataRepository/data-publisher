@@ -1,46 +1,13 @@
 {% spaceless %}
 
-    <ul id="wizardStatus">
-        <li class="completed">Step 1. <span class="wizardStatusText">Choose a template.</span></li>
-        <li class="current">Step 2. <span class="wizardStatusText">Database information.</span></li>
-        <li class="">Step 3. <span class="wizardStatusText">Add or change fields.</span></li>
-        <li>Step 4. <span class="wizardStatusText">Setup search templates.</span></li>
-        <!-- <li>Step 4. <span class="wizardStatusText">Book/Order repair</span></li> -->
-    </ul>
-
-    <div class="ODRContentWrapper pure-u-1">
-        <div class="ODRThemeElement pure-u-1">
-            <div class="ODRInnerBox pure-u-1">
-                <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Enter Database Information</h3>
-                {% if creating_master_template == 1 %} {# Master Template Creation #}
-                    <div class="ODRBodyContent">
-                        <p>Please choose a name for your database template and
-                            enter a description so users can identify the purpose of the template.</p>
-                    </div>
-                {% elseif master_type_id == 0 %} {# Custom Database #}
-                    <div class="ODRBodyContent">
-                        <p>Please choose a name for your database and enter the relevant info to ensure proper attribution of your database.</p>
-                        <p>After completing the information below, you will be forwarded to the database management
-                        system to design your database by adding fields and display preferences.</p>
-                    </div>
-                {% else %} {# Database from template #}
-                    <div class="ODRBodyContent">
-                        <p>Please choose a name for your database and enter the relevant info to ensure proper attribution of your database.</p>
-                        {% for datatype in master_templates %}
-                            {% if datatype.id == master_type_id %}
-                                <p>You have chosen the
-                                    {{ datatype.dataTypeMeta[0].shortName }}
-                                    template for your database.  After submitting the information below
-                                    your database will be created according to the requirements of the
-                                    database template.
-                                </p>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
+    {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+        'wizard_step': 2,
+        'datatype_id': 0,
+        'edit_properties': false,
+        'create_master': create_master,
+        'master_templates': master_templates,
+        'master_type_id': 0,
+    } %}
 
     <!-- Add Datatype Dialog -->
     <div class="ODRContentWrapper pure-u-1">
