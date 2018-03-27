@@ -17,6 +17,8 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataFieldsMeta;
 use ODR\AdminBundle\Entity\DataRecordMeta;
+use ODR\AdminBundle\Entity\DataTree;
+use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\FileMeta;
 use ODR\AdminBundle\Entity\ImageMeta;
@@ -28,6 +30,8 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
+// Services
+use ODR\AdminBundle\Component\Service\CacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -876,6 +880,8 @@ class ValidationController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
+
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
@@ -941,12 +947,85 @@ class ValidationController extends ODRCustomController
             print '<pre>';
 //            print 'List of datatree entries: '.print_r($dt_array, true)."\n";
 
-            print '----------'."\n";
-            print 'There should never be entries in either of these two arrays...'."\n\n";
+            print "----------------------------------------\n";
+            print 'There should never be entries in these two arrays...'."\n\n";
             print 'Ancestors in themes but not in datatree: '.print_r($extra_ancestors, true)."\n";
             print 'Descendants in themes but not in datatree: '.print_r($extra_descendants, true)."\n";
 //            exit();
 
+
+            // ----------------------------------------
+            // Ancestors in themes but not in the datatree can technically be taken care of by
+            //  creating new datatree entries...though this should be handled on a case-by-case
+            //  basis
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+
+            // ...these can be taken care of by creating new datatree entries
+            print "\nCreating datatree entries for Ancestors in themes but not in datatree...\n";
+            $dt_cache = array();
+            foreach ($extra_ancestors as $ancestor_id => $tmp) {
+
+                if ( !isset($dt_cache[$ancestor_id]) )
+                    $dt_cache[$ancestor_id] = $repo_datatype->find($ancestor_id);
+
+                foreach ($tmp as $num => $descendant_id) {
+                    if ( !isset($dt_cache[$descendant_id]) )
+                        $dt_cache[$descendant_id] = $repo_datatype->find($descendant_id);
+                }
+            }
+
+            $new_dts = array();
+            foreach ($extra_ancestors as $ancestor_id => $tmp) {
+                foreach ($tmp as $num => $descendant_id) {
+                    $dt = new DataTree();
+                    $dt->setAncestor( $dt_cache[$ancestor_id] );
+                    $dt->setDescendant( $dt_cache[$descendant_id] );
+                    $dt->setCreated( new \DateTime() );
+                    $dt->setCreatedBy($user);
+
+                    print "-- created datatree entry for ancestor ".$ancestor_id.", descendant ".$descendant_id."...\n";
+
+                    if ($save) {
+                        $em->persist($dt);
+                        $em->flush();
+                        $em->refresh($dt);
+
+                        $new_dts[] = $dt;
+
+                        print "-- new dt id: ".$dt->getId()."\n";
+                    }
+                }
+            }
+            /** @var DataTree[] $new_dts */
+
+            foreach ($new_dts as $num => $new_dt) {
+                $dt_meta = new DataTreeMeta();
+                $dt_meta->setDataTree($new_dt);
+                $dt_meta->setMultipleAllowed(1);
+
+                if ($new_dt->getDescendant()->getParent()->getId() !== $new_dt->getAncestor()->getId()) {
+                    $dt_meta->setIsLink(true);
+                    print "-- created meta entry for datatree ".$new_dt->getId().", is_link set to 1\n";
+                }
+                else {
+                    $dt_meta->setIsLink(false);
+                    print "-- created meta entry for datatree ".$new_dt->getId().", is_link set to 0\n";
+                }
+
+                $dt_meta->setCreated(new \DateTime());
+                $dt_meta->setCreatedBy($user);
+                $dt_meta->setUpdated(new \DateTime());
+                $dt_meta->setUpdatedBy($user);
+
+                if ($save) {
+                    $em->persist($dt);
+                    $em->flush();
+                    $em->refresh($dt);
+                }
+            }
+
+
+            print "----------------------------------------\n";
             $entries_to_fix = array();
             foreach ($dt_array as $ancestor_id => $tmp) {
                 foreach ($tmp as $descendant_id => $data) {
@@ -962,11 +1041,9 @@ class ValidationController extends ODRCustomController
             }
             $datatree_ids = array_keys($entries_to_fix);
 
-            print '----------'."\n";
             print 'Datatree entries that need deleting: '.print_r($entries_to_fix, true)."\n";
 //            exit();
 
-            $conn = $em->getConnection();
             $conn->beginTransaction();
 
             $query = $em->createQuery(
@@ -998,6 +1075,11 @@ class ValidationController extends ODRCustomController
                 $conn->commit();
             else
                 $conn->rollBack();
+
+            // Changes may have been made, delete the cached entry based off the datatree entity
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service->delete('cached_datatree_array');
 
             print '</pre>';
         }

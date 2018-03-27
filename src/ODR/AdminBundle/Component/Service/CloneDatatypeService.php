@@ -358,7 +358,7 @@ class CloneDatatypeService
                 $dt->setGrandparent($corrected_grandparent);
                 $this->em->persist($dt);
 
-                $this->logger->info('CloneDatatypeService: correcting ancestors for datatype '.$dt->getId().'...parent set to dt '.$corrected_parent->getId().', grandparent set to dt '.$corrected_grandparent->getId());
+                $this->logger->info('CloneDatatypeService: correcting ancestors for datatype '.$dt->getId().' "'.$dt->getShortName().'"...parent set to dt '.$corrected_parent->getId().', grandparent set to dt '.$corrected_grandparent->getId());
             }
 
             $this->em->flush();
@@ -788,10 +788,12 @@ class CloneDatatypeService
      */
     private function cloneDatatree($parent_datatype)
     {
-        $this->logger->debug('CloneDatatypeService: attempting to clone datatree entries for datatype '.$parent_datatype->getId().'...');
+        $this->logger->info('CloneDatatypeService: attempting to clone datatree entries for datatype '.$parent_datatype->getId().' "'.$parent_datatype->getShortName().'"...');
 
         /** @var DataTree[] $datatree_array */
         $datatree_array = $this->em->getRepository('ODRAdminBundle:DataTree')->findBy( array('ancestor' => $parent_datatype->getId()) );
+        if ( empty($datatree_array) )
+            $this->logger->debug('CloneDatatypeService: -- no datatree entries found');
 
         // Locate the newly created datatype corresponding to $parent_datatype
         $current_ancestor = null;
@@ -820,7 +822,7 @@ class CloneDatatypeService
                     if ($new_dt->getIsLink())
                         $is_link = 1;
 
-                    $this->logger->info('CloneDatatypeService: created new datatree with datatype '.$current_ancestor->getId().' "'.$current_ancestor->getShortName().'" as ancestor and datatype '.$datatype->getId().' "'.$datatype->getShortName().'" as descendant, is_link = '.$is_link);
+                    $this->logger->info('CloneDatatypeService: -- created new datatree with datatype '.$current_ancestor->getId().' "'.$current_ancestor->getShortName().'" as ancestor and datatype '.$datatype->getId().' "'.$datatype->getShortName().'" as descendant, is_link = '.$is_link);
 
                     // Also create any datatree entries required for this newly-created datatype
                     self::cloneDatatree($datatype->getMasterDataType());

@@ -1477,7 +1477,8 @@ $ret .= '  Set current to '.$count."\n";
                         partial te.{id},
                         partial tdt.{id, deletedAt},
                         partial c_dt.{id},
-                        partial gp_dt.{id}
+                        partial gp_dt.{id},
+                        partial c_t.{id}
 
                     FROM ODRAdminBundle:Theme AS t
                     JOIN t.dataType AS dt
@@ -1485,6 +1486,7 @@ $ret .= '  Set current to '.$count."\n";
                     JOIN te.themeDataType AS tdt
                     JOIN tdt.dataType AS c_dt
                     JOIN c_dt.grandparent AS gp_dt
+                    LEFT JOIN tdt.childTheme AS c_t
                     WHERE t.parentTheme = :theme_id'
                 )->setParameters( array('theme_id' => $theme_id) );
                 $results = $query->getArrayResult();
@@ -1499,6 +1501,10 @@ $ret .= '  Set current to '.$count."\n";
 
                     foreach ($t['themeElements'] as $num => $te) {
                         foreach ($te['themeDataType'] as $num => $tdt) {
+
+                            if ( isset($tdt['childTheme']) && isset($tdt['childTheme']['id']) )
+                                continue;
+
                             $tdt_id = $tdt['id'];
                             $c_dt_id = $tdt['dataType']['id'];
                             $gp_dt_id = $tdt['dataType']['grandparent']['id'];
@@ -1540,10 +1546,15 @@ $ret .= '  Set current to '.$count."\n";
                                         // ----------------------------------------
                                         /** @var ThemeDataType $theme_datatype */
                                         $theme_datatype = $repo_theme_datatype->find($tdt_id);
+                                        if ( is_null($theme_datatype) )
+                                            print '***** unable to locate theme_datatype '.$tdt_id.' *****'."\n";
+
                                         $theme_element = $theme_datatype->getThemeElement();
 
                                         /** @var DataType $linked_datatype */
                                         $linked_datatype = $repo_datatype->find($c_dt_id);
+                                        if ( is_null($linked_datatype) )
+                                            print '***** unable to locate linked_datatype '.$c_dt_id.' *****'."\n";
 
                                         // Load the linked datatype's master theme
                                         $query = $em->createQuery(
@@ -1558,9 +1569,11 @@ $ret .= '  Set current to '.$count."\n";
                                             )
                                         );
                                         $sub_result = $query->getResult();
+                                        if (!$sub_result)
+                                            print '***** unable to locate master theme for linked datatype '.$c_dt_id.' *****'."\n";
+
                                         /** @var Theme $linked_datatype_master_theme */
                                         $linked_datatype_master_theme = $sub_result[0];
-
 
                                         $query = $em->createQuery(
                                            'SELECT dt
@@ -1574,9 +1587,14 @@ $ret .= '  Set current to '.$count."\n";
                                             )
                                         );
                                         $sub_result = $query->getResult();
+                                        if (!$sub_result)
+                                            print '***** unable to locate datatree entry for ancestor datatype '.$theme_element->getTheme()->getDataType()->getId().', descendant datatype '.$linked_datatype->getId().' *****'."\n";
+
                                         /** @var DataTree $most_recent_datatree */
                                         $most_recent_datatree = $sub_result[0];
                                         $user = $most_recent_datatree->getCreatedBy();
+                                        if ( is_null($user) )
+                                            $user = $most_recent_datatree->getDescendant()->getCreatedBy();
 
                                         print '       >> cloning source theme '.$linked_datatype_master_theme->getId().' for linked datatype '.$linked_datatype->getId().' (linked by user '.$user->getId().') into theme_element '.$theme_element->getId().' of theme '.$theme_element->getTheme()->getId()."\n";
 
@@ -1606,8 +1624,13 @@ $ret .= '  Set current to '.$count."\n";
                                     if ($save) {
                                         /** @var Theme $child_theme */
                                         $child_theme = $repo_theme->find( $sub_results[0]['id'] );
+                                        if ( is_null($child_theme) )
+                                            print '***** unable to locate child theme '.$sub_results[0]['id'].' *****'."\n";
+
                                         /** @var ThemeDataType $theme_datatype */
                                         $theme_datatype = $repo_theme_datatype->find($tdt_id);
+                                        if ( is_null($theme_datatype) )
+                                            print '***** unable to locate child theme_datatype '.$tdt_id.' *****'."\n";
 
                                         $theme_datatype->setChildTheme($child_theme);
 
