@@ -20,17 +20,18 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
-use ODR\AdminBundle\Entity\DataTree;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -1683,32 +1684,116 @@ $ret .= '  Set current to '.$count."\n";
     /**
      * TODO -
      *
-     * @param $theme_id
      * @param Request $request
      *
      * @return Response
      */
-    public function synchtestAction($theme_id, Request $request)
+    public function migratepluginsAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
 
+        $save = false;
+        $save = true;
+
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CloneThemeService $clone_theme_service */
-            $clone_theme_service = $this->container->get('odr.clone_theme_service');
+            /** @var RenderPlugin[] $render_plugins */
+            $render_plugins = $em->getRepository('ODRAdminBundle:RenderPlugin')->findAll();
 
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
+            foreach ($render_plugins as $render_plugin) {
 
-            $diff = $clone_theme_service->getThemeSourceDiff($theme);
-            print '<pre>'.print_r($diff, true).'</pre>';
+                switch ($render_plugin->getPluginName()) {
+                    // Base
+                    case 'Default Render':
+                        $render_plugin->setPluginClassName('odr_plugins.base.default');
+                        break;
+                    case 'GCMassSpec Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.base.gcms');
+                        break;
+                    case 'CSV Table Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.base.csvtable');
+                        break;
+                    case 'Graph Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.base.graph');
+                        break;
+                    case 'Chemistry Field':
+                        $render_plugin->setPluginClassName('odr_plugins.base.chemistry');
+                        break;
+                    case 'References Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.base.references');
+                        break;
+                    case 'Comment Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.base.comment');
+                        break;
+                    case 'Link Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.base.link');
+                        break;
+                    case 'URL Field':
+                        $render_plugin->setPluginClassName('odr_plugins.base.url');
+                        break;
+                    case 'Currency Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.base.currency');
+                        break;
+
+                    // Chemin
+                    case 'Chemin ED1 Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.chemined1');
+                        break;
+                    case 'Chemin EDA Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.chemineda');
+                        break;
+                    case 'Chemin EDS Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.chemineds');
+                        break;
+                    case 'Chemin EE1 Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.cheminee1');
+                        break;
+                    case 'Chemin EEA Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.chemineea');
+                        break;
+                    case 'Chemin EES Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.cheminees');
+                        break;
+                    case 'Chemin EFM Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.cheminefm');
+                        break;
+                    case 'Chemin ETR Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.cheminetr');
+                        break;
+                    case 'Qanalyze XRD Analysis':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.qanalyze');
+                        break;
+
+                    // AHED
+                    case 'Organization Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.ahed.organization');
+                        break;
+                    case 'Person Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.ahed.person');
+                        break;
+                    case 'Sample Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.ahed.sample');
+                        break;
+                    case 'Site Identifier Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.ahed.site');
+                        break;
+
+                    default:
+                        print '<pre>Ecountered unrecognized plugin name "'.$render_plugin->getPluginName().'", did not make a change</pre>';
+                        break;
+                }
+
+                if ($save)
+                    $em->persist($render_plugin);
+            }
+
+            if ($save)
+                $em->flush();
         }
         catch (\Exception $e) {
             $source = 0x0214889b;

@@ -1,0 +1,13 @@
+odr_plugins.chemin.qanalyze:
+    name: Qanalyze XRD Analysis
+    datatype: false
+    version: 1.00
+    override_fields: true
+    override_child: false
+    description: Opens XRD spectrum files in Qanalyze and performs peak fitting analysis.
+    required_fields:
+        qanalyze_plugin:
+            name: Qanalyze XRD Analysis
+            description: This is a dummy field required so the template designer doesn't break.
+            type: ShortVarchar
+    config_options:

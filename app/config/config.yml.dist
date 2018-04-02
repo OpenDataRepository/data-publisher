@@ -2,7 +2,7 @@ imports:
     - { resource: parameters.yml }
     - { resource: security.yml }
     - { resource: doctrine_extensions.yml }
-    - { resource: "@ODROpenRepositoryGraphBundle/Resources/config/services.yml" }
+    - { resource: "@ODROpenRepositoryGraphBundle/Resources/config/config.yml" }
 
 
 framework:
