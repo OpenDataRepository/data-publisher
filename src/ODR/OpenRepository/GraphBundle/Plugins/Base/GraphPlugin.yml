@@ -1,0 +1,173 @@
+odr_plugins.base.graph:
+    name: Graph Plugin
+    datatype: true
+    version: 1.00
+    override_fields: false
+    override_child: true
+    description: The Graph Plugin plots XY data in a line plot on a linear or log chart.  A data type with the required fields is required and multiple instances of the XY data files are allowed.  If more than one XY file is found, it will be labeled and displayed on a roll-up graph initially.  The plugin then allows filtering to a specific file using the meta data provided.
+    required_fields:
+        graph_file:
+            name: Graph File
+            description: A file containing XY values for plotting.
+            type: File
+        pivot:
+            name: Pivot Field 
+            description: If multiple data sets are plotted, the pivot field will be displayed to allow the user to switch between data sets.
+            type: IntegerValue|ShortVarchar|MediumVarchar|LongVarchar
+    config_options:
+        graph_type:
+            name: Graph Type
+            type: string
+            default: xy
+            choices: xy||XY Plot,bar||Bar Chart (stacked/grouped/horizontal/vertical),windrose||WindRose,histogram||Histogram,polar||Polar,bubble||Bubble Chart,lineerror||Line w/Error Bars,stick||Stick Plot,starea||Stacked Area,piechart||Pie Chart
+            description: Choose the graph type XY (scatter), Line, Horizontal Bar, or Vertical Bar.
+        use_rollup:
+            name: Use Rollup Graph
+            type: string
+            default: no
+            choices: no||No,yes||Yes
+            description: Rollup graphs automatically co-plot data from multiple files on the same chart.
+            applies_to: xy
+        graph_width:
+            name: Graph Width
+            type: string
+            default: 900 
+            description: Enter a width in pixels for the graph. 
+        graph_height: 
+            name: Graph Height
+            type: string
+            default: 300 
+            description: Enter a height in pixels for the graph.
+        line_type:
+            name: Line Type
+            type: string
+            default: line
+            choices: lines||Lines,markers||Markers,lines+markers||Lines and Markers
+            description: Choose how to display the connections between points.
+            applies_to: xy
+        bar_type:
+            name: Bar Type
+            type: string
+            default: vert
+            choices: vert||Vertical Bars,horizontal||Horizontal Bars
+            description: Direction of bars on bar graph.  Format: [bar_name, value] for vertical bars.  Format: [value, bar_name] for horizontal bars.
+            applies_to: bar
+        bar_options:
+            name: Bar Grouping Option
+            type: string
+            default: grouped
+            choices: grouped||Grouped bars,stacked||Stacked bars
+            description: When multiple bar data sets are plotted simultaneously, this option determines whether they will be stacked or grouped.
+            applies_to: bar
+        histogram_dir:
+            name: Histogram Direction
+            type: string
+            default: vert
+            choices: vert||Vertical,horizontal||Horizontal
+            description: Choose the direction of the bars used in the histogram.
+            applies_to: horizontal
+        histogram_stack:
+            name: Histogram Display Options
+            type: string
+            default: grouped
+            choices: grouped||Grouped,stacked||Stacked,overlay||Overlaid
+            description: Grouped will appear next to each other for a given value.  Stacked will sum the data showing the sets as different colors.  Overlaid will plot the bars in front of each other with a transparency effect.
+            applies_to: horizontal
+        x_axis_min:
+            name: X Axis Minimum
+            type: string
+            default: auto
+            description: Minimum X Value.  Defaults to "auto" which results in automatic calculation.
+        x_axis_max:
+            name: X Axis Maximum
+            type: string
+            default: auto
+            description: Maximum X Value.  Defaults to "auto" which results in automatic calculation. 
+        x_axis_dir:
+            name: X Axis Direction
+            type: string
+            default: asc
+            choices: asc||desc
+            description: X-axis values will be ascending or descending.
+        x_axis_labels:
+            name: X Axis Labels
+            type: string
+            default: yes
+            choices: yes||no
+            description: Display numeric labels on the X axis.
+        x_axis_tick_interval:
+            name: X Axis Tick Interval
+            type: string
+            default: auto
+            description: Numeric value for inteval bewtween tick markers.  Defaults to "auto" which results in automatic calculation.
+        x_axis_tick_start:
+            name: X Axis Tick Start
+            type: string
+            default: auto
+            description: Numeric value for placement of first tick.  If tick interval is not "auto", this value must be set. Defaults to "auto" which results in automatic calculation.
+        x_axis_caption:
+            name: X Axis Caption
+            type: string
+            default: null
+            description: Enter a caption to display on the X axis.
+        x_axis_log:
+            name: X Axis Logarithmic
+            type: string
+            default: no
+            choices: yes||no
+            description: Choose to display on a logarithmic scale.
+        y_axis_min:
+            name: Y Axis Minimum
+            type: string
+            default: auto
+            description: Minimum Y Value.  Defaults to "auto" which results in automatic calculation. 
+        y_axis_max:
+            name: Y Axis Maximum
+            type: string
+            default: auto
+            description: Maximum Y Value.  Defaults to "auto" which results in automatic calculation. 
+        y_axis_tick_interval:
+            name: Y Axis Tick Interval
+            type: string
+            default: auto
+            description: Numeric value for tick placement.  Defaults to "auto" which results in automatic calculation. 
+        y_axis_labels:
+            name: Y Axis Labels
+            type: string
+            default: yes
+            choices: yes||no
+            description: Display numeric labels on the Y axis.
+        y_axis_caption:
+            name: Y Axis Caption
+            type: string
+            default: null
+            description: Enter a caption to display on the Y axis.
+        y_axis_log:
+            name: Y Axis Logarithmic
+            type: string
+            default: no
+            choices: yes||no
+            description: Choose to display on a logarithmic scale.
+        line_stroke:
+            name: Line Width
+            type: integer
+            default: 1
+            choices: 1||2||3||4||5
+            description: Set the width of the line or the pixel width of the markers.
+        line_colors:
+            name: Line Colors
+            type: string
+            default: black
+            description: Enter a comma-separated list of colors in HEX or web color names that will be used to color the lines and makers.
+        layout:
+            name: Layout
+            type: String
+            default: full_width
+            choices: full_width||Graphs and Fields are full width.,13_23||Data is 1/3. Graph is 2/3.,23_13||Data is 2/3. Graph is 1/3.,14_34||Data is 1/4. Graph is 3/4.,34_14||Data is 3/4. Graph is 1/4.
+            description: Choose the layout of the graph area.
+#        header:
+#            name: Header Type
+#            type: String
+#            default: selector 
+#            choices: selector||Use dropdown selector on pivot field.,tabs||Tabs will display different graph children.,accordion||Different data sets will unfold like an accordion.
+#            description: Choose how multiple data sets will display. 

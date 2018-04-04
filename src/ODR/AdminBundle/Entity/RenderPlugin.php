@@ -19,6 +19,12 @@ use Doctrine\ORM\Mapping as ORM;
 
 class RenderPlugin
 {
+    // These are magic numbers to define whether the RenderPlugin works on Datatypes or Datafields
+    const DATATYPE_PLUGIN = 1;
+    const DEFAULT_PLUGIN = 2;    // The "Default" RenderPlugin is the only one allowed to have a value of 2
+    const DATAFIELD_PLUGIN = 3;
+
+
     /**
      * @var integer
      */

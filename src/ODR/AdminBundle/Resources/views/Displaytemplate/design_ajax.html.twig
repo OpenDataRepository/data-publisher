@@ -97,7 +97,7 @@
         {% include 'ODRAdminBundle:Link:link_type_dialog.html.twig' %}
     </div>
     <div id="plugin_settings_dialog_wrapper">
-        {% include 'ODRAdminBundle:Displaytemplate:plugin_settings_dialog.html.twig' %}
+        {% include 'ODRAdminBundle:Plugins:plugin_settings_dialog.html.twig' %}
     </div>
     <div id="markdown_help_dialog_wrapper">
         {% include 'ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig' %}
@@ -328,7 +328,7 @@
             var datatype_id = $(this).attr('rel');
             var datafield_id = 0;
 
-            {# defined in Displaytemplate::plugin_settings_dialog.html.twig #}
+            {# defined in Plugins:plugin_settings_dialog.html.twig #}
             openPluginSettingsDialog(datafield_id, datatype_id);
         });
 

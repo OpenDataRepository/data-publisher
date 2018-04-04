@@ -483,7 +483,8 @@ footer ul li:first-child {
 
 /* jQuery(window).unbind('.FixedHeader'); */
 .ODRTableOuterWrap,
-#ODRDataTypeListWrapper {
+#ODRDataTypeListWrapper,
+#ODRRenderPluginListWrapper {
     margin-top: 1.2em;
     margin-bottom: 2.2em;
     padding: 12px;
@@ -493,7 +494,8 @@ footer ul li:first-child {
 }
 
 .ODRTableWrap,
-#ODRDatatypeList_wrapper {
+#ODRDatatypeList_wrapper,
+#ODRRenderPluginList_wrapper {
     box-sizing: border-box;
     padding: 8px;
     background: white none;

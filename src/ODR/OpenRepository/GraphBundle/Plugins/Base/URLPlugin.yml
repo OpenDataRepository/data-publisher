@@ -1,0 +1,18 @@
+odr_plugins.base.url:
+    name: URL Field 
+    datatype: false
+    version: 0.1
+    override_fields: false
+    override_child: false
+    description: A datafield containing a HTML link.
+    required_fields:
+        url_field:
+            name: URL Field
+            description: A datafield containing part of a search URL.
+            type: IntegerValue|ShortVarchar|MediumVarchar|LongVarchar|LongText
+    config_options:
+        base_url:
+            name: baseurl
+            type: string
+            default: auto
+            description: A string of HTML that will be prepended to the contents of the datafield.

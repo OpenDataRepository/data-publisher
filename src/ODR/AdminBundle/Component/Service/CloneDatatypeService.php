@@ -1097,7 +1097,7 @@ class CloneDatatypeService
     private function cloneRenderPluginSettings($parent_render_plugin, $datatype = null, $datafield = null)
     {
         // Don't need to clone anything if using the default render plugin
-        if ( is_null($parent_render_plugin) || $parent_render_plugin->getId() == 1)
+        if ( is_null($parent_render_plugin) || $parent_render_plugin->getPluginClassName() == 'odr_plugins.base.default')
             return;
 
         $repo_rpi = $this->em->getRepository('ODRAdminBundle:RenderPluginInstance');

@@ -135,7 +135,7 @@ class ThemeInfoService
             FROM ODRAdminBundle:Theme AS t
             JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
             WHERE t.dataType = :datatype_id AND t.themeType IN (:theme_types)
-            AND t.deletedAt IS NULL
+            AND t = t.parentTheme AND t.deletedAt IS NULL
             ORDER BY tm.displayOrder, tm.templateName'
         )->setParameters( array('datatype_id' => $datatype->getId(), 'theme_types' => $theme_types));
         $results = $query->getResult();
@@ -843,7 +843,7 @@ class ThemeInfoService
         $query = $this->em->createQuery(
            'SELECT t.id AS theme_id
             FROM ODRAdminBundle:Theme AS t
-            WHERE t.dataType IN (:datatype_ids)
+            WHERE t.dataType IN (:datatype_ids) AND t = t.parentTheme
             AND t.deletedAt IS NULL'
         )->setParameters( array('datatype_ids' => $top_level_datatypes) );
         $results = $query->getArrayResult();

@@ -1,0 +1,15 @@
+odr_plugins.base.link:
+    name: Link Plugin
+    datatype: true
+    version: 1.00
+    override_fields: true
+    override_child: true
+    description: Note - This Render Plugin only makes sense when used by a Datatype that is linked to from elsewhere.  It renders a button that will take the user to the linked Datarecord's page when clicked, instead of rendering that Datarecord's contents.
+    required_fields:
+    config_options:
+        display_label:
+            name: Display Label
+            type: string
+            default:
+            choices: none||None,external_id||External ID Field,name||Name Field
+            description: If "External ID Field" or "Name Field" is selected, the content of that specific Datafield is displayed in the button that links to that Datarecord.  The "None" option is only really useful when allowed to link to a single Datarecord.

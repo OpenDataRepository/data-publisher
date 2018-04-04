@@ -1,0 +1,21 @@
+odr_plugins.chemin.chemined1:
+    name: Chemin ED1 Plugin
+    datatype: true
+    version: 1.00
+    override_fields: false
+    override_child: true
+    description: Chemin ED1 Plugin
+    required_fields:
+        ed1_raw_tiff_file:
+            name: ED1 Raw Tiff File
+            description:
+            type: File
+        ed1_lbl_file:
+            name: ED1 LBL File
+            description:
+            type: File
+        ed1_dat_file:
+            name: ED1 DAT File
+            description:
+            type: File
+    config_options:

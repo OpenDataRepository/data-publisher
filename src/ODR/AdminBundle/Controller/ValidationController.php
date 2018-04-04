@@ -290,7 +290,7 @@ class ValidationController extends ODRCustomController
             $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
 
             /** @var RenderPlugin $default_render_plugin */
-            $default_render_plugin = $repo_render_plugin->find(1);
+            $default_render_plugin = $repo_render_plugin->findOneBy( array('pluginClassName' => 'odr_plugins.base.default') );
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
