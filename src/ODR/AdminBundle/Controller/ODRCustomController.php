@@ -941,7 +941,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_group_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_group_meta->setCreated(new \DateTime());
+            $new_group_meta->setUpdated(new \DateTime());
             $new_group_meta->setCreatedBy($user);
+            $new_group_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -1020,7 +1025,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_permission = clone $permission;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_permission->setCreated(new \DateTime());
+            $new_permission->setUpdated(new \DateTime());
             $new_permission->setCreatedBy($user);
+            $new_permission->setUpdatedBy($user);
         }
         else {
             $new_permission = $permission;
@@ -1094,7 +1104,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_permission = clone $permission;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_permission->setCreated(new \DateTime());
+            $new_permission->setUpdated(new \DateTime());
             $new_permission->setCreatedBy($user);
+            $new_permission->setUpdatedBy($user);
         }
         else {
             $new_permission = $permission;
@@ -1285,7 +1300,8 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates and persists a new DataRecord entity.
+     * Creates and persists a new DataRecord and its associated Meta entity.  The caller needs to
+     * flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user         The user requesting the creation of this entity
@@ -1363,7 +1379,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_datarecord_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_datarecord_meta->setCreated(new \DateTime());
+            $new_datarecord_meta->setUpdated(new \DateTime());
             $new_datarecord_meta->setCreatedBy($user);
+            $new_datarecord_meta->setUpdatedBy($user);
         }
         else {
             $new_datarecord_meta = $old_meta_entry;
@@ -1394,7 +1415,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates and persists a new Datatree entry.
+     * Creates and persists a new Datatree entry.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
@@ -1472,7 +1493,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_datatree_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_datatree_meta->setCreated(new \DateTime());
+            $new_datatree_meta->setUpdated(new \DateTime());
             $new_datatree_meta->setCreatedBy($user);
+            $new_datatree_meta->setUpdatedBy($user);
         }
         else {
             $new_datatree_meta = $old_meta_entry;
@@ -2030,7 +2056,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_file_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_file_meta->setCreated(new \DateTime());
+            $new_file_meta->setUpdated(new \DateTime());
             $new_file_meta->setCreatedBy($user);
+            $new_file_meta->setUpdatedBy($user);
         }
         else {
             $new_file_meta = $old_meta_entry;
@@ -2111,7 +2142,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_image_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_image_meta->setCreated(new \DateTime());
+            $new_image_meta->setUpdated(new \DateTime());
             $new_image_meta->setCreatedBy($user);
+            $new_image_meta->setUpdatedBy($user);
         }
         else {
             $new_image_meta = $old_meta_entry;
@@ -2317,7 +2353,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_radio_option_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_radio_option_meta->setCreated(new \DateTime());
+            $new_radio_option_meta->setUpdated(new \DateTime());
             $new_radio_option_meta->setCreatedBy($user);
+            $new_radio_option_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -2438,7 +2479,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_entity = clone $entity;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_entity->setCreated(new \DateTime());
+            $new_entity->setUpdated(new \DateTime());
             $new_entity->setCreatedBy($user);
+            $new_entity->setUpdatedBy($user);
         }
         else {
             $new_entity = $entity;
@@ -2545,7 +2591,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_datatype_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_datatype_meta->setCreated(new \DateTime());
+            $new_datatype_meta->setUpdated(new \DateTime());
             $new_datatype_meta->setCreatedBy($user);
+            $new_datatype_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -2793,7 +2844,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_datafield_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_datafield_meta->setCreated(new \DateTime());
+            $new_datafield_meta->setUpdated(new \DateTime());
             $new_datafield_meta->setCreatedBy($user);
+            $new_datafield_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -2927,7 +2983,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_theme_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_theme_meta->setCreated(new \DateTime());
+            $new_theme_meta->setUpdated(new \DateTime());
             $new_theme_meta->setCreatedBy($user);
+            $new_theme_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -2984,7 +3045,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates and persists a new ThemeElement entity.
+     * Creates and persists a new ThemeElement entity.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                       The user requesting the creation of this entity
@@ -3067,7 +3128,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $theme_element_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $theme_element_meta->setCreated(new \DateTime());
+            $theme_element_meta->setUpdated(new \DateTime());
             $theme_element_meta->setCreatedBy($user);
+            $theme_element_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -3106,7 +3172,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates and persists a new ThemeDataField entity.
+     * Creates and persists a new ThemeDataField entity.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                  The user requesting the creation of this entity.
@@ -3179,7 +3245,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_theme_datafield = clone $theme_datafield;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_theme_datafield->setCreated(new \DateTime());
+            $new_theme_datafield->setUpdated(new \DateTime());
             $new_theme_datafield->setCreatedBy($user);
+            $new_theme_datafield->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -3217,7 +3288,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates and persists a new ThemeDataType entity.
+     * Creates and persists a new ThemeDataType entity.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                  The user requesting the creation of this entity
@@ -3286,7 +3357,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_theme_datatype = clone $theme_datatype;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_theme_datatype->setCreated(new \DateTime());
+            $new_theme_datatype->setUpdated(new \DateTime());
             $new_theme_datatype->setCreatedBy($user);
+            $new_theme_datatype->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -3317,7 +3393,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates, persists, and flushes a new RenderPluginInstance entity
+     * Creates, persists, and flushes a new RenderPluginInstance entity.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
@@ -3332,9 +3408,9 @@ class ODRCustomController extends Controller
     protected function ODR_addRenderPluginInstance($em, $user, $render_plugin, $datatype, $datafield)
     {
         // Ensure a RenderPlugin for a Datatype plugin doesn't get assigned to a Datafield, or a RenderPlugin for a Datafield doesn't get assigned to a Datatype
-        if ( $render_plugin->getPluginType() == 1 && $datatype == null )
+        if ( $render_plugin->getPluginType() == RenderPlugin::DATATYPE_PLUGIN && is_null($datatype) )
             throw new \Exception('Unable to create an instance of the RenderPlugin "'.$render_plugin->getPluginName().'" for a null Datatype');
-        else if ( $render_plugin->getPluginType() == 3 && $datafield == null )
+        else if ( $render_plugin->getPluginType() == RenderPlugin::DATAFIELD_PLUGIN && is_null($datafield) )
             throw new \Exception('Unable to create an instance of the RenderPlugin "'.$render_plugin->getPluginName().'" for a null Datafield');
 
         // Create the new RenderPluginInstance
@@ -3357,7 +3433,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates and persists a new RenderPluginMap entity
+     * Creates and persists a new RenderPluginMap entity.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
@@ -3422,7 +3498,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_rpm = clone $render_plugin_map;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_rpm->setCreated(new \DateTime());
+            $new_rpm->setUpdated(new \DateTime());
             $new_rpm->setCreatedBy($user);
+            $new_rpm->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -3451,7 +3532,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates and persists a new RenderPluginOption entity
+     * Creates and persists a new RenderPluginOption entity.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
@@ -3516,7 +3597,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_rpo = clone $render_plugin_option;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_rpo->setCreated(new \DateTime());
+            $new_rpo->setUpdated(new \DateTime());
             $new_rpo->setCreatedBy($user);
+            $new_rpo->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry

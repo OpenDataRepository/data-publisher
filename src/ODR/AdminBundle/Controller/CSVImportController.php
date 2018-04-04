@@ -1987,7 +1987,7 @@ class CSVImportController extends ODRCustomController
                     case "IntegerValue":
                         if ($value !== '') {
                             // Warn about invalid characters in an integer conversion
-                            $int_value = intval( $value );
+                            $int_value = intval( $value );          // TODO - should this regexp out non-numeric characters first?  TODO - display warnings differently?
                             if ( strval($int_value) != $value ) {
                                 $errors[] = array(
                                     'level' => 'Warning',
@@ -2001,7 +2001,7 @@ class CSVImportController extends ODRCustomController
                         break;
                     case "DecimalValue":
                         if ($value !== '') {
-                            $float_value = floatval( $value );
+                            $float_value = floatval( $value );      // TODO - floatval() is turning '-' into '0'?  shouldn't it be blank?  TODO - display warnings separately from errors?
                             if ( strval($float_value) != $value )  {
                                 $errors[] = array(
                                     'level' => 'Warning',
@@ -2695,7 +2695,7 @@ class CSVImportController extends ODRCustomController
             $new_mapping = array();
             $created = false;
             /** @var RenderPlugin $render_plugin */
-            $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
+            $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->findOneBy( array('pluginClassName' => 'odr_plugins.base.default') );
             foreach ($datafield_mapping as $column_id => $datafield_id) {
                 $datafield = null;
 

@@ -212,17 +212,32 @@ odr_save_group_datafield_permission:
 #-----------------------------------------
 
 #-----------------------------------------
-# Render Plugin routes
+# Plugin Controller
+odr_render_plugin_list:
+    path:  /admin/plugins/list
+    defaults: { _controller: ODRAdminBundle:Plugins:pluginlist }
+
+odr_install_plugin:
+    path:  /admin/plugins/install
+    defaults: { _controller: ODRAdminBundle:Plugins:installplugin }
+    methods: [ POST ]
+
+odr_update_plugin:
+    path:  /admin/plugins/update
+    defaults: { _controller: ODRAdminBundle:Plugins:updateplugin }
+    methods: [ POST ]
+
+
 odr_render_plugin_dialog:
     path:  /design/displaytemplate/plugindialog/{datatype_id}/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:renderplugindialog }
+    defaults: { _controller: ODRAdminBundle:Plugins:renderplugindialog }
     requirements:
         datatype_id:  \d+
         datafield_id:  \d+
 
 odr_load_plugin_data:
     path:  /design/displaytemplate/plugindata/{datatype_id}/{datafield_id}/{render_plugin_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:renderpluginsettings }
+    defaults: { _controller: ODRAdminBundle:Plugins:renderpluginsettings }
     requirements:
         datatype_id:  \d+
         datafield_id:  \d+
@@ -230,34 +245,8 @@ odr_load_plugin_data:
 
 odr_save_render_plugin_settings:
     path:  /design/displaytemplate/saverenderpluginsettings
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:saverenderpluginsettings }
+    defaults: { _controller: ODRAdminBundle:Plugins:saverenderpluginsettings }
     methods: [ POST ]
-
-admin_manage_plugins:
-    path:  /admin/plugins
-    defaults: { _controller: ODRAdminBundle:Plugins:manage }
-
-admin_plugin_add:
-    path:  /admin/plugin/add
-    defaults: { _controller: ODRAdminBundle:Plugins:add }
-    requirements:
-        plugin_name:  \w+
-
-admin_plugin_map:
-    path:  /admin/plugin/map/{plugin_id}
-    defaults: { _controller: ODRAdminBundle:Plugins:map }
-    requirements:
-        plugin_id:  \d+
-
-admin_plugin_options:
-    path:  /admin/plugin/options/{plugin_id}
-    defaults: { _controller: ODRAdminBundle:Plugins:options }
-    requirements:
-        plugin_id:  \d+
-
-admin_plugin_test:
-    path:  /admin/plugintest
-    defaults: { _controller: ODRAdminBundle:Plugins:plugintest }
 
 #-----------------------------------------
 
@@ -1202,11 +1191,9 @@ odr_permissions_clear:
 odr_child_theme_migrate:
     path: /admin/child_theme_migrate
     defaults: { _controller: ODRAdminBundle:Worker:childthememigrate }
-odr_test_synch:
-    path: /admin/synch_test/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Worker:synchtest }
-    requirements:
-        theme_id: \d+
+odr_migrate_plugins:
+    path: /admin/plugins_migrate
+    defaults: { _controller: ODRAdminBundle:Worker:migrateplugins }
 
 #-----------------------------------------
 

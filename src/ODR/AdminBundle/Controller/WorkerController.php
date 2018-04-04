@@ -1696,7 +1696,7 @@ $ret .= '  Set current to '.$count."\n";
         $return['d'] = '';
 
         $save = false;
-        $save = true;
+//        $save = true;
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
