@@ -269,6 +269,13 @@ odr_list_types:
     requirements:
         section: databases|templates
 
+odr_datatype_properties:
+    path:  /admin/type/properties/{datatype_id}/{wizard}
+    defaults: { _controller: ODRAdminBundle:Datatype:properties }
+    requirements:
+        datatype_id: \d+
+        wizard: 0|1
+
 odr_datatype_landing:
     path:  /admin/type/landing/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Datatype:landing }
@@ -424,6 +431,12 @@ odr_design_save_theme_datatype:
 
 #-----------------------------------------
 # Displaytemplate Controller
+odr_create_status_check:
+    path:  /design/status/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:check_status }
+    requirements:
+        datatype_id:  \d+
+
 odr_design_master_theme:
     path:  /design/displaytemplate/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:design }

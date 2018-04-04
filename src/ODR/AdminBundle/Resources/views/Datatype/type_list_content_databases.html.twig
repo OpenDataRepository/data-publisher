@@ -38,6 +38,7 @@
                 <th>Records</th>
 
                 <th>Search</th>
+                <th>Info</th>
                 <th><span class="pure-visible-xl">Add </span>Record</th>
                 <th>CSV <span class="pure-visible-xl">Import</span></th>
 
@@ -147,6 +148,17 @@
                                 {% else %}
                                     {# missing templates to display search results, and user doesn't have permission to make any...do nothing #}
                                 {% endif %}
+                            </td>
+
+                            {# Link to database landing page #}
+                            <td>
+                                <a id="ODRDatarecordList_{{ datatype.id }}_landing"
+                                   href="{{ datatype_baseurl }}#{{ path('odr_datatype_landing', { 'datatype_id': datatype.id }) }}"
+                                   title="{{ datatype_meta.shortName }} Info Page"
+                                >
+                                    <i class="fa fa-lg fa-info-circle"></i>
+                                    <span class="pure-visible-xl">&nbsp;Info</span>
+                                </a>
                             </td>
 
                             {# add/import links for this datatype #}

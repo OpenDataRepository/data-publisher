@@ -139,7 +139,7 @@
                     {% if is_datatype_admin %}
                         <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
                            class="address"
-                           href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}"
+                           href="{{ datatype_baseurl }}#{{ path('odr_datatype_properties', { 'datatype_id': datatype.id }) }}"
                            title="Edit {{ datatype_meta.shortName }} Master Layout"
                         >
                             <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Properties

@@ -43,6 +43,13 @@ ODR\AdminBundle\Entity\DataType:
             default: false
             column: is_master_type
 
+        template_group:
+            type: string
+            length: 12
+            default: ''
+            nullable: true
+            column: template_group
+
         datatype_type:
             type: string
             length: 32

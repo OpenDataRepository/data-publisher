@@ -31,7 +31,7 @@
 
 <script>
     function CheckStatus() {
-        LoadContentFullAjax('{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}', false);
+        LoadContentFullAjax('{{ path('odr_create_status_check', { 'datatype_id': datatype.id }) }}', false);
     }
     $(function() {
         // Reload this box every 5 seconds

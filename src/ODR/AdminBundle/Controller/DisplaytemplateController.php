@@ -983,6 +983,86 @@ class DisplaytemplateController extends ODRCustomController
         return $response;
     }
 
+    public function check_statusAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+
+            // ----------------------------------------
+            // Check if this is a master template based datatype that is still in the creation process...
+            if ($datatype->getSetupStep() == "initial" && $datatype->getMasterDataType() != null) {
+                // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
+                $templating = $this->get('templating');
+                $return['t'] = "html";
+                $return['d'] = array(
+                    'html' => $templating->render(
+                        'ODRAdminBundle:Datatype:create_status_checker.html.twig',
+                        array(
+                            "datatype" => $datatype
+                        )
+                    )
+                );
+            }
+            else {
+                // Determine where to send this redirect
+                if($datatype->getMetadataFor() !== null)  {
+                    // Properties datatype - redirect to properties page
+                    return $this->redirect(
+                        $this->generateUrl(
+                            'odr_datatype_properties',
+                            array(
+                                'datatype_id' => $datatype->getId(),
+                                'wizard' => 1
+                            ),
+                            false
+                        )
+                    );
+                }
+                else {
+                    // Redirect to design
+                    return $this->redirect(
+                        $this->generateUrl(
+                            'odr_design_master_theme',
+                            array(
+                                'datatype_id' => $datatype->getId(),
+                            ),
+                            false
+                        )
+                    );
+                }
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x73af72dec7;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
 
     /**
      * Loads and returns the DesignTemplate HTML for this DataType.

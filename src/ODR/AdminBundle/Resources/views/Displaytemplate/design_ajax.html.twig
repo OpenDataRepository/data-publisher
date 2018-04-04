@@ -341,21 +341,52 @@
 #}
     }
 
-    function toggleResizeable(elem) {
-        // If for some reason this datafield already has a resizable instance,
-        // destroy it to prevent duplicate saves
+    function clearResizeable(elem) {
         if ( $(elem).resizable('instance') !== undefined ) {
-            // $(elem).resizable('destroy');
-            return true;
+            $(elem).resizable('destroy');
         }
+        return true;
+    }
+
+    /**
+     * Initializes the resizeable and sortable handles for a field, TED, or child datatype.
+     *
+     * @param elem
+     */
+    function setupElement(elem) {
+
+        // The backend currently filters the properties displayed to the user
+        SelectedElement = $(elem);
+
+        // Deselect All Fields/TEDs/Etc
+        clearAllFields();
+
+        // Highlight the field
+        $(elem).addClass('ODRFieldSelected');
+
+
+        // TODO If Datatype, find related Theme Element (Parent)
+
+
+        // Add Resize Handles
+        var handle_e = '<span class="ODRDragHandle ui-resizeable-handle ui-resizeable-e">&#x25cf;</span>';
+        var handle_w = '<span class="ODRDragHandle ui-resizeable-handle ui-resizeable-w">&#x25cf;</span>';
+        var handle_sort = '<span class="ODRSortHandle"><i class="fa fa-bars"></i></span>';
+
+        $(elem).prepend(handle_e);
+        $(elem).append(handle_sort);
+        $(elem).append(handle_w);
+
+        // Fix position of sort handle
+        var left = $(elem).width()/2 - 12;
+        $(elem).find(".ODRSortHandle").css('left', left + "px");
+
 
         var datafield_id;
         var theme_element_id;
-
         $(elem).resizable({
             // handles: "e,w",   // Only permit resizing width, and only from the right of the Datafield
             handles: {
-                // w: "#ThemeDesignArea .ui-resizeable-w",
                 e: "#ThemeDesignArea .ui-resizeable-e"
             },
             minHeight: $(elem).height(),
@@ -363,6 +394,8 @@
             grid: 41.5,  // 996 width / 24 units
             // After resizable stops
             start: function( event, ui) {
+                // TODO Handle all types here...
+
                 datafield_id = ui.originalElement.attr('id').replace('Field_', '');
                 theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_', '');
 
@@ -399,9 +432,11 @@
                 ui.originalElement.addClass('pure-u-md-' + u_factor + '-24');
                 ui.originalElement.addClass('pure-u-xl-' + u_factor + '-24');
 
+
                 // Fix position of sort handle
                 var left = ui.originalElement.width()/2 - 12;
                 ui.originalElement.find(".ODRSortHandle").css('left', left + "px");
+
 
                 // Save new U Factors to DB via Get Request
                 jQuery("#UpdateThemeDatafieldForm_cssWidthMed").val(u_factor + "-24");
@@ -765,14 +800,8 @@
 
         $(".ODRDatatypeProperties").unbind('click').click(function() {
 
-            // Deselect All Fields/TEDs/Etc
-            clearAllFields();
-
-            // The backend currently filters the properties displayed to the user
-            SelectedElement = $(this);
-
-            // Highlight the field
-            $(this).addClass('ODRFieldSelected');
+            // Highlight and setup element properties
+            setupElement(this);
 
             // Grab the id of the Datatype to load
             var datatype_id = $(this).attr('rel');
@@ -1226,14 +1255,11 @@
 
     function clearAllFields() {
 
-        // Clear Data Fields
         // Remove Existing Selectors and Highlights
         $(".ODRFieldSelected")
             .removeClass('ODRFieldSelected')
             .each(function(elem) {
-                if ( $(elem).resizable('instance') !== undefined ) {
-                    $(elem).resizable('destroy');
-                }
+                clearResizeable(elem);
             });
 
         $(".ODRDragHandle").remove();
@@ -1242,38 +1268,20 @@
         // Clear DataTypes
 
 
-
         // Clear Teds
     }
 
     function SetupDataFields() {
         $(".ODRDataField").unbind('click').click(function(event) {
 
-            // Deselect All Fields/TEDs/Etc
-            clearAllFields();
-
-            // Add Resize Handles
-            var handle_e = '<span class="ODRDragHandle ui-resizeable-handle ui-resizeable-e">&#x25cf;</span>';
-            var handle_w = '<span class="ODRDragHandle ui-resizeable-handle ui-resizeable-w">&#x25cf;</span>';
-
-            var handle_sort = '<span class="ODRSortHandle"><i class="fa fa-bars"></i></span>';
-            $(this).prepend(handle_e);
-            $(this).append(handle_sort);
-            $(this).append(handle_w);
-
-            // Fix position of sort handle
-            var left = $(this).width()/2 - 12;
-            $(this).find(".ODRSortHandle").css('left', left + "px");
-
             // Setup Resizeable
-            toggleResizeable(this);
+            setupElement(this);
 
-            // Highlight the field
-            $(this).addClass('ODRFieldSelected');
-
-            // The icon to open RadioOption properties will be overriden by this click event unless this if statement is active
+            // The icon to open RadioOption properties will be overridden by this click
+            // event unless this if statement is active
             if ( event.target.className.indexOf('ODRRadioOptions') !== -1 )
                 return;
+
             // ...same deal with datafield public status
             if ( event.target.className.indexOf('ODRPublicDatafield') !== -1 )
                 return;
@@ -1345,7 +1353,6 @@
             }
         });
     }
-
 
     function InitDatafieldPropertiesForm() {
         // Init Field Properties forms
@@ -1589,7 +1596,6 @@
         $("#ThemeDesignForm").fadeIn('fast');
     }
 
-
     var SaveDataTypeInterval = [];
     function SaveDatatypeProperties(datatype_id) {
         if (SaveDataTypeInterval[datatype_id] != undefined)
@@ -1629,7 +1635,6 @@
             }
         });
     }
-
 
     function SaveDatatreeProperties(datatree_id) {
 
@@ -1846,7 +1851,6 @@
         });
     }
 
-
     function InitDatatypePropertiesForm() {
         // Init Datatype Properties forms
 
@@ -1921,7 +1925,6 @@
         });
     }
 
-
     function CopyDatafield(datafield_id) {
 
         // TODO - currently blocked in the backend for linked datatypes
@@ -1965,7 +1968,6 @@
             }
         });
     }
-
 
     function DeleteDatafield(datafield_id) {
         var url = '{{ path('odr_design_delete_datafield', { 'datafield_id': 0 } ) }}';
@@ -2018,7 +2020,6 @@
             }
         });
     }
-
 
     function InitRadioOptionsForm(datafield_id) {
         $("#ThemeDesignForm").find(".ODRDeleteRadioOption").each(function() {
@@ -2091,7 +2092,6 @@
         }
     }
 
-
     function SaveRadioOptionOrder(alphabetical_sort) {
         // Grab order of radio options
         var i = 0;
@@ -2141,7 +2141,6 @@
         });
     }
 
-
     var SaveRadioOptionNameInterval = [];
     function SaveRadioOptionName(datafield_id, radio_option_id) {
         if (SaveRadioOptionNameInterval[radio_option_id] != undefined)
@@ -2188,7 +2187,6 @@
         });
     }
 
-
     function AddOption(datafield_id) {
         var url = '{{ path('odr_design_add_radio_option', { 'datafield_id': 0 }) }}';
         // Load display template menu
@@ -2227,7 +2225,6 @@
         });
     }
 
-
     function DeleteOption(radio_option_id) {
         var url = '{{ path('odr_design_delete_radio_option', { 'radio_option_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
@@ -2265,7 +2262,6 @@
         });
     }
 
-
     function DefaultOption(radio_option_id) {
         var url = '{{ path('odr_design_default_radio_option', { 'radio_option_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
@@ -2298,7 +2294,6 @@
             }
         });
     }
-
 
     function ReloadChild(datatype_id) {
         var url = '{{ path('odr_design_reload_child', { 'source_datatype_id': 0, 'datatype_id': 0 }) }}';
@@ -2354,7 +2349,6 @@
         });
     }
 
-
     function ReloadThemeElement(theme_element_id) {
         var url = '{{ path('odr_design_reload_theme_element', { 'source_datatype_id': 0, 'theme_element_id': 0 }) }}';
         url = url.substring(0, url.length-3);
@@ -2409,7 +2403,6 @@
         });
     }
 
-
     function ReloadDatafield(datafield_id) {
         var url = '{{ path('odr_design_reload_datafield', { 'source_datatype_id': 0, 'datafield_id': 0 }) }}';
         url = url.substring(0, url.length-3);
@@ -2463,7 +2456,6 @@
             }
         });
     }
-
 
     function insertLoadingDiv(parent_div_id) {
 

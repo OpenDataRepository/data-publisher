@@ -1094,12 +1094,17 @@ h3.ODRThemeVisibleHiddenElement {
     top: 0;
     z-index: 200;
 }
+
 #ThemeDesignArea .ui-resizeable-e {
     right: -10px;
 }
 #ThemeDesignArea .ui-resizeable-w {
     cursor: no-drop;
     left: -10px;
+}
+
+#ThemeDesignForm .ODRFieldWrapper {
+    margin-left: 0;
 }
 
 #ODRDatatypeToolsBlock a {

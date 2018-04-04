@@ -1285,6 +1285,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated
+     *
      * Creates and persists a new DataRecord entity.
      *
      * @param \Doctrine\ORM\EntityManager $em

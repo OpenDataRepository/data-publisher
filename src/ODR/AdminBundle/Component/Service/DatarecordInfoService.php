@@ -14,12 +14,25 @@ namespace ODR\AdminBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataRecordMeta;
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 // Utility
 use ODR\AdminBundle\Component\Utility\UserUtility;
+use Symfony\Bundle\TwigBundle\TwigEngine;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
+use Symfony\Component\Security\Csrf\CsrfTokenManager;
+
+// Exceptions
+// use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+// use ODR\AdminBundle\Exception\ODRForbiddenException;
+// use ODR\AdminBundle\Exception\ODRNotFoundException;
+// use ODR\AdminBundle\Exception\ODRNotImplementedException;
 
 
 class DatarecordInfoService
@@ -45,6 +58,30 @@ class DatarecordInfoService
      */
     private $logger;
 
+    /**
+     * @var DatatypeInfoService
+     */
+    private $datatype_info_service;
+
+    /**
+     * @var ThemeInfoService
+     */
+    private $theme_info_service;
+
+    /**
+     * @var CsrfTokenManager
+     */
+    private $token_manager;
+
+    /**
+     * @var TokenStorage
+     */
+    private $token_storage;
+
+    /**
+     * @var TwigEngine
+     */
+    private $templating;
 
     /**
      * DatarecordInfoService constructor.
@@ -52,20 +89,33 @@ class DatarecordInfoService
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param PermissionsManagementService $permissions_service
+     * @param DatatypeInfoService $datatype_info_service
+     * @param ThemeInfoService $theme_info_service
      * @param Logger $logger
+     * @param CsrfTokenManager $token_manager
+     * @param \Twig_Environment $templating
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
         PermissionsManagementService $permissions_service,
+        DatatypeInfoService $datatype_info_service,
+        ThemeInfoService $theme_info_service,
+        TwigEngine $templating,
+        CsrfTokenManager $token_manager,
+        TokenStorage $token_storage,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->pm_service = $permissions_service;
+        $this->dti_service = $datatype_info_service;
+        $this->theme_service = $theme_info_service;
         $this->logger = $logger;
+        $this->token_manager = $token_manager;
+        $this->token_storage = $token_storage;
+        $this->templating = $templating;
     }
-
 
     /**
      * Loads and returns the cached data array for the requested datarecord.  The returned array
@@ -199,14 +249,6 @@ class DatarecordInfoService
      */
     private function buildDatarecordData($grandparent_datarecord_id)
     {
-/*
-        $timing = true;
-        $timing = false;
-
-        $t0 = $t1 = $t2 = null;
-        if ($timing)
-            $t0 = microtime(true);
-*/
         // This function is only called when the cache entry doesn't exist
 
         // Otherwise...get all non-layout data for the requested grandparent datarecord
@@ -302,13 +344,6 @@ class DatarecordInfoService
         $datarecord_data = $query->getArrayResult();
 
         // TODO - if $datarecord_data is empty, then $grandparent_datarecord_id was deleted...should this return something special in that case?
-/*
-        if ($timing) {
-            $t1 = microtime(true);
-            $diff = $t1 - $t0;
-            print 'buildDatarecordData('.$grandparent_datarecord_id.')'."\n".'query execution in: '.$diff."\n";
-        }
-*/
 
         // The datarecordField entry returned by the preceeding query will have quite a few blank
         //  subarrays...all but the following keys should be unset in order to reduce the amount of
@@ -317,7 +352,6 @@ class DatarecordInfoService
             'id', 'created',
             'file', 'image'     // keeping these for now because multiple pieces of code assume they exist
         );
-
 
         // The entity -> entity_metadata relationships have to be one -> many from a database
         //  perspective, even though there's only supposed to be a single non-deleted entity_metadata
@@ -374,7 +408,6 @@ class DatarecordInfoService
             }
             $datarecord_data[$dr_num]['children'] = $child_datarecords;
             unset( $datarecord_data[$dr_num]['linkedDatarecords'] );
-
 
             // Flatten datafield_meta of each datarecordfield, and organize by datafield id instead
             //  of some random number
@@ -496,13 +529,7 @@ class DatarecordInfoService
 
             $formatted_datarecord_data[$dr_id] = $dr_data;
         }
-/*
-        if ($timing) {
-            $t1 = microtime(true);
-            $diff = $t2 - $t1;
-            print 'buildDatarecordData('.$grandparent_datarecord_id.')'."\n".'array formatted in: '.$diff."\n";
-        }
-*/
+
         // Save the formatted datarecord data back in the cache, and return it
         $this->cache_service->set('cached_datarecord_'.$grandparent_datarecord_id, $formatted_datarecord_data);
         return $formatted_datarecord_data;
@@ -588,5 +615,360 @@ class DatarecordInfoService
 
         // Delete the filtered list of data meant specifically for table themes
         $this->cache_service->delete('cached_table_data_'.$dr->getId());
+    }
+
+
+    /**
+     * @param $search_theme_id
+     * @param $search_key
+     * @param $initial_datarecord_id
+     * @param $template_name
+     * @param $target_id
+     * @return string
+     */
+    public function GetDisplayData(
+        $search_theme_id = null,
+        $search_key = null,
+        $initial_datarecord_id,
+        $template_name,
+        $target_id
+    ) {
+        // Required objects
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->em;
+        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+        $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+
+        // Load all permissions for this user
+        $user = $this->token_storage->getToken()->getUser();
+        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
+        $datatype_permissions = $user_permissions['datatypes'];
+        $datafield_permissions = $user_permissions['datafields'];
+
+
+        // ----------------------------------------
+        // Load required objects based on parameters
+        $is_top_level = 1;
+
+        /** @var DataRecord $datarecord */
+        $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($initial_datarecord_id);
+        $grandparent_datarecord = $datarecord->getGrandparent();
+        $grandparent_datatype = $grandparent_datarecord->getDataType();
+
+        /** @var Theme $top_level_theme */
+        $top_level_theme_id = $this->theme_service->getPreferredTheme($user, $grandparent_datatype->getId(), 'master');
+        $top_level_theme = $repo_theme->find($top_level_theme_id);
+
+        /** @var DataType $datatype */
+        $datatype = null;
+        /** @var Theme $theme */
+        $theme = null;
+
+        /** @var DataFields|null $datafield */
+        $datafield = null;
+        $datafield_id = null;
+
+
+        // Don't allow a child reload request for a top-level datatype
+        if ($template_name == 'child' && $datarecord->getDataType()->getId() == $target_id)
+            $template_name = 'default';
+
+
+        //  TODO Theme can be null - no "else"
+        if ($template_name == 'default') {
+            $datatype = $grandparent_datatype;
+            $theme = $top_level_theme;
+
+//            // TODO - May not necessarily be a render request for a top-level datarecord...
+//            $datatype = $datarecord->getDataType();
+//            if ( $grandparent_datarecord->getId() !== $datarecord->getId() )
+//                $is_top_level = 0;
+        }
+        else if ($template_name == 'child') {
+            $is_top_level = 0;
+
+            $datatype = $repo_datatype->find($target_id);
+            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'parentTheme' => $top_level_theme->getId()) );      // TODO - this likely isn't going to work where linked datatypes are involved
+        }
+        else if ($template_name == 'datafield') {
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($target_id);
+            $datafield_id = $target_id;
+
+            $datatype = $datafield->getDataType();
+            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'parentTheme' => $top_level_theme->getId()) );      // TODO - this likely isn't going to work where linked datatypes are involved
+        }
+
+
+        // ----------------------------------------
+        // Grab all datarecords "associated" with the desired datarecord...
+        $include_links = true;
+        $datarecord_array = self::getDatarecordArray($grandparent_datarecord->getId(), $include_links);
+
+        // Grab all datatypes associated with the desired datarecord
+        $datatype_array = $this->dti_service->getDatatypeArray($grandparent_datatype->getId(), $include_links);
+
+        // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
+        $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+        // Also need the theme array...
+        $theme_array = $this->theme_service->getThemeArray($top_level_theme->getId());
+
+
+        // ----------------------------------------
+        // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
+        $stacked_datarecord_array[ $datarecord->getId() ] = self::stackDatarecordArray($datarecord_array, $datarecord->getId());
+        $stacked_datatype_array[ $datatype->getId() ] = $this->dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+        $stacked_theme_array[ $theme->getId() ] = $this->theme_service->stackThemeArray($theme_array, $theme->getId());
+
+
+        // ----------------------------------------
+        // Render the requested version of this page
+
+        $html = '';
+        if ($template_name == 'default') {
+
+            // ----------------------------------------
+            // Need to determine ids and names of datatypes this datarecord can link to
+            $query = $em->createQuery(
+                'SELECT
+                  dt, dtm,
+                  ancestor, ancestor_meta,
+                  descendant, descendant_meta
+
+                FROM ODRAdminBundle:DataTree AS dt
+                JOIN dt.dataTreeMeta AS dtm
+
+                JOIN dt.ancestor AS ancestor
+                JOIN ancestor.dataTypeMeta AS ancestor_meta
+                JOIN dt.descendant AS descendant
+                JOIN descendant.dataTypeMeta AS descendant_meta
+
+                WHERE dtm.is_link = 1 AND (ancestor.id = :datatype_id OR descendant.id = :datatype_id)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                AND ancestor.deletedAt IS NULL AND ancestor_meta.deletedAt IS NULL
+                AND descendant.deletedAt IS NULL AND descendant_meta.deletedAt IS NULL'
+            )->setParameters( array('datatype_id' => $datatype->getId()) );
+            $results = $query->getArrayResult();
+//exit( '<pre>'.print_r($results, true).'</pre>' );
+
+
+            // Organize the linked datatypes into arrays
+            $linked_datatype_ancestors = array();
+            $linked_datatype_descendants = array();
+            // Also store which datatype can't be linked to because they lack a search_results theme
+            $disabled_datatype_links = array();
+
+            foreach ($results as $num => $dt) {
+                $ancestor_id = $dt['ancestor']['id'];
+                $descendant_id = $dt['descendant']['id'];
+
+                if ($ancestor_id == $datatype->getId() ) {
+                    $descendant = $dt['descendant'];
+                    $descendant['dataTypeMeta'] = $dt['descendant']['dataTypeMeta'][0];
+
+                    if ( $descendant['setup_step'] == DataType::STATE_OPERATIONAL )
+                        $linked_datatype_descendants[$descendant_id] = $descendant;
+                    else
+                        $disabled_datatype_links[$descendant_id] = $descendant;
+                }
+                else if ($descendant_id == $datatype->getId() ) {
+                    $ancestor = $dt['ancestor'];
+                    $ancestor['dataTypeMeta'] = $dt['ancestor']['dataTypeMeta'][0];
+
+                    if ( $ancestor['setup_step'] == DataType::STATE_OPERATIONAL )
+                        $linked_datatype_ancestors[$ancestor_id] = $ancestor;
+                    else
+                        $disabled_datatype_links[$ancestor_id] = $ancestor;
+                }
+            }
+
+            /*
+            print '<pre>';
+            print 'ancestors: '.print_r($linked_datatype_ancestors, true);
+            print 'descendants: '.print_r($linked_datatype_descendants, true);
+            print 'disabled: '.print_r($disabled_datatype_links, true);
+            print '</pre>';
+            exit();
+            */
+
+            // ----------------------------------------
+            // Generate a csrf token for each of the datarecord/datafield pairs
+            $token_list = self::generateCSRFTokens($datatype_array, $datarecord_array);
+
+            $html = $this->templating->render(
+                'ODRAdminBundle:Edit:edit_ajax.html.twig',
+                array(
+                    'search_theme_id' => $search_theme_id,
+                    'search_key' => $search_key,
+
+                    'datatype_array' => $stacked_datatype_array,
+                    'datarecord_array' => $stacked_datarecord_array,
+                    'theme_array' => $stacked_theme_array,
+
+                    'initial_datatype_id' => $datatype->getId(),
+                    'initial_datarecord_id' => $datarecord->getId(),
+                    'initial_theme_id' => $theme->getId(),
+
+                    'datatype_permissions' => $datatype_permissions,
+                    'datafield_permissions' => $datafield_permissions,
+
+                    'linked_datatype_ancestors' => $linked_datatype_ancestors,
+                    'linked_datatype_descendants' => $linked_datatype_descendants,
+                    'disabled_datatype_links' => $disabled_datatype_links,
+
+                    'is_top_level' => $is_top_level,
+                    'token_list' => $token_list,
+                )
+            );
+        }
+        else if ($template_name == 'child') {
+
+            // Find the ThemeDatatype entry that contains the child datatype getting reloaded
+            $theme_datatype = null;
+            foreach ($theme_array as $t_id => $t) {
+                foreach ($t['themeElements'] as $te_num => $te) {
+                    if ( isset($te['themeDataType']) ) {
+                        foreach ($te['themeDataType'] as $tdt_num => $tdt) {
+                            if ( $tdt['dataType']['id'] == $datatype->getId() && $tdt['childTheme']['id'] == $theme->getId() )
+                                $theme_datatype = $tdt;
+                        }
+                    }
+                }
+            }
+
+            if ($theme_datatype == null)
+                throw new ODRException('Unable to locate theme_datatype entry for child datatype '.$datatype->getId());
+
+            $is_link = $theme_datatype['is_link'];
+            $display_type = $theme_datatype['display_type'];
+            $multiple_allowed = $theme_datatype['multiple_allowed'];
+
+            // Generate a csrf token for each of the datarecord/datafield pairs
+            $token_list = self::generateCSRFTokens($datatype_array, $datarecord_array);
+
+            $html = $this->templating->render(
+                'ODRAdminBundle:Edit:edit_childtype_reload.html.twig',
+                array(
+                    'datatype_array' => $stacked_datatype_array,
+                    'datarecord_array' => $stacked_datarecord_array,
+                    'theme_array' => $stacked_theme_array,
+
+                    'target_datatype_id' => $datatype->getId(),
+                    'parent_datarecord_id' => $datarecord->getId(),
+                    'target_theme_id' => $theme->getId(),
+
+                    'datatype_permissions' => $datatype_permissions,
+                    'datafield_permissions' => $datafield_permissions,
+
+                    'is_top_level' => 0,
+                    'is_link' => $is_link,
+                    'display_type' => $display_type,
+                    'multiple_allowed' => $multiple_allowed,
+
+                    'token_list' => $token_list,
+                )
+            );
+        }
+        else if ($template_name == 'datafield') {
+
+            // Extract all needed arrays from $datatype_array and $datarecord_array
+            $datatype = $datatype_array[ $datatype->getId() ];
+            $datarecord = $datarecord_array[ $initial_datarecord_id ];
+
+            $datafield = null;
+            if ( isset($datatype['dataFields'][$datafield_id]) )
+                $datafield = $datatype['dataFields'][$datafield_id];
+
+            if ( $datafield == null )
+                throw new ODRException('Unable to locate array entry for datafield '.$datafield_id);
+
+            // Generate a csrf token for each of the datarecord/datafield pairs
+            $token_list = self::generateCSRFTokens($datatype_array, $datarecord_array);
+
+            $html = $this->templating->render(
+                'ODRAdminBundle:Edit:edit_datafield.html.twig',
+                array(
+                    'datatype' => $datatype,
+                    'datarecord' => $datarecord,
+                    'datafield' => $datafield,
+
+                    'force_image_reload' => true,
+
+                    'token_list' => $token_list,
+                )
+            );
+        }
+
+        return $html;
+    }
+
+    /**
+     * Creates and persists a new DataRecord entity.
+     *
+     * @param User $user         The user requesting the creation of this entity
+     * @param DataType $datatype
+     *
+     * @return DataRecord
+     */
+    public function addDataRecord($user, $datatype)
+    {
+        // Initial create
+        $datarecord = new DataRecord();
+
+        $datarecord->setDataType($datatype);
+        $datarecord->setCreatedBy($user);
+        $datarecord->setUpdatedBy($user);
+
+        $datarecord->setProvisioned(true);  // Prevent most areas of the site from doing anything with this datarecord...whatever created this datarecord needs to eventually set this to false
+
+        $this->em->persist($datarecord);
+        $this->em->flush();
+        $this->em->refresh($datarecord);
+
+        $datarecord_meta = new DataRecordMeta();
+        $datarecord_meta->setDataRecord($datarecord);
+        $datarecord_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
+
+        $datarecord_meta->setCreatedBy($user);
+        $datarecord_meta->setUpdatedBy($user);
+
+        $datarecord->addDataRecordMetum($datarecord_meta);
+        $this->em->persist($datarecord_meta);
+
+        return $datarecord;
+    }
+
+    /**
+     * Generates a CSRF token for every datarecord/datafield pair in the provided arrays.
+     *
+     * @param array $datatype_array    @see parent::getDatatypeData()
+     * @param array $datarecord_array  @see parent::getDatarecordData()
+     *
+     * @return array
+     */
+    public function generateCSRFTokens($datatype_array, $datarecord_array)
+    {
+        $token_list = array();
+
+        foreach ($datarecord_array as $dr_id => $dr) {
+            if ( !isset($token_list[$dr_id]) )
+                $token_list[$dr_id] = array();
+
+            $dt_id = $dr['dataType']['id'];
+
+            if ( !isset($datatype_array[$dt_id]) )
+                continue;
+
+            foreach ($datatype_array[$dt_id]['dataFields'] as $df_id => $df) {
+
+                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+
+                $token_id = $typeclass.'Form_'.$dr_id.'_'.$df_id;
+                $token_list[$dr_id][$df_id] = $this->token_manager->getToken($token_id)->getValue();
+
+            }
+        }
+
+        return $token_list;
     }
 }

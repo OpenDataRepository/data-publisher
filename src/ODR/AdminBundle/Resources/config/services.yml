@@ -109,6 +109,11 @@ services:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
             permissions_service: "@odr.permissions_management_service"
+            datatype_info_service: "@odr.datatype_info_service"
+            theme_service: "@odr.theme_info_service"
+            templating: "@templating"
+            token_manager: "@security.csrf.token_manager"
+            token_storage: "@security.token_storage"
             logger: "@logger"
 
     odr.datatype_info_service:

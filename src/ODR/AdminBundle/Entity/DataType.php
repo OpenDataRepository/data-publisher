@@ -1142,4 +1142,33 @@ class DataType
     {
         return $this->datatype_type;
     }
+    /**
+     * @var string
+     */
+    private $template_group;
+
+
+    /**
+     * Set templateGroup
+     *
+     * @param string $templateGroup
+     *
+     * @return DataType
+     */
+    public function setTemplateGroup($templateGroup)
+    {
+        $this->template_group = $templateGroup;
+
+        return $this;
+    }
+
+    /**
+     * Get templateGroup
+     *
+     * @return string
+     */
+    public function getTemplateGroup()
+    {
+        return $this->template_group;
+    }
 }
