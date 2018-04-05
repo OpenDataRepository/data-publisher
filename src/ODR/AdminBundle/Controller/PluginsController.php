@@ -1362,24 +1362,7 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Create any new datafields required
-            $query = $em->createQuery(
-               'SELECT t
-                FROM ODRAdminBundle:Theme AS t
-                WHERE t.dataType = :datatype_id AND t.themeType = :theme_type
-                AND t = t.sourceTheme AND t.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datatype_id' => $associated_datatype->getId(),
-                    'theme_type' => 'master',
-                )
-            );
-            $results = $query->getResult();
-            if ( !isset($results[0]) )
-                throw new ODRNotFoundException('Theme');
-
-            /** @var Theme $theme */
-            $theme = $results[0];
-
+            $theme = $theme_service->getDatatypeMasterTheme($associated_datatype->getId());
 
             $theme_element = null;
             foreach ($plugin_fieldtypes as $rpf_id => $ft_id) {

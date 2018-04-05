@@ -35,7 +35,6 @@ use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\ShortVarchar;
-use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\TrackedError;
@@ -2747,8 +2746,8 @@ class CSVImportController extends ODRCustomController
 
             if ($created) {
                 // Since datafields were created for this import, create a new theme element and attach the new datafields to it
-                /** @var Theme $theme */
-                $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+                $theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
+
                 $objects = parent::ODR_addThemeElement($em, $user, $theme);
                 /** @var ThemeElement $theme_element */
                 $theme_element = $objects['theme_element'];

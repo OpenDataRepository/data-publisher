@@ -509,19 +509,7 @@ class LinkController extends ODRCustomController
                 parent::ODR_addDatatree($em, $user, $local_datatype, $remote_datatype, $is_link, $multiple_allowed);
 
                 // Locate the master theme for the remote datatype
-                $query = $em->createQuery(
-                   'SELECT t
-                    FROM ODRAdminBundle:Theme AS t
-                    WHERE t.dataType = :datatype_id AND t.themeType = :theme_type AND t = t.parentTheme
-                    AND t.deletedAt IS NULL'
-                )->setParameters( array('datatype_id' => $remote_datatype->getId(), 'theme_type' => 'master') );
-                $results = $query->getResult();
-
-                if ( count($results) != 1 )
-                    throw new ODRException('Remote Datatype lacks a master theme?');
-
-                /** @var Theme $source_theme */
-                $source_theme = $results[0];
+                $source_theme = $theme_service->getDatatypeMasterTheme($remote_datatype->getId());
 
                 // Create a copy of that theme in this theme element
                 $clone_theme_service->cloneIntoThemeElement($user, $theme_element, $source_theme, $remote_datatype, 'master');

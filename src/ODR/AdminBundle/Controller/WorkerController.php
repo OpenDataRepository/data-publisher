@@ -1784,7 +1784,9 @@ $ret .= '  Set current to '.$count."\n";
                         break;
 
                     default:
-                        print '<pre>Ecountered unrecognized plugin name "'.$render_plugin->getPluginName().'", did not make a change</pre>';
+                        print '<pre>Ecountered unrecognized plugin name "'.$render_plugin->getPluginName().'", marked as deleted</pre>';
+                        if ($save)
+                            $render_plugin->setDeletedAt(new \DateTime());
                         break;
                 }
 

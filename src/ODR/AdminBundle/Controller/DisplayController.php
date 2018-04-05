@@ -695,6 +695,9 @@ class DisplayController extends ODRCustomController
             ) {
                 throw new ODRForbiddenException();
             }
+
+            if ( !$file->isPublic() && $user === 'anon.' )
+                throw new ODRForbiddenException();
             // ----------------------------------------
 
 
@@ -947,6 +950,9 @@ class DisplayController extends ODRCustomController
             ) {
                 throw new ODRForbiddenException();
             }
+
+            if ( !$image->isPublic() && $user === 'anon.' )
+                throw new ODRForbiddenException();
             // ----------------------------------------
 
             // Ensure file exists before attempting to download it

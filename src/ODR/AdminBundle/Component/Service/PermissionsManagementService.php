@@ -1168,7 +1168,7 @@ if ($debug)
         // Automatically add super-admin users to new default "admin" groups
         if ($initial_purpose == 'admin') {
             /** @var ODRUser[] $user_list */
-            $user_list = $this->user_manager->findUsers();
+            $user_list = $this->user_manager->findUsers();    // disabled users set to ROLE_USER, so doesn't matter if they're in the list
 
             // Locate those with super-admin permissions...
             foreach ($user_list as $u) {

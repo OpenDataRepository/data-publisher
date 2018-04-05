@@ -12,7 +12,7 @@
  *
  */
 
-namespace ODR\OpenRepository\GraphBundle\Plugins;
+namespace ODR\OpenRepository\GraphBundle\Plugins\AHED;
 
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;

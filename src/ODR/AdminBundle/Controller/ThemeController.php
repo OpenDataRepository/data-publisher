@@ -323,10 +323,20 @@ class ThemeController extends ODRCustomController
             if ( in_array($theme->getThemeType(), ThemeInfoService::SHORT_FORM_THEMETYPES) )
                 $theme_types = ThemeInfoService::SHORT_FORM_THEMETYPES;
 
-            /** @var Theme[] $theme_list */
-            $theme_list = $em->getRepository('ODRAdminBundle:Theme')->findBy(
-                array('dataType' => $datatype->getId(), 'themeType' => $theme_types)
+            // Find all top-level themes for this datatype that have those theme types
+            $query = $em->createQuery(
+               'SELECT t
+                FROM ODRAdminBundle:Theme AS t
+                WHERE t.dataType = :datatype_id AND t.themeType IN (:theme_types)
+                AND t = t.parentTheme AND t.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datatype_id' => $datatype->getId(),
+                    'theme_types' => $theme_types
+                )
             );
+            /** @var Theme[] $theme_list */
+            $theme_list = $query->getResult();
 
             // Each of the themes in this list need to be set to "not default"...
             foreach ($theme_list as $t) {

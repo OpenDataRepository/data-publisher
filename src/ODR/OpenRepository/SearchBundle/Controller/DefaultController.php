@@ -522,6 +522,10 @@ print '$links: '.print_r($links, true)."\n";
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var User[] $user_list */
             $user_list = $user_manager->findUsers();
+            foreach ($user_list as $num => $user) {
+                if ( !$user->isEnabled() )
+                    unset( $user_list[$num] );
+            }
 
             // Determine if the user has the permissions required to see anybody in the created/modified by search fields
             $admin_permissions = array();
@@ -552,7 +556,7 @@ print '$links: '.print_r($links, true)."\n";
                     JOIN ODRAdminBundle:Group AS g WITH ug.group = g
                     JOIN ODRAdminBundle:GroupDatatypePermissions AS gdtp WITH gdtp.group = g
                     JOIN ODRAdminBundle:GroupDatafieldPermissions AS gdfp WITH gdfp.group = g
-                    WHERE g.dataType IN (:datatypes) AND (gdtp.can_add_datarecord = 1 OR gdtp.can_delete_datarecord = 1 OR gdfp.can_edit_datafield = 1)
+                    WHERE u.enabled = 1 AND g.dataType IN (:datatypes) AND (gdtp.can_add_datarecord = 1 OR gdtp.can_delete_datarecord = 1 OR gdfp.can_edit_datafield = 1)
                     GROUP BY u.id'
                 )->setParameters( array('datatypes' => $datatype_list) );   // purposefully getting ALL users, including the ones that are deleted
                 $results = $query->getResult();
@@ -693,6 +697,10 @@ print '$links: '.print_r($links, true)."\n";
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var User[] $user_list */
             $user_list = $user_manager->findUsers();
+            foreach ($user_list as $num => $user) {
+                if ( !$user->isEnabled() )
+                    unset( $user_list[$num] );
+            }
 
             // Determine if the user has the permissions required to see anybody in the created/modified by search fields
             $admin_permissions = array();
@@ -724,7 +732,7 @@ print '$links: '.print_r($links, true)."\n";
                     JOIN ODRAdminBundle:Group AS g WITH ug.group = g
                     JOIN ODRAdminBundle:GroupDatatypePermissions AS gdtp WITH gdtp.group = g
                     JOIN ODRAdminBundle:GroupDatafieldPermissions AS gdfp WITH gdfp.group = g
-                    WHERE g.dataType IN (:datatypes) AND (gdtp.can_add_datarecord = 1 OR gdtp.can_delete_datarecord = 1 OR gdfp.can_edit_datafield = 1)
+                    WHERE u.enabled = 1 AND g.dataType IN (:datatypes) AND (gdtp.can_add_datarecord = 1 OR gdtp.can_delete_datarecord = 1 OR gdfp.can_edit_datafield = 1)
                     GROUP BY u.id'
                 )->setParameters( array('datatypes' => $datatype_list) );   // purposefully getting ALL users, including the ones that are deleted
                 $results = $query->getResult();

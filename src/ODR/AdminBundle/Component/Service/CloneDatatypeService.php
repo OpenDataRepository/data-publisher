@@ -887,7 +887,7 @@ class CloneDatatypeService
             // If an admin group got created, then all super-admins need to be added to it
             if ($new_group->getPurpose() == "admin") {
                 /** @var ODRUser[] $user_list */
-                $user_list = $this->user_manager->findUsers();
+                $user_list = $this->user_manager->findUsers();    // disabled users set to ROLE_USER, so doesn't matter if they're in the list
 
                 // Locate those with super-admin permissions...
                 foreach ($user_list as $u) {

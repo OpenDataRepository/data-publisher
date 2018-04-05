@@ -558,7 +558,7 @@ class ThemeInfoService
             FROM ODRAdminBundle:Theme AS t
             JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
             WHERE t.dataType = :datatype_id AND t.themeType = :theme_type
-            AND t = t.parentTheme
+            AND t = t.sourceTheme
             AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
         )->setParameters(
             array(
