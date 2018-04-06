@@ -2261,6 +2261,8 @@ class EditController extends ODRCustomController
 
             $datatype = $repo_datatype->find($target_id);
             $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'parentTheme' => $top_level_theme->getId()) );      // TODO - this likely isn't going to work where linked datatypes are involved
+
+            // TODO - ...need to have either the theme_datatype or theme_element this child is in to be able to reload the right one where multiple linked datatypes are involved...
         }
         else if ($template_name == 'datafield') {
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($target_id);
@@ -2268,6 +2270,8 @@ class EditController extends ODRCustomController
 
             $datatype = $datafield->getDataType();
             $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'parentTheme' => $top_level_theme->getId()) );      // TODO - this likely isn't going to work where linked datatypes are involved
+
+            // TODO - ...need to have either the theme_datatype or theme_element this child is in to be able to reload the right one where multiple linked datatypes are involved...
         }
 
 

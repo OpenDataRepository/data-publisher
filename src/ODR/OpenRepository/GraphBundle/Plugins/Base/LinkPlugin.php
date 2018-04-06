@@ -93,7 +93,7 @@ class LinkPlugin
             if ( isset($rendering_options['is_link']) && $rendering_options['is_link'] == 1 ) {
                 // ...if yes, then render just the link button and the labels if they exist
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Link:link.html.twig',
+                    'ODROpenRepositoryGraphBundle:Base:Link/link.html.twig',
                     array(
                         'datatype' => $datatype,
                         'datarecord_array' => $datarecords,

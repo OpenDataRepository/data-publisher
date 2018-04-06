@@ -1683,6 +1683,8 @@ class DisplaytemplateController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
 
 
             $post = $request->request->all();
@@ -1697,10 +1699,8 @@ class DisplaytemplateController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
+            // Ensure the datatype has a master theme...
+            $theme_service->getDatatypeMasterTheme($datatype->getId());
 
 
             // --------------------
@@ -2140,6 +2140,8 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var DataType $source_datatype */
@@ -2152,12 +2154,8 @@ class DisplaytemplateController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
-            if ($theme->getThemeType() !== 'master')
-                throw new ODRBadRequestException("Not allowed to re-render something that doesn't belong to the master Theme");
+            // Ensure the datatype has a master theme...
+            $theme_service->getDatatypeMasterTheme($datatype->getId());
 
 
             // --------------------
@@ -2286,6 +2284,8 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var DataType $source_datatype */
@@ -2302,12 +2302,8 @@ class DisplaytemplateController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
-            if ($theme->getThemeType() !== 'master')
-                throw new ODRBadRequestException("Not allowed to re-render something that doesn't belong to the master Theme");
+            // Ensure the datatype has a master theme...
+            $theme_service->getDatatypeMasterTheme($datatype->getId());
 
 
             // --------------------
@@ -2363,7 +2359,6 @@ class DisplaytemplateController extends ODRCustomController
 
         // Required objects
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-        $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
         /** @var DatatypeInfoService $dti_service */
         $dti_service = $this->container->get('odr.datatype_info_service');
@@ -2400,26 +2395,32 @@ class DisplaytemplateController extends ODRCustomController
         }
         else if ($template_name == 'child_datatype') {
             $datatype = $repo_datatype->find($target_id);
-            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );      // TODO - this likely isn't going to work where linked datatypes are involved
+            $theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
 
             // Check whether this was actually a re-render request for a top-level datatype...
             if ( !isset($datatree_array['descendant_of'][ $datatype->getId() ]) || $datatree_array['descendant_of'][ $datatype->getId() ] == '' ) {
                 // ...it is, re-rendering should still work properly if various flags are set right
                 $datatype = $grandparent_datatype;
             }
+
+            // TODO - ...need to have either the theme_datatype or theme_element this child is in to be able to reload the right one where multiple linked datatypes are involved...
         }
         else if ($template_name == 'theme_element') {
             $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($target_id);
             $theme = $theme_element->getTheme();
 
             $datatype = $theme->getDataType();
+
+            // TODO - ...need to have either the theme_datatype or theme_element this child is in to be able to reload the right one where multiple linked datatypes are involved...
         }
         else if ($template_name == 'datafield') {
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($target_id);
             $datatype = $datafield->getDataType();
-            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );      // TODO - this likely isn't going to work where linked datatypes are involved
+            $theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
 
             $datatype = $datafield->getDataType();
+
+            // TODO - ...need to have either the theme_datatype or theme_element this child is in to be able to reload the right one where multiple linked datatypes are involved...
         }
 
 
@@ -2646,6 +2647,8 @@ class DisplaytemplateController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
 
@@ -2684,14 +2687,16 @@ class DisplaytemplateController extends ODRCustomController
                 if ($datatree_meta->getDeletedAt() != null)
                     throw new ODRNotFoundException('DatatreeMeta');
 
+                $parent_theme = $theme_service->getDatatypeMasterTheme($parent_datatype_id);
+
                 $query = $em->createQuery(
                    'SELECT tdt
                     FROM ODRAdminBundle:Theme AS t
                     JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
                     JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.themeElement = te
-                    WHERE t.themeType = :theme_type AND t.dataType = :parent_datatype AND tdt.dataType = :child_datatype
+                    WHERE t = :parent_master_theme AND tdt.dataType = :child_datatype
                     AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL'
-                )->setParameters( array('theme_type' => 'master', 'parent_datatype' => $parent_datatype_id, 'child_datatype' => $datatype_id) );
+                )->setParameters( array('parent_master_theme' => $parent_theme->getId(), 'child_datatype' => $datatype_id) );
                 $results = $query->getResult();
 
                 if ( !isset($results[0]) )
@@ -3013,6 +3018,8 @@ class DisplaytemplateController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
 
 
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
@@ -3029,10 +3036,9 @@ class DisplaytemplateController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('themeType' => 'master', 'dataType' => $datatype->getId()) );
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
+            // Ensure the datatype has a master theme...
+            $theme_service->getDatatypeMasterTheme($datatype->getId());
+
 
             // --------------------
             // Determine user privileges
@@ -3411,10 +3417,6 @@ class DisplaytemplateController extends ODRCustomController
                     if ($sort_radio_options)
                         self::radiooptionorderAction($datafield->getId(), true, $request);  // TODO - might be race condition issue with design_ajax
 
-                    // TODO - disabled for now, but is this safe to delete?
-//                    if ($update_field_order)
-//                        self::removeDatafieldFromTableThemes($em, $user, $datafield);
-
                     if ($check_image_sizes)
                         parent::ODR_checkImageSizes($em, $user, $datafield);
 
@@ -3675,74 +3677,6 @@ class DisplaytemplateController extends ODRCustomController
             // TODO - Lock the datatype so no more edits?
             // TODO - Lock other stuff?
         }
-    }
-
-
-    /**
-     * Called after a user makes a change that requires a datafield be removed from TextResults
-     * @deprecated
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user
-     * @param DataFields $removed_datafield
-     *
-     */
-    private function removeDatafieldFromTableThemes($em, $user, $removed_datafield)
-    {
-        // Locate each table theme for this datatype
-        $datatype = $removed_datafield->getDataType();
-
-        /** @var Theme[] $themes */
-        $themes = $em->getRepository('ODRAdminBundle:Theme')->findBy( array('themeType' => 'table', 'dataType' => $datatype->getId()) );
-        foreach ($themes as $theme) {
-            /** @var ThemeElement $theme_element */
-            $theme_element = $theme->getThemeElements()->first();   // only ever a single ThemeElement in a table theme
-
-            /** @var ThemeDataField[] $theme_datafields */
-            $theme_datafields = $theme_element->getThemeDataFields();
-            $datafield_list = array();
-
-            foreach ($theme_datafields as $tdf) {
-                if ( $tdf->getDataField()->getId() !== $removed_datafield->getId() ) {
-                    // Store the themeDatafield by its current display order to sort later
-                    $datafield_list[ $tdf->getDisplayOrder() ] = $tdf;
-                }
-                else {
-                    // This datafield needs to be removed from the table theme...delete the themeDatafield entry
-                    $tdf->setDeletedBy($user);
-                    $em->persist($tdf);
-                    $em->remove($tdf);
-                }
-            }
-            /** @var ThemeDataField[] $datafield_list */
-            ksort($datafield_list);
-
-            // Reset displayOrder to be sequential
-            $datafield_list = array_values($datafield_list);
-            for ($i = 0; $i < count($datafield_list); $i++) {
-                $tdf = $datafield_list[$i];
-                if ($tdf->getDisplayOrder() !== $i) {
-
-                    $properties = array(
-                        'displayOrder' => $i
-                    );
-                    parent::ODR_copyThemeDatafield($em, $user, $tdf, $properties);
-                }
-            }
-
-/*
-            // TODO - still using datatype's hasTextResults() property?
-            if ( count($datafield_list) == 0 ) {
-                $datatype->setHasTextresults(false);
-                $em->persist($datatype);
-            }
-*/
-        }
-
-        // Done with the changes
-        $em->flush();
-
-        // TODO - updated cached theme?
     }
 
 
