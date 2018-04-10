@@ -276,6 +276,12 @@ odr_datatype_properties:
         datatype_id: \d+
         wizard: 0|1
 
+odr_datatype_properties_meta:
+    path:  /admin/type/properties/update/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Datatype:update_properties }
+    requirements:
+        datatype_id: \d+
+
 odr_datatype_landing:
     path:  /admin/type/landing/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Datatype:landing }

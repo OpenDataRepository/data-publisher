@@ -33,6 +33,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Forms
+use ODR\AdminBundle\Form\UpdateDatatypePropertiesForm;
 use ODR\AdminBundle\Form\CreateDatatypeForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
@@ -50,6 +51,128 @@ use ODR\AdminBundle\Component\Utility\UniqueUtility;
 
 class DatatypeController extends ODRCustomController
 {
+    /**
+     * Update the database properties metadata and database metadata
+     * to reflect the updated database name.
+     *
+     * Also updates metadata for all datatypes in the template set.
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function update_propertiesAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = array();
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            // Don't need to verify permissions, firewall won't let this action be called unless user is admin
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Create new DataType form
+            $submitted_data = new DataTypeMeta();
+            $form = $this->createForm(UpdateDatatypePropertiesForm::class, $submitted_data);
+
+            $form->handleRequest($request);
+
+            if ($form->isSubmitted()) {
+                if ($form->isValid()) {
+                    // Get datatype by looking up meta ...
+                    $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+
+                    /** @var DataType $datatype */
+                    $datatype = $repo_datatype->find($datatype_id);
+
+                    // This is a properties database - it should have metadata_for
+                    if($datatype->getMetadataFor() == null) {
+                        throw new ODRException('Incorrect datatype.  Must be properties datatype.');
+                    }
+
+                    $datatype_array = $repo_datatype->findBy(array('template_group' => $datatype->getTemplateGroup()));
+
+                    /** @var DataType $dt */
+                    foreach($datatype_array as $dt) {
+
+                        // Must be admin to update the related metadata
+                        if($pm_service->isDatatypeAdmin($user, $dt)) {
+                            $metadata = $dt->getDataTypeMeta();
+                            $new_meta = clone $metadata;
+
+                            $new_meta->setCreated(new \DateTime());
+                            $new_meta->setUpdated(new \DateTime());
+                            $new_meta->setCreatedBy($user);
+                            $new_meta->setUpdatedBy($user);
+
+                            if($dt->getUniqueId() == $dt->getTemplateGroup()) {
+                                // This is the actual datatype
+                                $new_meta->setLongName($submitted_data->getLongName());
+                                $new_meta->setDescription($submitted_data->getDescription());
+                            }
+                            elseif($dt->getMetadataFor() !== null) {
+                                // This is the datatype properties
+                                $new_meta->setLongName($submitted_data->getLongName());
+                                $new_meta->setDescription($submitted_data->getDescription());
+                            }
+                            else {
+                                $new_meta->setLongName($submitted_data->getLongName() . " - " . $new_meta->getShortName());
+                            }
+
+
+                            // Save and commit
+                            $em->persist($new_meta);
+                            $em->remove($metadata);
+                            $em->flush();
+                        }
+                    }
+
+                    // Need to create a form for editing datatype metadata
+                    // Should edit the properties type and the datatype itself...
+                    $em->refresh($datatype);
+                    $new_datatype_meta = $datatype->getDataTypeMeta();
+                    $params = array(
+                        'form_settings' => array(
+                        )
+                    );
+                    $form = $this->createForm(UpdateDatatypePropertiesForm::class, $new_datatype_meta, $params);
+
+                    $templating = $this->get('templating');
+                    $html = $templating->render(
+                        'ODRAdminBundle:Datatype:update_datatype_properties_form.html.twig',
+                        array(
+                            'datatype' => $datatype,
+                            'form' => $form->createView(),
+                        )
+                    );
+
+                    $return['d'] = array(
+                        'datatype_id' => $datatype->getId(),
+                        'html' => $html,
+                    );
+                }
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x28381af2;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 
     /**
      * @param $datatype_id
@@ -152,13 +275,25 @@ class DatatypeController extends ODRCustomController
                     null
                 );
 
-                $templating = $this->get('templating');
 
+                // Need to create a form for editing datatype metadata
+                // Should edit the properties type and the datatype itself...
+                $new_datatype_data = $properties_datatype->getDataTypeMeta();
+                $params = array(
+                    'form_settings' => array(
+                    )
+                );
+                $form = $this->createForm(UpdateDatatypePropertiesForm::class, $new_datatype_data, $params);
+
+
+                $templating = $this->get('templating');
                 $html = $templating->render(
                     'ODRAdminBundle:Datatype:properties.html.twig',
                     array(
                         'wizard' => $wizard,
+                        'datatype' => $datatype,
                         'user' => $user,
+                        'form' => $form->createView(),
                         'edit_html' => $edit_html
                     )
                 );
@@ -848,8 +983,8 @@ class DatatypeController extends ODRCustomController
 
                 // Set new datatype meta
                 $metadata_datatype_meta = clone $datatype->getDataTypeMeta();
-                $metadata_datatype_meta->setShortName($datatype->getDataTypeMeta()->getShortName() . " Properties");
-                $metadata_datatype_meta->setLongName($datatype->getDataTypeMeta()->getLongName() . " Properties");
+                $metadata_datatype_meta->setShortName("Properties");
+                $metadata_datatype_meta->setLongName($datatype->getDataTypeMeta()->getLongName() . " - Properties");
                 $metadata_datatype_meta->setDataType($metadata_datatype);
 
                 // Associate the metadata
@@ -1253,26 +1388,26 @@ class DatatypeController extends ODRCustomController
                 }
             }
             else {
-                // Otherwise, this was a GET request
+                // otherwise, this was a get request
                 $templating = $this->get('templating');
                 $return['d'] = $templating->render(
-                    'ODRAdminBundle:Datatype:create_datatype_info_form.html.twig',
+                    'odradminbundle:datatype:create_datatype_info_form.html.twig',
                     array(
-                        'form' => $form->createView()
+                        'form' => $form->createview()
                     )
                 );
             }
         }
-        catch (\Exception $e) {
+        catch (\exception $e) {
             $source = 0x6151265b;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            if ($e instanceof odrexception)
+                throw new odrexception($e->getmessage(), $e->getstatuscode(), $e->getsourcecode($source));
             else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
+                throw new odrexception($e->getmessage(), 500, $source, $e);
         }
 
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
+        $response = new response(json_encode($return));
+        $response->headers->set('content-type', 'application/json');
         return $response;
     }
 }

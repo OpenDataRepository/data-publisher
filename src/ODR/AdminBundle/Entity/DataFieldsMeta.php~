@@ -768,4 +768,33 @@ class DataFieldsMeta
     {
         return $this->updatedBy;
     }
+    /**
+     * @var string
+     */
+    private $internal_reference_name;
+
+
+    /**
+     * Set internalReferenceName
+     *
+     * @param string $internalReferenceName
+     *
+     * @return DataFieldsMeta
+     */
+    public function setInternalReferenceName($internalReferenceName)
+    {
+        $this->internal_reference_name = $internalReferenceName;
+
+        return $this;
+    }
+
+    /**
+     * Get internalReferenceName
+     *
+     * @return string
+     */
+    public function getInternalReferenceName()
+    {
+        return $this->internal_reference_name;
+    }
 }

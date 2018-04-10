@@ -1,5 +1,90 @@
 <h3>Database Properties</h3>
 {% if wizard %}
-WIZARD
+    {% if datatype.getsetupstep != "complete" %}
+        {% if datatype.getismastertype == 1 %} {# Master Template Creation #}
+
+        {% else %}
+            {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+                'wizard_step': 2,
+                'datatype_id': datatype.getid,
+                'edit_properties': false,
+                'create_master': false,
+                'master_templates': null,
+                'master_type_id': datatype.getmasterdatatype.getid,
+            } %}
+        {% endif %}
+    {% else %}
+        {# Database creation wizard is complete - menu for managing? #}
+        {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+            'wizard_step': 2,
+            'datatype_id': datatype.getid,
+            'edit_properties': false,
+            'create_master': false,
+            'master_templates': null,
+            'master_type_id': datatype.getmasterdatatype.getid,
+        } %}
+    {% endif %}
 {% endif %}
 {{  edit_html|raw }}
+
+{# Need to be hidden form #}
+<div id="UpdateDatatypePropertiesFormWrapper">
+    {% include 'ODRAdminBundle:Datatype:update_datatype_properties_form.html.twig' with {
+        'form': form,
+        'datatype': datatype
+    } %}
+</div>
+
+<script>
+
+    function saveDatatypeMeta(field_type, field_value) {
+        // Post to ajax with CSRF protection
+        // Single form with value and datatype
+
+        switch(field_type) {
+            case 'database_name':
+                $("#UpdateDatatypePropertiesForm_longName").val(field_value);
+                break;
+
+            case 'database_description':
+                $("#UpdateDatatypePropertiesForm_description").val(field_value);
+                break;
+        }
+
+
+        // Determine save type
+        var post_data = $('#UpdateDatatypePropertiesForm').serialize();
+        var url = $('#UpdateDatatypePropertiesForm').attr('action');
+
+        console.log('saving database properties data...');
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: post_data,
+            success: function(data, textStatus, xhr) {
+                // Don't need to do anything special on success
+                console.log(data)
+                $("#UpdateDatatypePropertiesFormWrapper").html(data.d.html);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Just reload the datafield on error, since can't restore the old value
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+</script>
