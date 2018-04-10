@@ -51,7 +51,15 @@
             <tbody>
             {% set hidden_datatype_count = 0 %}
             {% for datatype in datatypes %}
-                {% if datatype.metadata_for is defined and datatype.metadata_for is null %}
+                {#
+                    Only show databases that are not "properties" databases.  Hide databases
+                    that were created as part of a template group.
+                #}
+                {% if
+                    (datatype.metadata_for is defined and datatype.metadata_for is null)
+                    and
+                    (datatype.unique_id is null or datatype.unique_id == datatype.template_group)
+                %}
 
                     {% set datatype_meta = datatype.dataTypeMeta %}
 
