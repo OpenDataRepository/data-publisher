@@ -213,7 +213,7 @@ class CloneDatatypeService
                 throw new ODRNotFoundException('User');
 
             $this->logger->debug('----------------------------------------');
-            $this->logger->debug('CloneDatatypeService: entered createDatatypeFromMaster(), user '.$user_id.' is attempting to clone a datatype');
+            $this->logger->debug('CloneDatatypeService: entered createDatatypeFromMaster(' . $template_group . '), user '.$user_id.' is attempting to clone a datatype');
 
             // Get the DataType to work with
             $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
@@ -467,14 +467,18 @@ class CloneDatatypeService
     private function cloneDatatype($parent_datatype, $new_datatype = null, $datatype_prefix = "", $template_group = "")
     {
         // If $new_dataype isn't created yet, clone $parent_datatype to use as a starting point
-        if ( is_null($new_datatype) )
+        if ( is_null($new_datatype) ) {
             $new_datatype = clone $parent_datatype;
+        }
 
+        if($new_datatype->getUniqueId() == null) {
+            // Set a unique ID if this is a clone - existing DT should already have one.
+            $new_datatype->setUniqueId(UniqueUtility::uniqueIdReal());
+        }
 
         // $new_datatype is based off a "master template" datatype
         $new_datatype->setIsMasterType(false);
         $new_datatype->setTemplateGroup($template_group);
-        $new_datatype->setUniqueId(UniqueUtility::uniqueIdReal());
         $new_datatype->setMasterDataType($parent_datatype);
         $new_datatype->setSetupStep(DataType::STATE_INITIAL);
         self::persistObject($new_datatype);

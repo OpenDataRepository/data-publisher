@@ -1008,10 +1008,10 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Check if this is a master template based datatype that is still in the creation process...
+            $templating = $this->get('templating');
+            $return['t'] = "html";
             if ($datatype->getSetupStep() == "initial" && $datatype->getMasterDataType() != null) {
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
-                $templating = $this->get('templating');
-                $return['t'] = "html";
                 $return['d'] = array(
                     'html' => $templating->render(
                         'ODRAdminBundle:Datatype:create_status_checker.html.twig',
@@ -1025,29 +1025,33 @@ class DisplaytemplateController extends ODRCustomController
                 // Determine where to send this redirect
                 if($datatype->getMetadataFor() !== null)  {
                     // Properties datatype - redirect to properties page
-                    return $this->redirect(
-                        $this->generateUrl(
+                    $url =  $this->generateUrl(
                             'odr_datatype_properties',
                             array(
                                 'datatype_id' => $datatype->getId(),
                                 'wizard' => 1
                             ),
                             false
-                        )
-                    );
+                        );
                 }
                 else {
                     // Redirect to design
-                    return $this->redirect(
-                        $this->generateUrl(
+                    $url = $this->generateUrl(
                             'odr_design_master_theme',
                             array(
                                 'datatype_id' => $datatype->getId(),
                             ),
                             false
-                        )
-                    );
+                        );
                 }
+                $return['d'] = array(
+                    'html' => $templating->render(
+                        'ODRAdminBundle:Datatype:create_status_checker_redirect.html.twig',
+                        array(
+                            "url" => $url
+                        )
+                    )
+                );
             }
         }
         catch (\Exception $e) {

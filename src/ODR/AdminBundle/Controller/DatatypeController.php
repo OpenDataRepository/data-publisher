@@ -56,7 +56,7 @@ class DatatypeController extends ODRCustomController
      * @param Request $request
      * @return Response
      */
-    public function propertiesAction($datatype_id, $wizard = false, Request $request)
+    public function propertiesAction($datatype_id, $wizard = 0, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -105,7 +105,6 @@ class DatatypeController extends ODRCustomController
                     // This is a properties database
                     $properties_datatype = $datatype->getMetadataDatatype();
                 }
-
 
                 // Ensure has properties admin
                 if (!$pm_service->isDatatypeAdmin($user, $properties_datatype))
@@ -655,6 +654,7 @@ class DatatypeController extends ODRCustomController
             // If cloning from master and master has metadata...
             if($template_choice > 0) {
                 // Immediately creates templates and databases.
+                // TODO Need to check if user is owner of any other DBs with "New Database" as name
                 return self::direct_add_datatype($template_choice);
             }
             else {

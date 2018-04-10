@@ -65,7 +65,7 @@ class CloneDatatypeCommand extends ContainerAwareCommand
 
                 /** @var CloneDatatypeService $clone_datatype_service */
                 $clone_datatype_service = $this->getContainer()->get('odr.clone_datatype_service');
-                $result = $clone_datatype_service->createDatatypeFromMaster($data->datatype_id, $data->user_id);
+                $result = $clone_datatype_service->createDatatypeFromMaster($data->datatype_id, $data->user_id, $data->template_group);
 
                 $current_time = new \DateTime();
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
