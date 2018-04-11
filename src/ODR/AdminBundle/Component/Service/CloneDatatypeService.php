@@ -207,6 +207,16 @@ class CloneDatatypeService
     public function createDatatypeFromMaster($datatype_id, $user_id, $template_group = "")
     {
         try {
+            // This function waits a long time and tends to time out and drop its db connection
+            // https://stackoverflow.com/questions/16233835/refresh-the-database-connection-if-connection-drops-or-times-out
+            if(FALSE == $this->em->getConnection()->ping()){
+                $this->logger->debug('----------------------------------------');
+                $this->logger->debug('MySQL connection was closed: ' . $template_group . ' - reconnecting.');
+                $this->em->getConnection()->close();
+                $this->em->getConnection()->connect();
+                $this->logger->debug('----------------------------------------');
+            }
+
             // Save which user started this creation process
             $this->user = $this->user_manager->findUserBy( array('id' => $user_id) );
             if ( is_null($this->user) )
@@ -450,7 +460,7 @@ class CloneDatatypeService
             return 'complete';
         }
         catch (\Exception $e) {
-            $this->logger->debug('EXCEPTION: '.$e->getMessage());
+            $this->logger->debug('CLONE DT EXCEPTION: '.$e->getMessage());
             return $e->getMessage();
         }
     }

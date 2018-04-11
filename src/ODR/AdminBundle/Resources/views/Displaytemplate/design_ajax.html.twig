@@ -448,6 +448,7 @@
     }
 
     function ResetToolSet() {
+        console.log('Resetting tool set');
 
         var tools = [];
         tools.add_te     = $("#ODRDatatype_addTE");
@@ -459,7 +460,11 @@
         tools.del_dt     = $("#ODRDatatype_delete");
 
         for(var x in tools) {
-            tools[x].addClass('faded');
+            var obj = tools[x];
+            obj.addClass('faded');
+            obj.unbind('click').click(function () {
+                sidebarDefaultClick();
+            });
         }
 
         // Reset link text
@@ -478,7 +483,7 @@
         tools.link_dt.attr('title',  'Link to Database');
         tools.render.attr('title',   'Change Render Plugin');
         tools.pub_stat.attr('title', 'Change Public Status');
-        tools.del_dt.attr('title',   'Delete Datatype');
+        tools.del_dt.attr('title',   'Delete');
 
     }
 
@@ -519,11 +524,13 @@
                     tools.render.attr('title', 'Rendered using "' + props.render_plugin_name + '.');
                 }
 
-                tools.link_dt.removeClass('faded')
-                if(props.is_link > 0) {
-                    tools.link_dt.find('i').addClass('ODRActiveIcon');
-                    tools.link_dt.find('.link-text').html('Linked database');
-                    tools.link_dt.attr('title', 'This is a linked database.  Click to choose a different database.');
+                if(!props.is_top_level) {
+                    tools.link_dt.removeClass('faded')
+                    if (props.is_link > 0) {
+                        tools.link_dt.find('i').addClass('ODRActiveIcon');
+                        tools.link_dt.find('.link-text').html('Linked database');
+                        tools.link_dt.attr('title', 'This is a linked database.  Click to choose a different database.');
+                    }
                 }
 
                 tools.pub_stat.removeClass('faded')
@@ -533,13 +540,24 @@
                     tools.pub_stat.attr('title', 'Users may view any record or field in the database that has been marked public without additional permissions.');
                 }
                 else {
-                    tools.pub_stat.find('i').addClass('ODRActiveIcon');
+                    tools.pub_stat.find('i').removeClass('ODRActiveIcon');
                     tools.pub_stat.find('.link-text').html('Database is private.');
                     tools.pub_stat.attr('title', 'Only logged in users with specific rights to this database may view the database.');
                 }
 
 
+                // Attach click handlers
+                tools.pub_stat.unbind('click').click(function () {
+                    togglePublic(datatype_id, 'datatype');
+                });
 
+                tools.add_te.unbind('click').click(function () {
+                    addThemeElement(datatype_id, 'datatype');
+                });
+
+                tools.render.unbind('click').click(function () {
+                    changeRenderPlugin(datatype_id, 'datatype');
+                });
 
                 break;
 
@@ -548,9 +566,207 @@
         }
     }
 
+    function sidebarDefaultClick() {
+        console.log('default click');
+        $.jGrowl('You must first select an element from the page to modify its settings.');
+    }
+
+    function changeRenderPlugin(id, element_type) {
+        switch(element_type) {
+            case 'datatype':
+                // if ( $(this).hasClass('fa-muted') )
+                    // return;
+
+                var datatype_id = id;
+                var datafield_id = 0;
+
+                {# defined in Displaytemplate::plugin_settings_dialog.html.twig #}
+                openPluginSettingsDialog(datafield_id, datatype_id);
+
+                break;
+        }
+    }
+
+
+    function addThemeElement(id, element_type) {
+        switch(element_type) {
+            case 'datatype':
+
+                // Need to check for access to linked types?...
+                // if ( $(this).hasClass('fa-muted') )
+                    // return;
+
+
+                var datatype_id = id;
+                var url = '{{ path('odr_design_add_theme_element_by_datatype', { 'datatype_id': 0 }) }}';
+                url = url.substring(0, url.length-1) + datatype_id;
+
+                $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: "json",
+                    success: function(data) {
+                        // Clear object properties panel
+                        // $("#ThemeDesignForm").html("");
+
+                        // Grab ID of new theme element
+                        var theme_element_id = data.d.theme_element_id;
+
+                        // Let's get back the actual stuff here.....
+
+                        // Create a fake theme element and force a save of theme element order
+                        $("#FieldArea_" + datatype_id)
+                            .append(data.d.html)
+
+                        SaveThemeElementOrder("#FieldArea_" + datatype_id);
+
+
+                        // Show the element
+                        ScrollHighlight("#ThemeElement_" + theme_element_id);
+
+
+                        // Reload to get actual theme element contents
+                        // ReloadThemeElement(theme_element_id);
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Don't need to do anything specific on an error
+                    },
+                    complete: function(jqXHR) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+                    }
+                });
+
+                break;
+        }
+    }
+
+    function ScrollHighlight(element) {
+        var obj = $(element)
+        // Scroll to the element
+        $('html, body').animate({
+            scrollTop: obj.offset().top
+        }, 2000);
+
+        // Highlight
+        obj.effect("highlight", {}, 3000);
+    }
+
+    function togglePublic(id, element_type) {
+
+        switch(element_type) {
+            case 'datatype':
+                var datatype_id = id
+                var element = $("#ODRDatatype_" + datatype_id + "_publicStatus");
+
+                var url  = '{{ path('odr_design_public_datatype', {'datatype_id': 0} ) }}';
+                url = url.substring(0,(url.length-1));
+                url += datatype_id;
+
+                $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: "json",
+                    success: function(data) {
+                        notifySaved();
+
+                        // Toggle muted status
+                        if ( element.hasClass('ODRActiveIcon') )
+                            element.removeClass('ODRActiveIcon');
+                        else
+                            element.addClass('ODRActiveIcon');
+
+                        // Change the locally stored database properties values
+                        // and re-render the tools section.
+                        var props = datatype_properties[datatype_id];
+                        props.is_public = !props.is_public;
+                        RenderToolSet(datatype_id, 'datatype');
+
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Don't need to do anything specific on an error
+                    },
+                    complete: function(jqXHR) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+                    }
+                });
+                break;
+
+            case 'datafield':
+
+                var datafield_id = $(this).attr('rel');
+                var element = $(this);
+
+                var url  = '{{ path('odr_design_public_datafield', {'datafield_id': 0} ) }}';
+                url = url.substring(0,(url.length-1));
+                url += datafield_id;
+
+                $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: "json",
+                    success: function(data) {
+                        notifySaved();
+
+                        // Toggle muted status
+                        var icons = {};
+                        if ( $(element).hasClass('ODRActiveIcon') ) {
+                            $(element).removeClass('ODRActiveIcon');
+                            $(element).attr('title', 'Datafield requires permission to view');
+                        }
+                        else {
+                            $(element).addClass('ODRActiveIcon');
+                            $(element).attr('title', 'Datafield does not require permission to view');
+                        }
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Don't need to do anything specific on an error
+                    },
+                    complete: function(jqXHR) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+                    }
+                });
+
+                break;
+        }
+
+    }
 
     function InitDatatypeTools() {
 
+        /*
         $(".ODRRenderPlugin").unbind('click').click(function() {
 
             if ( $(this).hasClass('fa-muted') )
@@ -562,6 +778,7 @@
             {# defined in Displaytemplate::plugin_settings_dialog.html.twig #}
             openPluginSettingsDialog(datafield_id, datatype_id);
         });
+        */
 
         $(".ODRAddChildtype").unbind('click').click(function() {
 
@@ -653,6 +870,8 @@
             });
         });
 
+        /*
+
         $(".ODRAddThemeElement").unbind('click').click(function() {
             // I think this option is always available, but just incase...
             if ( $(this).hasClass('fa-muted') )
@@ -701,6 +920,8 @@
                 }
             });
         });
+
+        */
 
         $(".ODRDeleteDatatype").unbind('click').click(function() {
 
@@ -798,6 +1019,19 @@
             }
         });
 
+        // Setup resizable for all ThemeElements
+        $("#ThemeDesignArea .ODRThemeElement").each(function() {
+            // Add Resize Handles
+            var handle_ne = '<span class="ODRThemeElementHandle ui-resizeable-handle ui-resizeable-ne">&#x263e;</span>';
+
+            $(this).prepend(handle_ne);
+            // Highlight and setup element properties
+        });
+
+        $(".ODRThemeElementHandle").unbind('click').click(function() {
+            setupElement(this);
+        });
+
         $(".ODRDatatypeProperties").unbind('click').click(function() {
 
             // Highlight and setup element properties
@@ -805,11 +1039,22 @@
 
             // Grab the id of the Datatype to load
             var datatype_id = $(this).attr('rel');
+
+            // Prepare the Sidebar Tools
             RenderToolSet(datatype_id);
             console.log('Props:', datatype_properties[datatype_id]);
 
-            // Get the datatype tools
-            // var datatype_tools = $("#DataTypeTools_" + datatype_id).html();
+
+
+
+
+
+
+
+
+
+
+
 
             // Determine if this Datatype has a parent
             var parent_datatype_id = '';
@@ -830,6 +1075,8 @@
             if (parent_datatype_id != '')
                 url += '/' + parent_datatype_id;
 
+
+            // Load the datatype properties
             $.ajax({
                 cache: false,
                 type: 'GET',
@@ -840,7 +1087,7 @@
 
                     // Prepend the DataTypeTools
                     $("#ThemeDesignForm").fadeIn('fast');
-                    InitDatatypeTools();
+                    // InitDatatypeTools();
                     InitDatatypePropertiesForm();
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
@@ -860,8 +1107,12 @@
                     }
                 }
             });
+
+
+
         });
 
+        /*
         $(".ODRPublicDatatype").unbind('click').click(function() {
             var datatype_id = $(this).attr('rel');
             var element = $(this);
@@ -905,6 +1156,7 @@
                 }
             });
         });
+        */
 
         $(".ODRPublicDatafield").unbind('click').click(function() {
             var datafield_id = $(this).attr('rel');
@@ -957,8 +1209,18 @@
         // Setup Data Fields
         SetupDataFields();
 
+        // Resets the sidebar tool set
         ResetToolSet();
+
+        // Sets up the object click handlers
         InitDatatypeTools();
+
+
+
+
+
+
+
         // initResizeables();
 
         $(".ODRLinkDatatype").unbind('click').click(function() {

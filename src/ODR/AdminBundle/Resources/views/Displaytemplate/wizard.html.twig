@@ -12,7 +12,13 @@
             </li>
         {% endif %}
         <li class="{% if wizard_step == 2 %}current{% endif %}">
-            <span class="wizardStatusText">Database Properties.</span>
+            {% if datatype_id > 0 %}
+                <a href="#{{ path('odr_datatype_properties', {'datatype_id': datatype_id, 'wizard': 1}) }}">
+                    <span class="wizardStatusText">Database Properties.</span>
+                </a>
+            {% else %}
+                <span class="wizardStatusText">Database Properties.</span>
+            {% endif %}
         </li>
         <li class="{% if wizard_step == 3 %}current{% endif %}">
             {% if datatype_id > 0 %}
@@ -78,7 +84,9 @@
                                     </p>
                                 {% endif %}
                             {% endfor %}
-                            <button>Submit</button>
+                            <a class="ODRWizardLink" href="#{{ path('odr_design_master_theme', {'datatype_id': datatype_id}) }}">
+                                <span class="wizardStatusText">Click to Continue to Step 3</span>
+                            </a>
                         </div>
                     {% endif %}
                 </div>
@@ -95,6 +103,9 @@
                         <p>The database may be extended or modified using this design system.  The system will alert you when a change will
                             break compatibility with the parent template.</p>
                     </div>
+                    <a class="ODRWizardLink" href="#{{ path('odr_datatype_landing', {'datatype_id': datatype_id}) }}">
+                        <span class="wizardStatusText">Click to Begin Managing Your Database</span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -149,5 +160,4 @@
             </div>
         </div>
     {% endif %}
-
 {% endspaceless %}

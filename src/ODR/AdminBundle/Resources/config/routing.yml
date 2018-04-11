@@ -369,12 +369,18 @@ odr_theme_reload_theme_element:
         source_datatype_id: \d+
         theme_element_id: \d+
 
+odr_design_add_theme_element_by_datatype:
+    path:  /design/themeelement/add/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Theme:addthemeelementbydatatype }
+    requirements:
+        datatype_id:  \d+
 
 odr_design_add_theme_element:
-    path:  /design/themeelement/add/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Theme:addthemeelement }
+    path:  /design/themeelement/add/{theme_id}/{full_html}
+    defaults: { _controller: ODRAdminBundle:Theme:addthemeelement, full_html: 0 }
     requirements:
         theme_id:  \d+
+        full_html: 0|1
 
 odr_design_delete_theme_element:
     path:  /design/themeelement/delete/{theme_element_id}

@@ -1635,16 +1635,76 @@ class ThemeController extends ODRCustomController
         return $response;
     }
 
+    /**
+     * @param $datatype_id
+     * @param Request $request
+     * @return Response
+     */
+    public function addthemeelementbydatatypeAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+
+            /** @var DataType $datatype */
+            $datatype = $repo_datatype->find($datatype_id);
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // We can only operate on master themes here...
+            /** @var Theme $theme */
+            $theme = $repo_theme->findOneBy(
+                array(
+                    'themeType' => 'master',
+                    'dataType' => $datatype,
+                )
+            );
+
+            if ($theme == null)
+                throw new ODRNotFoundException('Theme');
+
+            return $this->redirect(
+                $this->generateUrl(
+                    'odr_design_add_theme_element',
+                    array(
+                        'theme_id' => $theme->getId(),
+                        'full_html' => 1
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x892ade92f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+    }
+
+
 
     /**
      * Adds a new ThemeElement entity to the current layout.
      *
      * @param integer $theme_id  Which theme to add this theme_element to
+     * @param boolean $full_html Defaults to false
      * @param Request $request
      *
      * @return Response
      */
-    public function addthemeelementAction($theme_id, Request $request)
+    public function addthemeelementAction($theme_id, $full_html = false, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1712,14 +1772,29 @@ class ThemeController extends ODRCustomController
             // Save changes
             $em->flush();
 
+            // Update cached version of theme
+            $theme_service->updateThemeCacheEntry($theme, $user);
+
+            $html = "";
+            if($full_html) {
+
+                /** @var DesignInfoService $di_service */
+                $di_service = $this->container->get('odr.design_info_service');
+
+                $html = $di_service->GetDisplayData(
+                    $datatype->getId(),
+                    'theme_element',
+                    $theme_element->getId()
+                );
+            }
+
             // Return the new theme element's id
             $return['d'] = array(
                 'theme_element_id' => $theme_element->getId(),
                 'datatype_id' => $datatype->getId(),
+                'html' => $html,
             );
 
-            // Update cached version of theme
-            $theme_service->updateThemeCacheEntry($theme, $user);
         }
         catch (\Exception $e) {
             $source = 0x7cbe82a5;

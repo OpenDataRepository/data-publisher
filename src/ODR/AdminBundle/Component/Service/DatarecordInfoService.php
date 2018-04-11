@@ -61,12 +61,12 @@ class DatarecordInfoService
     /**
      * @var DatatypeInfoService
      */
-    private $datatype_info_service;
+    private $dti_service;
 
     /**
      * @var ThemeInfoService
      */
-    private $theme_info_service;
+    private $theme_service;
 
     /**
      * @var CsrfTokenManager
@@ -91,9 +91,10 @@ class DatarecordInfoService
      * @param PermissionsManagementService $permissions_service
      * @param DatatypeInfoService $datatype_info_service
      * @param ThemeInfoService $theme_info_service
-     * @param Logger $logger
+     * @param TwigEngine $templating
      * @param CsrfTokenManager $token_manager
-     * @param \Twig_Environment $templating
+     * @param TokenStorage $token_storage
+     * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
@@ -111,10 +112,10 @@ class DatarecordInfoService
         $this->pm_service = $permissions_service;
         $this->dti_service = $datatype_info_service;
         $this->theme_service = $theme_info_service;
-        $this->logger = $logger;
+        $this->templating = $templating;
         $this->token_manager = $token_manager;
         $this->token_storage = $token_storage;
-        $this->templating = $templating;
+        $this->logger = $logger;
     }
 
     /**
