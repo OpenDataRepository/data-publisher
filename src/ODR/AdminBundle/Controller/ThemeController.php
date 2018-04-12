@@ -1782,7 +1782,7 @@ class ThemeController extends ODRCustomController
                 $di_service = $this->container->get('odr.design_info_service');
 
                 $html = $di_service->GetDisplayData(
-                    $datatype->getId(),
+                    $datatype->getGrandparent()->getId(),
                     'theme_element',
                     $theme_element->getId()
                 );

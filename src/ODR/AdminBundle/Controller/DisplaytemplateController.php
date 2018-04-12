@@ -1119,9 +1119,11 @@ class DisplaytemplateController extends ODRCustomController
                 if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
 
+                /** @var DesignInfoService $di_service */
+                $di_service = $this->container->get('odr.design_info_service');
                 $return['d'] = array(
                     'datatype_id' => $datatype->getId(),
-                    'html' => self::GetDisplayData($em, $datatype_id, 'default', $datatype_id, $request),
+                    'html' => $di_service->GetDisplayData($datatype_id, 'default', $datatype_id),
                 );
             }
         }
