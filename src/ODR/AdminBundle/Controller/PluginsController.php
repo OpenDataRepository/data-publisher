@@ -502,12 +502,12 @@ class PluginsController extends ODRCustomController
             else
                 $render_plugin->setPluginType( RenderPlugin::DATATYPE_PLUGIN );
 
-            if ( $plugin_data['override_fields'] === '' )
+            if ( $plugin_data['override_fields'] === false )    // Yaml parser sets these to true/false values
                 $render_plugin->setOverrideFields(false);
             else
                 $render_plugin->setOverrideFields(true);
 
-            if ( $plugin_data['override_child'] === '' )
+            if ( $plugin_data['override_child'] === false )
                 $render_plugin->setOverrideChild(false);
             else
                 $render_plugin->setOverrideChild(true);
@@ -643,12 +643,12 @@ class PluginsController extends ODRCustomController
             $render_plugin->setPluginClassName( $plugin_classname );
             $render_plugin->setActive(true);
 
-            if ( $plugin_data['override_fields'] === '' )
+            if ( $plugin_data['override_fields'] === false )    // Yaml parser sets these to true/false values
                 $render_plugin->setOverrideFields(false);
             else
                 $render_plugin->setOverrideFields(true);
 
-            if ( $plugin_data['override_child'] === '' )
+            if ( $plugin_data['override_child'] === false )
                 $render_plugin->setOverrideChild(false);
             else
                 $render_plugin->setOverrideChild(true);
@@ -1511,14 +1511,14 @@ class PluginsController extends ODRCustomController
             if ($local_datafield_id == 0) {
                 // Master Template Data Types must increment Master Revision on all change requests.
                 if ($target_datatype->getIsMasterType()) {
-                    $dtm_properties['master_revision'] = $target_datatype->getDataTypeMeta()->getMasterRevision() + 1;
+                    $dtm_properties['master_revision'] = $target_datatype->getMasterRevision() + 1;
                     parent::ODR_copyDatatypeMeta($em, $user, $target_datatype, $dtm_properties);
                 }
             }
             else {
                 // Master Template Data Types must increment Master Revision on all change requests.
                 if ($target_datafield->getIsMasterField()) {
-                    $dfm_properties['master_revision'] = $target_datafield->getDataFieldMeta()->getMasterRevision() + 1;
+                    $dfm_properties['master_revision'] = $target_datafield->getMasterRevision() + 1;
                     parent::ODR_copyDatafieldMeta($em, $user, $target_datafield, $dfm_properties);
                 }
             }

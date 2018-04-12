@@ -494,7 +494,7 @@ class CloneDatatypeService
             $new_meta->setDescription($existing_meta->getDescription());
 
             // Ensure the "in-memory" version of $new_datatype doesn't references the old meta entry
-            $new_datatype->removeDataTypeMetum($existing_meta);
+            $new_datatype->removeDataTypeMetum($existing_meta);     // TODO - investigate whether this helps or hurts
 
             // Delete the existing DatatypeMeta entry
             $this->em->remove($existing_meta);

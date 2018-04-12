@@ -280,7 +280,7 @@ class TableThemeHelperService
 
                         // ...and the field's type name is on the list of valid fieldtypes...
                         $typename = $df['dataFieldMeta']['fieldType']['typeName'];
-                        if (!in_array($typename, $this->valid_fieldtypes))
+                        if ( !in_array($typename, $this->valid_fieldtypes) )
                             continue;
 
                         // ...then store the datafield id
@@ -300,19 +300,19 @@ class TableThemeHelperService
             foreach ($datafield_ids as $num => $df_id) {
                 // Attempt to pull the data from the cached entry...
                 if ( !isset($dr[$df_id]) ) {
-                    // ...ata isn't set, so it's probably empty or null...store empty string
+                    // ...data isn't set, so it's probably empty or null...store empty string
                     $dr_data[] = '';
-                    }
-                    else if (is_array($dr[$df_id])) {
+                }
+                else if ( is_array($dr[$df_id]) ) {
                     // Need to ensure that names/links to non-public Files aren't displayed
-                        //  to people that don't have permission to view them
-                        $file_publicDate = $dr[$df_id]['publicDate'];
-                        $file_url = $dr[$df_id]['url'];
+                    //  to people that don't have permission to view them
+                    $file_publicDate = $dr[$df_id]['publicDate'];
+                    $file_url = $dr[$df_id]['url'];
 
-                        if ($can_view_datarecord || $file_publicDate != '2200-01-01')
-                            $dr_data[] = $file_url;
-                        else
-                            $dr_data[] = '';
+                    if ($can_view_datarecord || $file_publicDate != '2200-01-01')
+                        $dr_data[] = $file_url;
+                    else
+                        $dr_data[] = '';
                 }
                 else {
                     // ...store it in the final array

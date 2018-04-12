@@ -969,10 +969,6 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $group references the correct meta entry
-        $group->removeGroupMetum($old_meta_entry);
-        $group->addGroupMetum($new_group_meta);
-
         // Save the new meta entry
         $em->persist($new_group_meta);
         $em->flush();
@@ -1402,10 +1398,6 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $datarecord references the correct meta entry
-        $datarecord->removeDataRecordMetum($old_meta_entry);
-        $datarecord->addDataRecordMetum($new_datarecord_meta);
-
         $em->persist($new_datarecord_meta);
         $em->flush();
 
@@ -1517,10 +1509,6 @@ class ODRCustomController extends Controller
         // Save the new datatree meta entry and delete the old one if needed
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
-
-        // Ensure the "in-memory" version of $datatree references the correct meta entry
-        $datatree->removeDataTreeMetum($old_meta_entry);
-        $datatree->addDataTreeMetum($new_datatree_meta);
 
         $em->persist($new_datatree_meta);
         $em->flush();
@@ -2084,10 +2072,6 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $file references the correct meta entry
-        $file->removeFileMetum($old_meta_entry);
-        $file->addFileMetum($new_file_meta);
-
         $em->persist($new_file_meta);
         $em->flush();
 
@@ -2172,10 +2156,6 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $image references the correct meta entry
-        $image->removeImageMetum($old_meta_entry);
-        $image->addImageMetum($new_image_meta);
-
         $em->persist($new_image_meta);
         $em->flush();
 
@@ -2231,7 +2211,7 @@ class ODRCustomController extends Controller
 
             // Master Template Data Fields must increment Master Revision on all change requests.
             if($datafield->getIsMasterField()) {
-                $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+                $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
                 self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
             }
 
@@ -2299,7 +2279,7 @@ class ODRCustomController extends Controller
             // Master Template Data Fields must increment Master Revision
             // on all change requests.
             if($datafield->getIsMasterField()) {
-                $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+                $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
                 self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
             }
 
@@ -2383,19 +2363,15 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $radio_option references the correct meta entry
-        $radio_option->removeRadioOptionMetum($old_meta_entry);
-        $radio_option->addRadioOptionMetum($new_radio_option_meta);
-
         // Save the new meta entry
         $em->persist($new_radio_option_meta);
         $em->flush();
 
         // Master Template Data Fields must increment Master Revision
         // on all change requests.
-        if($radio_option->getDataField()->getIsMasterField()) {
+        if ($radio_option->getDataField()->getIsMasterField()) {
             $datafield = $radio_option->getDataField();
-            $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+            $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
             self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
         }
 
@@ -2531,13 +2507,9 @@ class ODRCustomController extends Controller
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
+            // This entity can be set here since it's never null
             'renderPlugin' => $old_meta_entry->getRenderPlugin()->getId(),
-/*
-            'externalIdField' => $old_meta_entry->getExternalIdField()->getId(),
-            'nameField' => $old_meta_entry->getNameField()->getId(),
-            'sortField' => $old_meta_entry->getSortField()->getId(),
-            'backgroundImageField' => $old_meta_entry->getBackgroundImageField()->getId(),
-*/
+
             'searchSlug' => $old_meta_entry->getSearchSlug(),
             'shortName' => $old_meta_entry->getShortName(),
             'longName' => $old_meta_entry->getLongName(),
@@ -2548,12 +2520,13 @@ class ODRCustomController extends Controller
             'searchNotesLower' => $old_meta_entry->getSearchNotesLower(),
 
             'publicDate' => $old_meta_entry->getPublicDate(),
+
             'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
             'master_revision' => $old_meta_entry->getMasterRevision(),
             'tracking_master_revision' => $old_meta_entry->getTrackingMasterRevision(),
         );
 
-        // These Datafields entries can be null
+        // These datafield entries could be null to begin with
         if ( $old_meta_entry->getExternalIdField() !== null )
             $existing_values['externalIdField'] = $old_meta_entry->getExternalIdField()->getId();
         if ( $old_meta_entry->getNameField() !== null )
@@ -2565,18 +2538,21 @@ class ODRCustomController extends Controller
 
 
         foreach ($existing_values as $key => $value) {
-            if ( isset($properties[$key]) && $properties[$key] != $value )
+            // array_key_exists() is used because the datafield entries could legitimately be null
+            if ( array_key_exists($key, $properties) && $properties[$key] != $value )
                 $changes_made = true;
         }
 
-        // Need to do additional checking in case the mentioned datafields were null beforehand
-        if ( isset($properties['externalIdField']) && !($properties['externalIdField'] == null || $properties['externalIdField'] == -1) && $datatype->getExternalIdField() == null )
+        // Need to do an additional check incase the name/sort/etc datafields were originally null
+        //  and changed to point to a datafield.  Can use isset() here because the value in
+        //  $properties won't be null in this case
+        if ( !isset($existing_values['externalIdField']) && isset($properties['externalIdField']) )
             $changes_made = true;
-        if ( isset($properties['nameField']) && !($properties['nameField'] == null || $properties['nameField'] == -1) && $datatype->getNameField() == null )
+        if ( !isset($existing_values['nameField']) && isset($properties['nameField']) )
             $changes_made = true;
-        if ( isset($properties['sortField']) && !($properties['sortField'] == null || $properties['sortField'] == -1) && $datatype->getSortField() == null )
+        if ( !isset($existing_values['sortField']) && isset($properties['sortField']) )
             $changes_made = true;
-        if ( isset($properties['backgroundImageField']) && !($properties['backgroundImageField'] == null || $properties['backgroundImageField'] == -1) && $datatype->getBackgroundImageField() == null )
+        if ( !isset($existing_values['backgroundImageField']) && isset($properties['backgroundImageField']) )
             $changes_made = true;
 
         if (!$changes_made)
@@ -2608,26 +2584,26 @@ class ODRCustomController extends Controller
         if ( isset($properties['renderPlugin']) )
             $new_datatype_meta->setRenderPlugin( $em->getRepository('ODRAdminBundle:RenderPlugin')->find( $properties['renderPlugin'] ) );
 
-        if ( isset($properties['externalIdField']) ) {
-            if ($properties['externalIdField'] == null || $properties['externalIdField'] == -1)
+        if ( array_key_exists('externalIdField', $properties) ) {
+            if ( is_null($properties['externalIdField']) )
                 $new_datatype_meta->setExternalIdField(null);
             else
                 $new_datatype_meta->setExternalIdField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['externalIdField']) );
         }
-        if ( isset($properties['nameField']) ) {
-            if ($properties['nameField'] == null || $properties['nameField'] == -1)
+        if ( array_key_exists('nameField', $properties) ) {
+            if ( is_null($properties['nameField']) )
                 $new_datatype_meta->setNameField(null);
             else
                 $new_datatype_meta->setNameField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['nameField']) );
         }
-        if ( isset($properties['sortField']) ) {
-            if ($properties['sortField'] == null || $properties['sortField'] == -1)
+        if ( array_key_exists('sortField', $properties) ) {
+            if ( is_null($properties['sortField']) )
                 $new_datatype_meta->setSortField(null);
             else
                 $new_datatype_meta->setSortField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['sortField']) );
         }
-        if ( isset($properties['backgroundImageField']) ) {
-            if ($properties['backgroundImageField'] == null || $properties['backgroundImageField'] == -1)
+        if ( array_key_exists('backgroundImageField', $properties) ) {
+            if ( is_null($properties['backgroundImageField']) )
                 $new_datatype_meta->setBackgroundImageField(null);
             else
                 $new_datatype_meta->setBackgroundImageField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['backgroundImageField']) );
@@ -2666,7 +2642,7 @@ class ODRCustomController extends Controller
             if ($datatype->getGrandparent()->getId() != $datatype->getId()) {
                 $grandparent_datatype = $datatype->getGrandparent();
 
-                $gp_properties['master_revision'] = $grandparent_datatype->getDataTypeMeta()->getMasterRevision() + 1;
+                $gp_properties['master_revision'] = $grandparent_datatype->getMasterRevision() + 1;
                 self::ODR_copyDatatypeMeta($em, $user, $grandparent_datatype, $gp_properties);
             }
         }
@@ -2674,10 +2650,6 @@ class ODRCustomController extends Controller
         // Delete the old entry if needed
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
-
-        // Ensure the "in-memory" version of $datatype references the correct meta entry
-        $datatype->removeDataTypeMetum($old_meta_entry);
-        $datatype->addDataTypeMetum($new_datatype_meta);
 
         // Save the new meta entry
         $em->persist($new_datatype_meta);
@@ -2804,6 +2776,7 @@ class ODRCustomController extends Controller
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
+            // These entities can be set here since they're never null
             'fieldType' => $old_meta_entry->getFieldType()->getId(),
             'renderPlugin' => $old_meta_entry->getRenderPlugin()->getId(),
 
@@ -2917,15 +2890,10 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $datafield references the correct meta entry
-        $datafield->removeDataFieldMetum($old_meta_entry);
-        $datafield->addDataFieldMetum($new_datafield_meta);
 
-        // All metadata changes result in a new
-        // Data Field Master Published Revision.  Revision
-        // changes are picked up by derivative data types
-        // when the parent data type revision is changed.
-        if($datafield->getIsMasterField() > 0) {
+        // All metadata changes result in a new Data Field Master Published Revision.  Revision
+        // changes are picked up by derivative data types when the parent data type revision is changed.
+        if ($datafield->getIsMasterField() > 0) {
             $datatype = $datafield->getDataType();
             $properties['master_revision'] = $datatype->getDataTypeMeta()->getMasterRevision() + 1;
             self::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
@@ -3030,10 +2998,6 @@ class ODRCustomController extends Controller
         // Delete the old meta entry if needed
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
-
-        // Ensure the "in-memory" version of $theme references the correct meta entry
-        $theme->removeThemeMetum($old_meta_entry);
-        $theme->addThemeMetum($new_theme_meta);
 
         // Save the new meta entry
         $em->persist($new_theme_meta);
@@ -3158,10 +3122,6 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $theme_element references the correct meta entry
-        $theme_element->removeThemeElementMetum($old_meta_entry);
-        $theme_element->addThemeElementMetum($theme_element_meta);
-
         // Save the new meta entry
         $em->persist($theme_element_meta);
         $em->flush();
@@ -3221,6 +3181,7 @@ class ODRCustomController extends Controller
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
+            // This entity can be set here since it's never null
             'themeElement' => $theme_datafield->getThemeElement()->getId(),
 
             'displayOrder' => $theme_datafield->getDisplayOrder(),

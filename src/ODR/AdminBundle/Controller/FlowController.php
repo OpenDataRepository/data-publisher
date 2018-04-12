@@ -174,7 +174,11 @@ class FlowController extends ODRCustomController
             $user_id = $user->getId();
 
             // Ensure user has permissions to be doing this
-            if ($upload_type == 'csv' || $upload_type == 'xml') {
+            if ( $upload_type == 'csv'
+                || $upload_type == 'xml'
+                || $upload_type == 'csv_import_file_storage'
+                || $upload_type == 'xml_import_file_storage'
+            ) {
                 if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                     return self::flowAbort('Not allowed to upload csv/xml files for importing');
             }

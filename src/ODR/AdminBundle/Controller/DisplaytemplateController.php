@@ -1585,6 +1585,8 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -1642,8 +1644,25 @@ class DisplaytemplateController extends ODRCustomController
             }
 
 
-            // Update the cached version of the datatype...don't need to update any datarecords or themes
+            // Update the cached version of the datatype...
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
+
+            // Determine whether cached entries for table themes need to get deleted...
+            $typename = $datafield->getFieldType()->getTypeName();
+            if ($typename == 'Single Radio' || $typename == 'Single Select') {
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.dataType = :datatype_id AND dr.deletedAt IS NULL'
+                )->setParameters( array('datatype_id' => $datatype->getId()) );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    // Both of these cache entries need to get deleted so they can get rebuilt with the new radio option name
+                    $cache_service->delete('cached_datarecord_'.$result['dr_id']);
+                    $cache_service->delete('cached_table_data_'.$result['dr_id']);
+                }
+            }
         }
         catch (\Exception $e) {
             $source = 0xdf4e2574;
@@ -2818,29 +2837,31 @@ class DisplaytemplateController extends ODRCustomController
                         }
                     }
 
-
-                    // TODO - This really should use "clone" and be way simpler
+                    // Convert the submitted Form entity into an array of relevant properties
+                    // This should really only have properties listed in the UpdateDataTypeForm
                     $properties = array(
                         'renderPlugin' => $datatype->getRenderPlugin()->getId(),
 
-                        // These should technically be null, but isset() won't pick them up if they are...
-                        'externalIdField' => -1,
-                        'nameField' => -1,
-                        'sortField' => -1,
-                        'backgroundImageField' => -1,
+                        'externalIdField' => null,
+                        'nameField' => null,
+                        'sortField' => null,
+                        'backgroundImageField' => null,
 
                         'searchSlug' => $submitted_data->getSearchSlug(),
                         'shortName' => $submitted_data->getShortName(),
                         'longName' => $submitted_data->getLongName(),
                         'description' => $submitted_data->getDescription(),
-                        'xml_shortName' => $submitted_data->getXmlShortName(),
 
-                        'publicDate' => $submitted_data->getPublicDate(),
-                        'searchNotesLower' => $submitted_data->getSearchNotesLower(),
-                        'searchNotesUpper' => $submitted_data->getSearchNotesUpper()
+                        // These properties are changed through other routes at the moment
+//                        'publicDate' => $submitted_data->getPublicDate(),
+//                        'searchNotesLower' => $submitted_data->getSearchNotesLower(),
+//                        'searchNotesUpper' => $submitted_data->getSearchNotesUpper()
+
+                        // This property isn't accessible right now
+//                        'xml_shortName' => $submitted_data->getXmlShortName(),
                     );
 
-                    // These properties can be null...
+                    // These datafields are permitted to be null
                     if ( $submitted_data->getExternalIdField() !== null )
                         $properties['externalIdField'] = $submitted_data->getExternalIdField()->getId();
                     if ( $submitted_data->getNameField() !== null )
@@ -2850,11 +2871,10 @@ class DisplaytemplateController extends ODRCustomController
                     if ( $submitted_data->getBackgroundImageField() !== null )
                         $properties['backgroundImageField'] = $submitted_data->getBackgroundImageField()->getId();
 
-                    // Master Template Data Types must increment Master Revision
-                    // on all change requests.
-                    if($datatype->getIsMasterType() > 0) {
-                        $properties['master_revision'] = $datatype->getDataTypeMeta()->getMasterRevision() + 1;
-                    }
+                    // Master Template Data Types must increment Master Revision on all change requests.
+                    if ($datatype->getIsMasterType() > 0)
+                        $properties['master_revision'] = $datatype->getMasterRevision() + 1;
+
                     parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
 
                     // Master Template Data Types must increment parent master template
