@@ -4,7 +4,7 @@ odr_plugins.chemin.chemineea:
     version: 1.00
     override_fields: false
     override_child: true
-    description: Chemin EEA Plugin
+    description: Plugin to display Chemin EEA Data
     required_fields:
         eea_raw_csv:
             name: EEA Raw CSV

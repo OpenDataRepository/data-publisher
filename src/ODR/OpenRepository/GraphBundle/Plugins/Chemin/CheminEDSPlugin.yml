@@ -4,7 +4,7 @@ odr_plugins.chemin.chemineds:
     version: 1.00
     override_fields: false
     override_child: true
-    description: Chemin EDS Plugin
+    description: Plugin to display Chemin EDS Data
     required_fields:
         eds_raw_tiff_file:
             name: EDS Raw Tiff File

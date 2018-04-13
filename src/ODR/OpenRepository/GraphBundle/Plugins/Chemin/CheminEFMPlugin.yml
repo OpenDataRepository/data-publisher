@@ -4,7 +4,7 @@ odr_plugins.chemin.cheminefm:
     version: 1.00
     override_fields: false
     override_child: true
-    description: Chemin EFM Plugin
+    description: Plugin to display Chemin EFM Data
     required_fields:
         efm_raw_tiff_file:
             name: EFM Raw Tiff File

@@ -106,6 +106,15 @@ class CommentPlugin
                     $entity = array();
                     $drf = $dr['dataRecordFields'][$comment_datafield_id];
                     switch ($comment_datafield_typeclass) {
+                        case 'ShortVarchar':
+                            $entity = $drf['shortVarchar'];
+                            break;
+                        case 'MediumVarchar':
+                            $entity = $drf['mediumVarchar'];
+                            break;
+                        case 'LongVarchar':
+                            $entity = $drf['longVarchar'];
+                            break;
                         case 'LongText':
                             $entity = $drf['longText'];
                             break;

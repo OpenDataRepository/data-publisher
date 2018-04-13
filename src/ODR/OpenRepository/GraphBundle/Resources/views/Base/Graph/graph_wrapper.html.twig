@@ -31,11 +31,15 @@
 
 {% endif %}
 
+{% if is_top_level == 1 %}
+    <div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
+{% endif %}
+
 {# Need to present rollup version separately from the accordion header area. #}
 {% if plugin_options.use_rollup is defined and plugin_options.use_rollup == "yes" %}
 
     {% set graph_datarecord_id = '' %}
-    <div class="{{ content_div_class_str }}">
+    <div class="ODRGraphSpacer {{ content_div_class_str }}">
         {% include "ODRAdminBundle:Default:fieldarea_header.html.twig" with {
             'datatype': datatype,
             'datarecord_list': datarecord_array,
@@ -76,10 +80,18 @@
         {% include "ODRAdminBundle:Default:fieldarea_footer.html.twig" with {"display_type": display_type} %}
     </div>
 
-    <div class="{{ graph_div_class_str }}">
+    <div class="ODRGraphSpacer {{ graph_div_class_str }}">
         {% if odr_chart_files|length > 0 %}
             {# For rollup, any datarecord id in the group can be used since the parent datarecord will be retrieved and all children for plotting. #}
             {% set rollup_id = 'rollup_' ~ graph_datarecord_id %}
+
+            {% if is_top_level == 1 %}
+            <div class="ODRFormAccordion">
+                <div class="ODRFieldArea">
+                    <div class="ODRThemeElement">
+                        <div class="ODRInnerBox">
+            {% endif %}
+
             {% include "ODROpenRepositoryGraphBundle:Base:Graph/graph.html.twig" with {
                 'render_plugin': render_plugin,
                 'plugin_options': plugin_options,
@@ -97,10 +109,19 @@
                 'odr_chart_files': odr_chart_files,
                 'odr_chart_output_files': odr_chart_output_files
             } %}
+
+            {% if is_top_level == 1 %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
         {% endif %}
     </div>
 
 {% else %}
+
     {# NOT (if plugin_options.use_rollup is defined and plugin_options.use_rollup == "yes") #}
     {% include "ODRAdminBundle:Default:fieldarea_header.html.twig" with {
         'datatype': datatype,
@@ -122,7 +143,7 @@
 
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
 
-            <div class="{{ content_div_class_str }}">
+            <div class="ODRGraphSpacer {{ content_div_class_str }}">
                 {% include "ODRAdminBundle:Display:display_fieldarea.html.twig" with {
                     'datatype_array': datatype_array,
                     'datarecord': datarecord,
@@ -139,8 +160,14 @@
                 } %}
             </div>
 
-            <div class="{{ graph_div_class_str }}">
+            <div class="ODRGraphSpacer {{ graph_div_class_str }}">
                 {% if odr_chart_files|length > 0 and odr_chart_ids[datarecord.id] is defined %}
+
+                    {% if is_top_level == 1 %}
+                    <div class="ODRThemeElement">
+                        <div class="ODRInnerBox">
+                    {% endif %}
+
                     {% include "ODROpenRepositoryGraphBundle:Base:Graph/graph.html.twig" with {
                         'render_plugin': render_plugin,
                         'plugin_options': plugin_options,
@@ -158,6 +185,12 @@
                         'odr_chart_files': odr_chart_files,
                         'odr_chart_output_files': odr_chart_output_files
                     } %}
+
+                    {% if is_top_level == 1 %}
+                        </div>
+                    </div>
+                    {% endif %}
+
                 {% endif %}
             </div>
         </div><!-- End of #FieldArea_{{ datarecord.id }} -->
@@ -165,6 +198,10 @@
 
     {% include "ODRAdminBundle:Default:fieldarea_footer.html.twig" with {"display_type": display_type} %}
 
+{% endif %}
+
+{% if is_top_level == 1 %}
+    </div><!-- end of #DataType_{{ datatype.id }} -->
 {% endif %}
 
 {% endspaceless %}

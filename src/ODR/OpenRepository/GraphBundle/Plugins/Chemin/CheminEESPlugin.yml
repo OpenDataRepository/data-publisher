@@ -1,10 +1,10 @@
-odr_plugins.chemin.cheminedes:
+odr_plugins.chemin.cheminees:
     name: Chemin EES Plugin
     datatype: true
     version: 1.00
     override_fields: false
     override_child: true
-    description: Chemin EES Plugin
+    description: Plugin to display Chemin EES Data
     required_fields:
         ees_raw_csv:
             name: EES Raw CSV

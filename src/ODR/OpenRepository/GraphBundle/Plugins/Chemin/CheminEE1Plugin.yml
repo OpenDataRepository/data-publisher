@@ -4,7 +4,7 @@ odr_plugins.chemin.cheminee1:
     version: 1.00
     override_fields: false
     override_child: true
-    description: Chemin EE1 Plugin
+    description: Plugin to display Chemin EE1 Data
     required_fields:
         ee1_csv_file:
             name: EE1 Processed CSV

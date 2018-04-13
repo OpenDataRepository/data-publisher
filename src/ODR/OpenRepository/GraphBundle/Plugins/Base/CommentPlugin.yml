@@ -4,20 +4,10 @@ odr_plugins.base.comment:
     version: 1.00
     override_fields: true
     override_child: true
-    description: Comments may be placed in any group box in the record.  Comment plugins may be used multiple times per record and can be for specific sections or sub-sections of a record.
+    description: This RenderPlugin turns all records of a child Datatype into a table, displaying the contents of the Comment field, who entered it, and when.  Ideally existing comment records would not be editable, but there's no way to enforce that at the moment.
     required_fields:
         comment:
             name: Comment
             description: Enter comments here.
-            type: LongText
-#        public:
-#            name: Public
-#            description: Allow comment to be displayed to the general public?
-#            type: Boolean
+            type: LongText|ShortVarchar|MediumVarchar|LongVarchar
     config_options:
-#        public_display:
-#            name: Allow public display
-#            type: string
-#            default: yes
-#            choices: yes||Yes,no||No
-#            description: Display comments that are marked public on the record result page.

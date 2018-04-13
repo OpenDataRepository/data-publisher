@@ -172,6 +172,14 @@ class GraphPlugin
                 $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
                 if ( isset($dr['dataRecordFields'][$graph_datafield_id]) ) {
                     foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
+
+                        if ( $file_num > 0 ) {
+                            $df_name = $datafield_mapping['graph_file']['datafield']['dataFieldMeta']['fieldName'];
+                            $file_count = count( $dr['dataRecordFields'][$graph_datafield_id]['file'] );
+
+                            throw new \Exception('The Graph Plugin can only handle a single uploaded file per datafield, but the Datafield "'.$df_name.'" has '.$file_count.' uploaded files.');
+                        }
+
                         // File ID list is used only by rollup
                         $odr_chart_file_ids[] = $file['id'];
 

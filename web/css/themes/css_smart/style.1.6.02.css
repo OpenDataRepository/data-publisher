@@ -69,6 +69,8 @@ input,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
 .ODRResults > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
 .ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
+.ODRResults > .ODRDataType > .ODRGraphSpacer > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,  /* rollup graph */
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRGraphSpacer > .ODRThemeElement > .ODRInnerBox,  /* not-rollup graph */
 .ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox {
     border: 1px solid #7fb9d8;
     box-sizing:border-box;
@@ -85,7 +87,9 @@ input,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement,
 .ODRResults > .ODRDataType > .ODRFieldArea > .ODRThemeElement,
 .ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,
-.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement  {
+.ODRResults > .ODRDataType > .ODRGraphSpacer > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,  /* rollup graph */
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRGraphSpacer > .ODRThemeElement,  /* not-rollup graph */
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement {
     /* border: 1px solid #7fb9d8; */
     box-sizing:border-box;
     -moz-box-sizing:border-box;

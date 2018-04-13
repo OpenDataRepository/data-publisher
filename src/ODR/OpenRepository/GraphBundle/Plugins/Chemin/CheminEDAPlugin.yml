@@ -4,7 +4,7 @@ odr_plugins.chemin.chemineda:
     version: 1.00
     override_fields: false
     override_child: true
-    description: Chemin EDA Plugin
+    description: Plugin to display Chemin EDA Data
     required_fields:
         eda_tiff_file:
             name: EDA Tiff File
