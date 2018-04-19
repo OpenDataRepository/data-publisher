@@ -31,6 +31,13 @@ services:
 #            templating: "@templating"
 #            logger: "@logger"
 
+    odr_plugins.base.map:
+        class: %odr_plugin_base_classpath%\Base\MapPlugin
+        arguments:
+            templating: "@templating"
+            token_generator: "@fos_user.util.token_generator"
+            config_options: "%google_maps_config%"
+
 
     # Datafield plugins
     odr_plugins.base.chemistry:
