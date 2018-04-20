@@ -218,7 +218,7 @@ class DisplaytemplateController extends ODRCustomController
                 $properties['sortField'] = null;
 
                 // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
-                $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
+                $dti_service->resetDatatypeSortOrder($datatype->getId());
             }
 
             // Ensure that the datatype doesn't continue to think this datafield is its background image field
@@ -2892,7 +2892,7 @@ class DisplaytemplateController extends ODRCustomController
                     // ----------------------------------------
                     // If the sort datafield changed, then cached search results need to be updated as well
                     if ($update_sort_order) {
-                        $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
+                        $dti_service->resetDatatypeSortOrder($datatype->getId());
                         $search_cache_service->clearByDatatypeId($datatype->getId());
                     }
                 }

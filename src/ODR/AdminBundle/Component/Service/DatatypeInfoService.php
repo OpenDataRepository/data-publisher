@@ -42,6 +42,11 @@ class DatatypeInfoService
     private $cache_service;
 
     /**
+     * @var string
+     */
+    private $odr_web_dir;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -52,15 +57,18 @@ class DatatypeInfoService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param string $odr_web_dir
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->odr_web_dir = $odr_web_dir;
         $this->logger = $logger;
     }
 
@@ -853,5 +861,35 @@ class DatatypeInfoService
         // Child datatypes don't have their own cached entries, it's all contained within the
         //  cache entry for their top-level datatype
         $this->cache_service->delete('cached_datatype_'.$dt->getId());
+    }
+
+
+    /**
+     * Should be called whenever the sort order of datarecords within a datatype changes.
+     *
+     * @param int $datatype_id
+     */
+    public function resetDatatypeSortOrder($datatype_id)
+    {
+        // Delete the cached
+        $this->cache_service->delete('datatype_'.$datatype_id.'_record_order');
+
+        // DisplaytemplateController::datatypepropertiesAction() currently handles deleting of cached
+        //  datarecord entries when the sort datafield is changed...
+
+
+        // Also, delete any pre-rendered graph images for this datatype so they'll be rebuilt with
+        //  the legend order matching the new datarecord order
+        $graph_filepath = $this->odr_web_dir.'/uploads/files/graphs/datatype_'.$datatype_id.'/';
+        if ( file_exists($graph_filepath) ) {
+            $files = scandir($graph_filepath);
+            foreach ($files as $filename) {
+                // TODO - assumes linux?
+                if ($filename === '.' || $filename === '..')
+                    continue;
+
+                unlink($graph_filepath.'/'.$filename);
+            }
+        }
     }
 }

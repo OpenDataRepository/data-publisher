@@ -452,6 +452,9 @@ class DatarecordInfoService
                                 $datarecord_data[$dr_num]['sortField_value'] = $drf[$typeclass][0]['value']->format('Y-m-d');
                             else
                                 $datarecord_data[$dr_num]['sortField_value'] = $drf[$typeclass][0]['value'];
+
+                            // Also store the typeclass...Integer/Decimal need to use SORT_NUMERIC instead of SORT_NATURAL...
+                            $datarecord_data[$dr_num]['sortField_typeclass'] = ucfirst($typeclass);
                         }
                     }
                 }
@@ -491,8 +494,10 @@ class DatarecordInfoService
             // These two values should default to the datarecord id if empty
             if ( $dr_data['nameField_value'] == '' )
                 $dr_data['nameField_value'] = $dr_id;
-            if ( $dr_data['sortField_value'] == '' )
+            if ( $dr_data['sortField_value'] == '' ) {
                 $dr_data['sortField_value'] = $dr_id;
+                $dr_data['sortField_typeclass'] = '';
+            }
 
             $formatted_datarecord_data[$dr_id] = $dr_data;
         }

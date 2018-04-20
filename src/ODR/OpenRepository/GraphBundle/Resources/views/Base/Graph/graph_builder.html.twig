@@ -41,9 +41,12 @@
     <script type="text/javascript">
         $(function() {
             window.WebFontConfig = {
-                google: { families: [ 'PT Sans:400,700' ] },
-                active: function(){ $(window).trigger('fontsloaded') }
-       });
+                google: {families: ['PT Sans:400,700']},
+                active: function () {
+                    $(window).trigger('fontsloaded')
+                }
+            }
+        });
     </script>
 
     <!-- Plot.ly JS Plots Based on D3 -->
@@ -64,111 +67,100 @@
 
 {% spaceless %}
 
-    {# Create a dynamic or static graph - either rollup or individual #}
+{# Create a dynamic or static graph - either rollup or individual #}
+{% set datatype = datatype_array[target_datatype_id] %}
 
-    {% set datatype = datatype_array[target_datatype_id] %}
-
-    {% if odr_chart_legend|length %}
-
+{% if odr_chart_legend|length %}
     <div class="pure-u-1 DynamicGraphs">
         <div id="{{ odr_chart_id }}_Dynamic_GraphWrapper" style="width: {{ plugin_options.graph_width }}px; height: {{  plugin_options.graph_height }}px">
             {% if odr_chart_files|length %}
-                <div id='{{ odr_chart_id }}' class="ODRGraph ODRDynamicGraph pure-u-1"  style="width: {{ plugin_options.graph_width }}px; height: {{  plugin_options.graph_height }}px">
-                </div><!-- end of .ODRGraph -->
+                <div id='{{ odr_chart_id }}' class="ODRGraph ODRDynamicGraph pure-u-1"  style="width: {{ plugin_options.graph_width }}px; height: {{  plugin_options.graph_height }}px"></div><!-- end of .ODRGraph -->
             {% endif %}
         </div><!-- end of .DynamicGraph Wrapper -->
     </div><!-- end of .DynamicGraphs -->
-    {% endif %}
+{% endif %}
 
-    <script type="text/javascript">
+<script type="text/javascript">
+    // Used to track active plots for resizing
+    // Why is this not cleared every time?
+    var page_plots = [];
 
-        // Used to track active plots for resizing
-        // Why is this not cleared every time?
-        var page_plots = []
-        jQuery(function() {
+    jQuery(function() {
+        // Plot the chart
+        window['SetupGraphs_{{ odr_chart_id }}']();
+    });
 
-            // Plot the chart
-            window['SetupGraphs_{{ odr_chart_id }}']();
+    if (!window.ODRChart) {
+        function ODRChart(graph_type) {
+            this.chart_id = "";
 
-        });
-
-        if(!window.ODRChart) {
-            function ODRChart(graph_type) {
-                this.chart_id = "";
-
-                this.GraphData = function (chart_obj) {
-                    /* These lines are all chart setup.  Pick and choose which chart features ou want to utilize. */
-                    switch (graph_type) {
-                        case "line":
-                            return lineChartGenerator(chart_obj, preparePlotlyStatic);
-                            break;
-                        case "xy":
-                            return lineChartPlotly(chart_obj, preparePlotlyStatic)
-                        case "bar":
-                            return barChartPlotly(chart_obj, preparePlotlyStatic)
-                        case "histogram":
-                            return histogramChartPlotly(chart_obj, preparePlotlyStatic)
-                            break;
-                        case "starea":
-                            break;
-                        case "sgbar":
-                            break;
-                        case "cline":
-                            break;
-                        case "lineerror":
-                            return lineerrorChartPlotly(chart_obj, preparePlotlyStatic)
-                        case "piechart":
-                            return pieChartPlotly(chart_obj, preparePlotlyStatic)
-                        default:
-                            break;
-                    }
+            this.GraphData = function (chart_obj) {
+                /* These lines are all chart setup.  Pick and choose which chart features ou want to utilize. */
+                switch (graph_type) {
+                    case "line":
+                        return lineChartGenerator(chart_obj, preparePlotlyStatic);
+                    case "xy":
+                        return lineChartPlotly(chart_obj, preparePlotlyStatic);
+                    case "bar":
+                        return barChartPlotly(chart_obj, preparePlotlyStatic);
+                    case "histogram":
+                        return histogramChartPlotly(chart_obj, preparePlotlyStatic);
+                    case "starea":
+                        break;
+                    case "sgbar":
+                        break;
+                    case "cline":
+                        break;
+                    case "lineerror":
+                        return lineerrorChartPlotly(chart_obj, preparePlotlyStatic);
+                    case "piechart":
+                        return pieChartPlotly(chart_obj, preparePlotlyStatic);
+                    default:
+                        break;
                 }
             }
         }
+    }
 
-        var SetupGraphs_{{ odr_chart_id }} = function() {
-            // Should we just be sending a JSON Object in the first place
-            if(!{{ odr_chart_id }}_initialized) {
-                {{ odr_chart_id }}_initialized = true;
+    var SetupGraphs_{{ odr_chart_id }} = function() {
+        // Should we just be sending a JSON Object in the first place
+        if (!{{ odr_chart_id }}_initialized) {
+            {{ odr_chart_id }}_initialized = true;
 
-                // If not ODRChart - load class
-                var odr_chart_{{ odr_chart_id }} = new ODRChart('{{ plugin_options.graph_type }}');
+            // If not ODRChart - load class
+            var odr_chart_{{ odr_chart_id }} = new ODRChart('{{ plugin_options.graph_type }}');
 
-                // Set the chart id
-                odr_chart_{{ odr_chart_id }}.chart_id = '{{ odr_chart_id }}';
-                odr_chart_{{ odr_chart_id }}.data_files = []
+            // Set the chart id
+            odr_chart_{{ odr_chart_id }}.chart_id = '{{ odr_chart_id }}';
+            odr_chart_{{ odr_chart_id }}.data_files = [];
 
-                // Set the file download URL (static path)
-                var file_url = "../../";
+            // Set the file download URL (static path)
+            var file_url = "../../";
 
-                // Build array of file data
-                var file = "";
-                {% for dr_id, file in odr_chart_files %}
-                file = '{{ file.localFileName }}';
-                if(file != "") {
-                    {% for mydr_id, legend in odr_chart_legend %}
-                        {% if mydr_id == dr_id %}
-                            // Use Static File Path
-                            odr_chart_{{ odr_chart_id }}.data_files[{{ dr_id }}] = { "url": file_url + file, "legend": "{{ legend }}"};
-                        {% endif %}
-                    {% endfor %}
-                }
+            // Build array of file data
+            {% for dr_id, file in odr_chart_files %}
+            var file = '{{ file.localFileName }}';
+            if (file != "") {
+                {% for mydr_id, legend in odr_chart_legend %}
+                    {% if mydr_id == dr_id %}
+                        // Use Static File Path
+                        {% set sort_order = datarecord_sortvalues[dr_id] %}
+                        odr_chart_{{ odr_chart_id }}.data_files[{{ sort_order }}] = { "url": file_url + file, "legend": "{{ legend }}", "dr_id": {{ dr_id }} };
+                    {% endif %}
                 {% endfor %}
-
-                // Map remaining options to chart
-                {% for o_name, o_value in plugin_options %}
-                odr_chart_{{ odr_chart_id }}['{{ o_name }}'] = '{{ o_value }}';
-                {% endfor %}
-
-                // Plot selected graph
-                odr_chart_{{ odr_chart_id }}.GraphData(odr_chart_{{ odr_chart_id }});
-
             }
+            {% endfor %}
+
+            // Map remaining options to chart
+            {% for o_name, o_value in plugin_options %}
+            odr_chart_{{ odr_chart_id }}['{{ o_name }}'] = '{{ o_value }}';
+            {% endfor %}
+
+            // Plot selected graph
+            odr_chart_{{ odr_chart_id }}.GraphData(odr_chart_{{ odr_chart_id }});
         }
+    };
 
-        var {{ odr_chart_id }}_initialized = false;
-
-    </script>
-
-
+    var {{ odr_chart_id }}_initialized = false;
+</script>
 {% endspaceless %}

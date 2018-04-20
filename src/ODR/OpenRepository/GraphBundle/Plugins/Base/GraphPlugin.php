@@ -112,35 +112,42 @@ class GraphPlugin
                 $datafield_mapping[$key] = array('datafield' => $df);
             }
 
+            // Need to sort by the datarecord's sort value if possible
+            $datarecord_sortvalues = array();
+            $sort_typeclass = '';
 
             $legend_values['rollup'] = 'Combined Chart';
             foreach ($datarecords as $dr_id => $dr) {
+                // Store sort values for later...
+                $datarecord_sortvalues[$dr_id] = $dr['sortField_value'];
+                $sort_typeclass = $dr['sortField_typeclass'];
+
+                // Locate the value for the Pivot Field if possible
                 $legend_datafield_id = $datafield_mapping['pivot_field']['datafield']['id'];
                 $legend_datafield_typeclass = $datafield_mapping['pivot_field']['datafield']['dataFieldMeta']['fieldType']['typeClass'];
 
                 $entity = array();
-                // Check if Pivot Field is set
                 if(isset($dr['dataRecordFields'][$legend_datafield_id])) {
 
                     $drf = $dr['dataRecordFields'][$legend_datafield_id];
                     switch ($legend_datafield_typeclass) {
                         case 'IntegerValue':
-                            if(isset($drf['integerValue'])) {
+                            if (isset($drf['integerValue'])) {
                                 $entity = $drf['integerValue'];
                             }
                             break;
                         case 'ShortVarchar':
-                            if(isset($drf['shortVarchar'])) {
+                            if (isset($drf['shortVarchar'])) {
                                 $entity = $drf['shortVarchar'];
                             }
                             break;
                         case 'MediumVarchar':
-                            if(isset($drf['mediumVarchar'])) {
+                            if (isset($drf['mediumVarchar'])) {
                                 $entity = $drf['mediumVarchar'];
                             }
                             break;
                         case 'LongVarchar':
-                            if(isset($drf['longVarchar'])) {
+                            if (isset($drf['longVarchar'])) {
                                 $entity = $drf['longVarchar'];
                             }
                             break;
@@ -158,14 +165,28 @@ class GraphPlugin
                 }
             }
 
+            // Sort datarecords by their sortvalue
+            $flag = SORT_NATURAL;
+            if ($sort_typeclass == 'IntegerValue' ||
+                $sort_typeclass == 'DecimalValue' ||
+                $sort_typeclass == ''   // if empty string, sort values will be datarecord ids
+            ) {
+                $flag = SORT_NUMERIC;
+            }
 
+            asort($datarecord_sortvalues, $flag);
+            $datarecord_sortvalues = array_flip( array_keys($datarecord_sortvalues) );
+
+
+            // ----------------------------------------
             // Initialize arrays
             $odr_chart_ids = array();
-            $odr_chart_file_names = array();
             $odr_chart_file_ids = array();
             $odr_chart_files = array();
             $odr_chart_output_files = array();
             // We must create all file names if not using rollups
+
+            $datatype_folder = '';
 
             // Or create rollup name for rollup chart
             foreach ($datarecords as $dr_id => $dr) {
@@ -180,11 +201,11 @@ class GraphPlugin
                             throw new \Exception('The Graph Plugin can only handle a single uploaded file per datafield, but the Datafield "'.$df_name.'" has '.$file_count.' uploaded files.');
                         }
 
+                        if ($datatype_folder === '')
+                            $datatype_folder = 'datatype_'.$dr['dataType']['id'].'/';
+
                         // File ID list is used only by rollup
                         $odr_chart_file_ids[] = $file['id'];
-
-                        // TODO - Possibly still used by system to download data - possibly redundant with file records DEPRECATED
-                        $odr_chart_file_names[$dr_id] = $file['localFileName'];
 
                         // This is the master data used to graph
                         $odr_chart_files[$dr_id] = $file;
@@ -200,10 +221,17 @@ class GraphPlugin
                         // whenever a new chart is created.  This UUID should be unique
                         // to each file version to prevent scraping of data.
                         $filename = 'Chart__' . $file['id'] . '_' . $max_option_date . '.svg';
-                        $odr_chart_output_files[$dr_id] = '/uploads/files/graphs/' . $filename;
+                        $odr_chart_output_files[$dr_id] = '/uploads/files/graphs/'.$datatype_folder.$filename;
                     }
                 }
             }
+
+            if ($datatype_folder === '')
+                throw new \Exception('Datatype folder is blank?');
+
+            //
+            if ( !file_exists($this->odr_web_directory.'/uploads/files/graphs/'.$datatype_folder) )
+                mkdir($this->odr_web_directory.'/uploads/files/graphs/'.$datatype_folder);
 
             // Rollup related calculations
             $file_id_list = implode('_', $odr_chart_file_ids);
@@ -215,7 +243,7 @@ class GraphPlugin
 
             // Add a rollup chart
             $odr_chart_ids['rollup'] = $odr_chart_id;
-            $odr_chart_output_files['rollup'] = '/uploads/files/graphs/' . $filename;
+            $odr_chart_output_files['rollup'] = '/uploads/files/graphs/'.$datatype_folder.$filename;
 
 
             // ----------------------------------------
@@ -245,11 +273,11 @@ class GraphPlugin
                 'odr_chart_ids' => $odr_chart_ids,
                 'odr_chart_legend' => $legend_values,
                 'odr_chart_file_ids' => $odr_chart_file_ids,
-                'odr_chart_file_names' => $odr_chart_file_names,
                 'odr_chart_files' => $odr_chart_files,
-                'odr_chart_output_files' => $odr_chart_output_files
-            );
+                'odr_chart_output_files' => $odr_chart_output_files,
 
+                'datarecord_sortvalues' => $datarecord_sortvalues,
+            );
 
             if ( isset($rendering_options['build_graph']) ) {
                 // Determine file name
@@ -320,7 +348,6 @@ class GraphPlugin
                         $page_data['odr_chart_id'] = $odr_chart_ids[$dr_id];
 
                         $page_data['odr_chart_file_ids'] = array($file['id']);
-                        $page_data['odr_chart_file_names'] = array($dr_id => $file['localFileName']);
                         $page_data['odr_chart_files'] = array($dr_id => $file);
 
                         $filename = 'Chart__'.$file['id'].'_'.$max_option_date.'.svg';
@@ -375,19 +402,21 @@ class GraphPlugin
         $files_path = $this->odr_web_directory.'/uploads/files/';
         $fs = new \Symfony\Component\Filesystem\Filesystem();
 
-        //The HTML file that generates the svg graph that will be saved to the server by Phantomjs.
+        // The HTML file that generates the svg graph that will be saved to the server by Phantomjs.
         //TODO Make paths relative
         $output1 = $this->templating->render(
             'ODROpenRepositoryGraphBundle:Base:Graph/graph_builder.html.twig', $page_data
         );
         $fs->dumpFile($files_path . "Chart__" . $file_id_list . '.html', $output1);
 
+        $datatype_folder = 'datatype_'.$page_data['target_datatype_id'].'/';
+
         // Temporary output file masked by UUIDv4 (random)
         // TODO - Create cleaner to remove masked_files from /tmp
         $output_tmp_svg = "/tmp/graph_" . Uuid::uuid4()->toString();
-        $output_svg = $files_path . "graphs/" . $filename;
+        $output_svg = $files_path.'graphs/'.$datatype_folder.$filename;
 
-        //JSON data to be passed to the phantom js server
+        // JSON data to be passed to the phantom js server
         $json_data = array(
             "data" => array(
                 'URL' => $files_path . "Chart__" . $file_id_list . '.html',
@@ -420,7 +449,7 @@ class GraphPlugin
 
             // Remove the HTML file
             unlink($files_path . "Chart__" . $file_id_list . '.html');
-            return '/uploads/files/graphs/'.$filename;
+            return '/uploads/files/graphs/'.$datatype_folder.$filename;
         }
         else {
             if ( strlen($output_svg) > 40 ) {

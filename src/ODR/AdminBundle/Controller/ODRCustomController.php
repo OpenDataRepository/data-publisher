@@ -972,6 +972,7 @@ class ODRCustomController extends Controller
         // Save the new meta entry
         $em->persist($new_group_meta);
         $em->flush();
+        $em->refresh($group);
 
         // Return the new entry
         return $new_group_meta;
@@ -1400,6 +1401,7 @@ class ODRCustomController extends Controller
 
         $em->persist($new_datarecord_meta);
         $em->flush();
+        $em->refresh($datarecord);
 
         // Return the new entry
         return $new_datarecord_meta;
@@ -1512,6 +1514,7 @@ class ODRCustomController extends Controller
 
         $em->persist($new_datatree_meta);
         $em->flush();
+        $em->refresh($datatree);
 
         // Return the new entry
         return $new_datatree_meta;
@@ -2074,6 +2077,7 @@ class ODRCustomController extends Controller
 
         $em->persist($new_file_meta);
         $em->flush();
+        $em->refresh($file);
 
         // Return the new entry
         return $new_file_meta;
@@ -2158,6 +2162,7 @@ class ODRCustomController extends Controller
 
         $em->persist($new_image_meta);
         $em->flush();
+        $em->refresh($image);
 
         // Return the new entry
         return $new_image_meta;
@@ -2366,6 +2371,7 @@ class ODRCustomController extends Controller
         // Save the new meta entry
         $em->persist($new_radio_option_meta);
         $em->flush();
+        $em->refresh($radio_option);
 
         // Master Template Data Fields must increment Master Revision
         // on all change requests.
@@ -2654,6 +2660,7 @@ class ODRCustomController extends Controller
         // Save the new meta entry
         $em->persist($new_datatype_meta);
         $em->flush();
+        $em->refresh($datatype);
 
         // Return the new entry
         return $new_datatype_meta;
@@ -2885,6 +2892,7 @@ class ODRCustomController extends Controller
         //Save the new meta entry
         $em->persist($new_datafield_meta);
         $em->flush();
+        $em->refresh($datafield);
 
         // Delete the old meta entry if necessary
         if ($remove_old_entry)
@@ -3002,6 +3010,7 @@ class ODRCustomController extends Controller
         // Save the new meta entry
         $em->persist($new_theme_meta);
         $em->flush();
+        $em->refresh($theme);
 
         // Return the new entry
         return $new_theme_meta;
@@ -3125,6 +3134,7 @@ class ODRCustomController extends Controller
         // Save the new meta entry
         $em->persist($theme_element_meta);
         $em->flush();
+        $em->refresh($theme_element);
 
         // Return the meta entry
         return $theme_element_meta;

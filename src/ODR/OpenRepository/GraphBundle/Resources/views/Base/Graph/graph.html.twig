@@ -26,16 +26,14 @@
 
     <div class="pure-u-1 StaticGraphs">
         <div id="{{ odr_chart_id }}_Static_GraphWrapper" class="ODRStaticGraphWrapper">
-            {% if odr_chart_output_files|length %}
-                {% for dr_id, file_name in odr_chart_output_files %}
-                    {% if dr_id == target_datarecord_id or (target_datarecord_id matches '{^rollup}' and dr_id == "rollup") %}
+            {% for dr_id, file_name in odr_chart_output_files %}
+                {% if dr_id == target_datarecord_id or (target_datarecord_id matches '{^rollup}' and dr_id == "rollup") %}
                     <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1">
                         <img class="pure-u-1" src="{{ path('odr_plugin_graph_static', { 'plugin_id': render_plugin.id, 'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id } ) }}.svg?nocache=1" />
                         <div class="ODRChartTrigger"><span>Click to switch to interactive charts.</span></div>
                     </div><!-- end of .ODRGraph -->
-                    {% endif %}
-                {% endfor %}
-            {% endif %}
+                {% endif %}
+            {% endfor %}
         </div><!-- end of #{{ odr_chart_id }}_Static_GraphWrapper -->
     </div><!-- end of .StaticGraphs -->
 {% endif %}
@@ -47,14 +45,13 @@
 var page_plots = [];
 jQuery(function() {
 
-
     window.onresize = function() {
         waitForFinalEvent(function() {
             for(var x in page_plots) {
                 Plotly.Plots.resize(page_plots[x]);
             }
         }, 500, "plotly_window_resize")
-    }
+    };
 
     $(".StaticGraphs").unbind('click').click(function() {
         var parent = $(this).parent();
@@ -64,33 +61,30 @@ jQuery(function() {
         var chart_id = $(parent).find('.ODRDynamicGraph').attr('id');
         window['SetupGraphs_' + chart_id]();
     });
-
-    /*
+{#
     $(".DynamicGraphs").unbind('click').click(function() {
         var parent = $(this).parent()
         $(this).hide()
         $(parent).find('.StaticGraphs').show()
     });
-    */
-
+#}
 });
 
-if(!window.ODRChart) {
+if (!window.ODRChart) {
     function ODRChart(graph_type) {
         this.chart_id = "";
 
         this.GraphData = function (chart_obj) {
-            /* These lines are all chart setup.  Pick and choose which chart features ou want to utilize. */
+            /* These lines are all chart setup.  Pick and choose which chart features you want to utilize. */
             switch (graph_type) {
                 case "line":
                     return lineChartGenerator(chart_obj, clearPlotlyBars);
                 case "xy":
-                    return lineChartPlotly(chart_obj, clearPlotlyBars)
+                    return lineChartPlotly(chart_obj, clearPlotlyBars);
                 case "bar":
-                    return barChartPlotly(chart_obj, clearPlotlyBars)
+                    return barChartPlotly(chart_obj, clearPlotlyBars);
                 case "histogram":
-                    return histogramChartPlotly(chart_obj, clearPlotlyBars)
-                    break;
+                    return histogramChartPlotly(chart_obj, clearPlotlyBars);
                 case "starea":
                     break;
                 case "sgbar":
@@ -98,9 +92,9 @@ if(!window.ODRChart) {
                 case "cline":
                     break;
                 case "lineerror":
-                    return lineerrorChartPlotly(chart_obj, clearPlotlyBars)
+                    return lineerrorChartPlotly(chart_obj, clearPlotlyBars);
                 case "piechart":
-                    return pieChartPlotly(chart_obj, clearPlotlyBars)
+                    return pieChartPlotly(chart_obj, clearPlotlyBars);
                 default:
                     break;
             }
@@ -110,7 +104,7 @@ if(!window.ODRChart) {
 
 var SetupGraphs_{{ odr_chart_id }} = function() {
     // Should we just be sending a JSON Object in the first place
-    if(!{{ odr_chart_id }}_initialized) {
+    if (!{{ odr_chart_id }}_initialized) {
         {{ odr_chart_id }}_initialized = true;
 
         // If not ODRChart - load class
@@ -118,7 +112,7 @@ var SetupGraphs_{{ odr_chart_id }} = function() {
 
         // Set the chart id
         odr_chart_{{ odr_chart_id }}.chart_id = '{{ odr_chart_id }}';
-        odr_chart_{{ odr_chart_id }}.data_files = []
+        odr_chart_{{ odr_chart_id }}.data_files = [];
 
         // Set the file download URL
         var file_url = "{{ path('odr_file_download', {'file_id': '0'}) }}";
@@ -128,10 +122,11 @@ var SetupGraphs_{{ odr_chart_id }} = function() {
         {% for dr_id, file in odr_chart_files %}
             {% if dr_id == target_datarecord_id or target_datarecord_id matches '{^rollup}' %}
             var file = '{{ file.id }}';
-            if(file != "") {
+            if (file != "") {
                 {% for mydr_id, legend in odr_chart_legend %}
                     {% if mydr_id == dr_id %}
-                        odr_chart_{{ odr_chart_id }}.data_files[{{ dr_id }}] = { "url": file_url + file, "legend": "{{ legend }}"};
+                        {% set sort_order = datarecord_sortvalues[dr_id] %}
+                        odr_chart_{{ odr_chart_id }}.data_files[{{ sort_order }}] = { "url": file_url + file, "legend": "{{ legend }}", "dr_id": {{ dr_id }} };
                     {% endif %}
                 {% endfor %}
             }
@@ -146,11 +141,9 @@ var SetupGraphs_{{ odr_chart_id }} = function() {
         // Plot selected graph
         odr_chart_{{ odr_chart_id }}.GraphData(odr_chart_{{ odr_chart_id }});
     }
-}
+};
 
 var {{ odr_chart_id }}_initialized = false;
 
 </script>
-
-
 {% endspaceless %}

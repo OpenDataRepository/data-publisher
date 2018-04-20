@@ -90,26 +90,30 @@ var preparePlotlyStatic = function(chart_obj) {
     $('body').append('<div id="PlotlyDone"></div>');
 }
 
-function odrCSV(dr_id, file, callback) {
+function odrCSV(dr_id, display_order, file, callback) {
 
     // d3.v3 version
     return d3.xhr(file.url).get(function (err, response) {
         console.log(file.url)
         var dirtyCSV = response.responseText;
+
         // Strip Headers
-        var cleanCSV = []
+        var cleanCSV = [];
         var tmpCSV = dirtyCSV.split('\n');
         tmpCSV.forEach(function(line) {
             if(!line.match(/^#/)) {
                 cleanCSV.push(line)
             }
-        })
-        var data_file = {}
-        data_file.dr_id = dr_id
-        data_file.url = file.url
-        data_file.legend = file.legend
-        data_file.lines = cleanCSV
-        console.log("Lines found: " + cleanCSV.length)
+        });
+
+        var data_file = {};
+        data_file.dr_id = dr_id;
+        data_file.display_order = display_order;
+        data_file.url = file.url;
+        data_file.legend = file.legend;
+        data_file.lines = cleanCSV;
+
+        console.log("Lines found: " + cleanCSV.length);
         return callback(null, data_file)
     })
 
@@ -146,40 +150,44 @@ function odrCSV(dr_id, file, callback) {
 
 function histogramChartPlotly(chart_obj, onComplete) {
 
-    var chart_data = []
+    var chart_data = [];
 
     var q = d3.queue();
-    for(var dr_id in chart_obj.data_files) {
-        q.defer(odrCSV, dr_id, chart_obj.data_files[dr_id]);
+    for (var sort_order in chart_obj.data_files) {
+        var obj = chart_obj.data_files[sort_order];
+        var dr_id = obj['dr_id'];
+
+        q.defer(odrCSV, dr_id, sort_order, obj);
     }
 
     // Load the data asynchronously and plot when ready
     q.await(
         function(error) {
-
-
             if (error) {
                 // We can't proceed
                 // Should display error message
             }
 
             // Store data for filtering
-            var file_data = []
+            var file_data = [];
             // skip 0 - error variable
             for (i = 1; i < arguments.length; i++) {
-                var file = arguments[i]
-                file_data[file.dr_id] = file
+                var file = arguments[i];
+                file_data[file.display_order] = file;
             }
 
             // Is tracking loaded_data useful?
             var loaded_data = []
-            for (var dr_id in file_data) {
+            for (var display_order in file_data) {
+                var file = file_data[display_order];
+                var dr_id = file.dr_id;
+
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
-                        console.log('Plotting histogram: ' + dr_id)
-                        var file = file_data[dr_id]
-                        var lines = file.lines
-                        var x = []
+                        console.log('Plotting histogram: ' + dr_id);
+
+                        var lines = file.lines;
+                        var x = [];
                         for (var i = 0; i < lines.length; i++) {
                             var val = lines[i]
                             val = val.trim()
@@ -249,11 +257,14 @@ function histogramChartPlotly(chart_obj, onComplete) {
 
 function polarChartPlotly(chart_obj, onComplete) {
 
-    var chart_data = []
+    var chart_data = [];
 
     var q = d3.queue();
-    for(var dr_id in chart_obj.data_files) {
-        q.defer(odrCSV, dr_id, chart_obj.data_files[dr_id]);
+    for (var sort_order in chart_obj.data_files) {
+        var obj = chart_obj.data_files[sort_order];
+        var dr_id = obj['dr_id'];
+
+        q.defer(odrCSV, dr_id, sort_order, obj);
     }
 
     // Load the data asynchronously and plot when ready
@@ -265,22 +276,25 @@ function polarChartPlotly(chart_obj, onComplete) {
             }
 
             // Store data for filtering
-            var file_data = []
+            var file_data = [];
             // skip 0 - error variable
             for (i = 1; i < arguments.length; i++) {
-                var file = arguments[i]
-                file_data[file.dr_id] = file
+                var file = arguments[i];
+                file_data[file.display_order] = file;
             }
 
             // Is tracking loaded_data useful?
             var loaded_data = []
-            for (var dr_id in file_data) {
+            for (var display_order in file_data) {
+                var file = file_data[display_order];
+                var dr_id = file.dr_id;
+
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
-                        console.log('Plotting ' + dr_id)
-                        var file = file_data[dr_id]
-                        var lines = file.lines
-                        var x = []
+                        console.log('Plotting ' + dr_id);
+
+                        var lines = file.lines;
+                        var x = [];
                         for (var i = 0; i < lines.length; i++) {
                             var val = lines[i]
                             val = val.trim()
@@ -346,11 +360,14 @@ function polarChartPlotly(chart_obj, onComplete) {
 
 function barChartPlotly(chart_obj, onComplete) {
 
-    var chart_data = []
+    var chart_data = [];
 
     var q = d3.queue();
-    for(var dr_id in chart_obj.data_files) {
-        q.defer(odrCSV, dr_id, chart_obj.data_files[dr_id]);
+    for (var sort_order in chart_obj.data_files) {
+        var obj = chart_obj.data_files[sort_order];
+        var dr_id = obj['dr_id'];
+
+        q.defer(odrCSV, dr_id, sort_order, obj);
     }
 
     // Load the data asynchronously and plot when ready
@@ -362,24 +379,27 @@ function barChartPlotly(chart_obj, onComplete) {
             }
 
             // Store data for filtering
-            var file_data = []
+            var file_data = [];
             // skip 0 - error variable
             for (i = 1; i < arguments.length; i++) {
-                var file = arguments[i]
-                file_data[file.dr_id] = file
+                var file = arguments[i];
+                file_data[file.display_order] = file;
             }
 
             // Is tracking loaded_data useful?
             var loaded_data = []
-            for (var dr_id in file_data) {
+            for (var display_order in file_data) {
+                var file = file_data[display_order];
+                var dr_id = file.dr_id;
+
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
-                        console.log('Plotting ' + dr_id)
-                        var file = file_data[dr_id]
-                        var lines = file.lines
-                        var x = []
-                        var y = []
-                        var e = []
+                        console.log('Plotting ' + dr_id);
+
+                        var lines = file.lines;
+                        var x = [];
+                        var y = [];
+                        var e = [];
                         for (var i = 0; i < lines.length; i++) {
                             var values = lines[i].split(",")
                             for(var j in values) {
@@ -457,47 +477,47 @@ function barChartPlotly(chart_obj, onComplete) {
 
 function lineerrorChartPlotly(chart_obj, onComplete) {
 
-    var chart_data = []
+    var chart_data = [];
 
     var q = d3.queue();
-    for(var dr_id in chart_obj.data_files) {
-        q.defer(odrCSV, dr_id, chart_obj.data_files[dr_id]);
+    for (var sort_order in chart_obj.data_files) {
+        var obj = chart_obj.data_files[sort_order];
+        var dr_id = obj['dr_id'];
+
+        q.defer(odrCSV, dr_id, sort_order, obj);
     }
 
     // Load the data asynchronously and plot when ready
     q.await(
         function() {
-            console.log("can we get here")
-
-            var results = arguments
-
-            /* if (error) {
+            if (error) {
                 // We can't proceed
                 // Should display error message
-                console.log('JS error:')
-                console.log(error)
-            } */
+            }
 
             // Store data for filtering
-            var file_data = []
+            var file_data = [];
             // skip 0 - error variable
             for (i = 1; i < arguments.length; i++) {
-                var file = arguments[i]
-                file_data[file.dr_id] = file
+                var file = arguments[i];
+                file_data[file.display_order] = file;
             }
 
             // Is tracking loaded_data useful?
             var loaded_data = []
-            for (var dr_id in file_data) {
+            for (var display_order in file_data) {
+                var file = file_data[display_order];
+                var dr_id = file.dr_id;
+
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
-                        console.log('Plotting ' + dr_id)
-                        var file = file_data[dr_id]
-                        var lines = file.lines
-                        var x = []
-                        var y = []
-                        var e = []
-                        var f = []
+                        console.log('Plotting ' + dr_id);
+
+                        var lines = file.lines;
+                        var x = [];
+                        var y = [];
+                        var e = [];
+                        var f = [];
                         for (var i = 0; i < lines.length; i++) {
                             var values = lines[i].split(",")
                             for(var j in values) {
@@ -649,13 +669,15 @@ function lineerrorChartPlotly(chart_obj, onComplete) {
 
 function pieChartPlotly(chart_obj, onComplete) {
 
-    console.log('plotting pie chart')
-    var chart_data = []
+    console.log('plotting pie chart');
+    var chart_data = [];
 
     var q = d3.queue();
-    for(var dr_id in chart_obj.data_files) {
-        console.log('file to process: ' + dr_id)
-        q.defer(odrCSV, dr_id, chart_obj.data_files[dr_id]);
+    for (var sort_order in chart_obj.data_files) {
+        var obj = chart_obj.data_files[sort_order];
+        var dr_id = obj['dr_id'];
+
+        q.defer(odrCSV, dr_id, sort_order, obj);
     }
 
     // Load the data asynchronously and plot when ready
@@ -667,23 +689,26 @@ function pieChartPlotly(chart_obj, onComplete) {
             }
 
             // Store data for filtering
-            var file_data = []
+            var file_data = [];
             // skip 0 - error variable
             for (i = 1; i < arguments.length; i++) {
-                var file = arguments[i]
-                file_data[file.dr_id] = file
+                var file = arguments[i];
+                file_data[file.display_order] = file;
             }
 
             // Is tracking loaded_data useful?
             var loaded_data = []
-            for (var dr_id in file_data) {
+            for (var display_order in file_data) {
+                var file = file_data[display_order];
+                var dr_id = file.dr_id;
+
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
+                        console.log('Plotting ' + dr_id);
 
-                        var file = file_data[dr_id]
-                        var lines = file.lines
-                        var x = []
-                        var y = []
+                        var lines = file.lines;
+                        var x = [];
+                        var y = [];
                         for (var i = 0; i < lines.length; i++) {
                             var values = lines[i].split(",")
                             for(var j in values) {
@@ -736,11 +761,14 @@ function pieChartPlotly(chart_obj, onComplete) {
 }
 function lineChartPlotly(chart_obj, onComplete) {
 
-    var chart_data = []
+    var chart_data = [];
 
     var q = d3.queue();
-    for(var dr_id in chart_obj.data_files) {
-        q.defer(odrCSV, dr_id, chart_obj.data_files[dr_id]);
+    for (var sort_order in chart_obj.data_files) {
+        var obj = chart_obj.data_files[sort_order];
+        var dr_id = obj['dr_id'];
+
+        q.defer(odrCSV, dr_id, sort_order, obj);
     }
 
     // Load the data asynchronously and plot when ready
@@ -752,23 +780,26 @@ function lineChartPlotly(chart_obj, onComplete) {
             }
 
             // Store data for filtering
-            var file_data = []
+            var file_data = [];
             // skip 0 - error variable
             for (i = 1; i < arguments.length; i++) {
-                var file = arguments[i]
-                file_data[file.dr_id] = file
+                var file = arguments[i];
+                file_data[file.display_order] = file;
             }
 
             // Is tracking loaded_data useful?
-            var loaded_data = []
-            for (var dr_id in file_data) {
+            var loaded_data = [];
+            for (var display_order in file_data) {
+                var file = file_data[display_order];
+                var dr_id = file.dr_id;
+
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
-                        console.log('Plotting ' + dr_id)
-                        var file = file_data[dr_id]
-                        var lines = file.lines
-                        var x = []
-                        var y = []
+                        console.log('Plotting ' + dr_id);
+
+                        var lines = file.lines;
+                        var x = [];
+                        var y = [];
                         for (var i = 0; i < lines.length; i++) {
                             var values = lines[i].split(",")
                             for(var j in values) {
@@ -893,4 +924,3 @@ function lineChartPlotly(chart_obj, onComplete) {
         }
     )
 }
-

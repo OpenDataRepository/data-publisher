@@ -46,7 +46,6 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
-use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -3459,9 +3458,7 @@ exit();
 
             // ----------------------------------------
             // Rebuild the list of sorted datarecords, since the datarecord order may have changed
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
+            $dti_service->resetDatatypeSortOrder($datatype->getId());
 
             // Mark this datarecord as updated...
             /** @var DatarecordInfoService $dri_service */

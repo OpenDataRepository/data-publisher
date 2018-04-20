@@ -116,6 +116,7 @@ services:
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
+            odr_web_dir: "%odr_web_directory%"
             logger: "@logger"
 
     odr.theme_info_service:
