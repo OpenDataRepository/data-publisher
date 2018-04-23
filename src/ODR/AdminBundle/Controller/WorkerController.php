@@ -542,7 +542,9 @@ $ret .= '  Set current to '.$count."\n";
 
     /**
      * Performs an asynchronous encrypt or decrypt on a specified file.  Also has the option
-     * @deprecated
+     *
+     * Ideally this will eventually replaced by the crypto service...but for now file encryption
+     * after uploading still goes through here...
      *
      * @param Request $request
      *
@@ -621,9 +623,12 @@ $ret .= '  Set current to '.$count."\n";
 
                 // ----------------------------------------
                 // Move file from completed directory to decrypted directory in preparation for encryption...
-                $destination_path = dirname(__FILE__).'/../../../../web';
+                $current_path = $base_obj->getLocalFileName();
+                $current_filename = $current_path.'/'.$base_obj->getOriginalFileName();
+
+                $destination_path = $this->container->getParameter('odr_web_directory');
                 $destination_filename = $base_obj->getUploadDir().'/File_'.$object_id.'.'.$base_obj->getExt();
-                rename( $base_obj->getLocalFileName(), $destination_path.'/'.$destination_filename );
+                rename( $current_filename, $destination_path.'/'.$destination_filename );
 
                 // Update local filename and checksum in database...
                 $base_obj->setLocalFileName($destination_filename);

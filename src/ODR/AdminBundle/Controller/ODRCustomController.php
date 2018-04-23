@@ -1699,7 +1699,7 @@ class ODRCustomController extends Controller
             rename($path_prefix.$filepath.'/'.$original_filename, $destination_path.'/'.$filename);
 
             $local_filename = $my_obj->getUploadDir().'/'.$filename;
-            $my_obj->setLocalFileName($local_filename);
+            $my_obj->setLocalFileName($local_filename);    // TODO - make this only store filepath like with file upload...inline encrypter will need to be changed...
 
             $sizes = getimagesize($local_filename);
             $my_obj->setImageWidth( $sizes[0] );
@@ -1723,19 +1723,12 @@ class ODRCustomController extends Controller
             $em->flush();
         }
         else if ($typeclass == 'File') {
-            // Generate local filename
-            /** @var File $my_obj */
-            //$file_id = $my_obj->getId();
-
-            // Move file to correct spot
-            //$filename = 'File_'.$file_id.'.'.$my_obj->getExt();
-            //rename($filepath.'/'.$original_filename, $destination_path.'/'.$filename);
-
-            //$local_filename = $my_obj->getUploadDir().'/'.$filename;
+            // Due to filename length concerns, only store the file's path in localFileName for now
+            // The filename itself is already stored in the file's meta entry
             $local_filename = realpath( $path_prefix.$filepath.'/'.$original_filename );
-            //dirname(__FILE__).'/../../../../web/'.$my_obj->getUploadDir().'/chunks/user_'.$user_id.'/completed/'.$original_filename );
+            $my_obj->setLocalFileName( realpath($path_prefix.$filepath).'/' );
 
-            $my_obj->setLocalFileName($filepath.'/'.$original_filename);
+            // localFileName will be changed after encryption to point to an actual file
 
             clearstatcache(true, $local_filename);
             $my_obj->setFilesize( filesize($local_filename) );
@@ -1745,13 +1738,6 @@ class ODRCustomController extends Controller
             $em->flush();
             $em->refresh($my_obj);
 
-            // Encrypt the file before it's used
-            //self::encryptObject($file_id, 'file');
-
-            // Decrypt the file and store its checksum in the database
-            //$file_path = self::decryptObject($file_id, 'file');
-            //$original_checksum = md5_file($file_path);
-            //$my_obj->setOriginalChecksum($original_checksum);
 
             // ----------------------------------------
             // Use beanstalk to encrypt the file so the UI doesn't block on huge files

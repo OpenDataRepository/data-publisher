@@ -272,13 +272,18 @@ class FlowController extends ODRCustomController
                 $expected_size = intval( $post->get('flowTotalSize') );
                 $current_chunk_size = intval( $post->get('flowCurrentChunkSize') );
                 $identifier = $post->get('flowIdentifier');
-                $original_filename = $post->get('flowFilename');
+                $original_filename = trim( $post->get('flowFilename') );
 
                 $allowed_filesize = intval( $validation_params['maxSize'] );
 
                 if ( $expected_size > ($allowed_filesize * 1024 * 1024) ) {
                     // Expected filesize is too big, don't continue to upload
                     return self::flowAbort( $validation_params['maxSizeErrorMessage'] );
+                }
+                else if ( strlen($original_filename) > 128 || strlen($original_filename) == 0 ) {
+                    // Filename is either too large, or empty...don't continue
+                    // Filename length defined in FileMeta:originalFileName
+                    return self::flowAbort('Filenames are not allowed to exceed 128 characters');
                 }
                 else if ( self::validateChunk($uploaded_file, $current_chunk_size) ) {
                     // ...no errors found, move uploaded chunk to storage directory
