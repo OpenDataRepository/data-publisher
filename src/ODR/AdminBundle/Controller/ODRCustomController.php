@@ -941,7 +941,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_group_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_group_meta->setCreated(new \DateTime());
+            $new_group_meta->setUpdated(new \DateTime());
             $new_group_meta->setCreatedBy($user);
+            $new_group_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -964,13 +969,10 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $group references the correct meta entry
-        $group->removeGroupMetum($old_meta_entry);
-        $group->addGroupMetum($new_group_meta);
-
         // Save the new meta entry
         $em->persist($new_group_meta);
         $em->flush();
+        $em->refresh($group);
 
         // Return the new entry
         return $new_group_meta;
@@ -1020,7 +1022,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_permission = clone $permission;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_permission->setCreated(new \DateTime());
+            $new_permission->setUpdated(new \DateTime());
             $new_permission->setCreatedBy($user);
+            $new_permission->setUpdatedBy($user);
         }
         else {
             $new_permission = $permission;
@@ -1094,7 +1101,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_permission = clone $permission;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_permission->setCreated(new \DateTime());
+            $new_permission->setUpdated(new \DateTime());
             $new_permission->setCreatedBy($user);
+            $new_permission->setUpdatedBy($user);
         }
         else {
             $new_permission = $permission;
@@ -1287,7 +1299,8 @@ class ODRCustomController extends Controller
     /**
      * @deprecated
      *
-     * Creates and persists a new DataRecord entity.
+     * Creates and persists a new DataRecord and its associated Meta entity.  The caller needs to
+     * flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user         The user requesting the creation of this entity
@@ -1365,7 +1378,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_datarecord_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_datarecord_meta->setCreated(new \DateTime());
+            $new_datarecord_meta->setUpdated(new \DateTime());
             $new_datarecord_meta->setCreatedBy($user);
+            $new_datarecord_meta->setUpdatedBy($user);
         }
         else {
             $new_datarecord_meta = $old_meta_entry;
@@ -1383,12 +1401,9 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $datarecord references the correct meta entry
-        $datarecord->removeDataRecordMetum($old_meta_entry);
-        $datarecord->addDataRecordMetum($new_datarecord_meta);
-
         $em->persist($new_datarecord_meta);
         $em->flush();
+        $em->refresh($datarecord);
 
         // Return the new entry
         return $new_datarecord_meta;
@@ -1396,7 +1411,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates and persists a new Datatree entry.
+     * Creates and persists a new Datatree entry.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
@@ -1474,7 +1489,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_datatree_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_datatree_meta->setCreated(new \DateTime());
+            $new_datatree_meta->setUpdated(new \DateTime());
             $new_datatree_meta->setCreatedBy($user);
+            $new_datatree_meta->setUpdatedBy($user);
         }
         else {
             $new_datatree_meta = $old_meta_entry;
@@ -1494,12 +1514,9 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $datatree references the correct meta entry
-        $datatree->removeDataTreeMetum($old_meta_entry);
-        $datatree->addDataTreeMetum($new_datatree_meta);
-
         $em->persist($new_datatree_meta);
         $em->flush();
+        $em->refresh($datatree);
 
         // Return the new entry
         return $new_datatree_meta;
@@ -1684,7 +1701,7 @@ class ODRCustomController extends Controller
             rename($path_prefix.$filepath.'/'.$original_filename, $destination_path.'/'.$filename);
 
             $local_filename = $my_obj->getUploadDir().'/'.$filename;
-            $my_obj->setLocalFileName($local_filename);
+            $my_obj->setLocalFileName($local_filename);    // TODO - make this only store filepath like with file upload...inline encrypter will need to be changed...
 
             $sizes = getimagesize($local_filename);
             $my_obj->setImageWidth( $sizes[0] );
@@ -1708,19 +1725,12 @@ class ODRCustomController extends Controller
             $em->flush();
         }
         else if ($typeclass == 'File') {
-            // Generate local filename
-            /** @var File $my_obj */
-            //$file_id = $my_obj->getId();
-
-            // Move file to correct spot
-            //$filename = 'File_'.$file_id.'.'.$my_obj->getExt();
-            //rename($filepath.'/'.$original_filename, $destination_path.'/'.$filename);
-
-            //$local_filename = $my_obj->getUploadDir().'/'.$filename;
+            // Due to filename length concerns, only store the file's path in localFileName for now
+            // The filename itself is already stored in the file's meta entry
             $local_filename = realpath( $path_prefix.$filepath.'/'.$original_filename );
-            //dirname(__FILE__).'/../../../../web/'.$my_obj->getUploadDir().'/chunks/user_'.$user_id.'/completed/'.$original_filename );
+            $my_obj->setLocalFileName( realpath($path_prefix.$filepath).'/' );
 
-            $my_obj->setLocalFileName($filepath.'/'.$original_filename);
+            // localFileName will be changed after encryption to point to an actual file
 
             clearstatcache(true, $local_filename);
             $my_obj->setFilesize( filesize($local_filename) );
@@ -1730,13 +1740,6 @@ class ODRCustomController extends Controller
             $em->flush();
             $em->refresh($my_obj);
 
-            // Encrypt the file before it's used
-            //self::encryptObject($file_id, 'file');
-
-            // Decrypt the file and store its checksum in the database
-            //$file_path = self::decryptObject($file_id, 'file');
-            //$original_checksum = md5_file($file_path);
-            //$my_obj->setOriginalChecksum($original_checksum);
 
             // ----------------------------------------
             // Use beanstalk to encrypt the file so the UI doesn't block on huge files
@@ -2032,7 +2035,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_file_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_file_meta->setCreated(new \DateTime());
+            $new_file_meta->setUpdated(new \DateTime());
             $new_file_meta->setCreatedBy($user);
+            $new_file_meta->setUpdatedBy($user);
         }
         else {
             $new_file_meta = $old_meta_entry;
@@ -2055,12 +2063,9 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $file references the correct meta entry
-        $file->removeFileMetum($old_meta_entry);
-        $file->addFileMetum($new_file_meta);
-
         $em->persist($new_file_meta);
         $em->flush();
+        $em->refresh($file);
 
         // Return the new entry
         return $new_file_meta;
@@ -2113,7 +2118,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_image_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_image_meta->setCreated(new \DateTime());
+            $new_image_meta->setUpdated(new \DateTime());
             $new_image_meta->setCreatedBy($user);
+            $new_image_meta->setUpdatedBy($user);
         }
         else {
             $new_image_meta = $old_meta_entry;
@@ -2138,12 +2148,9 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $image references the correct meta entry
-        $image->removeImageMetum($old_meta_entry);
-        $image->addImageMetum($new_image_meta);
-
         $em->persist($new_image_meta);
         $em->flush();
+        $em->refresh($image);
 
         // Return the new entry
         return $new_image_meta;
@@ -2197,7 +2204,7 @@ class ODRCustomController extends Controller
 
             // Master Template Data Fields must increment Master Revision on all change requests.
             if($datafield->getIsMasterField()) {
-                $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+                $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
                 self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
             }
 
@@ -2265,7 +2272,7 @@ class ODRCustomController extends Controller
             // Master Template Data Fields must increment Master Revision
             // on all change requests.
             if($datafield->getIsMasterField()) {
-                $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+                $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
                 self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
             }
 
@@ -2319,7 +2326,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_radio_option_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_radio_option_meta->setCreated(new \DateTime());
+            $new_radio_option_meta->setUpdated(new \DateTime());
             $new_radio_option_meta->setCreatedBy($user);
+            $new_radio_option_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -2344,19 +2356,16 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $radio_option references the correct meta entry
-        $radio_option->removeRadioOptionMetum($old_meta_entry);
-        $radio_option->addRadioOptionMetum($new_radio_option_meta);
-
         // Save the new meta entry
         $em->persist($new_radio_option_meta);
         $em->flush();
+        $em->refresh($radio_option);
 
         // Master Template Data Fields must increment Master Revision
         // on all change requests.
-        if($radio_option->getDataField()->getIsMasterField()) {
+        if ($radio_option->getDataField()->getIsMasterField()) {
             $datafield = $radio_option->getDataField();
-            $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+            $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
             self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
         }
 
@@ -2440,7 +2449,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_entity = clone $entity;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_entity->setCreated(new \DateTime());
+            $new_entity->setUpdated(new \DateTime());
             $new_entity->setCreatedBy($user);
+            $new_entity->setUpdatedBy($user);
         }
         else {
             $new_entity = $entity;
@@ -2487,13 +2501,9 @@ class ODRCustomController extends Controller
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
+            // This entity can be set here since it's never null
             'renderPlugin' => $old_meta_entry->getRenderPlugin()->getId(),
-/*
-            'externalIdField' => $old_meta_entry->getExternalIdField()->getId(),
-            'nameField' => $old_meta_entry->getNameField()->getId(),
-            'sortField' => $old_meta_entry->getSortField()->getId(),
-            'backgroundImageField' => $old_meta_entry->getBackgroundImageField()->getId(),
-*/
+
             'searchSlug' => $old_meta_entry->getSearchSlug(),
             'shortName' => $old_meta_entry->getShortName(),
             'longName' => $old_meta_entry->getLongName(),
@@ -2504,12 +2514,13 @@ class ODRCustomController extends Controller
             'searchNotesLower' => $old_meta_entry->getSearchNotesLower(),
 
             'publicDate' => $old_meta_entry->getPublicDate(),
+
             'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
             'master_revision' => $old_meta_entry->getMasterRevision(),
             'tracking_master_revision' => $old_meta_entry->getTrackingMasterRevision(),
         );
 
-        // These Datafields entries can be null
+        // These datafield entries could be null to begin with
         if ( $old_meta_entry->getExternalIdField() !== null )
             $existing_values['externalIdField'] = $old_meta_entry->getExternalIdField()->getId();
         if ( $old_meta_entry->getNameField() !== null )
@@ -2521,18 +2532,21 @@ class ODRCustomController extends Controller
 
 
         foreach ($existing_values as $key => $value) {
-            if ( isset($properties[$key]) && $properties[$key] != $value )
+            // array_key_exists() is used because the datafield entries could legitimately be null
+            if ( array_key_exists($key, $properties) && $properties[$key] != $value )
                 $changes_made = true;
         }
 
-        // Need to do additional checking in case the mentioned datafields were null beforehand
-        if ( isset($properties['externalIdField']) && !($properties['externalIdField'] == null || $properties['externalIdField'] == -1) && $datatype->getExternalIdField() == null )
+        // Need to do an additional check incase the name/sort/etc datafields were originally null
+        //  and changed to point to a datafield.  Can use isset() here because the value in
+        //  $properties won't be null in this case
+        if ( !isset($existing_values['externalIdField']) && isset($properties['externalIdField']) )
             $changes_made = true;
-        if ( isset($properties['nameField']) && !($properties['nameField'] == null || $properties['nameField'] == -1) && $datatype->getNameField() == null )
+        if ( !isset($existing_values['nameField']) && isset($properties['nameField']) )
             $changes_made = true;
-        if ( isset($properties['sortField']) && !($properties['sortField'] == null || $properties['sortField'] == -1) && $datatype->getSortField() == null )
+        if ( !isset($existing_values['sortField']) && isset($properties['sortField']) )
             $changes_made = true;
-        if ( isset($properties['backgroundImageField']) && !($properties['backgroundImageField'] == null || $properties['backgroundImageField'] == -1) && $datatype->getBackgroundImageField() == null )
+        if ( !isset($existing_values['backgroundImageField']) && isset($properties['backgroundImageField']) )
             $changes_made = true;
 
         if (!$changes_made)
@@ -2547,7 +2561,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_datatype_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_datatype_meta->setCreated(new \DateTime());
+            $new_datatype_meta->setUpdated(new \DateTime());
             $new_datatype_meta->setCreatedBy($user);
+            $new_datatype_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -2559,26 +2578,26 @@ class ODRCustomController extends Controller
         if ( isset($properties['renderPlugin']) )
             $new_datatype_meta->setRenderPlugin( $em->getRepository('ODRAdminBundle:RenderPlugin')->find( $properties['renderPlugin'] ) );
 
-        if ( isset($properties['externalIdField']) ) {
-            if ($properties['externalIdField'] == null || $properties['externalIdField'] == -1)
+        if ( array_key_exists('externalIdField', $properties) ) {
+            if ( is_null($properties['externalIdField']) )
                 $new_datatype_meta->setExternalIdField(null);
             else
                 $new_datatype_meta->setExternalIdField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['externalIdField']) );
         }
-        if ( isset($properties['nameField']) ) {
-            if ($properties['nameField'] == null || $properties['nameField'] == -1)
+        if ( array_key_exists('nameField', $properties) ) {
+            if ( is_null($properties['nameField']) )
                 $new_datatype_meta->setNameField(null);
             else
                 $new_datatype_meta->setNameField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['nameField']) );
         }
-        if ( isset($properties['sortField']) ) {
-            if ($properties['sortField'] == null || $properties['sortField'] == -1)
+        if ( array_key_exists('sortField', $properties) ) {
+            if ( is_null($properties['sortField']) )
                 $new_datatype_meta->setSortField(null);
             else
                 $new_datatype_meta->setSortField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['sortField']) );
         }
-        if ( isset($properties['backgroundImageField']) ) {
-            if ($properties['backgroundImageField'] == null || $properties['backgroundImageField'] == -1)
+        if ( array_key_exists('backgroundImageField', $properties) ) {
+            if ( is_null($properties['backgroundImageField']) )
                 $new_datatype_meta->setBackgroundImageField(null);
             else
                 $new_datatype_meta->setBackgroundImageField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['backgroundImageField']) );
@@ -2617,7 +2636,7 @@ class ODRCustomController extends Controller
             if ($datatype->getGrandparent()->getId() != $datatype->getId()) {
                 $grandparent_datatype = $datatype->getGrandparent();
 
-                $gp_properties['master_revision'] = $grandparent_datatype->getDataTypeMeta()->getMasterRevision() + 1;
+                $gp_properties['master_revision'] = $grandparent_datatype->getMasterRevision() + 1;
                 self::ODR_copyDatatypeMeta($em, $user, $grandparent_datatype, $gp_properties);
             }
         }
@@ -2626,13 +2645,10 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $datatype references the correct meta entry
-        $datatype->removeDataTypeMetum($old_meta_entry);
-        $datatype->addDataTypeMetum($new_datatype_meta);
-
         // Save the new meta entry
         $em->persist($new_datatype_meta);
         $em->flush();
+        $em->refresh($datatype);
 
         // Return the new entry
         return $new_datatype_meta;
@@ -2755,6 +2771,7 @@ class ODRCustomController extends Controller
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
+            // These entities can be set here since they're never null
             'fieldType' => $old_meta_entry->getFieldType()->getId(),
             'renderPlugin' => $old_meta_entry->getRenderPlugin()->getId(),
 
@@ -2795,7 +2812,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_datafield_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_datafield_meta->setCreated(new \DateTime());
+            $new_datafield_meta->setUpdated(new \DateTime());
             $new_datafield_meta->setCreatedBy($user);
+            $new_datafield_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -2858,20 +2880,16 @@ class ODRCustomController extends Controller
         //Save the new meta entry
         $em->persist($new_datafield_meta);
         $em->flush();
+        $em->refresh($datafield);
 
         // Delete the old meta entry if necessary
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $datafield references the correct meta entry
-        $datafield->removeDataFieldMetum($old_meta_entry);
-        $datafield->addDataFieldMetum($new_datafield_meta);
 
-        // All metadata changes result in a new
-        // Data Field Master Published Revision.  Revision
-        // changes are picked up by derivative data types
-        // when the parent data type revision is changed.
-        if($datafield->getIsMasterField() > 0) {
+        // All metadata changes result in a new Data Field Master Published Revision.  Revision
+        // changes are picked up by derivative data types when the parent data type revision is changed.
+        if ($datafield->getIsMasterField() > 0) {
             $datatype = $datafield->getDataType();
             $properties['master_revision'] = $datatype->getDataTypeMeta()->getMasterRevision() + 1;
             self::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
@@ -2929,7 +2947,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_theme_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_theme_meta->setCreated(new \DateTime());
+            $new_theme_meta->setUpdated(new \DateTime());
             $new_theme_meta->setCreatedBy($user);
+            $new_theme_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -2972,13 +2995,10 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $theme references the correct meta entry
-        $theme->removeThemeMetum($old_meta_entry);
-        $theme->addThemeMetum($new_theme_meta);
-
         // Save the new meta entry
         $em->persist($new_theme_meta);
         $em->flush();
+        $em->refresh($theme);
 
         // Return the new entry
         return $new_theme_meta;
@@ -2986,7 +3006,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates and persists a new ThemeElement entity.
+     * Creates and persists a new ThemeElement entity.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                       The user requesting the creation of this entity
@@ -3069,7 +3089,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $theme_element_meta = clone $old_meta_entry;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $theme_element_meta->setCreated(new \DateTime());
+            $theme_element_meta->setUpdated(new \DateTime());
             $theme_element_meta->setCreatedBy($user);
+            $theme_element_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -3094,13 +3119,10 @@ class ODRCustomController extends Controller
         if ($remove_old_entry)
             $em->remove($old_meta_entry);
 
-        // Ensure the "in-memory" version of $theme_element references the correct meta entry
-        $theme_element->removeThemeElementMetum($old_meta_entry);
-        $theme_element->addThemeElementMetum($theme_element_meta);
-
         // Save the new meta entry
         $em->persist($theme_element_meta);
         $em->flush();
+        $em->refresh($theme_element);
 
         // Return the meta entry
         return $theme_element_meta;
@@ -3108,7 +3130,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates and persists a new ThemeDataField entity.
+     * Creates and persists a new ThemeDataField entity.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                  The user requesting the creation of this entity.
@@ -3157,6 +3179,7 @@ class ODRCustomController extends Controller
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
+            // This entity can be set here since it's never null
             'themeElement' => $theme_datafield->getThemeElement()->getId(),
 
             'displayOrder' => $theme_datafield->getDisplayOrder(),
@@ -3181,7 +3204,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_theme_datafield = clone $theme_datafield;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_theme_datafield->setCreated(new \DateTime());
+            $new_theme_datafield->setUpdated(new \DateTime());
             $new_theme_datafield->setCreatedBy($user);
+            $new_theme_datafield->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -3219,7 +3247,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates and persists a new ThemeDataType entity.
+     * Creates and persists a new ThemeDataType entity.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                  The user requesting the creation of this entity
@@ -3288,7 +3316,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_theme_datatype = clone $theme_datatype;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_theme_datatype->setCreated(new \DateTime());
+            $new_theme_datatype->setUpdated(new \DateTime());
             $new_theme_datatype->setCreatedBy($user);
+            $new_theme_datatype->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -3319,7 +3352,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates, persists, and flushes a new RenderPluginInstance entity
+     * Creates, persists, and flushes a new RenderPluginInstance entity.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
@@ -3334,9 +3367,9 @@ class ODRCustomController extends Controller
     protected function ODR_addRenderPluginInstance($em, $user, $render_plugin, $datatype, $datafield)
     {
         // Ensure a RenderPlugin for a Datatype plugin doesn't get assigned to a Datafield, or a RenderPlugin for a Datafield doesn't get assigned to a Datatype
-        if ( $render_plugin->getPluginType() == 1 && $datatype == null )
+        if ( $render_plugin->getPluginType() == RenderPlugin::DATATYPE_PLUGIN && is_null($datatype) )
             throw new \Exception('Unable to create an instance of the RenderPlugin "'.$render_plugin->getPluginName().'" for a null Datatype');
-        else if ( $render_plugin->getPluginType() == 3 && $datafield == null )
+        else if ( $render_plugin->getPluginType() == RenderPlugin::DATAFIELD_PLUGIN && is_null($datafield) )
             throw new \Exception('Unable to create an instance of the RenderPlugin "'.$render_plugin->getPluginName().'" for a null Datafield');
 
         // Create the new RenderPluginInstance
@@ -3359,7 +3392,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates and persists a new RenderPluginMap entity
+     * Creates and persists a new RenderPluginMap entity.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
@@ -3424,7 +3457,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_rpm = clone $render_plugin_map;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_rpm->setCreated(new \DateTime());
+            $new_rpm->setUpdated(new \DateTime());
             $new_rpm->setCreatedBy($user);
+            $new_rpm->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -3453,7 +3491,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Creates and persists a new RenderPluginOption entity
+     * Creates and persists a new RenderPluginOption entity.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
@@ -3518,7 +3556,12 @@ class ODRCustomController extends Controller
             $remove_old_entry = true;
 
             $new_rpo = clone $render_plugin_option;
+
+            // These properties aren't automatically updated when persisting the cloned entity...
+            $new_rpo->setCreated(new \DateTime());
+            $new_rpo->setUpdated(new \DateTime());
             $new_rpo->setCreatedBy($user);
+            $new_rpo->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry

@@ -1,0 +1,34 @@
+odr_plugins.base.map:
+    name: Map Plugin
+    datatype: true
+    version: 1.00
+    override_fields: true
+    override_child: true
+    description: Provides the basic ability to plot one or more GPS points onto a map using Google's Map API.
+    required_fields:
+        latitude:
+            name: Latitude
+            description: Latitude in Decimal Degree format
+            type: DecimalValue
+        longitude:
+            name: Longitude
+            description: Longitude in Decimal Degree format
+            type: DecimalValue
+    config_options:
+        map_height:
+            name: Map Height
+            type: string
+            default: 400
+            description: Enter a height in pixels for the map.
+        map_type:
+            name: Map Type
+            type: string
+            default: ROADMAP
+            choices: ROADMAP||Roadmap,SATELLITE||Satellite,TERRAIN||Terrain,HYBRID||Hybrid
+            description: Choose the default display type for the map.
+        hide_datafields:
+            name: Hide Datafields
+            type: string
+            default: false
+            choices: false||False,true||True
+            description: If false, then all datafields in the dataype will be displayed, with the map below them.  If true, then just the map will be displayed.

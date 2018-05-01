@@ -1,0 +1,29 @@
+odr_plugins.chemin.cheminee1:
+    name: Chemin EE1 Plugin
+    datatype: true
+    version: 1.00
+    override_fields: false
+    override_child: true
+    description: Plugin to display Chemin EE1 Data
+    required_fields:
+        ee1_csv_file:
+            name: EE1 Processed CSV
+            description:
+            type: File
+        ee1_raw_csv_file:
+            name: EE1 Raw CSV
+            description:
+            type: File
+        ee1_raw_dat_file:
+            name: EE1 Raw DAT File
+            description:
+            type: File
+        ee1_raw_lbl_file:
+            name: EE1 Raw LBL File
+            description:
+            type: File
+        ee1_processing_description:
+            name: EE1 Processing Description
+            description:
+            type: File
+    config_options:

@@ -91,8 +91,6 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var ODRTabHelperService $odr_tab_service */
@@ -159,7 +157,7 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Delete the cached string containing the ordered list of datarecords for this datatype
-            $cache_service->delete('datatype_'.$datatype_id.'_record_order');
+            $dti_service->resetDatatypeSortOrder($datatype->getId());
 
             // TODO - only delete all cached search results for this datatype that were NOT run with datafield criteria
             $search_cache_service->clearByDatatypeId($datatype_id);
@@ -311,6 +309,8 @@ class EditController extends ODRCustomController
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
@@ -419,7 +419,7 @@ class EditController extends ODRCustomController
             $cache_service->delete('cached_table_data_'.$datarecord_id);
 
             // Delete the sorted list of datarecords for this datatype
-            $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
+            $dti_service->resetDatatypeSortOrder($datatype->getId());
 
 
             // ----------------------------------------
@@ -1787,10 +1787,10 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
@@ -1928,7 +1928,7 @@ class EditController extends ODRCustomController
 
                         // If the datafield that got changed was the datatype's sort datafield, delete the cached datarecord order
                         if ( $datatype->getSortField() != null && $datatype->getSortField()->getId() == $datafield->getId() )
-                            $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
+                            $dti_service->resetDatatypeSortOrder($datatype->getId());
 
                         // Delete any cached search results involving this datafield
                         $search_cache_service->clearByDatafieldId($datafield_id);
@@ -2261,6 +2261,8 @@ class EditController extends ODRCustomController
 
             $datatype = $repo_datatype->find($target_id);
             $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'parentTheme' => $top_level_theme->getId()) );      // TODO - this likely isn't going to work where linked datatypes are involved
+
+            // TODO - ...need to have either the theme_datatype or theme_element this child is in to be able to reload the right one where multiple linked datatypes are involved...
         }
         else if ($template_name == 'datafield') {
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($target_id);
@@ -2268,6 +2270,8 @@ class EditController extends ODRCustomController
 
             $datatype = $datafield->getDataType();
             $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'parentTheme' => $top_level_theme->getId()) );      // TODO - this likely isn't going to work where linked datatypes are involved
+
+            // TODO - ...need to have either the theme_datatype or theme_element this child is in to be able to reload the right one where multiple linked datatypes are involved...
         }
 
 

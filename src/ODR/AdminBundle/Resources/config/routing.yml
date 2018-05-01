@@ -212,17 +212,32 @@ odr_save_group_datafield_permission:
 #-----------------------------------------
 
 #-----------------------------------------
-# Render Plugin routes
+# Plugin Controller
+odr_render_plugin_list:
+    path:  /admin/plugins/list
+    defaults: { _controller: ODRAdminBundle:Plugins:pluginlist }
+
+odr_install_plugin:
+    path:  /admin/plugins/install
+    defaults: { _controller: ODRAdminBundle:Plugins:installplugin }
+    methods: [ POST ]
+
+odr_update_plugin:
+    path:  /admin/plugins/update
+    defaults: { _controller: ODRAdminBundle:Plugins:updateplugin }
+    methods: [ POST ]
+
+
 odr_render_plugin_dialog:
     path:  /design/displaytemplate/plugindialog/{datatype_id}/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:renderplugindialog }
+    defaults: { _controller: ODRAdminBundle:Plugins:renderplugindialog }
     requirements:
         datatype_id:  \d+
         datafield_id:  \d+
 
 odr_load_plugin_data:
     path:  /design/displaytemplate/plugindata/{datatype_id}/{datafield_id}/{render_plugin_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:renderpluginsettings }
+    defaults: { _controller: ODRAdminBundle:Plugins:renderpluginsettings }
     requirements:
         datatype_id:  \d+
         datafield_id:  \d+
@@ -230,34 +245,8 @@ odr_load_plugin_data:
 
 odr_save_render_plugin_settings:
     path:  /design/displaytemplate/saverenderpluginsettings
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:saverenderpluginsettings }
+    defaults: { _controller: ODRAdminBundle:Plugins:saverenderpluginsettings }
     methods: [ POST ]
-
-admin_manage_plugins:
-    path:  /admin/plugins
-    defaults: { _controller: ODRAdminBundle:Plugins:manage }
-
-admin_plugin_add:
-    path:  /admin/plugin/add
-    defaults: { _controller: ODRAdminBundle:Plugins:add }
-    requirements:
-        plugin_name:  \w+
-
-admin_plugin_map:
-    path:  /admin/plugin/map/{plugin_id}
-    defaults: { _controller: ODRAdminBundle:Plugins:map }
-    requirements:
-        plugin_id:  \d+
-
-admin_plugin_options:
-    path:  /admin/plugin/options/{plugin_id}
-    defaults: { _controller: ODRAdminBundle:Plugins:options }
-    requirements:
-        plugin_id:  \d+
-
-admin_plugin_test:
-    path:  /admin/plugintest
-    defaults: { _controller: ODRAdminBundle:Plugins:plugintest }
 
 #-----------------------------------------
 
@@ -1236,25 +1225,40 @@ odr_permissions_clear:
 #    requirements:
 #        object_type: 'file|File|image|Image'
 
-odr_fix_database_dates:
-    path: /admin/fix_dates
-    defaults: { _controller: ODRAdminBundle:Worker:fixdatabasedates }
-odr_fix_missing_meta_entries:
-    path: /admin/fix_meta_entries
-    defaults: { _controller: ODRAdminBundle:Worker:fixmissingmetaentries }
-
 odr_child_theme_migrate:
     path: /admin/child_theme_migrate
     defaults: { _controller: ODRAdminBundle:Worker:childthememigrate }
-odr_test_synch:
-    path: /admin/synch_test/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Worker:synchtest }
-    requirements:
-        theme_id: \d+
+odr_migrate_plugins:
+    path: /admin/plugins_migrate
+    defaults: { _controller: ODRAdminBundle:Worker:migrateplugins }
 
+#-----------------------------------------
+
+#-----------------------------------------
+# Validation Controller
+
+# Ensures dates aren't in a "0000-00-00 ..." format
+odr_fix_database_dates:
+    path: /admin/fix_dates
+    defaults: { _controller: ODRAdminBundle:Validation:fixdatabasedates }
+
+# Locates entities without meta entries
+odr_fix_missing_meta_entries:
+    path: /admin/fix_meta_entries
+    defaults: { _controller: ODRAdminBundle:Validation:fixmissingmetaentries }
+# Locates meta entries that refer to deleted entities
+odr_find_extra_meta_entries:
+    path: /admin/delete_extra_meta_entries
+    defaults: { _controller: ODRAdminBundle:Validation:deleteextrametaentries }
+
+# Ensures the values stored in the Theme -> ThemeElement -> ThemeDataType tables match the DataTree entities
 odr_fix_datatree_entries:
     path: /admin/fix_datatree_entries
-    defaults: { _controller: ODRAdminBundle:Worker:fixdatatreeentries }
+    defaults: { _controller: ODRAdminBundle:Validation:fixdatatreeentries }
+
+odr_find_orphaned_entities:
+    path: /admin/find_orphaned_entities
+    defaults: { _controller: ODRAdminBundle:Validation:findorphanedentities }
 
 #-----------------------------------------
 

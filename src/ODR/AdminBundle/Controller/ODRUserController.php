@@ -980,7 +980,7 @@ class ODRUserController extends ODRCustomController
             // Grab all the users
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var ODRUser[] $user_list */
-            $user_list = $user_manager->findUsers();
+            $user_list = $user_manager->findUsers();    // twig filters out disabled users if needed
 
             // If the user is not a super admin, then only show users that have the 'can_view_datatype' permission for datatypes that the calling user has 'is_datatype_admin'
             if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') ) {
@@ -1054,7 +1054,7 @@ class ODRUserController extends ODRCustomController
 
             // Grab all the users
             $user_manager = $this->container->get('fos_user.user_manager');
-            $users = $user_manager->findUsers();
+            $users = $user_manager->findUsers();    // twig filters out disabled users if needed
 
             // Prevent the admin from modifying his own role (potentially removing his own admin role)
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -1301,7 +1301,7 @@ class ODRUserController extends ODRCustomController
 
             // ----------------------------------------
             // Update the user list
-            $users = $user_manager->findUsers();
+            $users = $user_manager->findUsers();    // twig filters out disabled users if needed
 
             $templating = $this->get('templating');
             $return['d'] = array(
@@ -1368,7 +1368,7 @@ class ODRUserController extends ODRCustomController
 
             // ----------------------------------------
             // Update the user list
-            $users = $user_manager->findUsers();
+            $users = $user_manager->findUsers();    // twig filters out disabled users if needed
 
             $templating = $this->get('templating');
             $return['d'] = array(

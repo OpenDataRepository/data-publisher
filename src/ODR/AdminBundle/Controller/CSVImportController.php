@@ -35,7 +35,6 @@ use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\ShortVarchar;
-use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\TrackedError;
@@ -47,7 +46,6 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
-use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -1987,7 +1985,7 @@ class CSVImportController extends ODRCustomController
                     case "IntegerValue":
                         if ($value !== '') {
                             // Warn about invalid characters in an integer conversion
-                            $int_value = intval( $value );
+                            $int_value = intval( $value );          // TODO - should this regexp out non-numeric characters first?  TODO - display warnings differently?
                             if ( strval($int_value) != $value ) {
                                 $errors[] = array(
                                     'level' => 'Warning',
@@ -2001,7 +1999,7 @@ class CSVImportController extends ODRCustomController
                         break;
                     case "DecimalValue":
                         if ($value !== '') {
-                            $float_value = floatval( $value );
+                            $float_value = floatval( $value );      // TODO - floatval() is turning '-' into '0'?  shouldn't it be blank?  TODO - display warnings separately from errors?
                             if ( strval($float_value) != $value )  {
                                 $errors[] = array(
                                     'level' => 'Warning',
@@ -2695,7 +2693,7 @@ class CSVImportController extends ODRCustomController
             $new_mapping = array();
             $created = false;
             /** @var RenderPlugin $render_plugin */
-            $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
+            $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->findOneBy( array('pluginClassName' => 'odr_plugins.base.default') );
             foreach ($datafield_mapping as $column_id => $datafield_id) {
                 $datafield = null;
 
@@ -2747,8 +2745,8 @@ class CSVImportController extends ODRCustomController
 
             if ($created) {
                 // Since datafields were created for this import, create a new theme element and attach the new datafields to it
-                /** @var Theme $theme */
-                $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+                $theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
+
                 $objects = parent::ODR_addThemeElement($em, $user, $theme);
                 /** @var ThemeElement $theme_element */
                 $theme_element = $objects['theme_element'];
@@ -3460,9 +3458,7 @@ exit();
 
             // ----------------------------------------
             // Rebuild the list of sorted datarecords, since the datarecord order may have changed
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            $cache_service->delete('datatype_'.$datatype->getId().'_record_order');
+            $dti_service->resetDatatypeSortOrder($datatype->getId());
 
             // Mark this datarecord as updated...
             /** @var DatarecordInfoService $dri_service */

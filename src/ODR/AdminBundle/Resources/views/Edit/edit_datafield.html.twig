@@ -263,7 +263,7 @@
     {% elseif field_typename == "DateTime" %}
         {% set new_id = 'DatetimeValueForm_value_' ~ datafield.id %}
         <fieldset>
-            <label for="{{ new_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <input
                         {% if datafield.dataFieldMeta.internal_reference_name != '' %}rel="{{ datafield.dataFieldMeta.internal_reference_name }}"{% endif %}

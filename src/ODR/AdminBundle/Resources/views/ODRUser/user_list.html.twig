@@ -131,7 +131,7 @@
         $("#ODRUserList tbody tr").each(function() {
             if ( !$(this).hasClass('ODRHidden') ) {
                 count++;
-                if ( count % 2 == 0 )
+                if ( count % 2 === 1 )
                     $(this).removeClass('odd').addClass('even');
                 else
                     $(this).removeClass('even').addClass('odd');

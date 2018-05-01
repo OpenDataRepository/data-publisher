@@ -11,97 +11,6 @@ parameters:
     mailer_password: null
     locale: en
     secret: [[ ENTER RANDOM KEY HERE - Text String ]]
-    odr_plugins:
-        chemined1_plugin:
-            name: 'Chemin ED1 Plugin'
-            filename: CheminED1Plugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        chemineda_plugin:
-            name: 'Chemin EDA Plugin'
-            filename: CheminEDAPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        chemineds_plugin:
-            name: 'Chemin EDS Plugin'
-            filename: CheminEDSPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        cheminee1_plugin:
-            name: 'Chemin EE1 Plugin'
-            filename: CheminEE1Plugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        chemineea_plugin:
-            name: 'Chemin EEA Plugin'
-            filename: CheminEEAPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        cheminees_plugin:
-            name: 'Chemin EES Plugin'
-            filename: CheminEESPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        cheminefm_plugin:
-            name: 'Chemin EFM Plugin'
-            filename: CheminEFMPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        cheminetr_plugin:
-            name: 'Chemin ETR Plugin'
-            filename: CheminETRPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-
-        gcms_plugin:
-            name: 'GCMassSpec Plugin'
-            filename: GCMassSpecPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        csvtable_plugin:
-            name: 'CSV Table Plugin'
-            filename: CSVTablePlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        graph_plugin:
-            name: 'Graph Plugin'
-            filename: GraphPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        chemistry_plugin:
-            name: 'Chemistry Field'
-            filename: ChemistryPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        references_plugin:
-            name: 'References Plugin'
-            filename: ReferencesPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        comment_plugin:
-            name: 'Comment Plugin'
-            filename: CommentPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        link_plugin:
-            name: 'Link Plugin'
-            filename: LinkPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        url_plugin:
-            name: 'URL Field'
-            filename: URLPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        qanalyze_plugin:
-            name: 'Qanalyze XRD Analysis'
-            filename: QanalyzePlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        currency_plugin:
-            name: 'Currency Plugin'
-            filename: CurrencyPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-
-        organization_plugin:
-            name: 'Organization Plugin'
-            filename: OrganizationPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        person_plugin:
-            name: 'Person Plugin'
-            filename: PersonPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        sample_plugin:
-            name: 'Sample Plugin'
-            filename: SamplePlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        site_plugin:
-            name: 'Site Identifier Plugin'
-            filename: SitePlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
 
     site_baseurl: [[ ENTER URL OF ODR DOMAIN HERE ]]     # This url MUST NOT have a trailing forward slash
     odr_web_directory: "%kernel.root_dir%/../web"
@@ -123,3 +32,6 @@ parameters:
         jupyterhub_baseurl: [[ ENTER URL OF JUPYTERHUB DOMAIN HERE ]]     # This url MUST NOT have a trailing forward slash
         api_key: [[ ENTER RANDOM KEY HERE - Text String ]]
         bridge_token: [[ ENTER RANDOM KEY HERE - Text String ]]
+
+    google_maps_config:
+        api_key: [[ ENTER GOOGLE MAPS API KEY HERE IF USING MAP PLUGIN ]]

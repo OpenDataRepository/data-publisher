@@ -27,7 +27,7 @@
         </div>
 
         {# Get the regular display renderer to render each datarecord individually #}
-        {% set dr_array = { dr_id: datarecord } %}
+        {% set dr_array = { (dr_id): datarecord } %}    {# "(dr_id)" creates an array key with the datarecord id...without the parenthesis the array key is the string "dr_id" #}
         {% include 'ODRAdminBundle:Display:display_ajax.html.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': dr_array,

@@ -1,0 +1,201 @@
+{% spaceless %}
+
+<div class="header">
+    <h2>Render Plugin Management</h2>
+</div>
+
+<div>
+    <label for="display_only_installed_toggle" class="pure-button">
+        <input type="checkbox" id="display_only_installed_toggle" class="ODRDisplayOnlyInstalled" style="margin-right: 5px;" />
+        Only show installed Render Plugins
+    </label>
+</div>
+
+<div id="ODRRenderPluginListWrapper">
+    <table id="ODRRenderPluginList" class="display dataTable">
+        <thead><tr>
+            <th></th>
+            <th>Group</th>
+            <th>Name</th>
+            <th>Description</th>
+
+            <th>Installed?</th>
+            <th>In Use?</th>
+        </tr></thead>
+
+        <tbody>
+        {% for plugin_classname,plugin_data in available_plugins %}
+            <tr {% if installed_plugins[plugin_classname] is not defined %}class="ODRNotInstalledPlugin"{% endif %}>
+                <td>{{ plugin_classname }}</td>
+                <td>{{ plugin_data['group'] }}</td>
+                <td>{{ plugin_data['name'] }}</td>
+
+                <td>{{ plugin_data['description'] }}</td>
+
+                <td>
+                    {% if installed_plugins[plugin_classname] is not defined %}
+                        <button class="pure-button pure-button-primary ODRInstallRenderPlugin" rel="{{ plugin_classname }}">Install</button>
+                    {% elseif plugins_with_updates[plugin_classname] is defined %}
+                        <button class="pure-button ODRUpdateRenderPlugin" rel="{{ plugin_classname }}">Update</button>
+                    {% else %}
+                        Yes
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if installed_plugins[plugin_classname] is defined
+                        and installed_plugins[plugin_classname]['renderPluginInstance']|length > 0
+                    %}
+                        Yes
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <form id="ODRRenderPlugin_form" class="ODRHidden">
+        <input type="text" name="plugin_classname" value="" id="ODRRenderPlugin_classname" />
+    </form>
+</div>
+
+<script>
+    $(function() {
+        $("#ODRRenderPluginList").dataTable({
+            "columnDefs": [
+                {
+                    "targets": [0],
+                    "visible": false
+                },
+                {
+                    "targets": [3],
+                    "orderable": false,
+                    "searchable": false
+                },
+                {
+                    "targets": [4,5],
+                    // "orderable": false,
+                    "searchable": false,
+                    "className": "ODRCenterText"
+                }
+            ],
+            "order": [ [0, "asc"] ],
+            "autoWidth": true,
+            "paging": false,
+            "fixedHeader": {
+                /* headerOffset: 42 */
+            },
+            "info": false,
+            "language": {
+                "emptyTable": "No Render Plugins found"
+            }
+        });
+        $("#ODRRenderPluginList").removeAttr('style');
+
+        $(".ODRDisplayOnlyInstalled").unbind('click').click(function() {
+            if ($(".ODRNotInstalledPlugin").is(':visible')) {
+                $(".ODRNotInstalledPlugin").each(function() {
+                    $(this).hide();
+                });
+            }
+            else {
+                $(".ODRNotInstalledPlugin").each(function() {
+                    $(this).show();
+                });
+            }
+
+            // Redraw the table so the row colors match
+            redoRowClasses();
+        });
+
+        $(".ODRInstallRenderPlugin").unbind('click').click(function() {
+            var column = $(this).parent();
+            var plugin_classname = $(this).attr('rel');
+
+            var url = '{{ path('odr_install_plugin') }}';
+
+            $("#ODRRenderPlugin_classname").val(plugin_classname);
+            var data = $("#ODRRenderPlugin_form").serialize();
+
+            $.ajax({
+                cache: false,
+                type: 'POST',
+                data: data,
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    $(column).html('Yes');
+                    $(column).parent().removeClass('ODRNotInstalledPlugin');
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+
+        $(".ODRUpdateRenderPlugin").unbind('click').click(function() {
+            var column = $(this).parent();
+            var plugin_classname = $(this).attr('rel');
+
+            var url = '{{ path('odr_update_plugin') }}';
+
+            $("#ODRRenderPlugin_classname").val(plugin_classname);
+            var data = $("#ODRRenderPlugin_form").serialize();
+
+            $.ajax({
+                cache: false,
+                type: 'POST',
+                data: data,
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    $(column).html('Yes');
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+    });
+
+    function redoRowClasses() {
+        var count = 0;
+        $("#ODRRenderPluginList tr").each(function() {
+            if ( $(this).is(':visible') ) {
+                count++;
+                if ( count % 2 === 1 )
+                    $(this).removeClass('odd').addClass('even');
+                else
+                    $(this).removeClass('even').addClass('odd');
+            }
+        });
+    }
+</script>
+
+{% endspaceless %}

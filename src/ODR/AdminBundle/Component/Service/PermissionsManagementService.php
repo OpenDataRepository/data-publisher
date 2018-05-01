@@ -963,10 +963,11 @@ if ($debug)
      * @param ODRUser $user
      * @param Group $group
      * @param ODRUser $admin_user
+     * @param bool $delay_flush
      *
      * @return UserGroup
      */
-    public function createUserGroup($user, $group, $admin_user)
+    public function createUserGroup($user, $group, $admin_user, $delay_flush = false)
     {
         // Check to see if the User already belongs to this Group
         $query = $this->em->createQuery(
@@ -997,7 +998,8 @@ if ($debug)
 
             // Save all changes
             $this->em->persist($user_group);
-            $this->em->flush();
+            if (!$delay_flush)
+                $this->em->flush();
         }
 
         return $user_group;
@@ -1168,7 +1170,7 @@ if ($debug)
         // Automatically add super-admin users to new default "admin" groups
         if ($initial_purpose == 'admin') {
             /** @var ODRUser[] $user_list */
-            $user_list = $this->user_manager->findUsers();
+            $user_list = $this->user_manager->findUsers();    // disabled users set to ROLE_USER, so doesn't matter if they're in the list
 
             // Locate those with super-admin permissions...
             foreach ($user_list as $u) {

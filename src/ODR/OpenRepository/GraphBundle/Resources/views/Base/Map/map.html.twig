@@ -1,0 +1,93 @@
+{% spaceless %}
+
+<style>
+    #map_{{ unique_id }} {
+        height: {{ plugin_options.map_height }}px;
+        width: 100%;
+    }
+</style>
+
+<div id="map_{{ unique_id }}"></div>
+
+<script>
+    {# The Google Maps API assumes it's only ever going to get loaded once...but ODR assumes that it
+        can render the same thing as many times as it wants since they're generally independent of
+        each other.  Therefore, javascript hackery is required to ensure at most a single call to
+        the Google Maps API is capable of rendering as many maps as ODR wants to at once...
+    #}
+
+    {# All gps coords need to go into a single array for later... #}
+    if ( odr_map_locations === undefined || odr_map_locations === null )
+        var odr_map_locations = [];
+    {% for location in gps_locations %}
+    odr_map_locations.push(["{{ unique_id }}",{{ location.latitude }},{{ location.longitude }}]);
+    {% endfor %}
+
+    if ( odr_map_loaded === undefined || odr_map_loaded === null ) {
+        var odr_map_loaded = true;
+
+        {# Only want one copy of the google maps api... #}
+        var s = document.createElement('script');
+        s.src = "https://maps.googleapis.com/maps/api/js?v=3&key={{ api_key }}&callback=initMap";
+        s.defer = true;
+        document.body.appendChild(s);
+
+        var initMap = function() {
+            var maps = [];
+            var bounds = [];
+            var ids = [];
+            var points_per_map = [];
+
+            {# For each coordinate that needs to be displayed... #}
+            for (var i = 0; i < odr_map_locations.length; i++) {
+                var location = odr_map_locations[i];
+                var unique_id = location[0];
+
+                {# ...ensure there's only one map and one bounds entity per map div #}
+                if ( maps[unique_id] === undefined || maps[unique_id] === null ) {
+                    maps[unique_id] = new google.maps.Map(document.getElementById('map_' + unique_id), {
+                        mapTypeId: google.maps.MapTypeId.{{ plugin_options.map_type }}
+                    });
+                    bounds[unique_id] = new google.maps.LatLngBounds();
+                    points_per_map[unique_id] = 0;
+                    ids.push(unique_id);
+                }
+
+                {# ...create a marker for this coordinate and attach it to the correct map #}
+                var point = new google.maps.LatLng( location[1], location[2] );
+                new google.maps.Marker({
+                    position: point,
+                    map: maps[unique_id]
+                });
+                points_per_map[unique_id] += 1;
+
+                {# ...extend the correct bounds object to include this coordinate, so the map hopefully autosizes correctly #}
+                bounds[unique_id].extend(point);
+            }
+
+            {# Now that all coordinates have been added to the correct maps... #}
+            for (i = 0; i < ids.length; i++) {
+                {# ...attach the bounds object to their respective map object #}
+                var map_id = ids[i];
+                maps[map_id].fitBounds(bounds[map_id]);
+
+                {# If a map only has one point, it'll be zoomed in as much as possible... #}
+                if ( points_per_map[map_id] === 1 ) {
+                    {# ...so extend the bounds a bit to force the map to zoom out #}
+                    var offset = 0.5;    {# larger number here means it'll zoom out further #}
+                    var center = bounds[map_id].getCenter();
+
+                    {# NOTE - the map.getZoom() property is undefined here because LatLngBounds is being used #}
+                    bounds[map_id].extend(new google.maps.LatLng(center.lat() + offset, center.lng() + offset));
+                    bounds[map_id].extend(new google.maps.LatLng(center.lat() - offset, center.lng() - offset));
+                }
+            }
+
+            {# Now that the map(s) have been rendered, unset these variables so they don't persist across page loads #}
+            odr_map_locations = undefined;
+            odr_map_loaded = undefined;
+        };
+    }
+</script>
+
+{% endspaceless %}

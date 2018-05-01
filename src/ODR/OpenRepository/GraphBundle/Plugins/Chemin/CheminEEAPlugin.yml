@@ -1,0 +1,21 @@
+odr_plugins.chemin.chemineea:
+    name: Chemin EEA Plugin
+    datatype: true
+    version: 1.00
+    override_fields: false
+    override_child: true
+    description: Plugin to display Chemin EEA Data
+    required_fields:
+        eea_raw_csv:
+            name: EEA Raw CSV
+            description:
+            type: File
+        eea_lbl_file:
+            name: EEA LBL File
+            description:
+            type: File
+        eea_dat_file:
+            name: EEA DAT File
+            description:
+            type: File
+    config_options:

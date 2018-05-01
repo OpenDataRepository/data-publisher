@@ -13,14 +13,12 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
-use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -522,7 +520,7 @@ class CloneThemeService
 
 
         $this->logger->info('----------------------------------------');
-        $this->logger->info('CloneThemeService: attempting to make a clone of theme '.$source_theme->getId().', belonging to datatype '.$source_theme->getDataType()->getId().'...');
+        $this->logger->info('CloneThemeService: attempting to make a clone of theme '.$source_theme->getId().', belonging to datatype '.$source_theme->getDataType()->getId().' "'.$source_theme->getDataType()->getShortName().'"...');
 
 
         // ----------------------------------------
@@ -663,7 +661,7 @@ class CloneThemeService
     {
         // ----------------------------------------
         $this->logger->debug('----------------------------------------');
-        $this->logger->debug('CloneThemeService: cloning source theme '.$source_theme->getId().' (datatype '.$dest_datatype->getId().') into theme_element '.$theme_element->getId().' of theme '.$theme_element->getTheme()->getId().' (datatype '.$theme_element->getTheme()->getDataType()->getId().')...');
+        $this->logger->info('CloneThemeService: cloning source theme '.$source_theme->getId().' (datatype '.$dest_datatype->getId().' "'.$dest_datatype->getShortName().'") into theme_element '.$theme_element->getId().' of theme '.$theme_element->getTheme()->getId().' (datatype '.$theme_element->getTheme()->getDataType()->getId().')...');
 
         // Need to create a new Theme, ThemeMeta, and ThemeDatatype entry
         $new_theme = new Theme();
@@ -742,7 +740,7 @@ class CloneThemeService
         // Ensure the relevant cache entry is deleted
         $this->cache_service->delete('cached_theme_'.$new_theme->getParentTheme()->getId());
 
-        $this->logger->debug('CloneThemeService: finished cloning source theme '.$source_theme->getId().' (datatype '.$dest_datatype->getId().') into theme_element '.$theme_element->getId().' of theme '.$theme_element->getTheme()->getId().' (datatype '.$theme_element->getTheme()->getDataType()->getId().')...');
+        $this->logger->debug('CloneThemeService: finished cloning source theme '.$source_theme->getId().' (datatype '.$dest_datatype->getId().' "'.$dest_datatype->getShortName().'") into theme_element '.$theme_element->getId().' of theme '.$theme_element->getTheme()->getId().' (datatype '.$theme_element->getTheme()->getDataType()->getId().')...');
         $this->logger->debug('----------------------------------------');
 
         // Return the new theme

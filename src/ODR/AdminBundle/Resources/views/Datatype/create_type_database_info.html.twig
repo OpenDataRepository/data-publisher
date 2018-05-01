@@ -22,6 +22,15 @@
 
     <script>
         $(function() {
+            $("#AddDatatypeForm .required").each(function() {
+                $(this).unbind('keyup').unbind('paste');
+                $(this).on('keyup paste', function() {
+                    if ( $("#AddDatatypeForm_submit").hasClass('pure-button-disabled') )
+                        $('#AddDatatypeForm_submit').removeClass('pure-button-disabled');
+                });
+            });
+
+
             $('#AddDatatypeForm_submit').click(function() {
                 if (!$("#AddDatatypeForm_submit").hasClass('pure-button-disabled')) {
                     $('#AddDatatypeForm_submit').addClass('pure-button-disabled');
