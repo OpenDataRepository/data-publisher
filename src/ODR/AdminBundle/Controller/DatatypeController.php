@@ -545,6 +545,7 @@ class DatatypeController extends ODRCustomController
                         $theme_meta->setTemplateDescription('');
                         $theme_meta->setIsDefault(true);
                         $theme_meta->setShared(true);
+                        $theme_meta->setSourceSyncVersion(1);
                         $theme_meta->setIsTableTheme(false);
                         $theme_meta->setCreatedBy($admin);
                         $theme_meta->setUpdatedBy($admin);

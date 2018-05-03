@@ -187,18 +187,14 @@
  	    jQuery(window).unbind('scroll');
  	    jQuery('.fixedHeader-floating').remove();
 
-
         var faded_opacity = 0.15;
-        if(!use_fade) {
+        if (!use_fade)
             faded_opacity = 1;
-        }
 
-        // Hide the properties menu
-        // $("#ODRNavRightWrapper").fadeOut('fast');
         // Disable scroll handlers
         $(window).off('scroll');
         $("#content").fadeTo(200, faded_opacity, function() {
-            // TODO Document what this is doing.
+            // Abort any LoadContentFullAjax() call that's currently in progress
             if (xhr != null)
                 xhr.abort();
 
@@ -337,27 +333,6 @@
         });
     }
 
-{#
-    // Modified from http://stackoverflow.com/a/18151491
-    function ODR_scrollIntoView(element) {
-        var element_top = $(element).offset().top;
-        var element_height = $(element).height();
-        // Leave a margin of 100px at the top
-        var window_height = $(window).height() - 100;
-        var offset = 0;
-        if (element_height < window_height) {
-            offset = element_top - ((window_height / 2) - (element_height / 2));
-        }
-        else {
-            offset = element_top-175;   // scroll a bit higher on the page than otherwise to allow for the menubar across the top
-        }
-
-        if (offset < 0)
-            offset = 0;
-
-        $('html, body').scrollTo(offset);
-    }
-#}
 
     var WindowResizeInterval = "";
     function onWindowResize() {
@@ -365,7 +340,7 @@
         if (WindowResizeInterval != "")
             WindowResizeInterval = window.clearInterval(WindowResizeInterval);
 
-        //Resize all textarea elements
+        // Resize all textarea elements
         $("textarea").not(":hidden").each(function() {
             var el = $(this);
 
@@ -482,7 +457,7 @@
         );
     }
 
-    // Define waitForFinalEvent
+    {# This is apparently only used in ODROpenRepositoryGraphBundle:Base:Graph/graph.html.twig #}
     var waitForFinalEvent = (function () {
         var timers = {};
         return function (callback, ms, uniqueId) {
@@ -496,44 +471,6 @@
         };
     })();
 
-{#
-    var scrollTop = '';
-    var newHeight = '100';
-    function initODRDialog(elem) {
-        /*
-        $(window).bind('scroll', function() {
-            scrollTop = $( window ).scrollTop();
-            newHeight = scrollTop + 100;
-        });
-
-        if($(window).width() < 767) {
-            $(elem).show().addClass('odr-popup-mobile').css('top', 0);
-            $('html, body').animate({
-                scrollTop: $(elem).offset().top
-            }, 500);
-        } else {
-            $(elem).hide();
-            $(elem).removeClass('odr-popup-mobile').css('top', newHeight).toggle();
-        };
-
-        $(elem).append('<span class="odr-popup-btn-close">close</span>');
-
-        $('html').unbind('click')
-        .click(function() {
-            $('.odr-popup').hide();
-        });
-
-        $('.odr-popup-btn-close').unbind('click')
-        .click(function(e){
-            $(this).parent().hide();
-        });
-
-        $('.odr-popup').unbind('click')
-        .click(function(e){
-            e.stopPropagation();
-        });
-     }
-#}
 </script>
 
 {% include 'ODRAdminBundle:Default:file_handling.html.twig' %}

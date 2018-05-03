@@ -53,6 +53,7 @@ use ODR\AdminBundle\Form\MediumVarcharForm;
 use ODR\AdminBundle\Form\ShortVarcharForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
@@ -2201,6 +2202,8 @@ class EditController extends ODRCustomController
         $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
 
+        /** @var CloneThemeService $clone_theme_service */
+        $clone_theme_service = $this->container->get('odr.clone_theme_service');
         /** @var DatatypeInfoService $dti_service */
         $dti_service = $this->container->get('odr.datatype_info_service');
         /** @var DatarecordInfoService $dri_service */
@@ -2372,6 +2375,14 @@ exit();
             // Generate a csrf token for each of the datarecord/datafield pairs
             $token_list = self::generateCSRFTokens($datatype_array, $datarecord_array);
 
+
+            // ----------------------------------------
+            // Determine whether the currently preferred theme needs to be synchronized with its source
+            //  and the user notified of it
+            $notify_of_sync = self::notifyOfThemeSync($theme, $user);
+
+
+            // ----------------------------------------
             $html = $templating->render(
                 'ODRAdminBundle:Edit:edit_ajax.html.twig',
                 array(
@@ -2395,6 +2406,8 @@ exit();
 
                     'is_top_level' => $is_top_level,
                     'token_list' => $token_list,
+
+                    'notify_of_sync' => $notify_of_sync,
                 )
             );
         }

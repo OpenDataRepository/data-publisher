@@ -1,6 +1,7 @@
 {% spaceless %}
 
     {% set datatype = datatype_array[initial_datatype_id] %}
+    {% set theme = theme_array[initial_theme_id] %}
 
     <h1 class="no-margin-top-phone">
         <span>Master Layout Design &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
@@ -117,6 +118,14 @@
     $(function() {
         initPage();
         initDesignScrollHandler($("#ThemeLeftColumn").offset().top);
+
+        {% if notify_of_sync == true %}
+        {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+            'datatype_id': datatype.id,
+            'theme_id': theme.id,
+            'search_key': search_key,
+        }%}
+        {% endif %}
     });
 
     function notifySaved() {

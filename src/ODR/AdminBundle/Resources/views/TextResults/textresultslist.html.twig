@@ -213,6 +213,14 @@
             closeConfirm: true
         });
 {% endif %}
+
+        {% if notify_of_sync == true %}
+        {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+            'datatype_id': datatype.id,
+            'theme_id': theme.id,
+            'search_key': search_key,
+        }%}
+        {% endif %}
     });
 
     // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...

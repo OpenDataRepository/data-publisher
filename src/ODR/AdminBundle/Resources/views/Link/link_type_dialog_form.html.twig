@@ -33,23 +33,11 @@
                         {% set is_selected = true %}
                     {% endif %}
 
-                    {% set no_table_theme = false %}
-                    {% if datatypes_with_table_themes[datatype.id] is not defined %}
-                        {% set no_table_theme = true %}
-                    {% endif %}
-
-                    <option value="{{ datatype.id }}" rel="{% if no_table_theme %}warn{% endif %}" {% if is_selected %}selected{% endif %}>{{ datatype.shortname }}</option>
+                    <option value="{{ datatype.id }}" {% if is_selected %}selected{% endif %}>{{ datatype.shortname }}</option>
                 {% endfor %}
                 </select>
             </div>
         </fieldset>
-
-        <div id="ODRRemoteDatatypeLacksTableTheme" class="pure-u-1" {% if remote_datatype != null and datatypes_with_table_themes[remote_datatype.id] is not defined %}{% else %}style="display: none;"{% endif %}>
-            <div>
-                <i class="fa fa-lg fa-exclamation-triangle Cursor"></i>&nbsp;&nbsp;
-                <span>This remote Datatype does not currently have a Search Results theme.<br>Users won't be able to create links to Datarecords of this remote Datatype until it has at least one Search Results theme.</span>
-            </div>
-        </div>
     </form>
 
     <script>
@@ -78,16 +66,6 @@
                     $("#ODRLinkDatatypeFormSubmit").html('Unlink Current Database');
                 else
                     $("#ODRLinkDatatypeFormSubmit").html('Link Database');
-
-                // Warn about missing table theme if necessary
-                if ( $(this).children('option:selected').first().attr('rel') == 'warn' ) {
-                    $("#ODRRemoteDatatypeLacksTableTheme").show();
-                    resetRemodalInnerHeight();
-                }
-                else {
-                    $("#ODRRemoteDatatypeLacksTableTheme").hide();
-                    resetRemodalInnerHeight();
-                }
             });
         });
     </script>

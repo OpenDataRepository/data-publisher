@@ -19,6 +19,7 @@ use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -41,6 +42,11 @@ class CloneThemeService
     private $cache_service;
 
     /**
+     * @var PermissionsManagementService
+     */
+    private $pm_service;
+
+    /**
      * @var ThemeInfoService
      */
     private $theme_service;
@@ -56,17 +62,20 @@ class CloneThemeService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param PermissionsManagementService $pm_service
      * @param ThemeInfoService $theme_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        PermissionsManagementService $pm_service,
         ThemeInfoService $theme_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->pm_service = $pm_service;
         $this->theme_service = $theme_service;
         $this->logger = $logger;
     }
@@ -106,23 +115,51 @@ class CloneThemeService
 
 
     /**
-     * Returns true if it makes sense to sync the provided Theme with its source.
+     * Returns true if the provided Theme is missing Datafields and/or child/linked Datatypes that
+     * its source Theme has.  Also, the user needs to be capable of actually making changes to the
+     * layout for this to return true.
      *
      * @param Theme $theme
+     * @param ODRUser $user
      *
      * @return bool
      */
-    public function canSyncTheme($theme)
+    public function canSyncTheme($theme, $user)
     {
-        // Need to compute the difference between the Theme and its source to know whether it makes
-        //  sense to sync the two Themes...
-        $theme_diff_array = self::getThemeSourceDiff($theme);
-
-        // If there's at least once ThemeDatafield or ThemeDatatype entry to create, return true
-        if ( count($theme_diff_array) > 0 )
-            return true;
-        else
+        // ----------------------------------------
+        // If the user isn't allowed to make changes to this theme, then it makes no sense to
+        //  notify them that the theme is out of date...
+        if ($user === 'anon.')
             return false;
+        if ( $theme->getThemeType() === 'master' && !$this->pm_service->isDatatypeAdmin($user, $theme->getDataType()) )
+            return false;
+        if ( $theme->getThemeType() !== 'master' && $theme->getCreatedBy()->getId() !== $user->getId() )
+            return false;
+
+
+        // ----------------------------------------
+        // Otherwise...for each theme that has the provided theme as its parent, check whether its
+        //  source theme has had any Datafields or child/linked Datatypes added to it
+        $query = $this->em->createQuery(
+           'SELECT ct.id AS current_theme_id, ctm.sourceSyncVersion AS current_version,
+                   st.id AS source_theme_id, stm.sourceSyncVersion AS source_version
+            FROM ODRAdminBundle:Theme AS ct
+            JOIN ODRAdminBundle:ThemeMeta AS ctm WITH ctm.theme = ct
+            JOIN ODRAdminBundle:Theme AS st WITH ct.sourceTheme = st
+            JOIN ODRAdminBundle:ThemeMeta AS stm WITH stm.theme = st
+            WHERE ct.parentTheme = :theme_id
+            AND ct.deletedAt IS NULL AND ctm.deletedAt IS NULL
+            AND st.deletedAt IS NULL AND stm.deletedAt IS NULL'
+        )->setParameters( array('theme_id' => $theme->getId()) );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result) {
+            if ( intval($result['current_version']) !== intval($result['source_version']) )
+                return true;
+        }
+
+        // Otherwise, no appreciable changes have been made...no need to synchronize
+        return false;
     }
 
 
@@ -309,8 +346,11 @@ class CloneThemeService
      *
      * ODR doesn't bother keeping track of the info needed to sync the display_order property.
      *
+     * IMPORTANT: whatever calls this MUST update the sourceSyncVersion property of ALL Themes
+     * where $theme is their parent
+     *
      * @param ODRUser $user
-     * @param Theme $theme
+     * @param Theme $theme  The theme to synchronize
      *
      * @throws ODRBadRequestException
      *
@@ -318,6 +358,14 @@ class CloneThemeService
      */
     public function syncThemeWithSource($user, $theme)
     {
+        // ----------------------------------------
+        // Prevent sync attempts when the user shouldn't be allowed...
+        if ( $theme->getThemeType() === 'master' && !$this->pm_service->isDatatypeAdmin($user, $theme->getDataType()) )
+            throw new ODRForbiddenException();
+        if ( $theme->getThemeType() !== 'master' && $theme->getCreatedBy()->getId() !== $user->getId() )
+            throw new ODRForbiddenException();
+
+
         // ----------------------------------------
         // Logically, there should be no difference if a theme is its own source theme...but if the
         //  datatype is linked to other datatypes, then this datatype has copies of their themes
@@ -379,7 +427,7 @@ class CloneThemeService
                 if ( count($results) > 0 ) {
                     /** @var ThemeElement[] $results */
                     foreach ($results as $te) {
-                        if ( count($te->getThemeDataFields()) == 0 && count($te->getThemeDataType()) == 0 ) {
+                        if ( count($te->getThemeDataFields()) == 0 && count($te->getThemeDataType()) == 0 ) {   // TODO - should a hidden theme element be selected if it's empty or has at least one tdf entry?
                             $target_theme_element = $te;
                             break;
                         }
@@ -476,6 +524,7 @@ class CloneThemeService
                 }
             }
         }
+
 
         // Mark the theme as updated
         $this->theme_service->updateThemeCacheEntry($theme, $user);

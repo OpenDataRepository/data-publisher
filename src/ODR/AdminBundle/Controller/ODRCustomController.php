@@ -74,6 +74,7 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
@@ -158,6 +159,8 @@ class ODRCustomController extends Controller
         $em = $this->getDoctrine()->getManager();
         $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+        /** @var CloneThemeService $clone_theme_service */
+        $clone_theme_service = $this->container->get('odr.clone_theme_service');
         /** @var DatatypeInfoService $dti_service */
         $dti_service = $this->container->get('odr.datatype_info_service');
         /** @var DatarecordInfoService $dri_service */
@@ -206,6 +209,10 @@ class ODRCustomController extends Controller
 
         // Might as well set the session default theme here
         $theme_service->setSessionTheme($datatype->getId(), $theme);
+
+        // Determine whether the currently preferred theme needs to be synchronized with its source
+        //  and the user notified of it
+        $notify_of_sync = self::notifyOfThemeSync($theme, $user);
 
 
         // ----------------------------------------
@@ -425,6 +432,7 @@ class ODRCustomController extends Controller
 
                     'logged_in' => $logged_in,
                     'display_theme_warning' => $display_theme_warning,
+                    'notify_of_sync' => $notify_of_sync,
                     'intent' => $intent,
 
                     'pagination_html' => $pagination_html,
@@ -484,6 +492,7 @@ class ODRCustomController extends Controller
 
                     'logged_in' => $logged_in,
                     'display_theme_warning' => $display_theme_warning,
+                    'notify_of_sync' => $notify_of_sync,
                     'intent' => $intent,
 
                     'can_edit_datatype' => $can_edit_datatype,
@@ -2925,7 +2934,7 @@ class ODRCustomController extends Controller
             'isDefault' => $old_meta_entry->getIsDefault(),
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
             'shared' => $old_meta_entry->getShared(),
-            'sourceSyncCheck' => $old_meta_entry->getSourceSyncCheck(),
+            'sourceSyncVersion' => $old_meta_entry->getSourceSyncVersion(),
             'isTableTheme' => $old_meta_entry->getIsTableTheme(),
         );
         foreach ($existing_values as $key => $value) {
@@ -2969,13 +2978,12 @@ class ODRCustomController extends Controller
             $new_theme_meta->setDisplayOrder( $properties['displayOrder'] );
         if ( isset($properties['shared']) )
             $new_theme_meta->setShared( $properties['shared'] );
-        if ( isset($properties['sourceSyncCheck']) )
-            $new_theme_meta->setSourceSyncCheck( $properties['sourceSyncCheck'] );
+        if ( isset($properties['sourceSyncVersion']) )
+            $new_theme_meta->setSourceSyncVersion( $properties['sourceSyncVersion'] );
 
         if ( isset($properties['isTableTheme']) ) {
             $new_theme_meta->setIsTableTheme( $properties['isTableTheme'] );
 
-            // TODO - wasn't this distinction supposed to be removed in the near future?
             if ($theme->getThemeType() == 'search_results' && $new_theme_meta->getIsTableTheme()) {
                 $theme->setThemeType('table');
                 $em->persist($theme);
@@ -4068,5 +4076,142 @@ class ODRCustomController extends Controller
         }
 
         return $error_str;
+    }
+
+
+    /**
+     * Synchronizes the given theme with its source theme if needed, and returns whether to notify
+     *  the user it did so.  At the moment, a notification isn't needed when the synchronization adds
+     *  a datafield/datatype that the user can't view due to permissions.
+     *
+     * @param Theme $theme
+     * @param User $user
+     *
+     * @return bool
+     */
+    protected function notifyOfThemeSync($theme, $user)
+    {
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        /** @var CloneThemeService $clone_theme_service */
+        $clone_theme_service = $this->container->get('odr.clone_theme_service');
+        /** @var PermissionsManagementService $pm_service */
+        $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+        // If the theme can't be synched, then there's no sense notifying the user of anything...
+        if ( !$clone_theme_service->canSyncTheme($theme, $user) )
+            return false;
+
+
+        // ----------------------------------------
+        // Otherwise, save the diff from before the impending synchronization...
+        $theme_diff_array = $clone_theme_service->getThemeSourceDiff($theme);
+
+        // Then synchronize the theme...
+        $clone_theme_service->syncThemeWithSource($user, $theme);
+
+        // Since this theme got synched, also synch the version numbers of all themes with this
+        //  this theme as their parent...
+        $query = $em->createQuery(
+           'SELECT t
+            FROM ODRAdminBundle:Theme AS t
+            WHERE t.parentTheme = :theme_id
+            AND t.deletedAt IS NULL'
+        )->setParameters( array('theme_id' => $theme->getId()) );
+        $results = $query->getResult();
+
+        /** @var Theme[] $results */
+        foreach ($results as $t) {
+            $current_theme_version = $t->getSourceSyncVersion();
+            $source_theme_version = $t->getSourceTheme()->getSourceSyncVersion();
+
+            if ( $current_theme_version !== $source_theme_version ) {
+                $properties = array(
+                    'sourceSyncVersion' => $source_theme_version
+                );
+                self::ODR_copyThemeMeta($em, $user, $t, $properties);
+            }
+        }
+
+
+        // ----------------------------------------
+        // Go through the previously saved theme diff and determine whether the user can view at
+        //  least one of the added datafields/datatypes...
+        $added_datafields = array();
+        $added_datatypes = array();
+        $user_permissions = $pm_service->getUserPermissionsArray($user);
+
+        foreach ($theme_diff_array as $theme_id => $diff_array) {
+            if ( isset($diff_array['new_datafields']) )
+                $added_datafields = array_merge($added_datafields, array_keys($diff_array['new_datafields']));
+            if ( isset($diff_array['new_datatypes']) )
+                $added_datatypes = array_merge($added_datatypes, array_keys($diff_array['new_datatypes']));
+        }
+
+        if ( count($added_datafields) > 0 ) {
+            // Check if any of the added datafields are public...
+            $query = $em->createQuery(
+               'SELECT df.id, dfm.publicDate
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                WHERE df.id IN (:datafield_ids)
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
+            )->setParameters( array('datafield_ids' => $added_datafields) );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                if ( $result['publicDate']->format('Y-m-d H:i:s') !== '2200-01-01 00:00:00' )
+                    // At least one datafield is public, notify the user
+                    return true;
+            }
+
+            // All the added datafields are non-public, but the user could still see them if they
+            //  have permissions...
+            $datafield_permissions = $user_permissions['datafields'];
+            foreach ($added_datafields as $num => $df_id) {
+                if ( isset($datafield_permissions[$df_id])
+                    && isset($datafield_permissions[$df_id]['view'])
+                ) {
+                    // User has permission to see this datafield, notify them of the synchronization
+                    return true;
+                }
+            }
+        }
+
+
+        if ( count($added_datatypes) > 0 ) {
+            // Check if any of the added datafields are public...
+            $query = $em->createQuery(
+               'SELECT dt.id, dtm.publicDate
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                WHERE dt.id IN (:datatype_ids)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $added_datatypes) );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                if ( $result['publicDate']->format('Y-m-d H:i:s') !== '2200-01-01 00:00:00' )
+                    // At least one datatype is public, notify the user
+                    return true;
+            }
+
+            // All the added datatypes are non-public, but the user could still see them if they
+            //  have permissions...
+            $datatype_permissions = $user_permissions['datatypes'];
+            foreach ($added_datatypes as $num => $dt_id) {
+                if ( isset($datatype_permissions[$dt_id])
+                    && isset($datatype_permissions[$dt_id]['dt_view'])
+                ) {
+                    // User has permission to see this datatype, notify them of the synchronization
+                    return true;
+                }
+            }
+        }
+
+        // User isn't able to view anything that was added...do not notify
+        return false;
     }
 }

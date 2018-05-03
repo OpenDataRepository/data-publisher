@@ -88,6 +88,7 @@ services:
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
+            permissions_service: "@odr.permissions_management_service"
             theme_service: "@odr.theme_info_service"
             logger: "@monolog.logger.clone_theme"
 
