@@ -7,23 +7,25 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * The graph plugin plots a line graph out of data files uploaded
- * to a File DataField, and labels them using a "legend" field
- * selected when the graph plugin is created...
+ * The graph plugin plots a line graph out of data files uploaded to a File DataField, and labels
+ * them using a "legend" field selected when the graph plugin is created...
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
-// Services
+// ODR
 use ODR\AdminBundle\Component\Service\CryptoService;
+use ODR\AdminBundle\Entity\RenderPluginInstance;
+use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 // Other
 use Ramsey\Uuid\Uuid;
 
 
-class GraphPlugin
+class GraphPlugin implements DatatypePluginInterface
 {
+
     /**
      * @var EngineInterface
      */
@@ -80,16 +82,17 @@ class GraphPlugin
             // Remap render plugin by name => value
             $max_option_date = 0;
             $options = array();
-            foreach($render_plugin_options as $option) {
-                if ( $option['active'] == 1 )
+            foreach ($render_plugin_options as $option) {
+                if ( $option['active'] == 1 ) {
                     $option_date = new \DateTime($option['updated']->date);
                     $us = $option_date->format('u');
                     $epoch = strtotime($option['updated']->date) * 1000000;
                     $epoch = $epoch + $us;
-                    if($epoch > $max_option_date) {
+                    if ($epoch > $max_option_date)
                         $max_option_date = $epoch;
-                    }
-                    $options[ $option['optionName'] ] = $option['optionValue'];
+
+                    $options[$option['optionName']] = $option['optionValue'];
+                }
             }
 
             // Retrieve mapping between datafields and render plugin fields
@@ -458,5 +461,32 @@ class GraphPlugin
 
             throw new \Exception('The file "'. $output_svg .'" does not exist');
         }
+    }
+
+
+    /**
+     * Called when a user removes a specific instance of this render plugin
+     *
+     * @param RenderPluginInstance $render_plugin_instance
+     */
+    public function onRemoval($render_plugin_instance)
+    {
+        // This plugin doesn't need to do anything here
+        // TODO - make this plugin delete cached graphs on removal?
+        return;
+    }
+
+
+    /**
+     * Called when a user changes a mapped field or an option for this render plugin
+     * TODO - pass in which field mappings and/or plugin options got changed?
+     *
+     * @param RenderPluginInstance $render_plugin_instance
+     */
+    public function onSettingsChange($render_plugin_instance)
+    {
+        // This plugin doesn't need to do anything here
+        // TODO - make this plugin delete cached graphs on settings change?  right now, changing an option ends up changing the filename for the cached graph...
+        return;
     }
 }

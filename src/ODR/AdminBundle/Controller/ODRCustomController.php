@@ -3438,7 +3438,7 @@ class ODRCustomController extends Controller
      * @param RenderPluginMap $render_plugin_map
      * @param array $properties
      *
-     * @return RenderPluginMap
+     * @return bool
      */
     protected function ODR_copyRenderPluginMap($em, $user, $render_plugin_map, $properties)
     {
@@ -3453,7 +3453,8 @@ class ODRCustomController extends Controller
         }
 
         if (!$changes_made)
-            return $render_plugin_map;
+//            return $render_plugin_map;
+            return false;
 
         // Determine whether to create a new meta entry or modify the previous one
         $remove_old_entry = false;
@@ -3492,7 +3493,8 @@ class ODRCustomController extends Controller
         $em->flush();
 
         // Return the new entry
-        return $new_rpm;
+//        return $new_rpm;
+        return true;
     }
 
 
@@ -3536,7 +3538,7 @@ class ODRCustomController extends Controller
      * @param RenderPluginOptions $render_plugin_option
      * @param array $properties
      *
-     * @return RenderPluginOptions
+     * @return bool
      */
     protected function ODR_copyRenderPluginOption($em, $user, $render_plugin_option, $properties)
     {
@@ -3551,8 +3553,8 @@ class ODRCustomController extends Controller
         }
 
         if (!$changes_made)
-            return $render_plugin_option;
-
+//            return $render_plugin_option;
+            return false;
 
         // Determine whether to create a new meta entry or modify the previous one
         $remove_old_entry = false;
@@ -3591,7 +3593,8 @@ class ODRCustomController extends Controller
         $em->flush();
 
         // Return the new entry
-        return $new_rpo;
+//        return $new_rpo;
+        return true;
     }
 
 

@@ -36,11 +36,6 @@ class DatarecordInfoService
     private $cache_service;
 
     /**
-     * @var PermissionsManagementService
-     */
-    private $pm_service;
-
-    /**
      * @var Logger
      */
     private $logger;
@@ -51,18 +46,15 @@ class DatarecordInfoService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param PermissionsManagementService $permissions_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        PermissionsManagementService $permissions_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->pm_service = $permissions_service;
         $this->logger = $logger;
     }
 
@@ -593,5 +585,29 @@ class DatarecordInfoService
 
         // Delete the filtered list of data meant specifically for table themes
         $this->cache_service->delete('cached_table_data_'.$dr->getId());
+    }
+
+
+    /**
+     * Deletes the cached table entries for the specified datatype...currently used by several
+     * render plugins after they get removed or their settings get changed...
+     *
+     * TODO - better way of handling this requirement?
+     *
+     * @param int $grandparent_datatype_id
+     * @param array $keys_to_delete
+     */
+    public function deleteCachedTableData($grandparent_datatype_id)
+    {
+        $query = $this->em->createQuery(
+           'SELECT dr.id AS dr_id
+            FROM ODRAdminBundle:DataRecord AS dr
+            WHERE dr.dataType = :datatype_id
+            AND dr.deletedAt IS NULL'
+        )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result)
+            $this->cache_service->delete('cached_table_data_'.$result['dr_id']);
     }
 }

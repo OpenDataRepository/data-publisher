@@ -15,6 +15,7 @@ namespace ODR\AdminBundle\Component\Service;
 
 
 // Entities
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
@@ -376,6 +377,7 @@ class TableThemeHelperService
             if ($render_plugin['id'] !== 1) {
                 // Run the render plugin for this datafield
                 try {
+                    /** @var DatafieldPluginInterface $plugin */
                     $plugin = $this->container->get($render_plugin['pluginClassName']);
                     $df_value = $plugin->execute($df, $dr, $render_plugin, 'table');
                 }
@@ -393,35 +395,45 @@ class TableThemeHelperService
 
                 switch ($df_typename) {
                     case 'Boolean':
-                        if ( $drf['boolean'][0]['value'] == 1 )
-                            $df_value = 'YES';
+                        if ( isset($drf['boolean']) && isset($drf['boolean'][0]) ) {
+                            if ( $drf['boolean'][0]['value'] == 1 )
+                                $df_value = 'YES';
+                        }
                         break;
                     case 'Integer':
-                        $df_value = $drf['integerValue'][0]['value'];
+                        if ( isset($drf['integerValue']) && isset($drf['integerValue'][0]) )
+                            $df_value = $drf['integerValue'][0]['value'];
                         break;
                     case 'Decimal':
-                        $df_value = $drf['decimalValue'][0]['value'];
+                        if ( isset($drf['decimalValue']) && isset($drf['decimalValue'][0]) )
+                            $df_value = $drf['decimalValue'][0]['value'];
                         break;
                     case 'Paragraph Text':
-                        $df_value = $drf['longText'][0]['value'];
+                        if ( isset($drf['longText']) && isset($drf['longText'][0]) )
+                            $df_value = $drf['longText'][0]['value'];
                         break;
                     case 'Long Text':
-                        $df_value = $drf['longVarchar'][0]['value'];
+                        if ( isset($drf['longVarchar']) && isset($drf['longVarchar'][0]) )
+                            $df_value = $drf['longVarchar'][0]['value'];
                         break;
                     case 'Medium Text':
-                        $df_value = $drf['mediumVarchar'][0]['value'];
+                        if ( isset($drf['mediumVarchar']) && isset($drf['mediumVarchar'][0]) )
+                            $df_value = $drf['mediumVarchar'][0]['value'];
                         break;
                     case 'Short Text':
-                        $df_value = $drf['shortVarchar'][0]['value'];
+                        if ( isset($drf['shortVarchar']) && isset($drf['shortVarchar'][0]) )
+                            $df_value = $drf['shortVarchar'][0]['value'];
                         break;
                     case 'DateTime':
-                        $df_value = $drf['datetimeValue'][0]['value']->format('Y-m-d');
-                        if ($df_value == '9999-12-31')
-                            $df_value = '';
+                        if ( isset($drf['datetimeValue']) && isset($drf['datetimeValue'][0]) ) {
+                            $df_value = $drf['datetimeValue'][0]['value']->format('Y-m-d');
+                            if ($df_value == '9999-12-31')
+                                $df_value = '';
+                        }
                         break;
 
                     case 'File':
-                        if ( isset($drf['file'][0]) ) {
+                        if ( isset($drf['file']) && isset($drf['file'][0]) ) {
                             $file = $drf['file'][0];    // should only ever be one file in here anyways
 
                             $url = $this->router->generate( 'odr_file_download', array('file_id' => $file['id']) );
@@ -434,10 +446,12 @@ class TableThemeHelperService
 
                     case 'Single Radio':
                     case 'Single Select':
-                        foreach ($drf['radioSelection'] as $ro_id => $rs) {
-                            if ( $rs['selected'] == 1 ) {
-                                $df_value = $rs['radioOption']['optionName'];
-                                break;
+                        if ( isset($drf['radioSelection']) ) {
+                            foreach ($drf['radioSelection'] as $ro_id => $rs) {
+                                if ( $rs['selected'] == 1 ) {
+                                    $df_value = $rs['radioOption']['optionName'];
+                                    break;
+                                }
                             }
                         }
                         break;

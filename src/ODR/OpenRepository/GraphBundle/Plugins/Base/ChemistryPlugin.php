@@ -7,21 +7,29 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * The chemistry plugin is designed to substitute certain
- * characters in a datafield for html <sub> and <sup> tags,
- * which allow the string to more closely resemble a chemical
- * formula.
+ * The chemistry plugin is designed to substitute certain characters in a datafield for html
+ * <sub> and <sup> tags, which allow the string to more closely resemble a chemical formula.
  *
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
+// ODR
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Entity\RenderPluginInstance;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
 
-class ChemistryPlugin
+class ChemistryPlugin implements DatafieldPluginInterface
 {
+
+    /**
+     * @var DatarecordInfoService
+     */
+    private $dri_service;
+
     /**
      * @var EngineInterface
      */
@@ -31,9 +39,11 @@ class ChemistryPlugin
     /**
      * ChemistryPlugin constructor.
      *
+     * @param DatarecordInfoService $dri_service
      * @param EngineInterface $templating
      */
-    public function __construct(EngineInterface $templating) {
+    public function __construct(DatarecordInfoService $dri_service, EngineInterface $templating) {
+        $this->dri_service = $dri_service;
         $this->templating = $templating;
     }
 
@@ -152,4 +162,38 @@ class ChemistryPlugin
         }
     }
 
+
+    /**
+     * Called when a user removes a specific instance of this render plugin
+     *
+     * @param RenderPluginInstance $render_plugin_instance
+     */
+    public function onRemoval($render_plugin_instance)
+    {
+        // The 'cached_table_data' entries store the values of datafields so the plugins don't have
+        //  to be executed every single time a search results page is loaded...therefore, when this
+        //  plugin is removed or a setting is changed, these cache entries need to get deleted
+
+        // This is a datafield plugin, so getting the datatype via the datafield...
+        $datatype_id = $render_plugin_instance->getDataField()->getDataType()->getGrandparent()->getId();
+        $this->dri_service->deleteCachedTableData($datatype_id);
+    }
+
+
+    /**
+     * Called when a user changes a mapped field or an option for this render plugin
+     * TODO - pass in which field mappings and/or plugin options got changed?
+     *
+     * @param RenderPluginInstance $render_plugin_instance
+     */
+    public function onSettingsChange($render_plugin_instance)
+    {
+        // The 'cached_table_data' entries store the values of datafields so the plugins don't have
+        //  to be executed every single time a search results page is loaded...therefore, when this
+        //  plugin is removed or a setting is changed, these cache entries need to get deleted
+
+        // This is a datafield plugin, so getting the datatype via the datafield...
+        $datatype_id = $render_plugin_instance->getDataField()->getDataType()->getGrandparent()->getId();
+        $this->dri_service->deleteCachedTableData($datatype_id);
+    }
 }

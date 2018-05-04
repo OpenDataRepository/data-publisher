@@ -7,20 +7,25 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * TODO
+ * Generates a google map from one or more datarecords that have datafields with decimal degree
+ * GPS coordinates in them.
  *
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
+// ODR
+use ODR\AdminBundle\Entity\RenderPluginInstance;
+use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 // Other
 use FOS\UserBundle\Util\TokenGenerator;
 
 
-class MapPlugin
+class MapPlugin implements DatatypePluginInterface
 {
+
     /**
      * @var EngineInterface
      */
@@ -41,6 +46,7 @@ class MapPlugin
      * MapPlugin constructor.
      *
      * @param EngineInterface $templating
+     * @param TokenGenerator $tokenGenerator
      * @param array $config_options
      */
     public function __construct(
@@ -194,4 +200,28 @@ class MapPlugin
         }
     }
 
+
+    /**
+     * Called when a user removes a specific instance of this render plugin
+     *
+     * @param RenderPluginInstance $render_plugin_instance
+     */
+    public function onRemoval($render_plugin_instance)
+    {
+        // This plugin doesn't need to do anything here
+        return;
+    }
+
+
+    /**
+     * Called when a user changes a mapped field or an option for this render plugin
+     * TODO - pass in which field mappings and/or plugin options got changed?
+     *
+     * @param RenderPluginInstance $render_plugin_instance
+     */
+    public function onSettingsChange($render_plugin_instance)
+    {
+        // This plugin doesn't need to do anything here
+        return;
+    }
 }

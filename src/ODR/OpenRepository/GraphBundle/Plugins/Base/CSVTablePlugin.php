@@ -2,24 +2,26 @@
 
 /**
  * Open Data Repository Data Publisher
- * Graph Plugin
+ * CSVTable Plugin
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * The CSVTable Plugin reads a single file uploaded into a file datafield, and uses a javascript library
- * to render a nice table view of the contents of that file.
+ * The CSVTable Plugin reads a single file uploaded into a file datafield, and uses a javascript
+ * library to render a nice table view of the contents of that file.
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
-// Services
+// ODR
 use ODR\AdminBundle\Component\Service\CryptoService;
+use ODR\AdminBundle\Entity\RenderPluginInstance;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
 
-class CSVTablePlugin
+class CSVTablePlugin implements DatafieldPluginInterface
 {
 
     /**
@@ -143,5 +145,30 @@ class CSVTablePlugin
             // Just rethrow the exception
             throw $e;
         }
+    }
+
+
+    /**
+     * Called when a user removes a specific instance of this render plugin
+     *
+     * @param RenderPluginInstance $render_plugin_instance
+     */
+    public function onRemoval($render_plugin_instance)
+    {
+        // This plugin doesn't need to do anything here
+        return;
+    }
+
+
+    /**
+     * Called when a user changes a mapped field or an option for this render plugin
+     * TODO - pass in which field mappings and/or plugin options got changed?
+     *
+     * @param RenderPluginInstance $render_plugin_instance
+     */
+    public function onSettingsChange($render_plugin_instance)
+    {
+        // This plugin doesn't need to do anything here
+        return;
     }
 }

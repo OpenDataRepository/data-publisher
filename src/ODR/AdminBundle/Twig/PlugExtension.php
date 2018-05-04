@@ -13,6 +13,10 @@
 
 namespace ODR\AdminBundle\Twig;
 
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
+
+
 class PlugExtension extends \Twig_Extension
 {
 
@@ -69,6 +73,7 @@ class PlugExtension extends \Twig_Extension
     {
         try {
             // Load and execute the render plugin
+            /** @var DatatypePluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
             return $svc->execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options);
         }
@@ -109,6 +114,7 @@ class PlugExtension extends \Twig_Extension
 
 
             // Load and execute the render plugin
+            /** @var DatafieldPluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
             return $svc->execute($datafield, $datarecord, $render_plugin, $themeType);
         }

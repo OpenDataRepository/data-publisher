@@ -109,7 +109,6 @@ services:
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
-            permissions_service: "@odr.permissions_management_service"
             logger: "@logger"
 
     odr.datatype_info_service:
