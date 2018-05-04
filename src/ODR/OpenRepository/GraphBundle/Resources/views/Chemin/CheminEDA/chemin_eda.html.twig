@@ -57,41 +57,41 @@
             </td>
             <td>
                 {% if files['eda_raw_tiff_file'] is defined %}
-                    {% include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig' with {'file': files['eda_raw_tiff_file'], 'display_name': 'raw'} %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['eda_raw_tiff_file'], 'display_name': 'raw'} %}
                 {% endif %}
             </td>
             <td>
                 {% if files['eda_tiff_file'] is defined %}
-                    {% include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig' with {'file': files['eda_tiff_file'], 'display_name': 'no-spot'} %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['eda_tiff_file'], 'display_name': 'no-spot'} %}
                 {% endif %}
             </td>
             <td>
                 {% if files['eda_raw_mdi_file'] is defined %}
-                    {% include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig' with {'file': files['eda_raw_mdi_file'], 'display_name': 'raw'} %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['eda_raw_mdi_file'], 'display_name': 'raw'} %}
                 {% endif %}
             </td>
             <td>
                 {% if files['eda_mdi_file'] is defined %}
-                    {% include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig' with {'file': files['eda_mdi_file'], 'display_name': 'no-spot'} %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['eda_mdi_file'], 'display_name': 'no-spot'} %}
                 {% endif %}
             </td>
 
             {% if not is_sum_block %}
             <td>
                 {% if files['eda_dat_file'] is defined %}
-                    {% include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig' with {'file': files['eda_dat_file'], 'display_name': 'DAT'} %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['eda_dat_file'], 'display_name': 'DAT'} %}
                 {% endif %}
             </td>
             <td>
                 {% if files['eda_lbl_file'] is defined %}
-                    {% include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig' with {'file': files['eda_lbl_file'], 'display_name': 'LBL'} %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['eda_lbl_file'], 'display_name': 'LBL'} %}
                 {% endif %}
             </td>
             {% endif %}
 
             <td {% if is_sum_block %}colspan="3"{% endif %}>
                 {% if files['eda_processing_description'] is defined %}
-                    {% include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig' with {'file': files['eda_processing_description'], 'display_name': 'Processing description'} %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['eda_processing_description'], 'display_name': 'Processing description'} %}
                 {% endif %}
             </td>
         </tr>

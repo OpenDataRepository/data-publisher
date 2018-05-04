@@ -18,8 +18,8 @@
             <span class="ODRFileInfoDiv">
                 <i class="fa fa-lg fa-info-circle"></i>
                 <span class="ODRFileInfo">
-                    <div>
-                        <i class="fa fa-globe ODRPublicFile Pointer" rel="{{ file.id }}"></i>&nbsp;
+                    <div class="Pointer">
+                        <i class="fa fa-globe ODRPublicFile" rel="{{ file.id }}"></i>&nbsp;
                         <span>{% if not file.fileMeta.publicDate|is_public %}File is not public{% else %}File was made public on {{ file.fileMeta.publicDate|date('Y-m-d') }}{% endif %}</span>
                     </div>
                     <div>

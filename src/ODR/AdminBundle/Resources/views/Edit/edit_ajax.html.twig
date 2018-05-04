@@ -232,9 +232,9 @@ function initPage() {
     });
 
 
-    $(".ODRPublicFile").unbind('click').click(function(event) {
+    $(".ODRPublicFile").parent().unbind('click').click(function(event) {
         // Grab necessary attributes
-        var icon_div = $(this);
+        var icon_div = $(this).children(".ODRPublicFile");
         var file_id = $(icon_div).attr('rel');
         var href = $(icon_div).closest('.ODRTruncateFilename').children('a.ODRFileDownload').first().attr('href');
 

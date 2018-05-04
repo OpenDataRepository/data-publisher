@@ -56,17 +56,17 @@
             </td>
             <td>
                 {% if files['etr_raw_tiff_file'] is defined %}
-                    {% include 'ODROpenRepositoryGraphBundle:CheminETR:chemin_etr_file.html.twig' with {'file': files['etr_raw_tiff_file'], 'display_name': 'raw'} %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['etr_raw_tiff_file'], 'display_name': 'raw'} %}
                 {% endif %}
             </td>
             <td>
                 {% if files['etr_dat_file'] is defined %}
-                    {% include 'ODROpenRepositoryGraphBundle:CheminETR:chemin_etr_file.html.twig' with {'file': files['etr_dat_file'], 'display_name': 'DAT'} %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['etr_dat_file'], 'display_name': 'DAT'} %}
                 {% endif %}
             </td>
             <td>
                 {% if files['etr_lbl_file'] is defined %}
-                    {% include 'ODROpenRepositoryGraphBundle:CheminETR:chemin_etr_file.html.twig' with {'file': files['etr_lbl_file'], 'display_name': 'LBL'} %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['etr_lbl_file'], 'display_name': 'LBL'} %}
                 {% endif %}
             </td>
         </tr>
