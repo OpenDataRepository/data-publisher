@@ -3260,8 +3260,14 @@ class DisplaytemplateController extends ODRCustomController
                 /** @var RenderPluginInstance $rpi */
                 $rpi = $repo_render_plugin_instance->findOneBy( array('renderPlugin' => $datatype->getRenderPlugin()->getId(), 'dataType' => $datatype->getId()) );
 
-                /** @var RenderPluginMap $rpm */
-                $rpm = $repo_render_plugin_map->findOneBy( array('renderPluginInstance' => $rpi->getId(), 'dataField' => $datafield->getId()) );
+                if($rpi !== null) {
+                    /** @var RenderPluginMap $rpm */
+                    $rpm = $repo_render_plugin_map->findOneBy( array('renderPluginInstance' => $rpi->getId(), 'dataField' => $datafield->getId()) );
+                }
+                else {
+                    /** @var RenderPluginMap $rpm */
+                    $rpm = null;
+                }
                 if ($rpm !== null) {
                     // Datafield in use, get restrictions
                     $rpf = $rpm->getRenderPluginFields();

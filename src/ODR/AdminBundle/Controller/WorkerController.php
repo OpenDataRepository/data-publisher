@@ -1700,8 +1700,8 @@ $ret .= '  Set current to '.$count."\n";
         $return['t'] = '';
         $return['d'] = '';
 
-        $save = false;
-//        $save = true;
+        // $save = false;
+        $save = true;
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
