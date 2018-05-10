@@ -1166,8 +1166,8 @@
                 if ( $(this).hasClass('ODRDatafieldChildren') )
                     reload_datafield = 'true';   // reload datafield upon change of images/radio options per row?
 
-                SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
-                SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ", " + reload_datafield + ")", SaveTimeout);
+                // Don't want a delay here...otherwise a change could get lost
+                SaveDatafieldProperty(datafield_id, reload_datafield);
 
                 save_datafield_xhr = true;
             });
@@ -1626,8 +1626,8 @@
             var datatype_id = datatype_id_data[1];
 
             $(this).unbind('change').change(function() {
-                SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
-                SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
+                // Don't want a delay here, otherwise a change could get lost
+                SaveDatatypeProperties(datatype_id);
             });
         });
 
