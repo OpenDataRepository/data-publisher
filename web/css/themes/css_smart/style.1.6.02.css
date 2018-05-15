@@ -858,11 +858,25 @@ ul#wizardStatus li.completed:before{
 #ThemeDesignForm form {
     margin-top: 6px;
     margin-left: 6px;
+    margin-right: 6px;
 }
 
 #ThemeDesignForm form label {
     display: block;
     text-align: left;
+}
+
+#ThemeDesignForm .ODRFloatingCheckbox {
+    margin-top: 6px;
+    margin-right: 8px;
+    float: left !important;
+}
+
+#ThemeDesignForm .ODRCheckboxProperty {
+    margin-top: 2px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px dotted blue;
 }
 
 #ThemeDesignKey {

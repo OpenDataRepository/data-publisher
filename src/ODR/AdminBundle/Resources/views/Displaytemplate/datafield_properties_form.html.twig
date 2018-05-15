@@ -9,10 +9,6 @@
     {% set is_external_id_field = true %}
 {% endif %}
 
-{#  TODO - delete this?
-{% include 'ODRAdminBundle:Theme:theme_datafield_properties_form.html.twig' with {'theme_datafield': theme_datafield, 'theme_datafield_form': theme_datafield_form} %}
-#}
-
 {{ form_start(datafield_form, {
     'method': 'POST',
     'attr': {
@@ -23,31 +19,31 @@
 
     <fieldset>
     {% if typename != "Markdown" %}
-        <div class="pure-control-group">
+        <div class="">
             <label for="{{ datafield_form.field_name.vars.id }}">
                 <strong>{{ datafield_form.field_name.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.field_name) }}
-            {{ form_widget(datafield_form.field_name, { 'attr': {'class': 'required ODRDatafieldName', 'data-error-type': 'inline' } }) }}
+            {{ form_widget(datafield_form.field_name, { 'attr': {'class': 'required ODRDatafieldName pure-u-1', 'data-error-type': 'inline' } }) }}
         </div>
     {% endif %}
 
-        <div class="pure-control-group">
+        <div class="">
             <label for="{{ datafield_form.description.vars.id }}">
                 <strong>{{ datafield_form.description.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.description) }}
-            {{ form_widget(datafield_form.description, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+            {{ form_widget(datafield_form.description, { 'attr': {'class': 'required pure-u-1', 'data-error-type': 'inline' } }) }}
         </div>
 {#
-        <div class="pure-control-group">
+        <div class="">
             <label for="{{ datafield_form.regex_validator.vars.id }}">
                 <strong>{{ datafield_form.regex_validator.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.regex_validator) }}
             {{ form_widget(datafield_form.regex_validator, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
         </div>
-        <div class="pure-control-group">
+        <div class="">
             <label for="{{ datafield_form.php_validator.vars.id }}">
                 <strong>{{ datafield_form.php_validator.vars.label }}</strong>
             </label>
@@ -56,7 +52,7 @@
         </div>
 #}
 
-        <div class="pure-control-group">
+        <div class="">
             <label for="{{ datafield_form.field_type.vars.id }}">
                 <strong>{{ datafield_form.field_type.vars.label }}</strong>
             </label>
@@ -76,21 +72,33 @@
             </span>
             {% if typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar' or typeclass == 'LongVarchar' or typeclass == 'LongText' or typeclass == 'IntegerValue' or typeclass == 'DecimalValue' %}
             <span>
-                &nbsp;<a target="_blank" class="address" href="#{{ path( 'odr_design_analyze_datafield_content', {'datafield_id': datafield.id }) }}" style="color:black;" title="Show all values stored in this Datafield..."><i class="fa fa-cog fa-lg"></i></a>
+                <a
+                        target="_blank"
+                        class="address"
+                        href="#{{ path( 'odr_design_analyze_datafield_content', {'datafield_id': datafield.id }) }}"
+                        style="color:black;"
+                        title="Show all values stored in this Datafield..."
+                ><i class="fa fa-list fa-lg"></i></a>
             </span>
             {% elseif typeclass == 'Radio' %}
             <span>
-                &nbsp;<a target="_blank" class="address" href="#{{ path( 'odr_design_analyze_radio_selections', {'datafield_id': datafield.id }) }}" style="color:black;" title="Show all Datarecords with multiple selected RadioOptions for this Datafield..."><i class="fa fa-cog fa-lg"></i></a>
+                <a
+                        target="_blank"
+                        class="address"
+                        href="#{{ path( 'odr_design_analyze_radio_selections', {'datafield_id': datafield.id }) }}"
+                        style="color:black;"
+                        title="Show all Datarecords with multiple selected RadioOptions for this Datafield..."
+                ><i class="fa fa-list fa-lg"></i></a>
             </span>
             {% endif %}
         </div>
 
         {% if typename == "Markdown" %}
-        <div class="pure-control-group">
+        <div class="">
             <label for="{{ datafield_form.markdown_text.vars.id }}">
                 <strong>{{ datafield_form.markdown_text.vars.label }}</strong>
                 <span class="ODRMarkdownHelp Pointer" title="Click here for a brief explanation of Markdown...">
-                    &nbsp;<i class="fa fa-question-circle fa-lg"></i>
+                    <i class="fa fa-question-circle fa-lg"></i>
                 </span>
             </label>
             {{ form_errors(datafield_form.markdown_text) }}
@@ -99,14 +107,8 @@
         {% endif %}
 
         {% if typename != "Markdown" %}
-        <div class="pure-control-group">
-{#
-            <label for="{{ datafield_form.render_plugin.vars.id }}">
-                <strong>{{ datafield_form.render_plugin.vars.label }}</strong>
-            </label>
-            {{ form_errors(datafield_form.render_plugin) }}
-            {{ form_widget(datafield_form.render_plugin, { 'attr': {'style': 'width:auto'} }) }}
-#}
+            {#
+        <div class="">
             <label for="render_plugin_id">
                 <strong>Render Plugin</strong>
             </label>
@@ -116,22 +118,22 @@
             </span>
         </div>
 
-        <div class="pure-control-group">
+            #}
+        <div class="ODRCheckboxProperty">
+            {{ form_errors(datafield_form.required) }}
+            {{ form_widget(datafield_form.required, { 'attr': {'class': 'ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
             <label for="{{ datafield_form.required.vars.id }}">
                 <strong>{{ datafield_form.required.vars.label }}</strong>
             </label>
-            {{ form_errors(datafield_form.required) }}
-            {{ form_widget(datafield_form.required, { 'attr': {'style': 'width:auto'} }) }}
         </div>
         {% endif %}
 
         {% if fieldtype.getcanbeunique == 1 %}
-        <div class="pure-control-group">
-            <label for="{{ datafield_form.is_unique.vars.id }}">
-                <strong>{{ datafield_form.is_unique.vars.label }}</strong>
-            </label>
-
-            <span {% if is_external_id_field == true %}title="This datafield is currently being used as the Datatype's External ID field, and must remain unique."{% endif %} >
+        <div class="ODRCheckboxProperty">
+            <span
+                {% if is_external_id_field == true %}title="This datafield is currently being used as the Datatype's External ID field, and must remain unique."{% endif %}
+                class="ODRFloatingCheckbox"
+            >
                 {{ form_errors(datafield_form.is_unique) }}
                 {% if is_external_id_field == true %}
                     {{ form_widget(datafield_form.is_unique, { 'attr': {'style': 'width:auto', 'disabled': 'disabled'} }) }}
@@ -139,15 +141,24 @@
                     {{ form_widget(datafield_form.is_unique, { 'attr': {'style': 'width:auto'} }) }}
                 {% endif %}
             </span>
+            <label for="{{ datafield_form.is_unique.vars.id }}">
+                <strong>{{ datafield_form.is_unique.vars.label }}</strong>
 
             <span>
-                &nbsp;<a target="_blank" class="address" href="#{{ path( 'odr_design_analyze_datafield_unique', {'datafield_id': datafield.id }) }}" style="color:black;" title="Show Datarecords with duplicate values for this Datafield..."><i class="fa fa-cog fa-lg"></i></a>
+                <a
+                        target="_blank"
+                        class="address"
+                        href="#{{ path( 'odr_design_analyze_datafield_unique', {'datafield_id': datafield.id }) }}"
+                        style="color:black;"
+                        title="Show Datarecords with duplicate values for this Datafield..."
+                ><i class="fa fa-list fa-lg"></i></a>
             </span>
+            </label>
         </div>
         {% endif %}
 
         {% if typename == 'Image' or typename == 'Single Radio' or typename == 'Multiple Radio' %}
-        <div class="pure-control-group">
+        <div class="">
             <label for="{{ datafield_form.children_per_row.vars.id }}">
                 <strong>
                 {% if typename == 'Image' %}
@@ -163,24 +174,28 @@
         {% endif %}
 
         {% if typename == 'Single Radio' or typename == 'Multiple Radio' or typename == 'Single Select' or typename == 'Multiple Select' %}
-        <div class="pure-control-group">
+        <div class="ODRCheckboxProperty">
+            {{ form_errors(datafield_form.radio_option_name_sort) }}
+            {{ form_widget(datafield_form.radio_option_name_sort, { 'attr': {'class': 'ODRDatafieldNameSort ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
             <label for="{{ datafield_form.radio_option_name_sort.vars.id }}">
                 <strong>{{ datafield_form.radio_option_name_sort.vars.label }}</strong>
             </label>
-            {{ form_errors(datafield_form.radio_option_name_sort) }}
-            {{ form_widget(datafield_form.radio_option_name_sort, { 'attr': {'class': 'ODRDatafieldNameSort', 'style': 'width:auto'} }) }}
         </div>
-        <div class="pure-control-group">
+        <div class="ODRCheckboxProperty">
+            {{ form_errors(datafield_form.radio_option_display_unselected) }}
+            {{ form_widget(datafield_form.radio_option_display_unselected, { 'attr': {'class': 'ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
             <label for="{{ datafield_form.radio_option_display_unselected.vars.id }}">
                 <strong>{{ datafield_form.radio_option_display_unselected.vars.label }}</strong>
             </label>
-            {{ form_errors(datafield_form.radio_option_display_unselected) }}
-            {{ form_widget(datafield_form.radio_option_display_unselected, { 'attr': {'style': 'width:auto'} }) }}
+        </div>
+        <div class="ODRCheckboxProperty ODRRadioOptions" rel="{{ datafield.id }}">
+            <i id="Field_{{ datafield.id }}_radio_options" class="Pointer fa fa-lg fa-cog" title="Edit Options"></i>
+            Edit Options
         </div>
         {% endif %}
 
         {% if typename != 'Markdown' %}   {# all fields except markdown are searchable to some degree #}
-        <div class="pure-control-group">
+        <div class="">
             <label for="{{ datafield_form.searchable.vars.id }}">
                 <strong>{{ datafield_form.searchable.vars.label }}</strong>
             </label>
@@ -190,7 +205,7 @@
         {% endif %}
 
         {% if typename == 'File' or typename == 'Image' %}
-        <div class="pure-control-group">
+        <div class="">
             <label for="{{ datafield_form.allow_multiple_uploads.vars.id }}">
                 <strong>{{ datafield_form.allow_multiple_uploads.vars.label }}</strong>
             </label>
@@ -212,14 +227,20 @@
             </span>
 
             <span>
-                &nbsp;<a target="_blank" class="address" href="#{{ path( 'odr_design_analyze_file_uploads', {'datafield_id': datafield.id }) }}" style="color:black;" title="Show Datarecords with multiple uploaded {{ typename }}s in this Datafield..."><i class="fa fa-cog fa-lg"></i></a>
+                <a
+                        target="_blank"
+                        class="address"
+                        href="#{{ path( 'odr_design_analyze_file_uploads', {'datafield_id': datafield.id }) }}"
+                        style="color:black;"
+                        title="Show Datarecords with multiple uploaded {{ typename }}s in this Datafield..."
+                ><i class="fa fa-list fa-lg"></i></a>
             </span>
 
         </div>
         {% endif %}
 
         {% if typename == 'File' %}
-        <div class="pure-control-group">
+        <div class="">
             <label for="{{ datafield_form.shorten_filename.vars.id }}">
                 <strong>{{ datafield_form.shorten_filename.vars.label }}</strong>
             </label>
@@ -235,11 +256,5 @@
     </fieldset>
 
 {{ form_end(datafield_form) }}
-
-<button type="button" id="DeleteField_{{ datafield.id }}" class="pure-button pure-button-primary{% if prevent_datafield_deletion %} pure-button-disabled{% endif %} ODRDeleteField" {% if prevent_datafield_deletion %}title="{{ prevent_datafield_deletion_message }}"{% endif %}><i class="fa fa-trash-o"></i>&nbsp;Delete Field</button>
-&nbsp;&nbsp;&nbsp;
-{% if typeclass != "Radio" %}
-<button type="button" id="CopyField_{{ datafield.id }}" class="pure-button pure-button-primary ODRCopyField"><i class="fa fa-repeat"></i>&nbsp;Copy Field</button>
-{% endif %}
 
 {% endspaceless %}
