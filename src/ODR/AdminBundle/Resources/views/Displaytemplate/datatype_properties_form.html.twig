@@ -55,7 +55,16 @@
             </label>
             <div class="ODRFieldWrapper">
             {{ form_errors(datatype_form.externalIdField) }}
-            {{ form_widget(datatype_form.externalIdField, { 'attr': {'class': 'pure-u-1','data-error-type': 'inline' } }) }}
+                <span class="ODRSelectWrap">
+                {{ form_widget(datatype_form.externalIdField,
+                    {
+                        'attr': {
+                            'class': 'pure-u-1 ODRSelect',
+                            'data-error-type': 'inline'
+                        }
+                    })
+                }}
+                </span>
             </div>
         </div>
         <div class="pure-control-group">
@@ -65,7 +74,16 @@
             </label>
             <div class="ODRFieldWrapper">
             {{ form_errors(datatype_form.nameField) }}
-            {{ form_widget(datatype_form.nameField, { 'attr': {'class': 'pure-u-1','data-error-type': 'inline' } }) }}
+                <span class="ODRSelectWrap">
+                {{ form_widget(datatype_form.nameField,
+                    {
+                        'attr': {
+                        'class': 'pure-u-1 ODRSelect',
+                        'data-error-type': 'inline'
+                    }
+                    })
+                }}
+                </span>
             </div>
         </div>
 
@@ -76,7 +94,16 @@
             </label>
             <div class="ODRFieldWrapper">
             {{ form_errors(datatype_form.sortField) }}
-            {{ form_widget(datatype_form.sortField, { 'attr': {'class': 'pure-u-1','data-error-type': 'inline' } }) }}
+                <span class="ODRSelectWrap">
+                {{ form_widget(datatype_form.sortField,
+                    {
+                        'attr': {
+                        'class': 'pure-u-1 ODRSelect',
+                        'data-error-type': 'inline'
+                    }
+                    })
+                }}
+                </span>
             </div>
         </div>
 
@@ -88,7 +115,16 @@
             </label>
             <div class="ODRFieldWrapper">
             {{ form_errors(datatype_form.backgroundImageField) }}
-            {{ form_widget(datatype_form.backgroundImageField, { 'attr': {'class': 'pure-u-1','data-error-type': 'inline' } }) }}
+                <span class="ODRSelectWrap">
+                {{ form_widget(datatype_form.backgroundImageField,
+                    {
+                        'attr': {
+                        'class': 'pure-u-1 ODRSelect',
+                        'data-error-type': 'inline'
+                    }
+                    })
+                }}
+                </span>
             </div>
         </div>
 

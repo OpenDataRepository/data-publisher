@@ -2,7 +2,7 @@
 
     {% set datatype = datatype_array[initial_datatype_id] %}
 
-    <h1 class="no-margin-top-phone">
+    <h1 class="ODRDesignTitle no-margin-top-phone">
         <span>Database Design &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
     </h1>
     {%  if datatype.setup_step != "complete" %}
@@ -211,7 +211,6 @@
 
                 // Setup Radio Options
                 console.log('loading datafield options')
-                SetupRadioOptions();
             }
         )
     }
@@ -346,22 +345,30 @@
             clearAllFields(false);
             $(elem).fadeTo(100, '1.0');
 
+            var actual_parent = null;
+            top_level_teds.each(function() {
+                if ($(this).attr('id') === $(elem).attr('id')) {
+                    actual_parent = $(elem);
+                }
+            });
+            if(actual_parent === null) {
+                $(elem).parents().each(function() {
+                    var parent_element = $(this);
+                    top_level_teds.each(function () {
+                        if ($(this).attr('id') === parent_element.attr('id')) {
+                            actual_parent = parent_element;
+                            console.log('actual_parent id', actual_parent.attr('id'))
+                        }
+                    });
+                });
+            }
+
             // Fade other theme elements to 0.25
             top_level_teds.each(function() {
-                if($(this).attr('id') !== $(elem).attr('id')) {
+                if($(this).attr('id') !== actual_parent.attr('id')) {
                     $(this).fadeTo(200, '0.25');
                 }
             })
-            /*
-                console.log('ted clear all')
-                // Deselect All Fields/TEDs/Etc
-                clearAllFields();
-                top_level_teds.each(function() {
-                    if($(this).attr('id') !== $(elem).attr('id')) {
-                        $(this).fadeTo(200, '0.25');
-                    }
-                });
-            */
         }
 
         // Highlight the field
@@ -1302,105 +1309,6 @@
             }
         });
 
-        /*
-        $(".ODRAddDatafield").unbind('click').click(function() {
-
-            // TODO - currently blocked in the backend for linked datatypes
-
-            if ( $(this).hasClass('fa-muted') )
-                return;
-
-            var theme_element_id_data = $(this).parent().parent().attr("id").split(/_/);
-            var theme_element_id = theme_element_id_data[1];
-
-            var url = '{{ path('odr_design_add_datafield', { 'theme_element_id': 0 }) }}';
-            url = url.substring(0, (url.length - 1)) + theme_element_id;
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function(data) {
-                    // Clear object properties panel
-                    $("#ThemeDesignForm").html("");
-
-                    // ReloadThemeElement() forces a re-render of the theme element, so the 'Add Childtype', 'Link DataType', and 'Delete ThemeElement' icons get muted automatically
-                    ReloadThemeElement(theme_element_id);
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    // Don't need to do anything specific on an error
-                },
-                complete: function(jqXHR) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
-                }
-            });
-        });
-        */
-
-        /*
-
-        $(".ODRAddThemeElement").unbind('click').click(function() {
-            // I think this option is always available, but just incase...
-            if ( $(this).hasClass('fa-muted') )
-                return;
-
-            var theme_id = $(this).attr('rel');
-
-            var url = '{{ path('odr_design_add_theme_element', { 'theme_id': 0 }) }}';
-            url = url.substring(0, url.length-1) + theme_id;
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function(data) {
-                    // Clear object properties panel
-                    $("#ThemeDesignForm").html("");
-
-                    // Grab ID of new theme element
-                    var theme_element_id = data.d.theme_element_id;
-                    var datatype_id = data.d.datatype_id;
-
-                    // Create a fake theme element and force a save of theme element order
-                    $("#FieldArea_" + datatype_id).prepend("<div id=\"ThemeElement_" + theme_element_id + "\" class=\"ODRThemeElement pure-u-1\"></div>");
-                    SaveThemeElementOrder("#FieldArea_" + datatype_id);
-
-                    // Reload to get actual theme element contents
-                    ReloadThemeElement(theme_element_id);
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    // Don't need to do anything specific on an error
-                },
-                complete: function(jqXHR) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
-                }
-            });
-        });
-
-        */
-
         $(".ODRDeleteDatatype").unbind('click').click(function() {
 
             // TODO - block this in the backend where linked datatypes are involved?  Can't do it right now without changing a route...
@@ -1452,53 +1360,6 @@
             }
         });
 
-        /*
-        $(".ODRDeleteThemeElement").unbind('click').click(function() {
-            // Don't allow deletion of a theme element that has datafields or a child/linked datatype attached to it
-            if ( $(this).hasClass('fa-muted') )
-                return;
-
-            var theme_element_id_data = $(this).parent().parent().parent().parent().attr('id').split(/_/);
-            var theme_element_id = theme_element_id_data[1];
-
-            if(confirm("Are you sure you want to delete this theme element?")) {
-                var url = '{{ path('odr_design_delete_theme_element', { 'theme_element_id': 0 } ) }}';
-                url = url.substring(0, (url.length - 1));
-                url += theme_element_id;
-
-                $.ajax({
-                    cache: false,
-                    type: 'GET',
-                    url: url,
-                    dataType: "json",
-                    success: function(data) {
-                        // Remove theme element from page
-                        $("#ThemeElement_" + theme_element_id).remove();
-
-                        // No need to update theme element property icons, since it no longer exists
-                        // Also don't need to update order of theme elements
-                    },
-                    error: function(jqXHR, textStatus, errorThrown) {
-                        // Don't need to do anything specific on an error
-                    },
-                    complete: function(jqXHR) {
-                        // Get the xdebugToken from response headers
-                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                        // If the Sfjs object exists
-                        if (typeof Sfjs !== "undefined") {
-                            // Grab the toolbar element
-                            var currentElement = $('.sf-toolbar')[0];
-
-                            // Load the data of the given xdebug token into the current toolbar wrapper
-                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                        }
-                    }
-                });
-            }
-        });
-        */
-
         // Disable text selection
         $(".ODRFieldArea").disableSelection();
 
@@ -1517,11 +1378,6 @@
             // Prepare the Sidebar Tools
             RenderToolSet(datatype_id);
             console.log('Props:', datatype_properties[datatype_id]);
-
-
-
-
-
 
             // Determine if this Datatype has a parent
             var parent_datatype_id = '';
@@ -1574,61 +1430,8 @@
                     }
                 }
             });
-
-
-
         });
 
-        /*
-        DEPRECATED
-         */
-        /*
-        $(".ODRPublicDatafield").unbind('click').click(function() {
-            var datafield_id = $(this).attr('rel');
-            var element = $(this);
-
-            var url  = '{{ path('odr_design_public_datafield', {'datafield_id': 0} ) }}';
-            url = url.substring(0,(url.length-1));
-            url += datafield_id;
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function(data) {
-                    notifySaved();
-
-                    // Toggle muted status
-                    var icons = {};
-                    if ( $(element).hasClass('ODRActiveIcon') ) {
-                        $(element).removeClass('ODRActiveIcon');
-                        $(element).attr('title', 'Datafield requires permission to view');
-                    }
-                    else {
-                        $(element).addClass('ODRActiveIcon');
-                        $(element).attr('title', 'Datafield does not require permission to view');
-                    }
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    // Don't need to do anything specific on an error
-                },
-                complete: function(jqXHR) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
-                }
-            });
-        });
-        */
     }
 
 
@@ -1652,29 +1455,64 @@
             ResetToolSet();
         });
 
-
-
-
-
-
-        // initResizeables();
-
-        /*
-        $(".ODRLinkDatatype").unbind('click').click(function() {
-
-            // TODO - currently blocked in the backend for linked datatypes
-
-            if ( $(this).hasClass('fa-muted') )
+        $("#left-spacer").click(function(e) {
+            if (e.target !== this)
                 return;
 
-            var local_datatype_id = $(this).attr('rel');
-            var theme_element_id_data = $(this).parent().parent().attr("id").split(/_/);
-            var theme_element_id = theme_element_id_data[1];
-
-            {# defined in Link::link_type_dialog.html.twig #}
-            openLinkDatatypeDialog(local_datatype_id, theme_element_id);
+            clearAllFields();
+            ResetToolSet();
         });
-        */
+
+        $("#ODRDatatypeToolsBlock p").click(function(e) {
+            if (e.target !== this)
+                return;
+
+            clearAllFields();
+            ResetToolSet();
+        });
+
+        $("#ThemeDesignForm").click(function(e) {
+            if (e.target !== this)
+                return;
+
+            clearAllFields();
+            ResetToolSet();
+        });
+
+
+        $("#ThemeDesignWrapper").click(function(e) {
+            if (e.target !== this)
+                return;
+
+            clearAllFields();
+            ResetToolSet();
+        });
+
+        $("#ThemeLeftColumn .ODRInnerBox").click(function(e) {
+            if (e.target !== this)
+                return;
+
+            clearAllFields();
+            ResetToolSet();
+        });
+
+        $(".ODRDesignTitle").click(function(e) {
+            if (e.target !== this)
+                return;
+
+            clearAllFields();
+            ResetToolSet();
+        });
+
+
+        $("#right-spacer").click(function(e) {
+            if (e.target !== this)
+                return;
+
+            clearAllFields();
+            ResetToolSet();
+        });
+
 
         $(".ODRUndeleteFields").unbind('click').click(function() {
 
@@ -1958,6 +1796,8 @@
     }
 
     function InitDatafieldPropertiesForm() {
+        // Setup Radio Options.
+        SetupRadioOptions();
         // Init Field Properties forms
         $(".ODRMarkdownHelp").unbind('click').click(function() {
             {# defined in ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig #}
