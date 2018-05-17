@@ -21,7 +21,7 @@
     {% if typename != "Markdown" %}
         <div class="">
             <label for="{{ datafield_form.field_name.vars.id }}">
-                <strong>{{ datafield_form.field_name.vars.label }}</strong>
+                {{ datafield_form.field_name.vars.label }}
             </label>
             {{ form_errors(datafield_form.field_name) }}
             {{ form_widget(datafield_form.field_name, { 'attr': {'class': 'required ODRDatafieldName pure-u-1', 'data-error-type': 'inline' } }) }}
@@ -30,7 +30,7 @@
 
         <div class="">
             <label for="{{ datafield_form.description.vars.id }}">
-                <strong>{{ datafield_form.description.vars.label }}</strong>
+                {{ datafield_form.description.vars.label }}
             </label>
             {{ form_errors(datafield_form.description) }}
             {{ form_widget(datafield_form.description, { 'attr': {'class': 'required pure-u-1', 'data-error-type': 'inline' } }) }}
@@ -38,14 +38,14 @@
 {#
         <div class="">
             <label for="{{ datafield_form.regex_validator.vars.id }}">
-                <strong>{{ datafield_form.regex_validator.vars.label }}</strong>
+                {{ datafield_form.regex_validator.vars.label }}
             </label>
             {{ form_errors(datafield_form.regex_validator) }}
             {{ form_widget(datafield_form.regex_validator, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
         </div>
         <div class="">
             <label for="{{ datafield_form.php_validator.vars.id }}">
-                <strong>{{ datafield_form.php_validator.vars.label }}</strong>
+                {{ datafield_form.php_validator.vars.label }}
             </label>
             {{ form_errors(datafield_form.php_validator) }}
             {{ form_widget(datafield_form.php_validator, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
@@ -54,7 +54,7 @@
 
         <div class="">
             <label for="{{ datafield_form.field_type.vars.id }}">
-                <strong>{{ datafield_form.field_type.vars.label }}</strong>
+                {{ datafield_form.field_type.vars.label }}
             </label>
             <input type="hidden" id="previous_fieldtype" {#name="DataFieldsForm[previous_field_type]"#} value="{{ datafield.getfieldtype.id }}" disabled="disabled" />
             {{ form_errors(datafield_form.field_type) }}
@@ -110,7 +110,7 @@
         {% if typename == "Markdown" %}
         <div class="">
             <label for="{{ datafield_form.markdown_text.vars.id }}">
-                <strong>{{ datafield_form.markdown_text.vars.label }}</strong>
+                {{ datafield_form.markdown_text.vars.label }}
                 <span class="ODRMarkdownHelp Pointer" title="Click here for a brief explanation of Markdown...">
                     <i class="fa fa-question-circle fa-lg"></i>
                 </span>
@@ -124,7 +124,7 @@
             {#
         <div class="">
             <label for="render_plugin_id">
-                <strong>Render Plugin</strong>
+                Render Plugin
             </label>
             <input type="text" disabled value="{{ datafield.renderplugin.pluginname }}" class="pure-u-23-24"/>
             <span class="pure-u-1">
@@ -137,7 +137,7 @@
             {{ form_errors(datafield_form.required) }}
             {{ form_widget(datafield_form.required, { 'attr': {'class': 'ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
             <label for="{{ datafield_form.required.vars.id }}">
-                <strong>{{ datafield_form.required.vars.label }}</strong>
+                {{ datafield_form.required.vars.label }}
             </label>
         </div>
         {% endif %}
@@ -168,7 +168,7 @@
                 }}
             {% endif %}
             <label for="{{ datafield_form.is_unique.vars.id }}">
-                <strong>{{ datafield_form.is_unique.vars.label }}</strong>
+                {{ datafield_form.is_unique.vars.label }}
                 <span>
                     <a
                         target="_blank"
@@ -184,13 +184,13 @@
         {% if typename == 'Image' or typename == 'Single Radio' or typename == 'Multiple Radio' %}
         <div class="">
             <label for="{{ datafield_form.children_per_row.vars.id }}">
-                <strong>
+
                 {% if typename == 'Image' %}
                     Images per row:&nbsp;
                 {% else %}
                     Options per row:&nbsp;
                 {% endif %}
-                </strong>
+
             </label>
             {{ form_errors(datafield_form.children_per_row) }}
             {{ form_widget(datafield_form.children_per_row, { 'attr': {'class': 'ODRDatafieldChildren', 'style': 'width:auto'} }) }}
@@ -202,26 +202,26 @@
             {{ form_errors(datafield_form.radio_option_name_sort) }}
             {{ form_widget(datafield_form.radio_option_name_sort, { 'attr': {'class': 'ODRDatafieldNameSort ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
             <label for="{{ datafield_form.radio_option_name_sort.vars.id }}">
-                <strong>{{ datafield_form.radio_option_name_sort.vars.label }}</strong>
+                {{ datafield_form.radio_option_name_sort.vars.label }}
             </label>
         </div>
         <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.radio_option_display_unselected) }}
             {{ form_widget(datafield_form.radio_option_display_unselected, { 'attr': {'class': 'ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
             <label for="{{ datafield_form.radio_option_display_unselected.vars.id }}">
-                <strong>{{ datafield_form.radio_option_display_unselected.vars.label }}</strong>
+                {{ datafield_form.radio_option_display_unselected.vars.label }}
             </label>
         </div>
         <div class="ODRCheckboxProperty ODRRadioOptions" rel="{{ datafield.id }}">
             <i id="Field_{{ datafield.id }}_radio_options" class="Pointer fa fa-lg fa-cog" title="Edit Options"></i>
-            <strong>Edit Available Choices</strong>
+            Edit Available Choices
         </div>
         {% endif %}
 
         {% if typename != 'Markdown' %}   {# all fields except markdown are searchable to some degree #}
         <div class="">
             <label for="{{ datafield_form.searchable.vars.id }}">
-                <strong>{{ datafield_form.searchable.vars.label }}</strong>
+                {{ datafield_form.searchable.vars.label }}
             </label>
             {{ form_errors(datafield_form.searchable) }}
             <span class="ODRSelectWrap">
@@ -239,7 +239,7 @@
         {% if typename == 'File' or typename == 'Image' %}
         <div class="">
             <label for="{{ datafield_form.allow_multiple_uploads.vars.id }}">
-                <strong>{{ datafield_form.allow_multiple_uploads.vars.label }}</strong>
+                {{ datafield_form.allow_multiple_uploads.vars.label }}
             </label>
             <span
                 {% if has_multiple_uploads == 1 %}
@@ -273,7 +273,7 @@
         {% if typename == 'File' %}
         <div class="">
             <label for="{{ datafield_form.shorten_filename.vars.id }}">
-                <strong>{{ datafield_form.shorten_filename.vars.label }}</strong>
+                {{ datafield_form.shorten_filename.vars.label }}
             </label>
             {{ form_errors(datafield_form.shorten_filename) }}
             {{ form_widget(datafield_form.shorten_filename, { 'attr': {'style': 'width:auto'} }) }}

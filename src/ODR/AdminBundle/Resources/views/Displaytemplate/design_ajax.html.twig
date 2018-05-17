@@ -363,16 +363,23 @@
                 });
             }
 
-            // Fade other theme elements to 0.25
-            top_level_teds.each(function() {
-                if($(this).attr('id') !== actual_parent.attr('id')) {
-                    $(this).fadeTo(200, '0.25');
+
+            if(actual_parent !== null) {
+                // Fade other theme elements to 0.25
+                top_level_teds.each(function() {
+                    if($(this).attr('id') !== actual_parent.attr('id')) {
+                        $(this).fadeTo(200, '0.25');
+                    }
+                })
+                if(actual_parent.css('opacity') < 1) {
+                    actual_parent.fadeTo(100, '1.00')
                 }
-            })
+            }
         }
 
         // Highlight the field
         $(elem).addClass('ODRFieldSelected');
+        console.log('field highlighted.....', $(elem).attr('id'))
 
 
         // TODO If Datatype, find related Theme Element (Parent)
@@ -653,6 +660,9 @@
     }
 
     function ResetToolSet() {
+        // Clear the theme form
+        $("#ThemeDesignForm").html("");
+
         console.log('Resetting tool set');
 
         var tools = [];
@@ -2856,16 +2866,22 @@
             url: url,
             dataType: 'json',
             success: function(data) {
-                // Remove old datafield
-                $(datafield).remove();
+                // Replace old datafield
+                $(datafield).replaceWith(data.d.html);
+                console.log('setting up data fields ')
+                SetupDataFields($(datafield));
+                console.log('highlight datafield')
+                setupElement($(datafield));
 
                 // Insert new html
+                /*
                 if (append)
                     $(element).after(data.d.html);
                 else
                     $(element).prepend(data.d.html);
 
                 initPage();
+                */
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

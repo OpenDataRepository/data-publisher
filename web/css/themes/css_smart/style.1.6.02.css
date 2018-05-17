@@ -1115,10 +1115,7 @@ h3.ODRThemeVisibleHiddenElement {
     cursor: pointer;
     padding-bottom: 2px;
 }
-#ThemeDesignArea .ODRFieldSelected a,
-#ThemeDesignArea .ODRFieldSelected {
-    background: rgba(0,0,255,0.1);
-}
+
 
 .ODRThemeElement {
     position: relative;
@@ -1126,20 +1123,20 @@ h3.ODRThemeVisibleHiddenElement {
 
 .ODRSortHandle {
     cursor: move;
-    color: rgba(125, 125, 255, 0.6);
+    color: rgba(54, 187, 114, 1.00);
     font-size: 24px;
     position: absolute;
-    top: 12px;
+    top: calc(50% - 20px);
     z-index: 200;
 }
 
 .ODRDragHandle {
     cursor: grab;
     cursor: -webkit-grab;
-    color: rgba(125,125,255,0.6);
+    color: rgba(54, 187, 114, 1.00);
     font-size: 42px;
     position: absolute;
-    top: 0px;
+    top: calc(50% - 30px);
     z-index: 200;
 }
 .ODRDragHandleWest {
@@ -1159,17 +1156,35 @@ h3.ODRThemeVisibleHiddenElement {
     margin-right: -10px;
 }
 
-.ODRFieldArea > .ODRThemeElement > .ODRDragHandle {
-    top: 12px;
+.ODRSortHandle,
+.ODRDragHandle {
     /*
+    top: 12px;
     // text-shadow: 0px 0px 7px rgba(255, 255, 255, 1);
     // text-shadow: -3px 0px 12px rgba(150, 150, 150, 1);
-    text-shadow:
-             -1px -1px 0 #fff,
-             1px -1px 0 #fff,
-             -1px 1px 0 #fff,
-             1px 1px 0 #fff;
              */
+    text-shadow:
+         -1px -1px 0 #fff,
+         1px -1px 0 #fff,
+         -1px 1px 0 #fff,
+         1px 1px 0 #fff;
+}
+
+h3.ODRFieldSelected .ODRDragHandle {
+    top: calc(50% - 10px);
+}
+
+h3.ODRFieldSelected .ODRSortHandle {
+    top: calc(50% - 14px);
+}
+
+#ODRDatatypeDesign > .ODRDataType > .ODRThemeElement > .ODRInnerBox > h3.ODRFieldSelected .ODRDragHandle {
+    display: none !important;
+    top: calc(50% - 33px);
+}
+#ODRDatatypeDesign > .ODRDataType > .ODRThemeElement > .ODRInnerBox > h3.ODRFieldSelected .ODRSortHandle {
+    display: none;
+    top: calc(50% - 18px);
 }
 
 .ODRThemeElementHandle {
@@ -1185,14 +1200,76 @@ h3.ODRThemeVisibleHiddenElement {
 }
 
 .ODRFieldSelected > .ODRThemeElementHandle {
-    color: rgba(125, 125, 255, 1.0);
+    color: rgba(54, 187, 114, 1.00);
     font-size: 24px;
-    top: -11px;
-    left: -3px;
+    text-shadow:
+            -1px -1px 0 #fff,
+            1px -1px 0 #fff,
+            -1px 1px 0 #fff,
+            1px 1px 0 #fff;
 }
+
 .ODRFieldArea > .ODRThemeElement > .ODRThemeElementHandle {
     top: -11px;
     left: -3px;
+}
+
+.ODRFieldArea > .ODRFieldSelected > .ODRThemeElementHandle {
+    top: -15px;
+    left: -8px;
+}
+
+#ODRDatatypeDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRThemeElementHandle {
+    top: -11px;
+    left: -3px;
+}
+
+#ODRDatatypeDesign > .ODRDataType > .ODRFieldArea > .ODRFieldSelected > .ODRThemeElementHandle {
+    top: -15px;
+    left: -8px;
+}
+
+#ThemeDesignArea .ODRFieldSelected > a {
+    background: transparent;
+}
+#ThemeDesignArea .ODRDatatypeProperties.ODRFieldSelected {
+    -webkit-box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.80);
+    -moz-box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.80);
+    box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.80);
+    border-radius: 3px;
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}
+#ThemeDesignArea .ODRDataField.ODRFieldSelected {
+    /*
+    background: rgba(54, 187, 114, 0.40);
+    */
+    -webkit-box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.40);
+    -moz-box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.40);
+    box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.40);
+    border-radius: 3px;
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}
+.ODRFieldArea > .ODRThemeElement.ODRFieldSelected {
+    border: 4px solid rgba(54, 187, 114, 0.40);
+    border-radius: 3px;
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}
+.ODRDataType.ODRAccordionWrapper > .ODRFieldArea > .ODRThemeElement.ODRFieldSelected,
+#ODRDatatypeDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement.ODRFieldSelected {
+    -webkit-box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.40);
+    -moz-box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.40);
+    box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.40);
+    border: none;
+    border-radius: 3px;
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
 }
 
 #ThemeDesignArea .ui-resizeable-e {
@@ -1203,6 +1280,13 @@ h3.ODRThemeVisibleHiddenElement {
     left: -10px;
 }
 
+#ThemeDesignForm .ODRRadioOptionName {
+    width: 160px;
+}
+
+#ThemeDesignForm .ODRDeleteRadioOption {
+    margin-left: 12px;
+}
 
 #ThemeDesignForm .ODRFieldWrapper {
     margin-left: 0;
@@ -1245,6 +1329,10 @@ h3.ODRThemeVisibleHiddenElement {
 /* Remove IE Specific Caret */
 .ODRSelect::-ms-expand {
     display:none;
+}
+
+.pure-skin-odr #ThemeDesignForm .pure-form label {
+    margin-bottom: 2px;
 }
 
 #ThemeDesignArea h3.ui-accordion-header,
