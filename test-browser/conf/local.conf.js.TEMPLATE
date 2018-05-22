@@ -1,10 +1,10 @@
 exports.config = {
-  user:   "natestone1",
-  key:    "wAJq8PkhxoRpndiean5F",
+  user:   '[username]',
+  key:    '[key]',
   server: "hub-cloud.browserstack.com",
 
   commonCapabilities: {
-    project: "MCH PRM Screen Shots",
+    project: "ODR Screen Shots",
     build: "00001",
     "browserstack.debug": true,
     "browserstack.local": true
@@ -22,14 +22,9 @@ exports.config = {
   ]
 }
 
-/*
-  // Stone Umbrella
-  user: "natestone2",
-  key: "PzqsYiUkUYHxQgM3iL88",
 
-  // ODR
-  user: "natestone1",
-  key: "wAJq8PkhxoRpndiean5F",
+/*
+  "browserstack.local": true
 
  */
 /*
@@ -97,3 +92,4 @@ exports.config = {
 exports.config.capabilities.forEach(function(caps){
   for(var i in exports.config.commonCapabilities) caps[i] = caps[i] || exports.config.commonCapabilities[i];
 });
+
