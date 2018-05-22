@@ -173,6 +173,8 @@ module.exports = function() {
   this.Then(/^We should take a screenshot of the "([^"]*)"$/, function (sourceMatch, next) {
       this.driver.takeScreenshot().then(function (data) {
           debug('Screenshot');
+          next()
+          /*
           var base64Data = data.replace(/^data:image\/png;base64,/, "")
 
           var ss_path = 'screenshots/' + moment().format('YYYY-MM-DD-HH')
@@ -195,6 +197,7 @@ module.exports = function() {
                   });
               }
           })
+          */
       })
       .catch(function(error) {
           debug(error);
