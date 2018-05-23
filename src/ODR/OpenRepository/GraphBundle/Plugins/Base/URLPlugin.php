@@ -109,7 +109,8 @@ class URLPlugin implements DatafieldPluginInterface
                 $value = trim( $entity[0]['value'] );
             }
             else {
-                // No datarecordfield entry for this datarecord/datafield pair...because of the allowed fieldtypes, the plugin can just use the empty string in this case
+                // No datarecordfield entry for this datarecord/datafield pair...because of the
+                //  allowed fieldtypes, the plugin can just use the empty string in this case
                 $value = '';
             }
 
@@ -124,11 +125,15 @@ class URLPlugin implements DatafieldPluginInterface
                 $append = $options['post_url'];
 
 
-            // The value should probably be urlencoded unless $prepend is blank...urlencoding the
-            //  transfer protocol will break the url
+            // https://tools.ietf.org/html/rfc3986#section-3  only the query and the fragment should
+            //  be encoded (if at all), but without having a URL parser handy it's impossible to
+            //  automatically and accurately encode a URL.
+            // Fortunately, users shouldn't be putting "url-like" and "not-url-like" values in the
+            //  same datafield, so handling it with a plugin option should be sufficient...
             $href_value = $value;
-            if ( $prepend !== '' )
+            if ( isset($options['encode_input']) && $options['encode_input'] === 'yes' )
                 $href_value = urlencode($value);
+
 
             $str = '';
             if ($value !== '') {

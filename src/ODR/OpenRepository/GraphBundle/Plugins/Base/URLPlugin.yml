@@ -4,7 +4,7 @@ odr_plugins.base.url:
     version: 0.2
     override_fields: false
     override_child: false
-    description: The contents of this datafield are used as the basis for a URL link.
+    description: The contents of this datafield will be used as the basis for a URL link.
     required_fields:
         url_field:
             name: URL Field
@@ -27,3 +27,9 @@ odr_plugins.base.url:
             default: no
             choices: no||No,yes||Yes
             description: If yes, then always display the full URL in the datafield.  This has no effect if both of the other options are "auto".
+        encode_input:
+            name: encode_input
+            type: string
+            default: no
+            choices: no||No,yes||Yes
+            description: Generally, if the values in the datafield already look like URLs, then this option should be set to "No".
