@@ -190,8 +190,13 @@ class TableThemeHelperService
 
                         // Escape double-quotes in the datafield's name
                         $fieldname = str_replace('"', "\\\"", $fieldname);
+                        $column_names .= '{"title":"'.$fieldname.'",';
 
-                        $column_names .= '{"title":"'.$fieldname.'"},';
+                        // If dynamically added, the edit link column will have a priority of 10000
+                        //  and therefore won't be hidden if there's too many columns for the screen
+                        // @see https://datatables.net/reference/option/columns.responsivePriority#Type
+                        $column_names .= '"responsivePriority":11000},';
+
                         $num_columns++;
                     }
                 }
