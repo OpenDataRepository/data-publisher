@@ -730,6 +730,7 @@
         switch(tool_type) {
             case 'datatype':
                 props = datatype_properties[id];
+                console.log('Datatype Props: ', props)
 
                 // Allow theme elements/group boxes
                 tools.add_te.removeClass('faded')
@@ -759,6 +760,18 @@
                     }
                 }
                 */
+
+                // We can always add a datafield to a datatype???
+                // What about linked datatypes - child datatypes yes....
+                // Linked should be yes as well....
+                tools.add_df.removeClass('faded')
+                tools.add_df.attr('title', 'Add Field');
+                tools.add_df.find('i').addClass('ODRActiveIcon');
+                tools.add_df.find('.link-text').html('Add field');
+                tools.add_df.attr('title', 'Click to add a field to this database.');
+                tools.add_df.unbind('click').click(function () {
+                    addDataField(id, 'datatype');
+                });
 
 
                 tools.pub_stat.removeClass('faded')
@@ -1056,6 +1069,32 @@
 
     function addDataField(id, element_type) {
         switch(element_type) {
+            case 'datatype':
+                console.log('data type add field here', id);
+                // Check for an TE that is not a link to add the field to
+
+                var te = null
+                $("#DataType_" + id + " > .ODRFieldArea > .ODRThemeElement").each(function() {
+                    var id = $(this).attr('id').replace('ThemeElement_', '')
+                    var props = theme_element_properties[id];
+                    if(te === null && !props.is_link && !props.has_childtype) {
+                        te = $(this);
+                    }
+                    console.log('TE Props [' + id + ']: ', props)
+                });
+
+                console.log('TE', te.attr('id'))
+                if(te !== null) {
+                    // Add field to this TE
+                    var te_id = te.attr('id').replace('ThemeElement_','')
+                    addDataField(te_id, 'theme_element')
+                }
+                else {
+                    // Add new TE and add field
+                    addThemeElement(id, 'datatype', true)
+                }
+                break;
+
             case 'theme_element':
 
                 // if ( $(this).hasClass('fa-muted') )
@@ -1099,14 +1138,12 @@
         }
     }
 
-    function addThemeElement(id, element_type) {
+    function addThemeElement(id, element_type, add_field) {
+        if(add_field === undefined) {
+            add_field = false
+        }
         switch(element_type) {
             case 'datatype':
-
-                // Need to check for access to linked types?...
-                // if ( $(this).hasClass('fa-muted') )
-                    // return;
-
 
                 var datatype_id = id;
                 var url = '{{ path('odr_design_add_theme_element_by_datatype', { 'datatype_id': 0 }) }}';
@@ -1138,6 +1175,11 @@
                         // Show the element
                         ScrollHighlight("#ThemeElement_" + theme_element_id);
 
+                        // Run the callback
+                        if(add_field) {
+                            addDataField(theme_element_id, 'theme_element')
+                        }
+
                     },
                     error: function(jqXHR, textStatus, errorThrown) {
                         // Don't need to do anything specific on an error
@@ -1161,20 +1203,38 @@
         }
     }
 
-    function ScrollHighlight(element) {
-
+    function ScrollHighlight(element, container) {
         var obj = $(element)
+        if (container === undefined) {
+            container = $('html, body')
 
-        // Only Scroll to element if it is not visible
-        if(!obj.isInViewport()) {
-            $('html, body').animate({
-                scrollTop: obj.offset().top
-            }, 1000);
+            // Only Scroll to element if it is not visible
+            if (
+                !obj.isInViewport()
+            ) {
+                container.animate({
+                    scrollTop: obj.offset().top + obj.height()
+                }, 1000)
+            }
         }
-
+        else {
+            container.animate({
+                scrollTop: obj.prop('offsetTop')
+            }, 1000)
+        }
         // Highlight
+        console.log('highlighting.....')
         obj.effect("highlight", {}, 3000);
+
     }
+
+    $.fn.isOverflowHiddenY = function(container) {
+        var element = $(this);
+        console.log(element.offset())
+        console.log(container.prop('scrollHeight'))
+        console.log(container.height())
+        return (element.offset().top > container.height());
+    };
 
     $.fn.isInViewport = function() {
         var elementTop = $(this).offset().top;
@@ -1593,7 +1653,26 @@
                 url: url,
                 dataType: "json",
                 success: function(data) {
+                    // Load the form
                     $("#ThemeDesignForm").html(data.d.html).fadeIn('fast');
+
+                    // TODO Convert to use modal
+                    /*
+                    modal_options = {
+                        title: 'Edit Options',
+                        loading: false,
+                        body: data.d.html,
+                        buttons: [
+                            {
+                                id: 'ODRRenderPluginFormSubmit',
+                                text: 'Exit',
+                                // secondary: true,
+                                disabled: false
+                            }
+                        ]
+                    };
+                    openODRRemodal(modal_options);
+                    */
                     InitRadioOptionsForm(datafield_id);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
@@ -1724,10 +1803,6 @@
 
 
 
-
-
-
-
             // The icon to open RadioOption properties will be overridden by this click
             // event unless this if statement is active
             if ( event.target.className.indexOf('ODRRadioOptions') !== -1 )
@@ -1849,8 +1924,6 @@
             // Save changes
             $(this).unbind('change').change(function() {
                 // fieldtype selector gets overridden further down
-
-                //
                 var reload_datafield = 'false';
                 if ( $(this).hasClass('ODRDatafieldChildren') )
                     reload_datafield = 'true';   // reload datafield upon change of images/radio options per row?
@@ -1861,6 +1934,7 @@
                 save_datafield_xhr = true;
             });
         });
+
         $("#ThemeDesignForm .ODRDatafieldPropertiesForm").find("textarea").each(function() {
             // Grab Datafield id
             var datafield_id_data = $("#ThemeDesignForm .ODRDatafieldPropertiesForm").attr('id').split(/_/);
@@ -2627,7 +2701,7 @@
         });
     }
 
-    function AddOption(datafield_id) {
+    functionme AddOption(datafield_id) {
         var url = '{{ path('odr_design_add_radio_option', { 'datafield_id': 0 }) }}';
         // Load display template menu
         url = url.substring(0,(url.length - 1));
@@ -2640,10 +2714,22 @@
             dataType: "json",
             success: function(data) {
                 // Reload datafield properties panel
-                $("#Field_" + datafield_id + "_radio_options").trigger('click');
+                // $("#Field_" + datafield_id + "_radio_options").trigger('click');
 
                 // Reload the datafield to get the new radio option
+
+                // Insert the data into the radio option list
+                console.log('APPENDING new option', data.d)
+                $('#ODRRadioOptionsForm_0 table tbody').append(data.d.html)
+                console.log('starting scroll highlight')
+                ScrollHighlight($('#radio_option_' + data.d.radio_option_id), $(".ODRRadioOptionListWrapper"));
+                console.log('ending scroll highlight')
+
+                // Determine if sort order is alpha
+                // TODO Need to deal with sort order....
+                InitRadioOptionsForm(data.d.datafield_id)
                 ReloadDatafield(datafield_id);
+
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -2848,14 +2934,16 @@
         url = url.substring(0, url.length-3);
         url += {{ datatype.id }} + '/' + datafield_id;
 
-        var append = true;
         var datafield = $("#Field_" + datafield_id);
+        /*
+        var append = true;
         var element = $(datafield).prev();
 
         if ( $(element).attr('class') === undefined ) {
             append = false;
             element = $(datafield).parent();
         }
+        */
 
         // Create a loading div to block off the datafield?
         insertLoadingDiv("Field_" + datafield_id);
@@ -2870,8 +2958,10 @@
                 $(datafield).replaceWith(data.d.html);
                 console.log('setting up data fields ')
                 SetupDataFields($(datafield));
+
                 console.log('highlight datafield')
-                setupElement($(datafield));
+                var new_datafield = $("#Field_" + datafield_id);
+                setupElement(new_datafield);
 
                 // Insert new html
                 /*

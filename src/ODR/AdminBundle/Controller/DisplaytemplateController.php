@@ -1978,7 +1978,8 @@ class DisplaytemplateController extends ODRCustomController
 
             // Create a new RadioOption
             $force_create = true;
-            /*$radio_option = */parent::ODR_addRadioOption($em, $user, $datafield, $force_create);
+            $radio_option = parent::ODR_addRadioOption($em, $user, $datafield, $force_create);
+
             $em->flush();
 //            $em->refresh($radio_option);
 
@@ -1990,6 +1991,27 @@ class DisplaytemplateController extends ODRCustomController
             // Update the cached version of the datatype
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
+            // Get the latest radio option as HTML
+            $typename = $radio_option->getDataField()->getFieldType()->getTypeName();
+
+            $templating = $this->get('templating');
+            $html = $templating->render(
+                'ODRAdminBundle:Displaytemplate:radio_option_list_row.html.twig',
+                array(
+                    'datafield' => $radio_option->getDataField(),
+                    'radio_option' => $radio_option,
+                    'typename' => $typename,
+                )
+            );
+
+            // Convert to option row...
+            $return['d'] = array(
+                'radio_option_id' => $radio_option->getId(),
+                'datafield_id' => $radio_option->getDataField()->getId(),
+                'typename' => $typename,
+                'html' => $html
+            );
+
             // Don't need to update cached versions of datarecords or themes
         }
         catch (\Exception $e) {
@@ -1999,6 +2021,7 @@ class DisplaytemplateController extends ODRCustomController
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
+
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');

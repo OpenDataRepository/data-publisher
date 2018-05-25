@@ -1353,6 +1353,14 @@ h3.ODRFieldSelected .ODRSortHandle {
     margin-left: 6px !important;
 }
 
+.ODRRadioOptionListWrapper {
+    max-height: 590px;
+    overflow: auto;
+    margin-bottom: 4px;
+    position: relative;
+
+}
+
 #ODRDatatypeToolsBlock a {
     cursor: pointer;
 }
