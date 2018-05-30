@@ -216,6 +216,18 @@ class CloneDatatypeService
                 $this->logger->debug('----------------------------------------');
             }
 
+            /*
+            if (!$this->em->isOpen()) {
+                $this->em = $this->em->create(
+                    $this->em->getConnection(),
+                    $this->em->getConfiguration()
+                );
+                $this->em->clear();
+                $this->em->flush();
+            }
+            */
+
+
             // Save which user started this creation process
             $this->user = $this->user_manager->findUserBy( array('id' => $user_id) );
             if ( is_null($this->user) )
@@ -494,6 +506,9 @@ class CloneDatatypeService
         $new_datatype->setTemplateGroup($template_group);
         $new_datatype->setMasterDataType($parent_datatype);
         $new_datatype->setSetupStep(DataType::STATE_INITIAL);
+
+        // TODO Need to deal with properties database here...
+
         self::persistObject($new_datatype);
         array_push($this->created_datatypes, $new_datatype);
 
@@ -671,6 +686,7 @@ class CloneDatatypeService
                     FROM ODRAdminBundle:Theme AS t
                     WHERE t.parentTheme = :theme_id'
                 )->setParameters( array('theme_id' => $new_theme->getId()) );
+                $this->logger->info('CloneDatatypeService: theme query '. $query->getSQL());
                 $sub_results = $query->getResult();
 
                 /** @var Theme[] $sub_results */

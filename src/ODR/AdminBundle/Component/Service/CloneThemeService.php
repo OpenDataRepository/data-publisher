@@ -507,7 +507,7 @@ class CloneThemeService
      *
      * @return Theme
      */
-    public function cloneSourceTheme($user, $source_theme, $dest_theme_type)
+    public function cloneSourceTheme($user, $source_theme, $dest_theme_type, $dest_datatype = null)
     {
         // ----------------------------------------
         // If the source theme does not belong to a top-level datatype, then refuse to clone
@@ -525,7 +525,12 @@ class CloneThemeService
 
         // ----------------------------------------
         // Create a new theme for the top-level datatype
-        $datatype = $source_theme->getDataType();
+        if($dest_datatype != null) {
+            $datatype = $dest_datatype;
+        }
+        else {
+            $datatype = $source_theme->getDataType();
+        }
 
         $new_theme = clone $source_theme;
         $new_theme->setDataType($datatype);

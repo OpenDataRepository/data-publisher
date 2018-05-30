@@ -854,36 +854,49 @@ class PluginsController extends ODRCustomController
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_render_plugin_instance = $em->getRepository('ODRAdminBundle:RenderPluginInstance');
 
+
+
+            // Need to specify either a datafield or a datatype...
+            $datatype = null;
+            $datafield = null;
+            if ($datafield_id == 0 && $datatype_id == 0)
+                throw new ODRBadRequestException();
+
+
+            if($datafield_id == 0) {
+                /** @var DataType $datatype */
+                $datatype = $repo_datatype->find($datatype_id);
+                if ( is_null($datatype) )
+                    throw new ODRNotFoundException('Datatype');
+
+            }
+            else {
+                /** @var DataFields $datafield */
+                $datafield = $repo_datafield->find($datafield_id);
+                if ( is_null($datafield) )
+                    throw new ODRNotFoundException('Datafield');
+
+                $datatype = $datafield->getDataType();
+                if ( $datatype->getDeletedAt() != null )    // TODO - apparently this doesn't actually work in detecting whether the datafield's datatype is deleted...throws an error inside doctrine
+                    throw new ODRNotFoundException('Datatype');
+            }
+
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
+            if( ! $pm_service->isDatatypeAdmin($user, $datatype))
                 throw new ODRForbiddenException();
-            // --------------------
 
-            // Need to specify either a datafield or a datatype...
-            if ($datafield_id == 0 && $datatype_id == 0)
-                throw new ODRBadRequestException();
 
-            // Pre-define...
-            $datatype = null;
-            $datafield = null;
             $current_render_plugin = null;
             $render_plugins = null;
             $render_plugin_instance = null;
 
             if ($datafield_id == 0) {
                 // If datafield id isn't defined, this is a render plugin for a datatype
-
-                /** @var DataType $datatype */
-                $datatype = $repo_datatype->find($datatype_id);
-                if ( is_null($datatype) )
-                    throw new ODRNotFoundException('Datatype');
-
                 $current_render_plugin = $datatype->getRenderPlugin();
 
                 // Load all available render plugins for this datatype
@@ -909,16 +922,6 @@ class PluginsController extends ODRCustomController
             }
             else {
                 // ...otherwise, this is a render plugin for a datafield
-
-                /** @var DataFields $datafield */
-                $datafield = $repo_datafield->find($datafield_id);
-                if ( is_null($datafield) )
-                    throw new ODRNotFoundException('Datafield');
-
-                $datatype = $datafield->getDataType();
-                if ( $datatype->getDeletedAt() != null )    // TODO - apparently this doesn't actually work in detecting whether the datafield's datatype is deleted...throws an error inside doctrine
-                    throw new ODRNotFoundException('Datatype');
-
                 $current_render_plugin = $datafield->getRenderPlugin();
 
                 // Load all available render plugins for this datafield

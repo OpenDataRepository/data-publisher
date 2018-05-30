@@ -59,6 +59,10 @@ class CloneDatatypeCommand extends ContainerAwareCommand
                 $job = $pheanstalk->watch('create_datatype')->ignore('default')->reserve();
                 $data = json_decode($job->getData());
 
+                // Dealt with the job
+                // Just need to clear things....
+                // $pheanstalk->delete($job);
+
                 $current_time = new \DateTime();
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
                 $output->writeln('Beginning cloning process for datatype '.$data->datatype_id.', requested by user '.$data->user_id.'...');
@@ -71,26 +75,30 @@ class CloneDatatypeCommand extends ContainerAwareCommand
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
                 $output->writeln('Cloning process for datatype '.$data->datatype_id.' '.$result);
 
-/*
-                // Do things with the response returned by the controller?
-                $result = json_decode($ret);
-                if ( isset($result->r) && isset($result->d) ) {
-                    if ( $result->r == 0 && $data->crypto_type == 'encrypt' )
-                        $output->writeln( $result->d );
-                    else
-                        throw new \Exception( $result->d );
-                }
-                else {
-                    // Should always be a json return...
-                    throw new \Exception( print_r($ret, true) );
-                }
-*/
-
                 // Dealt with the job
                 $pheanstalk->delete($job);
 
                 // Sleep for a bit 200ms
                 usleep(200000);
+            }
+            catch (\Throwable $e) {
+                if ($e->getMessage() == 'retry') {
+                    $output->writeln('Could not resolve host, releasing job to try again');
+                    $logger->err('CloneDatatypeCommand.php: ' . $e->getMessage());
+
+                    // Release the job back into the ready queue to try again
+                    $pheanstalk->release($job);
+
+                    // Sleep for a bit
+                    usleep(1000000);     // sleep for 1 second
+                } else {
+                    $output->writeln($e->getMessage());
+
+                    $logger->err('CloneDatatypeCommand.php: ' . $e->getMessage());
+
+                    // Delete the job so the queue doesn't hang, in theory
+                    $pheanstalk->delete($job);
+                }
             }
             catch (\Exception $e) {
                 if ( $e->getMessage() == 'retry' ) {
