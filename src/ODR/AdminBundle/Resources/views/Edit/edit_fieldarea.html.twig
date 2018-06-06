@@ -15,6 +15,13 @@
     {% set can_delete_record = 1 %}
 {% endif %}
 
+{#
+--------------------</br>
+can_add_record: {{ can_add_record }}</br>
+can_edit_record: {{ can_edit_record }}</br>
+is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
+--------------------</br>
+#}
 
 {% if is_top_level == 0 and (display_type == 1 or display_type == 2) %}    {# tabbed or dropdown display_type #}
     <div id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
@@ -41,7 +48,7 @@
 
 {% for theme_element in theme.themeElements %}
 
-    {% if not theme_element|is_empty(datarecord, datatype, 'edit') %}
+    {# if not theme_element|is_empty(datarecord, datatype, 'edit') #}
 
         <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
             <div class="ODRInnerBox">
@@ -61,10 +68,10 @@
                             {% endif %}
 
                             <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}">
-
                             {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
                                 {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
-                            {% elseif is_link == 0 and can_edit_datafield == 1 %}
+                            {# elseif is_link == 0 and can_edit_datafield == 1 #}
+                            {% elseif can_edit_datafield == 1 %}
                                 {% include 'ODRAdminBundle:Edit:edit_datafield.html.twig' with {
                                     'datatype': datatype,
                                     'datarecord': datarecord,
@@ -127,7 +134,7 @@
 
             </div><!-- End of .ODRInnerBox -->
         </div><!-- End of .ThemeElement -->
-    {% endif %}
+    {# endif #}
 
 {% endfor %}
 

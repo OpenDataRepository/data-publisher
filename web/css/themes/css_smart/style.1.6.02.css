@@ -1188,8 +1188,9 @@ h3.ODRFieldSelected .ODRSortHandle {
 }
 
 .ODRThemeElementHandle {
-    cursor: grab;
-    cursor: -webkit-grab;
+    cursor: pointer;
+    /* cursor: grab;
+    cursor: -webkit-grab;*/
     color: rgba(125,125,255,0.6);
     font-size: 18px;
     position: absolute;
@@ -1200,6 +1201,8 @@ h3.ODRFieldSelected .ODRSortHandle {
 }
 
 .ODRFieldSelected > .ODRThemeElementHandle {
+    cursor: grab;
+    cursor: -webkit-grab;
     color: rgba(54, 187, 114, 1.00);
     font-size: 24px;
     text-shadow:

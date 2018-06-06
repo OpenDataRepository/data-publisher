@@ -244,8 +244,8 @@ class EditController extends ODRCustomController
 
             // Determine whether this is a request to add a datarecord for a top-level datatype or not
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
-            if ( in_array($datatype_id, $top_level_datatypes) )
-                throw new ODRBadRequestException('EditController::addchildrecordAction() called for top-level datatype');
+            // if ( in_array($datatype_id, $top_level_datatypes) )
+                // throw new ODRBadRequestException('EditController::addchildrecordAction() called for top-level datatype');
 
             // Create new Data Record
             $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);

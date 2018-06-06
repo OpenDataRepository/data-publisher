@@ -1315,8 +1315,6 @@ if ($debug) {
         try {
             // Symfony firewall won't permit GET requests to reach this point
             $post = $request->request->all();
-//print_r($post);  exit();
-
 
             if ( !isset($post['local_datarecord_id']) || !isset($post['ancestor_datatype_id']) || !isset($post['descendant_datatype_id']))
                 throw new ODRBadRequestException();
@@ -1324,11 +1322,18 @@ if ($debug) {
             $local_datarecord_id = $post['local_datarecord_id'];
             $ancestor_datatype_id = $post['ancestor_datatype_id'];
             $descendant_datatype_id = $post['descendant_datatype_id'];
-//            $allow_multiple_links = $post['allow_multiple_links'];      // TODO - not used when it should be?
             $datarecords = array();
-            if ( isset($post['datarecords']) )
-                $datarecords = $post['datarecords'];
+            if ( isset($post['datarecords']) ) {
+                if(isset($post['post_type']) && $post['post_type'] == 'JSON') {
+                    foreach($post['datarecords'] as $index => $data) {
+                        $datarecords[$data] = $data;
+                    }
+                }
+                else {
+                    $datarecords = $post['datarecords'];
+                }
 
+            }
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1447,65 +1452,50 @@ if ($debug) {
                 $linked_datatree[] = $ldt;
             /** @var LinkedDataTree[] $linked_datatree */
 
-$debug = true;
-$debug = false;
-if ($debug) {
-    print_r($datarecords);
-    print "\nlocal datarecord: ".$local_datarecord_id."\n";
-    print "ancestor datatype: ".$ancestor_datatype_id."\n";
-    print "descendant datatype: ".$descendant_datatype_id."\n";
-    if ($local_datarecord_is_ancestor)
-        print "local datarecord is ancestor\n";
-    else
-        print "local datarecord is descendant\n";
-}
 
-if ($debug) {
-    print "\nlinked datatree\n";
-    foreach ($linked_datatree as $ldt)
-        print "-- ldt ".$ldt->getId().' ancestor: '.$ldt->getAncestor()->getId().' descendant: '.$ldt->getDescendant()->getId()."\n";
-}
-            foreach ($linked_datatree as $ldt) {
-                $remote_datarecord = null;
-                if ($local_datarecord_is_ancestor)
-                    $remote_datarecord = $ldt->getDescendant();
-                else
-                    $remote_datarecord = $ldt->getAncestor();
+            if(
+                !isset($post['post_action'])
+                || (
+                    isset($post['post_action'])
+                    && $post['post_action'] != 'ADD_ONLY'
+                )
+            ) {
+                // If this is add only we don't check and remove
+                foreach ($linked_datatree as $ldt) {
+                    $remote_datarecord = null;
+                    if ($local_datarecord_is_ancestor)
+                        $remote_datarecord = $ldt->getDescendant();
+                    else
+                        $remote_datarecord = $ldt->getAncestor();
 
-                // Ensure that this descendant datarecord is of the same datatype that's being modified...don't want to delete links to datarecords of another datatype
-                if ($local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $descendant_datatype->getId()) {
-if ($debug)
-    print 'skipping remote datarecord '.$remote_datarecord->getId().", does not match descendant datatype\n";
-                    continue;
-                }
-                else if (!$local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
-if ($debug)
-    print 'skipping remote datarecord '.$remote_datarecord->getId().", does not match ancestor datatype\n";
-                    continue;
-                }
+                    if ($local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $descendant_datatype->getId()) {
+                        // print 'skipping remote datarecord '.$remote_datarecord->getId().", does not match descendant datatype\n";
+                        continue;
+                    } else if (!$local_datarecord_is_ancestor && $remote_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
+                        // print 'skipping remote datarecord '.$remote_datarecord->getId().", does not match ancestor datatype\n";
+                        continue;
+                    }
 
-                // If a descendant datarecord isn't listed in $datarecords, it got unlinked
-                if ( !isset($datarecords[$remote_datarecord->getId()]) ) {
-if ($debug)
-    print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
+                    // If a descendant datarecord isn't listed in $datarecords, it got unlinked
+                    if (!isset($datarecords[$remote_datarecord->getId()])) {
+                        // print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
-                    // Mark the ancestor datarecord as updated
-                    $dri_service->updateDatarecordCacheEntry($ldt->getAncestor(), $user);
-                    // Since a datarecord got unlinked, rebuild the list of what the ancestor datarecord links to
-                    $cache_service->delete('associated_datarecords_for_'.$ldt->getAncestor()->getGrandparent()->getId());
+                        // Mark the ancestor datarecord as updated
+                        $dri_service->updateDatarecordCacheEntry($ldt->getAncestor(), $user);
+                        // Since a datarecord got unlinked, rebuild the list of what the ancestor datarecord links to
+                        $cache_service->delete('associated_datarecords_for_' . $ldt->getAncestor()->getGrandparent()->getId());
 
-                    // Remove the linked_data_tree entry
-                    $ldt->setDeletedBy($user);
-                    $em->persist($ldt);
-                    $em->flush($ldt);
+                        // Remove the linked_data_tree entry
+                        $ldt->setDeletedBy($user);
+                        $em->persist($ldt);
+                        $em->flush($ldt);
 
-                    $em->remove($ldt);
-                }
-                else {
-                    // Otherwise, a datarecord was linked and still is linked...
-                    unset( $datarecords[$remote_datarecord->getId()] );
-if ($debug)
-    print 'link between local datarecord '.$local_datarecord->getId().' and remote datarecord '.$remote_datarecord->getId()." already exists\n";
+                        $em->remove($ldt);
+                    } else {
+                        // Otherwise, a datarecord was linked and still is linked...
+                        unset($datarecords[$remote_datarecord->getId()]);
+                        // print 'link between local datarecord '.$local_datarecord->getId().' and remote datarecord '.$remote_datarecord->getId()." already exists\n";
+                    }
                 }
             }
 
@@ -1514,20 +1504,23 @@ if ($debug)
             foreach ($datarecords as $id => $num) {
                 $remote_datarecord = $repo_datarecord->find($id);
 
+                // Must be a valid record
+                if($remote_datarecord === null)
+                    throw new ODRForbiddenException();
+
+
                 // Attempt to find a link between these two datarecords that was deleted at some point in the past
                 $ancestor_datarecord = null;
                 $descendant_datarecord = null;
                 if ($local_datarecord_is_ancestor) {
                     $ancestor_datarecord = $local_datarecord;
                     $descendant_datarecord = $remote_datarecord;
-if ($debug)
-    print 'ensuring link from local datarecord '.$local_datarecord->getId().' to remote datarecord '.$remote_datarecord->getId()."\n";
+                    // print 'ensuring link from local datarecord '.$local_datarecord->getId().' to remote datarecord '.$remote_datarecord->getId()."\n";
                 }
                 else {
                     $ancestor_datarecord = $remote_datarecord;
                     $descendant_datarecord = $local_datarecord;
-if ($debug)
-    print 'ensuring link from remote datarecord '.$remote_datarecord->getId().' to local datarecord '.$local_datarecord->getId()."\n";
+                    // print 'ensuring link from remote datarecord '.$remote_datarecord->getId().' to local datarecord '.$local_datarecord->getId()."\n";
                 }
 
                 // Ensure there is a link between the two datarecords

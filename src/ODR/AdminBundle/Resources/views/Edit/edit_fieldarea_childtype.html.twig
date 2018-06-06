@@ -25,8 +25,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
 #}
 
 <div class="ODRChildDatatype" id="ChildTypeWrapper_{{ childtype.id }}_{{ parent_datarecord.id }}">
-
-{% if is_link == 0 %}
+{% if is_link != 7 %}
     {% include 'ODRAdminBundle:Edit:edit_childtype.html.twig' with {
         'datatype_array': datatype_array,
         'datarecord_array': datarecord_array,
@@ -45,20 +44,28 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
 
         'token_list': token_list,
     } %}
-
     <div>
-{#
     {% if is_link == 1 %}
-        {% if can_edit_record == 1 %}
-        <button class="pure-button pure-button-primary" type="button" onclick="LinkRecord({{ datatype.id }},{{ childtype.id }},{{ parent_datarecord.id }});">Link {{ childtype.dataTypeMeta.shortName }} record.</button>
-        {% endif %}
+        {# if can_edit_record == 1 #}
+        <button
+                class="pure-button pure-button-primary"
+                type="button"
+                onclick="AddLinkedRecord({{ datatype.id }},{{ childtype.id }},{{ parent_datarecord.id }});"
+        >Add {{ childtype.dataTypeMeta.shortName }} record.</button>
+        {# endif #}
     {% elseif can_add_record == 1 and (multiple_allowed == 1 or child_datarecord_count < 1) %}
-#}
+        {#
     {% if can_add_record == 1 and (multiple_allowed == 1 or child_datarecord_count < 1) %}
-        <button class="pure-button pure-button-primary" type="button" onclick="AddChildRecord({{ childtype.id }},{{ parent_datarecord.id }});">Add {{ childtype.dataTypeMeta.shortName }} record.</button>
+        #}
+        <button
+                class="pure-button pure-button-primary"
+                type="button"
+                onclick="AddChildRecord({{ childtype.id }},{{ parent_datarecord.id }});"
+        >Add {{ childtype.dataTypeMeta.shortName }} record.</button>
     {% endif %}
     </div>
 {% else %}
+    bwaaa
     {% include 'ODRAdminBundle:Display:display_childtype.html.twig' with {
         'datatype_array': datatype_array,
         'datarecord_array': datarecord_array,

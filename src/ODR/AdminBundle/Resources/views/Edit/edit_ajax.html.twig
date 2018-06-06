@@ -709,11 +709,9 @@ function initPage() {
 
             // If the image ended up in a different datafield, don't save the change and revert the layout
             if (starting_datafield == ending_datafield) {
-//alert('legal');
                 SaveImageOrder( $(ui.item).parent() );
             }
             else {
-//alert('illegal');
                 $(".ODRSortableImage").sortable('cancel');
             }
 
@@ -772,9 +770,6 @@ function SaveImageOrder(container) {
 
     var url = '{{ path('odr_record_save_image_order') }}';
 
-//alert( url );
-//return;
-
     $.ajax({
         cache: false,
         type: 'POST',
@@ -807,9 +802,6 @@ function AddChildRecord(datatype_id, parent_id) {
     var url = '{{ path('odr_record_addchild', { 'datatype_id': 0, 'parent_id': 0 } ) }}';
     url = url.substring(0, (url.length - 3));
     url += datatype_id + '/' + parent_id;
-
-//alert( url );
-//return;
 
     $.ajax({
         cache: false,
@@ -846,12 +838,138 @@ function LinkRecord(ancestor_datatype_id, descendant_datatype_id, local_datareco
     var url = '{{ path('odr_record_get_linkable_datarecords', { 'ancestor_datatype_id': 0, 'descendant_datatype_id': 0, 'local_datarecord_id': 0 } ) }}';
     url = url.substring(0, (url.length - 5));
     url += ancestor_datatype_id + '/' + descendant_datatype_id + '/' + local_datarecord_id;
-{% if search_key != '' %}
-    url += '/' + '{{ search_theme_id }}' + '/' + '{{ search_key }}';
-{% endif %}
+    {% if search_key != '' %}
+        url += '/' + '{{ search_theme_id }}' + '/' + '{{ search_key }}';
+    {% endif %}
 
-//alert( url );  return;
     UpdateURL(url);
+}
+
+function LinkRecordOnly(
+    ancestor_datatype_id,
+    descendant_datatype_id,
+    local_datarecord_id,
+    record_id,
+    callback
+) {
+    if(callback === undefined) {
+        callback = function() {}
+    }
+
+    var post_data = {}
+    post_data.ancestor_datatype_id = ancestor_datatype_id;
+    post_data.descendant_datatype_id = descendant_datatype_id;
+    post_data.local_datarecord_id = local_datarecord_id;
+    post_data.post_type = 'JSON';
+    post_data.post_action = 'ADD_ONLY';
+    post_data.datarecords = [
+        record_id
+    ];
+
+    console.log('POST Data Link Record Only: ', post_data)
+
+    // odr_link_datarecords
+    var url = '{{ path('odr_link_datarecords') }}';
+    $.ajax({
+        type: 'POST',
+        url: url,
+        dataType: "json",
+        data: post_data,
+        success: function(data, textStatus, xhr) {
+            // Don't need to do anything special on success
+            console.log('LINK Response: ', data);
+
+            // Attach search handlers
+            // If search chosen, delete added record and change to link...
+
+            // odr_record_add for linked type
+
+            // Link record to this datatype and record
+
+            // Can we just get an empty form for this datatype?
+            // Insert the form into the page....
+            ReloadChild(data.d.datatype_id, data.d.datarecord_id);
+
+            callback()
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Just reload the datafield on error, since can't restore the old value
+            console.log('LinkRecordOnly: Error:', errorThrown)
+            // ReloadDatafield(datarecord_id, datafield_id);
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
+    });
+
+
+}
+
+function AddLinkedRecord(ancestor_datatype_id, descendant_datatype_id, local_datarecord_id) {
+    console.log("Ancestor: ", ancestor_datatype_id)
+    console.log("Descendant: ", descendant_datatype_id)
+    console.log('Local record: ', local_datarecord_id)
+
+    // Add data record
+    var url = '{{ path('odr_record_add', { 'datatype_id': 0 }) }}';
+    url = url.substring(0, (url.length - 1));
+    url += descendant_datatype_id;
+
+    $.ajax({
+        cache: false,
+        type: 'GET',
+        url: url,
+        dataType: "json",
+        success: function(data, textStatus, jqXHR) {
+            // Reload this area of the page
+            var datarecord_id = data.d.datarecord_id;
+
+            console.log('Record Created: ', datarecord_id);
+
+
+            // Need to reload the child record after this...
+            LinkRecordOnly(
+                ancestor_datatype_id,
+                descendant_datatype_id,
+                local_datarecord_id,
+                datarecord_id
+            );
+
+            /*
+            var url = '{{ path('odr_record_edit', { 'datarecord_id': 0 }) }}';
+            url = url.substring(0, (url.length-1));
+            url += datarecord_id;
+
+            window.location = url;
+            */
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Don't need to do anything specific on an error
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
+    });
 }
 
 function SaveRecordData(form_id, interval) {
@@ -869,10 +987,6 @@ function SaveRecordData(form_id, interval) {
     var url = $(form_id).attr('action');
 
     console.log('saving data...');
-
-//alert( url );
-//alert( post_data );
-//return;
 
     $.ajax({
         type: 'POST',

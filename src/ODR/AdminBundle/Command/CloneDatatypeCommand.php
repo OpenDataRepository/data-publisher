@@ -64,7 +64,7 @@ class CloneDatatypeCommand extends ContainerAwareCommand
                 // $pheanstalk->delete($job);
 
                 $current_time = new \DateTime();
-                $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
+                $output->writeln($current_time->format('Y-m-d H:i:s').' (UTC-5)' );
                 $output->writeln('Beginning cloning process for datatype '.$data->datatype_id.', requested by user '.$data->user_id.'...');
 
                 /** @var CloneDatatypeService $clone_datatype_service */
@@ -84,7 +84,7 @@ class CloneDatatypeCommand extends ContainerAwareCommand
             catch (\Throwable $e) {
                 if ($e->getMessage() == 'retry') {
                     $output->writeln('Could not resolve host, releasing job to try again');
-                    $logger->err('CloneDatatypeCommand.php: ' . $e->getMessage());
+                    $logger->error('CloneDatatypeCommand.php: ' . $e->getMessage());
 
                     // Release the job back into the ready queue to try again
                     $pheanstalk->release($job);
@@ -94,7 +94,7 @@ class CloneDatatypeCommand extends ContainerAwareCommand
                 } else {
                     $output->writeln($e->getMessage());
 
-                    $logger->err('CloneDatatypeCommand.php: ' . $e->getMessage());
+                    $logger->error('CloneDatatypeCommand.php: ' . $e->getMessage());
 
                     // Delete the job so the queue doesn't hang, in theory
                     $pheanstalk->delete($job);
@@ -103,7 +103,7 @@ class CloneDatatypeCommand extends ContainerAwareCommand
             catch (\Exception $e) {
                 if ( $e->getMessage() == 'retry' ) {
                     $output->writeln( 'Could not resolve host, releasing job to try again' );
-                    $logger->err('CloneDatatypeCommand.php: '.$e->getMessage());
+                    $logger->error('CloneDatatypeCommand.php: '.$e->getMessage());
 
                     // Release the job back into the ready queue to try again
                     $pheanstalk->release($job);
@@ -114,7 +114,7 @@ class CloneDatatypeCommand extends ContainerAwareCommand
                 else {
                     $output->writeln($e->getMessage());
 
-                    $logger->err('CloneDatatypeCommand.php: '.$e->getMessage());
+                    $logger->error('CloneDatatypeCommand.php: '.$e->getMessage());
 
                     // Delete the job so the queue doesn't hang, in theory
                     $pheanstalk->delete($job);
