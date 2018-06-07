@@ -772,30 +772,29 @@ class DatarecordInfoService
                     $descendant = $dt['descendant'];
                     $descendant['dataTypeMeta'] = $dt['descendant']['dataTypeMeta'][0];
 
+                    // TODO Fix search to always work - auto-create templates
+                    /*
                     if ( $descendant['setup_step'] == DataType::STATE_OPERATIONAL )
                         $linked_datatype_descendants[$descendant_id] = $descendant;
                     else
                         $disabled_datatype_links[$descendant_id] = $descendant;
+                    */
+                    $linked_datatype_descendants[$descendant_id] = $descendant;
                 }
                 else if ($descendant_id == $datatype->getId() ) {
                     $ancestor = $dt['ancestor'];
                     $ancestor['dataTypeMeta'] = $dt['ancestor']['dataTypeMeta'][0];
 
+                    // TODO Fix search to always work - auto-create templates
+                    /*
                     if ( $ancestor['setup_step'] == DataType::STATE_OPERATIONAL )
                         $linked_datatype_ancestors[$ancestor_id] = $ancestor;
                     else
                         $disabled_datatype_links[$ancestor_id] = $ancestor;
+                    */
+                    $linked_datatype_ancestors[$ancestor_id] = $ancestor;
                 }
             }
-
-            /*
-            print '<pre>';
-            print 'ancestors: '.print_r($linked_datatype_ancestors, true);
-            print 'descendants: '.print_r($linked_datatype_descendants, true);
-            print 'disabled: '.print_r($disabled_datatype_links, true);
-            print '</pre>';
-            exit();
-            */
 
             // ----------------------------------------
             // Generate a csrf token for each of the datarecord/datafield pairs

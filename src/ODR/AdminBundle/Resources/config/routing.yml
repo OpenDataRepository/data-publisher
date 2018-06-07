@@ -746,6 +746,11 @@ odr_link_datarecords:
     defaults: { _controller: ODRAdminBundle:Link:linkdatarecords }
     methods: [ POST ]
 
+odr_unlink_record:
+    path:  /edit/unlinkrecord
+    defaults: { _controller: ODRAdminBundle:Link:unlinkrecord }
+    methods: [ POST ]
+
 #-----------------------------------------
 
 #-----------------------------------------

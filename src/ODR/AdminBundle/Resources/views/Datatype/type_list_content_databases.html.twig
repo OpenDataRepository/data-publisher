@@ -351,7 +351,7 @@
         });
 
         function addDataRecord(urlpath, datatype_id) {
-            if (confirm('Are you sure you want to create a new Datarecord?')) {
+            if (confirm('Are you sure you want to create a new record?')) {
                 var url = '{{ path('odr_record_add', { 'datatype_id': 0 }) }}';
                 url = url.substring(0, (url.length - 1));
                 url += datatype_id;
@@ -395,7 +395,7 @@
             // TODO This function needs to check for dependent databases via link tree.
             var datatype_name = $("#ODRDatarecordList_" + datatype_id + "_name").html();
 
-            if (confirm("Are you sure you want to delete the \"" + datatype_name + "\" datatype and all associated datarecords?")) {
+            if (confirm("Are you sure you want to delete the \"" + datatype_name + "\" database and all associated records?")) {
                 // Delete the datatype selected
                 var url = '{{ path('odr_design_delete_datatype', { 'datatype_id': 0 }) }}';
                 url = url.substring(0, (url.length - 1));

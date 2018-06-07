@@ -111,7 +111,7 @@
 
 {% if can_delete_record == 1 %}
     function deleteRecord(datarecord_id) {
-        if ( confirm("Are you sure you want to delete this DataRecord?") ) {
+        if ( confirm("Are you sure you want to delete this record?") ) {
             var url = '{{ path('odr_record_delete', { 'datarecord_id': 0, 'search_key': '' }) }}';
             url = url.substring(0, (url.length - 2));
             url += datarecord_id + '/' + '{{ search_key }}';
@@ -147,7 +147,7 @@
 {% endif %}
 {% if can_add_record == 1 and is_top_level == 1 and datatype.isMasterType == 0 %}
     function addDataRecord(datatype_id) {
-        if ( confirm('Are you sure you want to create a new Datarecord?') ) {
+        if ( confirm('Are you sure you want to create a new record?') ) {
             var url = '{{ path('odr_record_add', { 'datatype_id': 0 }) }}';
             url = url.substring(0, (url.length - 1));
             url += datatype_id;

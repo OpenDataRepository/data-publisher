@@ -61,7 +61,12 @@
 {% set input_name = field_typeclass ~ 'Form[value]' %}
 
 
-    <form action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}" class="pure-u-1" id="EditForm_{{ unique_id }}" method="POST">
+    <form
+            {% if is_link > 0 %} autocomplete="off"{% endif %}
+            action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
+            class="pure-u-1{% if is_link > 0 %} ODRLinkLookupForm{% endif %}"
+            id="EditForm_{{ unique_id }}"
+            method="POST">
 
         <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
 {#

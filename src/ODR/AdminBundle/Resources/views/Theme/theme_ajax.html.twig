@@ -535,7 +535,7 @@
                 var theme_element_id_data = $(this).parent().parent().parent().parent().attr('id').split(/_/);
                 var theme_element_id = theme_element_id_data[1];
 
-                if (confirm("Are you sure you want to delete this theme element?")) {
+                if (confirm("Are you sure you want to delete this group box?")) {
                     var url = '{{ path('odr_design_delete_theme_element', { 'theme_element_id': 0 } ) }}';
                     url = url.substring(0, (url.length - 1));
                     url += theme_element_id;

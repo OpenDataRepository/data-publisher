@@ -538,8 +538,9 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            if ($datarecord->getId() == $datarecord->getGrandparent()->getId())
-                throw new ODRBadRequestException('EditController::deletechildrecordAction() called on a Datarecord that is top-level');
+            // TODO Who cares?  If you have permission, you have permission
+            // if ($datarecord->getId() == $datarecord->getGrandparent()->getId())
+                // throw new ODRBadRequestException('EditController::deletechildrecordAction() called on a Datarecord that is top-level');
 
 
             $grandparent_datarecord = $datarecord->getGrandparent();
@@ -2343,30 +2344,31 @@ class EditController extends ODRCustomController
                     $descendant = $dt['descendant'];
                     $descendant['dataTypeMeta'] = $dt['descendant']['dataTypeMeta'][0];
 
+                    // TODO Fix it so searches always work
+                    /*
                     if ( $descendant['setup_step'] == DataType::STATE_OPERATIONAL )
                         $linked_datatype_descendants[$descendant_id] = $descendant;
                     else
                         $disabled_datatype_links[$descendant_id] = $descendant;
+                    */
+
+                    $linked_datatype_descendants[$descendant_id] = $descendant;
                 }
                 else if ($descendant_id == $datatype->getId() ) {
                     $ancestor = $dt['ancestor'];
                     $ancestor['dataTypeMeta'] = $dt['ancestor']['dataTypeMeta'][0];
 
+                    /*
                     if ( $ancestor['setup_step'] == DataType::STATE_OPERATIONAL )
                         $linked_datatype_ancestors[$ancestor_id] = $ancestor;
                     else
                         $disabled_datatype_links[$ancestor_id] = $ancestor;
+                    */
+
+                    // TODO Fix it so searches always work
+                    $linked_datatype_ancestors[$ancestor_id] = $ancestor;
                 }
             }
-
-/*
-print '<pre>';
-print 'ancestors: '.print_r($linked_datatype_ancestors, true);
-print 'descendants: '.print_r($linked_datatype_descendants, true);
-print 'disabled: '.print_r($disabled_datatype_links, true);
-print '</pre>';
-exit();
-*/
 
             // ----------------------------------------
             // Generate a csrf token for each of the datarecord/datafield pairs

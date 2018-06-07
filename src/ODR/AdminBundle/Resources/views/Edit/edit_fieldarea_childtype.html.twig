@@ -16,6 +16,8 @@
 {% endif %}
 {#
 --------------------</br>
+target_datatype_id: {{ target_datatype_id }}<br />
+parent_datarecord.datatype: {{ parent_datarecord.dataType.id }}<br />
 multiple_allowed: {{ multiple_allowed }}</br>
 child_datarecord_count: {{ child_datarecord_count }}</br>
 can_add_record: {{ can_add_record }}</br>
@@ -44,15 +46,30 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
 
         'token_list': token_list,
     } %}
-    <div>
+    <div class="pure-u-1">
     {% if is_link == 1 %}
-        {# if can_edit_record == 1 #}
         <button
                 class="pure-button pure-button-primary"
                 type="button"
-                onclick="AddLinkedRecord({{ datatype.id }},{{ childtype.id }},{{ parent_datarecord.id }});"
-        >Add {{ childtype.dataTypeMeta.shortName }} record.</button>
-        {# endif #}
+                onclick="AddLinkedRecord({{ parent_datarecord.dataType.id }},{{ childtype.id }},{{ parent_datarecord.id }});"
+        >Add {{ childtype.dataTypeMeta.shortName }}</button>
+        {% if datatype_permissions[ childtype.id ] is defined and datatype_permissions[ childtype.id ][ 'dr_edit' ] is defined %}
+            <button
+                    type="button"
+                    class="pure-button"
+                    onclick="LinkRecord({{ parent_datarecord.dataType.id }},{{ childtype.id }},{{ parent_datarecord.id }});"
+            >Link to {{ childtype.dataTypeMeta.shortName }}</button>
+        {% endif %}
+
+        {% if datatype_permissions[ childtype.id ] is defined and datatype_permissions[ childtype.id ][ 'dr_edit' ] is defined %}
+            {#
+                <button
+                    type="button"
+                    class="pure-button"
+                    onclick="LinkRecord({{ childtype.id }},{{ parent_datarecord.dataType.id }},{{ datarecord.id }});"
+                >Link to {{ datatype_array[parent_datarecord.dataType.id].dataTypeMeta.shortName }}</button>
+            #}
+        {% endif %}
     {% elseif can_add_record == 1 and (multiple_allowed == 1 or child_datarecord_count < 1) %}
         {#
     {% if can_add_record == 1 and (multiple_allowed == 1 or child_datarecord_count < 1) %}
