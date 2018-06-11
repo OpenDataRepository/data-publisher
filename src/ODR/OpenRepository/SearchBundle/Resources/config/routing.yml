@@ -37,7 +37,7 @@ odr_search_render:
         search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
-        intent: searching|linking
+        intent: searching|linking|linking_ajax
 
 odr_default_search_render:
     path: /search/render_default/{datatype_id}

@@ -1295,6 +1295,36 @@ h3.ODRFieldSelected .ODRSortHandle {
     margin-left: 0;
 }
 
+/* Set Placeholder to Right Side webkit solution */
+/*
+::-webkit-input-placeholder { text-align:right; }
+input:-moz-placeholder { text-align:right; }
+input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
+
+.ODRFieldWrapper input[type="text"] {
+    position: relative;
+}
+
+.ODRFieldWrapper:after {
+    float: left;
+    font-family: 'FontAwesome';
+    color:red;
+    position: relative;
+    left: -30px;
+    content: "\f007";
+}
+*/
+.ODRFieldWrapper {
+    position: relative;
+}
+.ODRSaveIndicator {
+    position: absolute;
+    right: 2px;
+    top: 1px;
+    display: none;
+    color: #1c81d0 !important;
+}
+
 .ODRSelectWrap {
     overflow: hidden;
     position: relative;

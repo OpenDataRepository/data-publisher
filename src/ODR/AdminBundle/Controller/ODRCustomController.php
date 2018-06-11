@@ -350,7 +350,44 @@ class ODRCustomController extends Controller
         // -----------------------------------
         $final_html = '';
         // All theme types other than table
-        if ( $theme->getThemeType() != 'table' ) {
+        if($intent === "linking_ajax") {
+            // TODO Build field order array for view....
+            // ----------------------------------------
+            // Grab the cached versions of all of the datarecords, and store them all at the same level in a single array
+            $include_links = true;
+            $related_datarecord_array = array();
+            foreach ($datarecord_list as $num => $dr_id) {
+                $datarecord_info = $dri_service->getDatarecordArray($dr_id, $include_links);
+
+                foreach ($datarecord_info as $local_dr_id => $data)
+                    $related_datarecord_array[$local_dr_id] = $data;
+            }
+
+            $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
+            $theme_array = $theme_service->getThemeArray($theme->getId());
+
+            // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
+            $pm_service->filterByGroupPermissions($datatype_array, $related_datarecord_array, $user_permissions);
+
+            // Stack the datatype and all of its children
+            $stacked_datatype_array[ $datatype->getId() ] =
+                $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+            $stacked_theme_array[ $theme->getId() ] =
+                $theme_service->stackThemeArray($theme_array, $theme->getId());
+
+            // Stack each individual datarecord in the array
+            // TODO - is there a faster way of doing this?  Loading/stacking datarecords is likely the slowest part of rendering a search results list now
+            $datarecord_array = array();
+            foreach ($related_datarecord_array as $dr_id => $dr) {
+                if ( $dr['dataType']['id'] == $datatype->getId() )
+                    $datarecord_array[$dr_id] = $dri_service->stackDatarecordArray($related_datarecord_array, $dr_id);
+            }
+
+
+            $final_html = $datarecord_array;
+
+        }
+        else if ( $theme->getThemeType() != 'table' ) {
             // -----------------------------------
             // Build the pagination header from the correct list of datarecords
             $pagination_values = $odr_tab_service->getPaginationHeaderValues($odr_tab_id, $offset, $editable_only);

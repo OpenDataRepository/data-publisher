@@ -184,12 +184,6 @@ function initPage() {
             var datarecord_id = tmp[1];
             var datafield_id = tmp[2];
 
-//alert('datarecord: ' + datarecord_id + ', datafield: ' + datafield_id);
-//return;
-
-//alert( url );
-//return;
-
             $.ajax({
                 cache: false,
                 type: 'GET',
@@ -233,7 +227,6 @@ function initPage() {
 
         // Don't change public status of file if it's currently being decrypted
         if ( pending_file_decryptions[file_id] != null || pending_file_decryptions[file_id] != undefined || file_decrypt_timeouts[file_id] != null || file_decrypt_timeouts[file_id] != undefined) {
-//            alert('in progress');
             return false;
         }
 
@@ -251,9 +244,6 @@ function initPage() {
         var url  = '{{ path('odr_record_public_file', {'file_id': 0} ) }}';
         url = url.substring(0,(url.length-1));
         url += file_id;
-
-//alert( url );
-//return;
 
         $.ajax({
             cache: false,
@@ -310,12 +300,6 @@ function initPage() {
             var datarecord_id = tmp[1];
             var datafield_id = tmp[2];
 
-//alert('datarecord: ' + datarecord_id + ', datafield: ' + datafield_id);
-//return;
-
-//alert( url );
-//return;
-
             $.ajax({
                 cache: false,
                 type: 'GET',
@@ -356,9 +340,6 @@ function initPage() {
         var url  = '{{ path('odr_record_public_image', {'image_id': 0} ) }}';
         url = url.substring(0,(url.length-1));
         url += image_id;
-
-//alert( url );
-//return;
 
         $.ajax({
             cache: false,
@@ -419,9 +400,6 @@ function initPage() {
         var datarecord_id = tmp[1];
         var datafield_id = tmp[2];
 
-//alert( url );
-//return;
-
         $.ajax({
             cache: false,
             type: 'GET',
@@ -456,9 +434,6 @@ function initPage() {
         var url = '{{ path('odr_record_public', { 'datarecord_id': 0 }) }}';
         url = url.substring(0, (url.length - 1));
         url += datarecord_id;
-
-//alert( url );
-//return;
 
         $.ajax({
             cache: false,
@@ -565,55 +540,312 @@ function initPage() {
         }
     });
 
+    var availableTags = [
+        "ActionScript. Test of multi-line. What do we do = will the line expand?",
+        "AppleScript",
+        "Asp",
+        "BASIC",
+        "C",
+        "C++",
+        "Clojure",
+        "COBOL",
+        "ColdFusion",
+        "Erlang",
+        "Fortran",
+        "Groovy",
+        "Haskell",
+        "Java",
+        "JavaScript",
+        "Lisp",
+        "Perl",
+        "PHP",
+        "Python",
+        "Ruby",
+        "Scala",
+        "Scheme"
+    ];
+
+    $(".ODRLinkLookupForm")
+        .find('input[type="text"]').effect("highlight", {}, 3000)
+        .closest('.ODRFieldArea')
+        .each(function() {
+            // Only auto-complete newly added children
+            var is_empty = true;
+            // Only check DataFields that are part of this FieldArea and one level deep
+            $(this)
+                .find('.ODRThemeElement > .ODRInnerBox > .ODRDataField')
+                .find('input[type="text"]')
+                .each(
+                    function() {
+                        var elem = $(this);
+                        if($(elem).val() !== "") {
+                            is_empty = false;
+                        }
+                    }
+                );
+
+            // Need to check parent form...
+            // Get Field ID - use to determine what to search
+            if(!is_empty) {
+                $(this).prev().find('.fa-magic').remove();
+            }
+
+            if(is_empty) {
+                // Add auto-suggest icon to header...
+                if ($(this).prev().find('.DatatypeTools').find(".fa-magic").length < 1) {
+                    $(this).prev().find('.DatatypeTools')
+                        .append(
+                            '<i ' +
+                            'class="fa fa-magic Pointer tooltip" ' +
+                            'title="Type in a field to search for an available record to link." ' +
+                            '></i>'
+                        );
+                }
+
+
+
+
+
+                $(this)
+                    .find('.ODRThemeElement > .ODRInnerBox > .ODRDataField')
+                    .find('input[type="text"]')
+                    .each(function() {
+                        if(!$(this).hasClass('.ui-autocomplete-input')) {
+                            // Create search parameters
+                            var input_elem = $(this);
+                            var record_data = $(this).closest('.ODRChildDatatype').closest('.ODRFieldArea').attr('id').split(/_/);
+                            var local_record_id = record_data[1];
+
+                            record_data = $(this).closest('.ODRChildDatatype').closest('.ODRDataType').attr('id').split(/_/);
+                            var ancestor_datatype_id = record_data[1];
+
+
+                            var descendant_datatype_id = $(this).closest('.ODRDataType').attr('id').split(/_/)[1];
+                            var current_linked_record = $(this).closest('.ODRFieldArea').attr('id').split(/_/)[1];
+                            $(this).autocomplete({
+                                // source: "search.php",
+                                source: function(request, response) {
+                                    // Determine search url and parameters
+                                    // Can we do this without a search key? Please?
+
+                                    // Build Post data...
+                                    // Determine data type
+                                    var datatype_id = $(input_elem).closest('.ODRDataType').attr('id').split(/_/)[1];
+                                    console.log('Datatype to autocomplete:', datatype_id)
+
+                                    // Determine fields that have values...
+                                    var form_obj = {}
+                                    form_obj.ajax_request = true;
+                                    form_obj.dt_id = datatype_id;
+
+                                    $(input_elem)
+                                        .closest('.ODRFieldArea')
+                                        .find('.ODRThemeElement > .ODRInnerBox > .ODRDataField')
+                                        .find('input[type="text"]')
+                                        .each(function() {
+                                            if(($(this).val() !== "")) {
+                                                console.log('Field: ', $(this).attr('id'))
+                                                var field_id = $(this).attr('id').split(/_/)[2];
+                                                form_obj[field_id] = $(this).val();
+                                            }
+                                        });
+
+                                    console.log('form obj: ', form_obj);
+
+                                    var url  = '{{ path('odr_search_results') }}';
+                                    $.ajax({
+                                        cache: false,
+                                        type: 'POST',
+                                        data: form_obj,
+                                        url: url,
+                                        dataType: "json",
+                                        success: function(data, textStatus, jqXHR) {
+                                            console.log('Search post: ', data)
+                                            searchResultsAjax(data.d.search_key, response)
+                                        },
+                                        error: function(jqXHR, textStatus, errorThrown) {
+                                            // Don't need to do anything specific on an error
+                                        },
+                                        complete: function(jqXHR, textStatus) {
+                                            // Get the xdebugToken from response headers
+                                            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                                            // If the Sfjs object exists
+                                            if (typeof Sfjs !== "undefined") {
+                                                // Grab the toolbar element
+                                                var currentElement = $('.sf-toolbar')[0];
+
+                                                // Load the data of the given xdebug token into the current toolbar wrapper
+                                                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                                            }
+                                        }
+                                    });
+
+                                },
+                                minLength: 1,
+                                select: function (event, ui) {
+                                    // On Select - delete current record and link new one....
+                                    console.log('Deleting empty record: ', current_linked_record);
+                                    /*
+                                    function LinkRecordOnly(
+                                        ancestor_datatype_id,
+                                        descendant_datatype_id,
+                                        local_datarecord_id,
+                                        record_id,
+                                        */
+                                    console.log("Linking record: " + ui.item.record_id +
+                                        " to ancestor: " + ancestor_datatype_id +
+                                        " , descendant: " + descendant_datatype_id +
+                                        " , local_record_id: " + local_record_id
+                                    );
+                                    DeleteLinkedRecord(current_linked_record, false);
+                                    LinkRecordOnly(
+                                        ancestor_datatype_id,
+                                        descendant_datatype_id,
+                                        local_record_id,
+                                        ui.item.record_id,
+                                        function() {
+                                            console.log('record linked....', ui.item.record_id)
+                                        }
+                                    )
+                                }
+                            })
+                            .autocomplete( "instance" )._renderItem = function( ul, item ) {
+                                var html = $('<div id="Datarecord_Select_' + item.record_id + '">');
+                                for(var x in item.fields) {
+                                    if(item.fields[x].field_value.toString().length > 30) {
+                                        $(html).append('<span class="ODRLinkingSearchTruncate">' + item.fields[x].field_value.toString().substring(0,30) + "...,</span> ");
+                                    }
+                                    else {
+                                        $(html).append('<span>' + item.fields[x].field_value + ",</span> ");
+                                    }
+                                }
+                                return $( "<li>" )
+                                    .append(html)
+                                    .appendTo( ul );
+                            };
+
+                        }
+                    });
+            }
+        });
+
+    function searchResultsAjax(search_key, response) {
+
+        var url  = '{{ path('odr_search_render', {'search_theme_id': 0, 'search_key': ''} ) }}';
+        // url = url.substring(0,(url.length - 1));
+        url += search_key + "/0/linking_ajax";
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                console.log('Search Render: ', data)
+                // Sort ant prepare data
+                var output = []
+                for(var x in data.d.html) {
+                    var output_record = {};
+                    var datarecord = data.d.html[x];
+
+                    output_record = {};
+                    output_record.record_id = datarecord.id
+                    output_record.fields = []
+
+                    for(var y in datarecord.dataRecordFields) {
+                        let field = datarecord.dataRecordFields[y];
+                        var field_data = {}
+                        if(field.shortVarchar !== undefined) {
+                            field_data.field_id = field.shortVarchar[0].id;
+                            field_data.field_value = field.shortVarchar[0].value;
+                            output_record.fields.push(field_data);
+                        }
+                        if(field.mediumVarchar !== undefined) {
+                            field_data.field_id = field.mediumVarchar[0].id;
+                            field_data.field_value = field.mediumVarchar[0].value;
+                            output_record.fields.push(field_data);
+                        }
+                    }
+
+                    output.push(output_record)
+
+                }
+                response( output )
+
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function DeleteLinkedRecord(datarecord_id, reload) {
+        if(reload === undefined) {
+            reload = false;
+        }
+
+        // Load display template menu
+        var url  = '{{ path('odr_record_deletechild', {'datarecord_id': 0} ) }}';
+        url = url.substring(0,(url.length - 1));
+        url += datarecord_id;
+
+
+        // Store true parent record so we can reload parent
+        var parent_data = $("#FieldArea_" + datarecord_id).closest(".ODRChildDatatype").attr('id').split(/_/);
+        console.log('Parent data: ', parent_data);
+
+        var datatype_id = parent_data[1];
+        var parent_id = parent_data[2];
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                // Refresh child wrapper area
+                console.log('Delete Unlink Record: ', data)
+                if(reload) {
+                    ReloadChild(datatype_id, parent_id);
+                }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
     $(".ODRDeleteLinkedRecord").unbind('click').click(function() {
         if ( confirm('This is a linked record that may be used by other databases.  Are you sure you want to delete this record?') ) {
             var datarecord_id = $(this).attr('rel');   // which data record to delete
-
-            // Load display template menu
-            var url  = '{{ path('odr_record_deletechild', {'datarecord_id': 0} ) }}';
-            url = url.substring(0,(url.length - 1));
-            url += datarecord_id;
-
-
-            // Store true parent record so we can reload parent
-            // var parent_data = $(this).parent().parent().parent().parent().parent().parent().attr('id').split(/_/);
-            var parent_data = $(this).closest(".ODRChildDatatype").attr('id').split(/_/);
-            console.log('Parent data: ', parent_data);
-
-            var datatype_id = parent_data[1];
-            var parent_id = parent_data[2];
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function(data, textStatus, jqXHR) {
-                    // Refresh child wrapper area
-                    console.log('Delete Unlink Record: ', data)
-
-                    // var datatype_id = data.d.datatype_id;
-                    // var parent_id = data.d.parent_id;
-
-                    ReloadChild(datatype_id, parent_id);
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    // Don't need to do anything specific on an error
-                },
-                complete: function(jqXHR, textStatus) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
-                }
-            });
+            DeleteLinkedRecord(datarecord_id, true);
         }
     });
 
@@ -682,9 +914,6 @@ function initPage() {
         url = url.substring(0,(url.length - 5));
         url += datarecord_id + '/' + datafield_id + '/' + radio_option_id;
 
-//alert( url );
-//return;
-
         $.ajax({
             cache: false,
             type: 'GET',
@@ -724,9 +953,6 @@ function initPage() {
         var url  = '{{ path('odr_record_radio_selection', {'datarecord_id': 0, 'datafield_id': 0, 'radio_option_id': 0} ) }}';
         url = url.substring(0,(url.length - 5));
         url += datarecord_id + '/' + datafield_id + '/' + radio_option_id;
-
-//alert( url );
-//return;
 
         $.ajax({
             cache: false,
@@ -768,9 +994,6 @@ function initPage() {
         var url  = '{{ path('odr_record_radio_selection', {'datarecord_id': 0, 'datafield_id': 0, 'radio_option_id': 0} ) }}';
         url = url.substring(0,(url.length - 5));
         url += datarecord_id + '/' + datafield_id + '/' + radio_option_id;
-
-//alert( url );
-//return;
 
         $.ajax({
             cache: false,
@@ -868,7 +1091,10 @@ function initPage() {
     $(".ODRDataField").children("form").submit(function(event) {
         event.preventDefault();
     });
+
+    console.log('Init page done.');
 }
+
 
 function SaveImageOrder(container) {
 
@@ -993,18 +1219,8 @@ function LinkRecordOnly(
             // Don't need to do anything special on success
             console.log('LINK Response: ', data);
 
-            // Attach search handlers
-            // If search chosen, delete added record and change to link...
-
-            // odr_record_add for linked type
-
-            // Link record to this datatype and record
-
-            // Can we just get an empty form for this datatype?
             // Insert the form into the page....
-            ReloadChild(data.d.datatype_id, data.d.datarecord_id);
-
-            callback()
+            ReloadChild(data.d.datatype_id, data.d.datarecord_id, callback);
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Just reload the datafield on error, since can't restore the old value
@@ -1025,8 +1241,6 @@ function LinkRecordOnly(
             }
         }
     });
-
-
 }
 
 function AddLinkedRecord(ancestor_datatype_id, descendant_datatype_id, local_datarecord_id) {
@@ -1050,22 +1264,18 @@ function AddLinkedRecord(ancestor_datatype_id, descendant_datatype_id, local_dat
 
             console.log('Record Created: ', datarecord_id);
 
-
             // Need to reload the child record after this...
             LinkRecordOnly(
                 ancestor_datatype_id,
                 descendant_datatype_id,
                 local_datarecord_id,
-                datarecord_id
+                datarecord_id,
+                function() {
+                    console.log("Let's open the new datarecord:", datarecord_id)
+                    $("#FieldArea_" + datarecord_id).prev().click();
+                }
+
             );
-
-            /*
-            var url = '{{ path('odr_record_edit', { 'datarecord_id': 0 }) }}';
-            url = url.substring(0, (url.length-1));
-            url += datarecord_id;
-
-            window.location = url;
-            */
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Don't need to do anything specific on an error
@@ -1096,11 +1306,22 @@ function SaveRecordData(form_id, interval) {
     var datarecord_id = pieces[1];
     var datafield_id = pieces[2];
 
+    // If form is in "autocomplete" - do nothing
+    // Only check DataFields that are part of this FieldArea and one level deep
+    var autocomplete = $(form_id)
+        .find('.ui-autocomplete-input');
+
+    if(autocomplete.length > 0) {
+        console.log('autocomplete active.')
+        return;
+    }
+
     // Determine save type
     var post_data = $(form_id).serialize();
     var url = $(form_id).attr('action');
 
-    console.log('saving data...');
+    console.log('Save Form: ', form_id)
+    $(form_id).find('.ODRSaveIndicator').fadeIn('50')
 
     $.ajax({
         type: 'POST',
@@ -1126,6 +1347,7 @@ function SaveRecordData(form_id, interval) {
                 // Load the data of the given xdebug token into the current toolbar wrapper
                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
             }
+            $(form_id).find('.ODRSaveIndicator').fadeOut('350');
         }
     });
 }
@@ -1145,17 +1367,15 @@ function insertLoadingDiv(parent_div_id) {
 }
 
 
-function ReloadChild(child_datatype_id, parent_datarecord_id) {
+function ReloadChild(child_datatype_id, parent_datarecord_id, callback) {
+    if(callback === undefined) {
+        callback = function() {}
+    }
     var url = '{{ path('odr_record_reload_child', { 'child_datatype_id': 0, 'parent_datarecord_id': 0 }) }}';
     url = url.substring(0, (url.length-3));
     url += child_datatype_id + '/' + parent_datarecord_id;
 
-    // Remove the datatype that's getting reloaded
-    //$("#ChildTypeWrapper_" + child_datatype_id + "_" + parent_datarecord_id).children(".ODRDataType").fadeOut().remove();
     insertLoadingDiv("ChildTypeWrapper_" + child_datatype_id + "_" + parent_datarecord_id);
-
-//alert( url );
-//return;
 
     $.ajax({
         cache: false,
@@ -1166,10 +1386,16 @@ function ReloadChild(child_datatype_id, parent_datarecord_id) {
             // The returned html includes #ChildTypeWrapper...completely overwrite the contents of its parent div
             $("#ChildTypeWrapper_" + child_datatype_id + "_" + parent_datarecord_id).parent(".ODRInnerBox").html(data.d.html);
 
+            console.log('onwindowresize')
             onWindowResize();
+            console.log('setupimage galleries')
             setupImageGalleries();
+            console.log('setup accordion')
             setupAccordions();
+            console.log('init page')
             initPage();
+            console.log('callback')
+            callback();
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Don't need to do anything specific on an error
@@ -1203,9 +1429,6 @@ function ReloadDatafield(datarecord_id, datafield_id) {
         $(this).fadeOut();
         $(this).remove();
     });
-
-//alert( url );
-//return;
 
     $.ajax({
         cache: false,

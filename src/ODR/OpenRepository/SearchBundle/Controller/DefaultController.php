@@ -989,10 +989,9 @@ print '$links: '.print_r($links, true)."\n";
             if ( trim($datarecord_list) !== '')
                 $datarecords = explode(',', trim($datarecord_list));
 
-
             // -----------------------------------
             // Bypass list entirely if only one datarecord
-            if ( count($datarecords) == 1 && $intent !== 'linking' ) {
+            if ( count($datarecords) == 1 && $intent !== 'linking' && $intent !== 'linking_ajax') {
                 $datarecord_id = $datarecords[0];
 
                 // Can't use $this->redirect, because it won't update the hash...
@@ -1003,7 +1002,6 @@ print '$links: '.print_r($links, true)."\n";
                 $response->headers->set('Content-Type', 'application/json');
                 return $response;
             }
-
 
             // -----------------------------------
             // TODO - better error handling, likely need more options as well...going to need a way to get which theme the user wants to use too
@@ -1077,7 +1075,7 @@ print '$links: '.print_r($links, true)."\n";
                 $request
             );
 
-             $return['d'] = array(
+            $return['d'] = array(
                 'html' => $html,
             );
         } catch (\Exception $e) {
@@ -1169,21 +1167,30 @@ print '$links: '.print_r($links, true)."\n";
             $search_params = $request->request->all();
 
             // The POST data probably has a whole pile of empty keys...not entirely sure why
+            // TODO because the form has them...
+            $ajax_request = false;
             foreach ($search_params as $key => $value) {
                 if (trim($value) == '')
                     unset( $search_params[$key] );
+
+                if($key == "ajax_request") {
+                    $ajax_request = true;
+                    unset( $search_params[$key] );
+                }
             }
             ksort($search_params);
 
             // Run a search based off those parameters
             $search_params = self::performSearch($search_params);
 
-
             // ----------------------------------------
             if ( $search_params['error'] == true ) {
                 throw new \Exception( $search_params['message'] );
             }
-            else if ( $search_params['redirect'] == true ) {
+            else if (
+                $search_params['redirect'] == true
+                && !$ajax_request
+            ) {
                 /** @var ODRCustomController $odrcc */
                 $odrcc = $this->get('odr_custom_controller', $request);
                 $odrcc->setContainer($this->container);
@@ -1310,7 +1317,8 @@ if (isset($debug['timing'])) {
         // ----------------------------------------
         // Expand $datafield_array with the results of parsing the search key
         $parse_all = true;
-        /*$dropped_datafields = */self::buildSearchArray($search_params, $datafield_array, $search_as_super_admin, $datatype_permissions, $parse_all, $debug);
+        /*$dropped_datafields = */
+        self::buildSearchArray($search_params, $datafield_array, $search_as_super_admin, $datatype_permissions, $parse_all, $debug);
 
 
         $search_key = $search_cache_service->encodeSearchKey($search_params);
