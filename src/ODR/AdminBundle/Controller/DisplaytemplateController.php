@@ -132,6 +132,10 @@ class DisplaytemplateController extends ODRCustomController
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$grandparent_datatype_id, 'completed' => null) );   // TODO - not datatype_id, right?
             if ($tracked_job !== null)
                 throw new ODRException('Preventing deletion of any DataField for this DataType, because a CSV Import for this DataType is in progress...');
+            // Prevent deletion of datafields if it's getting migrated...
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'target_entity' => 'datafield_'.$datafield_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new ODRException('Preventing deletion of this DataField, because it is currently being migrated to another Fieldtype...');
 
             // Check that the datafield isn't being used for something else before deleting it
             if ( !self::canDeleteDatafield($em, $datafield) )
