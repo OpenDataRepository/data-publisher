@@ -2245,7 +2245,7 @@ h3 .DatatypeTools,
     border-radius: 6px;
 }
 
-.ODRResults select.AccordionSelect {
+.ODRResults .AccordionSelect {
     float: right;
     margin-right: 38px !important;
     max-width: 350px;
@@ -2254,19 +2254,22 @@ h3 .DatatypeTools,
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    border-radius: 6px;
+    border-radius: 4px;
 }
 
-.ODRRecord select.AccordionSelect {
+.ODRRecord .AccordionSelect {
     float: right;
     margin-right: 58px !important;
     max-width: 350px;
-    padding: 4px 4px 2px 4px !important;
+    padding: 0 0 0 0 !important;
     height: 32px !important;
+    /*
+    padding: 4px 4px 2px 4px !important;
+    border-radius: 6px;
+    */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    border-radius: 6px;
 }
 
 .DataTypeToolsAccordion {

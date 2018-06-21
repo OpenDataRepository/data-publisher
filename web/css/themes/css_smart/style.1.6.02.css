@@ -1446,3 +1446,23 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
    End Design improvements for displaytemplate interface.
 
  */
+
+
+/** Accordion Nesting Colors **/
+.ODRAccordionPrimary {
+    background-color: #6fa5c7 !important;
+}
+.ODRAccordionPrimary a,
+.ODRAccordionPrimary a:active,
+.ODRAccordionPrimary a:visited,
+.ODRAccordionPrimary a:hover,
+.ODRAccordionSecondary a,
+.ODRAccordionSecondary a:active,
+.ODRAccordionSecondary a:visited,
+.ODRAccordionSecondary a:hover {
+    background-color: transparent !important;
+}
+
+.ODRAccordionSecondary {
+    background-color: rgba(111,165,199, 0.6) !important;
+}

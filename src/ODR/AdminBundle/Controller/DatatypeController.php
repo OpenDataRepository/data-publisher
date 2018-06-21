@@ -961,6 +961,48 @@ class DatatypeController extends ODRCustomController
             $datatypes_to_process = array();
             array_push($datatypes_to_process, $datatype);
 
+            /** @var DatatypeInfoService $dti_service */
+            /*
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
+            // Need to get associated datatypes for metadata_datatype
+            $associated_datatypes = $dti_service->getAssociatedDatatypes(array($master_datatype->getId()));
+
+            foreach($associated_datatypes as $associated_datatype_id) {
+                $associated_datatype = $repo_datatype->find($associated_datatype_id);
+                $new_associated = clone $associated_datatype;
+                $new_associated->setIsMasterType(0);
+                $new_associated->setGrandparent($datatype);
+                $new_associated->setParent($datatype);
+                $new_associated->setMasterDataType($associated_datatype);
+
+                $new_associated->setTemplateGroup($unique_id);
+                // Clone has wrong state - set to initial
+                $new_associated->setSetupStep(DataType::STATE_INITIAL);
+
+                // Need to always set a unique id
+                $new_associated_unique_id = UniqueUtility::uniqueIdReal();
+                $new_associated->setUniqueId($new_associated_unique_id);
+
+                // Set new datatype meta
+                $new_associated_meta = clone $associated_datatype->getDataTypeMeta();
+                $new_associated_meta->setShortName("Properties");
+                $new_associated_meta->setLongName($associated_datatype->getDataTypeMeta()->getLongName());
+                $new_associated_meta->setDataType($new_associated);
+
+                // Associate the metadata
+                $new_associated->addDataTypeMetum($new_associated_meta);
+
+                // New Datatype
+                $em->persist($new_associated);
+                // New Datatype Meta
+                $em->persist($new_associated_meta);
+                $em->flush();
+
+                array_push($datatypes_to_process, $new_associated);
+            }
+            */
+
             /*
              * Create Datatype Metadata Object (a second datatype to store one record with the properties
              * for the parent datatype).
@@ -980,6 +1022,10 @@ class DatatypeController extends ODRCustomController
                 $metadata_datatype->setTemplateGroup($unique_id);
                 // Clone has wrong state - set to initial
                 $metadata_datatype->setSetupStep(DataType::STATE_INITIAL);
+
+                // Need to always set a unique id
+                $metadata_unique_id = UniqueUtility::uniqueIdReal();
+                $metadata_datatype->setUniqueId($metadata_unique_id);
 
                 // Set new datatype meta
                 $metadata_datatype_meta = clone $datatype->getDataTypeMeta();
@@ -1001,10 +1047,50 @@ class DatatypeController extends ODRCustomController
 
                 array_push($datatypes_to_process, $metadata_datatype);
 
+                /*
+                // Need to get associated datatypes for metadata_datatype
+                $metadata_associated_datatypes = $dti_service->getAssociatedDatatypes(array($metadata_datatype->getId()));
+
+                foreach($metadata_associated_datatypes as $associated_datatype_id) {
+                    $associated_datatype = $repo_datatype->find($associated_datatype_id);
+                    $new_associated = clone $associated_datatype;
+                    $new_associated->setIsMasterType(0);
+                    $new_associated->setGrandparent($metadata_datatype);
+                    $new_associated->setParent($metadata_datatype);
+                    $new_associated->setMasterDataType($associated_datatype);
+
+                    $new_associated->setTemplateGroup($unique_id);
+                    // Clone has wrong state - set to initial
+                    $new_associated->setSetupStep(DataType::STATE_INITIAL);
+
+                    // Need to always set a unique id
+                    $new_associated_unique_id = UniqueUtility::uniqueIdReal();
+                    $new_associated->setUniqueId($new_associated_unique_id);
+
+                    // Set new datatype meta
+                    $new_associated_meta = clone $associated_datatype->getDataTypeMeta();
+                    $new_associated_meta->setShortName("Properties");
+                    $new_associated_meta->setLongName($associated_datatype->getDataTypeMeta()->getLongName());
+                    $new_associated_meta->setDataType($new_associated);
+
+                    // Associate the metadata
+                    $new_associated->addDataTypeMetum($new_associated_meta);
+
+                    // New Datatype
+                    $em->persist($new_associated);
+                    // New Datatype Meta
+                    $em->persist($new_associated_meta);
+                    $em->flush();
+
+                    array_push($datatypes_to_process, $new_associated);
+                }
+                */
+
             }
             /*
              * END Create Datatype Metadata Object
              */
+
 
 
             /*

@@ -77,6 +77,7 @@ $(function() {
 
     // Hide divs for accordion purposes
     setupAccordions();
+    setupAccordionHighlights();
 
     // --------------------
     initPage();
@@ -570,6 +571,7 @@ function initPage() {
         .closest('.ODRFieldArea')
         .each(function() {
             // Only auto-complete newly added children
+            // console.log('preparing link system: ', $(this).attr('id'));
             var is_empty = true;
             // Only check DataFields that are part of this FieldArea and one level deep
             $(this)
@@ -587,6 +589,8 @@ function initPage() {
             // Need to check parent form...
             // Get Field ID - use to determine what to search
             if(!is_empty) {
+                // console.log('not empty');
+
                 $(this).prev().find('.fa-magic').remove();
             }
 
@@ -698,31 +702,79 @@ function initPage() {
                                         " , descendant: " + descendant_datatype_id +
                                         " , local_record_id: " + local_record_id
                                     );
-                                    DeleteLinkedRecord(current_linked_record, false);
-                                    LinkRecordOnly(
-                                        ancestor_datatype_id,
-                                        descendant_datatype_id,
-                                        local_record_id,
-                                        ui.item.record_id,
-                                        function() {
-                                            console.log('record linked....', ui.item.record_id)
-                                        }
-                                    )
+                                    if(ui.item.record_id === -1) {
+                                        // Remove autocomplete should allow save to go through
+                                        console.log('removing: ', current_linked_record)
+                                        var header = $("#FieldArea_" + current_linked_record).prev();
+                                        header.find('.fa-magic').remove();
+
+                                        console.log('val: ', $(input_elem).val());
+                                        let form_id = $(input_elem).closest("form").attr('id');
+
+
+                                        $("#FieldArea_" + current_linked_record)
+                                            .find('.ODRThemeElement > .ODRInnerBox > .ODRDataField')
+                                            .find('input[type="text"]')
+                                            .each(function() {
+                                                if (!$(this).hasClass('.ui-autocomplete-input')) {
+                                                    $(this).autocomplete("destroy");
+                                                    $(this).removeData('autocomplete');
+                                                }
+                                                console.log('id: ', form_id);
+                                                SaveRecordData('#' + form_id, '');
+                                            });
+                                    }
+                                    else {
+                                        DeleteLinkedRecord(current_linked_record, false);
+                                        LinkRecordOnly(
+                                            ancestor_datatype_id,
+                                            descendant_datatype_id,
+                                            local_record_id,
+                                            ui.item.record_id,
+                                            function() {
+                                                var field_area = $("#FieldArea_" + ui.item.record_id)
+                                                if(field_area.parent().hasClass("ODRDropdownAccordion")) {
+                                                    field_area.parent().find(".ODRSelect").val(ui.item.record_id).change();
+                                                }
+                                                else if(field_area.parent().hasClass("ODRTabAccordion")) {
+                                                    field_area.parent().find(".ODRTabButton").each(function() {
+                                                        if($(this).attr('rel').toString() === ui.item.record_id.toString()) {
+                                                            $(this).click();
+                                                        }
+                                                    });
+                                                }
+                                                else {
+                                                    field_area.prev().click();
+                                                }
+                                            }
+                                        )
+                                    }
+                                    return false
                                 }
                             })
                             .autocomplete( "instance" )._renderItem = function( ul, item ) {
-                                var html = $('<div id="Datarecord_Select_' + item.record_id + '">');
-                                for(var x in item.fields) {
-                                    if(item.fields[x].field_value.toString().length > 30) {
-                                        $(html).append('<span class="ODRLinkingSearchTruncate">' + item.fields[x].field_value.toString().substring(0,30) + "...,</span> ");
-                                    }
-                                    else {
-                                        $(html).append('<span>' + item.fields[x].field_value + ",</span> ");
-                                    }
+                                if(item.record_id === -1) {
+                                    var html = $('<div id="Datarecord_Select_' + item.record_id + '">');
+                                    $(html).append('<span>No Results Found - Click to save record.</span>');
+                                    return $( "<li>" )
+                                        .append(html)
+                                        .appendTo( ul );
+
                                 }
-                                return $( "<li>" )
-                                    .append(html)
-                                    .appendTo( ul );
+                                else {
+                                    var html = $('<div id="Datarecord_Select_' + item.record_id + '">');
+                                    for(var x in item.fields) {
+                                        if(item.fields[x].field_value.toString().length > 30) {
+                                            $(html).append('<span class="ODRLinkingSearchTruncate">' + item.fields[x].field_value.toString().substring(0,30) + "...,</span> ");
+                                        }
+                                        else {
+                                            $(html).append('<span>' + item.fields[x].field_value + ",</span> ");
+                                        }
+                                    }
+                                    return $( "<li>" )
+                                        .append(html)
+                                        .appendTo( ul );
+                                }
                             };
 
                         }
@@ -753,21 +805,36 @@ function initPage() {
                     output_record.record_id = datarecord.id
                     output_record.fields = []
 
-                    for(var y in datarecord.dataRecordFields) {
-                        let field = datarecord.dataRecordFields[y];
-                        var field_data = {}
-                        if(field.shortVarchar !== undefined) {
-                            field_data.field_id = field.shortVarchar[0].id;
-                            field_data.field_value = field.shortVarchar[0].value;
-                            output_record.fields.push(field_data);
+                    if(
+                        datarecord.dataRecordFields !== undefined
+                        && Object.keys(datarecord.dataRecordFields).length > 0
+                    ) {
+                        var counter = 0;
+                        for(var y in datarecord.dataRecordFields) {
+                            let field = datarecord.dataRecordFields[y];
+                            var field_data = {}
+                            if(field.shortVarchar !== undefined) {
+                                field_data.field_id = field.shortVarchar[0].id;
+                                field_data.field_value = field.shortVarchar[0].value;
+                                output_record.fields.push(field_data);
+                            }
+                            if(field.mediumVarchar !== undefined) {
+                                field_data.field_id = field.mediumVarchar[0].id;
+                                field_data.field_value = field.mediumVarchar[0].value;
+                                output_record.fields.push(field_data);
+                            }
+                            counter++;
+                            if(counter > 7) {
+                                break
+                            }
                         }
-                        if(field.mediumVarchar !== undefined) {
-                            field_data.field_id = field.mediumVarchar[0].id;
-                            field_data.field_value = field.mediumVarchar[0].value;
-                            output_record.fields.push(field_data);
-                        }
+                        output.push(output_record)
                     }
-
+                }
+                if(output.length === 0) {
+                    output_record = {};
+                    output_record.record_id = -1;
+                    output_record.fields = []
                     output.push(output_record)
 
                 }
@@ -1271,10 +1338,21 @@ function AddLinkedRecord(ancestor_datatype_id, descendant_datatype_id, local_dat
                 local_datarecord_id,
                 datarecord_id,
                 function() {
-                    console.log("Let's open the new datarecord:", datarecord_id)
-                    $("#FieldArea_" + datarecord_id).prev().click();
+                    var field_area = $("#FieldArea_" + datarecord_id)
+                    if(field_area.parent().hasClass("ODRDropdownAccordion")) {
+                        field_area.parent().find(".ODRSelect").val(datarecord_id).change();
+                    }
+                    else if(field_area.parent().hasClass("ODRTabAccordion")) {
+                        field_area.parent().find(".ODRTabButton").each(function() {
+                            if($(this).attr('rel') == datarecord_id) {
+                                $(this).click();
+                            }
+                        });
+                    }
+                    else {
+                        field_area.prev().click();
+                    }
                 }
-
             );
         },
         error: function(jqXHR, textStatus, errorThrown) {
@@ -1395,6 +1473,10 @@ function ReloadChild(child_datatype_id, parent_datarecord_id, callback) {
             console.log('init page')
             initPage();
             console.log('callback')
+            // Open Record
+            $("#ChildTypeWrapper_" + child_datatype_id + "_" + parent_datarecord_id).find("h3.ui-accordion-header").click();
+            // Need to determine view style
+            // Need to click appropriate selection....
             callback();
         },
         error: function(jqXHR, textStatus, errorThrown) {

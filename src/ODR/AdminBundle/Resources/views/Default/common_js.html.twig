@@ -248,6 +248,11 @@
         });
     }
 
+    function setupAccordionHighlights() {
+        $("#content > .ODRFormWrap > .ODRDataType > .ODRAccordionWrapper > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3")
+            .alternateNestedBgColor(".ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3", ['ODRAccordionPrimary', 'ODRAccordionSecondary']);
+    }
+
     function setupAccordions() {
 
         // Setup Accordions
@@ -263,6 +268,7 @@
                 {#ODR_scrollIntoView( $(this).next() );#}
                 $(this).addClass('ODRAccordionSelected');
 
+                setupAccordionHighlights();
                 // Resize any elements that were revealed
                 onWindowResize();
             });
@@ -301,6 +307,7 @@
                         $("#FieldArea_" + id).fadeIn();
                         {#ODR_scrollIntoView( $("#FieldArea_" + id) )#}
 
+                        setupAccordionHighlights();
                         // Resize any elements that were revealed
                         onWindowResize();
                     });
@@ -332,6 +339,7 @@
                 });
 
                 // Resize any elements that were revealed
+                setupAccordionHighlights();
                 onWindowResize();
             });
         });
@@ -534,6 +542,31 @@
         });
      }
 #}
+
+
+    $.fn.alternateNestedBgColor = function(subselect, colors) {
+        var l = colors.length;
+
+        // Itterate over all element in possible array
+        // jQuery best practice to handle initializing multiple elements at once
+        return this.each(function() {
+            var $sub = $(this), i = 0;
+
+            // Executes code, at least once
+            do {
+                // Set bg color for current $sub element
+                $sub.addClass(colors[i++ % l]);
+                console.log($sub.next().attr('id'))
+                // Set $sub to direct children matching given selector
+                $sub = $sub.next().find(subselect);
+                console.log('Found subs: ', $sub.length);
+
+                // Will repeat the do section if the condition returns true
+                console.log('Repeat sub: ', i)
+            } while ($sub.length > 0);
+        });
+    };
+
 </script>
 
 {% include 'ODRAdminBundle:Default:file_handling.html.twig' %}

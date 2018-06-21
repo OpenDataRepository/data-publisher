@@ -531,7 +531,9 @@ class CloneDatatypeService
 
             // Copy the properties from the existing DatatypeMeta entry into the cloned entry
             $new_meta->setShortName($existing_meta->getShortName());
-            $new_meta->setSearchSlug('data_'.$new_datatype->getId());
+
+            // All cloned datatypes get a unique id which can be used as search slug
+            $new_meta->setSearchSlug($new_datatype->getUniqueId());
             $new_meta->setLongName($existing_meta->getLongName());
             $new_meta->setDescription($existing_meta->getDescription());
 
@@ -547,11 +549,15 @@ class CloneDatatypeService
 
             // If the search slug is set, then this is a linked datatype...attach a suffix so it
             //  doesn't collide with the previous linked datatype  TODO - better checking?
-            if ( !is_null($new_meta->getSearchSlug()) && $new_meta->getSearchSlug() !== '' )
-                $new_meta->setSearchSlug( $new_meta->getSearchSlug().'_'.$new_meta->getDataType()->getId() );
+            // if ( !is_null($new_meta->getSearchSlug()) && $new_meta->getSearchSlug() !== '' )
+                // $new_meta->setSearchSlug( $new_meta->getSearchSlug().'_'.$new_meta->getDataType()->getId() );
+
+            // All cloned datatypes get a unique id which can be used as search slug
+            $new_meta->setSearchSlug($new_datatype->getUniqueId());
 
             // TODO - do something similar for the short name?
         }
+
 
         // Use a prefix if short name not equal prefix
         if ($new_meta->getShortName() != $datatype_prefix)

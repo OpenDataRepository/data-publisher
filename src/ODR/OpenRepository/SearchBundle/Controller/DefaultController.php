@@ -1385,20 +1385,22 @@ if (isset($debug['timing'])) {
         $grandparent_ids = '';
         if ($had_search_criteria) {
             // Recursively include/exclude datarecords by the rules specified in the header comment of self::buildDatarecordArrays()
-            foreach ($descendants_of_datarecord[0] as $dt_id => $top_level_datarecords) {
-                foreach ($top_level_datarecords as $gp_id => $tmp) {
-                    self::getIntermediateSearchResults($matched_datarecords, $descendants_of_datarecord[0][$dt_id], $gp_id);
+            if(isset($descendants_of_datarecord[0]) && $descendants_of_datarecord[0] != ""){
+                foreach ($descendants_of_datarecord[0] as $dt_id => $top_level_datarecords) {
+                    foreach ($top_level_datarecords as $gp_id => $tmp) {
+                        self::getIntermediateSearchResults($matched_datarecords, $descendants_of_datarecord[0][$dt_id], $gp_id);
+                    }
                 }
-            }
 
-            // Get the final list of datarecords/grandparent datarecords matched by the query
-            foreach ($descendants_of_datarecord[0] as $dt_id => $top_level_datarecords) {
-                foreach ($top_level_datarecords as $gp_id => $tmp) {
-                    $results = self::getFinalSearchResults($matched_datarecords, $descendants_of_datarecord[0][$dt_id], $gp_id, true);
+                // Get the final list of datarecords/grandparent datarecords matched by the query
+                foreach ($descendants_of_datarecord[0] as $dt_id => $top_level_datarecords) {
+                    foreach ($top_level_datarecords as $gp_id => $tmp) {
+                        $results = self::getFinalSearchResults($matched_datarecords, $descendants_of_datarecord[0][$dt_id], $gp_id, true);
 
-                    $datarecord_ids .= $results;
-                    if ($results !== '')
-                        $grandparent_ids .= $gp_id.',';
+                        $datarecord_ids .= $results;
+                        if ($results !== '')
+                            $grandparent_ids .= $gp_id.',';
+                    }
                 }
             }
         }

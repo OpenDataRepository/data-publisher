@@ -1581,12 +1581,17 @@
     }
 
 
-    function initPage() {
+    function initPage(reset_tools) {
+        if(reset_tools === undefined) {
+            reset_tools = true
+        }
         // Setup Data Fields
         SetupDataFields();
 
         // Resets the sidebar tool set
-        ResetToolSet();
+        if(reset_tools) {
+            ResetToolSet();
+        }
 
         // Sets up the object click handlers
         InitDatatypeTools();
@@ -1699,14 +1704,6 @@
             });
         });
 
-
-
-{#
-        // This would prevent re-ordering of theme_elements and datafields inside linked datatypes
-        // This restriction is no longer needed because datatypes make copies of linked themes now
-        $(".ODRThemeElement.ODRForbidden").parent().sortable("destroy");
-        $(".ODRDataField.ODRForbidden").parent().sortable("destroy");
-#}
 
         // Don't want to call disabledSelection() on the object properties panel
         $("#content").find(".ODRInnerBox").disableSelection();
@@ -2983,7 +2980,7 @@
                 else
                     $(element).prepend(data.d.html);
 
-                initPage();
+                initPage(false);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

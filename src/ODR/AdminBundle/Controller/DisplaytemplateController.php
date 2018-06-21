@@ -62,6 +62,8 @@ use Doctrine\DBAL\Connection as DBALConnection;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+// Utility
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 
 
 class DisplaytemplateController extends ODRCustomController
@@ -2116,6 +2118,13 @@ class DisplaytemplateController extends ODRCustomController
             $child_datatype->setGrandparent( $parent_datatype->getGrandparent() );
             $child_datatype->setCreatedBy($user);
             $child_datatype->setUpdatedBy($user);
+
+
+            $unique_id = UniqueUtility::uniqueIdReal();
+            $child_datatype->setUniqueId($unique_id);
+
+            // This must be passed as parameter
+            $child_datatype->setTemplateGroup($parent_datatype->getTemplateGroup());
 
             $child_datatype->setIsMasterType(false);
             $child_datatype->setSetupStep(DataType::STATE_INITIAL);
