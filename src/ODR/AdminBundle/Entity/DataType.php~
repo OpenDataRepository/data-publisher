@@ -976,7 +976,9 @@ class DataType
     public function setMetadataDatatype(\ODR\AdminBundle\Entity\DataType $metadata_datatype = null)
     {
         $this->metadata_datatype = $metadata_datatype;
-        $metadata_datatype->setMetadataFor($this);
+        if($metadata_datatype !== null) {
+            $metadata_datatype->setMetadataFor($this);
+        }
 
         return $this;
     }

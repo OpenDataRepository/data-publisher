@@ -1413,8 +1413,23 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     padding-bottom: 6px;
 }
 
+.ODRDesignHeader {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+.ODRDesignHeader > .ODRContentWrapper > .ODRThemeElement {
+    padding: 0 0 8px 8px;
+}
+
 @media only screen and (min-height: 1240px) {
-    .ODRDesignTitle {
+    .ODRDesignHeader > .ODRContentWrapper > .ODRThemeElement {
+        padding: 0;
+    }
+
+    .ODRDesignHeader,
+    #ThemeDesignArea {
+        width: 1366px;
         margin-left: 315px;
     }
 
@@ -1423,9 +1438,6 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
         top: 45px;
     }
 
-    #ThemeDesignArea {
-        margin-left: 315px;
-    }
 
     .ODRMenuWrapper {
         position: sticky;

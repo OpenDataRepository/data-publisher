@@ -1,24 +1,24 @@
 {% spaceless %}
 
     {% set datatype = datatype_array[initial_datatype_id] %}
-
-    <h1 class="ODRDesignTitle no-margin-top-phone">
-        <span>Database Design &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
-    </h1>
-    {%  if datatype.setup_step != "complete" %}
+    <div class="ODRDesignHeader">
+        <h1 class="ODRDesignTitle no-margin-top-phone">
+            <span>Database Design &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+        </h1>
+        {%  if datatype.setup_step != "complete" %}
         {% if datatype.is_master_type == 1 %} {# Master Template Creation #}
 
         {% else %}
-            {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
-                'wizard_step': 3,
-                'datatype_id': datatype.id,
-                'edit_properties': false,
-                'create_master': false,
-                'master_templates': null,
-                'master_type_id': 0,
-            } %}
+        {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+            'wizard_step': 3,
+            'datatype_id': datatype.id,
+            'edit_properties': false,
+            'create_master': false,
+            'master_templates': null,
+            'master_type_id': 0,
+        } %}
         {% endif %}
-    {% else %}
+        {% else %}
         {# Database creation wizard is complete - menu for managing? #}
         {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
             'wizard_step': 3,
@@ -28,10 +28,10 @@
             'master_templates': null,
             'master_type_id': 0,
         } %}
-    {% endif %}
+        {% endif %}
 
-    <input type="hidden" id="has_datarecords" value="{{ has_datarecords }}" />
-
+        <input type="hidden" id="has_datarecords" value="{{ has_datarecords }}" />
+    </div>
 
     <div id="ThemeDesignWrapper">
         <div id="ThemeLeftColumn" class="ODRContentWrapper">
@@ -747,22 +747,55 @@
                 });
 
                 // Delete Datafield
-                if(!props.is_top_level) {
-                    tools.del_dt.removeClass('faded')
-                }
                 tools.del_dt.find('i').addClass('ODRActiveIcon');
+                tools.del_dt.removeClass('faded')
                 if(!props.is_top_level) {
+
+                    // Do not allow deletion of top-level database
+                    tools.del_dt.attr('title', 'Click to delete this database.');
                     tools.del_dt.find('.link-text').html('Delete Child Database');
+                    tools.del_dt.unbind('click').click(function () {
+                        if( confirm("This will delete the selected database from all layouts and ALL data (including files and images) stored in it.\n\nAre you certain you want to proceed?")) {
+                            DeleteDatatype(id);
+                        }
+                    });
                 }
                 else {
-                    tools.del_dt.find('.link-text').html('Delete Database');
+                    // Use as link/add template
+                    tools.del_dt.attr('title', 'Add a set of fields from a template.');
+                    tools.del_dt.find('.link-text').html('Add from template');
+                    tools.del_dt.unbind('click').click(function () {
+                        $(this).effect("highlight", {}, 2000);
+
+                        // Find first empty TE or add TE and then add linked database
+                        console.log('data type add field here', id);
+                        // Check for an TE that is not a link to add the field to
+                        var te = null
+                        $("#DataType_" + id + " > .ODRFieldArea > .ODRThemeElement").each(function() {
+                            if($(this).find(".ODRInnerBox > .ODRDataField").length === 0) {
+                                var id = $(this).attr('id').replace('ThemeElement_', '')
+                                var props = theme_element_properties[id];
+                                if(te === null && !props.is_link && !props.has_childtype) {
+                                    te = $(this);
+                                }
+                                console.log('TE Props [' + id + ']: ', props)
+                            }
+                        });
+
+                        if(te != null) {
+                            console.log('TE', te.attr('id'))
+                            // Add field to this TE
+                            var te_id = te.attr('id').replace('ThemeElement_','')
+                            linkDatatype(te_id);
+                        }
+                        else {
+                            // Add new TE and add field
+                            addThemeElement(id, 'datatype', function(theme_element_id) {
+                                linkDatatype(theme_element_id);
+                            })
+                        }
+                    });
                 }
-                tools.del_dt.attr('title', 'Click to delete this database.');
-                tools.del_dt.unbind('click').click(function () {
-                    if( confirm("This will delete the selected database from all layouts and ALL data (including files and images) stored in it.\n\nAre you certain you want to proceed?")) {
-                        DeleteDatatype(id);
-                    }
-                });
 
 
                 // We can always add a datafield to a datatype???
@@ -831,7 +864,6 @@
                 else {
                     console.log('datatype is NOT link')
                     tools.link_dt.removeClass('faded')
-                    tools.link_dt.removeClass('faded')
                     tools.link_dt.find('i').addClass('ODRActiveIcon');
                     tools.link_dt.find('.link-text').html('Link to a database');
                     tools.link_dt.attr('title', 'Click to link in data from an existing database.');
@@ -857,7 +889,8 @@
                             console.log('TE', te.attr('id'))
                             // Add field to this TE
                             var te_id = te.attr('id').replace('ThemeElement_','')
-                            addChildType(te_id);
+                            // addChildType(te_id);
+                            linkDatatype(te_id);
                         }
                         else {
                             // Add new TE and add field

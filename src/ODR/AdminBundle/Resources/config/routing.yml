@@ -281,14 +281,14 @@ odr_create_type:
     path:  /admin/type/create/{create_master}
     defaults: { _controller: ODRAdminBundle:Datatype:create }
     requirements:
-        create_master: 0|1
+        create_master: 0|1|2
 
 odr_create_type_info:
     path:  /admin/type/create/info/{template_choice}/{creating_master_template}
     defaults: { _controller: ODRAdminBundle:Datatype:createinfo }
     requirements:
         template_choice: \d+
-        creating_master_template: 0|1
+        creating_master_template: 0|1|2
 
 odr_add_types:
     path:  /admin/type/add

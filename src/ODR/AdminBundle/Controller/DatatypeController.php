@@ -1290,12 +1290,13 @@ class DatatypeController extends ODRCustomController
                      * for the parent datatype).
                      */
                     // If is_master_type - automatically create master_type_metadata and set metadata_for_id
-                    if($datatype->getIsMasterType()){
+                    if($datatype->getIsMasterType() && $form['is_master_type']->getData() == 1){
                         $metadata_datatype = clone $datatype;
 
                         // Set this to be metadata for new datatype
                         $metadata_datatype->setParent($metadata_datatype);
                         $metadata_datatype->setGrandparent($metadata_datatype);
+                        $metadata_datatype->setUniqueId(UniqueUtility::uniqueIdReal());
 
                         // Set new datatype meta
                         $metadata_datatype_meta = clone $datatype->getDataTypeMeta();
@@ -1361,10 +1362,6 @@ class DatatypeController extends ODRCustomController
                             array_push($datatypes_to_process, $metadata_datatype);
 
                         }
-                    }
-                    else {
-                        // Do we automatcially create a metadata datatype?
-                        // Probably not since it is confusing to know what to put there.
                     }
                     /*
                      * END Create Datatype Metadata Object

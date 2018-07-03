@@ -45,7 +45,7 @@ class CreatedatatypeCommand extends ContainerAwareCommand
             $job = null;
             try {
                 // Watch for a job
-                $job = $pheanstalk->watch('create_datatype')->ignore('default')->reserve();
+                $job = $pheanstalk->watch('create_datatype_old')->ignore('default')->reserve();
                 // Get the job data
                 $data = json_decode($job->getData());
 

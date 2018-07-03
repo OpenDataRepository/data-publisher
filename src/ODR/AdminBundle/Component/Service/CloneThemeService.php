@@ -586,7 +586,15 @@ class CloneThemeService
     {
         // ----------------------------------------
         // For each theme element the source theme has...
-        foreach ($source_theme->getThemeElements() as $source_te) {
+        $theme_elements = $source_theme->getThemeElements();
+        $theme_element_ids = array();
+        foreach($theme_elements as $te) {
+            array_push($theme_element_ids, $te->getId());
+        }
+        $this->logger->debug('----------------------------------------');
+        $this->logger->debug('CloneThemeService: -- Need to copy theme elements from: ' .$source_theme->getId(). ' ['.join(',', $theme_element_ids). ']'  );;
+        $this->logger->debug('----------------------------------------');
+        foreach ($theme_elements as $source_te) {
 //            $this->logger->debug('----------------------------------------');
 
             /** @var ThemeElement $source_te */
