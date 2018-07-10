@@ -644,13 +644,10 @@ class APIController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
-            if (!$pm_service->canViewDatatype($user, $datatype)
-                || !$pm_service->canViewDatarecord($user, $datarecord)
-                || !$pm_service->canViewDatafield($user, $datafield)
-            ) {
+            if ( !$pm_service->canViewFile($user, $file) )
                 throw new ODRForbiddenException();
-            }
             // ----------------------------------------
+
 
             // Only allow this action for files smaller than 5Mb?
             $filesize = $file->getFilesize() / 1024 / 1024;
@@ -777,13 +774,10 @@ class APIController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
-            if (!$pm_service->canViewDatatype($user, $datatype)
-                || !$pm_service->canViewDatarecord($user, $datarecord)
-                || !$pm_service->canViewDatafield($user, $datafield)
-            ) {
+            if ( !$pm_service->canViewImage($user, $image) )
                 throw new ODRForbiddenException();
-            }
             // ----------------------------------------
+
 
             // TODO - Only allow this action for images smaller than 5Mb?  filesize isn't being stored in the database though...
 /*

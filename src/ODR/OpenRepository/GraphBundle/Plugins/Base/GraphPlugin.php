@@ -229,12 +229,17 @@ class GraphPlugin implements DatatypePluginInterface
                 }
             }
 
-            if ($datatype_folder === '')
-                throw new \Exception('Datatype folder is blank?');
 
-            //
-            if ( !file_exists($this->odr_web_directory.'/uploads/files/graphs/'.$datatype_folder) )
+            // If $datatype_folder is blank at this point, it's most likely because the user can
+            //  view the datarecord/datafield, but not the file...so the graph can't be displayed
+            $display_graph = true;
+            if ($datatype_folder === '')
+                $display_graph = false;
+
+            // Only create a directory for the graph file if the graph is actually being displayed...
+            if ( $display_graph && !file_exists($this->odr_web_directory.'/uploads/files/graphs/'.$datatype_folder) )
                 mkdir($this->odr_web_directory.'/uploads/files/graphs/'.$datatype_folder);
+
 
             // Rollup related calculations
             $file_id_list = implode('_', $odr_chart_file_ids);
@@ -267,6 +272,7 @@ class GraphPlugin implements DatatypePluginInterface
                 'is_top_level' => $rendering_options['is_top_level'],
                 'is_link' => $rendering_options['is_link'],
                 'display_type' => $rendering_options['display_type'],
+                'display_graph' => $display_graph,
 
                 // Options for graph display
                 'render_plugin' => $render_plugin,

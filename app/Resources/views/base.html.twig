@@ -231,13 +231,13 @@
     <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-6-24">
         <ul class="pure-menu-list">
             {% if current_user != '' %}
-                <li class="pure-menu-item">
-                    <a class="pure-hidden-sm pure-hidden-xs pure-menu-link" href="#{{ path('odr_self_profile_edit') }}">{{ user.firstName }} {{  user.lastName }}</a>
+                <li id="ODRProfileLink" class="pure-menu-item">
+                    <a class="pure-hidden-sm pure-hidden-xs pure-menu-link" href="#{{ path('odr_self_profile_edit') }}">{{ user.firstName }} {{ user.lastName }}</a>
                     <a class="pure-hidden-xl pure-hidden-lg pure-hidden-md pure-menu-link" href="#{{ path('odr_self_profile_edit') }}">Profile</a>
                 </li>
             {% endif %}
             {% if header_right_title != '' %}
-                <li class="pure-menu-item"><a class="pure-menu-link" {% if header_right_path != '' %}href="{{ header_right_path }}"{% endif %} {% if header_right_js != '' %}onclick="{{ header_right_js }}"{% endif %}>{{ header_right_title }}</a></li>
+                <li id="ODRLoginLink" class="pure-menu-item"><a class="pure-menu-link" {% if header_right_path != '' %}href="{{ header_right_path }}"{% endif %} {% if header_right_js != '' %}onclick="{{ header_right_js }}"{% endif %}>{{ header_right_title }}</a></li>
             {% endif %}
         </ul>
     </div>

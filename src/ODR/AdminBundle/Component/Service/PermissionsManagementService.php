@@ -20,8 +20,10 @@ namespace ODR\AdminBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\GroupMeta;
+use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\UserGroup;
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -562,6 +564,98 @@ class PermissionsManagementService
 
 
     /**
+     * Returns whether the given user can view or download the given File.
+     *
+     * TODO - this really should have its own permission...
+     *
+     * @param ODRUser $user
+     * @param File $file
+     *
+     * @return bool
+     */
+    public function canViewFile($user, $file)
+    {
+        // If the user can't view the datafield/datarecord the file has been uploaded to, then they
+        //  also can't view the file...
+        if ( !self::canViewDatafield($user, $file->getDataField())
+            || !self::canViewDatarecord($user, $file->getDataRecord())
+        ) {
+            return false;
+        }
+
+        // If user can view the datafield/datarecord, then they're always able to view public files...
+        if ($file->isPublic())
+            return true;
+
+        // If the file is non-public, it shouldn't be viewable unless logged in...
+        if ($user === "anon.")
+            return false;
+
+        // Otherwise, the user is logged in...
+        $user_permissions = self::getUserPermissionsArray($user);
+        $datatype_permissions = $user_permissions['datatypes'];
+
+        $datatype = $file->getDataRecord()->getDataType();
+        if ( isset($datatype_permissions[ $datatype->getId() ])
+            && isset($datatype_permissions[ $datatype->getId() ]['dr_view'])
+        ) {
+            // User has the can_view_datarecord permission
+            return true;
+        }
+        else {
+            // User does not have the can_view_datarecord permission
+            return false;
+        }
+    }
+
+
+    /**
+     * Returns whether the given user can view or download the given Image.
+     *
+     * TODO - this really should have its own permission...
+     *
+     * @param ODRUser $user
+     * @param Image $image
+     *
+     * @return bool
+     */
+    public function canViewImage($user, $image)
+    {
+        // If the user can't view the datafield/datarecord the image has been uploaded to, then they
+        //  also can't view the file...
+        if ( !self::canViewDatafield($user, $image->getDataField())
+            || !self::canViewDatarecord($user, $image->getDataRecord())
+        ) {
+            return false;
+        }
+
+        // If user can view the datafield/datarecord, then they're always able to view public images...
+        if ($image->isPublic())
+            return true;
+
+        // If the image is non-public, it shouldn't be viewable unless logged in...
+        if ($user === "anon.")
+            return false;
+
+        // Otherwise, the user is logged in...
+        $user_permissions = self::getUserPermissionsArray($user);
+        $datatype_permissions = $user_permissions['datatypes'];
+
+        $datatype = $image->getDataRecord()->getDataType();
+        if ( isset($datatype_permissions[ $datatype->getId() ])
+            && isset($datatype_permissions[ $datatype->getId() ]['dr_view'])
+        ) {
+            // User has the can_view_datarecord permission
+            return true;
+        }
+        else {
+            // User does not have the can_view_datarecord permission
+            return false;
+        }
+    }
+
+
+    /**
      * Gets and returns the permissions array for the given user.
      *
      * @param ODRUser $user
@@ -930,6 +1024,7 @@ if ($debug)
                 }
 
                 // ...also need to remove files the user isn't allowed to see
+                // TODO - this needs its own permission instead of using "can_view_datarecord"
                 foreach ($drf['file'] as $file_num => $file) {
                     if ( $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00'
                         && !$can_view_datarecord[$dt_id]
@@ -941,6 +1036,7 @@ if ($debug)
                 }
 
                 // ...also need to remove images the user isn't allowed to see
+                // TODO - this needs its own permission instead of using "can_view_datarecord"
                 foreach ($drf['image'] as $image_num => $image) {
                     if ( $image['parent']['imageMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00'
                         && !$can_view_datarecord[$dt_id]

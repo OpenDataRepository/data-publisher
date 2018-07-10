@@ -80,6 +80,7 @@
         {% include "ODRAdminBundle:Default:fieldarea_footer.html.twig" with {"display_type": display_type} %}
     </div>
 
+    {% if display_graph %}
     <div class="ODRGraphSpacer {{ graph_div_class_str }}">
         {% if odr_chart_files|length > 0 %}
             {# For rollup, any datarecord id in the group can be used since the parent datarecord will be retrieved and all children for plotting. #}
@@ -119,6 +120,7 @@
 
         {% endif %}
     </div>
+    {% endif %}
 
 {% else %}
 
@@ -160,6 +162,7 @@
                 } %}
             </div>
 
+            {% if display_graph %}
             <div class="ODRGraphSpacer {{ graph_div_class_str }}">
                 {% if odr_chart_files|length > 0 and odr_chart_ids[datarecord.id] is defined %}
 
@@ -193,6 +196,8 @@
 
                 {% endif %}
             </div>
+            {% endif %}
+
         </div><!-- End of #FieldArea_{{ datarecord.id }} -->
     {% endfor %}
 

@@ -72,7 +72,9 @@
     $(function() {
         $(".MenuDesignArea").remove();
 
-        var initial_load = true;
+        // Need a tab id in html5 sessionStorage if one doesn't exist
+        if ( !window.sessionStorage.getItem('odr_tab_id') )
+            window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
         var table = $("#TextResults").dataTable({
 
@@ -178,10 +180,6 @@
             }
 
         });
-
-        // Need a tab id in html5 sessionStorage if one doesn't exist
-        if ( !window.sessionStorage.getItem('odr_tab_id') )
-            window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
 {% if user_role == 'ROLE_ADMIN' and has_datarecords and use_jupyterhub %}
         // Get the app list to display on the page

@@ -405,6 +405,16 @@ class DisplayController extends ODRCustomController
 //print '<pre>'.print_r($stacked_datatype_array, true).'</pre>'; exit();
 //print '<pre>'.print_r($stacked_theme_array, true).'</pre>'; exit();
 
+            // If any of the stacked data arrays are empty, it's most likely a permissions problem
+            // This probably only really happens when a user attempts to directly access child
+            //  datarecords they don't have permissions for
+            if ( count($stacked_datarecord_array[ $requested_datarecord->getId() ]) == 0
+                || count($stacked_datatype_array[ $requested_datatype->getId() ]) == 0
+                || count($stacked_theme_array[ $theme_id ]) == 0
+            ) {
+                throw new ODRForbiddenException();
+            }
+
 
             // ----------------------------------------
             /** @var Theme $theme */
@@ -514,12 +524,8 @@ class DisplayController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if (!$pm_service->canViewDatatype($user, $datatype)
-                || !$pm_service->canViewDatarecord($user, $datarecord)
-                || !$pm_service->canViewDatafield($user, $datafield)
-            ) {
+            if ( !$pm_service->canViewFile($user, $file) )
                 throw new ODRForbiddenException();
-            }
             // ----------------------------------------
 
 
@@ -703,13 +709,7 @@ class DisplayController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if (!$pm_service->canViewDatarecord($user, $datarecord)
-                || !$pm_service->canViewDatafield($user, $datafield)
-            ) {
-                throw new ODRForbiddenException();
-            }
-
-            if ( !$file->isPublic() && $user === 'anon.' )
+            if ( !$pm_service->canViewFile($user, $file) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
@@ -958,15 +958,10 @@ class DisplayController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if (!$pm_service->canViewDatarecord($user, $datarecord)
-                || !$pm_service->canViewDatafield($user, $datafield)
-            ) {
-                throw new ODRForbiddenException();
-            }
-
-            if ( !$image->isPublic() && $user === 'anon.' )
+            if ( !$pm_service->canViewImage($user, $image) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
+
 
             // Ensure file exists before attempting to download it
             $filename = 'Image_'.$image_id.'.'.$image->getExt();
