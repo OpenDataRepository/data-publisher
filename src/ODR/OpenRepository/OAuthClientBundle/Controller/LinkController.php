@@ -14,6 +14,9 @@ namespace ODR\OpenRepository\OAuthClientBundle\Controller;
 
 // ODR
 use ODR\AdminBundle\Controller\ODRCustomController;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // HWI
 use HWI\Bundle\OAuthBundle\OAuth\ResourceOwner\AbstractResourceOwner;
@@ -53,14 +56,14 @@ class LinkController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ($user === 'anon.')
-                return parent::permissionDeniedError();
+                throw new ODRForbiddenException();
 
             // Ensure the requested OAuth resource owner exists
             /** @var OAuthUtils $oauth_utils */
             $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
             $resource_owners = $oauth_utils->getResourceOwners();
             if ( !in_array($resource, $resource_owners) )
-                throw new \Exception('Invalid resource');
+                throw new ODRNotFoundException('Invalid resource', true);
 
             /** @var AbstractResourceOwner $resource_owner */
             $resource_owner = $this->get('hwi_oauth.resource_owner.'.$resource);
@@ -68,7 +71,7 @@ class LinkController extends ODRCustomController
             // Don't continue if already connected to this resource
             $user_link = $em->getRepository('ODROpenRepositoryOAuthClientBundle:UserLink')->findOneBy( array('user' => $user->getId(), 'providerName' => strtolower($resource)) );
             if ($user_link)
-                throw new \Exception('Already connected to resource');
+                throw new ODRException('Already connected to resource');
 
 
             // ----------------------------------------
@@ -118,14 +121,12 @@ class LinkController extends ODRCustomController
             // ODR\OpenRepository\OAuthClientBundle\Security\Http\Firewall\ODROAuthListener.php
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x2650903: ' . $e->getMessage();
+            $source = 0x4bdfc83c;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
     }
 
 
@@ -150,14 +151,14 @@ class LinkController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ($user === 'anon.')
-                return new Response('Unathorized', 401);
+                throw new ODRForbiddenException();
 
             // Ensure the requested OAuth resource owner exists
             /** @var OAuthUtils $oauth_utils */
             $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
             $resource_owners = $oauth_utils->getResourceOwners();
             if ( !in_array($resource, $resource_owners) )
-                return new Response('Invalid resource', 404);
+                throw new ODRNotFoundException('Invalid resource', true);
 
 
             // ----------------------------------------
@@ -165,7 +166,7 @@ class LinkController extends ODRCustomController
             $user_link = $em->getRepository('ODROpenRepositoryOAuthClientBundle:UserLink')->findOneBy( array('user' => $user->getId(), 'providerName' => strtolower($resource)) );
             if ($user_link == null) {
                 // Can't disconnect when you're not actually connected...
-                throw new \Exception('Not connected to resource');
+                throw new ODRException('Not connected to resource');
             }
             else {
                 // Otherwise, delete this entry from the database
@@ -182,13 +183,11 @@ class LinkController extends ODRCustomController
             return new RedirectResponse($odr_redirect_url);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x3090439: ' . $e->getMessage();
+            $source = 0x830c500c;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
     }
 }

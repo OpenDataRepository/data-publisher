@@ -1143,36 +1143,6 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Utility function so other controllers can return 403 errors easily.
-     * @deprecated
-     *
-     * @param string $type
-     *
-     * @return Response
-     */
-    public function permissionDeniedError($type = '')
-    {
-        $str = '';
-        if ($type !== '')
-            $str = "<h2>Permission Denied - You can't ".$type." this DataType!</h2>";
-        else
-            $str = "<h2>Permission Denied</h2>";
-
-        $return = array();
-        $return['r'] = 403;
-        $return['t'] = 'html';
-        $return['d'] = array(
-            'html' => $str
-        );
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        $response->setStatusCode(403);
-        return $response;
-    }
-
-
-    /**
      * @deprecated
      * Gets or creates a TrackedJob entity in the database for use by background processes
      *
