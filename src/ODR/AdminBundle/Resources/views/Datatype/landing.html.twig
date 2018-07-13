@@ -1,6 +1,6 @@
 <h3>Manage Database</h3>
 {% spaceless %}
-
+<div class="ODRContentWrapper">
     {% set level = 0 %}
     {% for role in user.getroles %}
         {% if role == 'ROLE_SUPER_ADMIN' %}
@@ -61,7 +61,19 @@
             {% set hidden_datatype_count = hidden_datatype_count + 1 %}
         {% endif %}
 
+        {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+            'header_label': 'Related Databases',
+            'pure_sizes': 'pure-u-md-1-4 pure-u-lg-1-5-24 pure-u-xl-5-24',
+            'icon': 0
+        } %}
+        List of related databases
+        {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
         {% if can_view_datatype or datatype_meta.publicDate|is_public == true %}
+            {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+                'header_label': 'Manage Database',
+                'pure_sizes': 'pure-u-md-1-4 pure-u-lg-1-5-24 pure-u-xl-5-24',
+                'icon': 0
+            } %}
             <div {% if hidden_datatype %}class="ODRPublicDatatype ODRHidden"{% endif %}>
                 {{ datatype.id }}
                 <span class="ODRDatatypeInfoDiv">
@@ -127,9 +139,9 @@
                         <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
                            class="address"
                            href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}"
-                           title="Edit {{ datatype_meta.shortName }} Master Layout"
+                           title="Edit {{ datatype_meta.shortName }} Master Design"
                         >
-                            <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database
+                            <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Design
                         </a>
                     {% endif %}
                 </div>
@@ -142,7 +154,7 @@
                            href="{{ datatype_baseurl }}#{{ path('odr_datatype_properties', { 'datatype_id': datatype.id, 'wizard': 0 }) }}"
                            title="Edit {{ datatype_meta.shortName }} Master Layout"
                         >
-                            <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Properties
+                            <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Properties
                         </a>
                     {% endif %}
                 </div>
@@ -165,14 +177,19 @@
                 </div>
 
             </div>
+            {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
         {% endif %}
     {% endfor %}
-    </div>
 
+    {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+        'header_label': 'Downloads per day',
+        'pure_sizes': 'pure-u-md-3-4 pure-u-lg-1-19-24 pure-u-xl-19-24',
+        'icon': 0
+    } %}
     <div id="histogram_demo">
-
     </div>
-
+    {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+</div>
     <script>
         $(function () {
             {% if hidden_datatype_count == 0 %}
@@ -334,5 +351,4 @@
             Plotly.newPlot("histogram_demo", data, layout);
         }
     </script>
-
 {% endspaceless %}
