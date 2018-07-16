@@ -316,6 +316,50 @@ class DatatypeController extends ODRCustomController
         return $response;
     }
 
+    public function find_landingAction($datatype_unique_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(array('unique_id' => $datatype_unique_id));
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var DataType $landing_datatype */
+            $landing_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(array('unique_id' => $datatype->getTemplateGroup()));
+
+            $url_prefix = $this->generateUrl('odr_search', array(
+                'search_slug' => $landing_datatype->getUniqueId(),
+                'search_string' => ''
+            ), false);
+
+            $url = $this->generateUrl('odr_datatype_landing', array('datatype_id' => $landing_datatype->getId()), false);
+
+            $return['d'] = $url_prefix . "#" . $url;
+
+        } catch (\Exception $e) {
+            $source = 0x83492adfe;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
     /**
      * @param $datatype_id
      * @param Request $request
@@ -456,6 +500,148 @@ class DatatypeController extends ODRCustomController
                     $has_datarecords = true;
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+                $query = $em->createQuery(
+                    'SELECT dt, dtm, md, mf, dt_cb, dt_ub
+                FROM ODRAdminBundle:DataType AS dt
+                LEFT JOIN dt.dataTypeMeta AS dtm
+                LEFT JOIN dt.metadata_datatype AS md
+                LEFT JOIN dt.metadata_for AS mf
+                LEFT JOIN dt.createdBy AS dt_cb
+                LEFT JOIN dt.updatedBy AS dt_ub
+                WHERE dt.template_group LIKE :template_group 
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'template_group' => $datatype->getTemplateGroup(),
+                    )
+                );
+                // AND dt.is_master_type = (:is_master_type)
+                // 'is_master_type' => $is_master_type
+
+                $results = $query->getArrayResult();
+
+                $datatypes = array();
+                foreach ($results as $result) {
+                    $dt_id = $result['id'];
+
+                    $dt = $result;
+                    $dt['dataTypeMeta'] = $result['dataTypeMeta'][0];
+                    $dt['createdBy'] = UserUtility::cleanUserData($result['createdBy']);
+                    $dt['updatedBy'] = UserUtility::cleanUserData($result['updatedBy']);
+                    if (isset($result['metadata_datatype']) && count($result['metadata_datatype']) > 0) {
+                        // $dt['metadata_datatype']['dataTypeMeta'] = $result['metadata_datatype']['dataTypeMeta'][0];
+                        $dt['metadata_datatype'] = $result['metadata_datatype'];
+                    }
+                    if (isset($result['metadata_for']) && count($result['metadata_for']) > 0) {
+                        $dt['metadata_for'] = $result['metadata_for'];
+                    }
+
+                    $dt['associated_datatypes'] = $dti_service->getAssociatedDatatypes(array($dt_id));
+                    $datatypes[$dt_id] = $dt;
+                }
+                /*
+
+                // Determine whether user has the ability to view non-public datarecords for this datatype
+                $can_view_public_datarecords = array();
+                $can_view_nonpublic_datarecords = array();
+                foreach ($datatypes as $dt_id => $dt) {
+                    if (
+                        isset($datatype_permissions[$dt_id])
+                        && isset($datatype_permissions[$dt_id]['dr_view'])
+                    ) {
+                        $can_view_nonpublic_datarecords[] = $dt_id;
+                    } else {
+                        $can_view_public_datarecords[] = $dt_id;
+                    }
+                }
+
+                // Figure out how many datarecords the user can view for each of the datatypes
+                $metadata = array();
+                if (count($can_view_nonpublic_datarecords) > 0) {
+                    $query = $em->createQuery(
+                        'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
+                    FROM ODRAdminBundle:DataType AS dt
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                    WHERE dt IN (:datatype_ids) AND dr.provisioned = FALSE
+                    AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
+                    GROUP BY dt.id'
+                    )->setParameters(
+                        array(
+                            'datatype_ids' => $can_view_nonpublic_datarecords
+                        )
+                    );
+                    $results = $query->getArrayResult();
+
+                    foreach ($results as $result) {
+                        $dt_id = $result['dt_id'];
+                        $count = $result['datarecord_count'];
+
+                        $metadata[$dt_id] = $count;
+                    }
+                }
+
+                if (count($can_view_public_datarecords) > 0) {
+                    $query = $em->createQuery(
+                        'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
+                    FROM ODRAdminBundle:DataType AS dt
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                    JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                    WHERE dt IN (:datatype_ids) AND dr.provisioned = FALSE AND drm.publicDate != :public_date
+                    AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL
+                    GROUP BY dt.id'
+                    )->setParameters(
+                        array(
+                            'datatype_ids' => $can_view_public_datarecords,
+                            'public_date' => '2200-01-01 00:00:00'
+                        )
+                    );
+                    $results = $query->getArrayResult();
+
+                    foreach ($results as $result) {
+                        $dt_id = $result['dt_id'];
+                        $count = $result['datarecord_count'];
+                        $metadata[$dt_id] = $count;
+                    }
+                }
+
+                */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 // ----------------------------------------
                 // Render the required version of the page
                 $templating = $this->get('templating');
@@ -469,6 +655,7 @@ class DatatypeController extends ODRCustomController
                         'datatype_permissions' => $datatype_permissions,
                         'fieldtype_array' => $fieldtype_array,
                         'has_datarecords' => $has_datarecords,
+                        'related_datatypes' => $datatypes,
                     )
                 );
 

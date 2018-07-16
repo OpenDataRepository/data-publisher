@@ -1,195 +1,238 @@
-<h3>Manage Database</h3>
 {% spaceless %}
-<div class="ODRContentWrapper">
-    {% set level = 0 %}
-    {% for role in user.getroles %}
-        {% if role == 'ROLE_SUPER_ADMIN' %}
-            {% set level = level + 4 %}
-        {% elseif role == 'ROLE_ADMIN' %}
-            {% set level = level + 2 %}
-        {% elseif role == 'ROLE_USER' %}
-            {% set level = level + 1 %}
-        {% endif %}
-    {% endfor %}
-
-
-
-    {% set hidden_datatype_count = 0 %}
-    {% for datatype in datatype_array %}
-
-        {% set datatype_meta = datatype.dataTypeMeta %}
-
-        {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype_meta.searchSlug } ) %}
-        {% if datatype_meta.searchSlug == '' %}
-            {# this shouldn't be an issue anymore, but keep around just in case #}
-            {% set datatype_baseurl = path('odr_admin_homepage') %}
-        {% endif %}
-
-        {# Pre-determine which permissions user has for this datatype... #}
-        {% set can_view_datatype = false %}
-        {% set can_view_datarecord = false %}
-        {% set can_edit_datarecord = false %}
-        {% set can_add_datarecord = false %}
-        {% set can_delete_datarecord = false %}
-        {% set is_datatype_admin = false %}
-
-        {% if datatype_permissions[ datatype.id ] is defined %}
-
-            {% if datatype_permissions[ datatype.id ][ 'dt_view' ] is defined %}
-                {% set can_view_datatype = true %}
+    <div class="ODRContentWrapper">
+        {% set level = 0 %}
+        {% for role in user.getroles %}
+            {% if role == 'ROLE_SUPER_ADMIN' %}
+                {% set level = level + 4 %}
+            {% elseif role == 'ROLE_ADMIN' %}
+                {% set level = level + 2 %}
+            {% elseif role == 'ROLE_USER' %}
+                {% set level = level + 1 %}
             {% endif %}
-            {% if datatype_permissions[ datatype.id ][ 'dr_view' ] is defined %}
-                {% set can_view_datarecord = true %}
-            {% endif %}
-            {% if datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
-                {% set can_edit_datarecord = true %}
-            {% endif %}
-            {% if datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
-                {% set can_add_datarecord = true %}
-            {% endif %}
-            {% if datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
-                {% set can_delete_datarecord = true %}
-            {% endif %}
-            {% if datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
-                {% set is_datatype_admin = true %}
-            {% endif %}
-        {% endif %}
+        {% endfor %}
 
-        {% set hidden_datatype = false %}
-        {% if not (can_view_datatype or can_view_datarecord or can_edit_datarecord or can_add_datarecord or can_delete_datarecord or is_datatype_admin) %}
-            {% set hidden_datatype = true %}
-            {% set hidden_datatype_count = hidden_datatype_count + 1 %}
-        {% endif %}
 
+
+        {# Template Group Default Datatype Manager #}
+        {% set hidden_datatype_count = 0 %}
+        {% for datatype in datatype_array %}
+
+            {% set datatype_meta = datatype.dataTypeMeta %}
+
+            {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype_meta.searchSlug } ) %}
+            {% if datatype_meta.searchSlug == '' %}
+                {# this shouldn't be an issue anymore, but keep around just in case #}
+                {% set datatype_baseurl = path('odr_admin_homepage') %}
+            {% endif %}
+
+            {# Pre-determine which permissions user has for this datatype... #}
+            {% set can_view_datatype = false %}
+            {% set can_view_datarecord = false %}
+            {% set can_edit_datarecord = false %}
+            {% set can_add_datarecord = false %}
+            {% set can_delete_datarecord = false %}
+            {% set is_datatype_admin = false %}
+
+            {% if datatype_permissions[ datatype.id ] is defined %}
+
+                {% if datatype_permissions[ datatype.id ][ 'dt_view' ] is defined %}
+                    {% set can_view_datatype = true %}
+                {% endif %}
+                {% if datatype_permissions[ datatype.id ][ 'dr_view' ] is defined %}
+                    {% set can_view_datarecord = true %}
+                {% endif %}
+                {% if datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
+                    {% set can_edit_datarecord = true %}
+                {% endif %}
+                {% if datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
+                    {% set can_add_datarecord = true %}
+                {% endif %}
+                {% if datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
+                    {% set can_delete_datarecord = true %}
+                {% endif %}
+                {% if datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+                    {% set is_datatype_admin = true %}
+                {% endif %}
+            {% endif %}
+
+            {% set hidden_datatype = false %}
+            {% if not (can_view_datatype or can_view_datarecord or can_edit_datarecord or can_add_datarecord or can_delete_datarecord or is_datatype_admin) %}
+                {% set hidden_datatype = true %}
+                {% set hidden_datatype_count = hidden_datatype_count + 1 %}
+            {% endif %}
+
+            {% if can_view_datatype or datatype_meta.publicDate|is_public == true %}
+                {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+                    'header_label': 'Database Tools',
+                    'pure_sizes': 'pure-u-md-1-4 pure-u-lg-1-5-24 pure-u-xl-5-24',
+                    'icon': 0
+                } %}
+                <div {% if hidden_datatype %}class="ODRPublicDatatype ODRHidden"{% endif %}>
+                    <span id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype_meta.longName }}</span>
+                    <span class="ODRDatatypeInfoDiv">
+                        <i class="fa fa-lg fa-info-circle"></i>
+                        <span class="ODRDatatypeInfo">
+                            <div>
+                                <b>Created By: </b>{{ datatype.createdBy|user_string }}
+                                <b> on </b>{{ datatype.created|date('Y-m-d') }}
+                            </div>
+                            <div>
+                                <b>Description: </b>{{ datatype_meta.description }}
+                            </div>
+                        </span>
+                    </span>
+
+
+                    {# number of datarecords for this datatype #}
+                    {% set datarecord_count = 0 %}
+                    {% if metadata[ datatype.id ] is defined %}
+                        {% set datarecord_count = metadata[ datatype.id ] %}
+                    {% endif %}
+                    <div>
+                        Records:
+                        <span id="ODRDatarecordList_{{ datatype.id }}_count">{{ datarecord_count }}</span>
+                    </div>
+
+
+                    {# link to search this datatype #}
+                    <div>
+                        {% if datarecord_count == 0 %}
+                            {# don't display link, nothing to view #}
+                        {% elseif datatype.setup_step == 'operational' %}
+                            <a id="ODRDatarecordList_{{ datatype.id }}_search" href="{{ datatype_baseurl }}"
+                               title="Search {{ datatype_meta.shortName }} DataRecords"><i
+                                        class="fa fa-lg fa-search"></i>&nbsp;Search</a>
+                        {% elseif is_datatype_admin %}
+                            <a id="ODRDatarecordList_{{ datatype.id }}_search" class="ODRMissingSearchTheme"
+                               rel="{{ datatype.id }}" title="Search {{ datatype_meta.shortName }} DataRecords"><i
+                                        class="fa fa-lg fa-search"></i>&nbsp;Search</a>
+                        {% else %}
+                            {# missing templates to display search results, and user doesn't have permission to make any...do nothing #}
+                        {% endif %}
+                    </div>
+
+                    {# add/import links for this datatype #}
+                    <div>
+                        {% if can_add_datarecord %}
+                            <a id="ODRDatarecordList_{{ datatype.id }}_add" class="Pointer"
+                               onclick="addDataRecord('{{ datatype_baseurl }}',{{ datatype.id }});"><i
+                                        class="fa fa-lg fa-plus-circle"></i>&nbsp;Add New Record</a>
+                        {% endif %}
+                    </div>
+
+                    {# CSV import link for this datatype #}
+                    <div>
+                        {% if is_datatype_admin %}
+                            <a class="address"
+                               href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"><i
+                                        class="fa fa-lg fa-upload"></i>&nbsp;Import</a>
+                        {% endif %}
+                    </div>
+
+                    {# master layout designer link #}
+                    <div>
+                        {% if is_datatype_admin %}
+                            <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
+                               class="address"
+                               href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}"
+                               title="Edit {{ datatype_meta.shortName }} Master Design"
+                            >
+                                <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Design
+                            </a>
+                        {% endif %}
+                    </div>
+
+                    {# metadata layout designer link #}
+                    <div>
+                        {% if is_datatype_admin %}
+                            <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
+                               class="address"
+                               href="{{ datatype_baseurl }}#{{ path('odr_datatype_properties', { 'datatype_id': datatype.id, 'wizard': 0 }) }}"
+                               title="Edit {{ datatype_meta.shortName }} Master Layout"
+                            >
+                                <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Properties
+                            </a>
+                        {% endif %}
+                    </div>
+
+                    {# Group management link for this datatype #}
+                    <div>
+                        {% if is_datatype_admin %}
+                            <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups" class="address"
+                               href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"><i
+                                        class="fa fa-lg fa-cog"></i>&nbsp;Manage Groups</a>
+                        {% endif %}
+                    </div>
+
+                    {# deletion link for this datatype #}
+                    <div>
+                        {% if is_datatype_admin %}
+                            <a id="ODRDatatypeList_{{ datatype.id }}_delete" class="Pointer"
+                               onclick="deleteDataType({{ datatype.id }});"><i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete</a>
+                        {% endif %}
+                    </div>
+
+                </div>
+                {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+            {% endif %}
+        {% endfor %}
+        {# Template Group Default Datatype Manager #}
+
+
+        {# Template Group Instructions #}
         {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
-            'header_label': 'Related Databases',
-            'pure_sizes': 'pure-u-md-1-4 pure-u-lg-1-5-24 pure-u-xl-5-24',
+            'header_label': 'Manage Your Database',
+            'pure_sizes': 'pure-u-md-1-4 pure-u-lg-19-24 pure-u-xl-19-24',
             'icon': 0
         } %}
-        List of related databases
+        <p>The settings under the "Manage Database" heading allow you to modify and add records to your database.</p>
+        <p>Your database may have related databases that provide reference or other data that are used in your database.
+            If so, you can managed those databases using the tools in the list of "Related Databases" below. Depending
+            on
+            your permission level, you may not have access to all features of the related databases.</p>
         {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
-        {% if can_view_datatype or datatype_meta.publicDate|is_public == true %}
-            {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
-                'header_label': 'Manage Database',
-                'pure_sizes': 'pure-u-md-1-4 pure-u-lg-1-5-24 pure-u-xl-5-24',
-                'icon': 0
-            } %}
-            <div {% if hidden_datatype %}class="ODRPublicDatatype ODRHidden"{% endif %}>
-                {{ datatype.id }}
-                <span class="ODRDatatypeInfoDiv">
-                            <i class="fa fa-lg fa-info-circle"></i>
-                            <span class="ODRDatatypeInfo">
-                                <div>
-                                    <b>Created By: </b>{{ datatype.createdBy|user_string }}
-                                    <b> on </b>{{ datatype.created|date('Y-m-d') }}
-                                </div>
-                                <div>
-                                    <b>Description: </b>{{ datatype_meta.description }}
-                                </div>
-                            </span>
-                        </span>
-                <div id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype_meta.longName }}</div>
+        {# END Template Group Instructions #}
 
 
-                {# number of datarecords for this datatype #}
-                {% set datarecord_count = 0 %}
-                {% if metadata[ datatype.id ] is defined %}
-                    {% set datarecord_count = metadata[ datatype.id ] %}
-                {% endif %}
-                <div id="ODRDatarecordList_{{ datatype.id }}_count">{{ datarecord_count }}</div>
 
 
-                {# link to search this datatype #}
-                <div>
-                    {% if datarecord_count == 0 %}
-                        {# don't display link, nothing to view #}
-                    {% elseif datatype.setup_step == 'operational' %}
-                        <a id="ODRDatarecordList_{{ datatype.id }}_search" href="{{ datatype_baseurl }}"
-                           title="Search {{ datatype_meta.shortName }} DataRecords"><i class="fa fa-lg fa-search"></i>&nbsp;Search</a>
-                    {% elseif is_datatype_admin %}
-                        <a id="ODRDatarecordList_{{ datatype.id }}_search" class="ODRMissingSearchTheme"
-                           rel="{{ datatype.id }}" title="Search {{ datatype_meta.shortName }} DataRecords"><i
-                                    class="fa fa-lg fa-search"></i>&nbsp;Search</a>
-                    {% else %}
-                        {# missing templates to display search results, and user doesn't have permission to make any...do nothing #}
-                    {% endif %}
-                </div>
 
-                {# add/import links for this datatype #}
-                <div>
-                    {% if can_add_datarecord %}
-                        <a id="ODRDatarecordList_{{ datatype.id }}_add" class="Pointer"
-                           onclick="addDataRecord('{{ datatype_baseurl }}',{{ datatype.id }});"><i
-                                    class="fa fa-lg fa-plus-circle"></i>&nbsp;Add New Record</a>
-                    {% endif %}
-                </div>
+        {# Manage Related Databases #}
+        {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+            'header_label': 'Related Databases',
+            'pure_sizes': 'pure-u-md-1-4 pure-u-lg-24-24 pure-u-xl-24-24',
+            'icon': 0
+        } %}
+        {% include 'ODRAdminBundle:Datatype:type_list_related_databases.html.twig' with {
+            'datatypes': related_datatypes,
+            'datatype_permissions': datatype_permissions
+        } %}
+        {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+        {# END Manage Related Databases #}
 
-                {# CSV import link for this datatype #}
-                <div>
-                    {% if is_datatype_admin %}
-                        <a class="address"
-                           href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"><i
-                                    class="fa fa-lg fa-upload"></i>&nbsp;Import</a>
-                    {% endif %}
-                </div>
 
-                {# master layout designer link #}
-                <div>
-                    {% if is_datatype_admin %}
-                        <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
-                           class="address"
-                           href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}"
-                           title="Edit {{ datatype_meta.shortName }} Master Design"
-                        >
-                            <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Design
-                        </a>
-                    {% endif %}
-                </div>
+        {# Histogram Demo for Download Stats #}
+        {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+            'header_label': 'Downloads per day',
+            'pure_sizes': 'pure-u-md-12-24 pure-u-lg-1-12-24 pure-u-xl-12-24',
+            'icon': 0
+        } %}
+        <div id="histogram_demo">
+        </div>
+        {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+        {# END Histogram Demo for Download Stats #}
 
-                {# metadata layout designer link #}
-                <div>
-                    {% if is_datatype_admin %}
-                        <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
-                           class="address"
-                           href="{{ datatype_baseurl }}#{{ path('odr_datatype_properties', { 'datatype_id': datatype.id, 'wizard': 0 }) }}"
-                           title="Edit {{ datatype_meta.shortName }} Master Layout"
-                        >
-                            <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Properties
-                        </a>
-                    {% endif %}
-                </div>
-
-                {# Group management link for this datatype #}
-                <div>
-                    {% if is_datatype_admin %}
-                        <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups" class="address"
-                           href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"><i
-                                    class="fa fa-lg fa-cog"></i>&nbsp;Manage Groups</a>
-                    {% endif %}
-                </div>
-
-                {# deletion link for this datatype #}
-                <div>
-                    {% if is_datatype_admin %}
-                        <a id="ODRDatatypeList_{{ datatype.id }}_delete" class="Pointer"
-                           onclick="deleteDataType({{ datatype.id }});"><i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete</a>
-                    {% endif %}
-                </div>
-
-            </div>
-            {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
-        {% endif %}
-    {% endfor %}
-
-    {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
-        'header_label': 'Downloads per day',
-        'pure_sizes': 'pure-u-md-3-4 pure-u-lg-1-19-24 pure-u-xl-19-24',
-        'icon': 0
-    } %}
-    <div id="histogram_demo">
+        {# Scatter Plot Demo for Download Stats #}
+        {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+            'header_label': 'Downloads per day',
+            'pure_sizes': 'pure-u-md-12-24 pure-u-lg-1-12-24 pure-u-xl-12-24',
+            'icon': 0
+        } %}
+        <div id="scatter_demo">
+        </div>
+        {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+        {# END Scatter Plot Demo for Download Stats #}
     </div>
-    {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
-</div>
     <script>
         $(function () {
             {% if hidden_datatype_count == 0 %}
@@ -210,6 +253,7 @@
             {% endif %}
 
             histogramExample();
+            scatterExample();
 
             $(".ODRMissingSearchTheme").unbind('click').click(function (event) {
                 // These shouldn't be needed, but making sure...
@@ -330,6 +374,80 @@
             }
         }
 
+        function scatterExample() {
+            var trace1 = {
+                x: [52698, 43117],
+                y: [53, 31],
+                mode: 'markers',
+                name: 'North America',
+                text: ['United States', 'Canada'],
+                marker: {
+                    color: 'rgb(164, 194, 244)',
+                    size: 12,
+                    line: {
+                        color: 'white',
+                        width: 0.5
+                    }
+                },
+                type: 'scatter'
+            };
+
+            var trace2 = {
+                x: [39317, 37236, 35650, 30066, 29570, 27159, 23557, 21046, 18007],
+                y: [33, 20, 13, 19, 27, 19, 49, 44, 38],
+                mode: 'markers',
+                name: 'Europe',
+                text: ['Germany', 'Britain', 'France', 'Spain', 'Italy', 'Czech Rep.', 'Greece', 'Poland'],
+                marker: {
+                    color: 'rgb(255, 217, 102)',
+                    size: 12
+                },
+                type: 'scatter'
+            };
+
+            var trace3 = {
+                x: [42952, 37037, 33106, 17478, 9813, 5253, 4692, 3899],
+                y: [23, 42, 54, 89, 14, 99, 93, 70],
+                mode: 'markers',
+                name: 'Asia/Pacific',
+                text: ['Australia', 'Japan', 'South Korea', 'Malaysia', 'China', 'Indonesia', 'Philippines', 'India'],
+                marker: {
+                    color: 'rgb(234, 153, 153)',
+                    size: 12
+                },
+                type: 'scatter'
+            };
+
+            var trace4 = {
+                x: [19097, 18601, 15595, 13546, 12026, 7434, 5419],
+                y: [43, 47, 56, 80, 86, 93, 80],
+                mode: 'markers',
+                name: 'Latin America',
+                text: ['Chile', 'Argentina', 'Mexico', 'Venezuela', 'Venezuela', 'El Salvador', 'Bolivia'],
+                marker: {
+                    color: 'rgb(142, 124, 195)',
+                    size: 12
+                },
+                type: 'scatter'
+            };
+
+            var data = [trace1, trace2, trace3, trace4];
+
+            var layout = {
+                title: 'Quarter 1 Growth',
+                xaxis: {
+                    title: 'Total Downloads',
+                    showgrid: false,
+                    zeroline: false
+                },
+                yaxis: {
+                    title: 'Percent',
+                    showline: false
+                }
+            };
+            Plotly.newPlot("scatter_demo", data, layout);
+        }
+
         function histogramExample() {
             var x1 = [];
             var x2 = [];
@@ -339,11 +457,19 @@
             }
 
             var trace1 = {
+                name: 'Page views',
                 x: x1,
+                marker: {
+                    color: 'rgb(164, 194, 244)'
+                },
                 type: "histogram",
             };
             var trace2 = {
+                name: 'Downloads',
                 x: x2,
+                marker: {
+                    color: 'rgb(255, 217, 102)'
+                },
                 type: "histogram",
             };
             var data = [trace1, trace2];
