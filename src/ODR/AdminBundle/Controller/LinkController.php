@@ -241,10 +241,10 @@ class LinkController extends ODRCustomController
             }
 
             // Load all datatypes which can be linked to
+            /** @var DataType[] $linkable_datatypes */
             $linkable_datatypes = array();
             foreach ($linkable_datatype_ids as $dt_id)
                 $linkable_datatypes[] = $repo_datatype->find($dt_id);
-            /** @var DataType[] $linkable_datatypes */
 
             // Sort the linkable datatypes list by name
             usort($linkable_datatypes, function($a, $b) {
@@ -255,21 +255,15 @@ class LinkController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - think about this
+            // TODO - Remove - Need to auto-create table themes on demand
             // Need to display a warning when the potential remote datatype doesn't have a table theme
             $datatypes_with_table_themes = array();
             foreach ($linkable_datatypes as $l_dt) {
 
-                if ($l_dt->getSetupStep() == DataType::STATE_OPERATIONAL)
+                // if ($l_dt->getSetupStep() == DataType::STATE_OPERATIONAL)
                     $datatypes_with_table_themes[ $l_dt->getId() ] = 1;
 
-//                foreach ($l_dt->getThemes() as $t) {
-                    /** @var Theme $t */
-//                    if ($t->getThemeType() == 'table')
-//                        $datatypes_with_table_themes[ $l_dt->getId() ] = 1;
-//                }
             }
-//print '<pre>'.print_r($datatypes_with_table_themes, true).'</pre>';  exit();
 
 
             // ----------------------------------------

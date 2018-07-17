@@ -1024,7 +1024,7 @@ class DisplaytemplateController extends ODRCustomController
                     $url =  $this->generateUrl(
                             'odr_datatype_properties',
                             array(
-                                'datatype_id' => $datatype->getId(),
+                                'datatype_id' => $datatype->getMetadataFor()->getId(),
                                 'wizard' => 1
                             ),
                             false

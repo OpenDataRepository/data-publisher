@@ -512,6 +512,7 @@ class DatatypeController extends ODRCustomController
 
 
 
+                // Get Data for Related Records
                 $query = $em->createQuery(
                     'SELECT dt, dtm, md, mf, dt_cb, dt_ub
                 FROM ODRAdminBundle:DataType AS dt
@@ -551,7 +552,6 @@ class DatatypeController extends ODRCustomController
                     $dt['associated_datatypes'] = $dti_service->getAssociatedDatatypes(array($dt_id));
                     $datatypes[$dt_id] = $dt;
                 }
-                /*
 
                 // Determine whether user has the ability to view non-public datarecords for this datatype
                 $can_view_public_datarecords = array();
@@ -568,7 +568,7 @@ class DatatypeController extends ODRCustomController
                 }
 
                 // Figure out how many datarecords the user can view for each of the datatypes
-                $metadata = array();
+                $related_metadata = array();
                 if (count($can_view_nonpublic_datarecords) > 0) {
                     $query = $em->createQuery(
                         'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
@@ -588,7 +588,7 @@ class DatatypeController extends ODRCustomController
                         $dt_id = $result['dt_id'];
                         $count = $result['datarecord_count'];
 
-                        $metadata[$dt_id] = $count;
+                        $related_metadata[$dt_id] = $count;
                     }
                 }
 
@@ -612,11 +612,10 @@ class DatatypeController extends ODRCustomController
                     foreach ($results as $result) {
                         $dt_id = $result['dt_id'];
                         $count = $result['datarecord_count'];
-                        $metadata[$dt_id] = $count;
+                        $related_metadata[$dt_id] = $count;
                     }
                 }
 
-                */
 
 
 
@@ -656,6 +655,7 @@ class DatatypeController extends ODRCustomController
                         'fieldtype_array' => $fieldtype_array,
                         'has_datarecords' => $has_datarecords,
                         'related_datatypes' => $datatypes,
+                        'related_metadata' => $related_metadata
                     )
                 );
 
@@ -1222,15 +1222,25 @@ class DatatypeController extends ODRCustomController
 
                 // Associate the metadata
                 $metadata_datatype->addDataTypeMetum($metadata_datatype_meta);
+                $metadata_datatype->setMetadataFor($datatype);
 
                 // New Datatype
                 $em->persist($metadata_datatype);
                 // New Datatype Meta
                 $em->persist($metadata_datatype_meta);
+
                 // Set Metadata Datatype
                 $datatype->setMetadataDatatype($metadata_datatype);
                 $em->persist($datatype);
                 $em->flush();
+
+
+                // Set Metadata For
+                // TODO Can we do this earlier?
+                // $metadata_datatype->setMetadataFor($datatype);
+                // $em->persist($metadata_datatype);
+                // $em->flush();
+
 
                 array_push($datatypes_to_process, $metadata_datatype);
 
@@ -1283,6 +1293,8 @@ class DatatypeController extends ODRCustomController
             /*
              * Clone theme or create theme as needed for new datatype(s)
              */
+            // Determine which is parent
+            /** @var DataType $datatype */
             foreach ($datatypes_to_process as $datatype) {
                 // ----------------------------------------
                 // If the datatype is being created from a master template...
@@ -1305,6 +1317,7 @@ class DatatypeController extends ODRCustomController
 
                 $delay = 0;
                 $pheanstalk->useTube('create_datatype')->put($payload, $priority, $delay);
+
             }
             /*
              * END Clone theme or create theme as needed for new datatype(s)

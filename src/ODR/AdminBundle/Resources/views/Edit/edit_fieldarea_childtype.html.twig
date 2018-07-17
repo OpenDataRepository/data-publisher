@@ -14,7 +14,7 @@
     and datatype_permissions[childtype.id]['dr_add'] is defined %}
     {% set can_add_record = 1 %}
 {% endif %}
-{#
+    {#
 --------------------</br>
 target_datatype_id: {{ target_datatype_id }}<br />
 parent_datarecord.datatype: {{ parent_datarecord.dataType.id }}<br />
@@ -24,7 +24,7 @@ can_add_record: {{ can_add_record }}</br>
 can_edit_record: {{ can_edit_record }}</br>
 is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
 --------------------</br>
-#}
+    #}
 
 <div class="ODRChildDatatype" id="ChildTypeWrapper_{{ childtype.id }}_{{ parent_datarecord.id }}">
 {% if is_link != 7 %}

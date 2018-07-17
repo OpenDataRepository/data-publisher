@@ -85,3 +85,10 @@ odr_search:
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage, search_slug: '', search_string: '' }
     requirements:
         search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
+
+
+odr_search_find_landing:
+    path:  /admin/find/landing/{datatype_unique_id}
+    defaults: { _controller: ODRAdminBundle:Datatype:find_landing }
+    requirements:
+        datatype_unique_id: '[a-zA-Z0-9]+'

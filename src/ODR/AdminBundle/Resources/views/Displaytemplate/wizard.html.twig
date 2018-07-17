@@ -4,38 +4,38 @@
         {# Only template-based databases will see this page. #}
         {% if create_master > 0 %}
             <li class="{% if wizard_step == 1 %}current{% endif %}">
-                <span class="wizardStatusText">Initial Instructions.</span>
+                <span class="wizardStatusText">Initial Instructions</span>
             </li>
         {% else %}
             <li class="{% if wizard_step == 1 %}current{% endif %}">
-                <span class="wizardStatusText">Choose Template.</span>
+                <span class="wizardStatusText">Choose Template</span>
             </li>
         {% endif %}
         <li class="{% if wizard_step == 2 %}current{% endif %}">
             {% if datatype_id > 0 %}
                 <a href="#{{ path('odr_datatype_properties', {'datatype_id': datatype_id, 'wizard': 1}) }}">
-                    <span class="wizardStatusText">Database Properties.</span>
+                    <span class="wizardStatusText">Database Properties</span>
                 </a>
             {% else %}
-                <span class="wizardStatusText">Database Properties.</span>
+                <span class="wizardStatusText">Database Properties</span>
             {% endif %}
         </li>
         <li class="{% if wizard_step == 3 %}current{% endif %}">
             {% if datatype_id > 0 %}
             <a href="#{{ path('odr_design_master_theme', {'datatype_id': datatype_id}) }}">
-                <span class="wizardStatusText">Edit Database Design.</span>
+                <span class="wizardStatusText">Edit Database Design</span>
             </a>
             {% else %}
-                <span class="wizardStatusText">Edit Database Design.</span>
+                <span class="wizardStatusText">Edit Database Design</span>
             {% endif %}
         </li>
         <li class="{% if wizard_step == 4 %}current{% endif %}">
             {% if datatype_id > 0 %}
             <a href="#{{ path('odr_datatype_landing', {'datatype_id': datatype_id}) }}">
-                <span class="wizardStatusText">Manage Database.</span>
+                <span class="wizardStatusText">Manage Database</span>
             </a>
             {% else %}
-                <span class="wizardStatusText">Manage Database.</span>
+                <span class="wizardStatusText">Manage Database</span>
             {% endif %}
         </li>
     </ul>
@@ -59,7 +59,7 @@
         <div class="ODRContentWrapper pure-u-1">
             <div class="ODRThemeElement pure-u-1">
                 <div class="ODRInnerBox pure-u-1">
-                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Database Properties.</h3>
+                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Database Properties</h3>
                     {% if create_master %} {# Master Template Creation #}
                         <div class="ODRBodyContent">
                             <p>Please choose a name for your database template and
@@ -114,7 +114,7 @@
         <div class="ODRContentWrapper pure-u-1">
             <div class="ODRThemeElement pure-u-1">
                 <div class="ODRInnerBox pure-u-1">
-                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Choose a Template</h3>
+                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Choose Template</h3>
                     <div class="ODRBodyContent">
                         <p>Select a pre-defined template or create a completely custom database by selecting from the
                             database templates column.</p>
@@ -130,7 +130,7 @@
         <div class="ODRContentWrapper pure-u-1">
             <div class="ODRThemeElement pure-u-1">
                 <div class="ODRInnerBox pure-u-1">
-                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Choose a Template</h3>
+                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Choose Template</h3>
                     <div class="ODRBodyContent">
                         <p>Select a pre-defined template or create a completely custom database by selecting from the
                             database templates column.</p>

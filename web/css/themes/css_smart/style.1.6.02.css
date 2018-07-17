@@ -715,6 +715,13 @@ footer ul li:first-child {
 /*  CSS3 Wizard
     https://codepen.io/alexperjescu/pen/Awvgj
  */
+ul#wizardStatus a,
+ul#wizardStatus a:visited,
+ul#wizardStatus a:active,
+ul#wizardStatus a:hover {
+    color: #265778;
+}
+
 ul#wizardStatus{
     list-style:none;
     margin: 15px 0;

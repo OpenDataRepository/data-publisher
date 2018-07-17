@@ -557,8 +557,8 @@ class CloneDatatypeService
 
         // TODO Need to deal with properties database here...
         // Unset metadata_datatype_id and metadata_for_id
-        $new_datatype->setMetadataDatatype(null);
-        $new_datatype->setMetadataFor(null);
+        // $new_datatype->setMetadataDatatype(null);
+        // $new_datatype->setMetadataFor(null);
         // TODO will need to reset these later to be correctly linked
 
         self::persistObject($new_datatype);

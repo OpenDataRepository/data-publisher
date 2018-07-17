@@ -205,6 +205,7 @@
         } %}
         {% include 'ODRAdminBundle:Datatype:type_list_related_databases.html.twig' with {
             'datatypes': related_datatypes,
+            'metadata': related_metadata,
             'datatype_permissions': datatype_permissions
         } %}
         {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
