@@ -77,6 +77,13 @@
                                 </a>
                             </p>
                             <p>
+                                <a id="ODRThemeElement_linkFT">
+                                    <i class="tooltip fa fa-plus-square-o ODRLinkFromTemplate"
+                                       title="Add From Template"
+                                    ></i><span class="link-text"> Add from Template</span>
+                                </a>
+                            </p>
+                            <p>
                                 <a id="ODRDatatype_renderPlugin">
                                     <i class="tooltip fa fa-bar-chart-o ODRRenderPlugin"
                                        title="RenderPlugin Settings (plugin active)"
@@ -126,6 +133,9 @@
 
     <div id="link_datatype_dialog_wrapper">
         {% include 'ODRAdminBundle:Link:link_type_dialog.html.twig' %}
+    </div>
+    <div id="link_from_template_dialog_wrapper">
+        {% include 'ODRAdminBundle:Link:link_from_template_dialog.html.twig' %}
     </div>
     <div id="plugin_settings_dialog_wrapper">
         {% include 'ODRAdminBundle:Plugins:plugin_settings_dialog.html.twig' %}
@@ -671,6 +681,7 @@
         tools.copy_df    = $("#ODRThemeElement_copyDF");
         tools.add_cdt    = $("#ODRThemeElement_addCDT");
         tools.link_dt    = $("#ODRThemeElement_linkDT");
+        tools.link_ft    = $("#ODRThemeElement_linkFT");
         tools.render     = $("#ODRDatatype_renderPlugin");
         tools.pub_stat   = $("#ODRDatatype_publicStatus");
         tools.del_dt     = $("#ODRDatatype_delete");
@@ -688,6 +699,7 @@
         tools.add_df.find('.link-text').html('Add Field');
         tools.add_cdt.find('.link-text').html('Add Child Database');
         tools.link_dt.find('.link-text').html('Link to Database');
+        tools.link_ft.find('.link-text').html('Add from Template');
         tools.render.find('.link-text').html('Change Render Plugin');
         tools.pub_stat.find('.link-text').html('Change Public Status');
         tools.del_dt.find('.link-text').html('Delete Datatype');
@@ -698,6 +710,7 @@
         tools.add_df.attr('title',   'Add Field');
         tools.add_cdt.attr('title',  'Add Child Database');
         tools.link_dt.attr('title',  'Link to Database');
+        tools.link_ft.attr('title',  'Add from Template');
         tools.render.attr('title',   'Change Render Plugin');
         tools.pub_stat.attr('title', 'Change Public Status');
         tools.del_dt.attr('title',   'Delete');
@@ -720,6 +733,7 @@
         tools.copy_df    = $("#ODRThemeElement_copyDF");
         tools.add_cdt    = $("#ODRThemeElement_addCDT");
         tools.link_dt    = $("#ODRThemeElement_linkDT");
+        tools.link_ft    = $("#ODRThemeElement_linkFT");
         tools.render     = $("#ODRDatatype_renderPlugin");
         tools.pub_stat   = $("#ODRDatatype_publicStatus");
         tools.del_dt     = $("#ODRDatatype_delete");
@@ -747,9 +761,9 @@
                 });
 
                 // Delete Datafield
-                tools.del_dt.find('i').addClass('ODRActiveIcon');
-                tools.del_dt.removeClass('faded')
                 if(!props.is_top_level) {
+                    tools.del_dt.find('i').addClass('ODRActiveIcon');
+                    tools.del_dt.removeClass('faded')
 
                     // Do not allow deletion of top-level database
                     tools.del_dt.attr('title', 'Click to delete this database.');
@@ -760,42 +774,7 @@
                         }
                     });
                 }
-                else {
-                    // Use as link/add template
-                    tools.del_dt.attr('title', 'Add a set of fields from a template.');
-                    tools.del_dt.find('.link-text').html('Add from template');
-                    tools.del_dt.unbind('click').click(function () {
-                        $(this).effect("highlight", {}, 2000);
 
-                        // Find first empty TE or add TE and then add linked database
-                        console.log('data type add field here', id);
-                        // Check for an TE that is not a link to add the field to
-                        var te = null
-                        $("#DataType_" + id + " > .ODRFieldArea > .ODRThemeElement").each(function() {
-                            if($(this).find(".ODRInnerBox > .ODRDataField").length === 0) {
-                                var id = $(this).attr('id').replace('ThemeElement_', '')
-                                var props = theme_element_properties[id];
-                                if(te === null && !props.is_link && !props.has_childtype) {
-                                    te = $(this);
-                                }
-                                console.log('TE Props [' + id + ']: ', props)
-                            }
-                        });
-
-                        if(te != null) {
-                            console.log('TE', te.attr('id'))
-                            // Add field to this TE
-                            var te_id = te.attr('id').replace('ThemeElement_','')
-                            linkDatatype(te_id);
-                        }
-                        else {
-                            // Add new TE and add field
-                            addThemeElement(id, 'datatype', function(theme_element_id) {
-                                linkDatatype(theme_element_id);
-                            })
-                        }
-                    });
-                }
 
 
                 // We can always add a datafield to a datatype???
@@ -846,6 +825,51 @@
                         })
                     }
                 });
+
+                // Any non linked datatype can link from a template
+                if (props.is_link < 1) {
+
+                    console.log('datatype is NOT link')
+                    tools.link_ft.removeClass('faded')
+                    tools.link_ft.find('i').addClass('ODRActiveIcon');
+                    tools.link_ft.find('.link-text').html('Add from Template');
+                    tools.link_ft.attr('title', 'Click to create a database from a template and link it to this databse.');
+                    tools.link_ft.unbind('click').click(function () {
+                        $(this).effect("highlight", {}, 2000);
+
+                        // Find first empty TE or add TE and then add linked database
+                        console.log('data type add field here', id);
+                        // Check for an TE that is not a link to add the field to
+                        var te = null
+                        $("#DataType_" + id + " > .ODRFieldArea > .ODRThemeElement").each(function() {
+                            if($(this).find(".ODRInnerBox > .ODRDataField").length === 0) {
+                                var id = $(this).attr('id').replace('ThemeElement_', '')
+                                var props = theme_element_properties[id];
+                                if(te === null && !props.is_link && !props.has_childtype) {
+                                    te = $(this);
+                                }
+                                console.log('TE Props [' + id + ']: ', props)
+                            }
+                        });
+
+                        if(te != null) {
+                            console.log('TE', te.attr('id'))
+                            // Add field to this TE
+                            var te_id = te.attr('id').replace('ThemeElement_','')
+                            // addChildType(te_id);
+                            console.log('Using TE: ', te_id);
+                            linkFromTemplate(te_id);
+                        }
+                        else {
+                            // Add new TE and add field
+                            addThemeElement(id, 'datatype', function(theme_element_id) {
+                                console.log('Using TE: ', theme_element_id);
+                                linkFromTemplate(theme_element_id);
+                            })
+                        }
+                    });
+                }
+
 
                 // Any non linked datatype can have a link
                 if (props.is_link > 0) {
@@ -900,6 +924,10 @@
                         }
                     });
                 }
+
+
+
+
 
                 tools.pub_stat.removeClass('faded')
                 if(props.is_public > 0) {
@@ -966,12 +994,25 @@
                 else if (!props.has_childtype && !props.has_datafields) {
                     console.log('ted is NOT link')
                     tools.link_dt.removeClass('faded')
-                    tools.link_dt.removeClass('faded')
                     tools.link_dt.find('i').addClass('ODRActiveIcon');
                     tools.link_dt.find('.link-text').html('Link to a database');
                     tools.link_dt.attr('title', 'Click to link in data from an existing database.');
                     tools.link_dt.unbind('click').click(function () {
                         linkDatatype(id);
+                    });
+                }
+
+                // Any non linked datatype can link from a template
+                if (!props.has_childtype && !props.has_datafields) {
+                    console.log('datatype is NOT link')
+                    tools.link_ft.removeClass('faded')
+                    tools.link_ft.find('i').addClass('ODRActiveIcon');
+                    tools.link_ft.find('.link-text').html('Add from Template');
+                    tools.link_ft.attr('title', 'Click to create a database from a template and link it to this databse.');
+                    tools.link_ft.unbind('click').click(function () {
+                        $(this).effect("highlight", {}, 2000);
+                        console.log('Using TE: ', id);
+                        linkFromTemplate(id);
                     });
                 }
 
@@ -1073,10 +1114,16 @@
         $.jGrowl('You must first select an element from the page to modify its settings.');
     }
 
+    function linkFromTemplate(theme_element_id) {
+        // Find TED Parent Field Area
+        var local_datatype_id = $('#ThemeElement_' + theme_element_id).parent().attr('id').replace(/FieldArea_/,'');
+
+        {# defined in Link::link_type_dialog.html.twig #}
+        openLinkFromTemplateDialog(local_datatype_id, theme_element_id);
+    }
 
     function linkDatatype(theme_element_id) {
         // Find TED Parent Field Area
-
         var local_datatype_id = $('#ThemeElement_' + theme_element_id).parent().attr('id').replace(/FieldArea_/,'');
 
         {# defined in Link::link_type_dialog.html.twig #}

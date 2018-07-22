@@ -256,7 +256,7 @@ odr_list_types:
     path:  /admin/type/list/{section}
     defaults: { _controller: ODRAdminBundle:Datatype:list }
     requirements:
-        section: databases|templates
+        section: databases|templates|datatemplates
 
 odr_datatype_properties:
     path:  /admin/type/properties/{datatype_id}/{wizard}
@@ -725,6 +725,13 @@ odr_record_get_field_history:
 
 #-----------------------------------------
 # Link Controller
+odr_design_get_link_templates:
+    path:  /design/displaytemplate/getlinktemplates/{datatype_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Link:getlinkabletemplates }
+    requirements:
+        datatype_id:  \d+
+        theme_element_id:  \d+
+
 odr_design_get_link_datatypes:
     path:  /design/displaytemplate/getlinktypes/{datatype_id}/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Link:getlinkabledatatypes }
@@ -735,6 +742,11 @@ odr_design_get_link_datatypes:
 odr_design_link_datatype:
     path:  /design/displaytemplate/linktype
     defaults: { _controller: ODRAdminBundle:Link:linkdatatype }
+    methods: [ POST ]
+
+odr_design_clone_and_link_datatype:
+    path:  /design/clone_and_link
+    defaults: { _controller: ODRAdminBundle:Link:cloneandlink }
     methods: [ POST ]
 
 odr_record_get_linkable_datarecords:

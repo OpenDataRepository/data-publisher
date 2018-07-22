@@ -84,10 +84,6 @@
 
 
                     {# number of datarecords for this datatype #}
-                    {% set datarecord_count = 0 %}
-                    {% if metadata[ datatype.id ] is defined %}
-                        {% set datarecord_count = metadata[ datatype.id ] %}
-                    {% endif %}
                     <div>
                         Records:
                         <span id="ODRDatarecordList_{{ datatype.id }}_count">{{ datarecord_count }}</span>

@@ -530,7 +530,7 @@ class CloneDatatypeService
     /**
      * Clones the provided $parent_datatype into a new database entry
      *
-     * @param DataType $parent_datatype
+     * @param DataType $parent_datatype A datatype with isMasterType=1 from which the datatype will be cloned.
      * @param DataType|null $new_datatype
      * @param string $datatype_prefix
      * @param string $template_group

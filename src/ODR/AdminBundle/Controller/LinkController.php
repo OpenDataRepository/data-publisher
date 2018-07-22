@@ -23,6 +23,7 @@ use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeMeta;
+use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -45,6 +46,253 @@ use Symfony\Component\HttpFoundation\Response;
 class LinkController extends ODRCustomController
 {
 
+    /**
+     * Gets a list of linkable templates to start the clone and link process.
+     *
+     * This allows a user to clone a database from a template and link to it in a
+     * single step.
+     *
+     * @param $datatype_id
+     * @param $theme_element_id
+     * @param Request $request
+     * @return Response
+     *
+     */
+    public function getlinkabletemplatesAction($datatype_id, $theme_element_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataType $local_datatype */
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $local_datatype = $repo_datatype->find($datatype_id);
+            if ($local_datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+
+
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ($theme_element == null)
+                throw new ODRNotFoundException('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ($theme->getDeletedAt() != null)
+                throw new ODRNotFoundException('Theme');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $local_datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Grab a list of top top-level datatypes
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+
+            $query_sql =
+                'SELECT dt, dtm, md, mf, dt_cb, dt_ub
+                FROM ODRAdminBundle:DataType AS dt
+                LEFT JOIN dt.dataTypeMeta AS dtm
+                LEFT JOIN dt.metadata_datatype AS md
+                LEFT JOIN dt.metadata_for AS mf
+                LEFT JOIN dt.createdBy AS dt_cb
+                LEFT JOIN dt.updatedBy AS dt_ub
+                WHERE dt.id IN (:datatypes) 
+                AND dt.is_master_type = (:is_master_type)
+                AND dt.deletedAt IS NULL 
+                AND dtm.deletedAt IS NULL
+                AND md.id IS NULL
+                AND mf.id IS NULL';
+
+            $query = $em->createQuery($query_sql);
+
+            $query->setParameters(
+                array(
+                    'datatypes' => $top_level_datatypes,
+                    'is_master_type' => 1
+                )
+            );
+
+            $results = $query->getArrayResult();
+
+
+            $linkable_datatype_ids = array();
+            foreach($results as $result) {
+                array_push($linkable_datatype_ids, $result['id']);
+            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            /*
+
+            $all_datatype_ids = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $is_public = true;
+                if ( $result['public_date']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' )
+                    $is_public = false;
+
+                // Check if this is a Master Template.  If so, only other master templates
+                // (isMasterType = 1) can be linked.  TODO - check this
+                if ($local_datatype->getIsMasterType() && $result['is_master_type'] > 0) {
+                    $all_datatype_ids[$dt_id] = $is_public;
+                }
+                else if (!$local_datatype->getIsMasterType()) {
+                    $all_datatype_ids[$dt_id] = $is_public;
+                }
+            }
+
+            // Ensure user can't link to a datatype they aren't able to see
+            foreach ($all_datatype_ids as $dt_id => $datatype_is_public) {
+                // "Manually" determining permissions on purpose
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[$dt_id])
+                    && isset($datatype_permissions[$dt_id]['dt_view'])
+                ) {
+                    $can_view_datatype = true;
+                }
+
+                // If the datatype is not public and the user doesn't have view permissions,
+                //  then remove it from the array
+                if ( !($datatype_is_public || $can_view_datatype) )
+                    unset( $all_datatype_ids[$dt_id] );
+            }
+
+            // Iterate through the remaining datatype ids...
+            $linkable_datatype_ids = array();
+            foreach ($all_datatype_ids as $dt_id => $datatype_is_public) {
+                // Don't allow linking to child datatypes
+                if ( isset($current_datatree_array['descendant_of'][ $dt_id ])
+                    && $current_datatree_array['descendant_of'][ $dt_id ] !== ''
+                ) {
+                    continue;
+                }
+
+                // Don't allow linking to the local datatype's grandparent
+                if ($dt_id == $grandparent_datatype_id)
+                    continue;
+
+                // Don't allow the local datatype to link to a remote datatype more than once
+                if ( isset($current_datatree_array['linked_from'][$dt_id])
+                    && in_array($local_datatype->getId(), $current_datatree_array['linked_from'][$dt_id])
+                ) {
+                    continue;
+                }
+
+                // Don't allow the local datatype to link to this remote datatype if it would cause
+                //  recursion...for instance, if datatype_a is linked to datatype_b, don't allow
+                //  datatype_b to link to datatype_a.
+                // Also don't allow situatiosn like datatype_a => datatype_b,
+                //  datatype_b => datatype_c, and datatype_c => datatype_a, etc
+                if ( self::willDatatypeLinkRecurse($current_datatree_array, $local_datatype->getId(), $dt_id) )
+                    continue;
+
+                // Otherwise, linking to this datatype is acceptable
+                $linkable_datatype_ids[] = $dt_id;
+            }
+
+            // If this theme element currently "contains" a linked datatype, ensure that the linked
+            //  datatype exists in the array
+            if ($current_remote_datatype !== null) {
+                if ( !in_array($current_remote_datatype->getId(), $linkable_datatype_ids) )
+                    $linkable_datatype_ids[] = $current_remote_datatype->getId();
+            }
+            */
+
+            // Load all datatypes which can be linked to
+            /** @var DataType[] $linkable_datatypes */
+            $linkable_datatypes = array();
+            foreach ($linkable_datatype_ids as $dt_id)
+                $linkable_datatypes[] = $repo_datatype->find($dt_id);
+
+            // Sort the linkable datatypes list by name
+            usort($linkable_datatypes, function($a, $b) {
+                /** @var DataType $a */
+                /** @var DataType $b */
+                return strcmp($a->getShortName(), $b->getShortName());
+            });
+
+            // ----------------------------------------
+            // TODO - Remove - Need to auto-create table themes on demand
+            // Need to display a warning when the potential remote datatype doesn't have a table theme
+            $datatypes_with_table_themes = array();
+            foreach ($linkable_datatypes as $l_dt) {
+                // if ($l_dt->getSetupStep() == DataType::STATE_OPERATIONAL)
+                $datatypes_with_table_themes[ $l_dt->getId() ] = 1;
+            }
+
+            $current_remote_datatype = '';
+            $has_linked_datarecords = array();
+
+            // ----------------------------------------
+            // Get Templating Object
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Link:link_from_template_dialog_form.html.twig',
+                    array(
+                        'local_datatype' => $local_datatype,
+                        'remote_datatype' => $current_remote_datatype,
+                        'theme_element' => $theme_element,
+                        'linkable_datatypes' => $linkable_datatypes,
+                        'has_linked_datarecords' => $has_linked_datarecords,
+                        'datatypes_with_table_themes' => $datatypes_with_table_themes,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0xf8083699;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
     /**
      * Gets a list of DataTypes that could serve as linked DataTypes.
      *
@@ -297,6 +545,191 @@ class LinkController extends ODRCustomController
         return $response;
     }
 
+    /**
+     * Parses a $_POST request to create/delete a link from a 'local' DataType to a 'remote'
+     * DataType.  If linked, DataRecords of the 'local' DataType will have the option to link to
+     * DataRecords of the 'remote' DataType.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function cloneandlinkAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        $conn = null;
+
+        try {
+            // Grab the data from the POST request
+            $post = $request->request->all();
+
+            if ( !isset($post['local_datatype_id'])
+                || !isset($post['selected_datatype'])
+                || !isset($post['previous_remote_datatype'])
+                || !isset($post['theme_element_id']) ) {
+                throw new ODRBadRequestException('Invalid Form');
+            }
+
+            $local_datatype_id = $post['local_datatype_id'];
+            $master_datatype_id = $post['selected_datatype'];
+            $previous_remote_datatype_id = $post['previous_remote_datatype'];
+            $theme_element_id = $post['theme_element_id'];
+
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Get Datatype & Template group (if set)
+            $em = $this->getDoctrine()->getManager();
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            /** @var DataType $local_datatype */
+            $local_datatype = $repo_datatype->find($local_datatype_id);
+            if ($local_datatype == null)
+                throw new ODRNotFoundException('Local Datatype');
+
+            // A master datatype is required
+            // ...locate the master template datatype and store that it's the "source" for this new datatype
+            /** @var DataType $master_datatype */
+            $master_datatype = $local_datatype->getMasterDataType();
+            if ($master_datatype == null)
+                throw new ODRNotFoundException('Master Datatype');
+
+            // Create a new Datatype entity
+            $datatype = new DataType();
+            $datatype->setRevision(0);
+
+            $unique_id = UniqueUtility::uniqueIdReal();
+            $datatype->setUniqueId($unique_id);
+            $datatype->setTemplateGroup($unique_id);
+
+            // Create the datatype unique id and check to ensure uniqueness
+
+            // Top-level datatypes exist in one of three three states...TODO - should there be more states?
+            // initial - datatype isn't ready for anything really...it shouldn't be displayed to the user
+            // incomplete - datatype can be viewed and modified as usual, but it's missing search result templates
+            // operational - datatype should work perfectly
+            $datatype->setSetupStep(DataType::STATE_INITIAL);
+
+            // Is this a Master Type?
+            $datatype->setIsMasterType(false);
+
+
+            $datatype->setMasterDataType($master_datatype);
+
+            $datatype->setCreatedBy($user);
+            $datatype->setUpdatedBy($user);
+
+            // Save all changes made
+            $em->persist($datatype);
+            $em->flush();
+            $em->refresh($datatype);
+
+            // Top level datatypes are their own parent/grandparent
+            $datatype->setParent($datatype);
+            $datatype->setGrandparent($datatype);
+            $em->persist($datatype);
+
+
+            // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name since they're already from the form
+            $datatype_meta_data = new DataTypeMeta();
+            $datatype_meta_data->setDataType($datatype);
+            $datatype_meta_data->setShortName('New Database');
+            $datatype_meta_data->setLongName('New Database');
+
+            /** @var RenderPlugin $default_render_plugin */
+            $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
+            $datatype_meta_data->setRenderPlugin($default_render_plugin);
+
+            // Default search slug to Database ID
+            $datatype_meta_data->setSearchSlug($datatype->getUniqueId());
+            $datatype_meta_data->setXmlShortName('');
+
+            // Master Template Metadata
+            // Once a child database is completely created from the master template, the creation process will update the revisions appropriately.
+            $datatype_meta_data->setMasterRevision(0);
+            $datatype_meta_data->setMasterPublishedRevision(0);
+            $datatype_meta_data->setTrackingMasterRevision(0);
+
+            $datatype_meta_data->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
+
+            $datatype_meta_data->setExternalIdField(null);
+            $datatype_meta_data->setNameField(null);
+            $datatype_meta_data->setSortField(null);
+            $datatype_meta_data->setBackgroundImageField(null);
+
+            $datatype_meta_data->setCreatedBy($user);
+            $datatype_meta_data->setUpdatedBy($user);
+            $em->persist($datatype_meta_data);
+
+            // Ensure the "in-memory" version of the new datatype knows about its meta entry
+            $datatype->addDataTypeMetum($datatype_meta_data);
+            $em->flush();
+
+
+            // Start a tracked job
+            /** @var TrackedJob $tracked_job */
+            $tracked_job = new TrackedJob();
+            $tracked_job->setCreatedBy($user);
+            $tracked_job->setJobType('clone_and_link');
+            $tracked_job->setTotal(2);
+            $tracked_job->setCurrent(0);
+            $tracked_job->setStarted(new \DateTime());
+            $em->persist($tracked_job);
+
+            // Save all the changes that were made
+            $em->flush();
+            $em->refresh($tracked_job);
+
+
+            // No metadata_for needed
+
+            // Start clone job (command)
+
+            // return tracked job id
+
+            // If the datatype is being created from a master template...
+            // Start the job to create the datatype from the template
+            $pheanstalk = $this->get('pheanstalk');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            $api_key = $this->container->getParameter('beanstalk_api_key');
+
+            // Insert the new job into the queue
+            $priority = 1024;   // should be roughly default priority
+            $payload = json_encode(
+                array(
+                    "user_id" => $user->getId(),
+                    "datatype_id" => $datatype->getId(),
+                    "template_group" => $local_datatype->getTemplateGroup(),
+                    "tracked_job_id" => $tracked_job->getId(),
+                    "redis_prefix" => $redis_prefix,    // debug purposes only
+                    "api_key" => $api_key,
+                )
+            );
+
+            $delay = 0;
+            // $pheanstalk->useTube('create_datatype')->put($payload, $priority, $delay);
+            $return['d'] = $payload;
+        }
+        catch (\Exception $e) {
+            // Don't commit changes if any error was encountered...
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollBack();
+
+            $source = 0xa1ee8e79;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 
     /**
      * Parses a $_POST request to create/delete a link from a 'local' DataType to a 'remote'

@@ -496,8 +496,12 @@ class DatatypeController extends ODRCustomController
                 $results = $query->getArrayResult();
 
                 $has_datarecords = false;
-                if ($results[0]['dr_count'] > 0)
+                $datarecord_count = 0;
+                if ($results[0]['dr_count'] > 0) {
                     $has_datarecords = true;
+                    $datarecord_count = $results[0]['dr_count'];
+                }
+
 
 
 
@@ -651,6 +655,7 @@ class DatatypeController extends ODRCustomController
                         'user' => $user,
                         'datatype_array' => $stacked_datatype_array,
                         'initial_datatype_id' => $datatype->getId(),
+                        'datarecord_count' => $datarecord_count,
                         'datatype_permissions' => $datatype_permissions,
                         'fieldtype_array' => $fieldtype_array,
                         'has_datarecords' => $has_datarecords,
@@ -716,9 +721,9 @@ class DatatypeController extends ODRCustomController
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
 
             // Grab each top-level datatype from the repository
-            $is_master_type = ($section == "templates") ? 1 : 0;
+            $is_master_type = ($section == "templates" || $section == "datatemplates") ? 1 : 0;
 
-            $query = $em->createQuery(
+            $query_sql =
                 'SELECT dt, dtm, md, mf, dt_cb, dt_ub
                 FROM ODRAdminBundle:DataType AS dt
                 LEFT JOIN dt.dataTypeMeta AS dtm
@@ -726,9 +731,18 @@ class DatatypeController extends ODRCustomController
                 LEFT JOIN dt.metadata_for AS mf
                 LEFT JOIN dt.createdBy AS dt_cb
                 LEFT JOIN dt.updatedBy AS dt_ub
-                WHERE dt.id IN (:datatypes) AND dt.is_master_type = (:is_master_type)
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-            )->setParameters(
+                WHERE dt.id IN (:datatypes) 
+                AND dt.is_master_type = (:is_master_type)
+                AND dt.deletedAt IS NULL 
+                AND dtm.deletedAt IS NULL';
+
+            if($section == "datatemplates") {
+                $query_sql .= ' AND dt.metadata_datatype IS NULL';
+            }
+
+            $query = $em->createQuery($query_sql);
+
+            $query->setParameters(
                 array(
                     'datatypes' => $top_level_datatypes,
                     'is_master_type' => $is_master_type
@@ -778,8 +792,11 @@ class DatatypeController extends ODRCustomController
                     'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
                     FROM ODRAdminBundle:DataType AS dt
                     JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                    WHERE dt IN (:datatype_ids) AND dr.provisioned = FALSE
-                    AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
+                    WHERE 
+                    dt IN (:datatype_ids) 
+                    AND dr.provisioned = FALSE
+                    AND dt.deletedAt IS NULL 
+                    AND dr.deletedAt IS NULL
                     GROUP BY dt.id'
                 )->setParameters(
                     array(
@@ -791,7 +808,6 @@ class DatatypeController extends ODRCustomController
                 foreach ($results as $result) {
                     $dt_id = $result['dt_id'];
                     $count = $result['datarecord_count'];
-
                     $metadata[$dt_id] = $count;
                 }
             }
@@ -802,8 +818,13 @@ class DatatypeController extends ODRCustomController
                     FROM ODRAdminBundle:DataType AS dt
                     JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
                     JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
-                    WHERE dt IN (:datatype_ids) AND dr.provisioned = FALSE AND drm.publicDate != :public_date
-                    AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL
+                    WHERE 
+                    dt IN (:datatype_ids) 
+                    AND drm.publicDate != :public_date
+                    AND dr.provisioned = FALSE
+                    AND dt.deletedAt IS NULL 
+                    AND dr.deletedAt IS NULL 
+                    AND drm.deletedAt IS NULL
                     GROUP BY dt.id'
                 )->setParameters(
                     array(
@@ -819,7 +840,6 @@ class DatatypeController extends ODRCustomController
                     $metadata[$dt_id] = $count;
                 }
             }
-
 
             // Render and return the html for the datatype list
             $return['d'] = array(
