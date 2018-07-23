@@ -260,8 +260,10 @@ class CloneDatatypeService
             // Check if datatype is not in "initial" mode
             if ($datatype->getSetupStep() != "initial")
                 throw new ODRException("Datatype is not in the correct setup mode.  Setup step was: ".$datatype->getSetupStep());
-            if ( is_null($datatype->getMasterDataType()) || $datatype->getMasterDataType()->getId() < 1 )
+
+            if ( is_null($datatype->getMasterDataType()) || $datatype->getMasterDataType()->getId() < 1 ) {
                 throw new ODRException("Invalid master template id");
+            }
 
 
             // ----------------------------------------
@@ -271,6 +273,8 @@ class CloneDatatypeService
 
             // Get all grandparent datatype ids that need cloning...
             $this->master_datatype = $datatype->getMasterDataType();
+            $this->logger->debug('CloneDatatypeService: Master Datatype ID:' . $this->master_datatype->getId());
+
             $include_links = true;
             $datatype_data = $this->dti_service->getDatatypeArray($this->master_datatype->getId(), $include_links);
             $grandparent_datatype_ids = array_keys($datatype_data);
@@ -305,14 +309,17 @@ class CloneDatatypeService
                 $valid_existing_datatypes = array();
                 /** @var DataType $dt */
                 foreach($this->existing_datatypes as $dt) {
-                    if (($key = array_search($dt->getMasterDataType()->getId(), $associated_datatypes)) !== false) {
+                    if (
+                        $dt->getMasterDataType() !== null
+                        && ($key = array_search($dt->getMasterDataType()->getId(), $associated_datatypes)) !== false
+                    ) {
                         array_push($valid_existing_datatypes, $dt);
                         unset($associated_datatypes[$key]);
                     }
                 }
                 $this->existing_datatypes = $valid_existing_datatypes;
             }
-            $this->logger->debug('CloneDatatypeService: $associated_datatypes: '.print_r($associated_datatypes, true));
+            $this->logger->debug('CloneDatatypeService: $associated_datatypes [filtered]: '.print_r($associated_datatypes, true));
 
             // Clone the master template datatype, and all its linked/child datatypes as well
             $this->created_datatypes = array();
@@ -351,6 +358,7 @@ class CloneDatatypeService
             //  datatypes, and the values are the new datatypes cloned from the master template
             $this->logger->info('----------------------------------------');
             $this->dt_mapping = array($this->original_datatype->getId() => $this->original_datatype);    // TODO - why does $dt_mapping contain this?
+            // $this->dt_mapping = array($this->original_datatype->getMasterDataType()->getId() => $this->original_datatype);    // TODO - why does $dt_mapping contain this?
 
             // This creates the dt_mapping array
             foreach ($this->created_datatypes as $dt)
@@ -413,6 +421,8 @@ class CloneDatatypeService
             //  been created out of order, and cloning themes requires them to be properly set...
             $this->logger->info('----------------------------------------');
 
+            // TODO THIS IS A TOTAL DISASTER. These corrections must be made on the datatype before persisting and flushing.
+            // TODO MAJOR MAJOR MAJOR ISSUE
             foreach ($this->created_datatypes as $dt) {
                 $corrected_parent = $this->dt_mapping[ $dt->getParent()->getId() ];
                 $corrected_grandparent = $this->dt_mapping[ $dt->getGrandparent()->getId() ];

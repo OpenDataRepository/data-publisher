@@ -10,6 +10,7 @@ php app/console odr_record:mass_edit >> app/logs/mass_edit.log 2>&1 &
 php app/console odr_crypto:worker >> app/logs/crypto_worker.log 2>&1 &
 #php app/console odr_crypto:worker >> app/logs/crypto_worker_2.log 2>&1 &    # seems to screw up when second job is active
 
+php app/console odr_datatype:clone_and_link >> app/logs/clone_and_link_datatype.log 2>&1 &
 php app/console odr_datatype:clone >> app/logs/datatype_create.log 2>&1 &
 #php app/console odr_theme:clone >> app/logs/theme_create.log 2>&1 &    # theme clone requests don't go through background jobs currently
 

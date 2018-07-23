@@ -17,6 +17,7 @@ namespace ODR\AdminBundle\Controller;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\LinkedDataTree;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
@@ -41,6 +42,10 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+
+// Utility
+// use ODR\AdminBundle\Component\Utility\UserUtility;
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 
 
 class LinkController extends ODRCustomController
@@ -576,7 +581,7 @@ class LinkController extends ODRCustomController
 
             $local_datatype_id = $post['local_datatype_id'];
             $master_datatype_id = $post['selected_datatype'];
-            $previous_remote_datatype_id = $post['previous_remote_datatype'];
+            // $previous_remote_datatype_id = $post['previous_remote_datatype'];
             $theme_element_id = $post['theme_element_id'];
 
             // Determine user privileges
@@ -594,7 +599,7 @@ class LinkController extends ODRCustomController
             // A master datatype is required
             // ...locate the master template datatype and store that it's the "source" for this new datatype
             /** @var DataType $master_datatype */
-            $master_datatype = $local_datatype->getMasterDataType();
+            $master_datatype = $repo_datatype->find($master_datatype_id);
             if ($master_datatype == null)
                 throw new ODRNotFoundException('Master Datatype');
 
@@ -604,7 +609,12 @@ class LinkController extends ODRCustomController
 
             $unique_id = UniqueUtility::uniqueIdReal();
             $datatype->setUniqueId($unique_id);
-            $datatype->setTemplateGroup($unique_id);
+            if($local_datatype->getTemplateGroup() !== null) {
+                $datatype->setTemplateGroup($local_datatype->getTemplateGroup());
+            }
+            else {
+                $datatype->setTemplateGroup($unique_id);
+            }
 
             // Create the datatype unique id and check to ensure uniqueness
 
@@ -678,6 +688,8 @@ class LinkController extends ODRCustomController
             $tracked_job->setTotal(2);
             $tracked_job->setCurrent(0);
             $tracked_job->setStarted(new \DateTime());
+            $tracked_job->setTargetEntity('datatype_' . $datatype->getId());
+            $tracked_job->setAdditionalData('');
             $em->persist($tracked_job);
 
             // Save all the changes that were made
@@ -699,11 +711,23 @@ class LinkController extends ODRCustomController
 
             // Insert the new job into the queue
             $priority = 1024;   // should be roughly default priority
+
+            // Get the URL for Linking
+            $router = $this->get('router');
+            $url = $this->container->getParameter('site_baseurl'). $router->generate('odr_design_link_datatype');
+
             $payload = json_encode(
                 array(
                     "user_id" => $user->getId(),
                     "datatype_id" => $datatype->getId(),
                     "template_group" => $local_datatype->getTemplateGroup(),
+
+
+                    // $previous_remote_datatype_id = $post['previous_remote_datatype'];
+                    "local_datatype_id" => $local_datatype_id,
+                    "theme_element_id" => $theme_element_id,
+                    "link_url" => $url,
+
                     "tracked_job_id" => $tracked_job->getId(),
                     "redis_prefix" => $redis_prefix,    // debug purposes only
                     "api_key" => $api_key,
@@ -711,7 +735,7 @@ class LinkController extends ODRCustomController
             );
 
             $delay = 0;
-            // $pheanstalk->useTube('create_datatype')->put($payload, $priority, $delay);
+            $pheanstalk->useTube('clone_and_link_datatype')->put($payload, $priority, $delay);
             $return['d'] = $payload;
         }
         catch (\Exception $e) {
