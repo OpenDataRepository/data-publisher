@@ -36,7 +36,6 @@
             url: url,
             dataType: "json",
             success: function(data) {
-//                alert( data.d.html );
                 $("#ODRLinkFromTemplateFormWrapper").html( data.d.html );
 
                 // remove loading spinner
@@ -90,24 +89,17 @@
 
                 console.log(data.d);
 
-                /*
-                var linked_datatype_id = data.d.linked_datatype_id;
-                var theme_element_id = data.d.element_id;
+                // Display loading
+                $(".ODRRemodalBody").hide();
+                $(".ODRRemodalButtons").hide();
+                $(".ODRRemodalLoading").show();
 
-                if (data.d.using_linked_type == 1) {  // there is now a linked datatype in this theme element
-                    ReloadThemeElement(theme_element_id);   // need the entire linked type in there...this will also cause icons to be muted
-                }
-                else {
-                    // Delete the removed linked datatype html
-                    $("#DataType_" + linked_datatype_id).remove();
+                // Resize ODRFileDownloadModal to take up full height
+                resetRemodalInnerHeight();
 
-                    // Unmute the other icons
-                    var icons = {"ODRAddDatafield": 1, "ODRAddChildtype": 1, "ODRDeleteThemeElement": 1, "ODRLinkFromTemplate": 1};
-                    setThemeElementIcons(theme_element_id, icons);
-                }
-                */
+                // Check Job every 30 seconds
+                checkJobInterval(data.d);
 
-                closeODRRemodal();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -126,6 +118,98 @@
                 }
             }
         });
+    }
+
+    var clone_and_link_job = '';
+
+    var job_data = ''
+    function checkJobInterval(data) {
+        job_data = data;
+        console.log('Starting Interval', data);
+        if (clone_and_link_job !== '') {
+            window.clearInterval(clone_and_link_job);
+        }
+        clone_and_link_job = window.setInterval(function() { checkJob() }, 1500);
+        console.log('Interval ID: ', clone_and_link_job);
+    }
+
+    function checkJob() {
+        var data = job_data;
+        console.log('Running interval', data);
+
+        // Load display template menu
+        var url = '{{ path('odr_job_refresh', {'job_type': 'clone_and_link', 'job_id': 0 } ) }}';
+        url = url + "/" + data.tracked_job_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (result_data) {
+                console.log('Tracked Job: ', result_data);
+                if(result_data.d[0].eta == 'Done') {
+                    console.log('Job complete - creating link:', data);
+                    window.clearInterval(clone_and_link_job);
+                    createLink(data.local_datatype_id, data.datatype_id, data.theme_element_id);
+                }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function (jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+
+    }
+
+
+
+    function createLink(local_datatype_id, remote_datatype_id, theme_element_id) {
+
+        var url = '{{  path('odr_design_quicklink_datatype', {'local_datatype_id': 0, 'remote_datatype_id': 0, 'theme_element_id': 0 }) }}';
+            url = url.substring(0,(url.length - 5)) + local_datatype_id + '/' + remote_datatype_id + '/' + theme_element_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data) {
+                    // ReloadThemeElement() forces a re-render of the theme element,
+                    // so the 'Add Datafield', 'Add Childtype', 'Link DataType', and
+                    // 'Delete ThemeElement' icons get muted automatically
+                    ReloadThemeElement(theme_element_id);
+                    closeODRRemodal();
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
     }
 
 </script>

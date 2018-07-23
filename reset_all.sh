@@ -3,10 +3,8 @@
 
 sudo /etc/init.d/memcached restart
 redis-cli flushall
-cd app/cache
-rm -rf dev
-rm -rf prod
-rm -rf _*
-cd ../../
+sudo rm -rf app/cache/dev
+sudo rm -rf app/cache/prod
+sudo rm -rf app/cache/_*
 killall php
 ./start_jobs_debug.sh

@@ -24,12 +24,12 @@ php app/console --env=dev odr_csv_export:finalize >> app/logs/csv_export_finaliz
 php app/console odr_permissions:kludge >> app/logs/permissions_kludge.log 2>&1 &
 
 
-php app/console --env=dev odr_datatype:clone_and_link >> app/logs/clone_and_link_datatype.log 2>&1 &
-# php app/console --env=dev odr_datatype:clone >> app/logs/datatype_create.log 2>&1 &
+# php app/console --env=dev odr_datatype:clone_and_link >> app/logs/clone_and_link_datatype.log 2>&1 &
+php app/console --env=dev odr_datatype:clone >> app/logs/datatype_create.log 2>&1 &
 
 export XDEBUG_CONFIG="idekey=phpstorm_xdebug"
-# php -dxdebug.remote_autostart=On app/console --env=dev odr_datatype:clone_and_link >> app/logs/clone_and_link_datatype.log 2>&1 &
-php -dxdebug.remote_autostart=On app/console --env=dev odr_datatype:clone >> app/logs/datatype_create.log 2>&1 &
+php -dxdebug.remote_autostart=On app/console --env=dev odr_datatype:clone_and_link >> app/logs/clone_and_link_datatype.log 2>&1 &
+# php -dxdebug.remote_autostart=On app/console --env=dev odr_datatype:clone >> app/logs/datatype_create.log 2>&1 &
 
 #php -dxdebug.remote_autostart=On app/console --env=dev odr_crypto:worker  >> app/logs/crypto_worker.log 2>&1 &
 

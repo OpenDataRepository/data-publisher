@@ -310,7 +310,8 @@ class CloneDatatypeService
                 /** @var DataType $dt */
                 foreach($this->existing_datatypes as $dt) {
                     if (
-                        $dt->getMasterDataType() !== null
+                        $dt->getMasterDataType() !== null // We're only dealing with master types
+                        && $dt->getId() !== $datatype->getId() // Always allow the initial request to go through
                         && ($key = array_search($dt->getMasterDataType()->getId(), $associated_datatypes)) !== false
                     ) {
                         array_push($valid_existing_datatypes, $dt);

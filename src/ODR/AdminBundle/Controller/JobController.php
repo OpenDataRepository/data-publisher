@@ -121,7 +121,8 @@ class JobController extends ODRCustomController
 
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
-            if ($job_type !== '')
+            // if ($job_type !== '')
+            if ($job_id < 1)
                 $return['d'] = $tj_service->getJobDataByType($job_type, $datatype_permissions);
             else
                 $return['d'] = $tj_service->getJobDataById(intval($job_id), $datatype_permissions);

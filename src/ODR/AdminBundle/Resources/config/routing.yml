@@ -744,6 +744,15 @@ odr_design_link_datatype:
     defaults: { _controller: ODRAdminBundle:Link:linkdatatype }
     methods: [ POST ]
 
+odr_design_quicklink_datatype:
+    path:  /design/displaytemplate/quicklinktype/{local_datatype_id}/{remote_datatype_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Link:quicklinkdatatype }
+    methods: [ GET ]
+    requirements:
+        local_datatype_id:  \d+
+        remote_datatype_id:  \d+
+        theme_element_id:  \d+
+
 odr_design_clone_and_link_datatype:
     path:  /design/clone_and_link
     defaults: { _controller: ODRAdminBundle:Link:cloneandlink }
@@ -1126,7 +1135,7 @@ odr_job_refresh:
     path:  /jobs/refresh/{job_type}/{job_id}
     defaults: { _controller: ODRAdminBundle:Job:refresh, job_id: 0 }
     requirements:
-        job_type: '|recache|migrate|mass_edit|rebuild_thumbnails|csv_import|csv_import_validate|csv_export'
+        job_type: '|recache|migrate|mass_edit|rebuild_thumbnails|csv_import|csv_import_validate|csv_export|clone_and_link'
         job_id: \d+
 
 #odr_get_job_errors:

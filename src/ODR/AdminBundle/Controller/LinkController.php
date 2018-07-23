@@ -688,7 +688,7 @@ class LinkController extends ODRCustomController
             $tracked_job->setTotal(2);
             $tracked_job->setCurrent(0);
             $tracked_job->setStarted(new \DateTime());
-            $tracked_job->setTargetEntity('datatype_' . $datatype->getId());
+            $tracked_job->setTargetEntity('datatype_' . $local_datatype_id);
             $tracked_job->setAdditionalData('');
             $em->persist($tracked_job);
 
@@ -736,13 +736,56 @@ class LinkController extends ODRCustomController
 
             $delay = 0;
             $pheanstalk->useTube('clone_and_link_datatype')->put($payload, $priority, $delay);
-            $return['d'] = $payload;
+            $return['d'] = json_decode($payload);
         }
         catch (\Exception $e) {
             // Don't commit changes if any error was encountered...
             if ( !is_null($conn) && $conn->isTransactionActive() )
                 $conn->rollBack();
 
+            $source = 0xa1ee8e79;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     *
+     * Links data types but does not support un-linking.
+     *
+     * @param $local_datatype_id
+     * @param $remote_datatype_id
+     * @param $theme_element_id
+     * @param Request $request
+     * @return Response
+     */
+    public function quicklinkdatatypeAction(
+        $local_datatype_id,
+        $remote_datatype_id,
+        $theme_element_id,
+        Request $request
+    ) {
+
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        $conn = null;
+
+        try {
+
+            $return = self::link_datatype($local_datatype_id, $remote_datatype_id, '', $theme_element_id);
+
+        } catch (\Exception $e) {
+            // Don't commit changes if any error was encountered...
             $source = 0xa1ee8e79;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
@@ -766,19 +809,14 @@ class LinkController extends ODRCustomController
      */
     public function linkdatatypeAction(Request $request)
     {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = 'html';
-        $return['d'] = '';
-
         $conn = null;
 
         try {
+            // TODO This is a post without CSRF Protection.  Should use form handler properly.
             // Grab the data from the POST request
             $post = $request->request->all();
-//print_r($post);  exit();
 
-            if ( !isset($post['local_datatype_id']) || !isset($post['selected_datatype']) || !isset($post['previous_remote_datatype']) || !isset($post['theme_element_id']) )
+            if (!isset($post['local_datatype_id']) || !isset($post['selected_datatype']) || !isset($post['previous_remote_datatype']) || !isset($post['theme_element_id']))
                 throw new ODRBadRequestException('Invalid Form');
 
             $local_datatype_id = $post['local_datatype_id'];
@@ -786,7 +824,31 @@ class LinkController extends ODRCustomController
             $previous_remote_datatype_id = $post['previous_remote_datatype'];
             $theme_element_id = $post['theme_element_id'];
 
+            $return = self::link_datatype($local_datatype_id, $remote_datatype_id, $previous_remote_datatype_id, $theme_element_id);
 
+        } catch (\Exception $e) {
+            // Don't commit changes if any error was encountered...
+            $source = 0xa1ee8e79;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+    public function link_datatype($local_datatype_id, $remote_datatype_id, $previous_remote_datatype_id, $theme_element_id)
+    {
+
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'json';
+        $return['d'] = '';
+
+        try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
@@ -837,11 +899,11 @@ class LinkController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be creating a link to another datatype
-            if ( !$pm_service->isDatatypeAdmin($user, $local_datatype) )
+            if (!$pm_service->isDatatypeAdmin($user, $local_datatype))
                 throw new ODRForbiddenException();
 
             // Prevent user from linking to a datatype they don't have permissions to view
-            if ( !$pm_service->canViewDatatype($user, $remote_datatype) )
+            if (!$pm_service->canViewDatatype($user, $remote_datatype))
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -853,8 +915,8 @@ class LinkController extends ODRCustomController
 
             // Ensure there are no datafields in this theme_element before attempting to link to a remote datatype
             /** @var ThemeDataField[] $theme_datafields */
-            $theme_datafields = $em->getRepository('ODRAdminBundle:ThemeDataField')->findBy( array('themeElement' => $theme_element_id) );
-            if ( count($theme_datafields) > 0 )
+            $theme_datafields = $em->getRepository('ODRAdminBundle:ThemeDataField')->findBy(array('themeElement' => $theme_element_id));
+            if (count($theme_datafields) > 0)
                 throw new ODRBadRequestException('Unable to link a remote Datatype into a ThemeElement that already has Datafields');
 
             // TODO - this is currently blocked...otherwise linking/unlinking a datatype would get
@@ -878,7 +940,7 @@ class LinkController extends ODRCustomController
                 throw new ODRBadRequestException("Already linked to this Datatype");
 
 
-            if ( isset($current_datatree_array['descendant_of'][$remote_datatype_id])
+            if (isset($current_datatree_array['descendant_of'][$remote_datatype_id])
                 && $current_datatree_array['descendant_of'][$remote_datatype_id] !== ''
             ) {
                 throw new ODRBadRequestException("Not allowed to link to child Datatypes");
@@ -888,7 +950,7 @@ class LinkController extends ODRCustomController
                 throw new ODRBadRequestException("A Datatype isn't allowed to link to its parent");
             }
 
-            if ( isset($current_datatree_array['linked_from'][$remote_datatype_id])
+            if (isset($current_datatree_array['linked_from'][$remote_datatype_id])
                 && in_array($local_datatype_id, $current_datatree_array['linked_from'][$remote_datatype_id])
             ) {
                 throw new ODRBadRequestException("Unable to link to the same Datatype multiple times");
@@ -902,11 +964,11 @@ class LinkController extends ODRCustomController
                         $local_datatype_id,
                         $current_datatree_array['linked_from'][$previous_remote_datatype_id]
                     );
-                    unset( $current_datatree_array['linked_from'][$previous_remote_datatype_id][$key] );
+                    unset($current_datatree_array['linked_from'][$previous_remote_datatype_id][$key]);
                 }
 
                 // Determine whether this link would cause infinite rendering recursion
-                if ( self::willDatatypeLinkRecurse($current_datatree_array, $local_datatype_id, $remote_datatype_id) )
+                if (self::willDatatypeLinkRecurse($current_datatree_array, $local_datatype_id, $remote_datatype_id))
                     throw new ODRBadRequestException('Unable to link these two datatypes...rendering would become stuck in an infinite loop');
             }
 
@@ -937,7 +999,7 @@ class LinkController extends ODRCustomController
                 // ----------------------------------------
                 // Delete the cached version of the datatree array because a link between datatypes got deleted
                 $cache_service->delete('cached_datatree_array');
-                $cache_service->delete('associated_datatypes_for_'.$local_datatype->getGrandparent()->getId());
+                $cache_service->delete('associated_datatypes_for_' . $local_datatype->getGrandparent()->getId());
 
                 // Mark the ancestor datatype as has having been updated
                 $dti_service->updateDatatypeCacheEntry($local_datatype, $user);
@@ -969,7 +1031,7 @@ class LinkController extends ODRCustomController
                 // ----------------------------------------
                 // Since a link between datatypes got created, delete the cached datatree array
                 $cache_service->delete('cached_datatree_array');
-                $cache_service->delete('associated_datatypes_for_'.$local_datatype->getGrandparent()->getId());
+                $cache_service->delete('associated_datatypes_for_' . $local_datatype->getGrandparent()->getId());
 
                 // Mark the ancestor datatype has having been updated
                 $dti_service->updateDatatypeCacheEntry($local_datatype, $user);
@@ -987,22 +1049,20 @@ class LinkController extends ODRCustomController
                 'using_linked_type' => $using_linked_type,
                 'linked_datatype_id' => $remote_datatype_id,
             );
-        }
-        catch (\Exception $e) {
+
+        } catch (\Exception $e) {
             // Don't commit changes if any error was encountered...
-            if ( !is_null($conn) && $conn->isTransactionActive() )
+            if (!is_null($conn) && $conn->isTransactionActive())
                 $conn->rollBack();
 
-            $source = 0xa1ee8e79;
+            $source = 0xae39df3;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
+        return $return;
     }
 
 

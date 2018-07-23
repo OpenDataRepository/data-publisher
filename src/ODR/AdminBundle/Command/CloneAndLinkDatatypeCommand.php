@@ -79,57 +79,6 @@ class CloneAndLinkDatatypeCommand extends ContainerAwareCommand
                 /** @var EntityManager $em */
                 $em = $container->get('doctrine')->getEntityManager();
 
-                // Need to use cURL to send a POST request...thanks symfony
-                $ch = curl_init();
-
-                // Create the required parameters to send
-                $parameters = array(
-                    'local_datatype_id' => $data->local_datatype_id,
-                    'theme_element_id' => $data->theme_element_id,
-                    'remote_datatype_id' => $data->datatype_id,
-                    'previous_remote_datatype_id' => null,
-                );
-
-                // Set the options for the POST request
-                curl_setopt_array($ch, array(
-                        CURLOPT_POST => 1,
-                        CURLOPT_HEADER => 0,
-                        CURLOPT_URL => $data->link_url,
-                        CURLOPT_FRESH_CONNECT => 1,
-                        CURLOPT_RETURNTRANSFER => 1,
-                        CURLOPT_FORBID_REUSE => 1,
-                        CURLOPT_TIMEOUT => 120,
-                        CURLOPT_POSTFIELDS => http_build_query($parameters)
-                    )
-                );
-
-                // Send the request
-                if( ! $ret = curl_exec($ch)) {
-                    if (curl_errno($ch) == 6) {
-                        // Could not resolve host
-                        throw new \Exception('retry');
-                    }
-                    else {
-                        throw new \Exception( curl_error($ch) );
-                    }
-                }
-
-                // Do things with the response returned by the controller?
-                $result = json_decode($ret);
-                if ( isset($result->r) && isset($result->d) ) {
-                    if ( $result->r == 0 )
-                        $output->writeln( $result->d );
-                    else
-                        throw new \Exception( $result->d );
-                }
-                else {
-                    // Should always be a json return...
-                    throw new \Exception( print_r($ret, true) );
-                }
-
-                // Done with this cURL object
-                curl_close($ch);
-
                 // Complete job
                 $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
                 /** @var TrackedJob $tracked_job */
@@ -137,12 +86,6 @@ class CloneAndLinkDatatypeCommand extends ContainerAwareCommand
                 $tracked_job->setCompleted(new \DateTime());
                 $em->persist($tracked_job);
                 $em->flush();
-
-                /*
-                if($tracked_job == null) {
-                    // throw new Exception()
-                }
-                */
 
                 $current_time = new \DateTime();
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
