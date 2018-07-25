@@ -848,6 +848,8 @@ class LinkController extends ODRCustomController
         $return['t'] = 'json';
         $return['d'] = '';
 
+        $conn = null;
+
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
