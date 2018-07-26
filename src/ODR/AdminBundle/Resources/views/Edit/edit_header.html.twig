@@ -39,18 +39,18 @@
 
         {% if is_datatype_admin == 1 %}
             {% if datarecord.ispublic %}
-                <button id="public_button" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make DataRecord Non-Public</button>
+                <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make DataRecord Non-Public</button>
             {% else %}
-                <button id="public_button" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make DataRecord Public</button>
+                <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make DataRecord Public</button>
             {% endif %}
         {% endif %}
 
         {% if can_delete_record == 1 %}
-            <button type="button" class="pure-button pure-button-primary" onclick="deleteRecord( {{ datarecord.id }} );">Delete DataRecord</button>
+            <button id="ODRDeleteRecord" type="button" class="pure-button pure-button-primary" onclick="deleteRecord( {{ datarecord.id }} );">Delete DataRecord</button>
         {% endif %}
 
         {% if can_add_record == 1 and is_top_level == 1 and datatype.isMasterType == 0 %}
-            <button type="button" class="pure-button pure-button-primary" onclick="addDataRecord( {{ datatype.id }} );">Add New DataRecord</button>
+            <button id="ODRAddRecord" type="button" class="pure-button pure-button-primary" onclick="addDataRecord( {{ datatype.id }} );">Add New DataRecord</button>
         {% endif %}
 
         <button type="button" class="pure-button pure-button-primary" onclick="openFileDownloadDialog( {{ datarecord.id }}, 0, 0 );">Download Files...</button>
@@ -78,11 +78,11 @@
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                var html = $("#public_button").html();
+                var html = $("#ODRPublicRecord").html();
                 if ( html.indexOf('Non') !== -1 )
-                    $("#public_button").html('Make DataRecord Public');
+                    $("#ODRPublicRecord").html('Make DataRecord Public');
                 else
-                    $("#public_button").html('Make DataRecord Non-Public');
+                    $("#ODRPublicRecord").html('Make DataRecord Non-Public');
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -113,8 +113,12 @@
     function deleteRecord(datarecord_id) {
         if ( confirm("Are you sure you want to delete this DataRecord?") ) {
             var url = '{{ path('odr_record_delete', { 'datarecord_id': 0, 'search_key': '' }) }}';
-            url = url.substring(0, (url.length - 2));
+            url = url.substring(0, (url.length - 1));
+{% if search_key == '' %}
+            url += datarecord_id;
+{% else %}
             url += datarecord_id + '/' + '{{ search_key }}';
+{% endif %}
 
             $.ajax({
                 type: 'GET',

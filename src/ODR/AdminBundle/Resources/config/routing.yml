@@ -608,7 +608,7 @@ odr_record_add:
 
 odr_record_delete:
     path:  /edit/deletedatarecord/{datarecord_id}/{search_key}    # this path doesn't need {search_theme_id} or {offset}
-    defaults: { _controller: ODRAdminBundle:Edit:deletedatarecord }
+    defaults: { _controller: ODRAdminBundle:Edit:deletedatarecord, search_key: '' }
     requirements:
         datarecord_id:  \d+
         search_key: '[a-zA-Z0-9\-\_]*'
