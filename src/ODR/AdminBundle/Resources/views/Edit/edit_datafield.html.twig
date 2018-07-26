@@ -17,7 +17,7 @@
         {% set valuefield = datarecordfield.image %}
     {% elseif field_typename == "Decimal" and datarecordfield.decimalValue[0] is defined %}
         {% set valuefield = datarecordfield.decimalValue[0] %}
-        {% set valuefield_value = valuefield.value %}
+        {% set valuefield_value = valuefield.original_value %}
     {% elseif field_typename == "Integer" and datarecordfield.integerValue[0] is defined %}
         {% set valuefield = datarecordfield.integerValue[0] %}
         {% set valuefield_value = valuefield.value %}
@@ -175,7 +175,7 @@
             {% set has_selection = false %}
             {% if field_typename == "Single Radio" %}
                 {% set print_null_option = true %}
-    
+
                 {% for radio_selection in valuefield %}
                     {% if radio_selection.selected == 1 %}
                         {% set has_selection = true %}
@@ -287,7 +287,7 @@
     {% elseif field_typename == "Decimal" %}
             rules: {
                 "{{ input_name }}": {
-                    number: true
+                    ODRDecimal: {}  {# 'ODRDecimal' rule defined in app.js...the default 'number' rule apparently allows leading zeros e.g. '00045' #}
                 }
             },
     {% elseif field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}

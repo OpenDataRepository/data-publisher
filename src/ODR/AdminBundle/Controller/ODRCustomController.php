@@ -4040,7 +4040,8 @@ class ODRCustomController extends Controller
      */
     protected function ODR_getErrorMessages(\Symfony\Component\Form\Form $form)
     {
-        $errors = $form->getErrors();
+        // Get all errors in this form, including those from the form's children
+        $errors = $form->getErrors(true);
 
         $error_str = '';
         while( $errors->valid() ) {

@@ -11,13 +11,15 @@
 
 namespace ODR\AdminBundle\Form;
 
+// ODR
+use ODR\AdminBundle\Form\Type\ODRDecimalType;
 // Symfony Forms
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\OptionsResolver\Options;
 // Symfony Form classes
-use Symfony\Component\Form\Extension\Core\Type\TextType;
+//use Symfony\Component\Form\Extension\Core\Type\TextType;
 
 
 class DecimalValueForm extends AbstractType
@@ -30,7 +32,8 @@ class DecimalValueForm extends AbstractType
     {
         $builder->add(
             'value',
-            TextType::class,
+//            TextType::class,
+            ODRDecimalType::class,
             array(
                 'required' => false,
             )
