@@ -436,25 +436,8 @@ class CloneDatatypeService
             }
 
             $this->em->flush();
-            foreach ($this->created_datatypes as $dt)
-                $this->em->refresh($dt);
 
-            // Create all of the Group entries required for cloning permissions
-            $this->logger->info('----------------------------------------');
-            foreach ($this->created_datatypes as $dt)
-                self::cloneDatatypeGroups($dt);
 
-            // Clone the datatype and datafield permissions for each of the created datatypes
-            $this->logger->info('----------------------------------------');
-            foreach ($this->created_datatypes as $dt) {
-                $this->logger->info('----------------------------------------');
-                self::cloneDatatypePermissions($dt);
-
-                /** @var DataFields[] $datafields */
-                $datafields = $dt->getDataFields();
-                foreach ($datafields as $df)
-                    self::cloneDatafieldPermissions($df);
-            }
 
 
 
@@ -477,6 +460,37 @@ class CloneDatatypeService
             // Clone Datatree and DatatreeMeta entries
             $this->logger->info('----------------------------------------');
             self::cloneDatatree($this->master_datatype);
+
+
+
+
+
+
+            foreach ($this->created_datatypes as $dt)
+                $this->em->refresh($dt);
+
+            // Create all of the Group entries required for cloning permissions
+            $this->logger->info('----------------------------------------');
+            foreach ($this->created_datatypes as $dt)
+                self::cloneDatatypeGroups($dt);
+
+            // Clone the datatype and datafield permissions for each of the created datatypes
+            $this->logger->info('----------------------------------------');
+            foreach ($this->created_datatypes as $dt) {
+                $this->logger->info('----------------------------------------');
+                self::cloneDatatypePermissions($dt);
+
+                /** @var DataFields[] $datafields */
+                $datafields = $dt->getDataFields();
+                foreach ($datafields as $df)
+                    self::cloneDatafieldPermissions($df);
+            }
+
+
+
+
+
+
 
             // ----------------------------------------
             // The datatypes are now ready for viewing since they have all their datafield, theme,
