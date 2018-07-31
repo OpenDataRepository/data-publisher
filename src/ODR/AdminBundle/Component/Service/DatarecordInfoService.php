@@ -951,26 +951,28 @@ class DatarecordInfoService
         $token_list = array();
 
         foreach ($datarecord_array as $dr_id => $dr) {
-            if ( !isset($token_list[$dr_id]) )
+            if (!isset($token_list[$dr_id]))
                 $token_list[$dr_id] = array();
 
             $dt_id = $dr['dataType']['id'];
 
-            if ( !isset($datatype_array[$dt_id]) )
+            if (!isset($datatype_array[$dt_id]))
                 continue;
 
             foreach ($datatype_array[$dt_id]['dataFields'] as $df_id => $df) {
 
                 $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
 
-                $token_id = $typeclass.'Form_'.$dr_id.'_'.$df_id;
+                $token_id = $typeclass . 'Form_' . $dr_id . '_' . $df_id;
                 $token_list[$dr_id][$df_id] = $this->token_manager->getToken($token_id)->getValue();
 
             }
         }
 
         return $token_list;
-=======
+    }
+
+    /*
      * Deletes the cached table entries for the specified datatype...currently used by several
      * render plugins after they get removed or their settings get changed...
      *
@@ -991,6 +993,5 @@ class DatarecordInfoService
 
         foreach ($results as $result)
             $this->cache_service->delete('cached_table_data_'.$result['dr_id']);
->>>>>>> develop
     }
 }
