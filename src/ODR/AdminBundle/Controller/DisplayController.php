@@ -36,6 +36,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
@@ -135,6 +136,8 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $session = $request->getSession();
 
+            /** @var CloneThemeService $clone_theme_service */
+            $clone_theme_service = $this->container->get('odr.clone_theme_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var DatarecordInfoService $dri_service */
@@ -384,7 +387,6 @@ class DisplayController extends ODRCustomController
 
             $theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'master');
             $theme_array = $theme_service->getThemeArray($theme_id);
-//print '<pre>'.print_r($theme_array, true).'</pre>'; exit();
 
 
             // ----------------------------------------
@@ -402,6 +404,25 @@ class DisplayController extends ODRCustomController
                 $theme_service->stackThemeArray($theme_array, $theme_id);
 //print '<pre>'.print_r($stacked_datatype_array, true).'</pre>'; exit();
 //print '<pre>'.print_r($stacked_theme_array, true).'</pre>'; exit();
+
+            // If any of the stacked data arrays are empty, it's most likely a permissions problem
+            // This probably only really happens when a user attempts to directly access child
+            //  datarecords they don't have permissions for
+            if ( count($stacked_datarecord_array[ $requested_datarecord->getId() ]) == 0
+                || count($stacked_datatype_array[ $requested_datatype->getId() ]) == 0
+                || count($stacked_theme_array[ $theme_id ]) == 0
+            ) {
+                throw new ODRForbiddenException();
+            }
+
+
+            // ----------------------------------------
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+
+            // Determine whether the currently preferred theme needs to be synchronized with its source
+            //  and the user notified of it
+            $notify_of_sync = self::notifyOfThemeSync($theme, $user);
 
 
             // ----------------------------------------
@@ -422,6 +443,8 @@ class DisplayController extends ODRCustomController
                     'search_key' => $search_key,
                     'user' => $user,
                     'record_display_view' => 'single',
+
+                    'notify_of_sync' => $notify_of_sync,
                 )
             );
 
@@ -501,12 +524,8 @@ class DisplayController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if (!$pm_service->canViewDatatype($user, $datatype)
-                || !$pm_service->canViewDatarecord($user, $datarecord)
-                || !$pm_service->canViewDatafield($user, $datafield)
-            ) {
+            if ( !$pm_service->canViewFile($user, $file) )
                 throw new ODRForbiddenException();
-            }
             // ----------------------------------------
 
 
@@ -690,13 +709,7 @@ class DisplayController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if (!$pm_service->canViewDatarecord($user, $datarecord)
-                || !$pm_service->canViewDatafield($user, $datafield)
-            ) {
-                throw new ODRForbiddenException();
-            }
-
-            if ( !$file->isPublic() && $user === 'anon.' )
+            if ( !$pm_service->canViewFile($user, $file) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
@@ -945,15 +958,10 @@ class DisplayController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if (!$pm_service->canViewDatarecord($user, $datarecord)
-                || !$pm_service->canViewDatafield($user, $datafield)
-            ) {
-                throw new ODRForbiddenException();
-            }
-
-            if ( !$image->isPublic() && $user === 'anon.' )
+            if ( !$pm_service->canViewImage($user, $image) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
+
 
             // Ensure file exists before attempting to download it
             $filename = 'Image_'.$image_id.'.'.$image->getExt();
@@ -1584,7 +1592,7 @@ exit();
      * TODO - Perhaps should be moved to theme controller and a theme type passed.
      *
      * @param integer $datatype_id
-     * @param string $page_type     'display' or 'search_results'
+     * @param string $page_type     'display', 'edit', 'search_results', 'table', or 'linking'
      * @param Request $request
      *
      * @return Response $response
@@ -1609,7 +1617,7 @@ exit();
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ($datatype == null)
+            if ( is_null($datatype) )
                 throw new ODRNotFoundException('Datatype');
 
             // --------------------
@@ -1618,9 +1626,8 @@ exit();
             $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
             // --------------------
 
-
-            // We will eventually use master only for 'edit'
-            if ($page_type == "display")
+            // View/Edit mode pages should use theme_types from ThemeInfoService::LONG_FORM_THEMETYPES
+            if ($page_type == "display" || $page_type == "edit")
                 $page_type = "master";
 
 

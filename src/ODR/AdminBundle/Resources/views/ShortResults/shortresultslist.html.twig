@@ -142,13 +142,21 @@
             closeConfirm: true
         });
 {% endif %}
+
+        {% if notify_of_sync == true %}
+        {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+            'datatype_id': datatype.id,
+            'theme_id': theme.id,
+            'search_key': search_key,
+        }%}
+        {% endif %}
     });
 
 
     function ShortResults_initPage(prevent_scroll) {
         // Resize all elements dependent on window size
         $(window).unbind('resize').resize(function() {
-            WindowResizeInterval = window.clearInterval(WindowResizeInterval);
+            WindowResizeInterval = window.clearInterval(WindowResizeInterval);    // variable WindowResizeInterval defined in common.js
             WindowResizeInterval = window.setInterval("onWindowResize()", 500);
         });
 

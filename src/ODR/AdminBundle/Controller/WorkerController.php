@@ -44,6 +44,7 @@ use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -1804,6 +1805,77 @@ $ret .= '  Set current to '.$count."\n";
         }
         catch (\Exception $e) {
             $source = 0x0214889b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function themeversioninitAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+
+
+            /** @var CloneThemeService $clone_theme_service */
+            $clone_theme_service = $this->container->get('odr.clone_theme_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+
+
+            print '<pre>';
+            $top_level_themes = $theme_info_service->getTopLevelThemes();
+            foreach ($top_level_themes as $theme_id) {
+                /** @var Theme $theme */
+                $theme = $repo_theme->find($theme_id);
+
+                $diff = $clone_theme_service->getThemeSourceDiff($theme);
+                print 'theme '.$theme_id.' "'.$theme->getThemeType().'" (datatype '.$theme->getDataType()->getId().'):';
+
+                $theme_meta = $theme->getThemeMeta();
+
+                if ( count($diff) > 0 ) {
+                    print ' HAS DIFFERENCES'."\n";
+
+                    $theme_meta->setSourceSyncVersion(0);
+                }
+                else {
+                    print ' has no differences'."\n";
+
+                    $theme_meta->setSourceSyncVersion(1);
+                }
+
+                if ($save)
+                    $em->persist($theme_meta);
+            }
+            print '</pre>';
+
+            if ($save)
+                $em->flush();
+        }
+        catch (\Exception $e) {
+            $source = 0x675970ad;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else

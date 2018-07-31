@@ -647,6 +647,7 @@ class ValidationController extends ODRCustomController
                     $tm->setIsDefault(false);
                     $tm->setDisplayOrder(0);
                     $tm->setShared(false);
+                    $tm->setSourceSyncVersion(0);
                     $tm->setIsTableTheme(false);
 
                     $tm->setCreatedBy($user);

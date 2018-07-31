@@ -71,11 +71,13 @@
                             </label>
                             <input type="checkbox" value="0" id="ODRThemeShowHidden" name="ODRThemeShowHidden">
                         </div>
+{#
                         <div>
                             <button id="ODRCheckSourceTheme" class="pure-button pure-button-active" rel="{{ theme.id }}">
                                 Sync with Source Theme
                             </button>
                         </div>
+#}
                     </div>
                     <div class="pure-u-1"></div>
 
@@ -222,7 +224,7 @@
                 //  checkbox can't show them
                 $(".ODRChildDatatype").parent().parent().addClass('ODRHidden');
             }
-
+{#
             $("#ODRCheckSourceTheme").unbind('click').click(function() {
                 var theme_id = $(this).attr('rel');
 
@@ -258,7 +260,7 @@
                     }
                 });
             });
-
+#}
             $(".ODRReturn").unbind('click').click(function() {
 {% if not is_short_form %}
                 {# Don't need to change any value in the URL #}

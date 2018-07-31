@@ -351,11 +351,11 @@ odr_clone_theme:
     requirements:
         theme_id:  \d+
 
-odr_sync_source_theme:
-    path:  /design/sync_view/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Theme:synctheme }
-    requirements:
-        theme_id:  \d+
+#odr_sync_source_theme:
+#    path:  /design/sync_view/{theme_id}
+#    defaults: { _controller: ODRAdminBundle:Theme:synctheme }
+#    requirements:
+#        theme_id:  \d+
 
 odr_theme_reload_theme_element:
     path: /design/theme/themeelementreload/{source_datatype_id}/{theme_element_id}
@@ -651,7 +651,7 @@ odr_record_add:
 
 odr_record_delete:
     path:  /edit/deletedatarecord/{datarecord_id}/{search_key}    # this path doesn't need {search_theme_id} or {offset}
-    defaults: { _controller: ODRAdminBundle:Edit:deletedatarecord }
+    defaults: { _controller: ODRAdminBundle:Edit:deletedatarecord, search_key: '' }
     requirements:
         datarecord_id:  \d+
         search_key: '[a-zA-Z0-9\-\_]*'
@@ -830,7 +830,7 @@ odr_get_available_themes:
     defaults: { _controller: ODRAdminBundle:Display:getavailablethemes }
     requirements:
         datatype_id:  \d+
-        page_type:  'display|search_results|table'
+        page_type:  'display|edit|search_results|table'
 
 # deprecated?
 #odr_cancel_file_decrypt:
@@ -1263,6 +1263,9 @@ odr_child_theme_migrate:
 odr_migrate_plugins:
     path: /admin/plugins_migrate
     defaults: { _controller: ODRAdminBundle:Worker:migrateplugins }
+odr_create_theme_vesrions:
+    path: /admin/theme_version_init
+    defaults: { _controller: ODRAdminBundle:Worker:themeversioninit }
 
 #-----------------------------------------
 

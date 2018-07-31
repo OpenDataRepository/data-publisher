@@ -72,7 +72,9 @@
     $(function() {
         $(".MenuDesignArea").remove();
 
-        var initial_load = true;
+        // Need a tab id in html5 sessionStorage if one doesn't exist
+        if ( !window.sessionStorage.getItem('odr_tab_id') )
+            window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
         var table = $("#TextResults").dataTable({
 
@@ -179,10 +181,6 @@
 
         });
 
-        // Need a tab id in html5 sessionStorage if one doesn't exist
-        if ( !window.sessionStorage.getItem('odr_tab_id') )
-            window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
-
 {% if user_role == 'ROLE_ADMIN' and has_datarecords and use_jupyterhub %}
         // Get the app list to display on the page
         $.ajax({
@@ -213,6 +211,46 @@
             closeConfirm: true
         });
 {% endif %}
+
+        {% if notify_of_sync == true %}
+        {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+            'datatype_id': datatype.id,
+            'theme_id': theme.id,
+            'search_key': search_key,
+        }%}
+        {% endif %}
+
+
+        $("#TextResults").on('click', '.ODRTableRecord', function(event) {
+
+{% if can_edit_datatype %}
+            if ( $(event.target).is('span.ODREditLink') ) {
+                // Don't load view mode for Datarecord...
+                event.stopImmediatePropagation();
+
+                // ...load edit mode instead
+                var offset = $("#TextResults").DataTable().page.info().page + 1;
+                loadDataRecord( $(this).attr('rel'), 'edit', offset );
+                return;
+            }
+{% endif %}
+
+            if ( $(event.target).is('a.ODRDownload') ) {
+                // Don't load view mode when clicking on file download links in the table
+                event.stopImmediatePropagation();
+            }
+            else if ( $(this).parent().parent().hasClass('collapsed')
+                && $(event.target).is(":first-child")
+            ) {
+                // If datatables is hiding columns because there's too many of them, then the first
+                //  visible column in the table is where you click to show the hidden columns
+            }
+            else {
+                // A click anywhere else should load view mode of Datarecord
+                var offset = $("#TextResults").DataTable().page.info().page + 1;
+                loadDataRecord( $(this).attr('rel'), 'view', offset );
+            }
+        });
     });
 
     // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...
@@ -282,32 +320,8 @@
             $(this).addClass('ODRDownload');
             $(this).attr('target', '_blank');
         });
-
-        $(".ODRTableRecord").unbind('click').click(function(event) {
-            // Shouldn't do anything, but make sure...
-            event.stopImmediatePropagation();
-
-            // Load view mode of Datarecord
-            var offset = $("#TextResults").DataTable().page.info().page + 1;
-            loadDataRecord( $(this).attr('rel'), 'view', offset );
-        });
-
-{% if can_edit_datatype %}
-        $(".ODREditLink").unbind('click').click(function(event) {
-            // Don't load view mode for Datarecord
-            event.stopImmediatePropagation();
-
-            // Load edit mode of Datarecord instead
-            var offset = $("#TextResults").DataTable().page.info().page + 1;
-            loadDataRecord( $(this).parent().parent().attr('rel'), 'edit', offset );
-        });
-{% endif %}
-
-        // Prevent the click handler for <tr> elements from firing if <a> is clicked
-        $("a.ODRDownload").unbind('click').click(function(event) {
-            event.stopImmediatePropagation();
-        });
     });
+
 
 {% if has_datarecords and user_role == 'ROLE_ADMIN' %}
     {% if can_edit_datatype or is_datatype_admin %}

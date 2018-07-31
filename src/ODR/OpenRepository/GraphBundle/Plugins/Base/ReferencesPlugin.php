@@ -7,20 +7,23 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * The references plugin renders data describing an academic
- * reference in a single line, instead of scattered across a
- * number of datafields.
+ * The references plugin renders data describing an academic reference in a single line, instead
+ * of scattered across a number of datafields.
  *
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
+// ODR
+use ODR\AdminBundle\Entity\RenderPluginInstance;
+use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 
 
-class ReferencesPlugin
+class ReferencesPlugin implements DatatypePluginInterface
 {
+
     /**
      * @var EngineInterface
      */
@@ -116,4 +119,28 @@ class ReferencesPlugin
         }
     }
 
+
+    /**
+     * Called when a user removes a specific instance of this render plugin
+     *
+     * @param RenderPluginInstance $render_plugin_instance
+     */
+    public function onRemoval($render_plugin_instance)
+    {
+        // This plugin doesn't need to do anything here
+        return;
+    }
+
+
+    /**
+     * Called when a user changes a mapped field or an option for this render plugin
+     * TODO - pass in which field mappings and/or plugin options got changed?
+     *
+     * @param RenderPluginInstance $render_plugin_instance
+     */
+    public function onSettingsChange($render_plugin_instance)
+    {
+        // This plugin doesn't need to do anything here
+        return;
+    }
 }

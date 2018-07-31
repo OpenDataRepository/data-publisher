@@ -53,9 +53,9 @@ class ThemeMeta
     private $shared;
 
     /**
-     * @var \DateTime
+     * @var integer
      */
-    private $sourceSyncCheck;
+    private $sourceSyncVersion;
 
     /**
      * @var boolean
@@ -221,32 +221,31 @@ class ThemeMeta
     }
 
     /**
-     * Set sourceSyncCheck
+     * Set sourceSyncVersion
      *
-     * @param \DateTime $sourceSyncCheck
+     * @param integer $sourceSyncVersion
      *
      * @return ThemeMeta
      */
-    public function setSourceSyncCheck($sourceSyncCheck)
+    public function setSourceSyncVersion($sourceSyncVersion)
     {
-        $this->sourceSyncCheck = $sourceSyncCheck;
+        $this->sourceSyncVersion = $sourceSyncVersion;
 
         return $this;
     }
 
     /**
-     * Get sourceSyncCheck
+     * Get sourceSyncVersion
      *
-     * @return \DateTime
+     * @return integer
      */
-    public function getSourceSyncCheck()
+    public function getSourceSyncVersion()
     {
-        return $this->sourceSyncCheck;
+        return $this->sourceSyncVersion;
     }
 
     /**
      * Set isTableTheme
-     * @deprecated 
      *
      * @param boolean $isTableTheme
      *
@@ -261,7 +260,6 @@ class ThemeMeta
 
     /**
      * Get isTableTheme
-     * @deprecated
      *
      * @return boolean
      */

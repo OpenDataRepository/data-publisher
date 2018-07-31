@@ -38,6 +38,7 @@ use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
@@ -53,6 +54,7 @@ use ODR\AdminBundle\Form\MediumVarcharForm;
 use ODR\AdminBundle\Form\ShortVarcharForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
@@ -73,10 +75,10 @@ class EditController extends ODRCustomController
 
     /**
      * Creates a new top-level DataRecord.
-     * 
+     *
      * @param integer $datatype_id The database id of the DataType this DataRecord will belong to.
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function adddatarecordAction($datatype_id, Request $request)
@@ -178,20 +180,20 @@ class EditController extends ODRCustomController
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-    
-        $response = new Response(json_encode($return));  
+
+        $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
-        return $response;  
+        return $response;
     }
 
 
     /**
      * Creates a new DataRecord and sets it as a child of the given DataRecord.
-     * 
+     *
      * @param integer $datatype_id    The database id of the child DataType this new child DataRecord will belong to.
      * @param integer $parent_id      The database id of the DataRecord...
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function addchildrecordAction($datatype_id, $parent_id, Request $request)
@@ -285,11 +287,11 @@ class EditController extends ODRCustomController
 
     /**
      * Deletes a top-level DataRecord.
-     * 
+     *
      * @param integer $datarecord_id The database id of the datarecord to delete.
      * @param string $search_key
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function deletedatarecordAction($datarecord_id, $search_key, Request $request)
@@ -485,7 +487,7 @@ class EditController extends ODRCustomController
      *
      * @param integer $datarecord_id The database id of the datarecord being deleted
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function deletechildrecordAction($datarecord_id, Request $request)
@@ -666,7 +668,7 @@ class EditController extends ODRCustomController
      *
      * @param integer $file_id The database id of the File to delete.
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function deletefileAction($file_id, Request $request)
@@ -767,10 +769,10 @@ class EditController extends ODRCustomController
 
     /**
      * Toggles the public status of a file.
-     * 
+     *
      * @param integer $file_id The database id of the File to modify.
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function publicfileAction($file_id, Request $request)
@@ -934,10 +936,10 @@ class EditController extends ODRCustomController
 
     /**
      * Toggles the public status of an image.
-     * 
+     *
      * @param integer $image_id The database id of the Image to modify
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function publicimageAction($image_id, Request $request)
@@ -1064,10 +1066,10 @@ class EditController extends ODRCustomController
 
     /**
      * Deletes a user-uploaded image from the repository.
-     * 
+     *
      * @param integer $image_id The database id of the Image to delete.
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function deleteimageAction($image_id, Request $request)
@@ -1414,9 +1416,9 @@ class EditController extends ODRCustomController
 
     /**
      * Modifies the display order of the images in an Image control.
-     * 
-     * @param Request $request 
-     * 
+     *
+     * @param Request $request
+     *
      * @return Response
      */
     public function saveimageorderAction(Request $request)
@@ -1528,10 +1530,10 @@ class EditController extends ODRCustomController
 
     /**
      * Toggles the public status of a DataRecord.
-     * 
+     *
      * @param integer $datarecord_id The database id of the DataRecord to modify.
-     * @param Request $request 
-     * 
+     * @param Request $request
+     *
      * @return Response
      */
     public function publicdatarecordAction($datarecord_id, Request $request)
@@ -1769,11 +1771,11 @@ class EditController extends ODRCustomController
      * Parses a $_POST request to update the contents of a datafield.
      * File and Image uploads are handled by @see FlowController
      * Changes to RadioSelections are handled by RecordController::radioselectionAction()
-     * 
+     *
      * @param integer $datarecord_id  The datarecord of the storage entity being modified
      * @param integer $datafield_id   The datafield of the storage entity being modified
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function updateAction($datarecord_id, $datafield_id, Request $request)
@@ -1884,21 +1886,20 @@ class EditController extends ODRCustomController
             $form->handleRequest($request);
 
             if ($form->isSubmitted()) {
-                $new_value = $form_object->getValue();
 
-                if ($old_value !== $new_value) {
+                if ($form->isValid()) {
+                    $new_value = $form_object->getValue();
 
-                    // If the datafield is marked as unique...
-                    if ($datafield->getIsUnique() == true) {
-                        // ...determine whether the new value is a duplicate of a value that already exists
-                        $found_existing_value = self::findExistingValue($em, $datafield, $datarecord->getParent()->getId(), $new_value);
-                        if ($found_existing_value)
-                            $form->addError( new FormError('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield...reverting back to old value.') );
-                    }
+                    if ($old_value !== $new_value) {
 
-//$form->addError(new FormError('do not save'));
+                        // If the datafield is marked as unique...
+                        if ($datafield->getIsUnique() == true) {
+                            // ...determine whether the new value is a duplicate of a value that already exists
+                            $found_existing_value = self::findExistingValue($em, $datafield, $datarecord->getParent()->getId(), $new_value);
+                            if ($found_existing_value)
+                                throw new ODRConflictException('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield...reverting back to old value.');
+                        }
 
-                    if ($form->isValid()) {
                         // ----------------------------------------
                         // If saving to a datetime field, ensure it's a datetime object?
                         if ($typeclass == 'DatetimeValue') {
@@ -1934,11 +1935,11 @@ class EditController extends ODRCustomController
                         // Delete any cached search results involving this datafield
                         $search_cache_service->clearByDatafieldId($datafield_id);
                     }
-                    else {
-                        // Form validation failed
-                        $error_str = parent::ODR_getErrorMessages($form);
-                        throw new ODRException($error_str);
-                    }
+                }
+                else {
+                    // Form validation failed
+                    $error_str = parent::ODR_getErrorMessages($form);
+                    throw new ODRException($error_str);
                 }
             }
         }
@@ -2122,7 +2123,7 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Don't actually need these for a child reload, but the parameters are expected
+            // Don't actually need these for a datafield reload, but the parameters are expected
             $search_theme_id = '';
             $search_key = '';
 
@@ -2133,14 +2134,13 @@ class EditController extends ODRCustomController
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
-
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
             $datatype = $datafield->getDataType();
-            if ($datatype->getDeletedAt() != null)
+            if ( !is_null($datatype->getDeletedAt()) )
                 throw new ODRNotFoundException('Datatype');
 
             /** @var DataRecord $datarecord */
@@ -2148,6 +2148,8 @@ class EditController extends ODRCustomController
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
+            if ($datarecord->getDataType()->getId() !== $datatype->getId())
+                throw new ODRBadRequestException();
 
             // --------------------
             // Determine user privileges
@@ -2202,6 +2204,8 @@ class EditController extends ODRCustomController
         $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
 
+        /** @var CloneThemeService $clone_theme_service */
+        $clone_theme_service = $this->container->get('odr.clone_theme_service');
         /** @var DatatypeInfoService $dti_service */
         $dti_service = $this->container->get('odr.datatype_info_service');
         /** @var DatarecordInfoService $dri_service */
@@ -2374,6 +2378,14 @@ class EditController extends ODRCustomController
             // Generate a csrf token for each of the datarecord/datafield pairs
             $token_list = self::generateCSRFTokens($datatype_array, $datarecord_array);
 
+
+            // ----------------------------------------
+            // Determine whether the currently preferred theme needs to be synchronized with its source
+            //  and the user notified of it
+            $notify_of_sync = self::notifyOfThemeSync($theme, $user);
+
+
+            // ----------------------------------------
             $html = $templating->render(
                 'ODRAdminBundle:Edit:edit_ajax.html.twig',
                 array(
@@ -2397,6 +2409,8 @@ class EditController extends ODRCustomController
 
                     'is_top_level' => $is_top_level,
                     'token_list' => $token_list,
+
+                    'notify_of_sync' => $notify_of_sync,
                 )
             );
         }
@@ -2624,13 +2638,13 @@ class EditController extends ODRCustomController
 
     /**
      * Renders the edit form for a DataRecord if the user has the requisite permissions.
-     * 
+     *
      * @param integer $datarecord_id The database id of the DataRecord the user wants to edit
      * @param integer $search_theme_id
      * @param string $search_key     Used for search header, an optional string describing which search result list $datarecord_id is a part of
      * @param integer $offset        Used for search header, an optional integer indicating which page of the search result list $datarecord_id is on
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function editAction($datarecord_id, $search_theme_id, $search_key, $offset, Request $request)

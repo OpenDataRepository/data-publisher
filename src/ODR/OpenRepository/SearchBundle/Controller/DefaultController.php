@@ -2535,11 +2535,7 @@ if ( isset($debug['show_queries']) )
         }
 
         // Determine whether this query's search parameters contain an empty string...if so, going to have to run an additional query later because of how ODR is designed...
-        $null_drf_possible = false;
-        foreach ($parameters as $key => $value) {
-            if ($value == '')
-                $null_drf_possible = true;
-        }
+        $null_drf_possible = self::isNullDrfPossible($search_params['str'], $search_params['params']);
 
 
         // ----------------------------------------
@@ -2703,6 +2699,71 @@ if ( isset($debug['show_queries']) ) {
             $datarecords[ $result['dr_id'] ] = 1;
 
         return $datarecords;
+    }
+
+
+    /**
+     * Determines whether the provided string of MYSQL conditions potentially matches the empty
+     * string...this is needed because ODR considers nonexistent datarecordfield or storage entities
+     * to be the same as the empty string, while the two are quite different to the underlying
+     * database.
+     *
+     * @param string $str
+     * @param array $params
+     *
+     * @return boolean
+     */
+    private function isNullDrfPossible($str, $params)
+    {
+        // Roughly speaking, there are six possibilities...
+        // search for: ""   => e.value = ""                   could match null drf
+        // search for: !""  => e.value != ""                  can't match null drf
+        // search for:  a   => e.value LIKE "<something>"     can't match null drf
+        // search for: !a   => e.value NOT LIKE "<something>" could match null drf
+        // search for: "a"  => e.value = "<something>"        can't match null drf
+        // search for: !"a" => e.value != "<something>"       could match null drf
+
+        // Because right now the user isn't allowed to group logical operators, this single php statment will effectively suffice for determining MYSQL order of operations
+        // Individual statements connected by AND will be executed first...the results of each block of ANDs will then be ORed together
+        $blocks = explode(' OR ', $str);
+
+        $results = array();
+        foreach ($blocks as $block) {
+            $possible = true;
+
+            $pieces = explode(' AND ', $block);
+            foreach ($pieces as $piece) {
+                if ( $piece{8} === 'L' ) {
+                    // searching for  e.value LIKE <something>  ...can't be null
+                    $possible = false;
+                }
+                else if ( $piece{8} === 'N' ) {
+                    // searching for  e.value LIKE <something>  ...can be null
+                }
+                else {
+                    // searching on equality...need to look into the params list...
+                    $term = substr($piece, strpos($piece, ':')+1);
+
+                    if ( $piece{8} === '!' && $params[$term] === '' ) {
+                        // seaching for  e.value != "" ...can't be null
+                        $possible = false;
+                    }
+                    else if ( $piece{8} === '=' && $params[$term] !== '' ) {
+                        // searching for  e.value = "<something>"  ...can't be null
+                        $possible = false;
+                    }
+                }
+            }
+
+            $results[] = $possible;
+        }
+
+        // If any part of this query could legitimately have the empty string as a result, return true
+        $null_drf_is_possible = false;
+        foreach ($results as $num => $result)
+            $null_drf_is_possible = $null_drf_is_possible || $result;
+
+        return $null_drf_is_possible;
     }
 
 
@@ -3153,12 +3214,15 @@ if ( isset($debug['search_string_parsing']) )
                 continue;
             }
 
+            if ( !isset($pieces[$num]) || !isset($pieces[$num+1]) )
+                continue;
+
             // Delete some consecutive logical operators
             if ( $pieces[$num] == '&&' && $pieces[$num+1] == '&&' )
                 unset( $pieces[$num] );
             else if ( $pieces[$num] == '&&' && $pieces[$num+1] == '||' )
                 unset( $pieces[$num] );
-            else if ( self::isLogicalOperator($previous) && self::isLogicalOperator($piece) )
+            else if ( self::isConnective($previous) && self::isConnective($piece) )
                 unset( $pieces[$num] );
             // delete operators after inequalities
             else if ( self::isInequality($previous) && (self::isConnective($piece) || self::isInequality($piece)) )

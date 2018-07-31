@@ -69,7 +69,7 @@ class UpdateThemeForm extends AbstractType
         );
 
         $builder->add(
-            'sourceSyncCheck',
+            'sourceSyncVersion',
             HiddenType::class
         );
 

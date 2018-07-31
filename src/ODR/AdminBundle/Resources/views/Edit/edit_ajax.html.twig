@@ -2,6 +2,7 @@
 
 {% set datatype = datatype_array[initial_datatype_id] %}
 {% set datarecord = datarecord_array[initial_datarecord_id] %}
+{% set theme = theme_array[initial_theme_id] %}
 
 <div class="ODRFormHeader clearfix">
     {#
@@ -25,10 +26,12 @@
     #}
     </div>
 
-
-<h1 class="no-margin-top-phone">
-    <span>Edit Record &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
-</h1>
+{% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
+    'datatype': datatype,
+    'theme': theme,
+    'page_type': 'edit',
+    'search_key': search_key,
+} %}
 
 {% include 'ODRAdminBundle:Edit:edit_area.html.twig' with {
     'datatype_array': datatype_array,
@@ -65,7 +68,7 @@ $(function() {
 
     // Resize all elements dependent on window size
     $(window).unbind('resize').resize(function() {
-        WindowResizeInterval = window.clearInterval(WindowResizeInterval);      // variable WindowResizeInterval defined in common.js
+        WindowResizeInterval = window.clearInterval(WindowResizeInterval);    // variable WindowResizeInterval defined in common.js
         WindowResizeInterval = window.setInterval("onWindowResize()", 500);
     });
 
@@ -83,6 +86,14 @@ $(function() {
     initPage();
     $(".MenuDesignArea").remove();
     window.scrollTo(0,0);
+
+    {% if notify_of_sync == true %}
+    {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+        'datatype_id': datatype.id,
+        'theme_id': theme.id,
+        'search_key': search_key,
+    }%}
+    {% endif %}
 });
 
 
@@ -218,9 +229,9 @@ function initPage() {
     });
 
 
-    $(".ODRPublicFile").unbind('click').click(function(event) {
+    $(".ODRPublicFile").parent().unbind('click').click(function(event) {
         // Grab necessary attributes
-        var icon_div = $(this);
+        var icon_div = $(this).children(".ODRPublicFile");
         var file_id = $(icon_div).attr('rel');
         var href = $(icon_div).closest('.ODRTruncateFilename').children('a.ODRFileDownload').first().attr('href');
 

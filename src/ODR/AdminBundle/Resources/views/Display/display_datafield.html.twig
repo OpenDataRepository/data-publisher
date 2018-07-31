@@ -17,7 +17,7 @@
         {% set valuefield = datarecordfield.image %}
     {% elseif field_typename == "Decimal" and datarecordfield.decimalValue[0] is defined %}
         {% set valuefield = datarecordfield.decimalValue[0] %}
-        {% set valuefield_value = valuefield.value %}
+        {% set valuefield_value = valuefield.original_value %}
     {% elseif field_typename == "Integer" and datarecordfield.integerValue[0] is defined %}
         {% set valuefield = datarecordfield.integerValue[0] %}
         {% set valuefield_value = valuefield.value %}

@@ -518,7 +518,6 @@ class LinkController extends ODRCustomController
 
             }
 
-
             // ----------------------------------------
             // Get Templating Object
             $templating = $this->get('templating');
@@ -532,7 +531,6 @@ class LinkController extends ODRCustomController
                         'linkable_datatypes' => $linkable_datatypes,
 
                         'has_linked_datarecords' => $has_linked_datarecords,
-                        'datatypes_with_table_themes' => $datatypes_with_table_themes,
                     )
                 )
             );
@@ -1028,6 +1026,13 @@ class LinkController extends ODRCustomController
 
                 // Create a copy of that theme in this theme element
                 $clone_theme_service->cloneIntoThemeElement($user, $theme_element, $source_theme, $remote_datatype, 'master');
+
+                // A datatype got linked, so any themes that use this master theme as their source
+                //  need to get updated themselves
+                $properties = array(
+                    'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
+                );
+                parent::ODR_copyThemeMeta($em, $user, $theme, $properties);
 
 
                 // ----------------------------------------
@@ -1625,7 +1630,7 @@ if ($debug)
             // Since the above statement didn't thrown an exception, the one below shouldn't either...
             $theme_id = $theme_service->getPreferredTheme($user, $remote_datatype->getId(), 'search_results');
             if ($theme_id == null)
-                throw new ODRException('Remote Datatype does not have a Table Theme');
+                throw new ODRException('Remote Datatype does not have a suitable Theme');
 
 
             // ----------------------------------------

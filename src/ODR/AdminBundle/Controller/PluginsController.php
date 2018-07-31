@@ -27,7 +27,6 @@ use ODR\AdminBundle\Entity\RenderPluginFields;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginOptions;
-use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -39,6 +38,8 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symphony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -84,6 +85,10 @@ class PluginsController extends ODRCustomController
         foreach ( scandir($plugin_base_dir) as $directory_name ) {
             // TODO - assumes linux?
             if ($directory_name === '.' || $directory_name === '..')
+                continue;
+
+            // Don't want the interfaces in the directory...
+            if ( strrpos($directory_name, '.php', -4) !== false )
                 continue;
 
             $plugin_directory = $plugin_base_dir.'/'.$directory_name;
@@ -346,6 +351,16 @@ class PluginsController extends ODRCustomController
                 $plugins_needing_updates[$plugin_classname][] = $tmp;
         }
 
+
+        // ----------------------------------------
+        // TODO - check plugin options as well...$installed_plugins doesn't have that data right now
+
+        // TODO - there's only one table that stores (instance_id, option_name, option_value)
+        // TODO - there needs to be one table to store (option_id, option_name, option_type, option_default, ...)
+        // TODO -  and another to store (instance_id, option_id, option_value)
+
+
+        // ----------------------------------------
         // If a plugin doesn't actually have any changes, it doesn't need an update...
         foreach ($plugins_needing_updates as $plugin_classname => $data) {
             if ( count($data) == 0 )
@@ -382,6 +397,7 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
 
             // Get all render plugins listed in the database
+            // TODO - this needs to eventually load the renderPluginOptions...see self::getPluginDiff()
             $query = $em->createQuery(
                'SELECT rp, rpf, rpi
                 FROM ODRAdminBundle:RenderPlugin AS rp
@@ -1264,6 +1280,7 @@ class PluginsController extends ODRCustomController
             /** @var DataType $associated_datatype */
             $associated_datatype = null;    // ...of the datafield getting modified
 
+            $plugin_settings_changed = false;
             $reload_datatype = false;
 
             $changing_datatype_plugin = false;
@@ -1443,9 +1460,21 @@ class PluginsController extends ODRCustomController
             // ...delete the old render plugin instance object if the user changed render plugins
             $render_plugin_instance = null;
             if ($render_plugin_instance_id != '') {
+                /** @var RenderPluginInstance|null $render_plugin_instance */
                 $render_plugin_instance = $repo_render_plugin_instance->find($render_plugin_instance_id);
 
                 if ( intval($previous_plugin_id) != intval($selected_plugin_id) && !is_null($render_plugin_instance) ) {
+                    // ----------------------------------------
+                    // Need to execute the onRemoval() function of this render plugin...
+                    $removed_plugin_classname = $render_plugin_instance->getRenderPlugin()->getPluginClassName();
+
+                    /** @var DatafieldPluginInterface|DatatypePluginInterface $plugin_service */
+                    $plugin_service = $this->container->get($removed_plugin_classname);
+                    $plugin_service->onRemoval($render_plugin_instance);
+
+
+                    // ----------------------------------------
+                    // Remove/detach this plugin instance from the datafield/datatype
                     $em->remove($render_plugin_instance);
                     $em->detach($render_plugin_instance);
                     $render_plugin_instance = null;
@@ -1478,13 +1507,17 @@ class PluginsController extends ODRCustomController
                         $df = $repo_datafield->find($df_id);
 
                         parent::ODR_addRenderPluginMap($em, $user, $render_plugin_instance, $render_plugin_field, $associated_datatype, $df);
+                        $plugin_settings_changed = true;
                     }
                     else {
                         // ...otherwise, update the existing entity
                         $properties = array(
                             'dataField' => $df_id
                         );
-                        parent::ODR_copyRenderPluginMap($em, $user, $render_plugin_map, $properties);
+                        $changes_made = parent::ODR_copyRenderPluginMap($em, $user, $render_plugin_map, $properties);
+
+                        if ($changes_made)
+                            $plugin_settings_changed = true;
                     }
                 }
 
@@ -1494,18 +1527,29 @@ class PluginsController extends ODRCustomController
                     /** @var RenderPluginOptions $render_plugin_option */
                     $render_plugin_option = $repo_render_plugin_options->findOneBy( array('renderPluginInstance' => $render_plugin_instance->getId(), 'optionName' => $option_name) );
 
-
                     // If the render plugin option entity doesn't exist, create it
                     if ( is_null($render_plugin_option) ) {
                         parent::ODR_addRenderPluginOption($em, $user, $render_plugin_instance, $option_name, $option_value);
+                        $plugin_settings_changed = true;
                     }
                     else {
                         // ...otherwise, update the existing entity
                         $properties = array(
                             'optionValue' => $option_value
                         );
-                        parent::ODR_copyRenderPluginOption($em, $user, $render_plugin_option, $properties);
+                        $changes_made = parent::ODR_copyRenderPluginOption($em, $user, $render_plugin_option, $properties);
+
+                        if ($changes_made)
+                            $plugin_settings_changed = true;
                     }
+                }
+
+                if ($plugin_settings_changed) {
+                    $plugin_classname = $render_plugin_instance->getRenderPlugin()->getPluginClassName();
+
+                    /** @var DatafieldPluginInterface|DatatypePluginInterface $plugin_service */
+                    $plugin_service = $this->container->get($plugin_classname);
+                    $plugin_service->onSettingsChange($render_plugin_instance);   // TODO - specify which field mappings or options got changed?
                 }
             }
 

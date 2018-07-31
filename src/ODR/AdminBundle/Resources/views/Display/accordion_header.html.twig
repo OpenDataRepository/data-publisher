@@ -23,9 +23,9 @@
                     {% set class_str = class_str ~ " ODRActiveIcon" %}
                 {% endif %}
 
-                {% set title_str = "Record is Public" %}
+                {% set title_str = "Record is Not Public" %}
                 {% if datarecord.dataRecordMeta.publicDate|is_public %}
-                    {% set title_str = "Record is Not Public" %}
+                    {% set title_str = "Record is Public" %}
                 {% endif %}
 
                 {% if is_link == 1 %}

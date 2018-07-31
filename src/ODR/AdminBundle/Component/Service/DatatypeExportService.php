@@ -98,7 +98,7 @@ class DatatypeExportService
     {
         // All of these should already exist
         /** @var DataType $datatype */
-        $datatype = $this->em->getRepository('ODRAdminBundle:DataRecord')->find($datatype_id);
+        $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
 
         $master_theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
 

@@ -28,6 +28,7 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -162,6 +163,7 @@ class GraphController extends ODRCustomController
 
             // ----------------------------------------
             // Render the static graph
+            /** @var DatatypePluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
             $filename = $svc->execute($datarecord_array, $datatype, $render_plugin, $theme_array, $rendering_options);
 

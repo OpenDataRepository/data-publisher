@@ -398,6 +398,8 @@ class CSVImportController extends ODRCustomController
             // Attempt to load the previously uploaded csv file
             if ( !$session->has('csv_file') )
                 throw new ODRBadRequestException('No CSV file uploaded');
+            if ( !$session->has('csv_delimiter') )
+                throw new ODRBadRequestException('No delimiter set');
 
             // Remove any completely blank columns and rows from the csv file
             $file_encoding_converted = self::trimCSVFile($user->getId(), $request);
@@ -511,6 +513,8 @@ class CSVImportController extends ODRCustomController
         $session = $request->getSession();
         if ( !$session->has('csv_file') )
             throw new ODRException('No CSV file uploaded');
+        if ( !$session->has('csv_delimiter') )
+            throw new ODRException('No delimiter set');
 
         $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user_id.'/';
         $csv_filename = $session->get('csv_file');
@@ -720,7 +724,9 @@ class CSVImportController extends ODRCustomController
             // Attempt to load the previously uploaded csv file
             $session = $request->getSession();
             if ( !$session->has('csv_file') )
-                throw new ODRException('No CSV file uploaded');
+                throw new ODRBadRequestException('No CSV file uploaded');
+            if ( !$session->has('csv_delimiter') )
+                throw new ODRBadRequestException('No delimiter set');
 
             $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user_id.'/';
             $csv_filename = $session->get('csv_file');
@@ -1211,7 +1217,9 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Attempt to load csv file
             if ( !$session->has('csv_file') )
-                throw new ODRException('No CSV file uploaded');
+                throw new ODRBadRequestException('No CSV file uploaded');
+            if ( !$session->has('csv_delimiter') )
+                throw new ODRBadRequestException('No delimiter set');
 
             $csv_import_path = $this->getParameter('odr_web_directory').'/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $session->get('csv_file');

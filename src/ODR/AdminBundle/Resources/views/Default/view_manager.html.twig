@@ -1,7 +1,14 @@
 {% spaceless %}
 
+{% set title = "Search Result" %}
+{% if page_type == "display" %}
+    {% set title = "View Record" %}
+{% elseif page_type == "edit" %}
+    {% set title = "Edit Record" %}
+{% endif %}
+
     <h1 class="no-margin-top-phone">
-        <span>Search Result &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+        <span>{{ title }} &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
         <a id="page_settings" name="page_settings"><i class="fa fa-md fa-fw fa-cog"></i></a>
     </h1>
 
@@ -214,7 +221,7 @@
             success: function (data, textStatus, jqXHR) {
                 if (redirect) {
                     closeODRRemodal();
-{% if page_type == 'display' or page_type == 'linking' %}
+{% if page_type == 'display' or page_type == 'edit' or page_type == 'linking' %}
                     {# Don't change the URL when viewing a single datarecord #}
                     reloadPage();
 {% else %}
@@ -301,7 +308,7 @@
         closeODRRemodal();
 
         // Open View Editor
-{% if page_type == 'display' %}
+{% if page_type == 'display' or page_type == 'edit' %}
         var url = '{{ path('odr_modify_theme', { 'datatype_id': datatype.id, 'theme_id': 0 }) }}';
         url = url.substr(0, url.length-1);
         url += theme_id;
@@ -401,9 +408,11 @@
 
                 // Close modal and reload page
                 closeODRRemodal();
-{% if page_type == 'display' or page_type == 'linking' %}
+{% if page_type == 'display' or page_type == 'edit' or page_type == 'linking' %}
+                {# Don't change the URL when viewing a single datarecord #}
                 reloadPage();
 {% else %}
+                {# Need to extract the offset, then redirect to a URL with the desired theme id #}
                 var hash = window.location.hash;
                 var offset = hash.substr(hash.lastIndexOf('/') + 1);
                 if ( isNaN(offset) )

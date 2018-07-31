@@ -11,13 +11,15 @@
 
 namespace ODR\AdminBundle\Form;
 
+// ODR
+use ODR\AdminBundle\Form\Type\ODRIntegerType;
 // Symfony Forms
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\OptionsResolver\Options;
 // Symfony Form classes
-use Symfony\Component\Form\Extension\Core\Type\IntegerType;
+//use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 
 
 class IntegerValueForm extends AbstractType
@@ -30,7 +32,8 @@ class IntegerValueForm extends AbstractType
     {
         $builder->add(
             'value',
-            IntegerType::class,
+//            IntegerType::class,
+            ODRIntegerType::class,
             array(
                 'required' => false,
             )

@@ -92,6 +92,8 @@ security:
 ##########
 # API control
         - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/admin/datatype_export, role: IS_AUTHENTICATED_ANONYMOUSLY }   # allows json/xml download of datatype specs, controller restricts access as needed
+        - { path: ^/admin/datarecord_export, role: IS_AUTHENTICATED_ANONYMOUSLY } # allows json/xml download of datarecords, controller restricts access as needed
 
 ##########
 # These need to stay anonymous, otherwise users are unable to log in

@@ -53,6 +53,7 @@ use ODR\AdminBundle\Form\UpdateDataTreeForm;
 use ODR\AdminBundle\Form\UpdateThemeDatatypeForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
@@ -133,6 +134,10 @@ class DisplaytemplateController extends ODRCustomController
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$grandparent_datatype_id, 'completed' => null) );   // TODO - not datatype_id, right?
             if ($tracked_job !== null)
                 throw new ODRException('Preventing deletion of any DataField for this DataType, because a CSV Import for this DataType is in progress...');
+            // Prevent deletion of datafields if it's getting migrated...
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'target_entity' => 'datafield_'.$datafield_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new ODRException('Preventing deletion of this DataField, because it is currently being migrated to another Fieldtype...');
 
             // Check that the datafield isn't being used for something else before deleting it
             if ( !self::canDeleteDatafield($em, $datafield) )
@@ -1358,7 +1363,7 @@ class DisplaytemplateController extends ODRCustomController
             $parent_theme_datatype_id = $theme->getParentTheme()->getDataType()->getGrandparent()->getId();
             $grandparent_datatype_id = $datatype->getGrandparent()->getId();
             if ($grandparent_datatype_id !== $parent_theme_datatype_id)
-                throw new ODRBadRequestException('Unable to create a new child Datatype inside a Linked Datatype');
+                throw new ODRBadRequestException('Unable to create a new Datafield inside a Linked Datatype');
 
 
             // ----------------------------------------
@@ -1376,8 +1381,15 @@ class DisplaytemplateController extends ODRCustomController
             // Tie the datafield to the theme element
             parent::ODR_addThemeDataField($em, $user, $datafield, $theme_element);
 
-            // Save changes
-            $em->flush();
+            // Technically don't need to flush due to ODR_copyThemeMeta()...
+
+            // A datafield was added, so any themes that use this master theme as their source
+            //  need to get updated themselves
+            $properties = array(
+                'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
+            );
+            parent::ODR_copyThemeMeta($em, $user, $theme, $properties);
+
 
             // design_ajax.html.twig calls ReloadThemeElement()
 
@@ -2205,6 +2217,7 @@ class DisplaytemplateController extends ODRCustomController
             $theme_meta->setTemplateDescription('');
             $theme_meta->setIsDefault(true);
             $theme_meta->setShared(true);
+            $theme_meta->setSourceSyncVersion(1);
             $theme_meta->setIsTableTheme(false);
             $theme_meta->setCreatedBy($user);
             $theme_meta->setUpdatedBy($user);
@@ -2239,6 +2252,15 @@ class DisplaytemplateController extends ODRCustomController
             $dti_service->updateDatatypeCacheEntry($parent_datatype, $user);
             // Do the same for the cached version of this theme
             $theme_service->updateThemeCacheEntry($theme, $user);
+
+
+            // ----------------------------------------
+            // A child datatype was added, so any themes that use this master theme as their source
+            //  need to get updated themselves
+            $properties = array(
+                'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
+            );
+            parent::ODR_copyThemeMeta($em, $user, $theme, $properties);
 
         }
         catch (\Exception $e) {
@@ -2497,6 +2519,8 @@ class DisplaytemplateController extends ODRCustomController
         // Required objects
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
+        /** @var CloneThemeService $clone_theme_service */
+        $clone_theme_service = $this->container->get('odr.clone_theme_service');
         /** @var DatatypeInfoService $dti_service */
         $dti_service = $this->container->get('odr.datatype_info_service');
         /** @var PermissionsManagementService $pm_service */
@@ -2619,6 +2643,12 @@ class DisplaytemplateController extends ODRCustomController
 
         $html = '';
         if ($template_name == 'default') {
+            // ----------------------------------------
+            // Determine whether the currently preferred theme needs to be synchronized with its source
+            //  and the user notified of it
+            $notify_of_sync = self::notifyOfThemeSync($theme, $user);
+
+
             $html = $templating->render(
                 'ODRAdminBundle:Displaytemplate:design_ajax.html.twig',
                 array(
@@ -2632,6 +2662,8 @@ class DisplaytemplateController extends ODRCustomController
 
                     'fieldtype_array' => $fieldtype_array,
                     'has_datarecords' => $has_datarecords,
+
+                    'notify_of_sync' => $notify_of_sync,
                 )
             );
         }
