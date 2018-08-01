@@ -12,7 +12,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -1725,7 +1724,7 @@ class ThemeController extends ODRCustomController
             );
         }
         catch (\Exception $e) {
-            $source = 0x892ade92f;
+            $source = 0x323fe225;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else

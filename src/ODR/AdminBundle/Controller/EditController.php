@@ -120,9 +120,12 @@ class EditController extends ODRCustomController
 
 
             // Determine whether this is a request to add a datarecord for a top-level datatype or not
+            // Adding a top-level datarecord is different than adding a child datarecord, and the
+            //  database could get messed up if the wrong controller action is used
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
             if ( !in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('EditController::adddatarecordAction() called for child datatype');
+
 
             // If this datatype is a "master template"...
             if ($datatype->getIsMasterType()) {
@@ -245,9 +248,11 @@ class EditController extends ODRCustomController
 
 
             // Determine whether this is a request to add a datarecord for a top-level datatype or not
+            // Adding a child datarecord is different than adding a top-level datarecord, and the
+            //  database could get messed up if the wrong controller action is used
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
-            // if ( in_array($datatype_id, $top_level_datatypes) )
-                // throw new ODRBadRequestException('EditController::addchildrecordAction() called for top-level datatype');
+            if ( in_array($datatype_id, $top_level_datatypes) )
+                throw new ODRBadRequestException('EditController::addchildrecordAction() called for top-level datatype');
 
             // Create new Data Record
             $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
@@ -344,6 +349,8 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // Deletion of a top-level datarecord is different than deletion of a child datarecord
+            // Deleting with the wrong controller action could mess up the database
             if ($datarecord->getId() !== $datarecord->getGrandparent()->getId())
                 throw new ODRBadRequestException('EditController::deletedatarecordAction() called on a Datarecord that is not top-level');
 
@@ -540,9 +547,10 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // TODO Who cares?  If you have permission, you have permission
-            // if ($datarecord->getId() == $datarecord->getGrandparent()->getId())
-                // throw new ODRBadRequestException('EditController::deletechildrecordAction() called on a Datarecord that is top-level');
+            // Deletion of a child datarecord is different than deletion of a top-level datarecord
+            // Deleting with the wrong controller action could mess up the database
+            if ($datarecord->getId() == $datarecord->getGrandparent()->getId())
+                throw new ODRBadRequestException('EditController::deletechildrecordAction() called on a Datarecord that is top-level');
 
 
             $grandparent_datarecord = $datarecord->getGrandparent();

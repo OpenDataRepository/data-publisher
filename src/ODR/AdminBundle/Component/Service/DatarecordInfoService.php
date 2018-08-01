@@ -904,6 +904,7 @@ class DatarecordInfoService
 
     /**
      * Creates and persists a new DataRecord entity.
+     * TODO
      *
      * @param User $user         The user requesting the creation of this entity
      * @param DataType $datatype
@@ -920,6 +921,7 @@ class DatarecordInfoService
         $datarecord->setUpdatedBy($user);
 
         $datarecord->setProvisioned(true);  // Prevent most areas of the site from doing anything with this datarecord...whatever created this datarecord needs to eventually set this to false
+        $datarecord->setUniqueId(null);
 
         $this->em->persist($datarecord);
         $this->em->flush();
@@ -972,7 +974,7 @@ class DatarecordInfoService
         return $token_list;
     }
 
-    /*
+    /**
      * Deletes the cached table entries for the specified datatype...currently used by several
      * render plugins after they get removed or their settings get changed...
      *

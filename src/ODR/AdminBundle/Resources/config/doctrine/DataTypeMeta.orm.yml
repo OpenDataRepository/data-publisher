@@ -48,7 +48,7 @@ ODR\AdminBundle\Entity\DataTypeMeta:
             column: short_name
         longName:
             type: string
-            length: 128
+            length: 255
             fixed: false
             nullable: false
             column: long_name

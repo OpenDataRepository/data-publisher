@@ -137,19 +137,11 @@ ODR\AdminBundle\Entity\DataType:
     oneToOne:
         metadata_datatype:
             targetEntity: DataType
-            inversedBy: metadata_for
+#            inversedBy: metadata_for
 
         metadata_for:
             targetEntity: DataType
-            inversedBy: metadata_datatype
-
-#        metadataDatatype:
-#            targetEntity: DataType
-#            inversedBy: metadataFor
-#
-#        metadataFor:
-#            targetEntity: DataType
-#            inversedBy: metadataDatatype
+#            inversedBy: metadata_datatype
 
     manyToOne:
         parent:

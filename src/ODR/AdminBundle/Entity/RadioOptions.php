@@ -26,7 +26,8 @@ class RadioOptions
     private $id;
 
     /**
-     * NOTE - this needs to remain in synch with the option name in the associated metadata entity...if it doesn't, CSV/XML importing can't check concurrently that a RadioOption exists
+     * NOTE - this needs to remain in synch with the option name in the associated metadata entity...
+     * If it doesn't, CSV/XML importing can't check concurrently that a RadioOption exists
      * @var string
      */
     private $optionName;

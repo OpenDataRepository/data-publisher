@@ -43,10 +43,6 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-// Utility
-// use ODR\AdminBundle\Component\Utility\UserUtility;
-use ODR\AdminBundle\Component\Utility\UniqueUtility;
-
 
 class LinkController extends ODRCustomController
 {
@@ -287,7 +283,7 @@ class LinkController extends ODRCustomController
             );
         }
         catch (\Exception $e) {
-            $source = 0xf8083699;
+            $source = 0x8930415b;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -298,6 +294,8 @@ class LinkController extends ODRCustomController
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
+
+
     /**
      * Gets a list of DataTypes that could serve as linked DataTypes.
      *
@@ -588,6 +586,10 @@ class LinkController extends ODRCustomController
 
             // Get Datatype & Template group (if set)
             $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             /** @var DataType $local_datatype */
             $local_datatype = $repo_datatype->find($local_datatype_id);
@@ -605,7 +607,7 @@ class LinkController extends ODRCustomController
             $datatype = new DataType();
             $datatype->setRevision(0);
 
-            $unique_id = UniqueUtility::uniqueIdReal();
+            $unique_id = $dti_service->generateDatatypeUniqueId();
             $datatype->setUniqueId($unique_id);
             if($local_datatype->getTemplateGroup() !== null) {
                 $datatype->setTemplateGroup($local_datatype->getTemplateGroup());
@@ -784,7 +786,7 @@ class LinkController extends ODRCustomController
 
         } catch (\Exception $e) {
             // Don't commit changes if any error was encountered...
-            $source = 0xa1ee8e79;
+            $source = 0x988ee802;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -795,6 +797,7 @@ class LinkController extends ODRCustomController
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
+
 
     /**
      * Parses a $_POST request to create/delete a link from a 'local' DataType to a 'remote'
@@ -826,7 +829,7 @@ class LinkController extends ODRCustomController
 
         } catch (\Exception $e) {
             // Don't commit changes if any error was encountered...
-            $source = 0xa1ee8e79;
+            $source = 0xd2aa5e3e;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -1062,7 +1065,7 @@ class LinkController extends ODRCustomController
             if (!is_null($conn) && $conn->isTransactionActive())
                 $conn->rollBack();
 
-            $source = 0xae39df3;
+            $source = 0xb6e90878;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -2056,7 +2059,7 @@ if ($debug) {
             // Any cached entries that needed clearing have already been cleared
         }
         catch (\Exception $e) {
-            $source = 0xdd047dcd;
+            $source = 0x5392e9e1;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else

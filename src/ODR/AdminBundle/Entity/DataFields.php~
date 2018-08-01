@@ -559,6 +559,46 @@ class DataFields
     }
 
     /**
+     * Get internalReferenceName
+     *
+     * @return string
+     */
+    public function getInternalReferenceName()
+    {
+        return $this->getDataFieldMeta()->getInternalReferenceName();
+    }
+
+    /**
+     * Get master_published_revision
+     *
+     * @return int
+     */
+    public function getMasterPublishedRevision()
+    {
+        return $this->getDataFieldMeta()->getMasterPublishedRevision();
+    }
+
+    /**
+     * Get master_revision
+     *
+     * @return int
+     */
+    public function getMasterRevision()
+    {
+        return $this->getDataFieldMeta()->getMasterRevision();
+    }
+
+    /**
+     * Get tracking_master_revision
+     *
+     * @return int
+     */
+    public function getTrackingMasterRevision()
+    {
+        return $this->getDataFieldMeta()->getTrackingMasterRevision();
+    }
+
+    /**
      * Get markdownText
      *
      * @return string
@@ -696,35 +736,5 @@ class DataFields
     public function getRenderPlugin()
     {
         return $this->getDataFieldMeta()->getRenderPlugin();
-    }
-
-    /**
-     * Get master_published_revision
-     *
-     * @return int
-     */
-    public function getMasterPublishedRevision()
-    {
-        return $this->getDataFieldMeta()->getMasterPublishedRevision();
-    }
-
-    /**
-     * Get master_revision
-     *
-     * @return int
-     */
-    public function getMasterRevision()
-    {
-        return $this->getDataFieldMeta()->getMasterRevision();
-    }
-
-    /**
-     * Get tracking_master_revision
-     *
-     * @return int
-     */
-    public function getTrackingMasterRevision()
-    {
-        return $this->getDataFieldMeta()->getTrackingMasterRevision();
     }
 }

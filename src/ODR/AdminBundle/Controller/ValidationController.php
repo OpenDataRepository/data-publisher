@@ -159,10 +159,10 @@ class ValidationController extends ODRCustomController
                     $bad_publicdate[$classname] = $results[0][1];
             }
 
-//print "bad created: \n".print_r($bad_created);
-//print "bad updated: \n".print_r($bad_updated);
-//print "bad deleted: \n".print_r($bad_deleted);
-//print "bad publicDate: \n".print_r($bad_publicdate);
+//print "bad created: \n".print_r($bad_created, true)."\n";
+//print "bad updated: \n".print_r($bad_updated, true)."\n";
+//print "bad deleted: \n".print_r($bad_deleted, true)."\n";
+//print "bad publicDate: \n".print_r($bad_publicdate, true)."\n";
 
             // Since this could update a pile of stuff, wrap it in a transaction
             $conn = $em->getConnection();
@@ -247,7 +247,7 @@ class ValidationController extends ODRCustomController
         }
 
         $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
 
@@ -341,6 +341,7 @@ class ValidationController extends ODRCustomController
                     $dfm->setFieldName('New Field');
                     $dfm->setDescription('Field description');
                     $dfm->setXmlFieldName('');
+                    $dfm->setInternalReferenceName('');
                     $dfm->setRegexValidator('');
                     $dfm->setPhpValidator('');
 
@@ -720,7 +721,7 @@ class ValidationController extends ODRCustomController
             if ( !is_null($conn) && $conn->isTransactionActive() )
                 $conn->rollBack();
 
-            $source = 0xabcdef00;
+            $source = 0x914b6e40;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -728,7 +729,7 @@ class ValidationController extends ODRCustomController
         }
 
         $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
 
@@ -853,7 +854,7 @@ class ValidationController extends ODRCustomController
         }
 
         $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
 
@@ -1088,7 +1089,7 @@ class ValidationController extends ODRCustomController
             if ( !is_null($conn) && $conn->isTransactionActive() )
                 $conn->rollBack();
 
-            $source = 0xed5c5053;
+            $source = 0x7410a96e;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -1096,7 +1097,7 @@ class ValidationController extends ODRCustomController
         }
 
         $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
 
@@ -1288,7 +1289,7 @@ class ValidationController extends ODRCustomController
         }
 
         $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
 

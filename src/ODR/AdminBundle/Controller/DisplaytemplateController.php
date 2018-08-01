@@ -63,8 +63,6 @@ use Doctrine\DBAL\Connection as DBALConnection;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-// Utility
-use ODR\AdminBundle\Component\Utility\UniqueUtility;
 
 
 class DisplaytemplateController extends ODRCustomController
@@ -1056,7 +1054,7 @@ class DisplaytemplateController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $source = 0x73af72dec7;
+            $source = 0x20fab867;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -2132,7 +2130,7 @@ class DisplaytemplateController extends ODRCustomController
             $child_datatype->setUpdatedBy($user);
 
 
-            $unique_id = UniqueUtility::uniqueIdReal();
+            $unique_id = $dti_service->generateDatatypeUniqueId();
             $child_datatype->setUniqueId($unique_id);
 
             // This must be passed as parameter

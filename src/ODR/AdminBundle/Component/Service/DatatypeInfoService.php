@@ -16,7 +16,6 @@ namespace ODR\AdminBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -26,6 +25,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 // Utility
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 
 
@@ -901,5 +901,36 @@ class DatatypeInfoService
                 unlink($graph_filepath.'/'.$filename);
             }
         }
+    }
+
+
+    /**
+     * Generates and returns a unique_id string that doesn't collide with any other datatype's
+     * "unique_id" property.  Shouldn't be used for the datatype's "template_group" property, as
+     * those should be based off of the grandparent datatype's "unique_id".
+     *
+     * @return string
+     */
+    public function generateDatatypeUniqueId()
+    {
+        // Need to get all current ids in use in order to determine uniqueness of a new id...
+        $query = $this->em->createQuery(
+           'SELECT dt.unique_id
+            FROM ODRAdminBundle:DataType AS dt
+            WHERE dt.deletedAt IS NULL'
+        );
+        $results = $query->getArrayResult();
+
+        $existing_ids = array();
+        foreach ($results as $num => $result)
+            $existing_ids[ $result['unique_id'] ] = 1;
+
+
+        // Keep generating ids until one that's not in
+        $unique_id = UniqueUtility::uniqueIdReal();
+        while ( isset($existing_ids[$unique_id]) )
+            $unique_id = UniqueUtility::uniqueIdReal();
+
+        return $unique_id;
     }
 }

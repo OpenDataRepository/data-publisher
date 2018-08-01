@@ -55,9 +55,9 @@ class WorkerController extends ODRCustomController
 
     /**
      * Called by the migration background process to transfer data from one storage entity to another compatible storage entity.
-     * 
+     *
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function migrateAction(Request $request)
@@ -295,7 +295,7 @@ $ret .= '  Set current to '.$count."\n";
 
     /**
      * Begins the process of rebuilding the image thumbnails for a specific datatype.
-     * 
+     *
      * @param integer $datatype_id Which datatype should have all its image thumbnails rebuilt
      * @param Request $request
      *
@@ -408,10 +408,10 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
-     * Called by the rebuild_thumbnails worker process to rebuild the thumbnails of one of the uploaded images on the site. 
-     * 
+     * Called by the rebuild_thumbnails worker process to rebuild the thumbnails of one of the uploaded images on the site.
+     *
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function rebuildthumbnailsAction(Request $request)
@@ -1446,12 +1446,17 @@ $ret .= '  Set current to '.$count."\n";
         $return['d'] = '';
 
         $save = false;
-        $save = true;
+//        $save = true;
 
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
         try {
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
             /** @var CloneThemeService $clone_theme_service */
@@ -1701,12 +1706,17 @@ $ret .= '  Set current to '.$count."\n";
         $return['t'] = '';
         $return['d'] = '';
 
-        // $save = false;
-        $save = true;
+        $save = false;
+//        $save = true;
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
 
             /** @var RenderPlugin[] $render_plugins */
             $render_plugins = $em->getRepository('ODRAdminBundle:RenderPlugin')->findAll();
@@ -1812,7 +1822,7 @@ $ret .= '  Set current to '.$count."\n";
         }
 
         $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
 
@@ -1836,6 +1846,11 @@ $ret .= '  Set current to '.$count."\n";
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
 
 
             /** @var CloneThemeService $clone_theme_service */
@@ -1883,7 +1898,116 @@ $ret .= '  Set current to '.$count."\n";
         }
 
         $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function setuniqueidsAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
+
+            // Need all datatypes, as well as a list of which ones are top-level...
+            $top_level_datatype_ids = $dti_service->getTopLevelDatatypes();
+
+            /** @var DataType[] $all_datatypes */
+            $all_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
+
+            // Go through all the top-level datatypes first...
+            print '<pre>';
+            foreach ($all_datatypes as $dt) {
+                if ( in_array($dt->getId(), $top_level_datatype_ids) ) {
+                    // If the top-level datatype has a unique_id but no template_group, fix that
+                    if ( $dt->getUniqueId() !== '' && ( is_null($dt->getTemplateGroup() || $dt->getTemplateGroup() === '') ) ) {
+                        $dt->setTemplateGroup( $dt->getUniqueId() );
+
+                        print 'set top-level datatype '.$dt->getId().' "'.$dt->getShortName().'" was missing a template_group, set to "'.$dt->getUniqueId().'"'."\n";
+
+                        if ($save) {
+                            $em->persist($dt);
+                            $em->flush();
+                            $em->refresh($dt);
+                        }
+                    }
+
+                    // If the top-level datatype does not have a unique_id, create one
+                    if ( is_null($dt->getUniqueId()) || $dt->getUniqueId() === '' ) {
+                        $unique_id = $dti_service->generateDatatypeUniqueId();
+
+                        $dt->setUniqueId($unique_id);
+                        $dt->setTemplateGroup($unique_id);
+
+                        print 'set top-level datatype '.$dt->getId().' "'.$dt->getShortName().'" to have unique_id and template_group "'.$unique_id.'"'."\n";
+
+                        if ($save) {
+                            $em->persist($dt);
+                            $em->flush();
+                            $em->refresh($dt);
+                        }
+                    }
+                }
+            }
+
+            // ...now that the grandparent datatypes have unique_ids and template_groups, the
+            //  child datatypes can be set to use their grandparent's template_group...
+            foreach ($all_datatypes as $dt) {
+                if ( !in_array($dt->getId(), $top_level_datatype_ids) ) {
+                    // Child datatypes should always match their grandparent's template_group...
+                    $dt->setTemplateGroup( $dt->getGrandparent()->getTemplateGroup() );
+
+                    print 'set child datatype '.$dt->getId().' "'.$dt->getShortName().'" to have template_group "'.$dt->getGrandparent()->getTemplateGroup().'"'."\n";
+
+                    // If the child datatype does not have a unique_id, create one
+                    if ( is_null($dt->getUniqueId()) || $dt->getUniqueId() === '' ) {
+                        $unique_id = $dti_service->generateDatatypeUniqueId();
+                        $dt->setUniqueId($unique_id);
+
+                        print 'set child datatype '.$dt->getId().' "'.$dt->getShortName().'" to have unique_id "'.$unique_id.'"'."\n";
+                    }
+
+                    if ($save) {
+                        $em->persist($dt);
+                        $em->flush();
+                        $em->refresh($dt);
+                    }
+                }
+            }
+            print '</pre>';
+        }
+        catch (\Exception $e) {
+            $source = 0x74a51771;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
 }

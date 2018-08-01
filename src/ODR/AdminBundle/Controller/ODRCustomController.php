@@ -1334,6 +1334,7 @@ class ODRCustomController extends Controller
         $datarecord->setUpdatedBy($user);
 
         $datarecord->setProvisioned(true);  // Prevent most areas of the site from doing anything with this datarecord...whatever created this datarecord needs to eventually set this to false
+        $datarecord->setUniqueId(null);
 
         $em->persist($datarecord);
         $em->flush();
@@ -2720,6 +2721,7 @@ class ODRCustomController extends Controller
         $datafield_meta->setFieldName('New Field');
         $datafield_meta->setDescription('Field description.');
         $datafield_meta->setXmlFieldName('');
+        $datafield_meta->setInternalReferenceName('');
         $datafield_meta->setRegexValidator('');
         $datafield_meta->setPhpValidator('');
 
@@ -2794,6 +2796,7 @@ class ODRCustomController extends Controller
             'fieldName' => $old_meta_entry->getFieldName(),
             'description' => $old_meta_entry->getDescription(),
             'xml_fieldName' => $old_meta_entry->getXmlFieldName(),
+            'internal_reference_name' => $old_meta_entry->getInternalReferenceName(),
             'markdownText' => $old_meta_entry->getMarkdownText(),
             'regexValidator' => $old_meta_entry->getRegexValidator(),
             'phpValidator' => $old_meta_entry->getPhpValidator(),
@@ -2853,6 +2856,8 @@ class ODRCustomController extends Controller
             $new_datafield_meta->setDescription( $properties['description'] );
         if ( isset($properties['xml_fieldName']) )
             $new_datafield_meta->setXmlFieldName( $properties['xml_fieldName'] );
+        if ( isset($properties['internal_reference_name']) )
+            $new_datafield_meta->setInternalReferenceName( $properties['internal_reference_name'] );
         if ( isset($properties['markdownText']) )
             $new_datafield_meta->setMarkdownText( $properties['markdownText'] );
         if ( isset($properties['regexValidator']) )

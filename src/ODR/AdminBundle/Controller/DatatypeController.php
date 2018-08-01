@@ -16,7 +16,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -37,6 +36,7 @@ use ODR\AdminBundle\Form\UpdateDatatypePropertiesForm;
 use ODR\AdminBundle\Form\CreateDatatypeForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
@@ -46,11 +46,11 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 // Utility
 use ODR\AdminBundle\Component\Utility\UserUtility;
-use ODR\AdminBundle\Component\Utility\UniqueUtility;
 
 
 class DatatypeController extends ODRCustomController
 {
+
     /**
      * Update the database properties metadata and database metadata
      * to reflect the updated database name.
@@ -174,9 +174,14 @@ class DatatypeController extends ODRCustomController
         return $response;
     }
 
+
     /**
+     * TODO -
+     *
      * @param $datatype_id
+     * @param int $wizard
      * @param Request $request
+     *
      * @return Response
      */
     public function propertiesAction($datatype_id, $wizard = 0, Request $request)
@@ -303,8 +308,9 @@ class DatatypeController extends ODRCustomController
                     'html' => $html,
                 );
             }
-        } catch (\Exception $e) {
-            $source = 0x83492adfe;
+        }
+        catch (\Exception $e) {
+            $source = 0x5ae7d1e5;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -316,6 +322,15 @@ class DatatypeController extends ODRCustomController
         return $response;
     }
 
+
+    /**
+     * TODO -
+     *
+     * @param $datatype_unique_id
+     * @param Request $request
+     *
+     * @return Response
+     */
     public function find_landingAction($datatype_unique_id, Request $request)
     {
         $return = array();
@@ -347,8 +362,9 @@ class DatatypeController extends ODRCustomController
 
             $return['d'] = $url_prefix . "#" . $url;
 
-        } catch (\Exception $e) {
-            $source = 0x83492adfe;
+        }
+        catch (\Exception $e) {
+            $source = 0x22b8dae6;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -360,9 +376,13 @@ class DatatypeController extends ODRCustomController
         return $response;
     }
 
+
     /**
+     * TODO -
+     *
      * @param $datatype_id
      * @param Request $request
+     *
      * @return Response
      */
     public function landingAction($datatype_id, Request $request)
@@ -669,8 +689,9 @@ class DatatypeController extends ODRCustomController
                     'html' => $html,
                 );
             }
-        } catch (\Exception $e) {
-            $source = 0x83492adfe;
+        }
+        catch (\Exception $e) {
+            $source = 0x74c7b210;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -681,6 +702,7 @@ class DatatypeController extends ODRCustomController
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
+
 
     /**
      * Builds and returns a list of the actions a user can perform to each top-level DataType.
@@ -1076,6 +1098,8 @@ class DatatypeController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1090,7 +1114,7 @@ class DatatypeController extends ODRCustomController
             $datatype = new DataType();
             $datatype->setRevision(0);
 
-            $unique_id = UniqueUtility::uniqueIdReal();
+            $unique_id = $dti_service->generateDatatypeUniqueId();
             $datatype->setUniqueId($unique_id);
             $datatype->setTemplateGroup($unique_id);
 
@@ -1231,7 +1255,7 @@ class DatatypeController extends ODRCustomController
                 $metadata_datatype->setSetupStep(DataType::STATE_INITIAL);
 
                 // Need to always set a unique id
-                $metadata_unique_id = UniqueUtility::uniqueIdReal();
+                $metadata_unique_id = $dti_service->generateDatatypeUniqueId();
                 $metadata_datatype->setUniqueId($metadata_unique_id);
 
                 // Set new datatype meta
@@ -1351,14 +1375,16 @@ class DatatypeController extends ODRCustomController
             return $redirect;
         }
         catch (\Exception $e) {
-            $source = 0x72fe8ad88;
+            $source = 0xa54e875c;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
+        // TODO ?
     }
+
 
     /**
      * Creates a new top-level DataType.
@@ -1381,6 +1407,8 @@ class DatatypeController extends ODRCustomController
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1419,7 +1447,9 @@ class DatatypeController extends ODRCustomController
                     // Create a new Datatype entity
                     $datatype = new DataType();
                     $datatype->setRevision(0);
-                    $datatype->setUniqueId(UniqueUtility::uniqueIdReal());
+
+                    $unique_id = $dti_service->generateDatatypeUniqueId();
+                    $datatype->setUniqueId($unique_id);
 
                     // Top-level datatypes exist in one of three three states...TODO - should there be more states?
                     // initial - datatype isn't ready for anything really...it shouldn't be displayed to the user
@@ -1516,7 +1546,9 @@ class DatatypeController extends ODRCustomController
                         // Set this to be metadata for new datatype
                         $metadata_datatype->setParent($metadata_datatype);
                         $metadata_datatype->setGrandparent($metadata_datatype);
-                        $metadata_datatype->setUniqueId(UniqueUtility::uniqueIdReal());
+
+                        $unique_id = $dti_service->generateDatatypeUniqueId();
+                        $metadata_datatype->setUniqueId($unique_id);
 
                         // Set new datatype meta
                         $metadata_datatype_meta = clone $datatype->getDataTypeMeta();
@@ -1691,26 +1723,26 @@ class DatatypeController extends ODRCustomController
                 }
             }
             else {
-                // otherwise, this was a get request
+                // Otherwise, this was a GET request
                 $templating = $this->get('templating');
                 $return['d'] = $templating->render(
-                    'odradminbundle:datatype:create_datatype_info_form.html.twig',
+                    'ODRAdminBundle:Datatype:create_datatype_info_form.html.twig',
                     array(
-                        'form' => $form->createview()
+                        'form' => $form->createView()
                     )
                 );
             }
         }
-        catch (\exception $e) {
+        catch (\Exception $e) {
             $source = 0x6151265b;
-            if ($e instanceof odrexception)
-                throw new odrexception($e->getmessage(), $e->getstatuscode(), $e->getsourcecode($source));
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
-                throw new odrexception($e->getmessage(), 500, $source, $e);
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
-        $response = new response(json_encode($return));
-        $response->headers->set('content-type', 'application/json');
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
 }

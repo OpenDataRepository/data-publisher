@@ -39,7 +39,6 @@ class UpdateDatatypePropertiesForm extends AbstractType
                 'label'  => 'Long Name',
                 'attr' => array(
                     'maxlength' => 255,
-                    // underlying database column has a max length of 32 characters
                 ),
             )
         );

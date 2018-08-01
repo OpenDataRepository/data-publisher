@@ -25,34 +25,6 @@ ODR\AdminBundle\Entity\DataRecord:
             default: ''
             column: unique_id
 
-#        external_id:
-#            type: string
-#            length: 255
-#            fixed: false
-#            nullable: false
-#            default: ''
-#            column: external_id
-#            gedmo:
-#                - versioned
-#        namefield_value:
-#            type: string
-#            length: 255
-#            fixed: false
-#            nullable: false
-#            default: ''
-#            column: namefield_value
-#            gedmo:
-#                - versioned
-#        sortfield_value:
-#            type: string
-#            length: 255
-#            fixed: false
-#            nullable: false
-#            default: ''
-#            column: sortfield_value
-#            gedmo:
-#                - versioned
-
         created:
             type: datetime
             gedmo:

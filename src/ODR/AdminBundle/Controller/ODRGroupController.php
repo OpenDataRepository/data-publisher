@@ -77,7 +77,7 @@ class ODRGroupController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-            // TODO Why not?
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
@@ -144,6 +144,7 @@ class ODRGroupController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
@@ -230,6 +231,7 @@ class ODRGroupController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
@@ -299,6 +301,7 @@ class ODRGroupController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
@@ -421,6 +424,7 @@ class ODRGroupController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
@@ -535,6 +539,7 @@ class ODRGroupController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
@@ -624,6 +629,7 @@ class ODRGroupController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
@@ -890,6 +896,7 @@ class ODRGroupController extends ODRCustomController
             if ($datatype->getDeletedAt() !== null)
                 throw new ODRNotFoundException('Datatype');
 
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
@@ -1026,6 +1033,9 @@ class ODRGroupController extends ODRCustomController
             $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
             if ($group == null)
                 throw new ODRNotFoundException('Group');
+
+            // While not allowed to modify permissions for a default Group, the user should still
+            //  have a way to view what the group can do...which is why this is commented out here
 //            if ($group->getPurpose() !== '')
 //                throw new ODRBadRequestException('Unable to modify permissions for a default Group');
 
@@ -1034,6 +1044,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
@@ -1210,6 +1221,7 @@ class ODRGroupController extends ODRCustomController
             if ($gdtp == null)
                 throw new ODRNotFoundException('Permissions Entity');
 
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
@@ -1455,6 +1467,7 @@ class ODRGroupController extends ODRCustomController
             if ($gdfp == null)
                 throw new ODRNotFoundException('Permissions Entity');
 
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 

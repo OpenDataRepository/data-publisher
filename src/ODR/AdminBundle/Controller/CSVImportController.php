@@ -2107,12 +2107,12 @@ class CSVImportController extends ODRCustomController
                                         ),
                                     );
                                 }
-                                else if ( $option_length > 64 ) {
+                                else if ( $option_length > 255 ) {
                                     $errors[] = array(
                                         'level' => 'Warning',
                                         'body' => array(
                                             'line_num' => $line_num,
-                                            'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 64 characters',
+                                            'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 255 characters',
                                         ),
                                     );
                                 }
@@ -2120,12 +2120,12 @@ class CSVImportController extends ODRCustomController
                         }
                         else {
                             // Check length of option
-                            if ($length > 64) {
+                            if ($length > 255) {
                                 $errors[] = array(
                                     'level' => 'Warning',
                                     'body' => array(
                                         'line_num' => $line_num,
-                                        'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 64 characters',
+                                        'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 255 characters',
                                     ),
                                 );
                             }

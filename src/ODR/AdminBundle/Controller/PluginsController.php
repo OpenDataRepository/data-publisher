@@ -871,7 +871,6 @@ class PluginsController extends ODRCustomController
             $repo_render_plugin_instance = $em->getRepository('ODRAdminBundle:RenderPluginInstance');
 
 
-
             // Need to specify either a datafield or a datatype...
             $datatype = null;
             $datafield = null;
@@ -879,12 +878,11 @@ class PluginsController extends ODRCustomController
                 throw new ODRBadRequestException();
 
 
-            if($datafield_id == 0) {
+            if ($datafield_id == 0) {
                 /** @var DataType $datatype */
                 $datatype = $repo_datatype->find($datatype_id);
                 if ( is_null($datatype) )
                     throw new ODRNotFoundException('Datatype');
-
             }
             else {
                 /** @var DataFields $datafield */
@@ -903,8 +901,9 @@ class PluginsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
-            if( ! $pm_service->isDatatypeAdmin($user, $datatype))
+            if( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
+            // --------------------
 
 
             $current_render_plugin = null;

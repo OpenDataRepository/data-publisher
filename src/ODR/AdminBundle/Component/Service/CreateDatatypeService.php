@@ -42,9 +42,6 @@ use FOS\UserBundle\Model\UserManagerInterface;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
-// Utility
-// use ODR\AdminBundle\Component\Utility\UserUtility;
-use ODR\AdminBundle\Component\Utility\UniqueUtility;
 
 
 class CreateDatatypeService
@@ -331,9 +328,10 @@ class CreateDatatypeService
             $new_datatype = clone $parent_datatype;
         }
 
-        if($new_datatype->getUniqueId() == null) {
+        if ($new_datatype->getUniqueId() == null) {
             // Set a unique ID if this is a clone - existing DT should already have one.
-            $new_datatype->setUniqueId(UniqueUtility::uniqueIdReal());
+            $unique_id = $this->dti_service->generateDatatypeUniqueId();
+            $new_datatype->setUniqueId($unique_id);
         }
 
         // $new_datatype is based off a "master template" datatype
