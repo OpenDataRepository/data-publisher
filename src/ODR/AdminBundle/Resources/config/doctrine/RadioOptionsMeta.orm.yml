@@ -15,13 +15,13 @@ ODR\AdminBundle\Entity\RadioOptionsMeta:
 
         optionName:
             type: string
-            length: 64
+            length: 255
             fixed: false
             nullable: false
             column: option_name
         xml_optionName:
             type: string
-            length: 64
+            length: 255
             fixed: false
             nullable: false
             column: xml_option_name

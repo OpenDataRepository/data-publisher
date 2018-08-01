@@ -16,7 +16,7 @@ ODR\AdminBundle\Entity\RadioOptions:
         # This property MUST exist and be kept up to date, otherwise CSV/XML importing are unable to concurrently check whether a RadioOption exists
         optionName:
             type: string
-            length: 64
+            length: 255
             fixed: false
             nullable: false
             column: option_name
