@@ -140,8 +140,11 @@
                 {% else %}
                     <input id="Option_object_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="MultipleRadioGroup" disabled />
                 {% endif %}
-
+                {% if radio_option.radioOptionMeta is defined %}
                 <span id="Option_{{ radio_option.id }}_name">{{ radio_option.radioOptionMeta.optionName }}</span>
+                    {% else %}
+                    invalid option
+                {% endif %}
                 </label>
             {% endfor %}
         {% endif %}
@@ -169,7 +172,11 @@
             {% endif %}
 
             {% for radio_option in datafield.radioOptions %}
-                <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionMeta.optionName }}</option>
+                {% if radio_option.radioOptionMeta is defined %}
+                    <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionMeta.optionName }}</option>
+                {% else %}
+                    <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">Invalid Option Name</option>
+                {% endif %}
             {% endfor %}
         {% endif %}
         </select>
