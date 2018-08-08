@@ -51,6 +51,7 @@ use ODR\AdminBundle\Form\UpdateDataFieldsForm;
 use ODR\AdminBundle\Form\UpdateDataTypeForm;
 use ODR\AdminBundle\Form\UpdateDataTreeForm;
 use ODR\AdminBundle\Form\UpdateThemeDatatypeForm;
+use ODR\AdminBundle\Form\RadioOptionListForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneThemeService;
@@ -1941,13 +1942,200 @@ class DisplaytemplateController extends ODRCustomController
         }
     }
 
+    /**
+     * Returns a form for adding multiple radio options via a list.
+     *
+     * @param integer $datafield_id The database id of the DataField to add a RadioOption to.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function saveradiooptionlistAction($datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            $post = $request->request->all();
+
+            if(strlen($post['radio_option_list']) > 0) {
+                $radio_option_list = preg_split("/\n/", $post['radio_option_list']);
+            }
+
+            // Parse and process radio options
+            $processed_options = array();
+            foreach($radio_option_list as $option) {
+
+                // Remove whitespace
+                $option = trim($option);
+
+                // ensure length > 0
+                if(strlen($option) < 1) continue;
+
+                // Add option to datafield
+                if(!in_array($option, $processed_options)) {
+                    // Create a new RadioOption
+                    $force_create = true;
+                    $radio_option = parent::ODR_addRadioOption($em, $user, $datafield, $force_create);
+
+                    $radio_option->setOptionName($option);
+                    $radio_option_meta = $radio_option->getRadioOptionMeta();
+                    $radio_option_meta->setOptionName($option);
+                    $em->persist($radio_option);
+                    $em->persist($radio_option_meta);
+
+                    array_push($processed_options, $option);
+
+                }
+            }
+            // If the datafield is sorting its radio options by name, then resort all of this datafield's radio options again
+            if ($datafield->getRadioOptionNameSort() == true)
+                self::sortRadioOptionsByName($em, $user, $datafield);
+
+            $em->flush();
+            // Update the cached version of the datatype
+            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+
+            // Convert to option row...
+            $return['d'] = array(
+                'html' => 'options created' //  var_export($radio_option_list)
+            );
+
+        }
+        catch (\Exception $e) {
+            $source = 0x8df28adf;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+    /**
+     * Returns a form for adding multiple radio options via a list.
+     *
+     * @param integer $datafield_id The database id of the DataField to add a RadioOption to.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function addradiooptionfromlistAction($datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Update the cached version of the datatype
+            // $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            /*
+            $radio_option_list_form = $this->createForm(
+                RadioOptionListForm::class,
+                $datafield
+            );
+            */
+
+
+            $templating = $this->get('templating');
+            $html = $templating->render(
+                'ODRAdminBundle:Displaytemplate:radio_option_list_import.html.twig',
+                array(
+                    'datafield' => $datafield,
+                )
+            );
+
+            // Convert to option row...
+            $return['d'] = array(
+                'datafield_id' => $datafield->getId(),
+                'html' => $html
+            );
+
+            // Don't need to update cached versions of datarecords or themes
+        }
+        catch (\Exception $e) {
+            $source = 0x8df28adf;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 
     /**
      * Adds a new RadioOption entity to a SingleSelect, MultipleSelect, SingleRadio, or MultipleRadio DataField.
-     * 
+     *
      * @param integer $datafield_id The database id of the DataField to add a RadioOption to.
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function addradiooptionAction($datafield_id, Request $request)
@@ -2046,7 +2234,7 @@ class DisplaytemplateController extends ODRCustomController
      *
      * @param integer $theme_element_id The database id of the ThemeElement that the new DataType will be rendered in.
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function addchilddatatypeAction($theme_element_id, Request $request)
@@ -2268,10 +2456,10 @@ class DisplaytemplateController extends ODRCustomController
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-    
-        $response = new Response(json_encode($return));  
+
+        $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
-        return $response;  
+        return $response;
     }
 
 

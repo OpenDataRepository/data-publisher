@@ -2712,6 +2712,12 @@
             AddOption(datafield_id);
         });
 
+        // Add Options via list
+        $("#ThemeDesignForm").find(".ODRAddRadioOptionList").unbind('click').click(function() {
+            var datafield_id = $(this).attr('rel');
+            AddOptionsFromList(datafield_id);
+        });
+
         $("#ThemeDesignForm").find(".ODRRadioOptionName").each(function() {
             $(this).unbind('keyup');
             $(this).unbind('paste');
@@ -2853,6 +2859,54 @@
         });
     }
 
+    function AddOptionsFromList(datafield_id) {
+        var url = '{{ path('odr_design_add_radio_option_from_list', { 'datafield_id': 0 }) }}';
+        // Load display template menu
+        url = url.substring(0,(url.length - 1));
+        url += datafield_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                // Add to theme element form
+                $("#ThemeDesignForm").html(data.d.html);
+                /*
+                console.log('APPENDING new option', data.d)
+                $('#ODRRadioOptionsForm_0 table tbody').append(data.d.html)
+                console.log('starting scroll highlight')
+                ScrollHighlight($('#radio_option_' + data.d.radio_option_id), $(".ODRRadioOptionListWrapper"));
+                console.log('ending scroll highlight')
+
+                // Determine if sort order is alpha
+                // TODO Need to deal with sort order....
+                InitRadioOptionsForm(data.d.datafield_id)
+                ReloadDatafield(datafield_id);
+                */
+
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
     function AddOption(datafield_id) {
         var url = '{{ path('odr_design_add_radio_option', { 'datafield_id': 0 }) }}';
         // Load display template menu
@@ -2865,11 +2919,6 @@
             url: url,
             dataType: "json",
             success: function(data) {
-                // Reload datafield properties panel
-                // $("#Field_" + datafield_id + "_radio_options").trigger('click');
-
-                // Reload the datafield to get the new radio option
-
                 // Insert the data into the radio option list
                 console.log('APPENDING new option', data.d)
                 $('#ODRRadioOptionsForm_0 table tbody').append(data.d.html)

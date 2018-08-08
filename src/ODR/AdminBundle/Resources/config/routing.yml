@@ -558,9 +558,20 @@ odr_design_save_radio_option_order:
     requirements:
         datafield_id: \d+
         alphabetical_sort: 0|1
+odr_design_save_radio_option_list:
+    path:  /design/displaytemplate/saveradiooptionlist/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:saveradiooptionlist }
+    methods: [ POST ]
+    requirements:
+        datafield_id:  \d+
 odr_design_add_radio_option:
     path:  /design/displaytemplate/addradiooption/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:addradiooption }
+    requirements:
+        datafield_id:  \d+
+odr_design_add_radio_option_from_list:
+    path:  /design/displaytemplate/addradiooptionfromlist/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:addradiooptionfromlist }
     requirements:
         datafield_id:  \d+
 odr_design_default_radio_option:
