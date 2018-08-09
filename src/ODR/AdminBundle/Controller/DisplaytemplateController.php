@@ -1987,6 +1987,7 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            $start_time = microtime();
             $post = $request->request->all();
 
             if(strlen($post['radio_option_list']) > 0) {
@@ -2027,9 +2028,10 @@ class DisplaytemplateController extends ODRCustomController
             // Update the cached version of the datatype
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
+            $end_time = microtime();
             // Convert to option row...
             $return['d'] = array(
-                'html' => 'options created' //  var_export($radio_option_list)
+                'html' => 'options created: ' + ($end_time - $start_time) //  var_export($radio_option_list)
             );
 
         }
