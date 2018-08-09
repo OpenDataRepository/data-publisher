@@ -33,6 +33,8 @@
         $(function() {
             $(".ODRAddRadioOptionFromList").unbind('click')
                 .click(function() {
+                    // Disable button
+                    $(this).attr('disabled', 'disabled');
                     SaveRadioOptionFromList($(this).attr('rel'));
                 })
         });
@@ -44,6 +46,17 @@
                 url += datafield_id;
 
                 var post_data = $("#ODRRadioOptionsListForm").serialize();
+
+                // Hide the form
+                $("#ThemeDesignForm").html('<div class="ODRRemodalLoading pure-u-1">' +
+                    '<div class="loading-container">' +
+                    '<div class="loading"></div>' +
+                    '<div class="loading-text">loading</div>' +
+                    '</div>' +
+                    '</div>')
+
+
+
                 $.ajax({
                     type: 'POST',
                     url: url,

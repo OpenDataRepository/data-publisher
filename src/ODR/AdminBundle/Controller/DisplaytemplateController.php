@@ -1987,7 +1987,7 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            $start_time = microtime();
+            $start_time = microtime(true);
             $post = $request->request->all();
 
             if(strlen($post['radio_option_list']) > 0) {
@@ -2008,7 +2008,14 @@ class DisplaytemplateController extends ODRCustomController
                 if(!in_array($option, $processed_options)) {
                     // Create a new RadioOption
                     $force_create = true;
-                    $radio_option = parent::ODR_addRadioOption($em, $user, $datafield, $force_create);
+                    $radio_option = parent::ODR_addRadioOption(
+                            $em,
+                            $user,
+                            $datafield,
+                            true,
+                            'Option',
+                            false
+                    );
 
                     $radio_option->setOptionName($option);
                     $radio_option_meta = $radio_option->getRadioOptionMeta();
@@ -2024,11 +2031,16 @@ class DisplaytemplateController extends ODRCustomController
             if ($datafield->getRadioOptionNameSort() == true)
                 self::sortRadioOptionsByName($em, $user, $datafield);
 
+            if($datafield->getIsMasterField()) {
+                $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
+                parent::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
+            }
+
             $em->flush();
             // Update the cached version of the datatype
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
-            $end_time = microtime();
+            $end_time = microtime(true);
             // Convert to option row...
             $return['d'] = array(
                 'html' => 'options created: ' + ($end_time - $start_time) //  var_export($radio_option_list)

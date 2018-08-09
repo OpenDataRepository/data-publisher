@@ -2182,13 +2182,15 @@ class ODRCustomController extends Controller
      * @param DataFields $datafield
      * @param boolean $force_create If true, always create a new RadioOption...otherwise find and return the existing RadioOption with $datafield and $option_name, or create one if it doesn't exist
      * @param string $option_name   An optional name to immediately assign to the RadioOption entity
+     * @param boolean $update_master Automatically update the master template revision
      *
      * @return RadioOptions
      */
-    protected function ODR_addRadioOption($em, $user, $datafield, $force_create, $option_name = "Option")
+    protected function ODR_addRadioOption($em, $user, $datafield, $force_create, $option_name = "Option", $update_master = true)
     {
         if ($force_create) {
             // Create a new RadioOption entity
+            /** @var RadioOptions $radio_option */
             $radio_option = new RadioOptions();
             $radio_option->setDataField($datafield);
             $radio_option->setOptionName($option_name);     // exists to prevent potential concurrency issues, see below
@@ -2200,10 +2202,8 @@ class ODRCustomController extends Controller
             $datafield->addRadioOption($radio_option);
             $em->persist($radio_option);
 
-            $em->flush();
-            $em->refresh($radio_option);
-
             // Create a new RadioOptionMeta entity
+            /** @var RadioOptionsMeta $radio_option_meta */
             $radio_option_meta = new RadioOptionsMeta();
             $radio_option_meta->setRadioOption($radio_option);
             $radio_option_meta->setOptionName($option_name);
@@ -2217,10 +2217,9 @@ class ODRCustomController extends Controller
             // Ensure the "in-memory" version of the new radio option knows about its meta entry
             $radio_option->addRadioOptionMetum($radio_option_meta);
             $em->persist($radio_option_meta);
-            $em->flush();
 
             // Master Template Data Fields must increment Master Revision on all change requests.
-            if($datafield->getIsMasterField()) {
+            if($datafield->getIsMasterField() && $update_master) {
                 $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
                 self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
             }
