@@ -698,7 +698,7 @@ class CloneDatatypeService
 
                     // Ensure the "in-memory" version of $new_df knows about its new radio option
                     $new_df->addRadioOption($new_ro);
-                    self::persistObject($new_ro);
+                    self::persistObject($new_ro, true);
 
                     // Also clone the radio option's meta entry
                     $parent_ro_meta = $parent_ro->getRadioOptionMeta();
@@ -707,11 +707,14 @@ class CloneDatatypeService
 
                     // Ensure the "in-memory" version of $new_ro knows about its meta entry
                     $new_ro->addRadioOptionMetum($new_ro_meta);
-                    self::persistObject($new_ro_meta);
+                    self::persistObject($new_ro_meta, true);
 
                     $this->logger->debug('CloneDatatypeService: -- cloned radio option '.$parent_ro->getId().' "'.$new_ro->getOptionName().'" and its meta entry');
                 }
             }
+
+            // flush options to database
+            $this->em->flush();
 
             // Copy any render plugin settings for this datafield from the master template
             self::cloneRenderPluginSettings($parent_df->getRenderPlugin(), null, $new_df);
