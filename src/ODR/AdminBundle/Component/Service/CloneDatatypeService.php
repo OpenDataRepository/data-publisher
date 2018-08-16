@@ -1230,9 +1230,9 @@ class CloneDatatypeService
                     $this->logger->debug('CloneDatatypeService: -- cloned GroupDatafieldPermission entry from master template Group '.$master_group->getId().' to Group '.$group->getId().' for new datafield '.$datafield->getId());
                 }
             }
-
-            $this->em->flush();
         }
+
+        $this->em->flush();
     }
 
 
