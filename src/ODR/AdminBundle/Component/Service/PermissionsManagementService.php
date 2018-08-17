@@ -26,6 +26,7 @@ use ODR\AdminBundle\Entity\GroupMeta;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\UserGroup;
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
@@ -1114,6 +1115,13 @@ if ($debug)
     public function createGroup($user, $datatype, $initial_purpose = '')
     {
         // ----------------------------------------
+        // Groups should only be attached to top-level datatypes...child datatypes inherit groups
+        //  from their parent
+        if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+            throw new ODRBadRequestException('Child Datatypes are not allowed to have groups of their own.');
+
+
+        // ----------------------------------------
         // Create the Group entity
         $group = new Group();
         $group->setDataType($datatype);
@@ -1164,10 +1172,7 @@ if ($debug)
 
 
         // ----------------------------------------
-        // Need to keep track of which datatypes are top-level
-        $top_level_datatypes = $this->dti_service->getTopLevelDatatypes();
-
-        // Create the initial datatype permission entries
+        // Locate the ids of all children of this top-level datatype
         $query = $this->em->createQuery(
            'SELECT dt.id AS dt_id
             FROM ODRAdminBundle:DataType AS dt
@@ -1180,7 +1185,7 @@ if ($debug)
         $associated_datatypes = array();
         foreach ($results as $result)
             $associated_datatypes[] = $result['dt_id'];
-//print_r($associated_datatypes);
+
 
         // Build a single INSERT INTO query to add GroupDatatypePermissions entries for this top-level datatype and for each of its children
         $query_str = '
@@ -1201,7 +1206,7 @@ if ($debug)
                 $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "1", "1", "1", "1", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
             else if ($initial_purpose == 'view_all')
                 $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "1", "1", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-            else if ( $initial_purpose == 'view_only' || in_array($dt_id, $top_level_datatypes) )
+            else if ( $initial_purpose == 'view_only' || $dt_id === $datatype->getGrandparent()->getId() )
                 $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "1", "0", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
             else
                 $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "0", "0", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";

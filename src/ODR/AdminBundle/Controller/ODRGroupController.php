@@ -81,6 +81,12 @@ class ODRGroupController extends ODRCustomController
             // if ($datatype->getIsMasterType())
                 // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
+            // Groups should only be attached to top-level datatypes...child datatypes inherit groups
+            //  from their parent
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Child Datatypes are not allowed to have groups of their own.');
+
+
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */

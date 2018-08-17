@@ -90,6 +90,8 @@ class DatatypeInfoService
 
         // ----------------------------------------
         // Otherwise, rebuild the list of top-level datatypes
+        // TODO - enforce dt.is_master_type = 0  here?
+        // TODO - cut out metadata datatypes from this?
         $query = $this->em->createQuery(
            'SELECT dt.id AS datatype_id
             FROM ODRAdminBundle:DataType AS dt
@@ -110,6 +112,9 @@ class DatatypeInfoService
         $this->cache_service->set('top_level_datatypes', $top_level_datatypes);
         return $top_level_datatypes;
     }
+
+
+    // TODO - create something to return top-level templates?
 
 
     /**

@@ -605,6 +605,7 @@ odr_markdown_help_dialog:
 odr_save_search_notes:
     path:  /design/displaytemplate/save_notes/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:savesearchnotes }
+    methods: [POST]
     requirements:
         datatype_id: \d+
 
@@ -1280,6 +1281,9 @@ odr_create_theme_vesrions:
 odr_set_datatype_unique_ids:
     path: /admin/set_unique_ids
     defaults: { _controller: ODRAdminBundle:Worker:setuniqueids }
+odr_fix_setup_steps:
+    path: /admin/fix_setup_steps
+    defaults: { _controller: ODRAdminBundle:Worker:fixsetupsteps }
 
 #-----------------------------------------
 

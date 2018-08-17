@@ -25,12 +25,12 @@ class DataType
     // Datatypes in these states are usually still being copied from a master template, and shouldn't be displayed/used elsewhere
     const STATE_INITIAL = "initial";
     // Datatypes in this state are technically viewable, but lack a search results theme
-    const STATE_INCOMPLETE = "incomplete";
-    // Datatypes in this state have *everything* they need
+//    const STATE_INCOMPLETE = "incomplete";
+    // Datatypes in this state have all the theme and permission entries required to be viewable
     const STATE_OPERATIONAL = "operational";
 
     // Convenience state so controllers can filter out datatypes that aren't ready for general use yet
-    const STATE_VIEWABLE = array(self::STATE_INCOMPLETE, self::STATE_OPERATIONAL);
+    const STATE_VIEWABLE = array(/*self::STATE_INCOMPLETE,*/ self::STATE_OPERATIONAL);
 
 
     /**

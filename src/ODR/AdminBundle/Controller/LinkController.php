@@ -1627,13 +1627,15 @@ if ($debug)
     print "\nremote datatype: ".$remote_datatype->getId()."\n";
 
             // Ensure the remote datatype has a suitable theme...
-            if ($remote_datatype->getSetupStep() != DataType::STATE_OPERATIONAL)
-                throw new ODRBadRequestException('Remote Datatype does not have a suitable Theme');
+            if ($remote_datatype->getSetupStep() == DataType::STATE_INITIAL)
+                throw new ODRBadRequestException('Remote Datatype is still being created');
 
-            // Since the above statement didn't thrown an exception, the one below shouldn't either...
+            // Since the above statement didn't throw an exception, the one below shouldn't either...
             $theme_id = $theme_service->getPreferredTheme($user, $remote_datatype->getId(), 'search_results');
-            if ($theme_id == null)
-                throw new ODRException('Remote Datatype does not have a suitable Theme');
+            // $theme_id may be for a "master" theme instead of a "search_results" or "table" theme
+            // Theoretically, it shouldn't matter which type of theme gets returned here
+//            if ($theme_id == null)
+//                throw new ODRException('Remote Datatype does not have a suitable Theme');
 
 
             // ----------------------------------------

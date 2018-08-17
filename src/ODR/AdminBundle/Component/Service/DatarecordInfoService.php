@@ -620,11 +620,77 @@ class DatarecordInfoService
 
 
     /**
+     * Deletes the cached table entries for the specified datatype...currently used by several
+     * render plugins after they get removed or their settings get changed...
+     *
+     * TODO - better way of handling this requirement?
+     *
+     * @param int $grandparent_datatype_id
+     * @param array $keys_to_delete
+     */
+    public function deleteCachedTableData($grandparent_datatype_id)
+    {
+        $query = $this->em->createQuery(
+           'SELECT dr.id AS dr_id
+            FROM ODRAdminBundle:DataRecord AS dr
+            WHERE dr.dataType = :datatype_id
+            AND dr.deletedAt IS NULL'
+        )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result)
+            $this->cache_service->delete('cached_table_data_'.$result['dr_id']);
+    }
+
+
+    /**
+     * Generates a CSRF token for every datarecord/datafield pair in the provided arrays.
+     *
+     * @param array $datatype_array    @see parent::getDatatypeData()
+     * @param array $datarecord_array  @see parent::getDatarecordData()
+     *
+     * @return array
+     */
+    public function generateCSRFTokens($datatype_array, $datarecord_array)
+    {
+        $token_list = array();
+
+        foreach ($datarecord_array as $dr_id => $dr) {
+            if (!isset($token_list[$dr_id]))
+                $token_list[$dr_id] = array();
+
+            $dt_id = $dr['dataType']['id'];
+
+            if (!isset($datatype_array[$dt_id]))
+                continue;
+
+            foreach ($datatype_array[$dt_id]['dataFields'] as $df_id => $df) {
+
+                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+
+                $token_id = $typeclass . 'Form_' . $dr_id . '_' . $df_id;
+                $token_list[$dr_id][$df_id] = $this->token_manager->getToken($token_id)->getValue();
+
+            }
+        }
+
+        return $token_list;
+    }
+
+
+    // ----------------------------------------
+    // ----------------------------------------
+    /**
+     * TODO - this is an absolutely terrible idea from a code organization standpoint...
+     * TODO - view, edit, mass edit, search results, permission viewing, group management, displaytemplate, searchtemplates, and xml/csv exports all do something similar to this...
+     * TODO - however, this piece of code is the one specialized for the edit page.  it's not applicable at all to the rest of the instances where you want to view datarecords...
+     *
      * @param $search_theme_id
      * @param $search_key
      * @param $initial_datarecord_id
      * @param $template_name
      * @param $target_id
+     *
      * @return string
      */
     public function GetDisplayData(
@@ -903,8 +969,9 @@ class DatarecordInfoService
     }
 
     /**
-     * Creates and persists a new DataRecord entity.
-     * TODO
+     * TODO - this service is not the correct spot at all for something like this...would probably be better suited in some sort of entity creation service (along with most of the stuff in ODRCustomController)
+     *
+     * Creates and persists a new DataRecord entity
      *
      * @param User $user         The user requesting the creation of this entity
      * @param DataType $datatype
@@ -938,62 +1005,5 @@ class DatarecordInfoService
         $this->em->persist($datarecord_meta);
 
         return $datarecord;
-    }
-
-    /**
-     * Generates a CSRF token for every datarecord/datafield pair in the provided arrays.
-     *
-     * @param array $datatype_array    @see parent::getDatatypeData()
-     * @param array $datarecord_array  @see parent::getDatarecordData()
-     *
-     * @return array
-     */
-    public function generateCSRFTokens($datatype_array, $datarecord_array)
-    {
-        $token_list = array();
-
-        foreach ($datarecord_array as $dr_id => $dr) {
-            if (!isset($token_list[$dr_id]))
-                $token_list[$dr_id] = array();
-
-            $dt_id = $dr['dataType']['id'];
-
-            if (!isset($datatype_array[$dt_id]))
-                continue;
-
-            foreach ($datatype_array[$dt_id]['dataFields'] as $df_id => $df) {
-
-                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-
-                $token_id = $typeclass . 'Form_' . $dr_id . '_' . $df_id;
-                $token_list[$dr_id][$df_id] = $this->token_manager->getToken($token_id)->getValue();
-
-            }
-        }
-
-        return $token_list;
-    }
-
-    /**
-     * Deletes the cached table entries for the specified datatype...currently used by several
-     * render plugins after they get removed or their settings get changed...
-     *
-     * TODO - better way of handling this requirement?
-     *
-     * @param int $grandparent_datatype_id
-     * @param array $keys_to_delete
-     */
-    public function deleteCachedTableData($grandparent_datatype_id)
-    {
-        $query = $this->em->createQuery(
-           'SELECT dr.id AS dr_id
-            FROM ODRAdminBundle:DataRecord AS dr
-            WHERE dr.dataType = :datatype_id
-            AND dr.deletedAt IS NULL'
-        )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
-        $results = $query->getArrayResult();
-
-        foreach ($results as $result)
-            $this->cache_service->delete('cached_table_data_'.$result['dr_id']);
     }
 }

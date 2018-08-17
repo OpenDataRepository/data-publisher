@@ -211,7 +211,7 @@ class DatatypeController extends ODRCustomController
             // ----------------------------------------
             // Check if this is a master template based datatype that is still in the creation process...
             // TODO Change the checker to re-route to landing when complete? not sure
-            if ($datatype->getSetupStep() == "initial" && $datatype->getMasterDataType() != null) {
+            if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
                 $templating = $this->get('templating');
                 $return['t'] = "html";
@@ -341,9 +341,6 @@ class DatatypeController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(array('unique_id' => $datatype_unique_id));
@@ -361,7 +358,6 @@ class DatatypeController extends ODRCustomController
             $url = $this->generateUrl('odr_datatype_landing', array('datatype_id' => $landing_datatype->getId()), false);
 
             $return['d'] = $url_prefix . "#" . $url;
-
         }
         catch (\Exception $e) {
             $source = 0x22b8dae6;
@@ -395,6 +391,9 @@ class DatatypeController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -410,7 +409,7 @@ class DatatypeController extends ODRCustomController
             // ----------------------------------------
             // Check if this is a master template based datatype that is still in the creation process...
             // TODO Change the checker to re-route to landing when complete? not sure
-            if ($datatype->getSetupStep() == "initial" && $datatype->getMasterDataType() != null) {
+            if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
                 $templating = $this->get('templating');
                 $return['t'] = "html";
@@ -422,134 +421,32 @@ class DatatypeController extends ODRCustomController
                         )
                     )
                 );
-            } else {
+            }
+            else {
                 // Ensure user has permissions to be doing this
-                if (!$pm_service->isDatatypeAdmin($user, $datatype))
+                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
-
-
-                // TODO This is a copy of DisplayTemplateController::GetDisplayData
-                // TODO Refactor to a service in DTI Service....
-                /** @var DatatypeInfoService $dti_service */
-                $dti_service = $this->container->get('odr.datatype_info_service');
-                /** @var ThemeInfoService $theme_service */
-                $theme_service = $this->container->get('odr.theme_info_service');
-
-                $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-                $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-
-                // Going to need these...
-                $datatree_array = $dti_service->getDatatreeArray();
-
-
-                $source_datatype_id = $datatype_id;
-
-                /*
-                 * We will always load the related grandparent.  Children can be listed
-                 * as part of the interface.
-                 */
-                /** @var DataType $grandparent_datatype */
-                $grandparent_datatype = $repo_datatype->find($source_datatype_id);
-
-                $master_theme = $theme_service->getDatatypeMasterTheme($source_datatype_id);
-
-                // ----------------------------------------
-                // Load required objects based on parameters...don't need to check whether they're deleted
-                /** @var DataType $datatype */
-                $datatype = null;
-                /** @var Theme $theme */
-                $theme = null;
-
-                /** @var ThemeElement|null $theme_element */
-                $theme_element = null;
-                /** @var DataFields|null $datafield */
-                $datafield = null;
-
-                $datatype = $grandparent_datatype;
-                $theme = $master_theme;
-
-                // Get display Data Only
-                // ----------------------------------------
-                /** @var User $user */
-                $user = $this->container->get('security.token_storage')->getToken()->getUser();
-                $user_permissions = $pm_service->getUserPermissionsArray($user);
                 $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
-                // Store whether the user is an admin of this datatype...this usually is true, but the user
-                //  may not have the permission if this function is reloading stuff for a linked datatype
-                $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $grandparent_datatype);
 
                 // ----------------------------------------
-                // Grab the cached version of the grandparent datatype
-                $include_links = true;
-                $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId(), $include_links);
-
-                // Also grab the cached version of the theme
-                $theme_array = $theme_service->getThemeArray($master_theme->getId());
-
-                // Due to the possibility of linked datatypes the user may not have permissions for, the
-                //  datatype array needs to be filtered.
-                $datarecord_array = array();
-                $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-                // "Inflate" the currently flattened datatype and theme arrays
-                $stacked_datatype_array[$datatype->getId()] =
-                    $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
-                $stacked_theme_array[$theme->getId()] =
-                    $theme_service->stackThemeArray($theme_array, $theme->getId());
-
-
-                // ----------------------------------------
-                // Need an array of fieldtype ids and typenames for notifications when changing fieldtypes
-                $fieldtype_array = array();
-                /** @var FieldType[] $fieldtypes */
-                $fieldtypes = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
-                foreach ($fieldtypes as $fieldtype)
-                    $fieldtype_array[$fieldtype->getId()] = $fieldtype->getTypeName();
-
-                // Store whether this datatype has datarecords..affects warnings when changing fieldtypes
-                $query = $em->createQuery(
-                    'SELECT COUNT(dr) AS dr_count
-                          FROM ODRAdminBundle:DataRecord AS dr
-                          WHERE dr.dataType = :datatype_id'
-                )->setParameters(array('datatype_id' => $datatype->getId()));
-                $results = $query->getArrayResult();
-
-                $has_datarecords = false;
-                $datarecord_count = 0;
-                if ($results[0]['dr_count'] > 0) {
-                    $has_datarecords = true;
-                    $datarecord_count = $results[0]['dr_count'];
-                }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                // TODO - should this also be pulling linked datatypes?  cause right now that'll only work when they're created via templates...
                 // Get Data for Related Records
                 $query = $em->createQuery(
-                    'SELECT dt, dtm, md, mf, dt_cb, dt_ub
-                FROM ODRAdminBundle:DataType AS dt
-                LEFT JOIN dt.dataTypeMeta AS dtm
-                LEFT JOIN dt.metadata_datatype AS md
-                LEFT JOIN dt.metadata_for AS mf
-                LEFT JOIN dt.createdBy AS dt_cb
-                LEFT JOIN dt.updatedBy AS dt_ub
-                WHERE dt.template_group LIKE :template_group 
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+                   'SELECT dt, dtm, partial gp.{id}, md, mf, dt_cb, dt_ub
+                    FROM ODRAdminBundle:DataType AS dt
+                    LEFT JOIN dt.dataTypeMeta AS dtm
+                    LEFT JOIN dt.grandparent AS gp
+                    LEFT JOIN dt.metadata_datatype AS md
+                    LEFT JOIN dt.metadata_for AS mf
+                    LEFT JOIN dt.createdBy AS dt_cb
+                    LEFT JOIN dt.updatedBy AS dt_ub
+                    WHERE dt.template_group LIKE :template_group AND dt.setup_step IN (:setup_steps)
+                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND gp.deletedAt IS NULL'
                 )->setParameters(
                     array(
                         'template_group' => $datatype->getTemplateGroup(),
+                        'setup_steps' => DataType::STATE_VIEWABLE
                     )
                 );
                 // AND dt.is_master_type = (:is_master_type)
@@ -577,92 +474,11 @@ class DatatypeController extends ODRCustomController
                     $datatypes[$dt_id] = $dt;
                 }
 
-                // Determine whether user has the ability to view non-public datarecords for this datatype
-                $can_view_public_datarecords = array();
-                $can_view_nonpublic_datarecords = array();
-                foreach ($datatypes as $dt_id => $dt) {
-                    if (
-                        isset($datatype_permissions[$dt_id])
-                        && isset($datatype_permissions[$dt_id]['dr_view'])
-                    ) {
-                        $can_view_nonpublic_datarecords[] = $dt_id;
-                    } else {
-                        $can_view_public_datarecords[] = $dt_id;
-                    }
-                }
 
-                // Figure out how many datarecords the user can view for each of the datatypes
-                $related_metadata = array();
-                if (count($can_view_nonpublic_datarecords) > 0) {
-                    $query = $em->createQuery(
-                        'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
-                    FROM ODRAdminBundle:DataType AS dt
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                    WHERE dt IN (:datatype_ids) AND dr.provisioned = FALSE
-                    AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
-                    GROUP BY dt.id'
-                    )->setParameters(
-                        array(
-                            'datatype_ids' => $can_view_nonpublic_datarecords
-                        )
-                    );
-                    $results = $query->getArrayResult();
-
-                    foreach ($results as $result) {
-                        $dt_id = $result['dt_id'];
-                        $count = $result['datarecord_count'];
-
-                        $related_metadata[$dt_id] = $count;
-                    }
-                }
-
-                if (count($can_view_public_datarecords) > 0) {
-                    $query = $em->createQuery(
-                        'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
-                    FROM ODRAdminBundle:DataType AS dt
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                    JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
-                    WHERE dt IN (:datatype_ids) AND dr.provisioned = FALSE AND drm.publicDate != :public_date
-                    AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL
-                    GROUP BY dt.id'
-                    )->setParameters(
-                        array(
-                            'datatype_ids' => $can_view_public_datarecords,
-                            'public_date' => '2200-01-01 00:00:00'
-                        )
-                    );
-                    $results = $query->getArrayResult();
-
-                    foreach ($results as $result) {
-                        $dt_id = $result['dt_id'];
-                        $count = $result['datarecord_count'];
-                        $related_metadata[$dt_id] = $count;
-                    }
-                }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                // ----------------------------------------
+                // Determine how many datarecords the user has the ability to view for each datatype
+                $datatype_ids = array_keys($datatypes);
+                $related_metadata = self::getDatarecordCounts($em, $datatype_ids, $datatype_permissions);
 
 
                 // ----------------------------------------
@@ -673,12 +489,8 @@ class DatatypeController extends ODRCustomController
                     'ODRAdminBundle:Datatype:landing.html.twig',
                     array(
                         'user' => $user,
-                        'datatype_array' => $stacked_datatype_array,
                         'initial_datatype_id' => $datatype->getId(),
-                        'datarecord_count' => $datarecord_count,
                         'datatype_permissions' => $datatype_permissions,
-                        'fieldtype_array' => $fieldtype_array,
-                        'has_datarecords' => $has_datarecords,
                         'related_datatypes' => $datatypes,
                         'related_metadata' => $related_metadata
                     )
@@ -707,7 +519,7 @@ class DatatypeController extends ODRCustomController
     /**
      * Builds and returns a list of the actions a user can perform to each top-level DataType.
      *
-     * @param string $section Either "records" or "design", dictating which set of options the user will see for each datatype
+     * @param string $section Either "databases", "templates", or "datatemplates"
      * @param Request $request
      *
      * @return Response
@@ -746,24 +558,20 @@ class DatatypeController extends ODRCustomController
             $is_master_type = ($section == "templates" || $section == "datatemplates") ? 1 : 0;
 
             $query_sql =
-                'SELECT dt, dtm, md, mf, dt_cb, dt_ub
+               'SELECT dt, dtm, md, mf, dt_cb, dt_ub
                 FROM ODRAdminBundle:DataType AS dt
                 LEFT JOIN dt.dataTypeMeta AS dtm
                 LEFT JOIN dt.metadata_datatype AS md
                 LEFT JOIN dt.metadata_for AS mf
                 LEFT JOIN dt.createdBy AS dt_cb
                 LEFT JOIN dt.updatedBy AS dt_ub
-                WHERE dt.id IN (:datatypes) 
-                AND dt.is_master_type = (:is_master_type)
-                AND dt.deletedAt IS NULL 
-                AND dtm.deletedAt IS NULL';
+                WHERE dt.id IN (:datatypes) AND dt.is_master_type = (:is_master_type)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL';
 
-            if($section == "datatemplates") {
+            if ($section == "datatemplates")
                 $query_sql .= ' AND dt.metadata_datatype IS NULL';
-            }
 
             $query = $em->createQuery($query_sql);
-
             $query->setParameters(
                 array(
                     'datatypes' => $top_level_datatypes,
@@ -793,75 +601,11 @@ class DatatypeController extends ODRCustomController
                 $datatypes[$dt_id] = $dt;
             }
 
-            // Determine whether user has the ability to view non-public datarecords for this datatype
-            $can_view_public_datarecords = array();
-            $can_view_nonpublic_datarecords = array();
-            foreach ($datatypes as $dt_id => $dt) {
-                if (
-                    isset($datatype_permissions[$dt_id])
-                    && isset($datatype_permissions[$dt_id]['dr_view'])
-                ) {
-                    $can_view_nonpublic_datarecords[] = $dt_id;
-                } else {
-                    $can_view_public_datarecords[] = $dt_id;
-                }
-            }
 
-            // Figure out how many datarecords the user can view for each of the datatypes
-            $metadata = array();
-            if (count($can_view_nonpublic_datarecords) > 0) {
-                $query = $em->createQuery(
-                    'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
-                    FROM ODRAdminBundle:DataType AS dt
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                    WHERE 
-                    dt IN (:datatype_ids) 
-                    AND dr.provisioned = FALSE
-                    AND dt.deletedAt IS NULL 
-                    AND dr.deletedAt IS NULL
-                    GROUP BY dt.id'
-                )->setParameters(
-                    array(
-                        'datatype_ids' => $can_view_nonpublic_datarecords
-                    )
-                );
-                $results = $query->getArrayResult();
-
-                foreach ($results as $result) {
-                    $dt_id = $result['dt_id'];
-                    $count = $result['datarecord_count'];
-                    $metadata[$dt_id] = $count;
-                }
-            }
-
-            if (count($can_view_public_datarecords) > 0) {
-                $query = $em->createQuery(
-                    'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
-                    FROM ODRAdminBundle:DataType AS dt
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                    JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
-                    WHERE 
-                    dt IN (:datatype_ids) 
-                    AND drm.publicDate != :public_date
-                    AND dr.provisioned = FALSE
-                    AND dt.deletedAt IS NULL 
-                    AND dr.deletedAt IS NULL 
-                    AND drm.deletedAt IS NULL
-                    GROUP BY dt.id'
-                )->setParameters(
-                    array(
-                        'datatype_ids' => $can_view_public_datarecords,
-                        'public_date' => '2200-01-01 00:00:00'
-                    )
-                );
-                $results = $query->getArrayResult();
-
-                foreach ($results as $result) {
-                    $dt_id = $result['dt_id'];
-                    $count = $result['datarecord_count'];
-                    $metadata[$dt_id] = $count;
-                }
-            }
+            // ----------------------------------------
+            // Determine how many datarecords the user has the ability to view for each datatype
+            $datatype_ids = array_keys($datatypes);
+            $metadata = self::getDatarecordCounts($em, $datatype_ids, $datatype_permissions);
 
             // Render and return the html for the datatype list
             $return['d'] = array(
@@ -880,7 +624,8 @@ class DatatypeController extends ODRCustomController
             // Clear the previously viewed datarecord since the user is probably pulling up a new list if he looks at this
             $session = $request->getSession();
             $session->set('scroll_target', '');
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0x24d5aae9;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
@@ -891,6 +636,83 @@ class DatatypeController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Returns an array with how many datarecords the user is allowed to see for each datatype in
+     * $datatype_ids
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param int[] $datatype_ids
+     * @param array $datatype_permissions
+     *
+     * @return array
+     */
+    private function getDatarecordCounts($em, $datatype_ids, $datatype_permissions)
+    {
+        $can_view_public_datarecords = array();
+        $can_view_nonpublic_datarecords = array();
+
+        foreach ($datatype_ids as $num => $dt_id) {
+            if ( isset($datatype_permissions[$dt_id])
+                && isset($datatype_permissions[$dt_id]['dr_view'])
+            ) {
+                $can_view_nonpublic_datarecords[] = $dt_id;
+            } else {
+                $can_view_public_datarecords[] = $dt_id;
+            }
+        }
+
+        // Figure out how many datarecords the user can view for each of the datatypes
+        $metadata = array();
+        if ( count($can_view_nonpublic_datarecords) > 0 ) {
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                WHERE dt IN (:datatype_ids) AND dr.provisioned = FALSE
+                AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
+                GROUP BY dt.id'
+            )->setParameters(
+                array(
+                    'datatype_ids' => $can_view_nonpublic_datarecords
+                )
+            );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $count = $result['datarecord_count'];
+                $metadata[$dt_id] = $count;
+            }
+        }
+
+        if ( count($can_view_public_datarecords) > 0 ) {
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                WHERE dt IN (:datatype_ids) AND drm.publicDate != :public_date AND dr.provisioned = FALSE
+                AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL
+                GROUP BY dt.id'
+            )->setParameters(
+                array(
+                    'datatype_ids' => $can_view_public_datarecords,
+                    'public_date' => '2200-01-01 00:00:00'
+                )
+            );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $count = $result['datarecord_count'];
+                $metadata[$dt_id] = $count;
+            }
+        }
+
+        return $metadata;
     }
 
 
@@ -914,7 +736,6 @@ class DatatypeController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $templating = $this->get('templating');
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
@@ -926,26 +747,33 @@ class DatatypeController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
+
+            // TODO - relax this restriction?
+            if ( !$user->hasRole('ROLE_ADMIN') )
+                throw new ODRForbiddenException();
             // --------------------
+
 
             // Grab a list of top top-level datatypes
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
 
+            // TODO - won't display templates unless they have a metadata datatype...intentional?
             // Master Templates must have Database Properties/metadata
             $query = $em->createQuery(
-                'SELECT dt, dtm, md, dt_cb, dt_ub
+               'SELECT dt, dtm, md, dt_cb, dt_ub
                 FROM ODRAdminBundle:DataType AS dt
                 LEFT JOIN dt.dataTypeMeta AS dtm
                 LEFT JOIN dt.metadata_datatype AS md
                 LEFT JOIN dt.createdBy AS dt_cb
                 LEFT JOIN dt.updatedBy AS dt_ub
                 WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
-                AND md.id IS NOT NULL
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+                AND md.id IS NOT NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
             )->setParameters(array('datatypes' => $top_level_datatypes));
             $master_templates = $query->getArrayResult();
 
+
             // Render and return the html
+            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Datatype:create_type_choose_template.html.twig',
@@ -957,7 +785,8 @@ class DatatypeController extends ODRCustomController
                     )
                 )
             );
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0x72002e34;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
@@ -989,10 +818,6 @@ class DatatypeController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            $create_master = false;
-            if ($creating_master_template > 0) {
-                $create_master = true;
-            }
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -1001,15 +826,22 @@ class DatatypeController extends ODRCustomController
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+//            $pm_service = $this->container->get('odr.permissions_management_service');
 
 
             // --------------------
             // Grab user privileges to determine what they can do
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+//            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+
+            if ( !$user->hasRole('ROLE_ADMIN') )
+                throw new ODRForbiddenException();
             // --------------------
+
+            $create_master = false;
+            if ($creating_master_template > 0)
+                $create_master = true;
 
             if ($template_choice != 0 && $create_master)
                 throw new ODRBadRequestException('Currently unable to copy a new Master Template from an existing Master Template');
@@ -1035,15 +867,16 @@ class DatatypeController extends ODRCustomController
                 // Grab a list of top top-level datatypes
                 $top_level_datatypes = $dti_service->getTopLevelDatatypes();
 
+                // TODO - why does this not exclude metadata datatypes while the one in createAction() does?
                 // Get the master templates
                 $query = $em->createQuery(
-                    'SELECT dt, dtm, dt_cb, dt_ub
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN dt.dataTypeMeta AS dtm
-                JOIN dt.createdBy AS dt_cb
-                JOIN dt.updatedBy AS dt_ub
-                WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+                   'SELECT dt, dtm, dt_cb, dt_ub
+                    FROM ODRAdminBundle:DataType AS dt
+                    JOIN dt.dataTypeMeta AS dtm
+                    JOIN dt.createdBy AS dt_cb
+                    JOIN dt.updatedBy AS dt_ub
+                    WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
+                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
                 )->setParameters(array('datatypes' => $top_level_datatypes));
                 $master_templates = $query->getArrayResult();
 
@@ -1053,17 +886,20 @@ class DatatypeController extends ODRCustomController
                         'ODRAdminBundle:Datatype:create_type_database_info.html.twig',
                         array(
                             'user' => $user,
-                            'datatype_permissions' => $datatype_permissions,
+//                            'datatype_permissions' => $datatype_permissions,
+                            'form' => $form->createView(),
+
+                            // required for the wizard  TODO - why aren't these all empty or 0?
                             'master_templates' => $master_templates,
                             'master_type_id' => $template_choice,
                             'create_master' => $create_master,
-                            'form' => $form->createView()
                         )
                     )
                 );
 
             }
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $source = 0xeaff78ff;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
@@ -1075,6 +911,7 @@ class DatatypeController extends ODRCustomController
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
+
 
     /**
      * Adds a new database from a master template where the master template
@@ -1097,11 +934,11 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+//            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+//            $pm_service = $this->container->get('odr.permissions_management_service');
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
             /** @var User $admin */
@@ -1120,10 +957,9 @@ class DatatypeController extends ODRCustomController
 
             // Create the datatype unique id and check to ensure uniqueness
 
-            // Top-level datatypes exist in one of three three states...TODO - should there be more states?
-            // initial - datatype isn't ready for anything really...it shouldn't be displayed to the user
-            // incomplete - datatype can be viewed and modified as usual, but it's missing search result templates
-            // operational - datatype should work perfectly
+            // Top-level datatypes exist in one of two states...in the "initial" state, they
+            //  shouldn't be viewed by users because they're lacking themes and permissions
+            // Once they have those, then they should be put into the "operational" state
             $datatype->setSetupStep(DataType::STATE_INITIAL);
 
             // Is this a Master Type?
@@ -1450,11 +1286,11 @@ class DatatypeController extends ODRCustomController
 
                     $unique_id = $dti_service->generateDatatypeUniqueId();
                     $datatype->setUniqueId($unique_id);
+                    $datatype->setTemplateGroup($unique_id);
 
-                    // Top-level datatypes exist in one of three three states...TODO - should there be more states?
-                    // initial - datatype isn't ready for anything really...it shouldn't be displayed to the user
-                    // incomplete - datatype can be viewed and modified as usual, but it's missing search result templates
-                    // operational - datatype should work perfectly
+                    // Top-level datatypes exist in one of two states...in the "initial" state, they
+                    //  shouldn't be viewed by users because they're lacking themes and permissions
+                    // Once they have those, then they should be put into the "operational" state
                     $datatype->setSetupStep(DataType::STATE_INITIAL);
 
                     // Is this a Master Type?
@@ -1540,7 +1376,7 @@ class DatatypeController extends ODRCustomController
                      * for the parent datatype).
                      */
                     // If is_master_type - automatically create master_type_metadata and set metadata_for_id
-                    if($datatype->getIsMasterType() && $form['is_master_type']->getData() == 1){
+                    if ($datatype->getIsMasterType() && $form['is_master_type']->getData() == 1) {
                         $metadata_datatype = clone $datatype;
 
                         // Set this to be metadata for new datatype
@@ -1549,6 +1385,7 @@ class DatatypeController extends ODRCustomController
 
                         $unique_id = $dti_service->generateDatatypeUniqueId();
                         $metadata_datatype->setUniqueId($unique_id);
+                        // Should already have the correct template_group
 
                         // Set new datatype meta
                         $metadata_datatype_meta = clone $datatype->getDataTypeMeta();
@@ -1558,6 +1395,7 @@ class DatatypeController extends ODRCustomController
 
                         // Associate the metadata
                         $metadata_datatype->addDataTypeMetum($metadata_datatype_meta);
+                        $metadata_datatype->setMetadataFor($datatype);
 
                         // New Datatype
                         $em->persist($metadata_datatype);
@@ -1583,6 +1421,10 @@ class DatatypeController extends ODRCustomController
                         $master_datatype = $datatype->getMasterDataType();
                         $master_metadata = $master_datatype->getMetadataDatatype();
 
+                        $unique_id = $dti_service->generateDatatypeUniqueId();
+                        $master_metadata->setUniqueId($unique_id);
+                        // Should already have the correct template_group
+
                         if($master_metadata != null) {
                             $metadata_datatype = clone $master_metadata;
                             // Unset is master type
@@ -1592,6 +1434,10 @@ class DatatypeController extends ODRCustomController
                             $metadata_datatype->setMasterDataType($master_metadata);
                             // Clone has wrong state - set to initial
                             $metadata_datatype->setSetupStep(DataType::STATE_INITIAL);
+
+                            $unique_id = $dti_service->generateDatatypeUniqueId();
+                            $metadata_datatype->setUniqueId($unique_id);
+                            // Should already have the correct template_group
 
                             // Set new datatype meta
                             $metadata_datatype_meta = clone $datatype->getDataTypeMeta();
@@ -1676,11 +1522,6 @@ class DatatypeController extends ODRCustomController
                             $theme_meta->setUpdatedBy($admin);
 
                             $em->persist($theme_meta);
-
-                            // This dataype is now technically viewable since it has basic theme data...
-                            // Nobody is able to view it however, since it has no permission entries
-                            $datatype->setSetupStep(DataType::STATE_INCOMPLETE);
-                            $em->persist($datatype);
                             $em->flush();
 
                             // Delete the cached version of the datatree array and the list of top-level datatypes
@@ -1702,6 +1543,11 @@ class DatatypeController extends ODRCustomController
                                 // Delete cached version of this user's permissions
                                 $cache_service->delete('user_'.$admin->getId().'_permissions');
                             }
+
+                            // This dataype is now fully created
+                            $datatype->setSetupStep(DataType::STATE_OPERATIONAL);
+                            $em->persist($datatype);
+                            $em->flush();
                         }
                     }
                     /*

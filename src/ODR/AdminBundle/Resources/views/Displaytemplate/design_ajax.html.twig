@@ -1,6 +1,7 @@
 {% spaceless %}
 
     {% set datatype = datatype_array[initial_datatype_id] %}
+    <!--suppress JSCheckFunctionSignatures -->
     <div class="ODRDesignHeader">
         <h1 class="ODRDesignTitle no-margin-top-phone">
             <span>Database Design &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
@@ -173,7 +174,7 @@
             data: jQuery("#ThemeDesignForm form").serialize(),
             dataType: 'json',
             success: function(data) {
-                console.log(data)
+                console.log(data);
             }
         });
     }
@@ -216,10 +217,10 @@
                     }
                     // Submit State Change
                     SubmitThemeDesignForm()
-                })
+                });
 
                 // Setup Radio Options
-                console.log('loading datafield options')
+                console.log('loading datafield options');
             }
         )
     }
@@ -232,9 +233,9 @@
 #}
     function clearAllFields(reset_opacity) {
         // Default is to reset opacity
-        if(reset_opacity === undefined) {
+        if(reset_opacity === undefined)
             reset_opacity = true;
-        }
+
         console.log('Clear all fields');
         // Remove Existing Selectors and Highlights
         $(".ODRFieldSelected")
@@ -248,20 +249,17 @@
 
         // Kill existing sortables
         $('.ODRFieldArea').each(function() {
-                if ($(this).sortable('instance') !== undefined)
-                    $(this).sortable('destroy');
-            }
-        );
+            if ($(this).sortable('instance') !== undefined)
+                $(this).sortable('destroy');
+        });
 
         $(".ODRThemeElement .ODRInnerBox").each(function() {
-                if ($(this).sortable('instance') !== undefined)
-                    $(this).sortable('destroy');
-            }
-        );
+            if ($(this).sortable('instance') !== undefined)
+                $(this).sortable('destroy');
+        });
 
-        if(reset_opacity) {
+        if (reset_opacity)
             resetOpacity();
-        }
     }
 
     function clearResizeable(elem) {
@@ -287,7 +285,7 @@
         if(element_type === undefined) {
             element_type = '';
         }
-        console.log('Element Type:', element_type)
+        console.log('Element Type:', element_type);
 
         // Store the previous element for opacity switching
         SelectedElement = $(elem);
@@ -298,14 +296,14 @@
             $(elem).hasClass('ODRDataField')  // Data fields
             || $(elem).parent().hasClass('ODRDataType')  // Child or linked data types
         ) {
-            console.log('datafield selected')
+            console.log('datafield selected');
             // Set opacity to this TED to 1
             clearAllFields(false);
             var isChildOrLink = true;
 
             top_level_teds.each(function() {
                 if($(this).attr('id') === $(elem).parent().parent().attr('id')) {
-                    console.log('datafield not in child or link.')
+                    console.log('datafield not in child or link.');
                     isChildOrLink = false;
                 }
             });
@@ -320,13 +318,13 @@
                     top_level_teds.each(function () {
                         if ($(this).attr('id') === parent_element.attr('id')) {
                             actual_parent = parent_element;
-                            console.log('actual_parent id', actual_parent.attr('id'))
+                            console.log('actual_parent id', actual_parent.attr('id'));
                         }
                     });
                 });
 
                 if(actual_parent !== null) {
-                    console.log('fading teds...')
+                    console.log('fading teds...');
                     top_level_teds.each(function() {
                         if ($(this).attr('id') !== actual_parent.attr('id')) {
                             $(this).fadeTo(200, '0.25');
@@ -336,13 +334,13 @@
                     actual_parent.fadeTo(200, 1);
                 }
                 else {
-                   console.log("No valid parent found!")
+                   console.log("No valid parent found!");
                 }
             }
             else {
                 top_level_teds.each(function() {
                     if ($(this).attr('id') !== $(elem).parent().parent().attr('id')) {
-                        console.log('datafield not in child or link.')
+                        console.log('datafield not in child or link.');
                         $(this).fadeTo(200, '0.25');
                     }
                 });
@@ -350,7 +348,7 @@
             }
         }
         else {
-            console.log('opacity switch')
+            console.log('opacity switch');
             clearAllFields(false);
             $(elem).fadeTo(100, '1.0');
 
@@ -366,7 +364,7 @@
                     top_level_teds.each(function () {
                         if ($(this).attr('id') === parent_element.attr('id')) {
                             actual_parent = parent_element;
-                            console.log('actual_parent id', actual_parent.attr('id'))
+                            console.log('actual_parent id', actual_parent.attr('id'));
                         }
                     });
                 });
@@ -379,7 +377,7 @@
                     if($(this).attr('id') !== actual_parent.attr('id')) {
                         $(this).fadeTo(200, '0.25');
                     }
-                })
+                });
                 if(actual_parent.css('opacity') < 1) {
                     actual_parent.fadeTo(100, '1.00')
                 }
@@ -388,7 +386,7 @@
 
         // Highlight the field
         $(elem).addClass('ODRFieldSelected');
-        console.log('field highlighted.....', $(elem).attr('id'))
+        console.log('field highlighted.....', $(elem).attr('id'));
 
 
         // TODO If Datatype, find related Theme Element (Parent)
@@ -455,11 +453,11 @@
             maxHeight: $(elem).height(),
             grid: ($(elem).parent().parent().width())/64, // 41.5,  // 996 width / 24 units
             start: function( event, ui) {
-                console.log('Resizeable start:')
-                console.log('height: ', $(elem).height())
-                console.log('grid:', $(elem).parent().parent().width()/24)
-                console.log('parent width:', $(elem).parent().parent().width())
-                console.log('element width:', $(elem).width())
+                console.log('Resizeable start:');
+                console.log('height: ', $(elem).height());
+                console.log('grid:', $(elem).parent().parent().width()/24);
+                console.log('parent width:', $(elem).parent().parent().width());
+                console.log('element width:', $(elem).width());
                 switch(element_type) {
                     case 'theme_element':
                         theme_element_id = ui.originalElement.attr('id').replace('ThemeElement_', '');
@@ -484,8 +482,8 @@
                 console.log('End width:: ', width);
 
                 // Need to add padding before calculation?
-                console.log('Padding left', padding_left)
-                console.log('Padding right', padding_right)
+                console.log('Padding left', padding_left);
+                console.log('Padding right', padding_right);
 
                 var pct = width / total_width * 100;
 
@@ -505,7 +503,7 @@
                     u_factor = Math.ceil(u_factor);
                 }
 
-                console.log('Factor:: ', u_factor)
+                console.log('Factor:: ', u_factor);
 
                 var prefix = "pure-u";
                 var classes = ui_elem.attr('class').split(" ").filter(function(c) {
@@ -615,10 +613,10 @@
             ParentFieldArea.find("> .ODRThemeElement > .ODRInnerBox").each(function () {
                 // Only create sortables from theme elements that are not child types or linked types.
                 if($(this).find('> .ODRLinkedType').length > 0 || $(this).find('> .ODRDataType').length > 0) {
-                    console.log('Linked or child')
+                    console.log('Linked or child');
                     return
                 }
-                console.log('Setting datafield sortable')
+                console.log('Setting datafield sortable');
 
                 var starting_theme_element;
                 $(this).sortable({
@@ -716,7 +714,7 @@
         tools.copy_df.attr('title', 'Copy Field');
 
         // Hide the datafield copy
-        console.log('hiding copy df')
+        console.log('hiding copy df');
         tools.copy_df.parent().hide();
         tools.add_df.parent().show();
     }
@@ -743,26 +741,26 @@
         switch(tool_type) {
             case 'datatype':
                 props = datatype_properties[id];
-                console.log('Datatype Props: ', props)
+                console.log('Datatype Props: ', props);
 
 
 
                 // Render Plugin
-                tools.render.removeClass('faded')
+                tools.render.removeClass('faded');
                 if(props.render_plugin_id !== 1) {
                     tools.render.find('i').addClass('ODRActiveIcon');
                     tools.render.find('.link-text').html('Custom Render');
                     tools.render.attr('title', 'Rendered using "' + props.render_plugin_name + '.');
                 }
                 tools.render.unbind('click').click(function () {
-                    console.log('Changing render plugin (dt): ', id)
+                    console.log('Changing render plugin (dt): ', id);
                     changeRenderPlugin(id, 'datatype');
                 });
 
                 // Delete Datafield
                 if(!props.is_top_level) {
                     tools.del_dt.find('i').addClass('ODRActiveIcon');
-                    tools.del_dt.removeClass('faded')
+                    tools.del_dt.removeClass('faded');
 
                     // Do not allow deletion of top-level database
                     tools.del_dt.attr('title', 'Click to delete this database.');
@@ -779,7 +777,7 @@
                 // We can always add a datafield to a datatype???
                 // What about linked datatypes - child datatypes yes....
                 // Linked should be yes as well....
-                tools.add_df.removeClass('faded')
+                tools.add_df.removeClass('faded');
                 tools.add_df.attr('title', 'Add Field');
                 tools.add_df.find('i').addClass('ODRActiveIcon');
                 tools.add_df.find('.link-text').html('Add field');
@@ -799,22 +797,22 @@
                     // Find first TE or add TE and then add child
                     console.log('data type add field here', id);
                     // Check for an TE that is not a link to add the field to
-                    var te = null
+                    var te = null;
                     $("#DataType_" + id + " > .ODRFieldArea > .ODRThemeElement").each(function() {
                         if($(this).find(".ODRInnerBox > .ODRDataField").length === 0) {
-                            var id = $(this).attr('id').replace('ThemeElement_', '')
+                            var id = $(this).attr('id').replace('ThemeElement_', '');
                             var props = theme_element_properties[id];
                             if(te === null && !props.is_link && !props.has_childtype) {
                                 te = $(this);
                             }
-                            console.log('TE Props [' + id + ']: ', props)
+                            console.log('TE Props [' + id + ']: ', props);
                         }
                     });
 
                     if(te != null) {
-                        console.log('TE', te.attr('id'))
+                        console.log('TE', te.attr('id'));
                         // Add field to this TE
-                        var te_id = te.attr('id').replace('ThemeElement_','')
+                        var te_id = te.attr('id').replace('ThemeElement_','');
                         addChildType(te_id);
                     }
                     else {
@@ -828,8 +826,8 @@
                 // Any non linked datatype can link from a template
                 if (props.is_link < 1) {
 
-                    console.log('datatype is NOT link')
-                    tools.link_ft.removeClass('faded')
+                    console.log('datatype is NOT link');
+                    tools.link_ft.removeClass('faded');
                     tools.link_ft.find('i').addClass('ODRActiveIcon');
                     tools.link_ft.find('.link-text').html('Add from Template');
                     tools.link_ft.attr('title', 'Click to create a database from a template and link it to this databse.');
@@ -839,22 +837,22 @@
                         // Find first empty TE or add TE and then add linked database
                         console.log('data type add field here', id);
                         // Check for an TE that is not a link to add the field to
-                        var te = null
+                        var te = null;
                         $("#DataType_" + id + " > .ODRFieldArea > .ODRThemeElement").each(function() {
                             if($(this).find(".ODRInnerBox > .ODRDataField").length === 0) {
-                                var id = $(this).attr('id').replace('ThemeElement_', '')
+                                var id = $(this).attr('id').replace('ThemeElement_', '');
                                 var props = theme_element_properties[id];
                                 if(te === null && !props.is_link && !props.has_childtype) {
                                     te = $(this);
                                 }
-                                console.log('TE Props [' + id + ']: ', props)
+                                console.log('TE Props [' + id + ']: ', props);
                             }
                         });
 
                         if(te != null) {
-                            console.log('TE', te.attr('id'))
+                            console.log('TE', te.attr('id'));
                             // Add field to this TE
-                            var te_id = te.attr('id').replace('ThemeElement_','')
+                            var te_id = te.attr('id').replace('ThemeElement_','');
                             // addChildType(te_id);
                             console.log('Using TE: ', te_id);
                             linkFromTemplate(te_id);
@@ -872,8 +870,8 @@
 
                 // Any non linked datatype can have a link
                 if (props.is_link > 0) {
-                    console.log('datatype is link')
-                    tools.link_dt.removeClass('faded')
+                    console.log('datatype is link');
+                    tools.link_dt.removeClass('faded');
                     tools.link_dt.find('i').addClass('ODRActiveIcon');
                     tools.link_dt.find('.link-text').html('Linked database');
                     tools.link_dt.attr('title', 'This is a linked database.  Click to choose a different database.');
@@ -881,12 +879,12 @@
                         $(this).effect("highlight", {}, 2000);
                         // Find parent theme element...
                         // linkDatatype(id);
-                        console.log('not implemented yet....')
+                        console.log('not implemented yet....');
                     });
                 }
                 else {
-                    console.log('datatype is NOT link')
-                    tools.link_dt.removeClass('faded')
+                    console.log('datatype is NOT link');
+                    tools.link_dt.removeClass('faded');
                     tools.link_dt.find('i').addClass('ODRActiveIcon');
                     tools.link_dt.find('.link-text').html('Link to a database');
                     tools.link_dt.attr('title', 'Click to link in data from an existing database.');
@@ -896,22 +894,22 @@
                         // Find first empty TE or add TE and then add linked database
                         console.log('data type add field here', id);
                         // Check for an TE that is not a link to add the field to
-                        var te = null
+                        var te = null;
                         $("#DataType_" + id + " > .ODRFieldArea > .ODRThemeElement").each(function() {
                             if($(this).find(".ODRInnerBox > .ODRDataField").length === 0) {
-                                var id = $(this).attr('id').replace('ThemeElement_', '')
+                                var id = $(this).attr('id').replace('ThemeElement_', '');
                                 var props = theme_element_properties[id];
                                 if(te === null && !props.is_link && !props.has_childtype) {
                                     te = $(this);
                                 }
-                                console.log('TE Props [' + id + ']: ', props)
+                                console.log('TE Props [' + id + ']: ', props);
                             }
                         });
 
                         if(te != null) {
-                            console.log('TE', te.attr('id'))
+                            console.log('TE', te.attr('id'));
                             // Add field to this TE
-                            var te_id = te.attr('id').replace('ThemeElement_','')
+                            var te_id = te.attr('id').replace('ThemeElement_','');
                             // addChildType(te_id);
                             linkDatatype(te_id);
                         }
@@ -928,7 +926,7 @@
 
 
 
-                tools.pub_stat.removeClass('faded')
+                tools.pub_stat.removeClass('faded');
                 if(props.is_public > 0) {
                     tools.pub_stat.find('i').addClass('ODRActiveIcon');
                     tools.pub_stat.find('.link-text').html('Database is public');
@@ -948,7 +946,7 @@
 
 
                 // Allow theme elements/group boxes
-                tools.add_te.removeClass('faded')
+                tools.add_te.removeClass('faded');
                 tools.add_te.unbind('click').click(function () {
                     addThemeElement(id, 'datatype');
                 });
@@ -959,10 +957,10 @@
             case 'theme_element':
 
                 props = theme_element_properties[id];
-                console.log('TED Props:', props)
+                console.log('TED Props:', props);
 
                 if(!props.has_childtype && !props.has_datafields) {
-                    tools.del_dt.removeClass('faded')
+                    tools.del_dt.removeClass('faded');
                     tools.del_dt.find('.link-text').html('Delete group box');
                     tools.del_dt.attr('title', 'Click to delete this group box.');
                 }
@@ -981,8 +979,8 @@
                 }
 
                 if (props.child_is_link > 0) {
-                    console.log('ted is link')
-                    tools.link_dt.removeClass('faded')
+                    console.log('ted is link');
+                    tools.link_dt.removeClass('faded');
                     tools.link_dt.find('i').addClass('ODRActiveIcon');
                     tools.link_dt.find('.link-text').html('Linked database');
                     tools.link_dt.attr('title', 'This is a linked database.  Click to choose a different database.');
@@ -991,8 +989,8 @@
                     });
                 }
                 else if (!props.has_childtype && !props.has_datafields) {
-                    console.log('ted is NOT link')
-                    tools.link_dt.removeClass('faded')
+                    console.log('ted is NOT link');
+                    tools.link_dt.removeClass('faded');
                     tools.link_dt.find('i').addClass('ODRActiveIcon');
                     tools.link_dt.find('.link-text').html('Link to a database');
                     tools.link_dt.attr('title', 'Click to link in data from an existing database.');
@@ -1003,8 +1001,8 @@
 
                 // Any non linked datatype can link from a template
                 if (!props.has_childtype && !props.has_datafields) {
-                    console.log('datatype is NOT link')
-                    tools.link_ft.removeClass('faded')
+                    console.log('datatype is NOT link');
+                    tools.link_ft.removeClass('faded');
                     tools.link_ft.find('i').addClass('ODRActiveIcon');
                     tools.link_ft.find('.link-text').html('Add from Template');
                     tools.link_ft.attr('title', 'Click to create a database from a template and link it to this databse.');
@@ -1016,7 +1014,7 @@
                 }
 
                 if(!props.has_childtype && props.child_is_link === 0) {
-                    tools.add_df.removeClass('faded')
+                    tools.add_df.removeClass('faded');
                     tools.add_df.attr('title', 'Add Field');
                     tools.add_df.find('i').addClass('ODRActiveIcon');
                     tools.add_df.find('.link-text').html('Add field');
@@ -1027,7 +1025,7 @@
                 }
 
                 if(!props.has_childtype && !props.has_datafields && props.child_is_link === 0) {
-                    tools.del_dt.removeClass('faded')
+                    tools.del_dt.removeClass('faded');
                     tools.del_dt.attr('title', 'Delete Group Box');
                     tools.del_dt.find('i').addClass('ODRActiveIcon');
                     tools.del_dt.find('.link-text').html('Delete Group Box');
@@ -1042,11 +1040,11 @@
 
             case 'datafield':
 
-                console.log('datafield id: ', id)
+                console.log('datafield id: ', id);
                 props = datafield_properties[id];
 
                 // Render Plugin
-                tools.render.removeClass('faded')
+                tools.render.removeClass('faded');
                 tools.render.find('.link-text').html('Change Render Plugin');
                 if(props.render_plugin_id !== 1) {
                     tools.render.find('i').addClass('ODRActiveIcon');
@@ -1059,7 +1057,7 @@
                 });
 
                 // Public Status
-                tools.pub_stat.removeClass('faded')
+                tools.pub_stat.removeClass('faded');
                 if(props.is_public > 0) {
                     tools.pub_stat.find('i').addClass('ODRActiveIcon');
                     tools.pub_stat.find('.link-text').html('Field is public');
@@ -1082,7 +1080,7 @@
                 tools.copy_df.parent().show();
 
                 if(props.can_copy) {
-                    tools.copy_df.removeClass('faded')
+                    tools.copy_df.removeClass('faded');
                     tools.copy_df.find('i').addClass('ODRActiveIcon');
                     tools.copy_df.unbind('click').click(function () {
                         CopyDatafield(id);
@@ -1090,7 +1088,7 @@
                 }
 
                 // Delete Datafield
-                tools.del_dt.removeClass('faded')
+                tools.del_dt.removeClass('faded');
                 tools.del_dt.find('i').addClass('ODRActiveIcon');
                 tools.del_dt.find('.link-text').html('Delete Field');
                 tools.del_dt.attr('title', 'Click to delete this field.');
@@ -1231,27 +1229,27 @@
             case 'datatype':
                 console.log('data type add field here', id);
                 // Check for an TE that is not a link to add the field to
-                var te = null
+                var te = null;
                 $("#DataType_" + id + " > .ODRFieldArea > .ODRThemeElement").each(function() {
-                    var id = $(this).attr('id').replace('ThemeElement_', '')
+                    var id = $(this).attr('id').replace('ThemeElement_', '');
                     var props = theme_element_properties[id];
                     if(te === null && !props.is_link && !props.has_childtype) {
                         te = $(this);
                     }
-                    console.log('TE Props [' + id + ']: ', props)
+                    console.log('TE Props [' + id + ']: ', props);
                 });
 
                 if(te != null) {
-                    console.log('TE', te.attr('id'))
+                    console.log('TE', te.attr('id'));
                     // Add field to this TE
-                    var te_id = te.attr('id').replace('ThemeElement_','')
-                    addDataField(te_id, 'theme_element')
+                    var te_id = te.attr('id').replace('ThemeElement_','');
+                    addDataField(te_id, 'theme_element');
                 }
                 else {
                     // Add new TE and add field
                     addThemeElement(id, 'datatype', function(theme_element_id) {
-                        addDataField(theme_element_id, 'theme_element')
-                    })
+                        addDataField(theme_element_id, 'theme_element');
+                    });
                 }
                 break;
 
@@ -1325,8 +1323,7 @@
                         // Let's get back the actual stuff here.....
 
                         // Create a fake theme element and force a save of theme element order
-                        $("#FieldArea_" + datatype_id)
-                            .append(data.d.html)
+                        $("#FieldArea_" + datatype_id).append(data.d.html);
 
                         SaveThemeElementOrder("#FieldArea_" + datatype_id);
 
@@ -1363,9 +1360,9 @@
     }
 
     function ScrollHighlight(element, container) {
-        var obj = $(element)
+        var obj = $(element);
         if (container === undefined) {
-            container = $('html, body')
+            container = $('html, body');
 
             // Only Scroll to element if it is not visible
             if (
@@ -1382,16 +1379,16 @@
             }, 1000)
         }
         // Highlight
-        console.log('highlighting.....')
+        console.log('highlighting.....');
         obj.effect("highlight", {}, 3000);
 
     }
 
     $.fn.isOverflowHiddenY = function(container) {
         var element = $(this);
-        console.log(element.offset())
-        console.log(container.prop('scrollHeight'))
-        console.log(container.height())
+        console.log(element.offset());
+        console.log(container.prop('scrollHeight'));
+        console.log(container.height());
         return (element.offset().top > container.height());
     };
 
@@ -1409,7 +1406,7 @@
 
         switch(element_type) {
             case 'datatype':
-                var datatype_id = id
+                var datatype_id = id;
                 var element = $("#ODRDatatype_" + datatype_id + "_publicStatus");
 
                 var url  = '{{ path('odr_design_public_datatype', {'datatype_id': 0} ) }}';
@@ -1458,7 +1455,7 @@
 
             case 'datafield':
 
-                var datafield_id = id
+                var datafield_id = id;
                 var element = $('#ODRDatafield_' + datafield_id + '_publicStatus');
 
                 var url  = '{{ path('odr_design_public_datafield', {'datafield_id': 0} ) }}';
@@ -1593,14 +1590,14 @@
         $(".ODRDatatypeProperties").unbind('click').click(function() {
 
             // Highlight and setup element properties
-            console.log('setup tool set datatype')
+            console.log('setup tool set datatype');
             setupElement(this);
 
             // Grab the id of the Datatype to load
             var datatype_id = $(this).attr('rel');
 
             // Prepare the Sidebar Tools
-            console.log('Render tool set datatype')
+            console.log('Render tool set datatype');
             RenderToolSet(datatype_id);
             console.log('Datatype Props 1:', datatype_properties[datatype_id]);
 
@@ -1789,10 +1786,10 @@
     }
 
     function SetupRadioOptions() {
-        console.log('Setting up Radio options')
+        console.log('Setting up Radio options');
         $(".ODRRadioOptions").unbind('click').click(function() {
             var datafield_id = $(this).attr('rel');
-            console.log('setting up radio options', datafield_id)
+            console.log('setting up radio options', datafield_id);
 
             $("#ThemeDesignForm").fadeOut().html("");
             var url  = '{{ path('odr_design_get_radio_options', {'datafield_id': 0} ) }}';
@@ -2742,8 +2739,11 @@
 
         // Only allow sorting radio options if datafield not set to alphabetical ordering
         if ( $("#datafield_" + datafield_id + "_name_sort").val() == 0 ) {
+
             // Sortable Radio Options
-            // $(".ODRSortableOption").sortable("destroy");
+            if ( $(".ODRSortableOption").sortable("instance") !== undefined )
+                $(".ODRSortableOption").sortable("destroy");
+
             $(".ODRSortableOption").sortable({
 
                 start: function( event, ui ) {
@@ -2873,19 +2873,6 @@
             success: function(data) {
                 // Add to theme element form
                 $("#ThemeDesignForm").html(data.d.html);
-                /*
-                console.log('APPENDING new option', data.d)
-                $('#ODRRadioOptionsForm_0 table tbody').append(data.d.html)
-                console.log('starting scroll highlight')
-                ScrollHighlight($('#radio_option_' + data.d.radio_option_id), $(".ODRRadioOptionListWrapper"));
-                console.log('ending scroll highlight')
-
-                // Determine if sort order is alpha
-                // TODO Need to deal with sort order....
-                InitRadioOptionsForm(data.d.datafield_id)
-                ReloadDatafield(datafield_id);
-                */
-
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -2920,17 +2907,15 @@
             dataType: "json",
             success: function(data) {
                 // Insert the data into the radio option list
-                console.log('APPENDING new option', data.d)
-                $('#ODRRadioOptionsForm_0 table tbody').append(data.d.html)
-                console.log('starting scroll highlight')
+                console.log('APPENDING new option', data.d);
+                $('#ODRRadioOptionsForm_0 table tbody').append(data.d.html);
+                console.log('starting scroll highlight');
                 ScrollHighlight($('#radio_option_' + data.d.radio_option_id), $(".ODRRadioOptionListWrapper"));
-                console.log('ending scroll highlight')
+                console.log('ending scroll highlight');
 
                 // Determine if sort order is alpha
-                // TODO Need to deal with sort order....
-                InitRadioOptionsForm(data.d.datafield_id)
+                InitRadioOptionsForm(data.d.datafield_id);
                 ReloadDatafield(datafield_id);
-
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -3157,10 +3142,10 @@
             success: function(data) {
                 // Replace old datafield
                 $(datafield).replaceWith(data.d.html);
-                console.log('setting up data fields ')
+                console.log('setting up data fields ');
                 SetupDataFields($(datafield));
 
-                console.log('highlight datafield')
+                console.log('highlight datafield');
                 var new_datafield = $("#Field_" + datafield_id);
                 setupElement(new_datafield);
 

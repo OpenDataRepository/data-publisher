@@ -2010,4 +2010,62 @@ $ret .= '  Set current to '.$count."\n";
         $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function fixsetupstepsAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+
+            /** @var DataType[] $all_datatypes */
+            $all_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
+
+            print '<pre>';
+            foreach ($all_datatypes as $dt) {
+                $current_setup_step = $dt->getSetupStep();
+
+                if ($current_setup_step !== DataType::STATE_INITIAL && $current_setup_step !== DataType::STATE_OPERATIONAL) {
+                    $dt->setSetupStep(DataType::STATE_OPERATIONAL);
+                    $em->persist($dt);
+
+                    print 'set datatype '.$dt->getId().' "'.$dt->getShortName().'" to be "operational" instead of "incomplete"'."\n";
+                }
+            }
+            print '</pre>';
+
+            if ($save)
+                $em->flush();
+        }
+        catch (\Exception $e) {
+            $source = 0xd895a5e6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
 }

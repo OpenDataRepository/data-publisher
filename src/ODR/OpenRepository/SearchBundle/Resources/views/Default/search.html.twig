@@ -238,7 +238,7 @@
             }
             $(".ODREditSearchNotes").unbind('click').click(function () {
                 toggleEditMode();
-            })
+            });
 
             $(".ODRSearchPageNotes_save").unbind('click').click(function () {
 
@@ -688,15 +688,20 @@
     </script>
 
     <script>
-        $(window).on('load', function () {
-            {% if background_image_id != null %}
-            // After the rest of the page is loaded, start loading the bg image
-            var url = "{{ path('odr_image_download', {'image_id': 0 }) }}";
-            url = url.substring(0, url.length - 1);
-            url += "{{ background_image_id }}";
 
-            if (window.location.hash === '')
+        $(function() {
+            setupBackgroundImage();
+        });
+
+        function setupBackgroundImage() {
+            {% if background_image_id != null %}
+            if (window.location.hash === '') {
+                // After the rest of the page is loaded, start loading the bg image
+                var url = "{{ path('odr_image_download', {'image_id': 0 }) }}";
+                url = url.substring(0, url.length - 1);
+                url += "{{ background_image_id }}";
                 $("#odr_bg").attr('src', url);
+            }
             {% endif %}
 
             {% if intent == 'searching' %}
@@ -725,7 +730,7 @@
                     .start();
             });
             {% endif %}
-        });
+        }
 
         {% if intent == 'searching' %}
         var introjs_starting_search_type = "basic";

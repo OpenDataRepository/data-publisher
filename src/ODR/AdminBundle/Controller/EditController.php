@@ -2384,7 +2384,7 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Generate a csrf token for each of the datarecord/datafield pairs
-            $token_list = self::generateCSRFTokens($datatype_array, $datarecord_array);
+            $token_list = $dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
 
 
             // ----------------------------------------
@@ -2445,7 +2445,7 @@ class EditController extends ODRCustomController
             $multiple_allowed = $theme_datatype['multiple_allowed'];
 
             // Generate a csrf token for each of the datarecord/datafield pairs
-            $token_list = self::generateCSRFTokens($datatype_array, $datarecord_array);
+            $token_list = $dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
 
             $html = $templating->render(
                 'ODRAdminBundle:Edit:edit_childtype_reload.html.twig',
@@ -2484,7 +2484,7 @@ class EditController extends ODRCustomController
                 throw new ODRException('Unable to locate array entry for datafield '.$datafield_id);
 
             // Generate a csrf token for each of the datarecord/datafield pairs
-            $token_list = self::generateCSRFTokens($datatype_array, $datarecord_array);
+            $token_list = $dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
 
             $html = $templating->render(
                 'ODRAdminBundle:Edit:edit_datafield.html.twig',
@@ -2501,44 +2501,6 @@ class EditController extends ODRCustomController
         }
 
         return $html;
-    }
-
-
-    /**
-     * Generates a CSRF token for every datarecord/datafield pair in the provided arrays.
-     *
-     * @param array $datatype_array    @see parent::getDatatypeData()
-     * @param array $datarecord_array  @see parent::getDatarecordData()
-     *
-     * @return array
-     */
-    private function generateCSRFTokens($datatype_array, $datarecord_array)
-    {
-        /** @var \Symfony\Component\Security\Csrf\CsrfTokenManager $token_generator */
-        $token_generator = $this->get('security.csrf.token_manager');
-
-        $token_list = array();
-
-        foreach ($datarecord_array as $dr_id => $dr) {
-            if ( !isset($token_list[$dr_id]) )
-                $token_list[$dr_id] = array();
-
-            $dt_id = $dr['dataType']['id'];
-
-            if ( !isset($datatype_array[$dt_id]) )
-                continue;
-
-            foreach ($datatype_array[$dt_id]['dataFields'] as $df_id => $df) {
-
-                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-
-                $token_id = $typeclass.'Form_'.$dr_id.'_'.$df_id;
-                $token_list[$dr_id][$df_id] = $token_generator->getToken($token_id)->getValue();
-
-            }
-        }
-
-        return $token_list;
     }
 
 

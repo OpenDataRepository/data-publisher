@@ -255,7 +255,7 @@ class CloneDatatypeService
                 throw new ODRNotFoundException('Datatype');
 
             // Check if datatype is not in "initial" mode
-            if ($datatype->getSetupStep() != "initial")
+            if ($datatype->getSetupStep() != DataType::STATE_INITIAL)
                 throw new ODRException("Datatype is not in the correct setup mode.  Setup step was: ".$datatype->getSetupStep());
 
             if ( is_null($datatype->getMasterDataType()) || $datatype->getMasterDataType()->getId() < 1 ) {
@@ -435,9 +435,6 @@ class CloneDatatypeService
             $this->em->flush();
 
 
-
-
-
             // TODO Add removed linked types to associated, dt_mapping, and created_datatypes
             // to resume creation of datatype.
             foreach($this->existing_datatypes as $dt) {
@@ -458,14 +455,11 @@ class CloneDatatypeService
             $this->logger->info('----------------------------------------');
             self::cloneDatatree($this->master_datatype);
 
-
-
-
-
-
             foreach ($this->created_datatypes as $dt)
                 $this->em->refresh($dt);
 
+
+            // ----------------------------------------
             // Create all of the Group entries required for cloning permissions
             $this->logger->info('----------------------------------------');
             foreach ($this->created_datatypes as $dt)
@@ -484,31 +478,17 @@ class CloneDatatypeService
             }
 
 
-
-
-
-
-
             // ----------------------------------------
             // The datatypes are now ready for viewing since they have all their datafield, theme,
             //  datatree, and various permission entries
             foreach ($this->created_datatypes as $dt) {
+                $dt->setSetupStep(DataType::STATE_OPERATIONAL);
 
-                $has_search_result_theme = false;
-                foreach ($dt->getThemes() as $theme) {
-                    if ( in_array($theme->getThemeType(), ThemeInfoService::SHORT_FORM_THEMETYPES) ) {
-                        $has_search_result_theme = true;
-                        break;
-                    }
-                }
-
-                if ($has_search_result_theme)
-                    $dt->setSetupStep(DataType::STATE_OPERATIONAL);
-                else
-                    $dt->setSetupStep(DataType::STATE_INCOMPLETE);
-
-                self::persistObject($dt);
+                // These don't need to be immediately flushed...
+                $this->em->persist($dt);
             }
+
+            $this->em->flush();
 
 
             // ----------------------------------------
@@ -845,7 +825,7 @@ class CloneDatatypeService
                 }
                 if($existing) {
                     // if parent == correct_t, then we need to delete it if existing datatype
-                    if($result->getParentTheme()->getid() === $correct_t->getId()) {
+                    if ($result->getParentTheme()->getId() === $correct_t->getId()) {
                         // We need to delete this one
                         $this->em->remove($result);
                     }

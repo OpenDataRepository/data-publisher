@@ -109,18 +109,18 @@
                         <tr id="RowDataType_{{ datatype.id }}" {% if hidden_datatype %}class="ODRPublicDatatype ODRHidden"{% endif %}>
                             <td>{{ datatype.id }}</td>
                             <td>
-                <span class="ODRDatatypeInfoDiv">
-                    <i class="fa fa-lg fa-info-circle"></i>
-                    <span class="ODRDatatypeInfo">
-                        <div>
-                            <b>Created By: </b>{{ datatype.createdBy|user_string }}
-                            <b> on </b>{{ datatype.created|date('Y-m-d') }}
-                        </div>
-                        <div>
-                            <b>Description: </b>{{ datatype_meta.description }}
-                        </div>
-                    </span>
-                </span>
+                                <span class="ODRDatatypeInfoDiv">
+                                    <i class="fa fa-lg fa-info-circle"></i>
+                                    <span class="ODRDatatypeInfo">
+                                        <div>
+                                            <b>Created By: </b>{{ datatype.createdBy|user_string }}
+                                            <b> on </b>{{ datatype.created|date('Y-m-d') }}
+                                        </div>
+                                        <div>
+                                            <b>Description: </b>{{ datatype_meta.description }}
+                                        </div>
+                                    </span>
+                                </span>
                             </td>
                             <td id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype_meta.longName }}</td>
 
@@ -137,7 +137,7 @@
                             <td>
                                 {% if datarecord_count == 0 %}
                                     {# don't display link, nothing to view #}
-                                {% elseif datatype.setup_step == 'operational' %}
+                                {% else %}
                                     <a id="ODRDatarecordList_{{ datatype.id }}_search"
                                        href="{{ datatype_baseurl }}"
                                        title="Search {{ datatype_meta.shortName }} DataRecords"
@@ -145,22 +145,13 @@
                                         <i class="fa fa-lg fa-search"></i>
                                         <span class="pure-visible-xl">&nbsp;Search</span>
                                     </a>
-                                {% elseif is_datatype_admin %}
-                                    <a id="ODRDatarecordList_{{ datatype.id }}_search"
-                                       class="ODRMissingSearchTheme" rel="{{ datatype.id }}"
-                                       title="Search {{ datatype_meta.shortName }} DataRecords"
-                                    >
-                                        <i class="fa fa-lg fa-search"></i>
-                                        <span class="pure-visible-xl">&nbsp:Search</span>
-                                    </a>
-                                {% else %}
-                                    {# missing templates to display search results, and user doesn't have permission to make any...do nothing #}
                                 {% endif %}
                             </td>
 
                             {# Link to database landing page #}
                             <td>
                                 <a id="ODRDatarecordList_{{ datatype.id }}_landing"
+                                   class="address"
                                    href="{{ datatype_baseurl }}#{{ path('odr_datatype_landing', { 'datatype_id': datatype.id }) }}"
                                    title="{{ datatype_meta.shortName }} Info Page"
                                 >
@@ -208,6 +199,7 @@
                                 {% endif %}
                             </td>
 
+                            {# TODO - some way to create a metadata thingy from here if one doesn't exist? #}
                             {# metadata layout designer link #}
                             <td>
                                 {% if is_datatype_admin %}
@@ -309,45 +301,6 @@
             // Due to rows already being hidden, redo the row classes
             redoRowClasses();
             {% endif %}
-
-            $(".ODRMissingSearchTheme").unbind('click').click(function (event) {
-                // These shouldn't be needed, but making sure...
-                event.preventDefault();
-                event.stopImmediatePropagation();
-
-                var datatype_id = $(this).attr('rel');
-
-                var url = '{{ path('odr_design_derivative_themes', { 'datatype_id': 0 }) }}';
-                url = url.substring(0, (url.length - 1));
-                url += datatype_id;
-
-                $.ajax({
-                    cache: false,
-                    type: 'GET',
-                    url: url,
-                    dataType: "json",
-                    success: function (data, textStatus, jqXHR) {
-                        // Redirect to the datatype's search page
-                        window.location = data.d.url;
-                    },
-                    error: function (jqXHR, textStatus, errorThrown) {
-                        // Don't need to do anything specific on an error
-                    },
-                    complete: function (jqXHR, textStatus) {
-                        // Get the xdebugToken from response headers
-                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                        // If the Sfjs object exists
-                        if (typeof Sfjs !== "undefined") {
-                            // Grab the toolbar element
-                            var currentElement = $('.sf-toolbar')[0];
-
-                            // Load the data of the given xdebug token into the current toolbar wrapper
-                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
-                        }
-                    }
-                });
-            });
         });
 
         function addDataRecord(urlpath, datatype_id) {

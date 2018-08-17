@@ -1,10 +1,12 @@
 {% spaceless %}
 
+{# used in ODRAdminBundle:Displaytemplate:radio_option_list_row.html.twig #}
 {% set typename = datafield.getfieldtype.gettypename %}
 
 <div class="pure-g pure-u-1">
     <div class="pure-u-1 ODRRadioOptionListWrapper">
         <input type="hidden" id="datafield_{{ datafield.id }}_name_sort" value="{% if datafield.getradiooptionnamesort == true %}1{% else %}0{% endif %}" />
+
         <form id="ODRRadioOptionsForm_0" class="pure-form" rel="{{ datafield.id }}">    {# id ends with 0 so the click event attached to .ODRDataField works properly #}    {# wtf why #}
             <fieldset>
                 <table class="pure-table pure-table-striped pure-u-1">
@@ -26,7 +28,7 @@
     </div>
     <div class="pure-u-1">
         <button class="ODRAddRadioOption pure-button pure-button-primary" type="button" rel="{{ datafield.id }}">Add Option</button>
-        <i class="ODRAddRadioOptionList fa fa-list-alt Pointer" rel="{{ datafield.id }}"></i>
+        <i class="ODRAddRadioOptionList fa fa-list-alt Pointer" rel="{{ datafield.id }}" title="Add Multiple Options"></i>
     </div>
 </div>
 
