@@ -58,6 +58,8 @@ use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
@@ -95,6 +97,8 @@ class EditController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
             /** @var PermissionsManagementService $pm_service */
@@ -142,15 +146,14 @@ class EditController extends ODRCustomController
                     throw new ODRBadRequestException('This Master Template already has a sample datarecord');
             }
 
-            // Create a new datarecord
-            $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
-
-            // This is a top-level datarecord...must have grandparent and parent set to itself
-            $datarecord->setParent($datarecord);
-            $datarecord->setGrandparent($datarecord);
+            // Create a new top-level datarecord
+            $delay_flush = true;
+            $datarecord = $entity_create_service->createDatarecord($user, $datatype, $delay_flush);
 
             // Datarecord is ready, remove provisioned flag
             $datarecord->setProvisioned(false);
+
+            $em->persist($datarecord);
             $em->flush();
 
 
@@ -215,6 +218,8 @@ class EditController extends ODRCustomController
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -254,9 +259,11 @@ class EditController extends ODRCustomController
             if ( in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('EditController::addchildrecordAction() called for top-level datatype');
 
-            // Create new Data Record
-            $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
+            // Create a new top-level datarecord...
+            $delay_flush = true;
+            $datarecord = $entity_create_service->createDatarecord($user, $datatype, $delay_flush);
 
+            // Set parent/grandparent properties so this becomes a child datarecord
             $datarecord->setGrandparent($grandparent_datarecord);
             $datarecord->setParent($parent_datarecord);
 
@@ -2870,18 +2877,16 @@ class EditController extends ODRCustomController
                 )
             );
 
-            $record_page_html = self::GetDisplayData(
-                $search_theme_id,
-                $encoded_search_key,
-                $datarecord->getId(),
-                'default',
-                $datarecord->getId(),      // TODO - replace this with $original_datarecord->getId()?
-                $request
-            );
+
+            // ----------------------------------------
+            // Render the edit page for this datarecord
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
+            $page_html = $odr_render_service->getEditHTML($user, $datarecord, $search_key, $search_theme_id);
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
-                'html' => $record_header_html.$record_page_html,
+                'html' => $record_header_html.$page_html,
             );
 
             // Store which datarecord to scroll to if returning to the search results list

@@ -591,6 +591,8 @@ $ret .= '  Set current to '.$count."\n";
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
 
@@ -686,14 +688,13 @@ $ret .= '  Set current to '.$count."\n";
                 }
 
                 if ( $archive_filepath == '' ) {
-                    $redis = $this->container->get('snc_redis.default');;
-                    // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-                    $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-                    $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
+                    $file_decryptions = $cache_service->get('file_decryptions');
 
-                    unset($file_decryptions[$target_filename]);
-                    $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
+                    if ( isset($file_decryptions[$target_filename]) )
+                        unset($file_decryptions[$target_filename]);
+
+                    $cache_service->set('file_decryptions', $file_decryptions);
                 }
                 else {
                     // Attempt to open the specified zip archive

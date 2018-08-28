@@ -56,6 +56,7 @@ use ODR\AdminBundle\Form\RadioOptionListForm;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
@@ -1123,11 +1124,13 @@ class DisplaytemplateController extends ODRCustomController
                 if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
 
-                /** @var DesignInfoService $di_service */
-                $di_service = $this->container->get('odr.design_info_service');
+                /** @var ODRRenderService $odr_render_service */
+                $odr_render_service = $this->container->get('odr.render_service');
+                $page_html = $odr_render_service->getMasterDesignHTML($user, $datatype);
+
                 $return['d'] = array(
                     'datatype_id' => $datatype->getId(),
-                    'html' => $di_service->GetDisplayData($datatype_id, 'default', $datatype_id),
+                    'html' => $page_html,
                 );
             }
         }

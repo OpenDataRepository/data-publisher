@@ -1,63 +1,34 @@
 {% spaceless %}
 
+    {% set datatype_id = datatype.id %}
 
     {# Convert this to JSON Data so we can use it in the toolbox #}
     <script>
-
         if (datatype_properties === undefined) {
-            var datatype_properties = [];
+            // var datatype_properties = [];
+            var datatype_properties = {};
         }
 
-        datatype_properties[{{ datatype.id }}] = {};
-        datatype_properties[{{ datatype.id }}].is_top_level = 1;
-        datatype_properties[{{ datatype.id }}].render_plugin_id = 1;
-        datatype_properties[{{ datatype.id }}].render_plugin_name = 'Default Render';
-        datatype_properties[{{ datatype.id }}].is_public = 0;
-        datatype_properties[{{ datatype.id }}].is_link = 0;
+        datatype_properties[{{ datatype_id }}] = {};
+        datatype_properties[{{ datatype_id }}].is_top_level = {{ is_top_level }};
+        datatype_properties[{{ datatype_id }}].is_link = {{ is_link }};
 
-
-        // Set properties to values other than default
-        {% if is_link != 0 %}
-            datatype_properties[{{ datatype.id }}].is_link = 1;
-        {% endif %}
-
-        {% if is_top_level == 0 %} {# not allowed to delete top-level datatypes from here #}
-            datatype_properties[{{ datatype.id }}].is_top_level = 0;
+        {% if datatype.dataTypeMeta.publicDate|is_public %}
+        datatype_properties[{{ datatype_id }}].is_public = 1;
+        {% else %}
+        datatype_properties[{{ datatype_id }}].is_public = 0;
         {% endif %}
 
         {% if datatype.dataTypeMeta.renderPlugin.id != 1 %}
-            datatype_properties[{{ datatype.id }}].render_plugin_id = {{ datatype.dataTypeMeta.renderPlugin.id }};
-            datatype_properties[{{ datatype.id }}].render_plugin_name = {{ datatype.dataTypeMeta.renderPlugin.pluginName }};
+        datatype_properties[{{ datatype_id }}].render_plugin_id = {{ datatype.dataTypeMeta.renderPlugin.id }};
+        datatype_properties[{{ datatype_id }}].render_plugin_name = "{{ datatype.dataTypeMeta.renderPlugin.pluginName }}";
+        {% else %}
+        datatype_properties[{{ datatype_id }}].render_plugin_id = 1;
+        datatype_properties[{{ datatype_id }}].render_plugin_name = "Default Render";
         {% endif %}
 
-        {% if datatype.dataTypeMeta.publicDate|is_public %}
-            datatype_properties[{{ datatype.id }}].is_public = 1;
-        {% endif %}
-
-        console.log(datatype_properties[{{ datatype.id }}]);
-
-
+        {#console.log('datatype ' + {{ datatype_id }});#}
+        {#console.log( datatype_properties );#}
+        console.log(datatype_properties[{{ datatype_id }}]);
     </script>
-
-    {#
-
-<span id="DataTypeTools_{{ datatype.id }}" class="DataTypeTools ODRHidden">
-{% if is_link == 0 %}
-    <i id="ODRDatatype_{{ datatype.id }}_addTE" class="Pointer tooltip fa fa-edit ODRAddThemeElement" title="Add Group Box" rel="{{ theme_id }}"></i>
-    {% if is_top_level == 0 %}
-        <i id="ODRDatatype_{{ datatype.id }}_delete" class="Pointer tooltip fa fa-trash-o ODRDeleteDatatype" title="Delete DataType" rel="{{ datatype.id }}"></i>
-    {% endif %}
-
-    {% if datatype.dataTypeMeta.renderPlugin.id != 1 %}
-        <i id="ODRDatatype_{{ datatype.id }}_renderPlugin" class="Pointer tooltip fa fa-bar-chart-o ODRRenderPlugin ODRActiveIcon" title="RenderPlugin Settings (using {{ datatype.dataTypeMeta.renderPlugin.pluginName }})" rel="{{ datatype.id }}"></i>
-    {% else %}
-        <i id="ODRDatatype_{{ datatype.id }}_renderPlugin" class="Pointer tooltip fa fa-bar-chart-o ODRRenderPlugin" title="RenderPlugin Settings" rel="{{ datatype.id }}"></i>
-    {% endif %}
-
-    <i id="ODRDatatype_{{ datatype.id }}_publicStatus" class="Pointer tooltip fa fa-globe fa-inverse {% if datatype.dataTypeMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatatype" title="Datatype {% if not datatype.dataTypeMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datatype.id }}"></i>
-{% endif %}
-
-</span>
-    #}
-
 {% endspaceless %}

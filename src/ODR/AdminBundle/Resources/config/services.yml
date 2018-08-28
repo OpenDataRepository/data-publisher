@@ -110,12 +110,7 @@ services:
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
-            permissions_service: "@odr.permissions_management_service"
-            datatype_info_service: "@odr.datatype_info_service"
-            theme_service: "@odr.theme_info_service"
-            templating: "@templating"
             token_manager: "@security.csrf.token_manager"
-            token_storage: "@security.token_storage"
             logger: "@logger"
 
     odr.datatype_info_service:
@@ -160,6 +155,33 @@ services:
             router: "@router"
             logger: "@logger"
 
+
+    odr.entity_creation_service:
+        class: ODR\AdminBundle\Component\Service\EntityCreationService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+
+    odr.entity_meta_modify_service:
+        class: ODR\AdminBundle\Component\Service\EntityMetaModifyService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+
+
+    odr.render_service:
+        class: ODR\AdminBundle\Component\Service\ODRRenderService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            cache_service: "@odr.cache_service"
+            datarecord_info_service: "@odr.datarecord_info_service"
+            datatype_info_service: "@odr.datatype_info_service"
+            permissions_service: "@odr.permissions_management_service"
+            theme_service: "@odr.theme_info_service"
+            clone_theme_service: "@odr.clone_theme_service"
+            entity_meta_modify_service: "@odr.entity_meta_modify_service"
+            templating: "@templating"
+            logger: "@logger"
 
     odr.datarecord_export_service:
         class: ODR\AdminBundle\Component\Service\DatarecordExportService

@@ -48,6 +48,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
@@ -2920,6 +2921,8 @@ print_r($new_mapping);
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
 
 
             if ($api_key !== $beanstalk_api_key)
@@ -3062,12 +3065,9 @@ exit();
             // Determine whether to create a new datarecord or not
             if ($datarecord == null) {
                 // Create a new datarecord, since one doesn't exist
-                $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
-                if ($parent_datarecord == null) {
-                    $datarecord->setParent($datarecord);
-                    $datarecord->setGrandparent($datarecord);
-                }
-                else {
+                $delay_flush = true;
+                $datarecord = $entity_create_service->createDatarecord($user, $datatype, $delay_flush);
+                if ( !is_null($parent_datarecord) ) {
                     $datarecord->setParent($parent_datarecord);
                     $datarecord->setGrandparent($parent_datarecord->getGrandparent());
                 }

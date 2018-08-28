@@ -1,6 +1,8 @@
 {% spaceless %}
 
     {% set datatype = datatype_array[initial_datatype_id] %}
+    {% set theme = theme_array[initial_theme_id] %}
+
     <!--suppress JSCheckFunctionSignatures -->
     <div class="ODRDesignHeader">
         <h1 class="ODRDesignTitle no-margin-top-phone">
@@ -160,6 +162,16 @@
     var SaveTimeout = 2000;
     $(function() {
         initPage();
+
+{# TODO - enable this once a better non-master theme designer gets worked out...
+        {% if notify_of_sync is defined and notify_of_sync == true %}
+        {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+            'datatype_id': datatype.id,
+            'theme_id': theme.id,
+            'search_key': '',
+        } %}
+        {% endif %}
+#}
     });
 
     function notifySaved() {

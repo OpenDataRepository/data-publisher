@@ -364,6 +364,7 @@ odr_theme_reload_theme_element:
         source_datatype_id: \d+
         theme_element_id: \d+
 
+# TODO - ideally, this route wouldn't exist...the `odr_design_add_theme_element` route should always be used instead, with the page html being modified if that route isn't feasible to use for some reason
 odr_design_add_theme_element_by_datatype:
     path:  /design/themeelement/add/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Theme:addthemeelementbydatatype }

@@ -36,10 +36,10 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
@@ -136,12 +136,8 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $session = $request->getSession();
 
-            /** @var CloneThemeService $clone_theme_service */
-            $clone_theme_service = $this->container->get('odr.clone_theme_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
@@ -163,23 +159,10 @@ class DisplayController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            // Save in case the user requested a child datarecord
-            $requested_datarecord = $datarecord;
-            $requested_datatype = $datatype;
+            // TODO - allow rendering of child datarecords?
+            if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Not allowed to directly render child datarecords');
 
-            // Want the grandparent datarecord and datatype for everything else
-            $is_top_level = 1;
-            if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() ) {
-                // This is a child datatype
-                $is_top_level = 0;
-                $datarecord = $datarecord->getGrandparent();
-                if ($datarecord->getDeletedAt() != null)
-                    throw new ODRNotFoundException('Datarecord');
-
-                $datatype = $datarecord->getDataType();
-                if ($datatype->getDeletedAt() != null)
-                    throw new ODRNotFoundException('Datatype');
-            }
 
             // If $search_theme_id is set...
             if ($search_theme_id != 0) {
@@ -204,7 +187,6 @@ class DisplayController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
             $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
@@ -380,73 +362,16 @@ class DisplayController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Load the cached versions of all datarecords, datatypes, and themes that will be
-            //  needed for rendering this datarecord
-            $datarecord_array = $dri_service->getDatarecordArray($datarecord->getId());
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getId());
-
+            // Determine the user's preferred theme
             $theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'master');
-            $theme_array = $theme_service->getThemeArray($theme_id);
-
-
-            // ----------------------------------------
-            // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            // Intentionally leaving the theme array alone
-            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-
-            // "Inflate" the currently flattened datarecord/datatype/theme arrays
-            $stacked_datarecord_array[ $requested_datarecord->getId() ] =
-                $dri_service->stackDatarecordArray($datarecord_array, $requested_datarecord->getId());
-            $stacked_datatype_array[ $requested_datatype->getId() ] =
-                $dti_service->stackDatatypeArray($datatype_array, $requested_datatype->getId());
-            $stacked_theme_array[ $theme_id ] =
-                $theme_service->stackThemeArray($theme_array, $theme_id);
-//print '<pre>'.print_r($stacked_datatype_array, true).'</pre>'; exit();
-//print '<pre>'.print_r($stacked_theme_array, true).'</pre>'; exit();
-
-            // If any of the stacked data arrays are empty, it's most likely a permissions problem
-            // This probably only really happens when a user attempts to directly access child
-            //  datarecords they don't have permissions for
-            if ( count($stacked_datarecord_array[ $requested_datarecord->getId() ]) == 0
-                || count($stacked_datatype_array[ $requested_datatype->getId() ]) == 0
-                || count($stacked_theme_array[ $theme_id ]) == 0
-            ) {
-                throw new ODRForbiddenException();
-            }
-
-
-            // ----------------------------------------
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
 
-            // Determine whether the currently preferred theme needs to be synchronized with its source
-            //  and the user notified of it
-            $notify_of_sync = self::notifyOfThemeSync($theme, $user);
+            // Render the display page for this datarecord
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
+            $page_html = $odr_render_service->getDisplayHTML($user, $datarecord, $search_key, $theme);
 
-
-            // ----------------------------------------
-            // Render the DataRecord
-            $templating = $this->get('templating');
-            $page_html = $templating->render(
-                'ODRAdminBundle:Display:display_ajax.html.twig',
-                array(
-                    'datatype_array' => $stacked_datatype_array,
-                    'datarecord_array' => $stacked_datarecord_array,
-                    'theme_array' => $stacked_theme_array,
-
-                    'initial_datatype_id' => $requested_datatype->getId(),
-                    'initial_datarecord_id' => $requested_datarecord->getId(),
-                    'initial_theme_id' => $theme_id,
-
-                    'is_top_level' => $is_top_level,
-                    'search_key' => $search_key,
-                    'user' => $user,
-                    'record_display_view' => 'single',
-
-                    'notify_of_sync' => $notify_of_sync,
-                )
-            );
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),

@@ -926,25 +926,6 @@ class ODRCustomController extends Controller
 
 
     /**
-     * Automatically decompresses and unserializes redis data.
-     * @deprecated
-     *
-     * @throws \Exception
-     *
-     * @param string $redis_value - the value returned by the redis call.
-     *
-     * @return boolean|string
-     */
-    public static function getRedisData($redis_value) {
-        // print "::" . strlen($redis_value) . "::";
-        if(strlen($redis_value) > 0) {
-            return unserialize(gzuncompress($redis_value));
-        }
-        return false;
-    }
-
-
-    /**
      * Copies the contents of the given GroupMeta entity into a new GroupMeta entity if something was changed
      *
      * The $properties parameter must contain at least one of the following keys...
@@ -4097,6 +4078,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated
+     *
      * Synchronizes the given theme with its source theme if needed, and returns whether to notify
      *  the user it did so.  At the moment, a notification isn't needed when the synchronization adds
      *  a datafield/datatype that the user can't view due to permissions.

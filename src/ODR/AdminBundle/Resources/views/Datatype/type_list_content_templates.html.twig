@@ -88,7 +88,7 @@
                                 {% else %}
                                     <a id="ODRDatarecordList_{{ datatype.id }}_add_metadata"
                                        class="Pointer"
-                                       onclick="return false"
+                                       onclick="return false"   {# TODO - no way to create a metadata datatype? #}
                                     ><i class="fa fa-lg fa-plus-circle"></i>&nbsp;Create</a>
                                 {% endif %}
                             </td>
@@ -208,7 +208,7 @@
         });
 
         function addDataRecord(urlpath, datatype_id) {
-            if (confirm('Are you sure you want to create a new ecord?')) {
+            if (confirm('Are you sure you want to create a new record?')) {
                 var url = '{{ path('odr_record_add', { 'datatype_id': 0 }) }}';
                 url = url.substring(0, (url.length - 1));
                 url += datatype_id;

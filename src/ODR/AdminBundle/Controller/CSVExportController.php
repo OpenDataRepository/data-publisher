@@ -32,7 +32,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
@@ -161,8 +161,13 @@ class CSVExportController extends ODRCustomController
                 )
             );
 
-            // Get the mass edit page rendered
-            $page_html = self::csvExportRender($datatype_id, $odr_tab_id, $request);
+
+            // ----------------------------------------
+            // Get the CSVExport page rendered
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
+            $page_html = $odr_render_service->getCSVExportHTML($user, $datatype, $odr_tab_id);
+
             $return['d'] = array( 'html' => $header_html.$page_html );
         }
         catch (\Exception $e) {
@@ -176,77 +181,6 @@ class CSVExportController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * Renders and returns the html used for performing csv exporting
-     * 
-     * @param integer $datatype_id    The database id that the search was performed on.
-     * @param string $odr_tab_id
-     * @param Request $request
-     * 
-     * @return string
-     */
-    private function csvExportRender($datatype_id, $odr_tab_id, Request $request)
-    {
-        // Required objects
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
-        /** @var DatatypeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatype_info_service');
-        /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
-        /** @var ThemeInfoService $theme_service */
-        $theme_service = $this->container->get('odr.theme_info_service');
-
-
-        // Both of these should already exist
-        /** @var DataType $datatype */
-        $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-        $theme = $theme_service->getDatatypeMasterTheme($datatype_id);
-
-
-        // --------------------
-        // Determine user privileges
-        /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
-        $user_permissions = $pm_service->getUserPermissionsArray($user);
-        // --------------------
-
-
-        // ----------------------------------------
-        // Grab the cached version of the desired datatype
-        $include_links = false;
-        $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
-        $theme_array = $theme_service->getThemeArray($theme->getId());
-//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
-
-        // Filter by user permissions
-        $datarecord_array = array();
-        $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-        // Currently only the top-level datatype is rendered...therefore, no need for stacking
-
-
-        // ----------------------------------------
-        // Render the CSVExport page
-        $templating = $this->get('templating');
-        $html = $templating->render(
-            'ODRAdminBundle:CSVExport:csvexport_ajax.html.twig',
-            array(
-                'datatype_array' => $datatype_array,
-                'theme_array' => $theme_array,
-
-                'initial_datatype_id' => $datatype_id,
-                'initial_theme_id' => $theme->getId(),
-
-                'odr_tab_id' => $odr_tab_id,
-            )
-        );
-
-        return $html;
     }
 
 

@@ -46,6 +46,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
@@ -196,8 +197,13 @@ class MassEditController extends ODRCustomController
                 )
             );
 
+
+            // ----------------------------------------
             // Get the mass edit page rendered
-            $page_html = self::massEditRender($datatype_id, $odr_tab_id, $request);
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
+            $page_html = $odr_render_service->getMassEditHTML($user, $datatype, $odr_tab_id);
+
             $return['d'] = array( 'html' => $header_html.$page_html );
         }
         catch (\Exception $e) {
@@ -211,90 +217,6 @@ class MassEditController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * Renders and returns the html used for performing mass edits.
-     * 
-     * @param integer $datatype_id    The database id that the search was performed on.
-     * @param string $odr_tab_id
-     * @param Request $request
-     *
-     * @throws ODRNotFoundException
-     *
-     * @return string
-     */
-    private function massEditRender($datatype_id, $odr_tab_id, Request $request)
-    {
-        // Required objects
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
-        /** @var DatatypeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatype_info_service');
-        /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
-        /** @var ThemeInfoService $theme_service */
-        $theme_service = $this->container->get('odr.theme_info_service');
-
-
-        /** @var DataType $datatype */
-        $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-        if ($datatype == null)
-            throw new ODRNotFoundException('Datatype');
-
-        $theme = $theme_service->getDatatypeMasterTheme($datatype_id);
-
-
-        // --------------------
-        // Determine user privileges
-        /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
-        $user_permissions = $pm_service->getUserPermissionsArray($user);
-        $datatype_permissions = $user_permissions['datatypes'];
-        $datafield_permissions = $user_permissions['datafields'];
-        // --------------------
-
-
-        // ----------------------------------------
-        // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $include_links = false;
-        $datatype_array = $dti_service->getDatatypeArray($datatype_id, $include_links);
-        $theme_array = $theme_service->getThemeArray($theme->getId());
-//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
-
-        // Filter by user permissions
-        $datarecord_array = array();
-        $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-        // Technically don't need to stack these arrays since linked datatypes aren't involved, but
-        //  do it for consistency with other rendering modes
-        $stacked_datatype_array[ $datatype->getId() ] =
-            $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
-        $stacked_theme_array[ $theme->getId() ] =
-            $theme_service->stackThemeArray($theme_array, $theme->getId());
-
-
-        // ----------------------------------------
-        // Render the MassEdit page
-        $templating = $this->get('templating');
-        $html = $templating->render(
-            'ODRAdminBundle:MassEdit:massedit_ajax.html.twig',
-            array(
-                'datatype_array' => $stacked_datatype_array,
-                'theme_array' => $stacked_theme_array,
-
-                'initial_datatype_id' => $datatype_id,
-                'initial_theme_id' => $theme->getId(),
-
-                'odr_tab_id' => $odr_tab_id,
-                'datatype_permissions' => $datatype_permissions,
-                'datafield_permissions' => $datafield_permissions,
-            )
-        );
-
-        return $html;
     }
 
 

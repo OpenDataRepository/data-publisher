@@ -36,10 +36,10 @@ use ODR\AdminBundle\Form\UpdateDatatypePropertiesForm;
 use ODR\AdminBundle\Form\CreateDatatypeForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
-use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
@@ -194,11 +194,13 @@ class DatatypeController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -223,13 +225,14 @@ class DatatypeController extends ODRCustomController
                         )
                     )
                 );
-            } else {
+            }
+            else {
                 // Ensure user has permissions to be doing this
                 if (!$pm_service->isDatatypeAdmin($user, $datatype))
                     throw new ODRForbiddenException();
 
                 $properties_datatype = $datatype;
-                if($datatype->getMetadataDatatype() !== null) {
+                if ($datatype->getMetadataDatatype() !== null) {
                     // This is a properties database
                     $properties_datatype = $datatype->getMetadataDatatype();
                 }
@@ -240,53 +243,37 @@ class DatatypeController extends ODRCustomController
 
                 // Retrieve first (and only) record ...
                 $query = $em->createQuery(
-                    'SELECT dr.id AS dr_id
-                          FROM ODRAdminBundle:DataRecord AS dr
-                          WHERE dr.dataType = :datatype_id'
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.dataType = :datatype_id'
                 )->setParameters(array('datatype_id' => $properties_datatype->getId()));
                 $results = $query->getArrayResult();
 
-                if (count($results) == 0) {
-
-                    // Create record if not exists.
-                    // Create a new datarecord
-                    $datarecord = $dri_service->addDataRecord(
-                        $user,
-                        $properties_datatype
-                    );
-
-                    // This is a top-level datarecord...must have grandparent and parent set to itself
-                    $datarecord->setParent($datarecord);
-                    $datarecord->setGrandparent($datarecord);
+                if ( count($results) == 0 ) {
+                    // A metadata datarecord doesn't exist...create one
+                    $delay_flush = true;
+                    $datarecord = $entity_create_service->createDatarecord($user, $properties_datatype, $delay_flush);
 
                     // Datarecord is ready, remove provisioned flag
                     $datarecord->setProvisioned(false);
                     $em->flush();
+                }
 
-                    $datarecord_id = $datarecord->getId();
-                }
-                else {
-                    $datarecord_id = $results[0]['dr_id'];
-                }
 
                 // ----------------------------------------
                 // Render the required version of the page
-
-                $edit_html = $dri_service->GetDisplayData(
-                    null, // $search_theme_id = null,
-                    null, // $search_key = null,
-                    $datarecord_id,
-                    'default',
-                    null
+                $edit_html = $odr_render_service->getEditHTML(
+                    $user,
+                    $datarecord,
+                    null,       // search_theme_id
+                    null        // theme
                 );
-
 
                 // Need to create a form for editing datatype metadata
                 // Should edit the properties type and the datatype itself...
                 $new_datatype_data = $properties_datatype->getDataTypeMeta();
                 $params = array(
-                    'form_settings' => array(
-                    )
+                    'form_settings' => array()
                 );
                 $form = $this->createForm(UpdateDatatypePropertiesForm::class, $new_datatype_data, $params);
 

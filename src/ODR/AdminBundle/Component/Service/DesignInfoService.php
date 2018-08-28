@@ -114,6 +114,16 @@ class DesignInfoService
         $this->logger = $logger;
     }
 
+    /**
+     * @deprecated
+     *
+     * @param $source_datatype_id
+     * @param string $template_name
+     * @param $target_id
+     *
+     * @return string
+     * @throws \Twig\Error\Error
+     */
     public function GetDisplayData($source_datatype_id, $template_name = 'default', $target_id)
     {
         // ----------------------------------------

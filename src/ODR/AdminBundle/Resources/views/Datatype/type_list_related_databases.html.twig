@@ -64,10 +64,11 @@
                     (datatype.unique_id is null or datatype.unique_id != datatype.template_group)
                 %}
 
-                    {% set is_top_level = false %}
-                    {% if datatype.id == datatype.grandparent.id %}
+                    {# TODO - temporarily disabled because we want everything to show up #}
+                    {#{% set is_top_level = false %}#}
+                    {#{% if datatype.id == datatype.grandparent.id %}#}
                         {% set is_top_level = true %}
-                    {% endif %}
+                    {#{% endif %}#}
 
                     {% set datatype_meta = datatype.dataTypeMeta %}
 
@@ -188,7 +189,8 @@
                             <td>
                                 {% if is_datatype_admin and is_top_level == true %}
                                     <a class="address"
-                                       href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"
+                                       {#href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"#}
+                                       href="#{{ path('odr_csv_import', { 'datatype_id': datatype.grandparent.id }) }}"
                                     >
                                         <i class="fa fa-lg fa-upload"></i>
                                         <span class="pure-visible-xl">&nbsp;Import</span>
@@ -201,7 +203,8 @@
                                 {% if is_datatype_admin and is_top_level == true %}
                                     <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
                                        class="address"
-                                       href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}"
+                                       {#href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}"#}
+                                       href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.grandparent.id }) }}"
                                        title="Edit {{ datatype_meta.shortName }} Master Layout"
                                     >
                                         <i class="fa fa-lg fa-pencil"></i>
@@ -216,7 +219,8 @@
                                     {% if datatype.metadata_datatype is defined and datatype.metadata_datatype is not null %}
                                     <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
                                        class="address"
-                                       href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.metadata_datatype.id }) }}"
+                                       {#href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.metadata_datatype.id }) }}"#}
+                                       href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.metadata_datatype.id }) }}"
                                        title="Edit {{ datatype_meta.shortName }} Master Layout"
                                     >
                                         <i class="fa fa-lg fa-pencil"></i>

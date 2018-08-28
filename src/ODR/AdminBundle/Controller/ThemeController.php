@@ -12,6 +12,7 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\AdminBundle\Component\Service\DesignInfoService;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -1692,8 +1693,11 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+//            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
             /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
@@ -1701,18 +1705,22 @@ class ThemeController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
 
+            // TODO - can't use this construct, linked datatypes have multiple 'master' themes differentiated only by parent_theme_id
             // We can only operate on master themes here...
             /** @var Theme $theme */
+/*
             $theme = $repo_theme->findOneBy(
                 array(
                     'themeType' => 'master',
                     'dataType' => $datatype,
                 )
             );
-
+*/
+            $theme = $theme_info_service->getDatatypeMasterTheme($datatype_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
+            // TODO - the theme_element reload WILL NOT succeed, but at least the database won't be messed up afterwards...
             return $this->redirect(
                 $this->generateUrl(
                     'odr_design_add_theme_element',
@@ -1815,6 +1823,7 @@ class ThemeController extends ODRCustomController
             // Update cached version of theme
             $theme_service->updateThemeCacheEntry($theme, $user);
 
+            // TODO - modify ODRRenderService to reload theme_elements...
             $html = "";
             if($full_html) {
 

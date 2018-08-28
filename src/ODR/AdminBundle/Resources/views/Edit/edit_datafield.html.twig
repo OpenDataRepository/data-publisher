@@ -1,7 +1,9 @@
 {% spaceless %}
 
-{% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
-{% set field_typeclass = datafield.dataFieldMeta.fieldType.typeClass %}
+{% set datafield_meta = datafield.dataFieldMeta %}
+
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
 {% set valuefield = '' %}
 {% set valuefield_value = '' %}
@@ -62,11 +64,12 @@
 
 
     <form
-            {% if is_link > 0 %} autocomplete="off"{% endif %}
-            action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
-            class="pure-u-1{% if is_link > 0 %} ODRLinkLookupForm{% endif %}"
-            id="EditForm_{{ unique_id }}"
-            method="POST">
+        {% if is_link > 0 %} autocomplete="off"{% endif %}
+        action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
+        class="pure-u-1{% if is_link > 0 %} ODRLinkLookupForm{% endif %}"
+        id="EditForm_{{ unique_id }}"
+        method="POST"
+    >
 
         <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
 {#
@@ -76,12 +79,17 @@
 
     {% if field_typename == "Boolean" %}
         <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield.dataFieldMeta.description }}">
+            <label for="{{ input_id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield_meta.description }}">
                 <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                     <input
-                        {% if datafield.dataFieldMeta.internal_reference_name != '' %}rel="{{ datafield.dataFieldMeta.internal_reference_name }}"{% endif %}
-                        id="{{ input_id }}" type="checkbox" name="{{ input_name }}" value="1" {% if valuefield_value == 1 %}checked{% endif %} />
-                    <span class="ODRDatafieldHistory">{{ datafield.dataFieldMeta.fieldName }}</span>
+                        {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
+                        id="{{ input_id }}"
+                        type="checkbox"
+                        name="{{ input_name }}"
+                        value="1"
+                        {% if valuefield_value == 1 %}checked{% endif %}
+                    />
+                    <span class="ODRDatafieldHistory">{{ datafield_meta.fieldName }}</span>
                 </div>
             </label>
         </fieldset>
@@ -97,11 +105,11 @@
             {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {'files': valuefield, 'datafield': datafield, 'datarecord': datarecord} %}
         </div>
 
-        <div class="pure-u-1" {% if datafield.dataFieldMeta.allow_multiple_uploads == 0 and has_file == true %}style="display: none;"{% endif %}>
+        <div class="pure-u-1" {% if datafield_meta.allow_multiple_uploads == 0 and has_file == true %}style="display: none;"{% endif %}>
             {# show upload area only if multiples are allowed or nothing has been uploaded yet #}
             {% set target = 'drf_' ~ datarecord.id ~ '_' ~ datafield.id %}
             {% set single_file = true %}
-            {% if datafield.dataFieldMeta.allow_multiple_uploads == 1 %}
+            {% if datafield_meta.allow_multiple_uploads == 1 %}
                 {% set single_file = false %}
             {% endif %}
             {% set callback = 'ReloadFileDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
@@ -113,7 +121,7 @@
     {% elseif field_typename == "Image" %}
         {% set has_image = false %}
         {#<fieldset>#}
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}" style="text-align: center;">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}" style="text-align: center;">{{ datafield_meta.fieldName }}</label>
             <div class="ODRSortableImage pure-u-1">
 
                 {% for image in valuefield %}
@@ -124,7 +132,7 @@
 
                     {% set has_image = true %}
 
-                    <div id="Image_{{ oimage.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" rel="{{ image.id }}">    {# rel is the id of the thumbnail, id attr is the id of the full-size image #}
+                    <div id="Image_{{ oimage.id }}" class="pure-u-1 pure-u-md-1-{{ datafield_meta.children_per_row }}" rel="{{ image.id }}">    {# rel is the id of the thumbnail, id attr is the id of the full-size image #}
                         <div class="pure-u-1">
                             &nbsp;<i class="Cursor tooltip fa fa-calendar fa-lg" title="Uploaded {{ oimage.created|date('Y-m-d') }} by {{ oimage.createdBy|user_string }}"></i>
                             &nbsp;<i class="ODRDeleteImage tooltip Pointer fa fa-lg fa-trash-o" title="Delete Image" rel="{{ oimage.id }}"></i>
@@ -143,11 +151,11 @@
 
             </div>
             <div class="pure-u-1">
-            {% if datafield.dataFieldMeta.allow_multiple_uploads == 1 or has_image == false %}
+            {% if datafield_meta.allow_multiple_uploads == 1 or has_image == false %}
                 {# show upload area only if multiples are allowed or nothing has been uploaded yet #}
                 {% set target = 'drf_' ~ datarecord.id ~ '_' ~ datafield.id %}
                 {% set single_file = true %}
-                {% if datafield.dataFieldMeta.allow_multiple_uploads == 1 %}
+                {% if datafield_meta.allow_multiple_uploads == 1 %}
                     {% set single_file = false %}
                 {% endif %}
                 {% set callback = 'ReloadDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
@@ -159,31 +167,31 @@
 
     {% elseif field_typename == "Paragraph Text" %}
         <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <textarea
-                        id="{{ input_id }}"
-                        class="pure-u-1"
-                        name="{{ input_name }}"
-                        {% if datafield.dataFieldMeta.required == 1 %}required="required"{% endif %}
-                        data-error-type="inline"
-                        {% if datafield.dataFieldMeta.internal_reference_name != '' %}rel="{{ datafield.dataFieldMeta.internal_reference_name }}"{% endif %}
+                    id="{{ input_id }}"
+                    class="pure-u-1"
+                    name="{{ input_name }}"
+                    {% if datafield_meta.required == 1 %}required="required"{% endif %}
+                    data-error-type="inline"
+                    {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
                 >{{ valuefield_value }}</textarea>
             </div>
         </fieldset>
 
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
         <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <input
-                        {% if datafield.dataFieldMeta.internal_reference_name != '' %}rel="{{ datafield.dataFieldMeta.internal_reference_name }}"{% endif %}
-                        type="text"
-                        id="{{ input_id }}"
-                        class="pure-u-1"
-                        name="{{ input_name }}"
-                        value="{{ valuefield_value }}"
-                        data-error-type="inline"
+                    {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
+                    type="text"
+                    id="{{ input_id }}"
+                    class="pure-u-1"
+                    name="{{ input_name }}"
+                    value="{{ valuefield_value }}"
+                    data-error-type="inline"
                 />
                 <i class="fa fa-save ODRSaveIndicator"></i>
             </div>
@@ -192,7 +200,7 @@
     {#{% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}#}
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
         <fieldset>
-            <label class="ODRFieldLabel {#ODRDatafieldHistory#} pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label class="ODRRadioField ODRFieldLabel {#ODRDatafieldHistory#} pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
 
             {% set print_null_option = false %}
             {% set has_selection = false %}
@@ -207,6 +215,7 @@
             {% endif %}
 
             {% if datafield.radioOptions is defined %}
+                <div class="ODRRadioOptionsEdit">
                 {% for radio_option in datafield.radioOptions %}
                     {% set is_selected = 0 %}
                     {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
@@ -215,39 +224,53 @@
 
                     {% if print_null_option == true %}
                         {% set print_null_option = false %}
-                        <label for="{{ input_id }}_0" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
+                        <label for="{{ input_id }}_0" class="pure-u-1 pure-u-md-1-{{ datafield_meta.children_per_row }}" style="margin: 0.5em 0;">
                             <input id="{{ input_id }}_0" type="radio" name="RadioGroup_{{ unique_id }}" {% if has_selection == false %}checked{% endif %} class="SingleRadioGroup {% if has_selection == false %}ODRRadioOptionChecked{% endif %}" />
                             No Option Selected
                         </label>
                     {% endif %}
 
-                    <label for="{{ input_id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
+                    <label for="{{ input_id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield_meta.children_per_row }}" style="margin: 0.5em 0;">
 
                     {% if field_typename == "Single Radio" %}
                         <input
-                                {% if datafield.dataFieldMeta.internal_reference_name != '' %}rel="{{ datafield.dataFieldMeta.internal_reference_name }}"{% endif %}
-                                id="{{ input_id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ unique_id }}" {% if is_selected == 1 %}checked{% endif %} class="SingleRadioGroup {% if is_selected == 1 %}ODRRadioOptionChecked{%endif %}" />
+                            {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
+                            id="{{ input_id }}_{{ radio_option.id }}"
+                            type="radio"
+                            name="RadioGroup_{{ unique_id }}"
+                            {% if is_selected == 1 %}checked{% endif %}
+                            class="SingleRadioGroup {% if is_selected == 1 %}ODRRadioOptionChecked{%endif %}"
+                        />
                     {% else %}
                         <input
-                                {% if datafield.dataFieldMeta.internal_reference_name != '' %}rel="{{ datafield.dataFieldMeta.internal_reference_name }}"{% endif %}
-                                id="{{ input_id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ unique_id }}" {% if is_selected == 1 %}checked{% endif %} class="MultipleRadioGroup" />
+                            {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
+                            id="{{ input_id }}_{{ radio_option.id }}"
+                            type="checkbox"
+                            name="RadioGroup_{{ unique_id }}"
+                            {% if is_selected == 1 %}checked{% endif %}
+                            class="MultipleRadioGroup"
+                        />
                     {% endif %}
 
                     {{ radio_option.radioOptionMeta.optionName }}
                     </label>
                 {% endfor %}
+                </div>
             {% endif %}
 
-        <fieldset>
+        </fieldset>
 
     {#{% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}#}
     {% elseif field_typename == "Single Select" %}
         <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel {#ODRDatafieldHistory#} pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label for="{{ input_id }}" class="ODRFieldLabel {#ODRDatafieldHistory#} pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
 
             <select
-                    {% if datafield.dataFieldMeta.internal_reference_name != '' %}rel="{{ datafield.dataFieldMeta.internal_reference_name }}"{% endif %}
-                    id="{{ input_id }}" class="pure-u-24-24 {% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
+                {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
+                id="{{ input_id }}"
+                class="pure-u-24-24 {% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}"
+                {% if field_typename == "Multiple Select" %}multiple{% endif %}
+            >
 
             {% if datafield.radioOptions is defined %}
                 {% if field_typename == "Single Select" %}
@@ -270,17 +293,18 @@
     {% elseif field_typename == "DateTime" %}
         {% set new_id = 'DatetimeValueForm_value_' ~ datafield.id %}
         <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <input
-                        {% if datafield.dataFieldMeta.internal_reference_name != '' %}rel="{{ datafield.dataFieldMeta.internal_reference_name }}"{% endif %}
-                        type="text"
-                        id="{{ new_id }}"
-                        class="Pointer pure-u-1 ODRDatePicker"
-                        name="{{ input_name }}"
-                        readonly="readonly"
-                        value="{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != "9999-12-31" %}{{ valuefield_value|date('Y-m-d') }}{% endif %}"
-                        data-error-type="inline" />
+                    {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
+                    type="text"
+                    id="{{ new_id }}"
+                    class="Pointer pure-u-1 ODRDatePicker"
+                    name="{{ input_name }}"
+                    readonly="readonly"
+                    value="{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != "9999-12-31" %}{{ valuefield_value|date('Y-m-d') }}{% endif %}"
+                    data-error-type="inline"
+                />
             </div>
             <div style="margin-bottom:5px;"><label class="Pointer ODRDatePicker_clear"><u>Clear Date</u></label></div>
         </fieldset>
