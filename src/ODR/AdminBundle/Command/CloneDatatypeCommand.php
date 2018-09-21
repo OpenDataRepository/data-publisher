@@ -35,7 +35,7 @@ class CloneDatatypeCommand extends ContainerAwareCommand
         parent::configure();
 
         $this
-            ->setName('odr_datatype:clone')
+            ->setName('odr_datatype:clone_master')
             ->setDescription('Clones a datatype from a pre-existing master template.');
     }
 
@@ -50,13 +50,14 @@ class CloneDatatypeCommand extends ContainerAwareCommand
         $logger = $container->get('logger');
         $pheanstalk = $container->get('pheanstalk');
 
+        $count = 0;
         while (true) {
             // Run command until manually stopped
             $job = null;
             try {
                 // Watch for a job
                 /** @var Job $job */
-                $job = $pheanstalk->watch('create_datatype')->ignore('default')->reserve();
+                $job = $pheanstalk->watch('create_datatype_from_master')->ignore('default')->reserve();
                 $data = json_decode($job->getData());
 
                 // Dealt with the job
@@ -65,8 +66,9 @@ class CloneDatatypeCommand extends ContainerAwareCommand
 
 
                 $current_time = new \DateTime();
-                $output->writeln($current_time->format('Y-m-d H:i:s').' (UTC-5)' );
-                $output->writeln('Beginning cloning process for datatype '.$data->datatype_id.', requested by user '.$data->user_id.'...');
+                $msg = $current_time->format('Y-m-d H:i:s').' (UTC-5)';
+                $msg .= ' :: Beginning cloning process for datatype '.$data->datatype_id.', requested by user '.$data->user_id.'...';
+                $output->writeln($msg);
 
                 /** @var CloneDatatypeService $clone_datatype_service */
                 $clone_datatype_service = $this->getContainer()->get('odr.clone_master_datatype_service');
@@ -77,14 +79,24 @@ class CloneDatatypeCommand extends ContainerAwareCommand
                 );
 
                 $current_time = new \DateTime();
-                $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
-                $output->writeln('Cloning process for datatype '.$data->datatype_id.' '.$result);
+                $msg = $current_time->format('Y-m-d H:i:s').' (UTC-5)';
+                $msg .= ' :: Cloning process for datatype '.$data->datatype_id.' '.$result;
+                $output->writeln($msg);
 
                 // Dealt with the job
                 $pheanstalk->delete($job);
 
-                // Sleep for a bit 200ms
-                usleep(200000);
+
+                $count++;
+                if($count > 1 || $data->clone_and_link) {
+                    $msg = $current_time->format('Y-m-d H:i:s').' (UTC-5)';
+                    $msg .= ' :: Exiting Clone Datatype Command';
+                    $output->writeln($msg);
+                    exit();
+                }
+
+                // Sleep for a bit 10ms
+                usleep(10000);
             }
             catch (\Throwable $e) {
                 if ($e->getMessage() == 'retry') {

@@ -139,13 +139,24 @@
                 {# metadata layout designer link #}
                 <div>
                     {% if is_datatype_admin %}
-                        <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
-                           class="address"
-                           href="{{ datatype_baseurl }}#{{ path('odr_datatype_properties', { 'datatype_id': datatype.id, 'wizard': 0 }) }}"
-                           title="Edit {{ datatype_meta.shortName }} Master Layout"
-                        >
-                            <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Properties
-                        </a>
+                        {% if datatype.metadata_datatype is defined and datatype.metadata_datatype is not null %}
+                            <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
+                               class="address"
+                               href="{{ datatype_baseurl }}#{{ path('odr_datatype_properties', { 'datatype_id': datatype.id, 'wizard': 0 }) }}"
+                               title="Edit {{ datatype_meta.shortName }} Master Layout"
+                            >
+                                <i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Database Properties
+                            </a>
+                        {%  else %}
+                            <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
+                               class="address"
+                               href="{{ datatype_baseurl }}#{{ path('odr_add_metadata_type_chooser', { 'datatype_id': datatype.id }) }}"
+                               title="Choose a metadata template"
+                            >
+                                <i class="fa fa-lg fa-plus-circle"></i>
+                                <span class="pure-visible-xl">&nbsp;Add Properties Page</span>
+                            </a>
+                        {% endif %}
                     {% endif %}
                 </div>
 

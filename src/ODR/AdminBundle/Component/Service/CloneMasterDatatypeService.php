@@ -435,13 +435,15 @@ class CloneMasterDatatypeService
                 // TODO Convert to delayed flush and flush at once
                 self::cloneDatatypePermissions($dt);
 
+                // TODO Might need to flush here - not sure
+                $this->em->flush();
+
                 /** @var DataFields[] $datafields */
                 $datafields = $dt->getDataFields();
                 foreach ($datafields as $df)
                     // TODO Convert to delayed flush and flush at once
                     self::cloneDatafieldPermissions($df);
             }
-
 
             // ----------------------------------------
             // The datatypes are now ready for viewing since they have all their datafield, theme,
@@ -450,7 +452,7 @@ class CloneMasterDatatypeService
                 $dt->setSetupStep(DataType::STATE_OPERATIONAL);
 
                 // These don't need to be immediately flushed...
-                $this->em->persist($dt);
+                $this->em->persist($dt, true);
             }
 
             $this->em->flush();
@@ -915,7 +917,6 @@ class CloneMasterDatatypeService
 
             // Ensure the "in-memory" version of $datatype knows about the new group
             $datatype->addGroup($new_group);
-            self::persistObject($new_group);
 
             // Store that a group was created
             $this->created_groups[] = $new_group;
@@ -927,7 +928,9 @@ class CloneMasterDatatypeService
 
             // Ensure the "in-memory" version of $new_group knows about its new meta entry
             $new_group->addGroupMetum($new_group_meta);
-            self::persistObject($new_group_meta);
+
+            self::persistObject($new_group_meta, true);
+            self::persistObject($new_group, true);
 
             $this->logger->info('CloneDatatypeService: created new Group '.$new_group->getId().' from parent "'.$master_group->getPurpose().'" Group '.$master_group->getId().' for datatype '.$datatype->getId());
 
@@ -940,7 +943,7 @@ class CloneMasterDatatypeService
                 foreach ($user_list as $u) {
                     if ( $u->hasRole('ROLE_SUPER_ADMIN') ) {
                         // ...add the super admin to this new admin group
-                        $this->pm_service->createUserGroup($u, $new_group, $this->user, true);    // These don't need to be flushed/refreshed immediately...
+                        $this->pm_service->createUserGroup($u, $new_group, $this->user, true, false);    // These don't need to be flushed/refreshed immediately...
                         $this->logger->debug('-- added super_admin user '.$u->getId().' to admin group');
 
                         // Don't bother deleting this user's cached permissions here...
@@ -952,7 +955,7 @@ class CloneMasterDatatypeService
                 // If the user isn't a super-admin, then add them to the admin group as well...
                 // ...otherwise, they won't be able to see the new datatype either
                 if (!$this->user->hasRole('ROLE_SUPER_ADMIN')) {
-                    $this->pm_service->createUserGroup($this->user, $new_group, $this->user, true);    // These don't need to be flushed/refreshed immediately...
+                    $this->pm_service->createUserGroup($this->user, $new_group, $this->user, true, false);    // These don't need to be flushed/refreshed immediately...
                     $this->logger->debug('-- added user '.$this->user->getId().' to admin group');
 
                     // If the user's cached permissions were deleted here, the user would likely
@@ -961,7 +964,9 @@ class CloneMasterDatatypeService
             }
 
             // TODO No reason to flush here....
-            $this->em->flush();
+            // $this->em->flush();
+
+            // TODO But we should persist here?
 
             // Don't need to delete cached permissions for any other users or groups...nobody
             //  belongs to them yet
@@ -1049,9 +1054,8 @@ class CloneMasterDatatypeService
         }
 
         // TODO No reason to flush here....
-        $this->em->flush();
+        // $this->em->flush();
     }
-
 
     /**
      * Clones all GroupDatafield permission entries from $datafield's master datafield.
@@ -1069,7 +1073,6 @@ class CloneMasterDatatypeService
         $master_gdf_permissions = $master_datafield->getGroupDatafieldPermissions();
         if ( is_null($master_gdf_permissions) )
             throw new ODRException('CloneDatatypeService: Master Datafield '.$master_datafield->getId().' has no permission entries to clone.');
-
 
         // NOTE - can't use $this->dti_service->getGrandparentDatatypeId() for this...the functions
         //  that rely on that service assume that they're only dealing with datatypes that are
@@ -1133,7 +1136,7 @@ class CloneMasterDatatypeService
         }
 
         // TODO No reason to flush here....
-        $this->em->flush();
+        // $this->em->flush();
     }
 
 
@@ -1173,7 +1176,7 @@ class CloneMasterDatatypeService
             $new_rpi = clone $parent_rpi;
             $new_rpi->setDataType($datatype);
             $new_rpi->setDataField($datafield);
-            self::persistObject($new_rpi);
+            self::persistObject($new_rpi, true);
 
             $df_id = 'NULL';
             if ( !is_null($datafield) )

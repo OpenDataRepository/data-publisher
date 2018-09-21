@@ -1102,12 +1102,14 @@ class DatatypeController extends ODRCustomController
             $datatypes_to_process = array();
             $datatype = null;
             $unique_id = null;
+            $clone_and_link = false;
             if($datatype_id > 0) {
                 /** @var DataType $datatype */
                 $datatype = $repo_datatype->find($datatype_id);
                 $master_metadata = $master_datatype->getMetadataDatatype();
 
                 $unique_id = $datatype->getUniqueId();
+                $clone_and_link = true;
             }
             else {
                 // Create a new Datatype entity
@@ -1251,18 +1253,22 @@ class DatatypeController extends ODRCustomController
 
                 // Insert the new job into the queue
                 $priority = 1024;   // should be roughly default priority
-                $payload = json_encode(
-                    array(
+                $params = array(
                         "user_id" => $admin->getId(),
                         "datatype_id" => $datatype->getId(),
                         "template_group" => $unique_id,
                         "redis_prefix" => $redis_prefix,    // debug purposes only
                         "api_key" => $api_key,
-                    )
                 );
 
-                $delay = 0;
-                $pheanstalk->useTube('create_datatype')->put($payload, $priority, $delay);
+                $params["clone_and_link"] = false;
+                if($clone_and_link) {
+                    $params["clone_and_link"] = true;
+                }
+
+                $payload = json_encode($params);
+
+                $pheanstalk->useTube('create_datatype_from_master')->put($payload, $priority, 0);
 
             }
             /*

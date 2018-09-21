@@ -38,14 +38,9 @@
                 <th>Records</th>
 
                 <th>Search</th>
-                <th>Info</th>
-                <th><span class="pure-visible-xl">Add </span>Record</th>
-                <th>CSV <span class="pure-visible-xl">Import</span></th>
-
-                <th>Layout</th>
-                <th>Metadata</th>
-                <th>Groups</th>
-                <th>Delete</th>
+                <th>Dashboard</th>
+                <th>Created By</th>
+                <th></th>
             </tr>
             </thead>
             <tbody>
@@ -107,7 +102,9 @@
 
                     {% if can_view_datatype or datatype_meta.publicDate|is_public == true %}
                         <tr id="RowDataType_{{ datatype.id }}" {% if hidden_datatype %}class="ODRPublicDatatype ODRHidden"{% endif %}>
+
                             <td>{{ datatype.id }}</td>
+
                             <td>
                                 <span class="ODRDatatypeInfoDiv">
                                     <i class="fa fa-lg fa-info-circle"></i>
@@ -122,6 +119,8 @@
                                     </span>
                                 </span>
                             </td>
+
+
                             <td id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype_meta.longName }}</td>
 
 
@@ -155,87 +154,13 @@
                                    href="{{ datatype_baseurl }}#{{ path('odr_datatype_landing', { 'datatype_id': datatype.id }) }}"
                                    title="{{ datatype_meta.shortName }} Info Page"
                                 >
-                                    <i class="fa fa-lg fa-info-circle"></i>
-                                    <span class="pure-visible-xl">&nbsp;Info</span>
+                                    <i class="fa fa-lg fa-tachometer"></i>
+                                    <span class="pure-visible-xl">&nbsp;Dashboard</span>
                                 </a>
                             </td>
 
-                            {# add/import links for this datatype #}
                             <td>
-                                {% if can_add_datarecord %}
-                                    <a id="ODRDatarecordList_{{ datatype.id }}_add"
-                                       class="Pointer"
-                                       onclick="addDataRecord('{{ datatype_baseurl }}',{{ datatype.id }});"
-                                    >
-                                        <i class="fa fa-lg fa-plus-circle"></i>
-                                        <span class="pure-visible-xl">&nbsp;Add New</span>
-                                    </a>
-                                {% endif %}
-                            </td>
-
-                            {# CSV import link for this datatype #}
-                            <td>
-                                {% if is_datatype_admin %}
-                                    <a class="address"
-                                       href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"
-                                    >
-                                        <i class="fa fa-lg fa-upload"></i>
-                                        <span class="pure-visible-xl">&nbsp;Import</span>
-                                    </a>
-                                {% endif %}
-                            </td>
-
-                            {# master layout designer link #}
-                            <td>
-                                {% if is_datatype_admin %}
-                                    <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
-                                       class="address"
-                                       href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}"
-                                       title="Edit {{ datatype_meta.shortName }} Master Layout"
-                                    >
-                                        <i class="fa fa-lg fa-pencil"></i>
-                                        <span class="pure-visible-xl">&nbsp;Edit</span>
-                                    </a>
-                                {% endif %}
-                            </td>
-
-                            {# TODO - some way to create a metadata thingy from here if one doesn't exist? #}
-                            {# metadata layout designer link #}
-                            <td>
-                                {% if is_datatype_admin %}
-                                    {% if datatype.metadata_datatype is defined and datatype.metadata_datatype is not null %}
-                                    <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
-                                       class="address"
-                                       href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.metadata_datatype.id }) }}"
-                                       title="Edit {{ datatype_meta.shortName }} Master Layout"
-                                    >
-                                        <i class="fa fa-lg fa-pencil"></i>
-                                        <span class="pure-visible-xl">&nbsp;Edit</span>
-                                    </a>
-                                    {%  else %}
-                                    <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
-                                        class="address"
-                                        href="{{ datatype_baseurl }}#{{ path('odr_add_metadata_type_chooser', { 'datatype_id': datatype.id }) }}"
-                                        title="Choose a metadata template"
-                                    >
-                                        <i class="fa fa-lg fa-plus-circle"></i>
-                                        <span class="pure-visible-xl">&nbsp;Add</span>
-                                    </a>
-                                    {% endif %}
-                                {% endif %}
-                            </td>
-
-                            {# Group management link for this datatype #}
-                            <td>
-                                {% if is_datatype_admin %}
-                                    <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups"
-                                       class="address"
-                                       href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"
-                                    >
-                                        <i class="fa fa-lg fa-cog"></i>
-                                        <span class="pure-visible-xl">&nbsp;Manage</span>
-                                    </a>
-                                {% endif %}
+                                {{ datatype.createdBy|user_string }} [{{ datatype.created|date('Y-m-d') }}]
                             </td>
 
                             {# deletion link for this datatype #}
@@ -246,11 +171,9 @@
                                        onclick="deleteDataType({{ datatype.id }});"
                                     >
                                         <i class="fa fa-lg fa-trash-o"></i>
-                                        <span class="pure-visible-xl">&nbsp;Delete</span>
                                     </a>
                                 {% endif %}
                             </td>
-
                         </tr>
                     {% endif %}
                 {% endif %}
@@ -268,7 +191,7 @@
                         "visible": false
                     },
                     {
-                        "targets": [1, 4, 5, 6, 7, 8, 9],
+                        "targets": [1, 4, 5, 7],
                         "orderable": false,
                         "searchable": false
                     }

@@ -38,7 +38,7 @@ class CloneAndLinkDatatypeCommand extends ContainerAwareCommand
         parent::configure();
 
         $this
-            ->setName('odr_datatype:clone_and_link')
+            ->setName('odr_datatype:clone_and_link_datatype')
             ->setDescription('Clones a datatype from a pre-existing master template.');
     }
 
@@ -94,8 +94,11 @@ class CloneAndLinkDatatypeCommand extends ContainerAwareCommand
                 // Dealt with the job
                 $pheanstalk->delete($job);
 
-                // Sleep for a bit 200ms
-                usleep(200000);
+                // Exit to reset cache...
+                exit();
+
+                // Sleep for a bit 10ms
+                // usleep(10000);
             }
             catch (\Throwable $e) {
                 if ($e->getMessage() == 'retry') {
