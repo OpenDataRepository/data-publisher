@@ -21,6 +21,15 @@ ODR\AdminBundle\Entity\RadioOptions:
             nullable: false
             column: option_name
 
+        # Option Unique ID is the related option id from the master template if the field template
+        # derived.  If not template derived, the radio option is custom made and has it's own unique
+        # id.
+        radioOptionUuid:
+            type: string
+            length: 36
+            nullable: true
+            column: radio_option_uuid
+
         created:
             type: datetime
             gedmo:

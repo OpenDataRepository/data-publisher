@@ -296,6 +296,19 @@ odr_create_type_info:
         template_choice: \d+
         creating_master_template: 0|1|2
 
+odr_add_metadata_type_chooser:
+    path:  /admin/type/addmeta/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Datatype:choosemeta }
+    requirements:
+        datatype_id: \d+
+
+odr_add_metadata_to_datatype:
+    path:  /admin/type/addmetadata/{template_choice}/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Datatype:addmetadata }
+    requirements:
+        template_choice: \d+
+        datatype_id: \d+
+
 odr_add_types:
     path:  /admin/type/add
     defaults: { _controller: ODRAdminBundle:Datatype:add }
@@ -585,24 +598,24 @@ odr_design_delete_radio_option:
     defaults: { _controller: ODRAdminBundle:Displaytemplate:deleteradiooption }
     requirements:
         radio_option_id:  \d+
-
-
+odr_design_set_uuids:
+    path:  /design/displaytemplate/setuuids/{uuid_type}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:setuuids }
+    requirements:
+        uuid_type: 'datatype|field|radio'
 odr_design_public_datatype:
     path:  /design/displaytemplate/publicdatatype/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypepublic }
     requirements:
         datatype_id:  \d+
-
 odr_design_public_datafield:
     path:  /design/displaytemplate/publicdatafield/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldpublic }
     requirements:
         datafield_id:  \d+
-
 odr_markdown_help_dialog:
     path:  /design/displaytemplate/markdownhelp
     defaults: { _controller: ODRAdminBundle:Displaytemplate:markdownhelp }
-
 odr_save_search_notes:
     path:  /design/displaytemplate/save_notes/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:savesearchnotes }

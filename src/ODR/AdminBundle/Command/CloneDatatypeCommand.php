@@ -63,13 +63,18 @@ class CloneDatatypeCommand extends ContainerAwareCommand
                 // Just need to clear things....
                 // $pheanstalk->delete($job);
 
+
                 $current_time = new \DateTime();
                 $output->writeln($current_time->format('Y-m-d H:i:s').' (UTC-5)' );
                 $output->writeln('Beginning cloning process for datatype '.$data->datatype_id.', requested by user '.$data->user_id.'...');
 
                 /** @var CloneDatatypeService $clone_datatype_service */
-                $clone_datatype_service = $this->getContainer()->get('odr.clone_datatype_service');
-                $result = $clone_datatype_service->createDatatypeFromMaster($data->datatype_id, $data->user_id, $data->template_group);
+                $clone_datatype_service = $this->getContainer()->get('odr.clone_master_datatype_service');
+                $result = $clone_datatype_service->createDatatypeFromMaster(
+                    $data->datatype_id,
+                    $data->user_id,
+                    $data->template_group
+                );
 
                 $current_time = new \DateTime();
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );

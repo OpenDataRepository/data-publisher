@@ -1,6 +1,6 @@
 <h3>Database Properties</h3>
 {% if wizard %}
-    {% if datatype.getsetupstep != "complete" %}
+    {% if datatype.getsetupstep != "operational" %}
         {% if datatype.getismastertype == 1 %} {# Master Template Creation #}
 
         {% else %}
@@ -13,7 +13,7 @@
                 'master_type_id': datatype.getmasterdatatype.getid,
             } %}
         {% endif %}
-    {% else %}
+    {% elseif datatype.getmasterdatatype is not null %}
         {# Database creation wizard is complete - menu for managing? #}
         {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
             'wizard_step': 2,
@@ -22,6 +22,17 @@
             'create_master': false,
             'master_templates': null,
             'master_type_id': datatype.getmasterdatatype.getid,
+        } %}
+    {% else %}
+        {# This should be only for databases with added metadata and no master template (legacy) #}
+        {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+            'wizard_step': 2,
+            'datatype_id': datatype.getid,
+            'datatype': datatype,
+            'edit_properties': false,
+            'create_master': false,
+            'master_templates': null,
+            'master_type_id': -1,
         } %}
     {% endif %}
 {% endif %}

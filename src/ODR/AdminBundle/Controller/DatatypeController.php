@@ -242,12 +242,18 @@ class DatatypeController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 // Retrieve first (and only) record ...
+                $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+                $results = $repo_datarecord->findBy(
+                    array('dataType' => $properties_datatype->getId())
+                );
+                /*
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
                     FROM ODRAdminBundle:DataRecord AS dr
                     WHERE dr.dataType = :datatype_id'
                 )->setParameters(array('datatype_id' => $properties_datatype->getId()));
                 $results = $query->getArrayResult();
+                */
 
                 if ( count($results) == 0 ) {
                     // A metadata datarecord doesn't exist...create one
@@ -257,6 +263,9 @@ class DatatypeController extends ODRCustomController
                     // Datarecord is ready, remove provisioned flag
                     $datarecord->setProvisioned(false);
                     $em->flush();
+                }
+                else {
+                    $datarecord = $results[0];
                 }
 
 
@@ -329,18 +338,42 @@ class DatatypeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            $use_search_slug = false;
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(array('unique_id' => $datatype_unique_id));
+            if ($datatype == null) {
+                // Attempt find by slug
+                /** @var DataTypeMeta $datatype_meta */
+                $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')
+                    ->findOneBy(array('searchSlug' => $datatype_unique_id));
+
+                $use_search_slug = true;
+                $datatype = $datatype_meta->getDataType();
+
+                if($datatype->getTemplateGroup() == null) {
+                    // Not a valid database for dashboard access.
+                    throw new ODRNotFoundException('Datatype');
+                }
+            }
+
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
             /** @var DataType $landing_datatype */
             $landing_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(array('unique_id' => $datatype->getTemplateGroup()));
 
-            $url_prefix = $this->generateUrl('odr_search', array(
-                'search_slug' => $landing_datatype->getUniqueId(),
-                'search_string' => ''
-            ), false);
+            if($use_search_slug) {
+                $url_prefix = $this->generateUrl('odr_search', array(
+                    'search_slug' => $landing_datatype->getDataTypeMeta()->getSearchSlug(),
+                    'search_string' => ''
+                ), false);
+            }
+            else {
+                $url_prefix = $this->generateUrl('odr_search', array(
+                    'search_slug' => $landing_datatype->getUniqueId(),
+                    'search_string' => ''
+                ), false);
+            }
 
             $url = $this->generateUrl('odr_datatype_landing', array('datatype_id' => $landing_datatype->getId()), false);
 
@@ -413,6 +446,7 @@ class DatatypeController extends ODRCustomController
                 // Ensure user has permissions to be doing this
                 if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                     throw new ODRForbiddenException();
+
                 $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
 
@@ -552,8 +586,11 @@ class DatatypeController extends ODRCustomController
                 LEFT JOIN dt.metadata_for AS mf
                 LEFT JOIN dt.createdBy AS dt_cb
                 LEFT JOIN dt.updatedBy AS dt_ub
-                WHERE dt.id IN (:datatypes) AND dt.is_master_type = (:is_master_type)
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL';
+                WHERE 
+                dt.id IN (:datatypes) 
+                AND dt.is_master_type = (:is_master_type)
+                AND dt.deletedAt IS NULL 
+                AND dtm.deletedAt IS NULL';
 
             if ($section == "datatemplates")
                 $query_sql .= ' AND dt.metadata_datatype IS NULL';
@@ -745,6 +782,8 @@ class DatatypeController extends ODRCustomController
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
 
             // TODO - won't display templates unless they have a metadata datatype...intentional?
+            // TODO - Yes.  This is intentional.  All new databases must have rudimentary metadata going forward.
+            // TODO - The "generic" database master template will be updated to include a name/person default metadata template.
             // Master Templates must have Database Properties/metadata
             $query = $em->createQuery(
                'SELECT dt, dtm, md, dt_cb, dt_ub
@@ -787,6 +826,87 @@ class DatatypeController extends ODRCustomController
     }
 
 
+    public function choosemetaAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            // --------------------
+            // Grab user privileges to determine what they can do
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            /** @var DataType $datatype */
+            $datatype = $repo_datatype->find($datatype_id);
+
+            // Check if user is datatype admin
+            if (!$pm_service->isDatatypeAdmin($user, $datatype))
+                throw new ODRForbiddenException();
+
+            // Create master == 0
+            $create_master = 0;
+
+            // Grab a list of top top-level datatypes
+            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
+
+            // Master Templates must have Database Properties/metadata
+            $query = $em->createQuery(
+                'SELECT dt, dtm, md, dt_cb, dt_ub
+                FROM ODRAdminBundle:DataType AS dt
+                LEFT JOIN dt.dataTypeMeta AS dtm
+                LEFT JOIN dt.metadata_datatype AS md
+                LEFT JOIN dt.createdBy AS dt_cb
+                LEFT JOIN dt.updatedBy AS dt_ub
+                WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
+                AND md.id IS NOT NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+            )->setParameters(array('datatypes' => $top_level_datatypes));
+            $master_templates = $query->getArrayResult();
+
+
+            // Render and return the html
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Datatype:create_type_choose_template.html.twig',
+                    array(
+                        'user' => $user,
+                        'datatype_permissions' => $datatype_permissions,
+                        'master_templates' => $master_templates,
+                        'create_master' => $create_master,
+                        'datatype_id' => $datatype_id
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x72002e34;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+
     /**
      * Starts the create database wizard and loads master templates available for creation
      * from templates.
@@ -812,19 +932,14 @@ class DatatypeController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
-            /** @var PermissionsManagementService $pm_service */
-//            $pm_service = $this->container->get('odr.permissions_management_service');
 
 
-            // --------------------
             // Grab user privileges to determine what they can do
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-//            $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
             if ( !$user->hasRole('ROLE_ADMIN') )
                 throw new ODRForbiddenException();
-            // --------------------
 
             $create_master = false;
             if ($creating_master_template > 0)
@@ -833,11 +948,9 @@ class DatatypeController extends ODRCustomController
             if ($template_choice != 0 && $create_master)
                 throw new ODRBadRequestException('Currently unable to copy a new Master Template from an existing Master Template');
 
-
             // If cloning from master and master has metadata...
             if($template_choice > 0) {
                 // Immediately creates templates and databases.
-                // TODO Need to check if user is owner of any other DBs with "New Database" as name
                 return self::direct_add_datatype($template_choice);
             }
             else {
@@ -857,7 +970,7 @@ class DatatypeController extends ODRCustomController
                 // TODO - why does this not exclude metadata datatypes while the one in createAction() does?
                 // Get the master templates
                 $query = $em->createQuery(
-                   'SELECT dt, dtm, dt_cb, dt_ub
+                    'SELECT dt, dtm, dt_cb, dt_ub
                     FROM ODRAdminBundle:DataType AS dt
                     JOIN dt.dataTypeMeta AS dtm
                     JOIN dt.createdBy AS dt_cb
@@ -873,10 +986,10 @@ class DatatypeController extends ODRCustomController
                         'ODRAdminBundle:Datatype:create_type_database_info.html.twig',
                         array(
                             'user' => $user,
-//                            'datatype_permissions' => $datatype_permissions,
                             'form' => $form->createView(),
 
                             // required for the wizard  TODO - why aren't these all empty or 0?
+                            // TODO - The wizard is used in multiple places.  Options are set to tell it how to display.
                             'master_templates' => $master_templates,
                             'master_type_id' => $template_choice,
                             'create_master' => $create_master,
@@ -900,6 +1013,50 @@ class DatatypeController extends ODRCustomController
     }
 
 
+    public function addmetadataAction($template_choice, $datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            // --------------------
+            // Grab user privileges to determine what they can do
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            /** @var DataType $datatype */
+            $datatype = $repo_datatype->find($datatype_id);
+
+            // Check if user is datatype admin
+            if (!$pm_service->isDatatypeAdmin($user, $datatype))
+                throw new ODRForbiddenException();
+
+            return self::direct_add_datatype($template_choice, $datatype_id);
+
+        }
+        catch (\Exception $e) {
+            $source = 0x7123adfe;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
     /**
      * Adds a new database from a master template where the master template
      * has an associated properties/metadata template.
@@ -907,8 +1064,11 @@ class DatatypeController extends ODRCustomController
      * Also creates initial properties record and forwards user to
      * properties page as next step in creation sequence.
      *
+     * @param $master_datatype_id
+     * @param int $datatype_id
+     * @return \Symfony\Component\HttpFoundation\RedirectResponse
      */
-    public function direct_add_datatype($master_datatype_id)
+    public function direct_add_datatype($master_datatype_id, $datatype_id = 0)
     {
         $return = array();
         $return['r'] = 0;
@@ -925,32 +1085,10 @@ class DatatypeController extends ODRCustomController
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
-//            $pm_service = $this->container->get('odr.permissions_management_service');
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
             /** @var User $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            // Create new DataType form
-
-
-            // Create a new Datatype entity
-            $datatype = new DataType();
-            $datatype->setRevision(0);
-
-            $unique_id = $dti_service->generateDatatypeUniqueId();
-            $datatype->setUniqueId($unique_id);
-            $datatype->setTemplateGroup($unique_id);
-
-            // Create the datatype unique id and check to ensure uniqueness
-
-            // Top-level datatypes exist in one of two states...in the "initial" state, they
-            //  shouldn't be viewed by users because they're lacking themes and permissions
-            // Once they have those, then they should be put into the "operational" state
-            $datatype->setSetupStep(DataType::STATE_INITIAL);
-
-            // Is this a Master Type?
-            $datatype->setIsMasterType(false);
 
             // A master datatype is required
             // ...locate the master template datatype and store that it's the "source" for this new datatype
@@ -960,110 +1098,98 @@ class DatatypeController extends ODRCustomController
             if ($master_datatype == null)
                 throw new ODRNotFoundException('Master Datatype');
 
-            $datatype->setMasterDataType($master_datatype);
-
-            $datatype->setCreatedBy($admin);
-            $datatype->setUpdatedBy($admin);
-
-            // Save all changes made
-            $em->persist($datatype);
-            $em->flush();
-            $em->refresh($datatype);
-
-            // Top level datatypes are their own parent/grandparent
-            $datatype->setParent($datatype);
-            $datatype->setGrandparent($datatype);
-            $em->persist($datatype);
-
-
-            // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name since they're already from the form
-            $datatype_meta_data = new DataTypeMeta();
-            $datatype_meta_data->setDataType($datatype);
-            $datatype_meta_data->setShortName('New Database');
-            $datatype_meta_data->setLongName('New Database');
-
-            /** @var RenderPlugin $default_render_plugin */
-            $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
-            $datatype_meta_data->setRenderPlugin($default_render_plugin);
-
-            // Default search slug to Database ID
-            $datatype_meta_data->setSearchSlug($datatype->getUniqueId());
-            $datatype_meta_data->setXmlShortName('');
-
-            // Master Template Metadata
-            // Once a child database is completely created from the master template, the creation process will update the revisions appropriately.
-            $datatype_meta_data->setMasterRevision(0);
-            $datatype_meta_data->setMasterPublishedRevision(0);
-            $datatype_meta_data->setTrackingMasterRevision(0);
-
-            $datatype_meta_data->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
-
-            $datatype_meta_data->setExternalIdField(null);
-            $datatype_meta_data->setNameField(null);
-            $datatype_meta_data->setSortField(null);
-            $datatype_meta_data->setBackgroundImageField(null);
-
-            $datatype_meta_data->setCreatedBy($admin);
-            $datatype_meta_data->setUpdatedBy($admin);
-            $em->persist($datatype_meta_data);
-
-            // Ensure the "in-memory" version of the new datatype knows about its meta entry
-            $datatype->addDataTypeMetum($datatype_meta_data);
-            $em->flush();
-
-
+            // Create new DataType form
             $datatypes_to_process = array();
-            array_push($datatypes_to_process, $datatype);
+            $datatype = null;
+            $unique_id = null;
+            if($datatype_id > 0) {
+                /** @var DataType $datatype */
+                $datatype = $repo_datatype->find($datatype_id);
+                $master_metadata = $master_datatype->getMetadataDatatype();
 
-            /** @var DatatypeInfoService $dti_service */
-            /*
-            $dti_service = $this->container->get('odr.datatype_info_service');
+                $unique_id = $datatype->getUniqueId();
+            }
+            else {
+                // Create a new Datatype entity
+                $datatype = new DataType();
+                $datatype->setRevision(0);
 
-            // Need to get associated datatypes for metadata_datatype
-            $associated_datatypes = $dti_service->getAssociatedDatatypes(array($master_datatype->getId()));
+                $unique_id = $dti_service->generateDatatypeUniqueId();
+                $datatype->setUniqueId($unique_id);
+                $datatype->setTemplateGroup($unique_id);
 
-            foreach($associated_datatypes as $associated_datatype_id) {
-                $associated_datatype = $repo_datatype->find($associated_datatype_id);
-                $new_associated = clone $associated_datatype;
-                $new_associated->setIsMasterType(0);
-                $new_associated->setGrandparent($datatype);
-                $new_associated->setParent($datatype);
-                $new_associated->setMasterDataType($associated_datatype);
+                // Create the datatype unique id and check to ensure uniqueness
 
-                $new_associated->setTemplateGroup($unique_id);
-                // Clone has wrong state - set to initial
-                $new_associated->setSetupStep(DataType::STATE_INITIAL);
+                // Top-level datatypes exist in one of two states...in the "initial" state, they
+                //  shouldn't be viewed by users because they're lacking themes and permissions
+                // Once they have those, then they should be put into the "operational" state
+                $datatype->setSetupStep(DataType::STATE_INITIAL);
 
-                // Need to always set a unique id
-                $new_associated_unique_id = UniqueUtility::uniqueIdReal();
-                $new_associated->setUniqueId($new_associated_unique_id);
+                // Is this a Master Type?
+                $datatype->setIsMasterType(false);
+                $datatype->setMasterDataType($master_datatype);
 
-                // Set new datatype meta
-                $new_associated_meta = clone $associated_datatype->getDataTypeMeta();
-                $new_associated_meta->setShortName("Properties");
-                $new_associated_meta->setLongName($associated_datatype->getDataTypeMeta()->getLongName());
-                $new_associated_meta->setDataType($new_associated);
+                $datatype->setCreatedBy($admin);
+                $datatype->setUpdatedBy($admin);
 
-                // Associate the metadata
-                $new_associated->addDataTypeMetum($new_associated_meta);
+                // Save all changes made
+                $em->persist($datatype);
+                $em->flush();
+                $em->refresh($datatype);
 
-                // New Datatype
-                $em->persist($new_associated);
-                // New Datatype Meta
-                $em->persist($new_associated_meta);
+                // Top level datatypes are their own parent/grandparent
+                $datatype->setParent($datatype);
+                $datatype->setGrandparent($datatype);
+                $em->persist($datatype);
+
+
+                // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name since they're already from the form
+                $datatype_meta_data = new DataTypeMeta();
+                $datatype_meta_data->setDataType($datatype);
+                $datatype_meta_data->setShortName('New Database');
+                $datatype_meta_data->setLongName('New Database');
+
+                /** @var RenderPlugin $default_render_plugin */
+                $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
+                $datatype_meta_data->setRenderPlugin($default_render_plugin);
+
+                // Default search slug to Database ID
+                $datatype_meta_data->setSearchSlug($datatype->getUniqueId());
+                $datatype_meta_data->setXmlShortName('');
+
+                // Master Template Metadata
+                // Once a child database is completely created from the master template, the creation process will update the revisions appropriately.
+                $datatype_meta_data->setMasterRevision(0);
+                $datatype_meta_data->setMasterPublishedRevision(0);
+                $datatype_meta_data->setTrackingMasterRevision(0);
+
+                $datatype_meta_data->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
+
+                $datatype_meta_data->setExternalIdField(null);
+                $datatype_meta_data->setNameField(null);
+                $datatype_meta_data->setSortField(null);
+                $datatype_meta_data->setBackgroundImageField(null);
+
+                $datatype_meta_data->setCreatedBy($admin);
+                $datatype_meta_data->setUpdatedBy($admin);
+                $em->persist($datatype_meta_data);
+
+                // Ensure the "in-memory" version of the new datatype knows about its meta entry
+                $datatype->addDataTypeMetum($datatype_meta_data);
                 $em->flush();
 
-                array_push($datatypes_to_process, $new_associated);
+
+                array_push($datatypes_to_process, $datatype);
+
+                // If is non-master datatype, clone master-related metadata type
+                $master_datatype = $datatype->getMasterDataType();
+                $master_metadata = $master_datatype->getMetadataDatatype();
             }
-            */
 
             /*
              * Create Datatype Metadata Object (a second datatype to store one record with the properties
              * for the parent datatype).
              */
-            // If is non-master datatype, clone master-related metadata type
-            $master_datatype = $datatype->getMasterDataType();
-            $master_metadata = $master_datatype->getMetadataDatatype();
 
             if ($master_metadata != null) {
                 $metadata_datatype = clone $master_metadata;
@@ -1101,54 +1227,7 @@ class DatatypeController extends ODRCustomController
                 $em->persist($datatype);
                 $em->flush();
 
-
-                // Set Metadata For
-                // TODO Can we do this earlier?
-                // $metadata_datatype->setMetadataFor($datatype);
-                // $em->persist($metadata_datatype);
-                // $em->flush();
-
-
                 array_push($datatypes_to_process, $metadata_datatype);
-
-                /*
-                // Need to get associated datatypes for metadata_datatype
-                $metadata_associated_datatypes = $dti_service->getAssociatedDatatypes(array($metadata_datatype->getId()));
-
-                foreach($metadata_associated_datatypes as $associated_datatype_id) {
-                    $associated_datatype = $repo_datatype->find($associated_datatype_id);
-                    $new_associated = clone $associated_datatype;
-                    $new_associated->setIsMasterType(0);
-                    $new_associated->setGrandparent($metadata_datatype);
-                    $new_associated->setParent($metadata_datatype);
-                    $new_associated->setMasterDataType($associated_datatype);
-
-                    $new_associated->setTemplateGroup($unique_id);
-                    // Clone has wrong state - set to initial
-                    $new_associated->setSetupStep(DataType::STATE_INITIAL);
-
-                    // Need to always set a unique id
-                    $new_associated_unique_id = UniqueUtility::uniqueIdReal();
-                    $new_associated->setUniqueId($new_associated_unique_id);
-
-                    // Set new datatype meta
-                    $new_associated_meta = clone $associated_datatype->getDataTypeMeta();
-                    $new_associated_meta->setShortName("Properties");
-                    $new_associated_meta->setLongName($associated_datatype->getDataTypeMeta()->getLongName());
-                    $new_associated_meta->setDataType($new_associated);
-
-                    // Associate the metadata
-                    $new_associated->addDataTypeMetum($new_associated_meta);
-
-                    // New Datatype
-                    $em->persist($new_associated);
-                    // New Datatype Meta
-                    $em->persist($new_associated_meta);
-                    $em->flush();
-
-                    array_push($datatypes_to_process, $new_associated);
-                }
-                */
 
             }
             /*

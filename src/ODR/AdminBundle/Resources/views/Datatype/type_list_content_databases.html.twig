@@ -213,7 +213,14 @@
                                         <span class="pure-visible-xl">&nbsp;Edit</span>
                                     </a>
                                     {%  else %}
-                                        n/a
+                                    <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
+                                        class="address"
+                                        href="{{ datatype_baseurl }}#{{ path('odr_add_metadata_type_chooser', { 'datatype_id': datatype.id }) }}"
+                                        title="Choose a metadata template"
+                                    >
+                                        <i class="fa fa-lg fa-plus-circle"></i>
+                                        <span class="pure-visible-xl">&nbsp;Add</span>
+                                    </a>
                                     {% endif %}
                                 {% endif %}
                             </td>

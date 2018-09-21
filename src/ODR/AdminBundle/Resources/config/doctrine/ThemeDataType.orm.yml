@@ -45,7 +45,7 @@ ODR\AdminBundle\Entity\ThemeDataType:
         #  properties/functions referring back to here
         childTheme:
             targetEntity: Theme
-            cascade: {  }
+            cascade: ["persist"]
             joinColumns:
                 child_theme_id:
                     nullable: true
@@ -54,7 +54,7 @@ ODR\AdminBundle\Entity\ThemeDataType:
 
         dataType:
             targetEntity: DataType
-            cascade: {  }
+            cascade:  []
             mappedBy: null
             inversedBy: themeDataType
             joinColumns:

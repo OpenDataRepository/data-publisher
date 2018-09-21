@@ -433,7 +433,13 @@ class DatatypeInfoService
             $dt_id = $dt['id'];
 
             // Flatten datatype meta
-            $dtm = $dt['dataTypeMeta'][0];
+            // TODO Figure out why DTM is sometimes empty
+            if(count($dt['dataTypeMeta']) == 0) {
+                $dtm = null;
+            }
+            else {
+                $dtm = $dt['dataTypeMeta'][0];
+            }
             $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
 
             // Scrub irrelevant data from the datatype's createdBy and updatedBy properties
@@ -922,7 +928,7 @@ class DatatypeInfoService
         $query = $this->em->createQuery(
            'SELECT dt.unique_id
             FROM ODRAdminBundle:DataType AS dt
-            WHERE dt.deletedAt IS NULL'
+            WHERE dt.deletedAt IS NULL and dt.unique_id IS NOT NULL'
         );
         $results = $query->getArrayResult();
 
@@ -937,5 +943,109 @@ class DatatypeInfoService
             $unique_id = UniqueUtility::uniqueIdReal();
 
         return $unique_id;
+    }
+
+
+    public function generateDataFieldUniqueId()
+    {
+        // Need to get all current ids in use in order to determine uniqueness of a new id...
+        $query = $this->em->createQuery(
+            'SELECT df.fieldUuid
+            FROM ODRAdminBundle:DataFields AS df
+            WHERE df.deletedAt IS NULL and df.fieldUuid IS NOT NULL'
+        );
+        $results = $query->getArrayResult();
+
+        $existing_ids = array();
+        foreach ($results as $num => $result)
+            $existing_ids[ $result['fieldUuid'] ] = 1;
+
+
+        // Keep generating ids until one that's not in
+        $unique_id = UniqueUtility::uniqueIdReal();
+        while ( isset($existing_ids[$unique_id]) )
+            $unique_id = UniqueUtility::uniqueIdReal();
+
+        return $unique_id;
+    }
+
+    public function generateRadioOptionUniqueId()
+    {
+        // Need to get all current ids in use in order to determine uniqueness of a new id...
+        $query = $this->em->createQuery(
+            'SELECT ro.radioOptionUuid
+            FROM ODRAdminBundle:RadioOptions AS ro
+            WHERE ro.deletedAt IS NULL and ro.radioOptionUuid IS NOT NULL'
+        );
+        $results = $query->getArrayResult();
+
+        $existing_ids = array();
+        foreach ($results as $num => $result)
+            $existing_ids[ $result['radioOptionUuid'] ] = 1;
+
+
+        // Keep generating ids until one that's not in
+        $unique_id = UniqueUtility::uniqueIdReal();
+        while ( isset($existing_ids[$unique_id]) )
+            $unique_id = UniqueUtility::uniqueIdReal();
+
+        return $unique_id;
+    }
+
+    public function addUUIDs($uuid_type) {
+        switch($uuid_type) {
+            case 'datatype':
+                $results = $this->em
+                    ->getRepository('ODRAdminBundle:DataType')
+                    ->findBy(
+                        array('unique_id' => null)
+                    );
+
+                /** @var DataType $result */
+                foreach ($results as $num => $result) {
+                    $result->setUniqueId(self::generateDatatypeUniqueId());
+                    if($result->getTemplateGroup() == null) {
+                        $result->setTemplateGroup($result->getUniqueId());
+                    }
+                    $this->em->persist($result);
+                }
+                break;
+
+            case 'field';
+                $results = $this->em
+                    ->getRepository('ODRAdminBundle:DataFields')
+                    ->findBy(
+                        array('fieldUuid' => null)
+                    );
+
+                /**
+                 * @var  $num
+                 * @var DataFields $result
+                 */
+                foreach ($results as $num => $result) {
+                    $result->setFieldUuid(self::generateDataFieldUniqueId());
+                    $this->em->persist($result);
+                }
+                break;
+
+            case 'radio':
+                $results = $this->em
+                    ->getRepository('ODRAdminBundle:RadioOptions')
+                    ->findBy(
+                        array('radioOptionUuid' => null)
+                    );
+
+                /**
+                 * @var  $num
+                 * @var RadioOptions $result
+                 */
+                foreach ($results as $num => $result) {
+                    $result->setRadioOptionUuid(self::generateRadioOptionUniqueId());
+                    $this->em->persist($result);
+                }
+                break;
+        }
+
+        $this->em->flush();
     }
 }

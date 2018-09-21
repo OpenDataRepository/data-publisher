@@ -322,4 +322,33 @@ class RadioOptions
     {
         return $this->getRadioOptionMeta()->getIsDefault();
     }
+    /**
+     * @var string
+     */
+    private $radioOptionUuid;
+
+
+    /**
+     * Set radioOptionUuid
+     *
+     * @param string $radioOptionUuid
+     *
+     * @return RadioOptions
+     */
+    public function setRadioOptionUuid($radioOptionUuid)
+    {
+        $this->radioOptionUuid = $radioOptionUuid;
+
+        return $this;
+    }
+
+    /**
+     * Get radioOptionUuid
+     *
+     * @return string
+     */
+    public function getRadioOptionUuid()
+    {
+        return $this->radioOptionUuid;
+    }
 }

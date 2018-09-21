@@ -37,21 +37,21 @@ ODR\AdminBundle\Entity\Theme:
     oneToMany:
         themeMeta:
             targetEntity: ThemeMeta
-            cascade: { }
+            cascade: ["persist"]
             mappedBy: theme
             inversedBy: null
             orphanRemoval: false
 
         themeElements:
             targetEntity: ThemeElement
-            cascade: { }
+            cascade: ["persist"]
             mappedBy: theme
             inversedBy: null
             orphanRemoval: false
 
         themePreferences:
             targetEntity: ThemePreferences
-            cascade: { }
+            cascade: ["persist"]
             mappedBy: theme
             inversedBy: null
             orphanRemoval: false
@@ -86,7 +86,7 @@ ODR\AdminBundle\Entity\Theme:
 
         dataType:
             targetEntity: DataType
-            cascade: {  }
+            cascade: ["persist"]
             mappedBy: null
             inversedBy: themes
             joinColumns:

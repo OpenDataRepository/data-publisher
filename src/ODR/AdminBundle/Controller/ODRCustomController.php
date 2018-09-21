@@ -86,6 +86,8 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
+// Utilities
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 
 
 class ODRCustomController extends Controller
@@ -2176,6 +2178,10 @@ class ODRCustomController extends Controller
             $radio_option->setDataField($datafield);
             $radio_option->setOptionName($option_name);     // exists to prevent potential concurrency issues, see below
 
+            // All new fields require a radio option UUID
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            $radio_option->setRadioOptionUuid($dti_service->generateRadioOptionUniqueId());
             $radio_option->setCreatedBy($user);
             $radio_option->setCreated(new \DateTime());
 
@@ -2673,6 +2679,11 @@ class ODRCustomController extends Controller
         // This will always be zero unless
         // created from a Master Template data field.
         // $datafield->setMasterDataField(0);
+
+        // Set UUID
+        /** @var DatatypeInfoService $dti_service */
+        $dti_service = $this->container->get('odr.datatype_info_service');
+        $datafield->setFieldUuid($dti_service->generateDataFieldUniqueId());
 
         // Add master flags
         $datafield->setIsMasterField(false);
@@ -4214,4 +4225,7 @@ class ODRCustomController extends Controller
         // User isn't able to view anything that was added...do not notify
         return false;
     }
+
+
+
 }

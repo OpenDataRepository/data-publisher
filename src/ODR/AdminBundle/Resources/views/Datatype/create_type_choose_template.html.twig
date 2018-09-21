@@ -37,13 +37,17 @@
                                 To select this database template, click the button below:
                             </p>
                             <p>
-                                {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype_meta.searchSlug } ) %}
-                                <a class="pure-button" href="#{{ path('odr_create_type_info', {'template_choice': datatype.id, 'creating_master_template': '0'} ) }}" title="Select {{ datatype_meta.shortName }} Database Template">Select <b>{{ datatype_meta.shortName }}</b> Database Template</a>
+                                {% if datatype_id is defined %}
+                                    <a class="pure-button" href="#{{ path('odr_add_metadata_to_datatype', {'template_choice': datatype.id, 'datatype_id': datatype_id} ) }}" title="Select {{ datatype_meta.shortName }} Database Template">Select <b>{{ datatype_meta.shortName }}</b> Database Template</a>
+                                {% else %}
+                                    <a class="pure-button" href="#{{ path('odr_create_type_info', {'template_choice': datatype.id, 'creating_master_template': '0'} ) }}" title="Select {{ datatype_meta.shortName }} Database Template">Select <b>{{ datatype_meta.shortName }}</b> Database Template</a>
+                                {% endif %}
                             </p>
                         </div>
                     </div>
                     {% endfor %}
 
+                    {% if datatype_id is not defined %}
                     <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
                         Create Custom Database
                     </h3>
@@ -63,6 +67,7 @@
                             </p>
                         </div>
                     </div>
+                    {% endif %}
                 {% else %}
                     <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
                         Create a Master Database Template
