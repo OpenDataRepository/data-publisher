@@ -281,7 +281,6 @@ class APIController extends ODRCustomController
                 // ...but return the data as a simple response on request
                 $download_response = false;
 
-
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -295,6 +294,7 @@ class APIController extends ODRCustomController
 
 
             /** @var DataType $datatype */
+            // TODO Temporary permissions disable - test if public fixes
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
@@ -309,6 +309,7 @@ class APIController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
+            // TODO Temporary permissions disable - test if public fixes
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
