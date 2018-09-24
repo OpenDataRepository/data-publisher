@@ -184,7 +184,7 @@ function initPage() {
 #}
 
     $(".ODRDeleteFile").unbind('click').click(function() {
-        if ( confirm("Are you certain that you want to delete this File?") ) {
+        if ( confirm("Are you certain that you want to elete this File?") ) {
             var file_id = $(this).attr('rel');
 
             var url  = '{{ path('odr_record_delete_file', {'file_id': 0} ) }}';
@@ -883,7 +883,8 @@ function initPage() {
         }
 
         // Load display template menu
-        var url  = '{{ path('odr_record_deletechild', {'datarecord_id': 0} ) }}';
+        // var url  = '{{ path('odr_record_deletechild', {'datarecord_id': 0} ) }}';
+        var url  = '{{ path('odr_record_delete', {'datarecord_id': 0} ) }}';
         url = url.substring(0,(url.length - 1));
         url += datarecord_id;
 

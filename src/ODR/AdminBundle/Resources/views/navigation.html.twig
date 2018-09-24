@@ -67,9 +67,14 @@
                 // Extract unique id
                 var current_url = window.location.href;
 
-                var hash = current_url.indexOf('#');
+                // Split based on hash
+                var url_data = current_url.split('#');
 
-                var unique_id = current_url.substring((hash - 7), hash);
+                // Split based on slash
+                var url_bits = url_data[0].split('/');
+
+                // Unique ID is the last bit
+                var unique_id = url_bits[(url_bits.length - 1)];
 
                 var url = '{{ path('odr_datatype_find_landing', { 'datatype_unique_id': 0 }) }}';
                 url = url.substring(0, (url.length - 1));
