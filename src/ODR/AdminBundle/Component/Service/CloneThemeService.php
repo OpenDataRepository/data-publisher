@@ -153,6 +153,11 @@ class CloneThemeService
         )->setParameters( array('theme_id' => $theme->getId()) );
         $results = $query->getArrayResult();
 
+
+        // TODO Temporarily turning off theme synching due to issues caused by Nate's setting 
+        // that new cloned datatypes reference their "master template" theme as source
+        return false;
+
         foreach ($results as $result) {
             if ( intval($result['current_version']) !== intval($result['source_version']) )
                 return true;
