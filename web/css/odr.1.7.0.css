@@ -2574,6 +2574,19 @@ form .row {
     font-weight: bold;
 }
 
+.ODRRecord .ODRFieldLabel {
+    font-weight: bold;
+}
+.ODRRecord label.ODRRadioField {
+    font-size: 100%;
+}
+
+.ODRRadioOptionsEdit {
+    max-height: 400px;
+    overflow-y: scroll;
+    margin-left: 20px;
+}
+
 .ODRPseudoField {
     border: 1px solid #ddd;
     padding: 0.48em 0.3em;
