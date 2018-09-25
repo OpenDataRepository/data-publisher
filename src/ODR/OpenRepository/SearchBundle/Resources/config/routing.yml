@@ -76,7 +76,7 @@ odr_search_api_get_datarecord_single:
 # API for cross template search
 odr_search_api_get_template_by_uuid_no_format:
     path: /api/{version}/search/template/{template_uuid}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getTemplate, version: 'v1', format: 'json' }
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getTemplate, version: 'v1', _format: 'json' }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
@@ -99,23 +99,33 @@ odr_search_api_get_field_by_uuid:
         version: 'v1'
         template_field_uuid: '[a-z0-9]+'
 
-odr_search_api_get_record:
-    path: /api/{version}/search/record/{record_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getrecord }
+odr_search_api_get_record_no_format:
+    path: /api/{version}/search/record/{datarecord_id}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getrecord, _format: 'json' }
     methods: [ GET ]
     requirements:
         version: 'v1'
-        record_id: \d+
+        datarecord_id: \d+
+
+odr_search_api_get_record:
+    path: /api/{version}/search/record/{datarecord_id}.{_format}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getrecord, _format: 'json', version: 'v1' }
+    methods: [ GET ]
+    requirements:
+        version: 'v1'
+        datarecord_id: \d+
+        _format: '|json|xml'
 
 odr_search_api_general_search:
     path: /api/{version}/search/{search_key}/{limit}/{offset}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:search, limit: 0, offset: 0 }
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:search, limit: 0, offset: 0, _format: 'json'}
     methods: [ GET ]
     requirements:
         version: 'v1'
-        search_key: \w
+        search_key: '[a-zA-Z0-9\=]+'
         limit: \d+
         offset: \d+
+        _format: '|json|xml'
 
 # ----------------------------------------
 

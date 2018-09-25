@@ -16,6 +16,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
@@ -297,27 +298,20 @@ class FacadeController extends Controller
      *
      * This example returns an example organization based on the organization template (sub-template of AHED Core Metadata).
      *
-     * @param $record_d
+     * http://office_dev/app_dev.php/api/v1/search/record/160439.json
+     *
+     * @param $datarecord_id
      * @param Request $request
      */
-    public function getrecordAction($record_d, Request $request) {
+    public function getrecordAction($datarecord_id, Request $request) {
 
         // http://office_dev/app_dev.php/admin/datarecord_export/160439
 
         try
         {
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-
-            /** @var DataTypeMeta $datatype_meta */
-            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('searchSlug' => $search_slug) );
-            if ($datatype_meta == null)
-                throw new ODRNotFoundException('Datatype');
-
-            $datatype = $datatype_meta->getDataType();
-            if ($datatype->getDeletedAt() != null)
-                throw new ODRNotFoundException('Datatype');
-
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -325,17 +319,22 @@ class FacadeController extends Controller
                 throw new ODRNotFoundException('Datarecord');
 
 
+
             // Let the APIController do the rest of the error-checking
+            $all = $request->query->all();
+            $all['download'] = 'stream';
+            $all['metadata'] = 'true';
             return $this->forward(
                 'ODRAdminBundle:API:getDatarecordExport',
                 array(
                     'version' => 'v1',
-                    'datatype_id' => $datatype->getId(),
+                    'datatype_id' => $datarecord->getDataType()->getId(),
                     'datarecord_id' => $datarecord->getId(),
                     '_format' => $request->getRequestFormat(),
                 ),
-                $request->query->all()
+                $all
             );
+
         }
         catch (\Exception $e) {
             $source = 0x50cf3669;
@@ -367,6 +366,10 @@ class FacadeController extends Controller
      * The test server is "zeta" or https://zeta.odr.io
      * (Specific Database search needed?)
      *
+     * Sample URL:
+     *
+     * http://office_dev/app_dev.php/api/v1/search/ew0KICAgICJmaWVsZHMiOiBbDQogICAgICAgIHsNCiAgICAgICAgICAgICJmaWVsZF9uYW1lIjogIlJlc291cmNlIFR5cGUiLA0KICAgICAgICAgICAgInNlbGVjdGVkX29wdGlvbnMiOiBbDQogICAgICAgICAgICAgICAgew0KICAgICAgICAgICAgICAgICAgICAibmFtZSI6ICJDb2xsZWN0aW9uIiwNCiAgICAgICAgICAgICAgICAgICAgInRlbXBsYXRlX3JhZGlvX29wdGlvbl91dWlkIjogIm1jMWthc2Rmc2oiDQogICAgICAgICAgICAgICAgfQ0KICAgICAgICAgICAgXSwNCiAgICAgICAgICAgICJ0ZW1wbGF0ZV9maWVsZF91dWlkIjogIm1jODJrZGtnaCINCiAgICAgICAgfSwNCiAgICAgICAgew0KICAgICAgICAgICAgImZpZWxkX25hbWUiOiAiRnVuZGluZyBTb3VyY2VzIiwNCiAgICAgICAgICAgICJzZWxlY3RlZF9vcHRpb25zIjogWw0KICAgICAgICAgICAgICAgIHsNCiAgICAgICAgICAgICAgICAgICAgIm5hbWUiOiAiRm9yZWlnbiAmZ3Q7IEdvdmVybm1lbnQgJmd0OyBFU0EgKEVVKSIsDQogICAgICAgICAgICAgICAgICAgICJ0ZW1wbGF0ZV9yYWRpb19vcHRpb25fdXVpZCI6ICIyOGRrdm1hc284Ig0KICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgIF0sDQogICAgICAgICAgICAidGVtcGxhdGVfZmllbGRfdXVpZCI6ICJteGNudnUybmQiDQogICAgICAgIH0NCiAgICBdLA0KICAgICJnZW5lcmFsIjogIiIsDQogICAgInNvcnRfYnkiOiBbDQogICAgICAgIHsNCiAgICAgICAgICAgICJkaXIiOiAiYXNjIiwNCiAgICAgICAgICAgICJ0ZW1wbGF0ZV9maWVsZF91dWlkIjogIjcyZGh1d2tkayINCiAgICAgICAgfQ0KICAgIF0sDQogICAgInRlbXBsYXRlX25hbWUiOiAiQUhFRCBDb3JlIDEuMCIsDQogICAgInRlbXBsYXRlX3V1aWQiOiAiMmVhNjI3YiINCn0=/0/0
+     *
      * @param $search_key
      * @param $limit
      * @param $offset
@@ -376,36 +379,91 @@ class FacadeController extends Controller
 
         try
         {
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DataTypeMeta $datatype_meta */
-            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('searchSlug' => $search_slug) );
-            if ($datatype_meta == null)
+            $search_key_data = base64_decode($search_key);
+
+            $search_data = json_decode($search_key_data);
+            $template_uuid = $search_data->template_uuid;
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')
+                ->findOneBy(
+                    array(
+                        'is_master_type' => 1,
+                        'unique_id' => $template_uuid
+                    )
+                );
+
+            if ($datatype == null || $datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            $datatype = $datatype_meta->getDataType();
-            if ($datatype->getDeletedAt() != null)
-                throw new ODRNotFoundException('Datatype');
 
+            // Find all records for datatypes with this master_template_id
+            $datatype_array = $em->getRepository('ODRAdminBundle:DataType')
+                ->findBy(
+                    array(
+                        'masterDataType' => $datatype->getId(),
+                        'is_master_type' => 0
+                    )
+                );
 
-            /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if ($datarecord == null)
-                throw new ODRNotFoundException('Datarecord');
+            $records = array();
 
+            /** @var DataType $dt */
+            foreach($datatype_array as $dt) {
+                // Find record
+                $results = $em->getRepository('ODRAdminBundle:DataRecord')
+                    ->findBy(
+                        array(
+                            'dataType' => $dt->getId()
+                        )
+                    );
 
-            // Let the APIController do the rest of the error-checking
-            return $this->forward(
-                'ODRAdminBundle:API:getDatarecordExport',
-                array(
-                    'version' => 'v1',
-                    'datatype_id' => $datatype->getId(),
-                    'datarecord_id' => $datarecord->getId(),
-                    '_format' => $request->getRequestFormat(),
-                ),
-                $request->query->all()
-            );
+                // Add record object to array
+                if(count($results) > 0) {
+                    $records[] = $results[0];
+                }
+            }
+
+            // Use get record to build array
+            $output_records = array();
+            /** @var DataRecord $record */
+            foreach($records as $record) {
+
+                // Let the APIController do the rest of the error-checking
+                $all = $request->query->all();
+                $all['download'] = 'raw';
+                $all['metadata'] = 'true';
+                $result = $this->forward(
+                    'ODRAdminBundle:API:getDatarecordExport',
+                    array(
+                        'version' => 'v1',
+                        'datatype_id' => $record->getDataType()->getId(),
+                        'datarecord_id' => $record->getId(),
+                        '_format' => $request->getRequestFormat(),
+                    ),
+                    $all
+                );
+
+                $parsed_result = json_decode($result->getContent());
+
+                if(
+                    !property_exists($parsed_result, 'error')
+                    && property_exists($parsed_result, 'records')
+                    && is_array($parsed_result->records)
+                ) {
+                    array_push($output_records, $parsed_result->records['0']);
+                }
+            }
+
+            // Return array of records
+            $response = new Response(json_encode($output_records));
+            $response->headers->set('Content-Type', 'application/json');
+            return $response;
+
         }
         catch (\Exception $e) {
             $source = 0x50cf3669;

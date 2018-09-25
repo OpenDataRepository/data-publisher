@@ -527,10 +527,14 @@ class APIController extends ODRCustomController
                 $display_metadata = true;
 
             // Default to returning the data as a file download...
-            $download_response = true;
-            if ($request->query->has('download') && $request->query->get('download') == 'stream')
+            $download_response = "download";
+            if ($request->query->has('download') && $request->query->get('download') == 'stream') {
                 // ...but return the data as a simple response on request
-                $download_response = false;
+                $download_response = "stream";
+            }
+            else if ($request->query->has('download') && $request->query->get('download') == 'raw') {
+                $download_response = "raw";
+            }
 
 
             // ----------------------------------------
@@ -562,29 +566,38 @@ class APIController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
             // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
+            if ( !$pm_service->canViewDatatype($user, $datatype) ) {
                 throw new ODRForbiddenException();
-            if ( !$pm_service->canViewDatarecord($user, $datarecord) )
+            }
+
+            if ( !$pm_service->canViewDatarecord($user, $datarecord) ) {
                 throw new ODRForbiddenException();
+            }
             // ----------------------------------------
 
 
             // ----------------------------------------
             // Render the requested datarecord
+            // $data = $dre_service->getData($version, $datarecord_id, $request->getRequestFormat(), $display_metadata, $user, "base url");
+
             $baseurl = $this->container->getParameter('site_baseurl');
             $data = $dre_service->getData($version, $datarecord_id, $request->getRequestFormat(), $display_metadata, $user, $baseurl);
 
             // Set up a response to send the datarecord back
             $response = new Response();
 
-            if ($download_response) {
+            if ($download_response === "download") {
                 $response->setPrivate();
                 //$response->headers->set('Content-Length', filesize($xml_export_path.$filename));
                 $response->headers->set('Content-Disposition', 'attachment; filename="Datarecord_'.$datarecord_id.'.'.$request->getRequestFormat().'";');
+                $response->setContent($data);
+                return $response;
+            }
+            else {
+                $response->setContent($data);
+                return $response;
             }
 
-            $response->setContent($data);
-            return $response;
         }
         catch (\Exception $e) {
             $source = 0x722347a6;

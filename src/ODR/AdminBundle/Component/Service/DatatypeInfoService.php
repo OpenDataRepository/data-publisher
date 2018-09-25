@@ -364,6 +364,7 @@ class DatatypeInfoService
         $query = $this->em->createQuery(
            'SELECT
                 dt, dtm, 
+                partial mdt.{id, unique_id}, 
                 partial md.{id},
                 partial mf.{id},
                 partial dt_cb.{id, username, email, firstName, lastName},
@@ -379,6 +380,7 @@ class DatatypeInfoService
 
             FROM ODRAdminBundle:DataType AS dt
             LEFT JOIN dt.dataTypeMeta AS dtm
+            LEFT JOIN dt.masterDataType AS mdt
             LEFT JOIN dt.createdBy AS dt_cb
             LEFT JOIN dt.updatedBy AS dt_ub
             LEFT JOIN dt.metadata_datatype AS md
@@ -441,6 +443,7 @@ class DatatypeInfoService
                 $dtm = $dt['dataTypeMeta'][0];
             }
             $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
+            $datatype_data[$dt_num]['masterDataType'] = $dt['masterDataType'];
 
             // Scrub irrelevant data from the datatype's createdBy and updatedBy properties
             $datatype_data[$dt_num]['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );

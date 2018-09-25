@@ -211,7 +211,7 @@ class DatarecordInfoService
                partial dr_cb.{id, username, email, firstName, lastName},
                partial dr_ub.{id, username, email, firstName, lastName},
 
-               dt, dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
+               dt, partial mdt.{id, unique_id}, dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
 
                drf, partial df.{id}, partial dfm.{id}, partial ft.{id, typeClass},
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
@@ -241,6 +241,7 @@ class DatarecordInfoService
 
             LEFT JOIN dr.dataType AS dt
             LEFT JOIN dt.dataTypeMeta AS dtm
+            LEFT JOIN dt.masterDataType AS mdt
             LEFT JOIN dtm.externalIdField AS dt_eif
             LEFT JOIN dtm.nameField AS dt_nf
             LEFT JOIN dtm.sortField AS dt_sf

@@ -287,7 +287,23 @@ class DatatypeController extends ODRCustomController
                 $form = $this->createForm(UpdateDatatypePropertiesForm::class, $new_datatype_data, $params);
 
 
+                // $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));
+                $redirect_path = '';
+                $datatype_permissions = $pm_service->getDatatypePermissions($user);
+
                 $templating = $this->get('templating');
+                $record_header_html = $templating->render(
+                    'ODRAdminBundle:Edit:properties_edit_header.html.twig',
+                    array(
+                        'datatype_permissions' => $datatype_permissions,
+                        'datarecord' => $datarecord,
+                        'datatype' => $datatype,
+
+                        // values used by search_header.html.twig
+                        'redirect_path' => $redirect_path,
+                    )
+                );
+
                 $html = $templating->render(
                     'ODRAdminBundle:Datatype:properties.html.twig',
                     array(
@@ -301,7 +317,7 @@ class DatatypeController extends ODRCustomController
 
                 $return['d'] = array(
                     'datatype_id' => $datatype->getId(),
-                    'html' => $html,
+                    'html' => $record_header_html . $html,
                 );
             }
         }

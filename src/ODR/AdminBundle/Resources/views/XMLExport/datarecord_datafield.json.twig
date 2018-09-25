@@ -51,6 +51,8 @@
 {% if version == 'v1' %}
     "field_{{ datafield.id }}": {
         "field_name": {{ datafield_meta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
+        "template_field_uuid": {{ datafield.fieldUuid|json_encode|raw }},
+        "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
 {% else %}
     "{{ datafield_meta.xml_fieldName }}": {
 {% endif %}
@@ -125,8 +127,12 @@
                 {% if version == 'v1' %}
                     "radio_option_{{ radio_option.id }}": {
                         "name": "{{ radio_option_meta.optionName }}",
+                        "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
+                        "updated_at": "{{ radio_option.radioOptionMeta.created|date('Y-m-d H:i:s') }}",
                 {% elseif version == 'v2' %}
                     "{{ radio_option_meta.optionName }}": {
+                        "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
+                        "updated_at": "{{ radio_option.radioOptionMeta.created|date('Y-m-d H:i:s') }}",
                 {% endif %}
 
                         "id": {{ radio_option.id }},
