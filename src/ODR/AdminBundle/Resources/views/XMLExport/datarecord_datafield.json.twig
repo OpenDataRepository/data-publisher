@@ -51,10 +51,14 @@
 {% if version == 'v1' %}
     "field_{{ datafield.id }}": {
         "field_name": {{ datafield_meta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
-        "template_field_uuid": {{ datafield.fieldUuid|json_encode|raw }},
+        "field_uuid": {{ datafield.fieldUuid|json_encode|raw }},
+        "template_field_uuid": {{ datafield.templateFieldUuid|json_encode|raw }},
         "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
 {% else %}
     "{{ datafield_meta.xml_fieldName }}": {
+        "field_uuid": {{ datafield.fieldUuid|json_encode|raw }},
+        "template_field_uuid": {{ datafield.templateFieldUuid|json_encode|raw }},
+        "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
 {% endif %}
 
         "id": {{ datafield.id }},
@@ -113,6 +117,7 @@
 
 {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
 
+"value": [
     {% if datafield.radioOptions is defined %}
         {% for radio_option in datafield.radioOptions %}
             {% set is_selected = 0 %}
@@ -121,9 +126,8 @@
             {% endif %}
 
             {% set radio_option_meta = radio_option.radioOptionMeta %}
-
             {% if is_selected == 1 %}
-
+            {
                 {% if version == 'v1' %}
                     "radio_option_{{ radio_option.id }}": {
                         "name": "{{ radio_option_meta.optionName }}",
@@ -134,13 +138,14 @@
                         "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
                         "updated_at": "{{ radio_option.radioOptionMeta.created|date('Y-m-d H:i:s') }}",
                 {% endif %}
-
                         "id": {{ radio_option.id }},
                         "selected": "1"
                     },
+            },
             {% endif %}
         {% endfor %}
     {% endif %}
+]
 
 {% else %}
 
