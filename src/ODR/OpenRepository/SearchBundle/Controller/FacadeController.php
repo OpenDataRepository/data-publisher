@@ -465,7 +465,7 @@ class FacadeController extends Controller
 
             $matched_records = array();
             foreach($output_records as $record) {
-                $score = self::checkRecord($record, $search_data, 0, true);
+                $score = self::checkRecord($record, $search_data, 0, false);
                 $record->score = $score;
                 if($score > 0) {
                     $matched_records[] = $record;
@@ -473,10 +473,17 @@ class FacadeController extends Controller
             }
 
             // Sort records by score to produce output
+            if(property_exists($search_data, 'sort_by')) {
+                $sorted_records = self::sortRecords($matched_records, $search_data->sort_by);
+            }
+            else {
+                $sorted_records = $matched_records;
+            }
 
             // Return array of records
             // $response = new Response(json_encode($search_data));
-            $response = new Response(json_encode($matched_records));
+            // $response = new Response(json_encode($matched_records));
+            $response = new Response(json_encode($sorted_records));
             // $response = new Response(json_encode($output_records));
             $response->headers->set('Content-Type', 'application/json');
             return $response;
@@ -490,6 +497,50 @@ class FacadeController extends Controller
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
+    }
+
+    function sortRecords($records, $sort_array) {
+        $flattened_array = array();
+
+        // TODO Currently can only sort by string or number fields in the top-level field object
+        foreach($records as $record) {
+            $flat = array();
+            foreach($record->fields as $field) {
+                if(!is_array($field->value)) {
+                    $flat[$field->template_field_uuid] = $field->value;
+                }
+            }
+            $flat['score'] = $record->score;
+            $flat['id'] = $record->internal_id;
+            $flat['record'] = $record;
+            $flattened_array[$record->internal_id] = $flat;
+        }
+
+        // Now sort by fields in sort array
+        if(count($sort_array) == 3) {
+            array_multisort(
+                array_column($flattened_array, $sort_array[0]->template_field_uuid),  ($sort_array[0]->dir == "asc")?SORT_ASC:SORT_DESC,
+                array_column($flattened_array, $sort_array[1]->template_field_uuid),  ($sort_array[1]->dir == "asc")?SORT_ASC:SORT_DESC,
+                array_column($flattened_array, $sort_array[2]->template_field_uuid),  ($sort_array[2]->dir == "asc")?SORT_ASC:SORT_DESC,
+                $flattened_array);
+        }
+        else if(count($sort_array) == 2) {
+            array_multisort(
+                array_column($flattened_array, $sort_array[0]->template_field_uuid),  ($sort_array[0]->dir == "asc")?SORT_ASC:SORT_DESC,
+                array_column($flattened_array, $sort_array[1]->template_field_uuid),  ($sort_array[1]->dir == "asc")?SORT_ASC:SORT_DESC,
+                $flattened_array);
+        }
+        else if(count($sort_array) == 1) {
+            array_multisort(
+                array_column($flattened_array, $sort_array[0]->template_field_uuid),  ($sort_array[0]->dir == "asc")?SORT_ASC:SORT_DESC,
+                $flattened_array);
+        }
+
+        $output_sorted = array();
+        foreach($flattened_array as $sorted_record) {
+            $output_sorted[] = $sorted_record['record'];
+        }
+        return $output_sorted;
     }
 
     function checkRecord($record, $search_data, $score = 0, $full_match_required = false) {
