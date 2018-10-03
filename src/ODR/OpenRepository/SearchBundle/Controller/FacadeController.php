@@ -386,6 +386,7 @@ class FacadeController extends Controller
             $search_key_data = base64_decode($search_key);
 
             $search_data = json_decode($search_key_data);
+
             $template_uuid = $search_data->template_uuid;
 
             /** @var DataType $datatype */
@@ -459,8 +460,24 @@ class FacadeController extends Controller
                 }
             }
 
+            // So we have a bunch of records here...
+            // Let's check for a general result or a matched field
+
+            $matched_records = array();
+            foreach($output_records as $record) {
+                $score = self::checkRecord($record, $search_data, 0, false);
+                $record->score = $score;
+                if($score > 0) {
+                    $matched_records[$record->internal_id] = $record;
+                }
+            }
+
+            // Sort records by score to produce output
+
             // Return array of records
-            $response = new Response(json_encode($output_records));
+            $response = new Response(json_encode($search_data));
+            // $response = new Response(json_encode($matched_records));
+            // $response = new Response(json_encode($output_records));
             $response->headers->set('Content-Type', 'application/json');
             return $response;
 
@@ -473,5 +490,117 @@ class FacadeController extends Controller
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
+    }
+
+    function checkRecord($record, $search_data, $score = 0, $full_match_required = false) {
+
+        // Ensure we've got what we need to work with
+        if(!property_exists($search_data, 'general')) {
+            $search_data->general = "";
+        }
+        if(!property_exists($search_data, 'fields')) {
+            $search_data->fields = array();
+        }
+        if(!property_exists($record, 'fields')) {
+            $record->fields = array();
+        }
+
+        $score += self::checkFields($search_data->fields, $record->fields, $search_data->general, $full_match_required);
+
+        // Check child records (calls check record)
+        if(property_exists($record, 'child_records')) {
+            foreach ($record->child_records as $child_record) {
+                $score += self::checkRecord($child_record, $search_data, $score, $full_match_required);
+            }
+        }
+
+        // Check linked records (calls check record)
+        if(property_exists($record, 'linked_records')) {
+            foreach ($record->linked_records as $child_record) {
+                $score += self::checkRecord($child_record, $search_data, $score, $full_match_required);
+            }
+        }
+
+        return $score;
+    }
+
+    function checkFields($fields_to_match, $field_array, $general = "", $full_match_required = false) {
+        $field_score = 0;
+        // Check fields
+        foreach($field_array as $field_id => $field) {
+            // Checking general search (value 1)
+            if($general !== "") {
+                if (
+                    !is_object($field->value)
+                    && !is_array($field->value)
+                    && preg_match("/" . $general . "/i", $field->value)
+                ) {
+                    // this is a general search match
+                    $field_score += 1;
+                }
+                if (
+                    is_object($field->value)
+                ) {
+                    foreach($field->value as $radio_option_id => $radio_option) {
+                        if(preg_match("/". $general . "/i", $radio_option->name)) {
+                            $field_score += 1;
+                        }
+                    }
+                }
+            }
+
+            foreach($fields_to_match as $match_field) {
+                if(
+                    property_exists($match_field, 'selected_options')
+                    && is_array($match_field->selected_options)
+                    && is_array($field->value)
+                ) {
+                    // Process radio options if $field is a radio field
+                    foreach($field->value as $radio_option_id => $radio_option_data) {
+                        foreach ($radio_option_data as $radio_info => $radio_option) {
+                            foreach ($match_field->selected_options as $selected_option) {
+                                if ($selected_option->template_radio_option_uuid == $radio_option->template_radio_option_uuid) {
+                                    $selected_option->matched = 1;
+                                    $field_score += 3;
+                                }
+                            }
+                        }
+                    }
+                }
+                else if(
+                    !property_exists($match_field, 'selected_options')
+                    && property_exists($match_field, 'value')
+                    && !is_array($match_field->value)
+                    && !is_array($field->value)
+                ) {
+                    // Match values
+                    if(
+                        !is_array($field->value)
+                        && preg_match("/". $match_field->value . "/i", $field->value)
+                    ) {
+                        $field_score += 3;
+                    }
+                }
+            }
+        }
+
+        if($full_match_required) {
+            foreach($fields_to_match as $match_field) {
+                foreach ($match_field->selected_options as $selected_option) {
+                    if(
+                        !property_exists($selected_option, 'matched')
+                        || $selected_option->matched == 0
+                    ) {
+                        $field_score = 0;
+                    }
+                    else {
+                        // set matched back to zero for next pass
+                        $selected_option->matched = 0;
+                    }
+                }
+            }
+        }
+
+        return $field_score;
     }
 }
