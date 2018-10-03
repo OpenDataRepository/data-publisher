@@ -465,18 +465,18 @@ class FacadeController extends Controller
 
             $matched_records = array();
             foreach($output_records as $record) {
-                $score = self::checkRecord($record, $search_data, 0, false);
+                $score = self::checkRecord($record, $search_data, 0, true);
                 $record->score = $score;
                 if($score > 0) {
-                    $matched_records[$record->internal_id] = $record;
+                    $matched_records[] = $record;
                 }
             }
 
             // Sort records by score to produce output
 
             // Return array of records
-            $response = new Response(json_encode($search_data));
-            // $response = new Response(json_encode($matched_records));
+            // $response = new Response(json_encode($search_data));
+            $response = new Response(json_encode($matched_records));
             // $response = new Response(json_encode($output_records));
             $response->headers->set('Content-Type', 'application/json');
             return $response;
