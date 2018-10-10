@@ -29,9 +29,8 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 // Other
 use Doctrine\ORM\EntityManager;
 use FOS\UserBundle\Model\UserManagerInterface;
@@ -57,9 +56,9 @@ class PermissionsManagementService
     private $dti_service;
 
     /**
-     * @var SearchKeyService
+     * @var SearchAPIService
      */
-    private $search_key_service;
+    private $search_api_service;
 
     /**
      * @var UserManagerInterface
@@ -78,7 +77,7 @@ class PermissionsManagementService
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param DatatypeInfoService $datatypeInfoService
-     * @param SearchKeyService $searchKeyService
+     * @param SearchAPIService $searchAPIService
      * @param UserManagerInterface $user_manager
      * @param Logger $logger
      */
@@ -86,14 +85,14 @@ class PermissionsManagementService
         EntityManager $entity_manager,
         CacheService $cache_service,
         DatatypeInfoService $datatypeInfoService,
-        SearchKeyService $searchKeyService,
+        SearchAPIService $searchAPIService,
         UserManagerInterface $user_manager,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->dti_service = $datatypeInfoService;
-        $this->search_key_service = $searchKeyService;
+        $this->search_api_service = $searchAPIService;
         $this->user_manager = $user_manager;
         $this->logger = $logger;
     }
@@ -143,39 +142,23 @@ class PermissionsManagementService
      * @param ODRUser $user
      * @param Datatype $datatype
      *
-     * @throws ODRException
-     *
      * @return null|string
      */
     public function getDatarecordRestrictionList($user, $datatype)
     {
+        // Users which aren't logged in don't have additional datarecord restrictions
+        if ($user === "anon." || $user == null)
+            return null;
+
         $datatype_permissions = self::getDatatypePermissions($user);
         if ( isset($datatype_permissions[ $datatype->getId() ]['datarecord_restriction']) ) {
             // ...this further restriction is stored as an encoded search key in the database
             $search_key = $datatype_permissions[ $datatype->getId() ]['datarecord_restriction'];
-            $search_params = $this->search_key_service->decodeSearchKey($search_key);
 
-            if ( !isset($search_params['dt_id']) )
-                throw new ODRBadRequestException('Invalid search key', 0xc7054271);
-            $datatype_id = intval($search_params['dt_id']);
+            // Don't need to validate or filter the search key...search as a super-admin
+            $search_result = $this->search_api_service->performSearch($datatype, $search_key, array(), true);
 
-
-            // Grab the list of datarecords from this search key
-            $search_checksum = md5($search_key);
-
-            // Attempt to load the search result for this search_key
-            $cached_searches = $this->cache_service->get('cached_search_results');
-            if ( $cached_searches == false
-                || !isset($cached_searches[$datatype_id])
-                || !isset($cached_searches[$datatype_id][$search_checksum])
-            ) {
-                // TODO - need to move searching itself into a service...can't call the function in the search controller because of symfony constraints
-                throw new ODRNotImplementedException('Please wait a few minutes, then refresh the page.', 0xc7054271);
-            }
-
-            $cached_search_params = $cached_searches[$datatype_id][$search_checksum];
-            $complete_datarecord_list = $cached_search_params['complete_datarecord_list'];
-
+            $complete_datarecord_list = $search_result['complete_datarecord_list'];
             return $complete_datarecord_list;
         }
 

@@ -16,10 +16,8 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
-use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Services
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
-use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -37,11 +35,6 @@ class SearchAPIService
      * @var DatatypeInfoService
      */
     private $dti_service;
-
-    /**
-     * @var PermissionsManagementService
-     */
-    private $pm_service;
 
     /**
      * @var SearchService
@@ -69,7 +62,6 @@ class SearchAPIService
      *
      * @param EntityManager $entityManager
      * @param DatatypeInfoService $datatypeInfoService
-     * @param PermissionsManagementService $permissionsManagementService
      * @param SearchService $searchService
      * @param SearchCacheService $searchCacheService
      * @param SearchKeyService $searchKeyService
@@ -78,7 +70,6 @@ class SearchAPIService
     public function __construct(
         EntityManager $entityManager,
         DatatypeInfoService $datatypeInfoService,
-        PermissionsManagementService $permissionsManagementService,
         SearchService $searchService,
         SearchCacheService $searchCacheService,
         SearchKeyService $searchKeyService,
@@ -86,7 +77,6 @@ class SearchAPIService
     ) {
         $this->em = $entityManager;
         $this->dti_service = $datatypeInfoService;
-        $this->pm_service = $permissionsManagementService;
         $this->search_service = $searchService;
         $this->search_cache_service = $searchCacheService;
         $this->search_key_service = $searchKeyService;
@@ -99,15 +89,22 @@ class SearchAPIService
      * organized by their datatype id.
      *
      * @param int $top_level_datatype_id
-     * @param ODRUser $user The user doing the search, or the string "anon." when not logged in
+     * @param array $user_permissions The permissions of the user doing the search, or an empty
+     *                                array when not logged in
+     * @param bool $search_as_super_admin If true, don't filter anything by permissions
      *
      * @return array
      */
-    public function getSearchableDatafieldsForUser($top_level_datatype_id, $user)
+    public function getSearchableDatafieldsForUser($top_level_datatype_id, $user_permissions, $search_as_super_admin = false)
     {
         // Going to need to filter the resulting list based on the user's permissions
-        $datatype_permissions = $this->pm_service->getDatatypePermissions($user);
-        $datafield_permissions = $this->pm_service->getDatafieldPermissions($user);
+        $datatype_permissions = array();
+        $datafield_permissions = array();
+        if ( isset($user_permissions['datatypes']) )
+            $datatype_permissions = $user_permissions['datatypes'];
+        if ( isset($user_permissions['datafields']) )
+            $datafield_permissions = $user_permissions['datafields'];
+
 
         // Get all possible datafields that can be searched on for this datatype
         $searchable_datafields = $this->search_service->getSearchableDatafields($top_level_datatype_id);
@@ -117,7 +114,9 @@ class SearchAPIService
                 $is_public = false;
 
             $can_view_dt = false;
-            if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']) )
+            if ($search_as_super_admin)
+                $can_view_dt = true;
+            else if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']) )
                 $can_view_dt = true;
 
             if ( !$is_public && !$can_view_dt ) {
@@ -129,7 +128,9 @@ class SearchAPIService
                 //  visible when the datatype can be viewed
                 foreach ($datatype_data['datafields']['non_public'] as $df_id => $datafield_data) {
                     $can_view_df = false;
-                    if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
+                    if ($search_as_super_admin)
+                        $can_view_df = true;
+                    else if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
                         $can_view_df = true;
 
                     // If user can view datafield, move it out of the non_public section
@@ -155,20 +156,22 @@ class SearchAPIService
      * forcibly redirect the user to the filtered search key if it's different than what they
      * originally attempted to access, but this could change to be more refined in the future...
      *
-     * @param ODRUser $user
      * @param DataType $datatype
      * @param string $search_key
+     * @param array $user_permissions The permissions of the user doing the search, or an empty
+     *                                array when not logged in
+     * @param bool $search_as_super_admin If true, don't filter anything by permissions
      *
      * @return string
      */
-    public function filterSearchKeyForUser($user, $datatype, $search_key)
+    public function filterSearchKeyForUser($datatype, $search_key, $user_permissions, $search_as_super_admin = false)
     {
         // Convert the search key into array format...
         $search_params = $this->search_key_service->decodeSearchKey($search_key);
         $filtered_search_params = array();
 
         // Get all the datatypes/datafields the user is allowed to search on...
-        $searchable_datafields = self::getSearchableDatafieldsForUser($datatype->getId(), $user);
+        $searchable_datafields = self::getSearchableDatafieldsForUser($datatype->getId(), $user_permissions, $search_as_super_admin);
 
         foreach ($search_params as $key => $value) {
             if ($key === 'dt_id' || $key === 'gen') {
@@ -222,38 +225,47 @@ class SearchAPIService
      * Runs a search specified by the given $search_key.  The contents of the search key are silently
      * tweaked based on the user's permissions.
      *
-     * @param ODRUser $user
      * @param DataType $datatype
      * @param string $search_key
+     * @param array $user_permissions The permissions of the user doing the search, or an empty
+     *                                array when not logged in
+     * @param bool $search_as_super_admin If true, don't filter anything by permissions
      *
      * @return array
      */
-    public function performSearch($user, $datatype, $search_key)
+    public function performSearch($datatype, $search_key, $user_permissions, $search_as_super_admin = false)
     {
 
+$debug = false;
+//$debug = true;
 $start_time = microtime(true);
 $function_start_time = microtime(true);
 
         // ----------------------------------------
         // Convert the search key into a format suitable for searching
-        $searchable_datafields = self::getSearchableDatafieldsForUser($datatype->getId(), $user);
+        $searchable_datafields = self::getSearchableDatafieldsForUser($datatype->getId(), $user_permissions, $search_as_super_admin);
 
-print '<pre>';
-print 'getSearchableDatafieldsForUser(): '.((microtime(true) - $start_time) * 1000)."ms\n";
-$start_time = microtime(true);
+if ($debug) {
+    print '<pre>';
+    print 'getSearchableDatafieldsForUser(): '.((microtime(true) - $start_time) * 1000)."ms\n";
+    $start_time = microtime(true);
+}
 
         $criteria = $this->search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields);    // TODO - empty search criteria
 
-
-print 'convertSearchKeyToCriteria(): '.((microtime(true) - $start_time) * 1000)."ms\n";
-print_r( $criteria );
-$start_time = microtime(true);
+if ($debug) {
+    print 'convertSearchKeyToCriteria(): '.((microtime(true) - $start_time) * 1000)."ms\n";
+    print_r($criteria);
+    $start_time = microtime(true);
+}
 
         // Need to grab hydrated versions of the datafields/datatypes being searched on
         $hydrated_entities = self::hydrateCriteria($criteria);
 
-print 'hydrateCriteria(): '.((microtime(true) - $start_time) * 1000)."ms\n";
-$start_time = microtime(true);
+if ($debug) {
+    print 'hydrateCriteria(): '.((microtime(true) - $start_time) * 1000)."ms\n";
+    $start_time = microtime(true);
+}
 
         // Each datatype being searched on (or the datatype of a datafield being search on) needs
         //  to be initialized to "-1" (does not match) before the results of each facet search
@@ -277,7 +289,7 @@ $start_time = microtime(true);
 
         // ----------------------------------------
         // Get the base information needed so getSearchArrays() can properly setup the search arrays
-        $search_permissions = self::getSearchPermissionsArray($user, $hydrated_entities['datatype'], $affected_datatypes);
+        $search_permissions = self::getSearchPermissionsArray($hydrated_entities['datatype'], $affected_datatypes, $user_permissions, $search_as_super_admin);
 
         // Going to need these two arrays to be able to accurately determine which datarecords
         //  end up matching the query
@@ -285,8 +297,10 @@ $start_time = microtime(true);
         $flattened_list = $search_arrays['flattened'];
         $inflated_list = $search_arrays['inflated'];
 
-print 'getSearchArrays(): '.((microtime(true) - $start_time) * 1000)."ms\n";
-$start_time = microtime(true);
+if ($debug) {
+    print 'getSearchArrays(): '.((microtime(true) - $start_time) * 1000)."ms\n";
+    $start_time = microtime(true);
+}
 
         // Need to keep track of the result list for each facet separately...they end up merged
         //  together after all facets are searched on
@@ -383,8 +397,10 @@ $start_time = microtime(true);
                 $final_dr_list = array_intersect_key($final_dr_list, $dr_list);
         }
 
-print 'initial search: '.((microtime(true) - $start_time) * 1000)."ms\n";
-$start_time = microtime(true);
+if ($debug) {
+    print 'initial search: '.((microtime(true) - $start_time) * 1000)."ms\n";
+    $start_time = microtime(true);
+}
 
         // Need to transfer the values from $facet_dr_list into $flattened_list...
         if ( !is_null($final_dr_list) ) {
@@ -395,17 +411,19 @@ $start_time = microtime(true);
             }
         }
 
-print '$final_dr_list: '.((microtime(true) - $start_time) * 1000)."ms\n";
-$start_time = microtime(true);
+if ($debug) {
+    print '$final_dr_list: '.((microtime(true) - $start_time) * 1000)."ms\n";
+    $start_time = microtime(true);
+}
 
         // ----------------------------------------
         // Need to transfer the values from $flattened_list into the tree structure of $inflated_list
         self::mergeSearchArrays($flattened_list, $inflated_list);
 
-
-print 'mergeSearchArrays(): '.((microtime(true) - $start_time) * 1000)."ms\n";
-$start_time = microtime(true);
-
+if ($debug) {
+    print 'mergeSearchArrays(): '.((microtime(true) - $start_time) * 1000)."ms\n";
+    $start_time = microtime(true);
+}
 
         // Traverse $inflated_list to get the final set of datarecords that match the search
         $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list);
@@ -419,10 +437,11 @@ $start_time = microtime(true);
                 $grandparent_ids[] = $gp_id;
         }
 
-print 'getMatchingDatarecords(): '.((microtime(true) - $start_time) * 1000)."ms\n";
+if ($debug) {
+    print 'getMatchingDatarecords(): '.((microtime(true) - $start_time) * 1000)."ms\n";
 //$start_time = microtime(true);
-
-print 'entire function took '.((microtime(true) - $function_start_time) * 1000)."ms\n\n";
+    print 'entire function took '.((microtime(true) - $function_start_time) * 1000)."ms\n\n";
+}
 
         $sorted_datarecord_list = $this->dti_service->getSortedDatarecordList($datatype->getId(), implode(',', $grandparent_ids));
         $sorted_datarecord_list = implode(',', array_keys($sorted_datarecord_list));
@@ -431,7 +450,7 @@ print 'entire function took '.((microtime(true) - $function_start_time) * 1000).
         // Save/return the end result TODO - figure out final configuration of array
         $search_result = array(
             'complete_datarecord_list' => implode(',', $datarecord_ids),
-            'datarecord_list' => $sorted_datarecord_list,
+            'grandparent_datarecord_list' => $sorted_datarecord_list,
 
 //            'filtered_search_key' => $filtered_search_key,
 
@@ -439,8 +458,10 @@ print 'entire function took '.((microtime(true) - $function_start_time) * 1000).
             'complete_count' => count($datarecord_ids),
         );
 
-print print_r($search_result, true);
-print '</pre>';
+if ($debug) {
+    print print_r($search_result, true);
+    print '</pre>';
+}
 
         // There's not really any need or point to caching the end result
         return $search_result;
@@ -524,19 +545,33 @@ print '</pre>';
      * the  user's permissions and which datatypes are being searched on...this utility function
      * gathers that required info in a single spot.
      *
-     * @param ODRUser $user
      * @param DataType[] $hydrated_datatypes
      * @param int[] $affected_datatypes
+     * @param array $user_permissions The permissions of the user doing the search, or an empty
+     *                                array when not logged in
+     * @param bool $search_as_super_admin If true, don't filter anything by permissions
      *
      * @return array
      */
-    private function getSearchPermissionsArray($user, $hydrated_datatypes, $affected_datatypes)
+    private function getSearchPermissionsArray($hydrated_datatypes, $affected_datatypes, $user_permissions, $search_as_super_admin = false)
     {
-        $search_permissions = array();
+        // Going to need to filter based on the user's permissions
+        $datatype_permissions = array();
+        if ( isset($user_permissions['datatypes']) )
+            $datatype_permissions = $user_permissions['datatypes'];
 
+        $search_permissions = array();
         foreach ($hydrated_datatypes as $dt_id => $dt) {
-            //
-            $can_view_datatype = $this->pm_service->canViewDatatype($user, $dt);
+            // User needs to be able to view the datatype in order for them to search on it...
+            $can_view_datatype = false;
+            if ($search_as_super_admin)
+                $can_view_datatype = true;
+            else if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']) )
+                $can_view_datatype = true;
+            else if ($dt->isPublic())
+                $can_view_datatype = true;
+
+
             if ( !$can_view_datatype ) {
                 // If the user can't view this datatype, then there's no point checking other
                 //  permissions or gathering various lists of datarecords
@@ -547,7 +582,13 @@ print '</pre>';
             else {
                 // If user can't view non-public datarecords, then need to get a list of them so
                 //  they can be properly excluded from the search results
-                $can_view_datarecord = $this->pm_service->canViewNonPublicDatarecords($user, $dt);
+                $can_view_datarecord = false;
+                if ($search_as_super_admin)
+                    $can_view_datarecord = true;
+                else if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_view']) )
+                    $can_view_datarecord = true;
+
+
                 $non_public_datarecords = array();
                 if (!$can_view_datarecord) {
                     $ret = $this->search_service->searchPublicStatus($dt, false);
@@ -598,6 +639,7 @@ print '</pre>';
      */
     private function getSearchArrays($top_level_datatype_id, $permissions_array)
     {
+
         // ----------------------------------------
         // Intentionally not caching the results of this function for two reasons
         // 1) these arrays need to be initialized based on the search being run, and the
@@ -620,7 +662,8 @@ print '</pre>';
             )
         );
 
-
+$debug = false;
+//$debug = true;
 $start_time = microtime(true);
 
         // ----------------------------------------
@@ -639,8 +682,10 @@ $start_time = microtime(true);
             // Attempt to load this datatype's datarecords and their parents from the cache...
             $list = $this->search_service->getCachedSearchDatarecordList($dt_id);
 
-print ' -- getSearchArrays(), dt_id '.$dt_id.' getCachedSearchDatarecordList(): '.((microtime(true) - $start_time) * 1000)."ms\n";
-$start_time = microtime(true);
+if ($debug) {
+    print ' -- getSearchArrays(), dt_id '.$dt_id.' getCachedSearchDatarecordList(): '.((microtime(true) - $start_time) * 1000)."ms\n";
+    $start_time = microtime(true);
+}
 
             // Storing the datarecord ids in the flattened list is easy...
             foreach ($list as $dr_id => $value) {
@@ -652,8 +697,10 @@ $start_time = microtime(true);
                     $flattened_list[$dr_id] = 0;
             }
 
-print ' -- getSearchArrays(), dt_id '.$dt_id.' flattened: '.((microtime(true) - $start_time) * 1000)."ms\n";
-$start_time = microtime(true);
+if ($debug) {
+    print ' -- getSearchArrays(), dt_id '.$dt_id.' flattened: '.((microtime(true) - $start_time) * 1000)."ms\n";
+    $start_time = microtime(true);
+}
 
             // Inserting into $inflated_list depends on what type of datatype this is...
             // @see self::buildDatarecordTree() for the eventual structure
@@ -688,8 +735,10 @@ $start_time = microtime(true);
                 }
             }
 
-print ' -- getSearchArrays(), dt_id '.$dt_id.' initial inflated: '.((microtime(true) - $start_time) * 1000)."ms\n";
-$start_time = microtime(true);
+if ($debug) {
+    print ' -- getSearchArrays(), dt_id '.$dt_id.' initial inflated: '.((microtime(true) - $start_time) * 1000)."ms\n";
+    $start_time = microtime(true);
+}
         }
 
 
@@ -700,7 +749,9 @@ $start_time = microtime(true);
         // Actually inflate the "inflated" list...
         $inflated_list = self::buildDatarecordTree($inflated_list, 0);
 
-print ' -- getSearchArrays(), dt_id '.$dt_id.' final inflated: '.((microtime(true) - $start_time) * 1000)."ms\n";
+if ($debug) {
+    print ' -- getSearchArrays(), dt_id '.$dt_id.' final inflated: '.((microtime(true) - $start_time) * 1000)."ms\n";
+}
 
         // ...and then return the end result
         return array(

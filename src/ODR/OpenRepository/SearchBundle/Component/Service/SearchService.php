@@ -140,7 +140,7 @@ class SearchService
                 );
 
                 // ...and store it in the cache
-//                $this->cache_service->set('cached_search_ro_'.$datafield->getId(), $result);
+                $this->cache_service->set('cached_search_ro_'.$datafield->getId(), $result);
             }
 
 
@@ -226,7 +226,7 @@ class SearchService
 
         // ...then recache the search result
         $cached_searches[$value] = $end_result;
-//        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
+        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
 
         // ...then return it
         return $end_result;
@@ -304,7 +304,7 @@ class SearchService
 
         // ...then recache the search result
         $cached_searches[$key] = $end_result;
-//        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
+        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
 
         // ...then return it
         return $end_result;
@@ -367,7 +367,7 @@ class SearchService
 
         // ...then recache the search result
         $cached_searches[$value] = $end_result;
-//        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
+        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
 
         // ...then return it
         return $end_result;
@@ -429,7 +429,7 @@ class SearchService
 
         // ...then recache the search result
         $cached_searches[$value] = $end_result;
-//        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
+        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
 
         // ...then return it
         return $end_result;
@@ -534,8 +534,8 @@ class SearchService
 
         // ----------------------------------------
         // Recache the search result
-//        if ($recached)
-//            $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
+        if ($recached)
+            $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
 
         // ...then return it
         $end_result = array(
@@ -635,8 +635,8 @@ class SearchService
 
         // ----------------------------------------
         // Recache the search result
-//        if ($recached)
-//            $this->cache_service->set('cached_search_dt_'.$datatype->getId().'_created', $cached_searches);
+        if ($recached)
+            $this->cache_service->set('cached_search_dt_'.$datatype->getId().'_created', $cached_searches);
 
         // ...then return it
         $end_result = array(
@@ -736,8 +736,8 @@ class SearchService
 
         // ----------------------------------------
         // Recache the search result
-//        if ($recached)
-//            $this->cache_service->set('cached_search_dt_'.$datatype->getId().'_modified', $cached_searches);
+        if ($recached)
+            $this->cache_service->set('cached_search_dt_'.$datatype->getId().'_modified', $cached_searches);
 
         // ...then return it
         $end_result = array(
@@ -787,7 +787,7 @@ class SearchService
 
         // ...then recache the search result
         $cached_searches[$target_user_id] = $end_result;
-//        $this->cache_service->set('cached_search_dt_'.$datatype->getId().'_createdBy', $cached_searches);
+        $this->cache_service->set('cached_search_dt_'.$datatype->getId().'_createdBy', $cached_searches);
 
         // ...then return it
         return $end_result;
@@ -832,7 +832,7 @@ class SearchService
 
         // ...then recache the search result
         $cached_searches[$target_user_id] = $end_result;
-//        $this->cache_service->set('cached_search_dt_'.$datatype->getId().'_modifiedBy', $cached_searches);
+        $this->cache_service->set('cached_search_dt_'.$datatype->getId().'_modifiedBy', $cached_searches);
 
         // ...then return it
         return $end_result;
@@ -879,7 +879,7 @@ class SearchService
 
         // ...then recache the search result
         $cached_searches[$key] = $end_result;
-//        $this->cache_service->set('cached_search_dt_'.$datatype->getId().'_public_status', $cached_searches);
+        $this->cache_service->set('cached_search_dt_'.$datatype->getId().'_public_status', $cached_searches);
 
         // ...then return it
         return $end_result;
@@ -973,7 +973,7 @@ class SearchService
                 $list = $this->search_query_service->getLinkedParentDatarecords($datatype_id);
 
             // Store the list back in the cache
-//            $this->cache_service->set('cached_search_dt_'.$dt_id.'_dr_parents', $list);
+            $this->cache_service->set('cached_search_dt_'.$datatype_id.'_dr_parents', $list);
         }
 
         return $list;
@@ -1014,7 +1014,7 @@ class SearchService
 
         // The resulting array depends on the contents of each of the related datatypes
         $searchable_datafields = array();
-        foreach ($related_datatypes as $dt_id => $num) {
+        foreach ($related_datatypes as $num => $dt_id) {
             $df_list = $this->cache_service->get('cached_search_dt_'.$dt_id.'_datafields');
             if (!$df_list) {
                 // If not cached, need to
@@ -1074,7 +1074,7 @@ class SearchService
                 }
 
                 // Store the result back in the cache
-//                $this->cache_service->set('cached_search_dt_'.$dt_id.'_datafields', $df_list);
+                $this->cache_service->set('cached_search_dt_'.$dt_id.'_datafields', $df_list);
             }
 
             // Continue to build up the array of searchable datafields...

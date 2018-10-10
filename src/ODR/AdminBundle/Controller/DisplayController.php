@@ -43,7 +43,7 @@ use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Component\HttpFoundation\Cookie;
@@ -76,8 +76,8 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
 
             $search_theme_id = 0;
             // Need to reformat to create proper search key and forward internally to view controller
@@ -88,7 +88,7 @@ class DisplayController extends ODRCustomController
                 $search_param_data = preg_split("/\=/",$search_param_element);
                 $search_params[$search_param_data[0]] = $search_param_data[1];
             }
-            $new_search_key = $search_cache_service->encodeSearchKey($search_params);
+            $new_search_key = $search_key_service->encodeSearchKey($search_params);
 
             // Generate new style search key from passed search key
             return $this->redirectToRoute(

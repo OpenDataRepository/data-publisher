@@ -21,7 +21,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Controllers/Classes
 use ODR\AdminBundle\Controller\ODRCustomController;
 // Entites
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\Theme;
@@ -299,6 +298,17 @@ print '$links: '.print_r($links, true)."\n";
 
         return $datatype_tree;
     }
+
+
+
+
+
+    // ----------------------------------------
+    // ----------------------------------------
+    // ----------------------------------------
+
+
+
 
 
     /**
@@ -1005,7 +1015,14 @@ print '$links: '.print_r($links, true)."\n";
 
                 // Can't use $this->redirect, because it won't update the hash...
                 $return['r'] = 2;
-                $return['d'] = array( 'url' => $this->generateUrl('odr_display_view', array('datarecord_id' => $datarecord_id)) );
+                $return['d'] = array(
+                    'url' => $this->generateUrl(
+                        'odr_display_view',
+                        array(
+                            'datarecord_id' => $datarecord_id
+                        )
+                    )
+                );
 
                 $response = new Response(json_encode($return));
                 $response->headers->set('Content-Type', 'application/json');
@@ -1178,6 +1195,8 @@ print '$links: '.print_r($links, true)."\n";
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
@@ -1191,12 +1210,13 @@ print '$links: '.print_r($links, true)."\n";
                 throw new ODRNotFoundException('Datatype');
 
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
 
             $search_key = $search_key_service->convertPOSTtoSearchKey($search_params);
             $search_key_service->validateSearchKey($search_key);
-            $filtered_search_key = $search_api_service->filterSearchKeyForUser($user, $datatype, $search_key);
+            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
 
-//            $results = $search_api_service->performSearch($user, $datatype, $search_key);    //return;
+            $results = $search_api_service->performSearch($datatype, $search_key, $user_permissions);    //return;
 
 
             // The POST data probably has a whole pile of empty keys...not entirely sure why
@@ -1288,7 +1308,7 @@ print '$links: '.print_r($links, true)."\n";
 
 
 $debug = array(
-////    'basic' => true,                 // print out the minimum info required to determine whether searching is returning the correct results
+//    'basic' => true,                 // print out the minimum info required to determine whether searching is returning the correct results
 //    'timing' => true,                // print out timing information
 //    'cached_searches' => true,       // print out all cached searches after this search has completed
 
@@ -2411,9 +2431,9 @@ if ( isset($debug['show_descendants']) ) {
             }
         }
 
-if ( isset($debug['basic']) ) {
-    print '$search_results: '.print_r($search_results, true)."\n";
-}
+//if ( isset($debug['basic']) ) {
+//    print '$search_results: '.print_r($search_results, true)."\n";
+//}
 
         // ----------------------------------------
         // Calculate the intersection within each datatype to figure out which datarecords matched all of the search queries
@@ -2480,9 +2500,9 @@ if ( isset($debug['basic']) ) {
                 $matched_datarecords[$dr_id] = 1;
         }
 
-if (isset($debug['show_matches'])) {
-    print '$matched_datarecords: '.print_r($matched_datarecords, true)."\n";
-}
+//if (isset($debug['show_matches'])) {
+//    print '$matched_datarecords: '.print_r($matched_datarecords, true)."\n";
+//}
     }
 
 

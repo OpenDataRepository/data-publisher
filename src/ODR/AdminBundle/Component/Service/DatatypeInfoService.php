@@ -118,16 +118,17 @@ class DatatypeInfoService
 
 
     /**
-     * Returns the id of the grandparent of the given datatype.
-     * @deprecated
+     * Traverses the cached version of the datatree array in order to return the grandparent id
+     * of the given datatype id.
      *
-     * @param integer $initial_datatype_id
+     * @param int $initial_datatype_id
      *
-     * @return integer
+     * @return int
      */
-    public function getGrandparentDatatypeId($initial_datatype_id)
+    public function getGrandparentDatatypeId($initial_datatype_id, $datatree_array = null)
     {
-        $datatree_array = self::getDatatreeArray();
+        if ( is_null($datatree_array) )
+            $datatree_array = self::getDatatreeArray();
 
         $grandparent_datatype_id = $initial_datatype_id;
         while (
