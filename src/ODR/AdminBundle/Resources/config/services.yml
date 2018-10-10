@@ -100,7 +100,7 @@ services:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
             datatype_info_service: "@odr.datatype_info_service"
-            search_cache_service: "@odr.search_cache_service"
+            search_key_service: "@odr.search_key_service"
             user_manager: "@fos_user.user_manager"
             logger: "@logger"
 
