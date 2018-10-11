@@ -91,6 +91,15 @@ odr_search_api_get_template_by_uuid:
         template_uuid: '[a-z0-9]+'
         _format: '|json|xml'
 
+odr_search_api_get_field_stats_by_uuid:
+    path: /api/{version}/search/field/stats/{template_uuid}/{template_field_uuid}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:search_field_stats, _format: 'json'}
+    methods: [ GET ]
+    requirements:
+        version: 'v1'
+        template_uuid: '[a-z0-9]+'
+        template_field_uuid: '[a-z0-9]+'
+
 odr_search_api_get_field_by_uuid:
     path: /api/{version}/search/field/{template_field_uuid}
     defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getfield }

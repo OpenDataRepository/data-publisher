@@ -499,6 +499,266 @@ class FacadeController extends Controller
 
     }
 
+
+    /**
+     * @param $template_uuid
+     * @param $template_field_uuid
+     * @param Request $request
+     * @return Response
+     */
+    public function search_field_statsAction($template_uuid, $template_field_uuid, Request $request) {
+
+        try
+        {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')
+                ->findOneBy(
+                    array(
+                        'is_master_type' => 1,
+                        'unique_id' => $template_uuid
+                    )
+                );
+
+            if ($datatype == null || $datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // Find all records for datatypes with this master_template_id
+            $datatype_array = $em->getRepository('ODRAdminBundle:DataType')
+                ->findBy(
+                    array(
+                        'masterDataType' => $datatype->getId(),
+                        'is_master_type' => 0
+                    )
+                );
+
+            $records = array();
+
+            /** @var DataType $dt */
+            foreach($datatype_array as $dt) {
+                // Find record
+                $results = $em->getRepository('ODRAdminBundle:DataRecord')
+                    ->findBy(
+                        array(
+                            'dataType' => $dt->getId()
+                        )
+                    );
+
+                // Add record object to array
+                if(count($results) > 0) {
+                    $records[] = $results[0];
+                }
+            }
+
+            // Use get record to build array
+            $output_records = array();
+            /** @var DataRecord $record */
+            foreach($records as $record) {
+                // Let the APIController do the rest of the error-checking
+                $all = $request->query->all();
+                $all['download'] = 'raw';
+                $all['metadata'] = 'true';
+                $result = $this->forward(
+                    'ODRAdminBundle:API:getDatarecordExport',
+                    array(
+                        'version' => 'v1',
+                        'datatype_id' => $record->getDataType()->getId(),
+                        'datarecord_id' => $record->getId(),
+                        '_format' => $request->getRequestFormat(),
+                    ),
+                    $all
+                );
+
+                $parsed_result = json_decode($result->getContent());
+
+                if(
+                    !property_exists($parsed_result, 'error')
+                    && property_exists($parsed_result, 'records')
+                    && is_array($parsed_result->records)
+                ) {
+                    array_push($output_records, $parsed_result->records['0']);
+                }
+            }
+
+
+
+            // Process to build options array matching field id
+            $options_data = array();
+            foreach($output_records as $record) {
+                self::optionStats($record, $template_field_uuid, $options_data);
+            }
+
+            // Return array of records
+            $response = new Response(json_encode($options_data));
+            $response->headers->set('Content-Type', 'application/json');
+            return $response;
+
+        }
+        catch (\Exception $e) {
+            $source = 0x883def33;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+    }
+
+
+
+    function optionStats($record, $field_uuid, &$options_data) {
+
+        self::checkOptions($record->fields, $field_uuid, $options_data);
+
+        // Check child records (calls check record)
+        if(property_exists($record, 'child_records')) {
+            foreach ($record->child_records as $child_record) {
+                foreach($child_record->records as $child_data_record) {
+                    self::checkOptions($child_data_record->fields, $field_uuid, $options_data);
+                }
+            }
+        }
+
+        // Check linked records (calls check record)
+        if(property_exists($record, 'linked_records')) {
+            foreach ($record->linked_records as $child_record) {
+                foreach($child_record->records as $child_data_record) {
+                    self::checkOptions($child_data_record->fields, $field_uuid, $options_data);
+                }
+            }
+        }
+    }
+
+    function checkOptions($record_fields, $field_uuid, &$options_data) {
+        foreach($record_fields as $field) {
+            // We are only checking option fields
+            if(
+                $field->template_field_uuid == $field_uuid
+                && property_exists($field, 'value')
+                && is_array($field->value)
+            ) {
+                foreach($field->value as $option_id => $option) {
+                    foreach($option as $key => $selected_option) {
+                        if (preg_match("/\s\&gt;\s/", $selected_option->name)) {
+                            // We need to split and process
+                            $option_data = preg_split("/\s\&gt;\s/", $selected_option->name);
+                            for ($i = 0; $i < count($option_data); $i++) {
+                                if ($i == 0) {
+                                    if (!isset($options_data[$option_data[0]])) {
+                                        $options_data[$option_data[0]] = array(
+                                            'count' => 0,
+                                        );
+                                    }
+                                    $options_data[$option_data[0]]['count']++;
+                                    if(count($option_data) == 1) {
+                                        $options_data[$option_data[0]]['template_radio_option_uuid'] = $selected_option->template_radio_option_uuid;
+                                    }
+                                }
+                                if ($i == 1) {
+                                    if (!isset($options_data[$option_data[0]][$option_data[1]])) {
+                                        $options_data[$option_data[0]][$option_data[1]] = array(
+                                            'count' => 0,
+                                        );
+                                    }
+                                    $options_data[$option_data[0]][$option_data[1]]['count']++;
+                                    if(count($option_data) == 2) {
+                                        $options_data[$option_data[0]][$option_data[1]]['template_radio_option_uuid'] = $selected_option->template_radio_option_uuid;
+                                    }
+                                }
+                                if ($i == 2) {
+                                    if (!isset($options_data[$option_data[0]][$option_data[1]][$option_data[2]])) {
+                                        $options_data[$option_data[0]][$option_data[1]][$option_data[2]] = array(
+                                            'count' => 0,
+                                        );
+                                    }
+                                    $options_data[$option_data[0]][$option_data[1]][$option_data[2]]['count']++;
+                                    if(count($option_data) == 3) {
+                                        $options_data[$option_data[0]][$option_data[1]][$option_data[2]]['template_radio_option_uuid'] = $selected_option->template_radio_option_uuid;
+                                    }
+                                }
+                                if ($i == 3) {
+                                    if (!isset($options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]])) {
+                                        $options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]] = array(
+                                            'count' => 0,
+                                        );
+                                    }
+                                    $options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]]['count']++;
+                                    if(count($option_data) == 4) {
+                                        $options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]]['template_radio_option_uuid'] = $selected_option->template_radio_option_uuid;
+                                    }
+                                }
+                                if ($i == 4) {
+                                    if (!isset($options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]][$option_data[4]])) {
+                                        $options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]][$option_data[4]] = array(
+                                            'count' => 0,
+                                        );
+                                    }
+                                    $options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]][$option_data[4]]['count']++;
+                                    if(count($option_data) == 5) {
+                                        $options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]][$option_data[4]]['template_radio_option_uuid'] = $selected_option->template_radio_option_uuid;
+                                    }
+                                }
+                                if ($i == 5) {
+                                    if (!isset($options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]][$option_data[4]][$option_data[5]])) {
+                                        $options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]][$option_data[4]][$option_data[5]] = array(
+                                            'count' => 0,
+                                        );
+                                    }
+                                    $options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]][$option_data[4]][$option_data[5]]['count']++;
+                                    if(count($option_data) == 6) {
+                                        $options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]][$option_data[4]][$option_data[5]]['template_radio_option_uuid'] = $selected_option->template_radio_option_uuid;
+                                    }
+                                }
+                                if ($i == 6) {
+                                    if (!isset($options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]][$option_data[4]][$option_data[5]][$option_data[6]])) {
+                                        $options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]][$option_data[4]][$option_data[5]][$option_data[6]] = array(
+                                            'count' => 0,
+                                        );
+                                    }
+                                    $options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]][$option_data[4]][$option_data[5]][$option_data[6]]['count']++;
+                                    if(count($option_data) == 7) {
+                                        $options_data[$option_data[0]][$option_data[1]][$option_data[2]][$option_data[3]][$option_data[4]][$option_data[5]][$option_data[6]]['template_radio_option_uuid'] = $selected_option->template_radio_option_uuid;
+                                    }
+                                }
+                            }
+                        } else {
+                            if (!isset($options_data[$selected_option->name])) {
+                                $options_data[$selected_option->name] = array(
+                                    'count' => 0,
+                                );
+                            }
+                            $options_data[$selected_option->name]['count']++;
+                            $options_data[$selected_option->name]['template_radio_option_uuid'] = $selected_option->template_radio_option_uuid;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     function sortRecords($records, $sort_array) {
         $flattened_array = array();
 
