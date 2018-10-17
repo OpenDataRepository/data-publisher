@@ -222,50 +222,30 @@ class SearchAPIService
 
 
     /**
-     * Runs a search specified by the given $search_key.  The contents of the search key are silently
-     * tweaked based on the user's permissions.
+     * Runs a search specified by the given $search_key.  The contents of the search key are
+     * silently tweaked based on the user's permissions.
      *
      * @param DataType $datatype
      * @param string $search_key
-     * @param array $user_permissions The permissions of the user doing the search, or an empty
-     *                                array when not logged in
+     * @param array $user_permissions     The permissions of the user doing the search, or an empty
+     *                                    array when not logged in
+     * @param int $sort_df_id             The id of the datafield to sort by, or 0 to sort by
+     *                                    whatever is default for the datatype
+     * @param bool $sort_ascending        If true, sort ascending...if false, sort descending
+     *                                    instead
      * @param bool $search_as_super_admin If true, don't filter anything by permissions
      *
      * @return array
      */
-    public function performSearch($datatype, $search_key, $user_permissions, $search_as_super_admin = false)
+    public function performSearch($datatype, $search_key, $user_permissions, $sort_df_id = 0, $sort_ascending = true, $search_as_super_admin = false)
     {
-
-$debug = false;
-//$debug = true;
-$start_time = microtime(true);
-$function_start_time = microtime(true);
-
         // ----------------------------------------
         // Convert the search key into a format suitable for searching
         $searchable_datafields = self::getSearchableDatafieldsForUser($datatype->getId(), $user_permissions, $search_as_super_admin);
-
-if ($debug) {
-    print '<pre>';
-    print 'getSearchableDatafieldsForUser(): '.((microtime(true) - $start_time) * 1000)."ms\n";
-    $start_time = microtime(true);
-}
-
-        $criteria = $this->search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields);    // TODO - empty search criteria
-
-if ($debug) {
-    print 'convertSearchKeyToCriteria(): '.((microtime(true) - $start_time) * 1000)."ms\n";
-    print_r($criteria);
-    $start_time = microtime(true);
-}
+        $criteria = $this->search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields);
 
         // Need to grab hydrated versions of the datafields/datatypes being searched on
         $hydrated_entities = self::hydrateCriteria($criteria);
-
-if ($debug) {
-    print 'hydrateCriteria(): '.((microtime(true) - $start_time) * 1000)."ms\n";
-    $start_time = microtime(true);
-}
 
         // Each datatype being searched on (or the datatype of a datafield being search on) needs
         //  to be initialized to "-1" (does not match) before the results of each facet search
@@ -275,16 +255,6 @@ if ($debug) {
 
         // Also don't want the list of all datatypes anymore either
         unset( $criteria['all_datatypes'] );
-
-
-
-        // TODO - asdf...this kinda needs to be in here somewhere/somehow, but there doesn't seem to be any good place for it
-        // The conversion to criteria filtered out everything the user isn't allowed to see, and
-        //  as such the search that's actually being run may be different than what was passed in
-//        $filtered_search_key = $criteria['filtered_search_key'];
-//        unset( $criteria['filtered_search_key'] );
-
-
 
 
         // ----------------------------------------
@@ -297,10 +267,6 @@ if ($debug) {
         $flattened_list = $search_arrays['flattened'];
         $inflated_list = $search_arrays['inflated'];
 
-if ($debug) {
-    print 'getSearchArrays(): '.((microtime(true) - $start_time) * 1000)."ms\n";
-    $start_time = microtime(true);
-}
 
         // Need to keep track of the result list for each facet separately...they end up merged
         //  together after all facets are searched on
@@ -397,11 +363,6 @@ if ($debug) {
                 $final_dr_list = array_intersect_key($final_dr_list, $dr_list);
         }
 
-if ($debug) {
-    print 'initial search: '.((microtime(true) - $start_time) * 1000)."ms\n";
-    $start_time = microtime(true);
-}
-
         // Need to transfer the values from $facet_dr_list into $flattened_list...
         if ( !is_null($final_dr_list) ) {
             foreach ($final_dr_list as $dr_id => $num) {
@@ -410,20 +371,19 @@ if ($debug) {
                     $flattened_list[$dr_id] = 1;
             }
         }
+        else if ( count($criteria) === 0 ) {
+            // If a search was run without criteria, then everything that the user can see
+            //  matches the search
+            foreach ($flattened_list as $dr_id => $num) {
+                if ($num >= -1)
+                    $flattened_list[$dr_id] = 1;
+            }
+        }
 
-if ($debug) {
-    print '$final_dr_list: '.((microtime(true) - $start_time) * 1000)."ms\n";
-    $start_time = microtime(true);
-}
 
         // ----------------------------------------
         // Need to transfer the values from $flattened_list into the tree structure of $inflated_list
         self::mergeSearchArrays($flattened_list, $inflated_list);
-
-if ($debug) {
-    print 'mergeSearchArrays(): '.((microtime(true) - $start_time) * 1000)."ms\n";
-    $start_time = microtime(true);
-}
 
         // Traverse $inflated_list to get the final set of datarecords that match the search
         $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list);
@@ -437,31 +397,24 @@ if ($debug) {
                 $grandparent_ids[] = $gp_id;
         }
 
-if ($debug) {
-    print 'getMatchingDatarecords(): '.((microtime(true) - $start_time) * 1000)."ms\n";
-//$start_time = microtime(true);
-    print 'entire function took '.((microtime(true) - $function_start_time) * 1000)."ms\n\n";
-}
 
-        $sorted_datarecord_list = $this->dti_service->getSortedDatarecordList($datatype->getId(), implode(',', $grandparent_ids));
-        $sorted_datarecord_list = implode(',', array_keys($sorted_datarecord_list));
+        // Sort the resulting array
+        $sorted_datarecord_list = array();
+        if ($sort_df_id === 0)
+            $sorted_datarecord_list = $this->dti_service->getSortedDatarecordList($datatype->getId(), implode(',', $grandparent_ids));
+        else
+            $sorted_datarecord_list = $this->dti_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, implode(',', $grandparent_ids));
+
+        // Convert from ($dr_id => $sort_value) into ($num => $dr_id)
+        $sorted_datarecord_list = array_keys($sorted_datarecord_list);
+
 
         // ----------------------------------------
-        // Save/return the end result TODO - figure out final configuration of array
+        // Save/return the end result
         $search_result = array(
-            'complete_datarecord_list' => implode(',', $datarecord_ids),
+            'complete_datarecord_list' => $datarecord_ids,
             'grandparent_datarecord_list' => $sorted_datarecord_list,
-
-//            'filtered_search_key' => $filtered_search_key,
-
-            'grandparent_count' => count($grandparent_ids),
-            'complete_count' => count($datarecord_ids),
         );
-
-if ($debug) {
-    print print_r($search_result, true);
-    print '</pre>';
-}
 
         // There's not really any need or point to caching the end result
         return $search_result;
@@ -662,9 +615,6 @@ if ($debug) {
             )
         );
 
-$debug = false;
-//$debug = true;
-$start_time = microtime(true);
 
         // ----------------------------------------
         foreach ($permissions_array as $dt_id => $permissions) {
@@ -682,10 +632,6 @@ $start_time = microtime(true);
             // Attempt to load this datatype's datarecords and their parents from the cache...
             $list = $this->search_service->getCachedSearchDatarecordList($dt_id);
 
-if ($debug) {
-    print ' -- getSearchArrays(), dt_id '.$dt_id.' getCachedSearchDatarecordList(): '.((microtime(true) - $start_time) * 1000)."ms\n";
-    $start_time = microtime(true);
-}
 
             // Storing the datarecord ids in the flattened list is easy...
             foreach ($list as $dr_id => $value) {
@@ -697,10 +643,6 @@ if ($debug) {
                     $flattened_list[$dr_id] = 0;
             }
 
-if ($debug) {
-    print ' -- getSearchArrays(), dt_id '.$dt_id.' flattened: '.((microtime(true) - $start_time) * 1000)."ms\n";
-    $start_time = microtime(true);
-}
 
             // Inserting into $inflated_list depends on what type of datatype this is...
             // @see self::buildDatarecordTree() for the eventual structure
@@ -734,11 +676,6 @@ if ($debug) {
                     }
                 }
             }
-
-if ($debug) {
-    print ' -- getSearchArrays(), dt_id '.$dt_id.' initial inflated: '.((microtime(true) - $start_time) * 1000)."ms\n";
-    $start_time = microtime(true);
-}
         }
 
 
@@ -748,10 +685,6 @@ if ($debug) {
 
         // Actually inflate the "inflated" list...
         $inflated_list = self::buildDatarecordTree($inflated_list, 0);
-
-if ($debug) {
-    print ' -- getSearchArrays(), dt_id '.$dt_id.' final inflated: '.((microtime(true) - $start_time) * 1000)."ms\n";
-}
 
         // ...and then return the end result
         return array(
@@ -834,8 +767,6 @@ if ($debug) {
      * Recursively traverses the datarecord tree and deletes all datarecords that either didn't
      * match the search that was just run, or were excluded because the user can't see them.
      *
-     * TODO - explain why there's four different values in $flattened_list
-     *
      * @param array $flattened_list
      * @param array $inflated_list
      */
@@ -861,12 +792,16 @@ if ($debug) {
                             break;
                         }
                         else {
-                            //
+                            // At least one of the child datarecords of this child datatype have a
+                            //  value other than -1...so whether this datarecord ends up matching
+                            //  or not depends on other factors
                             $votes[$child_dt_id] = $vote;
                         }
                     }
 
-                    //
+                    // This datarecord wasn't excluded due to its children not matching...but in
+                    //  order to actually match the search, at least one of its children must have
+                    //  matched the search
                     foreach ($votes as $child_dt_id => $vote) {
                         if ($vote === 1) {
                             $flattened_list[$dr_id] = 1;
@@ -880,7 +815,24 @@ if ($debug) {
 
 
     /**
-     * TODO -
+     * After searching is done, $flattened_list will be in a ($dr_id => $vote) format.  There are
+     * four possible values for $vote...
+     *
+     * -2: This datarecord is excluded because the user can't view it...this has no effect on
+     *      whether its parent datarecord is included or not, but all of its children are immediately
+     *      excluded
+     * -1: This datarecord did not match the search...this datarecord and its children are excluded
+     *      from the search, and if all datarecords of this datatype also "don't match", then this
+     *      datarecord's parent will be excluded as well
+     *  0: This datarecord was not searched on...it'll be included in the search results if its
+     *      parents aren't excluded somehow, and its grandparent datarecord ends up matching the
+     *      search
+     *  1: This datarecord matched the search...it'll be included in the search results if it's not
+     *      somehow excluded by the negative values overriding it
+     *
+     * -2 is intentionally different from -1...the presence (or lack thereof) of child datarecords
+     * that the user can't view MUST NOT affect whether the parent datarecord in question matches
+     * the search or not.
      *
      * @param array $flattened_list
      * @param array $dr_list
@@ -895,6 +847,7 @@ if ($debug) {
 
             if ( $flattened_list[$dr_id] === -2 ) {
                 // This datarecord is non-public, doesn't matter if it has child datarecords
+                // This is different from
             }
             else if ($flattened_list[$dr_id] === -1 ) {
                 // This datarecord didn't match the search...doesn't matter if it has children
@@ -903,7 +856,7 @@ if ($debug) {
             else {
                 //
                 if ( !is_array($child_dt_list) ) {
-                    // If has no children, then TODO
+                    // If has no children, then this datarecord is included if it matched the search
                     if ( $flattened_list[$dr_id] === 1 )
                         $include = true;
                 }
@@ -920,12 +873,16 @@ if ($debug) {
                             break;
                         }
                         else {
-                            //
+                            // At least one of the child datarecords of this child datatype have a
+                            //  value other than -1...so whether this datarecord ends up matching
+                            //  or not depends on other factors
                             $votes[$child_dt_id] = $vote;
                         }
                     }
 
-                    //
+                    // This datarecord wasn't excluded due to its children not matching...but in
+                    //  order to actually match the search, at least one of its children must have
+                    //  matched the search
                     foreach ($votes as $child_dt_id => $vote) {
                         if ($vote === 1) {
                             $flattened_list[$dr_id] = 1;
@@ -943,7 +900,7 @@ if ($debug) {
             return 1;
         }
         else if ($exclude) {
-            // Either all child datarecords are non-public, or they didn't match the search
+            // All the child datarecords of at least one child datatype didn't match the search
             // Therefore, the parent datarecord should be excluded as well
             return -1;
         }
@@ -955,8 +912,12 @@ if ($debug) {
 
 
     /**
-     * In order to correctly determine which grandparent datarecords match the search, the TODO
+     * In order for a top-level datarecord to match the search being run, the datarecord itself, or
+     * at least one of its child datarecords, must also match the search.
      *
+     * The recursion looks a little strange in order to reduce the number of recursive calls made.
+     *
+     * @param array $flattened_list
      * @param array $inflated_list
      *
      * @return array
@@ -986,10 +947,13 @@ if ($debug) {
 
 
     /**
-     * TODO -
+     * This just recursively relays whether any of this datarecord's child datarecords ended up
+     * matching the search.
+     *
+     * The recursion looks a little strange in order to reduce the number of recursive calls made.
      *
      * @param array $flattened_list
-     * @param array $child_dt_list
+     * @param array $dt_list
      *
      * @return array
      */

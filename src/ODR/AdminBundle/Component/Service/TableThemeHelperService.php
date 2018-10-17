@@ -241,6 +241,7 @@ class TableThemeHelperService
                 unset( $theme_array[$t_id] );
         }
 
+
         // Filter out everything the user isn't allowed to view
         $user_permissions = $this->pm_service->getUserPermissionsArray($user);
         $datatype_permissions = $this->pm_service->getDatatypePermissions($user);
@@ -266,34 +267,28 @@ class TableThemeHelperService
 
         // ----------------------------------------
         // Build an array of valid datafields
-        $datafield_ids = array();
-        foreach ($theme_array[$theme_id]['themeElements'] as $te_num => $te) {
-            // Ignore hidden themeElements
-            if ( $te['themeElementMeta']['hidden'] == 1 )
-                continue;
+        $datafield_ids = self::getValidDatafields($theme_array, $theme_id, $datatype_array, $datatype_id);
+        if ( empty($datafield_ids) ) {
+            // ...if the original theme didn't have visible datafields, attempt to fallback to the
+            //  datatype's master theme
+            $master_theme = $this->theme_service->getDatatypeMasterTheme($datatype_id);
+            $master_theme_id = $master_theme->getId();
 
-            if ( isset($te['themeDataFields']) ) {
-                foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                    $df_id = $tdf['dataField']['id'];
-
-                    // If the data in the datafield still exists after filtering...
-                    if ( isset($datatype_array[$datatype_id]['dataFields'][$df_id]) ) {
-                        $df = $datatype_array[$datatype_id]['dataFields'][$df_id];
-
-                        // ...and the datafield isn't "hidden" for this theme...
-                        if ( $tdf['hidden'] == 1 )
-                            continue;
-
-                        // ...and the field's type name is on the list of valid fieldtypes...
-                        $typename = $df['dataFieldMeta']['fieldType']['typeName'];
-                        if ( !in_array($typename, $this->valid_fieldtypes) )
-                            continue;
-
-                        // ...then store the datafield id
-                        $datafield_ids[] = $df_id;
-                    }
-                }
+            // Like before, don't want any themes for child datatypes in the array
+            $theme_array = $this->theme_service->getThemeArray($master_theme_id);
+            foreach ($theme_array as $t_id => $t) {
+                if ($master_theme_id !== $t_id)
+                    unset( $theme_array[$t_id] );
             }
+
+            // Attempt to get valid datafields off the master theme...
+            $datafield_ids = self::getValidDatafields($theme_array, $master_theme_id, $datatype_array, $datatype_id);
+
+            // TODO - fix other areas of ODR to prevent this from happening somehow?
+            // ...but if there's STILL no visible datafields leftover, then throw an error to
+            //  prevent ODR from claiming that nothing matched the search
+            if ( empty($datafield_ids) )
+                throw new ODRException('No Datafields are visible', 500, 0x7e562032);
         }
 
 
@@ -474,6 +469,52 @@ class TableThemeHelperService
         // Save and return the cached version of the data
         $this->cache_service->set('cached_table_data_'.$datarecord_id, $data);
         return $data;
+    }
+
+
+    /**
+     * Extracted from getRowData() in an attempt to permit better recovery from errors...
+     *
+     * @param array $theme_array
+     * @param int $theme_id
+     * @param array $datatype_array
+     * @param int $datatype_id
+     *
+     * @return array
+     */
+    private function getValidDatafields($theme_array, $theme_id, $datatype_array, $datatype_id)
+    {
+        $datafield_ids = array();
+        foreach ($theme_array[$theme_id]['themeElements'] as $te_num => $te) {
+            // Ignore hidden themeElements
+            if ( $te['themeElementMeta']['hidden'] == 1 )
+                continue;
+
+            if ( isset($te['themeDataFields']) ) {
+                foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                    $df_id = $tdf['dataField']['id'];
+
+                    // If the data in the datafield still exists after filtering...
+                    if ( isset($datatype_array[$datatype_id]['dataFields'][$df_id]) ) {
+                        $df = $datatype_array[$datatype_id]['dataFields'][$df_id];
+
+                        // ...and the datafield isn't "hidden" for this theme...
+                        if ( $tdf['hidden'] == 1 )
+                            continue;
+
+                        // ...and the field's type name is on the list of valid fieldtypes...
+                        $typename = $df['dataFieldMeta']['fieldType']['typeName'];
+                        if ( !in_array($typename, $this->valid_fieldtypes) )
+                            continue;
+
+                        // ...then store the datafield id
+                        $datafield_ids[] = $df_id;
+                    }
+                }
+            }
+        }
+
+        return $datafield_ids;
     }
 
 

@@ -20,7 +20,6 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 // Symfony
@@ -41,6 +40,11 @@ class SearchCacheService
     private $cache_service;
 
     /**
+     * @var SearchService
+     */
+    private $search_service;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -50,149 +54,102 @@ class SearchCacheService
      * SearchCacheService constructor.
      *
      * @param EntityManager $entityManager
-     * @param CacheService $cache_service
+     * @param CacheService $cacheService
+     * @param SearchService $searchService
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entityManager,
-        CacheService $cache_service,
+        CacheService $cacheService,
+        SearchService $searchService,
         Logger $logger
     )
     {
         $this->em = $entityManager;
-        $this->cache_service = $cache_service;
+        $this->cache_service = $cacheService;
+        $this->search_service = $searchService;
         $this->logger = $logger;
     }
 
 
-    /**
-     * @deprecated use SearchKeyService::encodeSearchKey()
-     * Converts an array of search parameters into a url-safe base64 string.
-     *
-     * @param array $search_params
-     *
-     * @return string
-     */
-    public function encodeSearchKey($search_params)
-    {
-        // Always sort the array to ensure it comes out the same
-        ksort($search_params);
-        // Encode the search string and strip any padding characters at the end
-        $encoded = rtrim( base64_encode(json_encode($search_params)), '=' );
+    // TODO - no real need to clear search cache entries on datatype create?  None of the cache entries would exist beforehand...
 
-        // Replace all occurrences of the '+' character with '-', and the '/' character with '_'
-        return strtr($encoded, '+/', '-_');
-    }
+    // Don't need an onDatatypeModify() function...at the moment, none of the properties of a
+    //  datatype, other than public status, have any effect on the results of a search
 
 
     /**
-     * @deprecated use SearchKeyService::decodeSearchKey()
-     * Converts a search key back into an array of search parameters.
+     * Most likely, 'cached_search_dt_'.$dt_id.'_dr_parents' is the only entry that would need
+     * deleting, and then only when linked datatypes are involved...but being thorough won't hurt.
      *
-     * @param string $search_key
-     *
-     * @return array
+     * @param DataType $datatype
      */
-    public function decodeSearchKey($search_key)
+    public function onDatatypeDelete($datatype)
     {
-        // Replace all occurrences of the '-' character with '+', and the '_' character with '/'
-        $decoded = base64_decode( strtr($search_key, '-_', '+/') );
+        $related_datatypes = $this->search_service->getRelatedDatatypes($datatype->getGrandparent()->getId());
 
-        // Return an array instead of an object
-        $array = json_decode($decoded, true);
-        ksort($array);
-        if ( is_null($array) )
-            throw new ODRException('Invalid JSON', 400, 0x6e1c96a1);
-        else
-            return $array;
-    }
+        foreach ($related_datatypes as $num => $dt_id) {
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_datafields');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
 
-
-    /**
-     * Deletes all search results that have been cached for the given datatype.  Usually needed
-     * when sweeping changes are made to the datatype...imports, mass updates, datatype deletions.
-     *
-     * Also currently used in places such as creating/deleting/mass updating datarecords.  These
-     * kinds of changes (among others) would require parsing the criteria for each search to
-     * accurately determine which cached search results to delete...this is too irritating to do
-     * without a proper filtering search system.
-     *
-     * @param int $datatype_id
-     */
-    public function clearByDatatypeId($datatype_id)
-    {
-        // Get all cached search results
-        $cached_searches = $this->cache_service->get('cached_search_results');
-
-        // If this datatype has cached search results, delete them
-        if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
-            unset ( $cached_searches[$datatype_id] );
-            $this->cache_service->set('cached_search_results', $cached_searches);
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_created');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_createdBy');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modified');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modifiedBy');
         }
-    }
 
 
-    /**
-     * Deletes all cached search results that involve the given datafield.  Usually needed after
-     * some change is made to the contents of a datafield, or public status for files/images gets
-     * changed.
-     *
-     * @param int $datafield_id
-     */
-    public function clearByDatafieldId($datafield_id)
-    {
-        // Get all cached search results
-        $cached_searches = $this->cache_service->get('cached_search_results');
+        // ----------------------------------------
+        // Delete all cached search entries for all datafields of these datatypes
+        $query = $this->em->createQuery(
+           'SELECT df.id
+            FROM ODRAdminBundle:DataFields AS df
+            WHERE df.dataType IN (:datatype_ids)
+            AND df.deletedAt IS NULL'
+        )->setParameters( array('datatype_ids' => $related_datatypes) );
+        $results = $query->getArrayResult();
 
-        if ($cached_searches === false)
-            return;
-
-        foreach ($cached_searches as $dt_id => $dt) {
-            foreach ($dt as $search_checksum => $search_data) {
-                $searched_datafields = $search_data['searched_datafields'];
-                $searched_datafields = explode(',', $searched_datafields);
-
-                if ( in_array($datafield_id, $searched_datafields) )
-                    unset( $cached_searches[$dt_id][$search_checksum] );
+        if ( is_array($results) ) {
+            foreach ($results as $result) {
+                $this->cache_service->delete('cached_search_df_'.$result['id']);
+                $this->cache_service->delete('cached_search_df_'.$result['id'].'_ordering');
             }
         }
 
-        // Save any remaining cached search results
-        $this->cache_service->set('cached_search_results', $cached_searches);
-    }
+        // Delete all cached search entries for all radio options in these datatypes
+        $query = $this->em->createQuery(
+           'SELECT ro.id
+            FROM ODRAdminBundle:RadioOptions AS ro
+            JOIN ODRAdminBundle:DataFields AS df WITH ro.dataField = df
+            WHERE df.dataType IN (:datatype_ids)
+            AND ro.deletedAt IS NULL AND df.deletedAt IS NULL'
+        )->setParameters( array('datatype_ids' => $related_datatypes) );
+        $results = $query->getArrayResult();
 
-
-    /**
-     * @deprecated
-     */
-    public function clearByDatarecordId()
-    {
-        throw new ODRNotImplementedException();
-
-        // See if any cached search results need to be deleted...
-        $cached_searches = $this->cache_service->get('cached_search_results');
-
-        if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
-            // Delete all cached search results for this datatype that contained this now-deleted datarecord
-            foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
-                $datarecord_list = explode(',', $search_data['datarecord_list']['all']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
-                if ( in_array($datarecord_id, $datarecord_list) )
-                    unset ( $cached_searches[$datatype_id][$search_checksum] );
-            }
-
-            // Save the collection of cached searches back to memcached
-            $this->cache_service->set('cached_search_results', $cached_searches);
+        if ( is_array($results) ) {
+            foreach ($results as $result)
+                $this->cache_service->delete('cached_search_ro_'.$result['id']);
         }
     }
 
 
+    /**
+     * There's no telling exactly what happens when a CSV Import is run on a datatype, so a whole
+     * pile of search cache entries should be deleted upon completion.
+     *
+     * @param DataType $datatype
+     */
+    public function onDatatypeImport($datatype)
+    {
+        // Both deletion of a datatype and importing into a datatype typically require deletion of
+        //  every single search cache entry that is related to a datatype
+        self::onDatatypeDelete($datatype);
 
-    // ----------------------------------------
-    // ----------------------------------------
-    // ----------------------------------------
-
-
-    // No real need to clear search cache entries on datatype create/modify/delete
+        // cached_search_dt_'.$dt_id.'_datafields and 'cached_search_dt_'.$dt_id.'_public_status'
+        //  probably don't need to be deleted, but rebuilding them is fast enough for how
+        //  infrequently this'll be called
+    }
 
 
     /**
@@ -232,6 +189,7 @@ class SearchCacheService
         // While it's technically possible to selectively delete portions of the cached entry, it's
         //  really not worthwhile
         $this->cache_service->delete('cached_search_df_'.$datafield->getId());
+        $this->cache_service->delete('cached_search_df_'.$datafield->getId().'_ordering');
 
         // If the datafield is a radio options datafield, then any change should also delete all of
         //  the cached radio options associated with this datafield
@@ -244,8 +202,10 @@ class SearchCacheService
             )->setParameters( array('datafield_id' => $datafield->getId()) );
             $results = $query->getArrayResult();
 
-            foreach ($results as $result)
-                $this->cache_service->delete('cached_search_ro_'.$result['id']);
+            if ( is_array($results) ) {
+                foreach ($results as $result)
+                    $this->cache_service->delete('cached_search_ro_'.$result['id']);
+            }
         }
     }
 
@@ -312,8 +272,12 @@ class SearchCacheService
         )->setParameters( array('datatype_id' => $datatype->getId()) );
         $results = $query->getArrayResult();
 
-        foreach ($results as $result)
-            $this->cache_service->delete('cached_search_df_'.$result['id']);
+        if ( is_array($results) ) {
+            foreach ($results as $result) {
+                $this->cache_service->delete('cached_search_df_'.$result['id']);
+                $this->cache_service->delete('cached_search_df_'.$result['id'].'_ordering');
+            }
+        }
 
         // Technically only need to delete all "unselected" entries from the cached radio option
         //  entries for this datatype, but it takes as much effort to rebuild the "unselected"
@@ -327,8 +291,10 @@ class SearchCacheService
         )->setParameters( array('datatype_id' => $datatype->getId()) );
         $results = $query->getArrayResult();
 
-        foreach ($results as $result)
-            $this->cache_service->delete('cached_search_ro_'.$result['id']);
+        if ( is_array($results) ) {
+            foreach ($results as $result)
+                $this->cache_service->delete('cached_search_ro_'.$result['id']);
+        }
     }
 
 
@@ -365,25 +331,23 @@ class SearchCacheService
     /**
      * Deletes relevant search cache entries when a datarecord is deleted.
      *
-     * @param DataRecord $datarecord
+     * @param DataType $datatype
      */
-    public function onDatarecordDelete($datarecord)
+    public function onDatarecordDelete($datatype)
     {
-        $datatype = $datarecord->getDataType();
-
         // ----------------------------------------
         // If a datarecord was deleted, then these need to be rebuilt
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_dr_parents');
+        $related_datatypes = $this->search_service->getRelatedDatatypes($datatype->getId());
 
-
-        // ----------------------------------------
-        // Would have to search through each of these entries to see whether they matched the
-        //  deleted datarecord...faster to just wipe all of them
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_created');
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_createdBy');
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_modified');
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_modifiedBy');
-        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_public_status');
+        foreach ($related_datatypes as $num => $dt_id) {
+            // Would have to search through each of these entries to see whether they matched the
+            //  deleted datarecord...faster to just wipe all of them
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_created');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_createdBy');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modified');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modifiedBy');
+        }
 
 
         // ----------------------------------------
@@ -393,13 +357,17 @@ class SearchCacheService
         $query = $this->em->createQuery(
            'SELECT df.id
             FROM ODRAdminBundle:DataFields AS df
-            WHERE df.dataType = :datatype_id
+            WHERE df.dataType IN (:datatype_ids)
             AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_id' => $datatype->getId()) );
+        )->setParameters( array('datatype_ids' => $related_datatypes) );
         $results = $query->getArrayResult();
 
-        foreach ($results as $result)
-            $this->cache_service->delete('cached_search_df_'.$result['id']);
+        if ( is_array($results) ) {
+            foreach ($results as $result) {
+                $this->cache_service->delete('cached_search_df_'.$result['id']);
+                $this->cache_service->delete('cached_search_df_'.$result['id'].'_ordering');
+            }
+        }
 
         // Technically only need to delete all "unselected" entries from the cached radio option
         //  entries for this datatype, but it takes as much effort to rebuild the "unselected"
@@ -408,13 +376,15 @@ class SearchCacheService
            'SELECT ro.id
             FROM ODRAdminBundle:RadioOptions AS ro
             JOIN ODRAdminBundle:DataFields AS df WITH ro.dataField = df
-            WHERE df.dataType = :datatype_id
+            WHERE df.dataType IN (:datatype_ids)
             AND ro.deletedAt IS NULL AND df.deletedAt IS NULL'
-        )->setParameters( array('datatype_id' => $datatype->getId()) );
+        )->setParameters( array('datatype_ids' => $related_datatypes) );
         $results = $query->getArrayResult();
 
-        foreach ($results as $result)
-            $this->cache_service->delete('cached_search_ro_'.$result['id']);
+        if ( is_array($results) ) {
+            foreach ($results as $result)
+                $this->cache_service->delete('cached_search_ro_'.$result['id']);
+        }
     }
 
 

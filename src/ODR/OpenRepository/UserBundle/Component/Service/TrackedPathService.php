@@ -16,8 +16,6 @@
 
 namespace ODR\OpenRepository\UserBundle\Component\Service;
 
-// Services
-use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 // Other
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -30,24 +28,16 @@ class TrackedPathService
      */
     private $requestStack;
 
-    /**
-     * @var ODRTabHelperService
-     */
-    private $tab_helper_service;
-
 
     /**
      * TrackedPathService constructor.
      *
      * @param RequestStack $requestStack
-     * @param ODRTabHelperService $tabHelperService
      */
     public function __construct(
-        RequestStack $requestStack,
-        ODRTabHelperService $tabHelperService
+        RequestStack $requestStack
     ) {
         $this->requestStack = $requestStack;
-        $this->tab_helper_service = $tabHelperService;
     }
 
 
@@ -84,10 +74,5 @@ class TrackedPathService
         //  logging into the site...
         if ( $session->has('session_themes') )
             $session->remove('session_themes');
-
-        // Force an update to the list of datarecords for a search result if the user logs in...
-        //  otherwise, the search headers in Display/Edit mode will continue to only display
-        //  public datarecords...
-        $this->tab_helper_service->clearDatarecordLists();
     }
 }

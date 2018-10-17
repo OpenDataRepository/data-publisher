@@ -21,9 +21,7 @@ use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\LinkedDataTree;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -1657,7 +1655,7 @@ if ($debug)
                         'remote_datatype' => $remote_datatype->getId()
                     )
                 );
-                $results = $query->getResult();
+                $results = $query->getArrayResult();
 
                 foreach ($results as $num => $data) {
                     $descendant_id = $data['descendant_id'];
@@ -1683,7 +1681,7 @@ if ($debug)
                         'remote_datatype' => $remote_datatype->getId()
                     )
                 );
-                $results = $query->getResult();
+                $results = $query->getArrayResult();
 
                 foreach ($results as $num => $data) {
                     $ancestor_id = $data['ancestor_id'];

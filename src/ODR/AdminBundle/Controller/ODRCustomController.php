@@ -215,6 +215,28 @@ class ODRCustomController extends Controller
         $notify_of_sync = self::notifyOfThemeSync($theme, $user);
 
 
+        // -----------------------------------
+        // Determine where on the page to scroll to if possible
+        $scroll_target = '';
+        if ($session->has('scroll_target')) {
+            $scroll_target = $session->get('scroll_target');
+            if ($scroll_target !== '') {
+                // Don't scroll to someplace on the page if the datarecord doesn't match the datatype
+                /** @var DataRecord $datarecord */
+                $datarecord = $repo_datarecord->find($scroll_target);
+                if ( is_null($datarecord)
+                    || $datarecord->getDataType()->getId() != $datatype->getId()
+                    || !in_array($scroll_target, $datarecords)
+                ) {
+                    $scroll_target = '';
+                }
+
+                // Null out the scroll target
+                $session->set('scroll_target', '');
+            }
+        }
+
+
         // ----------------------------------------
         // Grab the tab's id, if it exists
         $params = $request->query->all();
@@ -233,122 +255,81 @@ class ODRCustomController extends Controller
 
 
         // -----------------------------------
-        // Determine where on the page to scroll to if possible
-        $scroll_target = '';
-        if ($session->has('scroll_target')) {
-            $scroll_target = $session->get('scroll_target');
-            if ($scroll_target !== '') {
-                // Don't scroll to someplace on the page if the datarecord doesn't match the datatype
-                /** @var DataRecord $datarecord */
-                $datarecord = $repo_datarecord->find($scroll_target);
-                if ( $datarecord == null || $datarecord->getDataType()->getId() != $datatype->getId() || !in_array($scroll_target, $datarecords) )
-                    $scroll_target = '';
-
-                // Null out the scroll target
-                $session->set('scroll_target', '');
-            }
-        }
-
-        // -----------------------------------
-        // Going to need this later...
+        // Determine whether the user has a restriction on which datarecords they can edit
         $restricted_datarecord_list = $pm_service->getDatarecordRestrictionList($user, $datatype);
-
         $has_search_restriction = false;
         if ( !is_null($restricted_datarecord_list) )
             $has_search_restriction = true;
 
-
-        // Store the list of datarecord ids that the user can view in their session for this tab
-        // TODO - move this into the tab helper service once searching is a service
-        $viewable_datarecord_list = implode(',', $datarecords);
-        if ( is_null($odr_tab_service->getViewableDatarecordList($odr_tab_id)) ) {
-            $odr_tab_service->setViewableDatarecordList($odr_tab_id, $viewable_datarecord_list);
-
-            // Since searching isn't filtered (yet)...
-            if ( is_null($datatype->getSortField()) ) {
-                // ...this datarecord list is currently ordered by id
-                $odr_tab_service->setSortCriteria($odr_tab_id, 0, 'ASC');
-            }
-            else {
-                // ...this datarecord list is ordered by whatever the sort datafield for this datatype is
-                $odr_tab_service->setSortCriteria($odr_tab_id, $datatype->getSortField()->getId(), 'ASC');
-            }
-        }
-
-        if ( !$pm_service->canEditDatatype($user, $datatype) ) {
-            // If user can't edit the datatype, then store that they can't edit any datarecords
-            $odr_tab_service->setEditableDatarecordList($odr_tab_id, array());
-        }
-        else if ( is_null($odr_tab_service->getEditableDatarecordList($odr_tab_id)) ) {
-            if ( !is_null($restricted_datarecord_list) ) {
-                // Ensure the restricted list is sorted
-                $dr_list = $dti_service->getSortedDatarecordList($datatype->getId(), $restricted_datarecord_list);
-
-                // At the point, $datarecords is a $num => $dr_id array of what matches search result
-                // $dr_list is a $dr_id => $sort_value array of the datarecords the user can edit
-
-                // Need to compute and store the intersection of those two arrays
-                foreach ($datarecords as $num => $dr_id) {
-                    if ( !isset($dr_list[$dr_id]) )
-                        unset( $datarecords[$num] );
-                }
-                $dr_list = implode(',', $datarecords);
-
-                // $dr_list is now the list of datarecords matchnig this search that the user can edit
-                $odr_tab_service->setEditableDatarecordList($odr_tab_id, $dr_list);
-            }
-            else
-                $odr_tab_service->setEditableDatarecordList($odr_tab_id, $viewable_datarecord_list);
-        }
-
-
-        // -----------------------------------
         // Determine whether the user wants to only display datarecords they can edit
         $cookies = $request->cookies;
         $only_display_editable_datarecords = true;
         if ( $cookies->has('datatype_'.$datatype->getId().'_editable_only') )
             $only_display_editable_datarecords = $cookies->get('datatype_'.$datatype->getId().'_editable_only');
 
+
         // If a datarecord restriction exists, and the user only wants to display editable datarecords...
         $editable_only = false;
         if ( $can_edit_datatype && !is_null($restricted_datarecord_list) && $only_display_editable_datarecords )
             $editable_only = true;
 
-        // Determine the correct list of datarecords to use for rendering
-        $datarecord_list = array();
-        if ($can_edit_datatype && $editable_only)
-            $datarecord_list = $odr_tab_service->getEditableDatarecordList($odr_tab_id);
-        else
-            $datarecord_list = $odr_tab_service->getViewableDatarecordList($odr_tab_id);
-        $datarecord_list = explode(',', $datarecord_list);
+
+        // Determine the correct lists of datarecords to use for rendering...
+        $original_datarecord_list = array();
+        // The editable list needs to be in ($dr_id => $num) format for twig
+        $editable_datarecord_list = array();
+        if ($can_edit_datatype) {
+            if (!$has_search_restriction) {
+                // ...user doesn't have a restriction list, so the editable list is the same as the
+                //  viewable list
+                $original_datarecord_list = $datarecords;
+                $editable_datarecord_list = array_flip($datarecords);
+            }
+            else if (!$editable_only) {
+                // ...user has a restriction list, but wants to see all datarecords that match the
+                //  search
+                $original_datarecord_list = $datarecords;
+
+                // Doesn't matter if the editable list of datarecords has more than the
+                //  viewable list of datarecords
+                $editable_datarecord_list = array_flip($restricted_datarecord_list);
+            }
+            else {
+                // ...user has a restriction list, and only wants to see the datarecords they are
+                //  allowed to edit
+
+                // array_flip() + isset() is orders of magnitude faster than repeated calls to in_array()
+                $editable_datarecord_list = array_flip($restricted_datarecord_list);
+                foreach ($datarecords as $num => $dr_id) {
+                    if (!isset($editable_datarecord_list[$dr_id]))
+                        unset($datarecords[$num]);
+                }
+
+                // Both the viewable and the editable lists are based off the intersection of the
+                //  search results and the restriction list
+                $original_datarecord_list = array_values($datarecords);
+                $editable_datarecord_list = array_flip($original_datarecord_list);
+            }
+        }
+        else {
+            // ...otherwise, just use the list of datarecords that was passed in
+            $original_datarecord_list = $datarecords;
+
+            // User can't edit anything in the datatype, leave the editable datarecord list empty
+        }
 
 
-        // Exploding an empty string results in a nearly empty array...
-        if ( isset($datarecord_list[0]) && $datarecord_list[0] === '' )
-            $datarecord_list = array();
-
+        // -----------------------------------
         // Ensure offset exists for shortresults list
         $offset = intval($offset);
-        if ( (($offset-1) * $page_length) > count($datarecord_list) )
+        if ( (($offset-1) * $page_length) > count($original_datarecord_list) )
             $offset = 1;
 
         // Reduce datarecord_list to just the list that will get rendered
         $start = ($offset-1) * $page_length;
-        $datarecord_list = array_slice($datarecord_list, $start, $page_length);
+        $datarecord_list = array_slice($original_datarecord_list, $start, $page_length);
 
-
-        // -----------------------------------
-        // Convert the list of editable datarecords into a $dr_id => $num format if it exists
-        $editable_datarecord_list = $odr_tab_service->getEditableDatarecordList($odr_tab_id);
-        if ( !is_null($editable_datarecord_list) && $editable_datarecord_list !== '' ) {
-            $editable_datarecord_list = explode(',', $editable_datarecord_list);
-            $editable_datarecord_list = array_flip($editable_datarecord_list);
-        }
-        else {
-            // Convert empty string into array for twig purposes
-            $editable_datarecord_list = array();
-        }
-
+        //
         $has_datarecords = true;
         if ( empty($datarecord_list) )
             $has_datarecords = false;
@@ -357,7 +338,7 @@ class ODRCustomController extends Controller
         // -----------------------------------
         $final_html = '';
         // All theme types other than table
-        if($intent === "linking_ajax") {
+        if ($intent === "linking_ajax") {
             // TODO Build field order array for view....
             // ----------------------------------------
             // Grab the cached versions of all of the datarecords, and store them all at the same level in a single array
@@ -397,7 +378,7 @@ class ODRCustomController extends Controller
         else if ( $theme->getThemeType() != 'table' ) {
             // -----------------------------------
             // Build the pagination header from the correct list of datarecords
-            $pagination_values = $odr_tab_service->getPaginationHeaderValues($odr_tab_id, $offset, $editable_only);
+            $pagination_values = $odr_tab_service->getPaginationHeaderValues($odr_tab_id, $offset, $original_datarecord_list);
 
             // Build the html required for the pagination header
             $pagination_html = '';
@@ -504,6 +485,7 @@ class ODRCustomController extends Controller
             $num_columns = $column_data['num_columns'];
 
             // Don't render the starting textresults list here, it'll always be loaded via ajax later
+            // TODO - this doubles the initial workload for a table page...is there a way to get the table plugin to not run the first load via ajax?
 
             // -----------------------------------
             //
@@ -549,166 +531,6 @@ class ODRCustomController extends Controller
         }
 
         return $final_html;
-    }
-
-
-    /**
-     * Get (or create) a list of datarecords returned by searching on the given search key
-     * TODO - move this into some sort of "searching service"?
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user
-     * @param array $datatype_permissions
-     * @param array $datafield_permissions
-     * @param integer $datatype_id
-     * @param string $search_key
-     * @param Request $request
-     *
-     * @throws \Exception
-     *
-     * @return array
-     */
-    public function getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype_id, $search_key, Request $request)
-    {
-        /** @var CacheService $cache_service*/
-        $cache_service = $this->container->get('odr.cache_service');
-        /** @var ODRTabHelperService $odr_tab_service */
-        $odr_tab_service = $this->container->get('odr.tab_helper_service');
-        /** @var SearchCacheService $search_cache_service */
-        $search_cache_service = $this->container->get('odr.search_cache_service');
-
-        // ----------------------------------------
-        // Going to need the search controller for determining whether $search_key is valid or not
-        /** @var SearchController $search_controller */
-        $search_controller = $this->get('odr_search_controller', $request);
-        $search_controller->setContainer($this->container);
-
-        $search_params = $search_cache_service->decodeSearchKey($search_key);
-        // Reorder the search key for redirect check
-        $search_key_check = $search_cache_service->encodeSearchKey($search_params);
-
-        // Use the permissions of the currently logged in user
-        $search_as_super_admin = false;
-
-        // Determine whether the search key needs to be filtered based on the user's permissions
-        $datafield_array = $search_controller->getSearchDatafieldsForUser(
-            $em,
-            $datatype_id,
-            $search_as_super_admin,
-            $datatype_permissions,
-            $datafield_permissions
-        );
-        $search_controller->buildSearchArray(
-            $search_params,
-            $datafield_array,
-            $search_as_super_admin,
-            $datatype_permissions
-        );
-
-        if ( $search_key_check !== $datafield_array['filtered_search_key'] )
-            return array('redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key'], 'datarecord_list' => '');
-
-        // TODO - can't use permissions service here because don't have an actual datarecord...
-        $can_view_datarecord = false;
-        if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
-            $can_view_datarecord = true;
-
-        // ----------------------------------------
-        // Otherwise, the search_key is fine...check to see if a cached version exists
-        $search_checksum = md5($search_key_check);
-
-        // Attempt to load the search result for this search_key
-        $data = array();
-        $cached_searches = $cache_service->get('cached_search_results');
-        if ( $cached_searches == false
-            || !isset($cached_searches[$datatype_id])
-            || !isset($cached_searches[$datatype_id][$search_checksum]) ) {
-
-            // Saved search doesn't exist, redo the search and reload the results
-            $ret = $search_controller->performSearch($search_params);
-            if ($ret['error'] == true)
-                throw new \Exception( $ret['message'] );
-            else if ($ret['redirect'] == true)
-                return array('redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key'], 'datarecord_list' => '');
-
-            $cached_searches = $cache_service->get('cached_search_results');
-
-            // If the cached search results needs to be rebuilt, the lists of datarecords stored in
-            //  the user's session should also be rebuilt
-            $params = $request->query->all();
-            if ( isset($params['odr_tab_id']) ) {
-                $odr_tab_id = $params['odr_tab_id'];
-                $odr_tab_service->clearDatarecordLists($odr_tab_id);
-            }
-        }
-
-        // ----------------------------------------
-        // Now that the search result is guaranteed to exist, grab it
-        $cached_search_params = $cached_searches[$datatype_id][$search_checksum];
-        if ( is_null($cached_search_params) )
-            throw new ODRException('Search was run, but result not found in cache', 500, 0x3da651a2);
-
-        // Pull the individual pieces of info out of the search results
-        $data['redirect'] = false;
-        $data['search_checksum'] = $search_checksum;
-        $data['datatype_id'] = $datatype_id;
-
-        $data['searched_datafields'] = $cached_search_params['searched_datafields'];
-        $data['encoded_search_key'] = $cached_search_params['encoded_search_key'];
-
-        if ($can_view_datarecord)
-            $data['datarecord_list'] = $cached_search_params['datarecord_list']['all'];          // ...user has view permission, show all top-level datarecords
-        else
-            $data['datarecord_list'] = $cached_search_params['datarecord_list']['public'];       // ...user doesn't have view permission, only show public top-level datarecords
-
-        $data['complete_datarecord_list'] = $cached_search_params['complete_datarecord_list'];   // ...top-level, child, and linked datarecords...NOT FILTERED BY USER PERMISSIONS
-
-        return $data;
-    }
-
-
-    /**
-     * Utility function to let controllers easily force a redirect to a different search results page
-     * TODO - move into searching service?
-     *
-     * @param User $user
-     * @param string $new_url
-     *
-     * @return Response
-     */
-    public function searchPageRedirect($user, $new_url)
-    {
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            //
-            $logged_in = true;
-            if ($user === 'anon.')
-                $logged_in = false;
-
-            //
-            $templating = $this->get('templating');
-            $return['d'] = array(
-                'html' => $templating->render(
-                    'ODROpenRepositorySearchBundle:Default:searchpage_redirect.html.twig',
-                    array(
-                        'logged_in' => $logged_in,
-                        'url' => $new_url,
-                    )
-                )
-            );
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x412584345 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
     }
 
 

@@ -235,6 +235,10 @@ class DisplaytemplateController extends ODRCustomController
             if ( count($properties) > 0 )
                 parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
 
+            // ----------------------------------------
+            // Delete any cached search results that use this soon-to-be-deleted datafield
+            $search_cache_service->onDatafieldDelete($datafield);
+
 
             // ----------------------------------------
             // Save who deleted this datafield
@@ -287,10 +291,6 @@ class DisplaytemplateController extends ODRCustomController
                 $cache_service->delete('user_'.$user_id.'_permissions');
             }
 
-
-            // ----------------------------------------
-            // Delete any cached search results that use this now-deleted datafield
-            $search_cache_service->clearByDatafieldId($datafield_id);
         }
         catch (\Exception $e) {
             $source = 0x4fc66d72;
@@ -366,6 +366,10 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // ----------------------------------------
+            // Delete any cached search results involving this datafield
+            $search_cache_service->onDatafieldModify($datafield);
+
 
             // ----------------------------------------
             // Delete all radio selection entities attached to the radio option
@@ -407,9 +411,6 @@ class DisplaytemplateController extends ODRCustomController
                 $cache_service->delete('cached_table_data_'.$dr_id);
             }
 
-
-            // Delete any cached search results involving this datafield
-            $search_cache_service->clearByDatafieldId($datafield_id);
         }
         catch (\Exception $e) {
             $source = 0x00b86c51;
@@ -941,7 +942,7 @@ class DisplaytemplateController extends ODRCustomController
             }
 
             // ...cached searches
-            $search_cache_service->clearByDatatypeId($datatype_id);
+            $search_cache_service->onDatatypeDelete($datatype);
 
             // ...cached datatype data
             foreach ($datatypes_to_delete as $num => $dt_id) {
@@ -1323,6 +1324,8 @@ class DisplaytemplateController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -1403,6 +1406,9 @@ class DisplaytemplateController extends ODRCustomController
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
             $theme_service->updateThemeCacheEntry($theme, $user);
 
+            // A couple search cache entries need cleared when a datafield is created...
+            $search_cache_service->onDatafieldCreate($datafield);
+
             // Don't need to worry about datafield permissions here, those are taken care of inside ODR_addDataField()
         }
         catch (\Exception $e) {
@@ -1446,6 +1452,8 @@ class DisplaytemplateController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var ThemeElement $theme_element */
@@ -1557,6 +1565,11 @@ class DisplaytemplateController extends ODRCustomController
             // Updated the cached version of the datatype and the master theme
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
             $theme_service->updateThemeCacheEntry($theme, $user);
+
+            // Since a new datafield got created as part of this copy, a few search cache entries
+            //  need to be cleared...
+            $search_cache_service->onDatafieldCreate($new_df);
+
         }
         catch (\Exception $e) {
             $source = 0x3db4c5ca;
@@ -1981,6 +1994,8 @@ class DisplaytemplateController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataFields $datafield */
@@ -2041,6 +2056,9 @@ class DisplaytemplateController extends ODRCustomController
             );
 
             // Don't need to update cached versions of datarecords or themes
+
+            // Do need to clear some search cache entries however
+            $search_cache_service->onDatafieldModify($datafield);
         }
         catch (\Exception $e) {
             $source = 0x33ef7d94;
@@ -2153,6 +2171,8 @@ class DisplaytemplateController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataFields $datafield */
@@ -2179,7 +2199,8 @@ class DisplaytemplateController extends ODRCustomController
             $start_time = microtime(true);
 
             $post = $request->request->all();
-            if (strlen($post['radio_option_list']) > 0)
+            $radio_option_list = array();
+            if ( strlen($post['radio_option_list']) > 0 )
                 $radio_option_list = preg_split("/\n/", $post['radio_option_list']);
 
             // Parse and process radio options
@@ -2229,6 +2250,9 @@ class DisplaytemplateController extends ODRCustomController
 
             // Update the cached version of the datatype
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
+
+            // Also need to clear a few search cache entries
+            $search_cache_service->onDatafieldModify($datafield);
 
 
             $end_time = microtime(true);
@@ -3021,8 +3045,6 @@ class DisplaytemplateController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataType $datatype */
@@ -3243,11 +3265,12 @@ class DisplaytemplateController extends ODRCustomController
 
 
                     // ----------------------------------------
-                    // If the sort datafield changed, then cached search results need to be updated as well
-                    if ($update_sort_order) {
+                    // If the sort datafield changed, then several cache entries need to be rebuilt
+                    if ($update_sort_order)
                         $dti_service->resetDatatypeSortOrder($datatype->getId());
-                        $search_cache_service->clearByDatatypeId($datatype->getId());
-                    }
+
+                    // Cached search results don't need to be cleared here...none of them care about
+                    //  any of the properties being changed here
                 }
                 else {
                     // Form validation failed
@@ -3391,6 +3414,8 @@ class DisplaytemplateController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
 
@@ -3807,7 +3832,13 @@ class DisplaytemplateController extends ODRCustomController
                     // Mark the datatype as updated
                     $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
+                    // TODO - when/if sort fields can change their fieldtype, this will be needed
+//                    $dti_service->resetDatatypeSortOrder($datatype->getId());
+
                     // Don't need to update cached datarecords or themes
+
+                    // This is probably slightly overkill...
+                    $search_cache_service->onDatafieldModify($datafield);
                 }
                 else {
                     // Form validation failed
@@ -3967,11 +3998,23 @@ class DisplaytemplateController extends ODRCustomController
             );
         }
 
+        // TODO - not technically true...but still needs to be restricted to some subset of fieldtypes
         // Also prevent a fieldtype change if the datafield is marked as unique
         if ($datafield->getIsUnique() == true) {
             $ret = array(
                 'prevent_change' => true,
                 'prevent_change_message' => "The Fieldtype can't be changed because the Datafield is currently marked as Unique.",
+            );
+        }
+
+        // TODO - without this, the user can change to unsortable fieldtypes...fix the rest of the logic so this isn't needed
+        // TODO - also ensure the cache entries for sort order get cleared
+        // Also prevent a fieldtype change if the datafield is the datatype's sort field
+        $sort_field = $datafield->getDataType()->getSortField();
+        if ( !is_null($sort_field) && $sort_field->getId() === $datafield->getId() ) {
+            $ret = array(
+                'prevent_change' => true,
+                'prevent_change_message' => "The Fieldtype can't be changed because the Datafield is being used as the Datatype's sort Datafield.",
             );
         }
 
@@ -4523,6 +4566,8 @@ if ($debug)
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataFields $datafield */
@@ -4533,7 +4578,6 @@ if ($debug)
             $datatype = $datafield->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
 
             // --------------------
@@ -4567,6 +4611,9 @@ if ($debug)
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Don't need to update cached datarecords or themes
+
+            // Do need to clear some search cache entries
+            $search_cache_service->onDatafieldPublicStatusChange($datafield);
         }
         catch (\Exception $e) {
             $source = 0xbd3dc347;

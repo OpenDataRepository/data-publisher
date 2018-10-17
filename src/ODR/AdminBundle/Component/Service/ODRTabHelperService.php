@@ -76,40 +76,25 @@ class ODRTabHelperService
      *
      * @param string $odr_tab_id
      * @param int $current_datarecord_id
-     * @param string $mode 'viewable'|'editable' which list of datarecords to use to calculate values
-     *
-     * @throws ODRException
+     * @param array $datarecord_list
      *
      * @return null|array
      */
-    public function getSearchHeaderValues($odr_tab_id, $current_datarecord_id, $mode = 'viewable')
+    public function getSearchHeaderValues($odr_tab_id, $current_datarecord_id, $datarecord_list)
     {
         // Check that the requested tab exists in the user's session
         $tab_data = self::getTabData($odr_tab_id);
         if ( is_null($tab_data) )
             return null;
 
-        $key = 'viewable_datarecord_list';
-        if ($mode == 'editable')
-            $key = 'editable_datarecord_list';
-
-
-        // The tab must have a datarecord list set before values for the search header can
-        //  get calculated
-        if ( !isset($tab_data[$key]) )
-            return null;
-
         // Extract the required data from the user's session for this browser tab
-        $datarecord_list = trim( $tab_data[$key] );
         $page_length = self::getPageLength($odr_tab_id);
 
-
         // Turn the list of datarecord ids that matched search results string into an array
-        $search_results = explode(',', trim($datarecord_list));
-        $search_result_count = count($search_results);
+        $search_result_count = count($datarecord_list);
 
         // Find the desired datarecord id in the array of datarecord ids
-        $pos = array_search($current_datarecord_id, $search_results);
+        $pos = array_search($current_datarecord_id, $datarecord_list);
         if ($pos === false) {
             // TODO - what to do when datarecord isn't in search results
 //            throw new ODRBadRequestException('The datarecord '.$current_datarecord_id.' does not match the current search key', 0xc0f79d1d);
@@ -122,15 +107,15 @@ class ODRTabHelperService
 
         if ( $pos === $search_result_count-1 )
             // Desired datarecord is at the "end" of the list
-            $next_datarecord_id = intval( $search_results[0] );
+            $next_datarecord_id = intval( $datarecord_list[0] );
         else
-            $next_datarecord_id = intval( $search_results[$pos+1] );
+            $next_datarecord_id = intval( $datarecord_list[$pos+1] );
 
         if ( $pos === 0 )
             // Desired datarecord is at the "beginning" of the list
-            $prev_datarecord_id = intval( $search_results[ $search_result_count-1 ] );
+            $prev_datarecord_id = intval( $datarecord_list[ $search_result_count-1 ] );
         else
-            $prev_datarecord_id = intval( $search_results[$pos-1] );
+            $prev_datarecord_id = intval( $datarecord_list[$pos-1] );
 
 
         // Return the required data
@@ -151,35 +136,22 @@ class ODRTabHelperService
      *
      * @param string $odr_tab_id
      * @param int $offset
-     * @param bool $editable_only if false, count based on all datarecords the user can view
-     *                            if true, count based on all datarecords the user can edit
+     * @param array $datarecord_list
      *
      * @return null|array
      */
-    public function getPaginationHeaderValues($odr_tab_id, $offset, $editable_only = false)
+    public function getPaginationHeaderValues($odr_tab_id, $offset, $datarecord_list)
     {
         // Check that the requested tab exists in the user's session
         $tab_data = self::getTabData($odr_tab_id);
         if ( is_null($tab_data) )
             return null;
 
-        $key = 'viewable_datarecord_list';
-        if ($editable_only)
-            $key = 'editable_datarecord_list';
-
-
-        // The tab must have a datarecord list set before values for the pagination header can
-        //  get calculated
-        if ( !isset($tab_data[$key]) )
-            return null;
-
         // Extract the required data from the user's session for this browser tab
-        $datarecord_list = trim( $tab_data[$key] );
         $page_length = self::getPageLength($odr_tab_id);
 
         // Turn the list of datarecord ids that matched search results string into an array
-        $search_results = explode(',', $datarecord_list);
-        $num_datarecords = count($search_results);
+        $num_datarecords = count($datarecord_list);
 
         $num_pages = intval( ceil( $num_datarecords / $page_length ) );
 
@@ -257,178 +229,6 @@ class ODRTabHelperService
         }
 
         return true;
-    }
-
-
-    /**
-     * Returns a comma-separated list of datarecord ids that the user is permitted to view for the
-     * search currently being run in the given browser tab.
-     *
-     * This list is not to be used for determining whether the user is allowed to view a
-     * particular datarecord, but exists for UI convenience.
-     *
-     * @param string $odr_tab_id
-     *
-     * @return null|string
-     */
-    public function getViewableDatarecordList($odr_tab_id)
-    {
-        // Check that the requested tab exists in the user's session
-        $tab_data = self::getTabData($odr_tab_id);
-        if ( is_null($tab_data) )
-            return null;
-
-        // If the list of datarecord ids doesn't exist...
-        if ( !isset($tab_data['viewable_datarecord_list']) )
-            // TODO - give this function the ability to set a default list after searching is moved into a service?
-            return null;
-
-        // Otherwise, return the list of datarecord ids
-        return $tab_data['viewable_datarecord_list'];
-    }
-
-
-    /**
-     * Stores a list of datarecord ids that match the search in the given browser tab, for
-     * the convenience of various pieces of the UI.
-     *
-     * @param string $odr_tab_id
-     * @param string|array $datarecord_list an array (or a comma-separated list) of datarecord ids
-     *
-     * @return bool true if data stored, false otherwise
-     */
-    public function setViewableDatarecordList($odr_tab_id, $datarecord_list)
-    {
-        if ($odr_tab_id === '')
-            return false;
-
-        if ( is_array($datarecord_list) )
-            $datarecord_list = implode(',', $datarecord_list);
-
-        $tab_data = self::getTabData($odr_tab_id);
-        if ( is_null($tab_data) ) {
-            // No stored tab data for this user's session...start a new one
-            $tab_data = array(
-                'page_length' => $this->default_page_length,
-                'viewable_datarecord_list' => $datarecord_list,
-            );
-            self::setTabData($odr_tab_id, $tab_data);
-        }
-        else {
-            // Set the datarecord list for this tab, creating an entry if it doesn't exist
-            $tab_data['viewable_datarecord_list'] = $datarecord_list;
-            self::setTabData($odr_tab_id, $tab_data);
-        }
-
-        return true;
-    }
-
-
-    /**
-     * Returns a comma-separated list of datarecord ids that the user is permitted to view for the
-     * search currently being run in the given browser tab. This generally is a subset of the list
-     * returned by self::getViewableDatarecordList().
-     *
-     * This list is not to be used for determining whether the user is allowed to edit a
-     * particular datarecord, but exists for UI convenience.
-     *
-     * @param string $odr_tab_id
-     *
-     * @return null|string
-     */
-    public function getEditableDatarecordList($odr_tab_id)
-    {
-        // Check that the requested tab exists in the user's session
-        $tab_data = self::getTabData($odr_tab_id);
-        if ( is_null($tab_data) )
-            return null;
-
-        // If the list of datarecord ids doesn't exist...
-        if ( !isset($tab_data['editable_datarecord_list']) )
-            // TODO - give this function the ability to set a default list after searching is moved into a service?
-            return null;
-
-        // Otherwise, return the list of datarecord ids
-        return $tab_data['editable_datarecord_list'];
-    }
-
-
-    /**
-     * Similar to self::setViewableDatarecordList(), but instead stores a list of datarecord ids the
-     * user is allowed to edit, for the convenience of various places of the UI.  This generally is
-     * a subset of the list returned by self::getViewableDatarecordList().
-     *
-     * @param string $odr_tab_id
-     * @param string|array $datarecord_list an array (or a comma-separated list) of datarecord ids
-     *
-     * @return bool true if data stored, false otherwise
-     */
-    public function setEditableDatarecordList($odr_tab_id, $datarecord_list)
-    {
-        if ($odr_tab_id === '')
-            return false;
-
-        if ( is_array($datarecord_list) )
-            $datarecord_list = implode(',', $datarecord_list);
-
-        $tab_data = self::getTabData($odr_tab_id);
-        if ( is_null($tab_data) ) {
-            // TODO - also set viewable datarecord list?
-            // No stored tab data for this user's session...start a new one
-            $tab_data = array(
-                'page_length' => $this->default_page_length,
-                'editable_datarecord_list' => $datarecord_list,
-            );
-            self::setTabData($odr_tab_id, $tab_data);
-        }
-        else {
-            // Set the datarecord list for this tab, creating an entry if it doesn't exist
-            $tab_data['editable_datarecord_list'] = $datarecord_list;
-            self::setTabData($odr_tab_id, $tab_data);
-        }
-
-        return true;
-    }
-
-
-    /**
-     * Deletes lists of datarecord ids stored in tabs in the user's session, which will eventually
-     * require them to be rebuilt/resaved.  Needed whenever the list of datarecords the user can
-     * view or edit changes, such as after logging in or when sorting criteria changes.
-     *
-     * @param string $odr_tab_id if empty string, deletes all lists of datarecord ids across all tabs
-     */
-    public function clearDatarecordLists($odr_tab_id = '')
-    {
-        $request = $this->requestStack->getCurrentRequest();
-        $session = $request->getSession();
-
-        if ( $session->has('stored_tab_data') ) {
-            $stored_tab_data = $session->get('stored_tab_data');
-
-            if ($odr_tab_id !== '') {
-                // Delete the lists of datarecord ids in a single tab
-                $tab_data = self::getTabData($odr_tab_id);
-                if ( !is_null($tab_data) ) {
-                    if (isset($tab_data['viewable_datarecord_list']))
-                        unset($stored_tab_data[$odr_tab_id]['viewable_datarecord_list']);
-                    if (isset($tab_data['editable_datarecord_list']))
-                        unset($stored_tab_data[$odr_tab_id]['editable_datarecord_list']);
-                }
-            }
-            else {
-                // Delete all lists of datarecord ids across all tabs
-                foreach ($stored_tab_data as $odr_tab_id => $tab_data) {
-                    if (isset($tab_data['viewable_datarecord_list']))
-                        unset($stored_tab_data[$odr_tab_id]['viewable_datarecord_list']);
-                    if (isset($tab_data['editable_datarecord_list']))
-                        unset($stored_tab_data[$odr_tab_id]['editable_datarecord_list']);
-                }
-            }
-
-            // Save the data back to the user's session
-            $session->set('stored_tab_data', $stored_tab_data);
-        }
     }
 
 

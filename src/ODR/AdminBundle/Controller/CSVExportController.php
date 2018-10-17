@@ -17,15 +17,13 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
-// Controllers/Classes
-use ODR\OpenRepository\SearchBundle\Controller\DefaultController as SearchController;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\OpenRepository\UserBundle\Entity\User;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -33,8 +31,11 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\ODRRenderService;
+use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
-use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 // Symfony
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
@@ -49,13 +50,13 @@ class CSVExportController extends ODRCustomController
 
     /**
      * Sets up a csv export request made from a search results page.
-     * 
+     *
      * @param integer $datatype_id The database id of the DataType the search was performed on.
      * @param integer $search_theme_id
      * @param string $search_key   The search key identifying which datarecords to potentially export
      * @param integer $offset
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function csvExportAction($datatype_id, $search_theme_id, $search_key, $offset, Request $request)
@@ -70,8 +71,18 @@ class CSVExportController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var SearchRedirectService $search_redirect_service */
+            $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            /** @var ODRTabHelperService $tab_helper_service */
+            $tab_helper_service = $this->container->get('odr.tab_helper_service');
 
 
             /** @var DataType $datatype */
@@ -79,12 +90,20 @@ class CSVExportController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
+            // A search key is required, otherwise there's no way to identify which datarecords
+            //  should be exported
+            if ($search_key == '')
+                throw new ODRBadRequestException('Search key is blank');
+
+            // A tab id is also required...
+            $params = $request->query->all();
+            if ( !isset($params['odr_tab_id']) )
+                throw new ODRBadRequestException('Missing tab id');
+            $odr_tab_id = $params['odr_tab_id'];
+
+
             // If $search_theme_id is set...
             if ($search_theme_id != 0) {
-                // ...require a search key to also be set
-                if ($search_key == '')
-                    throw new ODRBadRequestException();
-
                 // ...require the referenced theme to exist
                 /** @var Theme $search_theme */
                 $search_theme = $em->getRepository('ODRAdminBundle:Theme')->find($search_theme_id);
@@ -99,73 +118,62 @@ class CSVExportController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
-            $datafield_permissions = $pm_service->getDatafieldPermissions($user);
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
 
             // Ensure user has permissions to be doing this
             if ( !$user->hasRole('ROLE_ADMIN') || !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
 
-            // ----------------------------------------
-            // Grab the tab's id, if it exists
-            $params = $request->query->all();
-            $odr_tab_id = '';
-            if ( isset($params['odr_tab_id']) )
-                $odr_tab_id = $params['odr_tab_id'];
-
 
             // ----------------------------------------
-            // If this datarecord is being viewed from a search result list, attempt to grab the list of datarecords from that search result
-            $encoded_search_key = '';
-            if ($search_key !== '') {
-                // 
-                $data = parent::getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype->getId(), $search_key, $request);
-                $encoded_search_key = $data['encoded_search_key'];
-                $datarecord_list = $data['datarecord_list'];
+            // Verify the search key, and ensure the user can view the results
+            $search_key_service->validateSearchKey($search_key);
+            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
 
-                // If there is no tab id for some reason, or the user is attempting to view a datarecord from a search that returned no results...
-                if ( $odr_tab_id === '' || $data['redirect'] == true || ($encoded_search_key !== '' && $datarecord_list === '') ) {
-                    // ...get the search controller to redirect to "no results found" page
-                    $url = $this->generateUrl(
-                        'odr_search_render',
-                        array(
-                            'search_theme_id' => $search_theme_id,
-                            'search_key' => $data['encoded_search_key']
-                        )
-                    );
-
-                    return parent::searchPageRedirect($user, $url);
-                }
-
-                // Store the datarecord list in the user's session...there is a chance that it could get wiped if it was only stored in memcached
-                $session = $request->getSession();
-                $list = $session->get('csv_export_datarecord_lists');
-                if ($list == null)
-                    $list = array();
-
-                $list[$odr_tab_id] = array('datarecord_list' => $datarecord_list, 'encoded_search_key' => $encoded_search_key);
-                $session->set('csv_export_datarecord_lists', $list);
+            if ($filtered_search_key !== $search_key) {
+                // User can't view some part of the search key...kick them back to the search
+                //  results list
+                return $search_redirect_service->redirectToFilteredSearchResult($user, $filtered_search_key, $search_theme_id);
             }
 
+            // Get the list of grandparent datarecords specified by this search key
+            // Don't care about sorting here
+            $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions);
+            $datarecord_list = implode(',', $search_results['grandparent_datarecord_list']);
+
+            // If the user is attempting to view a datarecord from a search that returned no results...
+            if ( $filtered_search_key !== '' && $datarecord_list === '' ) {
+                // ...redirect to the "no results found" page
+                return $search_redirect_service->redirectToSearchResult($filtered_search_key, $search_theme_id);
+            }
+
+            // Store the datarecord list in the user's session...there is a chance that it could get
+            //  wiped if it was only stored in the cache
+            $session = $request->getSession();
+            $list = $session->get('csv_export_datarecord_lists');
+            if ($list == null)
+                $list = array();
+
+            $list[$odr_tab_id] = array('datarecord_list' => $datarecord_list, 'encoded_search_key' => $filtered_search_key);
+            $session->set('csv_export_datarecord_lists', $list);
+
+
+            // ----------------------------------------
             // Generate the HTML required for a header
             $templating = $this->get('templating');
             $header_html = $templating->render(
                 'ODRAdminBundle:CSVExport:csvexport_header.html.twig',
                 array(
                     'search_theme_id' => $search_theme_id,
-                    'search_key' => $encoded_search_key,
+                    'search_key' => $filtered_search_key,
                     'offset' => $offset,
                 )
             );
 
-
-            // ----------------------------------------
             // Get the CSVExport page rendered
-            /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
             $page_html = $odr_render_service->getCSVExportHTML($user, $datatype, $odr_tab_id);
 
             $return['d'] = array( 'html' => $header_html.$page_html );
@@ -185,10 +193,10 @@ class CSVExportController extends ODRCustomController
 
 
     /**
-     * Begins the process of mass exporting to a csv file, by creating a beanstalk job containing which datafields to export for each datarecord being exported 
-     * 
+     * Begins the process of mass exporting to a csv file, by creating a beanstalk job containing which datafields to export for each datarecord being exported
+     *
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function csvExportStartAction(Request $request)
@@ -221,6 +229,8 @@ class CSVExportController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchRedirectService $search_redirect_service */
+            $search_redirect_service = $this->container->get('odr.search_redirect_service');
 
 
             /** @var DataType $datatype */
@@ -238,7 +248,7 @@ class CSVExportController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this
@@ -256,6 +266,8 @@ class CSVExportController extends ODRCustomController
                 if ($datafield->getDataType()->getId() != $datatype->getId() )
                     throw new ODRBadRequestException('Invalid Datafield');
             }
+
+// print '<pre>'.print_r($datafields, true).'</pre>';    exit();
 
             // Translate delimiter from string to character
             switch ($delimiter) {
@@ -311,93 +323,87 @@ class CSVExportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Grab datarecord list and search key from user session...not using memcached because the possibility exists that it could be deleted
+            // Grab datarecord list and search key from user session...didn't use the cache because
+            //  that could've been cleared and would cause this to work on a different subset of
+            //  datarecords
+            if ( !$session->has('csv_export_datarecord_lists') )
+                throw new ODRBadRequestException('Missing CSVExport session variable');
+
             $list = $session->get('csv_export_datarecord_lists');
+            if ( !isset($list[$odr_tab_id]) )
+                throw new ODRBadRequestException('Missing CSVExport session variable');
 
-            $datarecords = '';
-            $encoded_search_key = null;
-
-            if ( isset($list[$odr_tab_id]) ) {
-                $datarecords = $list[$odr_tab_id]['datarecord_list'];
-                $encoded_search_key = $list[$odr_tab_id]['encoded_search_key'];
+            if ( !isset($list[$odr_tab_id]['encoded_search_key'])
+                || !isset($list[$odr_tab_id]['datarecord_list'])
+            ) {
+                throw new ODRBadRequestException('Malformed CSVExport session variable');
             }
 
-            // If the datarecord list doesn't exist for some reason, or the user is attempting to view a datarecord from a search that returned no results...
-            if ( !isset($list[$odr_tab_id]) || ($encoded_search_key !== '' && $datarecords === '') ) {
-                // ...redirect to "no results found" page
-                /** @var SearchController $search_controller */
-                $search_controller = $this->get('odr_search_controller', $request);
-                $search_controller->setContainer($this->container);
+            $search_key = $list[$odr_tab_id]['encoded_search_key'];
+            if ($search_key === '')
+                throw new ODRBadRequestException('Search key is blank');
 
-                /** @var ThemeInfoService $theme_info_service */
-                $theme_info_service = $this->container->get('odr.theme_info_service');
-                $search_theme_id = $theme_info_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
-
-                return $search_controller->renderAction($search_theme_id, $encoded_search_key, 1, 'searching', $request);
+            // Need a list of datarecords from the user's session to be able to export them...
+            $datarecords = trim($list[$odr_tab_id]['datarecord_list']);
+            if ($datarecords === '') {
+                // ...but no such datarecord list exists....redirect to search results page
+                return $search_redirect_service->redirectToSearchResult($search_key, 0);
             }
-
-            // TODO - delete the datarecord list/search key out of the user's session?
-
             $datarecords = explode(',', $datarecords);
-/*
-print_r($datarecords);
-print_r($datafields);
-return;
-*/
 
-            if ( count($datarecords) > 0 ) {
-                // ----------------------------------------
-                // Get/create an entity to track the progress of this datatype recache
-                $job_type = 'csv_export';
-                $target_entity = 'datatype_'.$datatype_id;
-                $additional_data = array('description' => 'Exporting data from DataType '.$datatype_id);
-                $restrictions = '';
-                $total = count($datarecords);
-                $reuse_existing = false;
+//print '<pre>'.print_r($datarecords, true).'</pre>';    exit();
+
+            // Shouldn't be an issue, but delete the datarecord list out of the user's session
+            unset( $list[$odr_tab_id] );
+            $session->set('csv_export_datarecord_lists', $list);
+
+
+            // ----------------------------------------
+            // Get/create an entity to track the progress of this datatype recache
+            $job_type = 'csv_export';
+            $target_entity = 'datatype_'.$datatype_id;
+            $additional_data = array('description' => 'Exporting data from DataType '.$datatype_id);
+            $restrictions = '';
+            $total = count($datarecords);
+            $reuse_existing = false;
 //$reuse_existing = true;
 
-                // Determine if this user already has an export job going for this datatype
-                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity, 'createdBy' => $user->getId(), 'completed' => null) );
-                if ($tracked_job !== null)
-                    throw new \Exception('You already have an export job going for this datatype...wait until that one finishes before starting a new one');
-                else
-                    $tracked_job = self::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
+            // Determine if this user already has an export job going for this datatype
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity, 'createdBy' => $user->getId(), 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('You already have an export job going for this datatype...wait until that one finishes before starting a new one');
+            else
+                $tracked_job = self::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
 
-                $tracked_job_id = $tracked_job->getId();
+            $tracked_job_id = $tracked_job->getId();
 
 
-                // ----------------------------------------
-                // Create a beanstalk job for each of these datarecords
-                $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
-                foreach ($datarecords as $num => $datarecord_id) {
+            // ----------------------------------------
+            // Create a beanstalk job for each of these datarecords
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
+            foreach ($datarecords as $num => $datarecord_id) {
 
-                    $priority = 1024;   // should be roughly default priority
-                    $payload = json_encode(
-                        array(
-                            'tracked_job_id' => $tracked_job_id,
-                            'user_id' => $user->getId(),
+                $priority = 1024;   // should be roughly default priority
+                $payload = json_encode(
+                    array(
+                        'tracked_job_id' => $tracked_job_id,
+                        'user_id' => $user->getId(),
 
-                            'delimiter' => $delimiter,
-                            'secondary_delimiter' => $secondary_delimiter,
-                            'datarecord_id' => $datarecord_id,
-                            'datafields' => $datafields,
-                            'redis_prefix' => $redis_prefix,    // debug purposes only
-                            'datatype_id' => $datatype_id,
-                            'url' => $url,
-                            'api_key' => $api_key,
-                        )
-                    );
+                        'delimiter' => $delimiter,
+                        'secondary_delimiter' => $secondary_delimiter,
+                        'datarecord_id' => $datarecord_id,
+                        'datafields' => $datafields,
+                        'redis_prefix' => $redis_prefix,    // debug purposes only
+                        'datatype_id' => $datatype_id,
+                        'url' => $url,
+                        'api_key' => $api_key,
+                    )
+                );
 
-//print_r($payload);
-//return;
+//print '<pre>'.print_r($payload, true).'</pre>';    exit();
 
-                    $delay = 1; // one second
-                    $pheanstalk->useTube('csv_export_start')->put($payload, $priority, $delay);
-                }
-
-            }
-            else {
-                throw new ODRException('No datarecords selected to export');
+                $delay = 1; // one second
+                $pheanstalk->useTube('csv_export_start')->put($payload, $priority, $delay);
             }
         }
         catch (\Exception $e) {
@@ -416,9 +422,9 @@ return;
 
     /**
      * Given a datarecord id and a list of datafield ids, builds a line of csv data used by Ddeboer\DataImport\Writer\CsvWriter later
-     * 
+     *
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function csvExportConstructAction(Request $request)
@@ -657,9 +663,9 @@ return;
 
     /**
      * Writes a line of csv data to a file
-     * 
+     *
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function csvExportWorkerAction(Request $request)
@@ -907,9 +913,9 @@ return;
 
     /**
      * Takes a list of temporary files used for csv exporting, and appends each of their contents to a "final" export file
-     * 
+     *
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function csvExportFinalizeAction(Request $request)
@@ -1036,13 +1042,13 @@ return;
     }
 
 
-    /**         
+    /**
      * Sidesteps symfony to set up an CSV file download...
-     * 
+     *
      * @param integer $user_id The user requesting the download
      * @param integer $tracked_job_id The tracked job that stored the progress of the csv export
      * @param Request $request
-     *          
+     *
      * @return Response
      */
     public function downloadCSVAction($user_id, $tracked_job_id, Request $request)
@@ -1079,7 +1085,7 @@ return;
 
             // --------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Ensure user has permissions to be doing this

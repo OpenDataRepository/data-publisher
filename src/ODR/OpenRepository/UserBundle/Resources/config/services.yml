@@ -7,7 +7,6 @@ services:
         class: ODR\OpenRepository\UserBundle\Component\Service\TrackedPathService
         arguments:
             request_stack: "@request_stack"
-            tab_helper_service: "@odr.tab_helper_service"
 
 
     # override of change password form

@@ -142,7 +142,7 @@ class PermissionsManagementService
      * @param ODRUser $user
      * @param Datatype $datatype
      *
-     * @return null|string
+     * @return null|array
      */
     public function getDatarecordRestrictionList($user, $datatype)
     {
@@ -156,9 +156,17 @@ class PermissionsManagementService
             $search_key = $datatype_permissions[ $datatype->getId() ]['datarecord_restriction'];
 
             // Don't need to validate or filter the search key...search as a super-admin
-            $search_result = $this->search_api_service->performSearch($datatype, $search_key, array(), true);
+            $search_result = $this->search_api_service->performSearch(
+                $datatype,
+                $search_key,
+                array(), // empty user permissions array since searching as super admin
+                0,       // use default sort order for datatype
+                true,    // sort ascending by default
+                true     // search as super admin, so no filtering takes place
+            );
 
             $complete_datarecord_list = $search_result['complete_datarecord_list'];
+
             return $complete_datarecord_list;
         }
 
@@ -399,7 +407,6 @@ class PermissionsManagementService
             //  might be a further restriction on which datarecords they're allowed to edit...
             $restricted_datarecord_list = self::getDatarecordRestrictionList($user, $datatype);
             if ( !is_null($restricted_datarecord_list) ) {
-                $restricted_datarecord_list = explode(',', $restricted_datarecord_list);
                 if ( in_array($datarecord->getId(), $restricted_datarecord_list) )
                     return true;
                 else

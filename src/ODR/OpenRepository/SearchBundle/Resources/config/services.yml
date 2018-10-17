@@ -23,6 +23,7 @@ services:
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
+            search_service: "@odr.search_service"
             logger: "@logger"
 
     odr.search_key_service:
@@ -47,4 +48,13 @@ services:
         public: false
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+
+
+    odr.search_redirect_service:
+        class: ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService
+        arguments:
+            tab_helper_service: "@odr.tab_helper_service"
+            router: "@router"
+            templating: "@templating"
             logger: "@logger"
