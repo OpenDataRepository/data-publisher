@@ -465,7 +465,7 @@ class FacadeController extends Controller
 
             $matched_records = array();
             foreach($output_records as $record) {
-                $score = self::checkRecord($record, $search_data, 0, true);
+                $score = self::checkRecord($record, $search_data, 0, false);
                 $record->score = $score;
                 if($score > 0) {
                     $matched_records[] = $record;
