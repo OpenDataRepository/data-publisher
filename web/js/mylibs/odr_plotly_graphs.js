@@ -5,20 +5,20 @@
 
 
 // Global Definitions
-if(ODR_PLOTLY_GLOBALS == undefined) {
-    var WIDTH_IN_PERCENT_OF_PARENT = 100
-    var HEIGHT_IN_PERCENT_OF_PARENT = 100
+if (ODR_PLOTLY_GLOBALS == undefined) {
+    var WIDTH_IN_PERCENT_OF_PARENT = 100;
+    var HEIGHT_IN_PERCENT_OF_PARENT = 100;
 
     function plotlyResponsiveDiv(chart_obj) {
-
+        /*
         // d3.v3 version
         var gd3 = d3.select("#" + chart_obj.chart_id)
         .append('div')
         .style({
-        width: WIDTH_IN_PERCENT_OF_PARENT + '%',
-        'margin-left': (100 - WIDTH_IN_PERCENT_OF_PARENT) / 2 + '%',
-        height: HEIGHT_IN_PERCENT_OF_PARENT + '%',
-        'margin-top': '0%'
+            'width': WIDTH_IN_PERCENT_OF_PARENT + '%',
+            'margin-left': (100 - WIDTH_IN_PERCENT_OF_PARENT) / 2 + '%',
+            'height': HEIGHT_IN_PERCENT_OF_PARENT + '%',
+            'margin-top': '0%'
         });
 
 
@@ -27,23 +27,22 @@ if(ODR_PLOTLY_GLOBALS == undefined) {
         var gd = gd3.node()
         page_plots.push(gd)
         return gd
+        */
 
-        /*
         // D3.v4 Version
-        console.log(d3.version)
-        var gd3 = d3.select("#" + chart_obj.chart_id)
+        console.log(d3.version);
+        var gd3 = d3.select("#" + chart_obj['chart_id'])
             .append('div')
             .style('width', WIDTH_IN_PERCENT_OF_PARENT + '%')
             .style('margin-left', (100 - WIDTH_IN_PERCENT_OF_PARENT) / 2 + '%')
             .style('height', HEIGHT_IN_PERCENT_OF_PARENT + '%')
-            .style('margin-top', '0%')
+            .style('margin-top', '0%');
 
-        console.log($(gd3).html())
+        // console.log( gd3.node().innerHTML);
 
-        var gd = gd3.node()
-        page_plots.push(gd)
-        return gd
-         */
+        var gd = gd3.node();
+        page_plots.push(gd);
+        return gd;
 
 
         // jQuery Version
@@ -92,9 +91,10 @@ var preparePlotlyStatic = function(chart_obj) {
 
 function odrCSV(dr_id, display_order, file, callback) {
 
+/*
     // d3.v3 version
     return d3.xhr(file.url).get(function (err, response) {
-        console.log(file.url)
+        // console.log(file.url);
         var dirtyCSV = response.responseText;
 
         // Strip Headers
@@ -114,10 +114,10 @@ function odrCSV(dr_id, display_order, file, callback) {
         data_file.lines = cleanCSV;
 
         console.log("Lines found: " + cleanCSV.length);
-        return callback(null, data_file)
-    })
+        return callback(null, data_file);
+    });
+*/
 
-    /*
     // D3.v4 Version
     d3.request(file.url)
         // Handle Error
@@ -126,26 +126,30 @@ function odrCSV(dr_id, display_order, file, callback) {
         })
         // Parse File
         .on("load", function(xhr){
-            console.log(file.url)
+            console.log(file.url);
+
             var dirtyCSV = xhr.responseText;
             // Strip Headers
-            var cleanCSV = []
+            var cleanCSV = [];
             var tmpCSV = dirtyCSV.split('\n');
             tmpCSV.forEach(function(line) {
                 if(!line.match(/^#/)) {
                     cleanCSV.push(line)
                 }
-            })
-            var data_file = {}
-            data_file.dr_id = dr_id
-            data_file.url = file.url
-            data_file.legend = file.legend
-            data_file.lines = cleanCSV
-            console.log("Lines found: " + cleanCSV.length)
+            });
+
+            var data_file = {};
+            data_file.dr_id = dr_id;
+            data_file.display_order = display_order;
+            data_file.url = file.url;
+            data_file.legend = file.legend;
+            data_file.lines = cleanCSV;
+
+            console.log("Lines found: " + cleanCSV.length);
             callback(null, data_file)
         })
-        .send("GET")
-        */
+        .send("GET");
+
 }
 
 function histogramChartPlotly(chart_obj, onComplete) {

@@ -96,11 +96,7 @@ class SearchService
     public function searchRadioDatafield($datafield, $selections, $merge_using_OR = true)
     {
         // ----------------------------------------
-        // If this datafield can't be searched, throw an exception
-        if ( !$datafield->getSearchable() )
-            throw new ODRBadRequestException('Datafield is not searchable', 0x5e0dc6db);
-
-        // Also don't continue if called on the wrong type of datafield
+        // Don't continue if called on the wrong type of datafield
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( $typeclass !== 'Radio' )
             throw new ODRBadRequestException('searchRadioDatafield() called with '.$typeclass.' datafield', 0x5e0dc6db);
@@ -192,11 +188,7 @@ class SearchService
     public function searchForSelectedRadioOptions($datafield, $value)
     {
         // ----------------------------------------
-        // If this datafield can't be searched, throw an exception
-        if ( !$datafield->getSearchable() )
-            throw new ODRBadRequestException('Datafield is not searchable', 0x4f2a33f4);
-
-        // Also don't continue if called on the wrong type of datafield
+        // Don't continue if called on the wrong type of datafield
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( $typeclass !== 'Radio' )
             throw new ODRBadRequestException('searchRadioDatafield() called with '.$typeclass.' datafield', 0x4f2a33f4);
@@ -246,11 +238,7 @@ class SearchService
     public function searchFileOrImageDatafield($datafield, $filename = null, $has_files = null)
     {
         // ----------------------------------------
-        // If this datafield can't be searched, throw an exception
-        if ( !$datafield->getSearchable() )
-            throw new ODRBadRequestException('Datafield is not searchable', 0xab627079);
-
-        // Also don't continue if called on the wrong type of datafield
+        // Don't continue if called on the wrong type of datafield
         $allowed_typeclasses = array(
             'File',
             'Image',
@@ -323,11 +311,7 @@ class SearchService
     public function searchTextOrNumberDatafield($datafield, $value)
     {
         // ----------------------------------------
-        // If this datafield can't be searched, throw an exception
-        if ( !$datafield->getSearchable() )
-            throw new ODRBadRequestException('Datafield is not searchable', 0x58a164e0);
-
-        // Also don't continue if called on the wrong type of datafield
+        // Don't continue if called on the wrong type of datafield
         $allowed_typeclasses = array(
             'IntegerValue',
             'DecimalValue',
@@ -389,11 +373,7 @@ class SearchService
     public function searchBooleanDatafield($datafield, $value)
     {
         // ----------------------------------------
-        // If this datafield can't be searched, throw an exception
-        if ( !$datafield->getSearchable() )
-            throw new ODRBadRequestException('Datafield is not searchable', 0x58a164e0);
-
-        // Also don't continue if called on the wrong type of datafield
+        // Don't continue if called on the wrong type of datafield
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( $typeclass !== 'Boolean' )
             throw new ODRBadRequestException('searchTextOrNumberDatafield() called with '.$typeclass.' datafield', 0x58a164e0);
@@ -448,11 +428,7 @@ class SearchService
     public function searchDatetimeDatafield($datafield, $before, $after)
     {
         // ----------------------------------------
-        // If this datafield can't be searched, throw an exception
-        if ( !$datafield->getSearchable() )
-            throw new ODRBadRequestException('Datafield is not searchable', 0x58a164e0);
-
-        // Also don't continue if called on the wrong type of datafield
+        // Don't continue if called on the wrong type of datafield
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( $typeclass !== 'DatetimeValue' )
             throw new ODRBadRequestException('searchDatetimeDatafield() called with '.$typeclass.' datafield', 0x58a164e0);
@@ -981,9 +957,8 @@ class SearchService
 
 
     /**
-     * Returns an array of searchable datafields, organized by public status, for each related
-     * datatype.  The datatype's public status is also included, for additional ease of permissions
-     * filtering.
+     * Returns an array of datafields, organized by public status, for each related datatype.  The
+     * datatype's public status is also included, for additional ease of permissions filtering.
      *
      * $searchable_datafields = array(
      *     [<datatype_id>] => array(
@@ -1000,6 +975,15 @@ class SearchService
      *     ),
      *     ...
      * )
+     *
+     * <searchable> can have four different values...
+     * 0: "not searchable" doesn't show up on the search page
+     * 1: "general search only" doesn't show up as its on field on the search page, but is searched
+     *                          through the "general" textbox
+     * 2: "advanced search" shows up as its own field on the search page, and is also searched
+     *                      through the "general" textbox
+     * 3: "advanced search only" shows up as its own field on the search page, but is not searched
+     *                           through the "general" textbox
      *
      * @param int $datatype_id
      *
@@ -1055,7 +1039,9 @@ class SearchService
                     $searchable = $result['searchable'];
                     $typeclass = $result['typeClass'];
 
-                    if ( $searchable > 0 ) {
+                    // Inline searching requires the ability to search on any datafield, even those
+                    //  the user may not have necessarily marked as "searchable"
+//                    if ( $searchable > 0 ) {
                         $df_id = $result['df_id'];
 
                         if ($result['df_public_date']->format('Y-m-d') !== '2200-01-01') {
@@ -1070,7 +1056,7 @@ class SearchService
                                 'typeclass' => $typeclass,
                             );
                         }
-                    }
+//                    }
                 }
 
                 // Store the result back in the cache

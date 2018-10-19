@@ -210,24 +210,12 @@ class SearchKeyService
                         // Datafield is public...
                         $found = true;
                         $typeclass = $data['datafields'][$df_id]['typeclass'];
-
-                        if ( $data['datafields'][$df_id]['searchable'] === 1 ) {
-                            // ...but it isn't marked as "advanced" search
-                            throw new ODRBadRequestException('Invalid search key: datafield '.$df_id.' is not directly searchable', $exception_code);
-                        }
-
                         break;
                     }
                     else if ( isset($data['datafields']['non_public'][$df_id]) ) {
                         // Datafield is non-public
                         $found = true;
                         $typeclass = $data['datafields']['non_public'][$df_id]['typeclass'];
-
-                        if ( $data['datafields']['non_public'][$df_id]['searchable'] === 1 ) {
-                            // ...but it isn't marked as "advanced" search
-                            throw new ODRBadRequestException('Invalid search key: datafield '.$df_id.' is not directly searchable', $exception_code);
-                        }
-
                         break;
                     }
                 }
@@ -272,23 +260,11 @@ class SearchKeyService
                         if ( isset($data['datafields'][$df_id]) ) {
                             // Datafield is public...
                             $found = true;
-
-                            if ( $data['datafields'][$df_id]['searchable'] === 1 ) {
-                                // ...but it isn't marked as "advanced" search
-                                throw new ODRBadRequestException('Invalid search key: datafield '.$df_id.' is not directly searchable', $exception_code);
-                            }
-
                             break;
                         }
                         else if ( isset($data['datafields']['non_public'][$df_id]) ) {
                             // Datafield is non-public
                             $found = true;
-
-                            if ( $data['datafields']['non_public'][$df_id]['searchable'] === 1 ) {
-                                // ...but it isn't marked as "advanced" search
-                                throw new ODRBadRequestException('Invalid search key: datafield '.$df_id.' is not directly searchable', $exception_code);
-                            }
-
                             break;
                         }
                     }

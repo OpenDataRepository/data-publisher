@@ -591,6 +591,82 @@ class DefaultController extends Controller
 
 
     /**
+     * Called when the user performs a search from the search page.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function searchAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // ----------------------------------------
+            // Going to use the data in the POST request to build a new search key
+            $search_params = $request->request->all();
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+
+
+            /** @var DataType $datatype */
+            $dt_id = $search_params['dt_id'];
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dt_id);
+            if ( is_null($datatype) )
+                throw new ODRNotFoundException('Datatype');
+
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+
+            // This parameter shows up when an "inline search" is made from edit_ajax.html.twig
+            // It doesn't do anything here anymore, but keeping around just in case...
+            if ( isset($search_params['ajax_request']) )
+                unset( $search_params['ajax_request'] );
+
+
+            // ----------------------------------------
+            // Convert the POST request into a search key and validate it
+            $search_key = $search_key_service->convertPOSTtoSearchKey($search_params);
+            $search_key_service->validateSearchKey($search_key);
+
+            // Filter out the stuff from the given search key that the user isn't allowed to see
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
+            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
+
+            // No sense actually running the search here...whatever calls this needs to use the
+            //  search key to redirect to the render page
+            $return['d'] = array(
+                'search_key' => $filtered_search_key
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0xd809c18a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Fixes searches to follow the new URL system and redirects the user.
      *
      * @param $search_key
@@ -895,127 +971,6 @@ class DefaultController extends Controller
             $source = 0xc49e75eb;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Called when the user performs a search from the search page.
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function searchAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // ----------------------------------------
-            // Going to use the data in the POST request to build a new search key
-            $search_params = $request->request->all();
-
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
-            /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
-
-
-            /** @var DataType $datatype */
-            $dt_id = $search_params['dt_id'];
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dt_id);
-            if ( is_null($datatype) )
-                throw new ODRNotFoundException('Datatype');
-
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            if ( !$pm_service->canViewDatatype($user, $datatype) )
-                throw new ODRForbiddenException();
-
-
-            // TODO - the "ajax_request" parameter when searching from edit_ajax.html.twig
-
-
-            // ----------------------------------------
-            // Convert the POST request into a search key and validate it
-            $search_key = $search_key_service->convertPOSTtoSearchKey($search_params);
-            $search_key_service->validateSearchKey($search_key);
-
-            // Filter out the stuff from the given search key that the user isn't allowed to see
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
-            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
-
-            // No sense actually running the search here...whatever calls this needs to use the
-            //  search key to redirect to the render page
-            $return['d'] = array(
-                'search_key' => $filtered_search_key
-            );
-
-/*
-            // The POST data probably has a whole pile of empty keys...not entirely sure why
-            // TODO because the form has them...
-            $ajax_request = false;
-            foreach ($search_params as $key => $value) {
-                if (trim($value) == '')
-                    unset( $search_params[$key] );
-
-                if($key == "ajax_request") {
-                    $ajax_request = true;
-                    unset( $search_params[$key] );
-                }
-            }
-            ksort($search_params);
-
-            // Run a search based off those parameters
-            $search_params = self::performSearch($search_params);
-
-            // ----------------------------------------
-            if ( $search_params['error'] == true ) {
-                throw new \Exception( $search_params['message'] );
-            }
-            else if (
-                $search_params['redirect'] == true
-                && !$ajax_request
-            ) {
-                /** @var ODRCustomController $odrcc
-                $odrcc = $this->get('odr_custom_controller', $request);
-                $odrcc->setContainer($this->container);
-
-                $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-
-                $url = $this->generateUrl(
-                    'odr_search_render',
-                    array(
-                        'search_theme_id' => 0,     // use whatever default theme this datatype has
-                        'search_key' => $search_params['encoded_search_key']
-                    )
-                );
-                return $odrcc->searchPageRedirect($user, $url);
-            }
-
-            // Intentionally does nothing...ODROpenRepository::Default::search.html.twig will force a URL change once this controller action returns
-            $return['d'] = array(
-                'search_key' => $search_params['encoded_search_key']
-            );
-*/
-        }
-        catch (\Exception $e) {
-            $source = 0xd809c18a;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
