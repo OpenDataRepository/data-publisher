@@ -1232,28 +1232,6 @@ odr_get_zip_archive_progress:
 
 #-----------------------------------------
 # Other stuff
-odr_dt_clear:
-    path: /admin/dt_clear/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Worker:dtclear, datatype_id: 0 }
-    requirements:
-        datatype_id: \d+
-odr_theme_clear:
-    path: /admin/theme_clear/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Worker:themeclear, datatype_id: 0 }
-    requirements:
-        datatype_id: \d+
-odr_dr_clear:
-    path: /admin/dr_clear/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Worker:drclear, datatype_id: 0 }
-    requirements:
-        datatype_id: \d+
-odr_search_clear:
-    path: /admin/search_clear
-    defaults: { _controller: ODRAdminBundle:Worker:searchclear }
-odr_permissions_clear:
-    path: /admin/permissions_clear
-    defaults: { _controller: ODRAdminBundle:Worker:permissionsclear }
-
 #odr_mass_encrypt:
 #    path: /admin/mass_encrypt/{object_type}
 #    defaults: { _controller: ODRAdminBundle:Worker:startencrypt }
