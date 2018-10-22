@@ -1033,14 +1033,15 @@ class SearchService
 
                 // Insert each of the datafields into the array...
                 foreach ($results as $result) {
-                    // The searchabiilty filter is done here...if it was done in DQL, then wouldn't
-                    //  be able to get the datatype's public date when it didn't have any searchable
-                    //  datafields...without resorting to using two queries
-                    $searchable = $result['searchable'];
-                    $typeclass = $result['typeClass'];
+                    // If the datatype doesn't have any datafields, don't attempt to save anything
+                    if ( is_null($result['df_id']) )
+                        continue;
 
                     // Inline searching requires the ability to search on any datafield, even those
                     //  the user may not have necessarily marked as "searchable"
+                    $searchable = $result['searchable'];
+                    $typeclass = $result['typeClass'];
+
 //                    if ( $searchable > 0 ) {
                         $df_id = $result['df_id'];
 

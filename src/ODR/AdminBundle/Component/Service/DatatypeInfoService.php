@@ -122,6 +122,7 @@ class DatatypeInfoService
      * of the given datatype id.
      *
      * @param int $initial_datatype_id
+     * @param array|null $datatree_array
      *
      * @return int
      */

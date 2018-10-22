@@ -1203,6 +1203,7 @@ class DisplayController extends ODRCustomController
      * Assuming the user has the correct permissions, adds each file from this datarecord/datafield pair into a zip
      * archive and returns that zip archive for download.
      *
+     * @param int $grandparent_datarecord_id
      * @param Request $request
      *
      * @return Response

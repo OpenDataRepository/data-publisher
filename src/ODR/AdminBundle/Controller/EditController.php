@@ -3006,7 +3006,6 @@ class EditController extends ODRCustomController
             // ----------------------------------------
             // Sort array from earliest date to latest date
             usort($historical_values, function ($a, $b) {
-                // Sort by display order first if possible
                 $interval = date_diff($a['created'], $b['created']);
                 if ( $interval->invert == 0 )
                     return -1;
@@ -3014,13 +3013,28 @@ class EditController extends ODRCustomController
                     return 1;
             });
 
+//print '<pre>'.print_r($historical_values, true).'</pre>';
+
+            // Filter the array so it doesn't list the same value multiple times in a row
+            $previous_value = null;
+            foreach ($historical_values as $num => $data) {
+                $current_value = $data['value'];
+
+                if ( $previous_value !== $current_value )
+                    $previous_value = $current_value;
+                else
+                    unset( $historical_values[$num] );
+            }
+            // Make the array indices contiguous again
+            $historical_values = array_values($historical_values);
+
 
             // ----------------------------------------
             // Use the resulting keys of the array after the sort as version numbers
             foreach ($historical_values as $num => $data)
                 $historical_values[$num]['version'] = ($num+1);
 
-//print_r($historical_values);
+//print '<pre>'.print_r($historical_values, true).'</pre>';
 //exit();
 
             // Generate a csrf token to use if the user wants to revert back to an earlier value

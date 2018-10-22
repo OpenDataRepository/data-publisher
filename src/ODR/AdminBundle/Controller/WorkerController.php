@@ -869,6 +869,7 @@ $ret .= '  Set current to '.$count."\n";
      * @param string $object_type "File" or "Image"...which type of entity to encrypt
      * @param Request $request
      *
+     * @return Response
      */
     public function startdecryptAction($object_type, Request $request)
     {

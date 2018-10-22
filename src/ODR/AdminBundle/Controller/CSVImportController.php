@@ -1916,12 +1916,13 @@ class CSVImportController extends ODRCustomController
                             $already_uploaded_files = array();
                             if ($datarecord_id !== null) {
                                 $query_str =
-                                   'SELECT e.originalFileName
+                                   'SELECT em.originalFileName
                                     FROM ODRAdminBundle:'.$typeclass.' AS e
+                                    JOIN ODRAdminBundle:'.$typeclass.'Meta AS em WITH em.'.strtolower($typeclass).' = e
                                     WHERE e.dataRecord = :datarecord AND e.dataField = :datafield ';
                                 if ($typeclass == 'Image')
                                     $query_str .= 'AND e.original = 1 ';
-                                $query_str .= 'AND e.deletedAt IS NULL';
+                                $query_str .= 'AND e.deletedAt IS NULL AND em.deletedAt IS NULL';
 
                                 $query = $em->createQuery($query_str)->setParameters( array('datarecord' => $datarecord_id, 'datafield' => $datafield_id) );
                                 $results = $query->getArrayResult();

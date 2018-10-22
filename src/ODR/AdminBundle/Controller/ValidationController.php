@@ -44,6 +44,8 @@ class ValidationController extends ODRCustomController
      * Debug function to force the correct datetime format in the database
      *
      * @param Request $request
+     *
+     * @return Response
      */
     public function fixdatabasedatesAction(Request $request)
     {
@@ -55,6 +57,7 @@ class ValidationController extends ODRCustomController
         $save = false;
 //        $save = true;
 
+        $em = null;
         $conn = null;
 
         try {

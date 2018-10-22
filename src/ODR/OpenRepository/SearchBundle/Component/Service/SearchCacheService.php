@@ -18,8 +18,6 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
-// Exceptions
-use ODR\AdminBundle\Exception\ODRException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 // Symfony
