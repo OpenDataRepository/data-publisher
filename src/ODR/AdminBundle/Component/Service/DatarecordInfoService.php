@@ -20,8 +20,6 @@ use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 // Utility
 use ODR\AdminBundle\Component\Utility\UserUtility;
-use Symfony\Bundle\TwigBundle\TwigEngine;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 

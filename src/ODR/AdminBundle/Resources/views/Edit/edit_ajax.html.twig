@@ -184,7 +184,7 @@ function initPage() {
 #}
 
     $(".ODRDeleteFile").unbind('click').click(function() {
-        if ( confirm("Are you certain that you want to elete this File?") ) {
+        if ( confirm("Are you certain that you want to delete this File?") ) {
             var file_id = $(this).attr('rel');
 
             var url  = '{{ path('odr_record_delete_file', {'file_id': 0} ) }}';
@@ -720,7 +720,7 @@ function initPage() {
                                         header.find('.fa-magic').remove();
 
                                         console.log('val: ', $(input_elem).val());
-                                        let form_id = $(input_elem).closest("form").attr('id');
+                                        var form_id = $(input_elem).closest("form").attr('id');
 
 
                                         $("#FieldArea_" + current_linked_record)

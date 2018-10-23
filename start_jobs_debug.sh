@@ -20,9 +20,6 @@ php app/console --env=dev odr_csv_export:worker >> app/logs/csv_export_worker.lo
 #php app/console --env=dev odr_csv_export:worker >> app/logs/csv_export_worker_2.log 2>&1 &    # seems to screw up when second job is active
 php app/console --env=dev odr_csv_export:finalize >> app/logs/csv_export_finalize.log 2>&1 &
 
-# temporary kludge to get datarecord restrictions working at all
-php app/console odr_permissions:kludge >> app/logs/permissions_kludge.log 2>&1 &
-
 
 php app/console --env=dev odr_datatype:clone_and_link_datatype >> app/logs/clone_and_link_datatype.log 2>&1 &
 # php app/console --env=dev odr_datatype:clone_master >> app/logs/datatype_create.log 2>&1 &

@@ -8,8 +8,53 @@ services:
         class: ODR\AdminBundle\Controller\ODRCustomController
 
 
+    odr.search_api_service:
+        class: ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            datatype_info_service: "@odr.datatype_info_service"
+            search_service: "@odr.search_service"
+            search_cache_service: "@odr.search_cache_service"
+            search_key_service: "@odr.search_key_service"
+            logger: "@logger"
+
     odr.search_cache_service:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService
         arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
+            search_service: "@odr.search_service"
+            logger: "@logger"
+
+    odr.search_key_service:
+        class: ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService
+        arguments:
+            datatype_info_service: "@odr.datatype_info_service"
+            search_service: "@odr.search_service"
+            logger: "@logger"
+
+    odr.search_service:
+        class: ODR\OpenRepository\SearchBundle\Component\Service\SearchService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            cache_service: "@odr.cache_service"
+            datatype_info_service: "@odr.datatype_info_service"
+            search_query_service: "@odr.search_query_service"
+            logger: "@logger"
+
+
+    odr.search_query_service:
+        class: ODR\OpenRepository\SearchBundle\Component\Service\SearchQueryService
+        public: false
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+
+
+    odr.search_redirect_service:
+        class: ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService
+        arguments:
+            tab_helper_service: "@odr.tab_helper_service"
+            router: "@router"
+            templating: "@templating"
             logger: "@logger"

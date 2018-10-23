@@ -17,14 +17,12 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
-use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;

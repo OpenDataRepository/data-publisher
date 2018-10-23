@@ -8,42 +8,42 @@
 {% if has_view_permission %}
     <div class="ODRAdvSearch_datafield pure-u-1">
         <label class="pure-u-1-3">Modified Date:</label>
-        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype_id }}_modify_start" name="dt_{{ datatype_id }}_m_s" value="" rel="{{ datatype_id }}" title="Find Datarecords modified AFTER this date" />
+        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="dt_{{ datatype_id }}_m_start" name="dt_{{ datatype_id }}_m_s" value="" rel="dt_{{ datatype_id }}_m" title="Find Datarecords modified AFTER this date" />
 {#
     </div>
     <div class="ODRAdvSearch_datafield pure-u-1">
 #}
         <label class="pure-u-1-3"></label>
-        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype_id }}_modify_end" name="dt_{{ datatype_id }}_m_e" value="" rel="{{ datatype_id }}" title="Find Datarecords modified BEFORE this date" />
+        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="dt_{{ datatype_id }}_m_end" name="dt_{{ datatype_id }}_m_e" value="" rel="dt_{{ datatype_id }}_m" title="Find Datarecords modified BEFORE this date" />
     </div>
 
     <div class="ODRAdvSearch_datafield pure-u-1">
         <label class="pure-u-1-3">Modified By:</label>
         <select class="ODRInput pure-u-2-3" id="select_modified_by" name="dt_{{ datatype_id }}_m_by" rel="{{ datatype_id }}">
             <option value=""></option>
-            {% for u in user_list %}
-            <option value="{{ u.id }}">{{ u.getuserstring }}</option>
+            {% for user_id, username in user_list %}
+            <option value="{{ user_id }}">{{ username }}</option>
             {% endfor %}
         </select>
     </div>
 
     <div class="ODRAdvSearch_datafield pure-u-1">
         <label class="pure-u-1-3">Created Date:</label>
-        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype_id }}_create_start" name="dt_{{ datatype_id }}_c_s" value="" rel="{{ datatype_id }}" title="Find Datarecords created AFTER this date" />
+        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="dt_{{ datatype_id }}_c_start" name="dt_{{ datatype_id }}_c_s" value="" rel="dt_{{ datatype_id }}_c" title="Find Datarecords created AFTER this date" />
 {#
     </div>
     <div class="ODRAdvSearch_datafield pure-u-1">
 #}
         <label class="pure-u-1-3"></label>
-        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype_id }}_create_end" name="dt_{{ datatype_id }}_c_e" value="" rel="{{ datatype_id }}" title="Find Datarecords created BEFORE this date" />
+        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="dt_{{ datatype_id }}_c_end" name="dt_{{ datatype_id }}_c_e" value="" rel="dt_{{ datatype_id }}_c" title="Find Datarecords created BEFORE this date" />
     </div>
 
     <div class="ODRAdvSearch_datafield pure-u-1">
         <label class="pure-u-1-3">Created By:</label>
         <select class="ODRInput pure-u-2-3" id="select_created_by" name="dt_{{ datatype_id }}_c_by" rel="{{ datatype_id }}">
             <option value=""></option>
-            {% for u in user_list %}
-            <option value="{{ u.id }}">{{ u.getuserstring }}</option>
+            {% for user_id, username in user_list %}
+            <option value="{{ user_id }}">{{ username }}</option>
             {% endfor %}
         </select>
     </div>

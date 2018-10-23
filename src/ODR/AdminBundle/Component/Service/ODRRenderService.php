@@ -13,7 +13,6 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;

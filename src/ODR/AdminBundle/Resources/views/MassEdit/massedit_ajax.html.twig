@@ -79,6 +79,10 @@ $(function() {
     initPage();
     window.scrollTo(0,0);
 
+    // Need a tab id in html5 sessionStorage if one doesn't exist
+    if ( !window.sessionStorage.getItem('odr_tab_id') )
+        window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
+
     // Tristate checkbox
     $(".ODRTristateCheckbox").unbind('click').click(function() {
         // Grab data about the option being clicked

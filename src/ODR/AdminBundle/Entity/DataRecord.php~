@@ -643,6 +643,7 @@ class DataRecord
      */
     public function isPublic()
     {
+        // TODO - This function is not correct...... Public should regard today's date.
         if ($this->getPublicDate()->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
             return false;
         else
