@@ -6,5 +6,6 @@ Feature: ODR Screenshots and Browser Tests
     Then We should find "Login"
     Then We should log in
     Then We should see "Change in number"
+    Then We should take a screenshot of the "Dashboard"
     Then We should also see "Search"
 

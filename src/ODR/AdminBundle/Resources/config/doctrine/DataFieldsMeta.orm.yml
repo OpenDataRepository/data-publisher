@@ -31,6 +31,13 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             nullable: false
             column: xml_field_name
 
+        internal_reference_name:
+            type: string
+            length: 64
+            fixed: false
+            nullable: true
+            column: internal_reference_name
+
 
         # This column tracks the latest revision of
         # the data field (when field is a master field).

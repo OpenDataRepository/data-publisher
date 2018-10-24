@@ -87,7 +87,7 @@ class UpdateDataFieldsForm extends AbstractType
 
         $builder->add(
             'description', 
-            TextType::class,
+            TextareaType::class,
             array(
                 'required' => true,
                 'label'  => 'Description',

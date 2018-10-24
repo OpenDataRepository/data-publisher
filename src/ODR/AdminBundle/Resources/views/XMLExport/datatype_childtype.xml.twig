@@ -20,6 +20,8 @@
     <internal_id>{{ datatype.id }}</internal_id>
     <name>{{ datatype_meta.shortName|xml }}</name>
     <description>{{ datatype_meta.description|xml }}</description>
+    <template_uuid>{{ datatype.unique_id }}</template_uuid>
+    <updated_at>{{ datatype_meta.created|date('Y-m-d H:i:s') }}</updated_at>
 
     {% if datatype_meta.renderPlugin.id != 1 %}
     <render_plugin>

@@ -55,9 +55,9 @@ class WorkerController extends ODRCustomController
 
     /**
      * Called by the migration background process to transfer data from one storage entity to another compatible storage entity.
-     * 
+     *
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function migrateAction(Request $request)
@@ -295,7 +295,7 @@ $ret .= '  Set current to '.$count."\n";
 
     /**
      * Begins the process of rebuilding the image thumbnails for a specific datatype.
-     * 
+     *
      * @param integer $datatype_id Which datatype should have all its image thumbnails rebuilt
      * @param Request $request
      *
@@ -408,10 +408,10 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
-     * Called by the rebuild_thumbnails worker process to rebuild the thumbnails of one of the uploaded images on the site. 
-     * 
+     * Called by the rebuild_thumbnails worker process to rebuild the thumbnails of one of the uploaded images on the site.
+     *
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function rebuildthumbnailsAction(Request $request)
@@ -591,6 +591,8 @@ $ret .= '  Set current to '.$count."\n";
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
 
@@ -686,14 +688,13 @@ $ret .= '  Set current to '.$count."\n";
                 }
 
                 if ( $archive_filepath == '' ) {
-                    $redis = $this->container->get('snc_redis.default');;
-                    // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-                    $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-                    $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
+                    $file_decryptions = $cache_service->get('file_decryptions');
 
-                    unset($file_decryptions[$target_filename]);
-                    $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
+                    if ( isset($file_decryptions[$target_filename]) )
+                        unset($file_decryptions[$target_filename]);
+
+                    $cache_service->set('file_decryptions', $file_decryptions);
                 }
                 else {
                     // Attempt to open the specified zip archive
@@ -743,379 +744,6 @@ $ret .= '  Set current to '.$count."\n";
                 fclose($handle);
             }
         }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Debug function...clears existing cached versions of datatypes (optionally for a specific datatype).
-     * Should only be used when changes have been made to the structure of the cached array for datatypes
-     *
-     * @param integer $datatype_id
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function dtclearAction($datatype_id, Request $request)
-    {
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                throw new ODRForbiddenException();
-
-            $results = array();
-            if ($datatype_id == 0) {
-                // Locate all existing datatype ids
-                $query = $em->createQuery(
-                   'SELECT dt.id AS dt_id
-                    FROM ODRAdminBundle:DataType AS dt'
-                );
-
-                $results = $query->getArrayResult();
-            }
-            else {
-                // Locate all child/linked datatypes for the specified datatype
-                $datatype_ids = $dti_service->getAssociatedDatatypes( array($datatype_id) );
-
-                $query = $em->createQuery(
-                   'SELECT dt.id AS dt_id
-                    FROM ODRAdminBundle:DataType AS dt
-                    WHERE dt.id IN (:datatype_ids)'
-                )->setParameters( array('datatype_ids' => $datatype_ids) );
-
-                $results = $query->getArrayResult();
-            }
-
-            $cache_service->delete('cached_datatree_array');
-            $cache_service->delete('top_level_datatypes');
-
-            $keys_to_delete = array();
-            foreach ($results as $result) {
-                $dt_id = $result['dt_id'];
-
-                // All datatypes have these keys
-                $keys_to_delete[] = 'cached_datatype_'.$dt_id;
-                $keys_to_delete[] = 'datatype_'.$dt_id.'_record_order';
-
-                // Child datatypes don't have these keys, but deleting them doesn't hurt anything
-                $keys_to_delete[] = 'dashboard_'.$dt_id;
-                $keys_to_delete[] = 'dashboard_'.$dt_id.'_public_only';
-                $keys_to_delete[] = 'associated_datatypes_for_'.$dt_id;
-            }
-
-            print '<pre>';
-            foreach ($keys_to_delete as $key) {
-                if ($cache_service->exists($key) ) {
-                    $cache_service->delete($key);
-                    print '"'.$key.'" deleted'."\n";
-                }
-            }
-            print '</pre>';
-        }
-        catch (\Exception $e) {
-            $source = 0xaa016ab8;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $return = array(
-            'r' => 0,
-            't' => '',
-            'd' => '',
-        );
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Debug function...clears existing cached versions of themes (optionally for a specific datatype).
-     * Should only be used when changes have been made to the structure of the cached array for themes.
-     *
-     * @param integer $datatype_id
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function themeclearAction($datatype_id, Request $request)
-    {
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                throw new ODRForbiddenException();
-
-            $results = array();
-            if ($datatype_id == 0) {
-                // Locate all existing theme ids
-                $query = $em->createQuery(
-                   'SELECT t.id AS t_id
-                    FROM ODRAdminBundle:Theme AS t'
-                );
-
-                $results = $query->getArrayResult();
-            }
-            else {
-                // Locate all themes for this datatype, its children, and its linked datatypes (just because)
-                $datatype_ids = $dti_service->getAssociatedDatatypes( array($datatype_id) );
-
-                $query = $em->createQuery(
-                   'SELECT t.id AS t_id
-                    FROM ODRAdminBundle:Theme AS t
-                    WHERE t.dataType IN (:datatype_ids)'
-                )->setParameters( array('datatype_ids' => $datatype_ids) );
-
-                $results = $query->getArrayResult();
-            }
-
-            $keys_to_delete = array();
-            foreach ($results as $result) {
-                $t_id = $result['t_id'];
-                $keys_to_delete[] = 'cached_theme_'.$t_id;
-            }
-
-            print '<pre>';
-            foreach ($keys_to_delete as $key) {
-                if ($cache_service->exists($key) ) {
-                    $cache_service->delete($key);
-                    print '"'.$key.'" deleted'."\n";
-                }
-            }
-            print '</pre>';
-        }
-        catch (\Exception $e) {
-            $source = 0xe4e80e34;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $return = array(
-            'r' => 0,
-            't' => '',
-            'd' => '',
-        );
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Debug function...clears existing cached versions of datarecords (optionally for a given datatype).
-     * Should only be used when changes have been made to the structure of the cached array for datarecords
-     *
-     * @param integer $datatype_id
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function drclearAction($datatype_id, Request $request)
-    {
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                throw new ODRForbiddenException();
-
-
-            $conn = $em->getConnection();
-
-            $query = null;
-            if ($datatype_id == 0) {
-                // Locate all existing datarecord ids
-                $query =
-                   'SELECT dr.id AS dr_id
-                    FROM odr_data_record AS dr
-                    WHERE dr.id = dr.grandparent_id
-                    AND dr.deletedAt IS NULL';
-            }
-            else {
-                // Only want datarecords of the specified datatype
-                $query =
-                   'SELECT dr.id AS dr_id
-                    FROM odr_data_record AS dr
-                    WHERE dr.id = dr.grandparent_id AND dr.data_type_id = '.$datatype_id.'
-                    AND dr.deletedAt IS NULL';
-            }
-            $results = $conn->fetchAll($query);
-
-            $key = 'associated_datarecords_for_';
-            foreach ($results as $result) {
-                if ($cache_service->exists($key.$result['dr_id']))
-                    $cache_service->delete($key.$result['dr_id']);
-            }
-
-            $key = 'cached_datarecord_';
-            foreach ($results as $result) {
-                if ($cache_service->exists($key.$result['dr_id']))
-                    $cache_service->delete($key.$result['dr_id']);
-            }
-
-            $key = 'cached_table_data_';
-            foreach ($results as $result) {
-                if ($cache_service->exists($key.$result['dr_id']))
-                    $cache_service->delete($key.$result['dr_id']);
-            }
-
-        }
-        catch (\Exception $e) {
-            $source = 0xc178ea4b;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $return = array(
-            'r' => 0,
-            't' => '',
-            'd' => '',
-        );
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Debug function...clears all existing cached search result.
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function searchclearAction(Request $request)
-    {
-        try {
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                throw new ODRForbiddenException();
-
-            $cache_service->delete('cached_search_results');
-        }
-        catch (\Exception $e) {
-            $source = 0xcb3e7952;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $return = array(
-            'r' => 0,
-            't' => '',
-            'd' => '',
-        );
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Debug function...clears all existing cached search result.
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function permissionsclearAction(Request $request)
-    {
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                throw new ODRForbiddenException();
-
-            // ----------------------------------------
-            // Clear all cached user permissions
-            $query = $em->createQuery(
-               'SELECT u.id AS user_id
-                FROM ODROpenRepositoryUserBundle:User AS u'
-            );
-            $results = $query->getArrayResult();
-
-            foreach ($results as $result) {
-                $user_id = $result['user_id'];
-                $cache_service->delete('user_'.$user_id.'_permissions');
-            }
-
-
-            // ----------------------------------------
-            // Clear all cached group permissions
-            $query = $em->createQuery(
-               'SELECT g.id AS group_id
-                FROM ODRAdminBundle:Group AS g'
-            );
-            $results = $query->getArrayResult();
-
-            foreach ($results as $result) {
-                $group_id = $result['group_id'];
-                $cache_service->delete('group_'.$group_id.'_permissions');
-            }
-        }
-        catch (\Exception $e) {
-            $source = 0x2afc476b;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $return = array(
-            'r' => 0,
-            't' => '',
-            'd' => '',
-        );
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
@@ -1241,6 +869,7 @@ $ret .= '  Set current to '.$count."\n";
      * @param string $object_type "File" or "Image"...which type of entity to encrypt
      * @param Request $request
      *
+     * @return Response
      */
     public function startdecryptAction($object_type, Request $request)
     {
@@ -1452,6 +1081,11 @@ $ret .= '  Set current to '.$count."\n";
         $em = $this->getDoctrine()->getManager();
 
         try {
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
             /** @var CloneThemeService $clone_theme_service */
@@ -1708,6 +1342,11 @@ $ret .= '  Set current to '.$count."\n";
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
             /** @var RenderPlugin[] $render_plugins */
             $render_plugins = $em->getRepository('ODRAdminBundle:RenderPlugin')->findAll();
 
@@ -1812,7 +1451,7 @@ $ret .= '  Set current to '.$count."\n";
         }
 
         $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
 
@@ -1836,6 +1475,11 @@ $ret .= '  Set current to '.$count."\n";
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
 
 
             /** @var CloneThemeService $clone_theme_service */
@@ -1883,7 +1527,174 @@ $ret .= '  Set current to '.$count."\n";
         }
 
         $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function setuniqueidsAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
+
+            // Need all datatypes, as well as a list of which ones are top-level...
+            $top_level_datatype_ids = $dti_service->getTopLevelDatatypes();
+
+            /** @var DataType[] $all_datatypes */
+            $all_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
+
+            // Go through all the top-level datatypes first...
+            print '<pre>';
+            foreach ($all_datatypes as $dt) {
+                if ( in_array($dt->getId(), $top_level_datatype_ids) ) {
+                    // If the top-level datatype has a unique_id but no template_group, fix that
+                    if ( $dt->getUniqueId() !== '' && ( is_null($dt->getTemplateGroup() || $dt->getTemplateGroup() === '') ) ) {
+                        $dt->setTemplateGroup( $dt->getUniqueId() );
+
+                        print 'set top-level datatype '.$dt->getId().' "'.$dt->getShortName().'" was missing a template_group, set to "'.$dt->getUniqueId().'"'."\n";
+
+                        if ($save) {
+                            $em->persist($dt);
+                            $em->flush();
+                            $em->refresh($dt);
+                        }
+                    }
+
+                    // If the top-level datatype does not have a unique_id, create one
+                    if ( is_null($dt->getUniqueId()) || $dt->getUniqueId() === '' ) {
+                        $unique_id = $dti_service->generateDatatypeUniqueId();
+
+                        $dt->setUniqueId($unique_id);
+                        $dt->setTemplateGroup($unique_id);
+
+                        print 'set top-level datatype '.$dt->getId().' "'.$dt->getShortName().'" to have unique_id and template_group "'.$unique_id.'"'."\n";
+
+                        if ($save) {
+                            $em->persist($dt);
+                            $em->flush();
+                            $em->refresh($dt);
+                        }
+                    }
+                }
+            }
+
+            // ...now that the grandparent datatypes have unique_ids and template_groups, the
+            //  child datatypes can be set to use their grandparent's template_group...
+            foreach ($all_datatypes as $dt) {
+                if ( !in_array($dt->getId(), $top_level_datatype_ids) ) {
+                    // Child datatypes should always match their grandparent's template_group...
+                    $dt->setTemplateGroup( $dt->getGrandparent()->getTemplateGroup() );
+
+                    print 'set child datatype '.$dt->getId().' "'.$dt->getShortName().'" to have template_group "'.$dt->getGrandparent()->getTemplateGroup().'"'."\n";
+
+                    // If the child datatype does not have a unique_id, create one
+                    if ( is_null($dt->getUniqueId()) || $dt->getUniqueId() === '' ) {
+                        $unique_id = $dti_service->generateDatatypeUniqueId();
+                        $dt->setUniqueId($unique_id);
+
+                        print 'set child datatype '.$dt->getId().' "'.$dt->getShortName().'" to have unique_id "'.$unique_id.'"'."\n";
+                    }
+
+                    if ($save) {
+                        $em->persist($dt);
+                        $em->flush();
+                        $em->refresh($dt);
+                    }
+                }
+            }
+            print '</pre>';
+        }
+        catch (\Exception $e) {
+            $source = 0x74a51771;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function fixsetupstepsAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+
+            /** @var DataType[] $all_datatypes */
+            $all_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
+
+            print '<pre>';
+            foreach ($all_datatypes as $dt) {
+                $current_setup_step = $dt->getSetupStep();
+
+                if ($current_setup_step !== DataType::STATE_INITIAL && $current_setup_step !== DataType::STATE_OPERATIONAL) {
+                    $dt->setSetupStep(DataType::STATE_OPERATIONAL);
+                    $em->persist($dt);
+
+                    print 'set datatype '.$dt->getId().' "'.$dt->getShortName().'" to be "operational" instead of "incomplete"'."\n";
+                }
+            }
+            print '</pre>';
+
+            if ($save)
+                $em->flush();
+        }
+        catch (\Exception $e) {
+            $source = 0xd895a5e6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
 }

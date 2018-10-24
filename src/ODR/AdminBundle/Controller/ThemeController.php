@@ -12,7 +12,7 @@
 
 namespace ODR\AdminBundle\Controller;
 
-
+use ODR\AdminBundle\Component\Service\DesignInfoService;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -1676,16 +1676,83 @@ class ThemeController extends ODRCustomController
         return $response;
     }
 
+    /**
+     * @param $datatype_id
+     * @param Request $request
+     * @return Response
+     */
+    public function addthemeelementbydatatypeAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+//            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+
+            /** @var DataType $datatype */
+            $datatype = $repo_datatype->find($datatype_id);
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // TODO - can't use this construct, linked datatypes have multiple 'master' themes differentiated only by parent_theme_id
+            // We can only operate on master themes here...
+            /** @var Theme $theme */
+/*
+            $theme = $repo_theme->findOneBy(
+                array(
+                    'themeType' => 'master',
+                    'dataType' => $datatype,
+                )
+            );
+*/
+            $theme = $theme_info_service->getDatatypeMasterTheme($datatype_id);
+            if ($theme == null)
+                throw new ODRNotFoundException('Theme');
+
+            // TODO - the theme_element reload WILL NOT succeed, but at least the database won't be messed up afterwards...
+            return $this->redirect(
+                $this->generateUrl(
+                    'odr_design_add_theme_element',
+                    array(
+                        'theme_id' => $theme->getId(),
+                        'full_html' => 1
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x323fe225;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+    }
+
+
 
     /**
      * Adds a new ThemeElement entity to the current layout.
      *
      * @param integer $theme_id  Which theme to add this theme_element to
+     * @param boolean $full_html Defaults to false
      * @param Request $request
      *
      * @return Response
      */
-    public function addthemeelementAction($theme_id, Request $request)
+    public function addthemeelementAction($theme_id, $full_html = false, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1753,14 +1820,30 @@ class ThemeController extends ODRCustomController
             // Save changes
             $em->flush();
 
+            // Update cached version of theme
+            $theme_service->updateThemeCacheEntry($theme, $user);
+
+            // TODO - modify ODRRenderService to reload theme_elements...
+            $html = "";
+            if($full_html) {
+
+                /** @var DesignInfoService $di_service */
+                $di_service = $this->container->get('odr.design_info_service');
+
+                $html = $di_service->GetDisplayData(
+                    $datatype->getGrandparent()->getId(),
+                    'theme_element',
+                    $theme_element->getId()
+                );
+            }
+
             // Return the new theme element's id
             $return['d'] = array(
                 'theme_element_id' => $theme_element->getId(),
                 'datatype_id' => $datatype->getId(),
+                'html' => $html,
             );
 
-            // Update cached version of theme
-            $theme_service->updateThemeCacheEntry($theme, $user);
         }
         catch (\Exception $e) {
             $source = 0x7cbe82a5;

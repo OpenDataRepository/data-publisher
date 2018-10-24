@@ -33,6 +33,16 @@ class DataFields
     private $is_master_field;
 
     /**
+     * @var string
+     */
+    private $fieldUuid;
+
+    /**
+     * @var string
+     */
+    private $templateFieldUuid;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -156,6 +166,54 @@ class DataFields
         $this->created = $created;
 
         return $this;
+    }
+
+    /**
+     * Set fieldUuid
+     *
+     * @param string $fieldUuid
+     *
+     * @return DataFields
+     */
+    public function setFieldUuid($fieldUuid)
+    {
+        $this->fieldUuid = $fieldUuid;
+
+        return $this;
+    }
+
+    /**
+     * Get fieldUuid
+     *
+     * @return string
+     */
+    public function getFieldUuid()
+    {
+        return $this->fieldUuid;
+    }
+
+    /**
+     * Set templateFieldUuid
+     *
+     * @param string $templateFieldUuid
+     *
+     * @return DataFields
+     */
+    public function setTemplateFieldUuid($templateFieldUuid)
+    {
+        $this->templateFieldUuid = $templateFieldUuid;
+
+        return $this;
+    }
+
+    /**
+     * Get templateFieldUuid
+     *
+     * @return string
+     */
+    public function getTemplateFieldUuid()
+    {
+        return $this->templateFieldUuid;
     }
 
     /**
@@ -559,6 +617,46 @@ class DataFields
     }
 
     /**
+     * Get internalReferenceName
+     *
+     * @return string
+     */
+    public function getInternalReferenceName()
+    {
+        return $this->getDataFieldMeta()->getInternalReferenceName();
+    }
+
+    /**
+     * Get master_published_revision
+     *
+     * @return int
+     */
+    public function getMasterPublishedRevision()
+    {
+        return $this->getDataFieldMeta()->getMasterPublishedRevision();
+    }
+
+    /**
+     * Get master_revision
+     *
+     * @return int
+     */
+    public function getMasterRevision()
+    {
+        return $this->getDataFieldMeta()->getMasterRevision();
+    }
+
+    /**
+     * Get tracking_master_revision
+     *
+     * @return int
+     */
+    public function getTrackingMasterRevision()
+    {
+        return $this->getDataFieldMeta()->getTrackingMasterRevision();
+    }
+
+    /**
      * Get markdownText
      *
      * @return string
@@ -696,35 +794,5 @@ class DataFields
     public function getRenderPlugin()
     {
         return $this->getDataFieldMeta()->getRenderPlugin();
-    }
-
-    /**
-     * Get master_published_revision
-     *
-     * @return int
-     */
-    public function getMasterPublishedRevision()
-    {
-        return $this->getDataFieldMeta()->getMasterPublishedRevision();
-    }
-
-    /**
-     * Get master_revision
-     *
-     * @return int
-     */
-    public function getMasterRevision()
-    {
-        return $this->getDataFieldMeta()->getMasterRevision();
-    }
-
-    /**
-     * Get tracking_master_revision
-     *
-     * @return int
-     */
-    public function getTrackingMasterRevision()
-    {
-        return $this->getDataFieldMeta()->getTrackingMasterRevision();
     }
 }

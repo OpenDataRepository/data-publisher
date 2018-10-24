@@ -59,7 +59,7 @@
     <link rel="stylesheet" href="/css/external/plotly_bars.css">
 
     <!-- Theme CSS -->
-    <link rel="stylesheet" href="/css/themes/css_smart/style.1.6.02.css" >
+    <link rel="stylesheet" href="/css/themes/css_smart/smart.1.00.css" >
     <!-- TODO Use Stylsheets block to load theme -->
     {% block stylesheets %}{% endblock %}
 
@@ -78,14 +78,17 @@
 #}
 {#
     <script src="http://code.jquery.com/jquery-migrate-1.4.1.js"></script>
-#}
     <script src="/js/libs/jquery-1.12.4.min.js"></script>
-{#
-    <script
-            src="https://code.jquery.com/jquery-2.2.4.js"
-            integrity="sha256-iT6Q9iMJYuQiMWNd9lDyBUStIq/8PuOW33aOqmvFpqI="
-            crossorigin="anonymous"></script>
 #}
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+    {#
+        <script
+                src="https://code.jquery.com/jquery-2.2.4.js"
+                integrity="sha256-iT6Q9iMJYuQiMWNd9lDyBUStIq/8PuOW33aOqmvFpqI="
+                crossorigin="anonymous"></script>
+    #}
 
 
     <!-- Do the same with jQuery UI -->
@@ -167,33 +170,12 @@
     <script src="/js/mylibs/jquery.fileDownload.js"></script>
 
     <!-- Plot.ly JS Plots Based on D3 -->
-{#
     <script type="text/javascript" src="/js/mylibs/d3.v4.min.js"></script>
-    <script type="text/javascript" src="/js/mylibs/plotly.js-1.17.3/dist/plotly.min.js"></script>
-#}
-    <script type="text/javascript" src="/js/mylibs/nvd3/d3.v3.min.js"></script>
     <script type="text/javascript" src="/js/mylibs/plotly-1.5.0.min.js"></script>
     <script type="text/javascript" src="/js/mylibs/d3-queue.v3.min.js"></script>
     <script type="text/javascript" src="/js/mylibs/odr_plotly_graphs.js"></script>
 
-    <!-- Remodal -->
-{#
-    <!--
-    <script>
-        window.REMODAL_GLOBALS = {
-            NAMESPACE: 'remodal',
-            DEFAULTS: {
-                hashTracking: false
-            }
-        };
-    </script>
-    -->
-    <!-- <script src="/js/mylibs/remodal-master/dist/remodal.min.js"></script> -->
-#}
     <script src="/js/mylibs/remodal-master/dist/remodal.js"></script>
-{#
-    <!-- <script src="/js/mylibs/iscroll-master/build/iscroll.js"></script> -->
-#}
 
     <!-- Overhang -->
     <script src="/js/mylibs/overhang/overhang.min.js"></script>
@@ -216,6 +198,7 @@
                 <li class="pure-menu-item"><span class="pure-menu-heading odr-custom-brand">Admin&nbsp;<i class="fa fa-md fa-plus-square"></i></span>
                     {% block navigation_top %}{% endblock %}
                 </li>
+                <li id="ODRDatabaseLanding" class="pure-menu-item"><span class="pure-menu-heading odr-custom-brand">Dashboard</span></li>
             {% endif %}
 
             {% if header_middle_title != '' %}

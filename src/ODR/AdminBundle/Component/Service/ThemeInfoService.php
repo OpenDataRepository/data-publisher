@@ -568,12 +568,58 @@ class ThemeInfoService
         );
         $result = $query->getResult();
 
-        // Sanity check...
-        if ( count($result) !== 1 )
-            throw new ODRException('This datatype does not have a "master" theme', 500, 0x2e0a8d28);
 
-        // Return this datatype's master theme
-        return $result[0];
+        // Sanity check...
+        if ( count($result) !== 1 ) {
+            // Check again if this is a datatype cloned from master and if source theme matches master source theme
+            $query = $this->em->createQuery(
+                'SELECT t
+            FROM ODRAdminBundle:Theme AS t
+            JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
+            WHERE t.dataType = :datatype_id AND t.themeType = :theme_type
+            AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datatype_id' => $datatype_id,
+                    'theme_type' => 'master',
+                )
+            );
+            $results = $query->getResult();
+
+            $default_master_theme = null;
+            /** @var Theme $result */
+            foreach($results as $result) {
+                $datatype = $result->getDataType();
+                $master_datatype = $datatype->getMasterDataType();
+                if($master_datatype !== null) {
+                    $master_themes = $master_datatype->getThemes();
+                    /** @var Theme $theme */
+                    foreach($master_themes as $theme) {
+                        if(
+                            $theme->getId() == $theme->getSourceTheme()->getId()
+                            && $theme->getThemeType() == "master"
+                            && $theme->getId() == $result->getSourceTheme()->getId()
+                            && $result->getId() == $result->getParentTheme()->getId()
+                        ) {
+                            // This is the master theme for the master template
+                            $default_master_theme = $result;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if($default_master_theme !== null) {
+                return $default_master_theme;
+            }
+            else {
+                throw new ODRException('This datatype does not have a "master" theme', 500, 0x2e0a8d28);
+            }
+        }
+        else {
+            // Return this datatype's master theme
+            return $result[0];
+        }
     }
 
 

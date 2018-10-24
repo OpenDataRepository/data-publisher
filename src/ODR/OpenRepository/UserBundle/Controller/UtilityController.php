@@ -17,7 +17,7 @@ namespace ODR\OpenRepository\UserBundle\Controller;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 // Services
-use ODR\AdminBundle\Component\Service\ODRTabHelperService;
+use ODR\OpenRepository\UserBundle\Component\Service\TrackedPathService;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -58,7 +58,9 @@ class UtilityController extends Controller
             throw new ODRBadRequestException('Invalid query string', 0xed466573);
 
         // Ensure all target paths are cleared before saving
-        self::clearTargetPaths($request);
+        /** @var TrackedPathService $tracked_path_service */
+        $tracked_path_service = $this->container->get('odr.tracked_path_service');
+        $tracked_path_service->clearTargetPaths();
 
          // No issues, save the URL base
         $session->set('_security.main.target_path', $url);
@@ -101,7 +103,9 @@ class UtilityController extends Controller
 
         // Ensure target paths except for "_security.main.target_path" are cleared before saving
         // If that path was cleared, users would always get redirected to the dashboard
-        self::clearTargetPaths($request, false);
+        /** @var TrackedPathService $tracked_path_service */
+        $tracked_path_service = $this->container->get('odr.tracked_path_service');
+        $tracked_path_service->clearTargetPaths(false);
 
         // No issues, save the URL fragment
         if ($has_appdev)
@@ -157,7 +161,9 @@ class UtilityController extends Controller
         }
 
         // Ensure all target paths in the user's session are deleted prior to redirecting
-        self::clearTargetPaths($request);
+        /** @var TrackedPathService $tracked_path_service */
+        $tracked_path_service = $this->container->get('odr.tracked_path_service');
+        $tracked_path_service->clearTargetPaths();
 
         if ($url !== '') {
             // The session specified some URL to redirect to, so send the user there
@@ -167,49 +173,5 @@ class UtilityController extends Controller
             // Otherwise, no desired redirect found...just redirect to the dashboard
             return new RedirectResponse($this->get('router')->generate('odr_admin_homepage'));
         }
-    }
-
-
-    /**
-     * Utility function to ensure the user's session doesn't store a target path it shouldn't.
-     *
-     * @param Request $request
-     * @param boolean $clear_all_paths
-     */
-    private function clearTargetPaths($request, $clear_all_paths = true)
-    {
-        $session = $request->getSession();
-
-        // Remove the target path for linking an ODR account with an external OAuth provider
-        if ( $session->has('_security.oauth_connect.redirect_path') )
-            $session->remove('_security.oauth_connect.redirect_path');
-
-        // Remove the target path for apps using ODR as an OAuth provider
-        if ( $session->has('_security.oauth_authorize.target_path') )
-            $session->remove('_security.oauth_authorize.target_path');
-
-        if ($clear_all_paths) {
-            // Remove the redirect path for conventional logins to ODR
-            if ($session->has('_security.main.target_path')) {
-                $session->remove('_security.main.target_path');
-
-                if ($session->has('_security.url_fragment'))
-                    $session->remove('_security.url_fragment');
-            }
-        }
-
-
-        // Don't want to preserve any default session_themes picked up when browsing prior to
-        //  logging into the site...
-        if ( $session->has('session_themes') )
-            $session->remove('session_themes');
-
-        // Force an update to the list of datarecords for a search result if the user logs in...
-        //  otherwise, the search headers in Display/Edit mode will continue to only display
-        //  non-public datarecords...
-
-        /** @var ODRTabHelperService $odr_tab_service */
-        $odr_tab_service = $this->container->get('odr.tab_helper_service');
-        $odr_tab_service->clearDatarecordLists();
     }
 }

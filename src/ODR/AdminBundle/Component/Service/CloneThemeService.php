@@ -153,6 +153,11 @@ class CloneThemeService
         )->setParameters( array('theme_id' => $theme->getId()) );
         $results = $query->getArrayResult();
 
+
+        // TODO Temporarily turning off theme synching due to issues caused by Nate's setting 
+        // that new cloned datatypes reference their "master template" theme as source
+        return false;
+
         foreach ($results as $result) {
             if ( intval($result['current_version']) !== intval($result['source_version']) )
                 return true;
@@ -556,7 +561,7 @@ class CloneThemeService
      *
      * @return Theme
      */
-    public function cloneSourceTheme($user, $source_theme, $dest_theme_type)
+    public function cloneSourceTheme($user, $source_theme, $dest_theme_type, $dest_datatype = null)
     {
         // ----------------------------------------
         // If the source theme does not belong to a top-level datatype, then refuse to clone
@@ -574,7 +579,12 @@ class CloneThemeService
 
         // ----------------------------------------
         // Create a new theme for the top-level datatype
-        $datatype = $source_theme->getDataType();
+        if($dest_datatype != null) {
+            $datatype = $dest_datatype;
+        }
+        else {
+            $datatype = $source_theme->getDataType();
+        }
 
         $new_theme = clone $source_theme;
         $new_theme->setDataType($datatype);
@@ -630,7 +640,15 @@ class CloneThemeService
     {
         // ----------------------------------------
         // For each theme element the source theme has...
-        foreach ($source_theme->getThemeElements() as $source_te) {
+        $theme_elements = $source_theme->getThemeElements();
+        $theme_element_ids = array();
+        foreach($theme_elements as $te) {
+            array_push($theme_element_ids, $te->getId());
+        }
+        $this->logger->debug('----------------------------------------');
+        $this->logger->debug('CloneThemeService: -- Need to copy theme elements from: ' .$source_theme->getId(). ' ['.join(',', $theme_element_ids). ']'  );;
+        $this->logger->debug('----------------------------------------');
+        foreach ($theme_elements as $source_te) {
 //            $this->logger->debug('----------------------------------------');
 
             /** @var ThemeElement $source_te */

@@ -17,14 +17,12 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
-use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -121,7 +119,8 @@ class JobController extends ODRCustomController
 
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
-            if ($job_type !== '')
+            // if ($job_type !== '')
+            if ($job_id < 1)
                 $return['d'] = $tj_service->getJobDataByType($job_type, $datatype_permissions);
             else
                 $return['d'] = $tj_service->getJobDataById(intval($job_id), $datatype_permissions);

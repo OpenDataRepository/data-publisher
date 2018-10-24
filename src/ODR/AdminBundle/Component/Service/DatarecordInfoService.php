@@ -20,6 +20,7 @@ use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 // Utility
 use ODR\AdminBundle\Component\Utility\UserUtility;
+use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
 class DatarecordInfoService
@@ -36,6 +37,11 @@ class DatarecordInfoService
     private $cache_service;
 
     /**
+     * @var CsrfTokenManager
+     */
+    private $token_manager;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -46,15 +52,18 @@ class DatarecordInfoService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param CsrfTokenManager $token_manager
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        CsrfTokenManager $token_manager,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->token_manager = $token_manager;
         $this->logger = $logger;
     }
 
@@ -191,14 +200,6 @@ class DatarecordInfoService
      */
     private function buildDatarecordData($grandparent_datarecord_id)
     {
-/*
-        $timing = true;
-        $timing = false;
-
-        $t0 = $t1 = $t2 = null;
-        if ($timing)
-            $t0 = microtime(true);
-*/
         // This function is only called when the cache entry doesn't exist
 
         // Otherwise...get all non-layout data for the requested grandparent datarecord
@@ -208,7 +209,7 @@ class DatarecordInfoService
                partial dr_cb.{id, username, email, firstName, lastName},
                partial dr_ub.{id, username, email, firstName, lastName},
 
-               dt, dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
+               dt, partial mdt.{id, unique_id}, dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
 
                drf, partial df.{id}, partial dfm.{id}, partial ft.{id, typeClass},
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
@@ -238,6 +239,7 @@ class DatarecordInfoService
 
             LEFT JOIN dr.dataType AS dt
             LEFT JOIN dt.dataTypeMeta AS dtm
+            LEFT JOIN dt.masterDataType AS mdt
             LEFT JOIN dtm.externalIdField AS dt_eif
             LEFT JOIN dtm.nameField AS dt_nf
             LEFT JOIN dtm.sortField AS dt_sf
@@ -294,13 +296,6 @@ class DatarecordInfoService
         $datarecord_data = $query->getArrayResult();
 
         // TODO - if $datarecord_data is empty, then $grandparent_datarecord_id was deleted...should this return something special in that case?
-/*
-        if ($timing) {
-            $t1 = microtime(true);
-            $diff = $t1 - $t0;
-            print 'buildDatarecordData('.$grandparent_datarecord_id.')'."\n".'query execution in: '.$diff."\n";
-        }
-*/
 
         // The datarecordField entry returned by the preceeding query will have quite a few blank
         //  subarrays...all but the following keys should be unset in order to reduce the amount of
@@ -309,7 +304,6 @@ class DatarecordInfoService
             'id', 'created',
             'file', 'image'     // keeping these for now because multiple pieces of code assume they exist
         );
-
 
         // The entity -> entity_metadata relationships have to be one -> many from a database
         //  perspective, even though there's only supposed to be a single non-deleted entity_metadata
@@ -366,7 +360,6 @@ class DatarecordInfoService
             }
             $datarecord_data[$dr_num]['children'] = $child_datarecords;
             unset( $datarecord_data[$dr_num]['linkedDatarecords'] );
-
 
             // Flatten datafield_meta of each datarecordfield, and organize by datafield id instead
             //  of some random number
@@ -493,13 +486,7 @@ class DatarecordInfoService
 
             $formatted_datarecord_data[$dr_id] = $dr_data;
         }
-/*
-        if ($timing) {
-            $t1 = microtime(true);
-            $diff = $t2 - $t1;
-            print 'buildDatarecordData('.$grandparent_datarecord_id.')'."\n".'array formatted in: '.$diff."\n";
-        }
-*/
+
         // Save the formatted datarecord data back in the cache, and return it
         $this->cache_service->set('cached_datarecord_'.$grandparent_datarecord_id, $formatted_datarecord_data);
         return $formatted_datarecord_data;
@@ -554,6 +541,8 @@ class DatarecordInfoService
      *
      * @param DataRecord $datarecord
      * @param ODRUser $user
+     *
+     * @throws \Doctrine\ORM\OptimisticLockException
      */
     public function updateDatarecordCacheEntry($datarecord, $user)
     {
@@ -595,7 +584,6 @@ class DatarecordInfoService
      * TODO - better way of handling this requirement?
      *
      * @param int $grandparent_datatype_id
-     * @param array $keys_to_delete
      */
     public function deleteCachedTableData($grandparent_datatype_id)
     {
@@ -610,4 +598,40 @@ class DatarecordInfoService
         foreach ($results as $result)
             $this->cache_service->delete('cached_table_data_'.$result['dr_id']);
     }
+
+
+    /**
+     * Generates a CSRF token for every datarecord/datafield pair in the provided arrays.
+     *
+     * @param array $datatype_array    @see DatatypeInfoService::buildDatatypeData()
+     * @param array $datarecord_array  @see DatarecordInfoService::buildDatarecordData()
+     *
+     * @return array
+     */
+    public function generateCSRFTokens($datatype_array, $datarecord_array)
+    {
+        $token_list = array();
+
+        foreach ($datarecord_array as $dr_id => $dr) {
+            if (!isset($token_list[$dr_id]))
+                $token_list[$dr_id] = array();
+
+            $dt_id = $dr['dataType']['id'];
+
+            if (!isset($datatype_array[$dt_id]))
+                continue;
+
+            foreach ($datatype_array[$dt_id]['dataFields'] as $df_id => $df) {
+
+                $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+
+                $token_id = $typeclass . 'Form_' . $dr_id . '_' . $df_id;
+                $token_list[$dr_id][$df_id] = $this->token_manager->getToken($token_id)->getValue();
+
+            }
+        }
+
+        return $token_list;
+    }
+
 }

@@ -18,6 +18,20 @@ ODR\AdminBundle\Entity\DataFields:
             nullable: false
             default: false
 
+        # Unique id of this field.
+        fieldUuid:
+            type: string
+            length: 36
+            nullable: true
+            column: field_uuid
+
+        # Unique ID of field from related master if cloned.
+        templateFieldUuid:
+            type: string
+            length: 36
+            nullable: true
+            column: template_field_uuid
+
         created:
             type: datetime
             gedmo:

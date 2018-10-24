@@ -1,0 +1,217 @@
+{% spaceless %}
+
+<!-- Link DataType Dialog -->
+
+<script>
+    var link_from_template_dialog_body = '<div id="ODRLinkFromTemplateFormWrapper" class="ODRHidden"> </div>';
+
+    function openLinkFromTemplateDialog(local_datatype_id, theme_element_id) {
+        // open dialog
+        modal_options = {
+            title: 'Add Database From Template',
+            loading: true,
+            body: link_from_template_dialog_body,
+            buttons: [
+                {
+                    id: 'ODRLinkFromTemplateFormSubmit',
+                    text: 'Add Database From Template',
+                    // secondary: true,
+                    disabled: true
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
+
+        loadLinkFromTemplateData(local_datatype_id, theme_element_id);
+    }
+
+    function loadLinkFromTemplateData(local_datatype_id, theme_element_id) {
+
+        var url = '{{ path('odr_design_get_link_templates', {'datatype_id': 0, 'theme_element_id': 0 } ) }}';
+        url = url.substring(0,(url.length - 3)) + local_datatype_id + "/" + theme_element_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                $("#ODRLinkFromTemplateFormWrapper").html( data.d.html );
+
+                // remove loading spinner
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    $(".ODRRemodalButtons").show();
+                    $("#ODRLinkFromTemplateFormWrapper").show();
+
+                    // Resize ODRFileDownloadModal to take up full height
+                    resetRemodalInnerHeight();
+
+                    // Setup submit handler
+                    $('#ODRLinkFromTemplateFormSubmit').unbind('click').click(function() {
+                        submitLinkFromTemplateForm();
+                    });
+                });
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+
+    function submitLinkFromTemplateForm() {
+
+        var data = $('#ODRLinkFromTemplateForm').serialize();
+        var url = $('#ODRLinkFromTemplateForm').attr('action');
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: data,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                // Reload ThemeElement
+
+                console.log(data.d);
+
+                // Display loading
+                $(".ODRRemodalBody").hide();
+                $(".ODRRemodalButtons").hide();
+                $(".ODRRemodalLoading").show();
+
+                // Resize ODRFileDownloadModal to take up full height
+                resetRemodalInnerHeight();
+
+                // Check Job every 30 seconds
+                checkJobInterval(data.d);
+
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    var clone_and_link_job = '';
+
+    var job_data = ''
+    function checkJobInterval(data) {
+        job_data = data;
+        console.log('Starting Interval', data);
+        if (clone_and_link_job !== '') {
+            window.clearInterval(clone_and_link_job);
+        }
+        clone_and_link_job = window.setInterval(function() { checkJob() }, 1500);
+        console.log('Interval ID: ', clone_and_link_job);
+    }
+
+    function checkJob() {
+        var data = job_data;
+        console.log('Running interval', data);
+
+        // Load display template menu
+        var url = '{{ path('odr_job_refresh', {'job_type': 'clone_and_link', 'job_id': 0 } ) }}';
+        url = url + "/" + data.tracked_job_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (result_data) {
+                console.log('Tracked Job: ', result_data);
+                if(result_data.d[0].eta == 'Done') {
+                    console.log('Job complete - creating link:', data);
+                    window.clearInterval(clone_and_link_job);
+                    createLink(data.local_datatype_id, data.datatype_id, data.theme_element_id);
+                }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function (jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+
+    }
+
+
+
+    function createLink(local_datatype_id, remote_datatype_id, theme_element_id) {
+
+        var url = '{{  path('odr_design_quicklink_datatype', {'local_datatype_id': 0, 'remote_datatype_id': 0, 'theme_element_id': 0 }) }}';
+            url = url.substring(0,(url.length - 5)) + local_datatype_id + '/' + remote_datatype_id + '/' + theme_element_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data) {
+                    // ReloadThemeElement() forces a re-render of the theme element,
+                    // so the 'Add Datafield', 'Add Childtype', 'Link DataType', and
+                    // 'Delete ThemeElement' icons get muted automatically
+                    ReloadThemeElement(theme_element_id);
+                    closeODRRemodal();
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+    }
+
+</script>
+
+{% endspaceless %}

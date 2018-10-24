@@ -1621,7 +1621,7 @@ footer .ODRLogoImage img {
     }
 }
 /* pure-hidden-lg */
-@media screen and (min-width:1024px) and (max-width:1279px) {
+@media screen and (min-width:1024px) and (max-width:1439px) {
     .pure-visible-xs{display:none}
     .pure-visible-sm{display:none}
     .pure-visible-md{display:none}
@@ -1638,7 +1638,7 @@ footer .ODRLogoImage img {
     }
 }
 /* pure-hidden-xl */
-@media screen and (min-width:1280px) {
+@media screen and (min-width:1440px) {
     .pure-visible-xs{display:none}
     .pure-visible-sm{display:none}
     .pure-visible-md{display:none}
@@ -2245,7 +2245,7 @@ h3 .DatatypeTools,
     border-radius: 6px;
 }
 
-.ODRResults select.AccordionSelect {
+.ODRResults .AccordionSelect {
     float: right;
     margin-right: 38px !important;
     max-width: 350px;
@@ -2254,19 +2254,22 @@ h3 .DatatypeTools,
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    border-radius: 6px;
+    border-radius: 4px;
 }
 
-.ODRRecord select.AccordionSelect {
+.ODRRecord .AccordionSelect {
     float: right;
     margin-right: 58px !important;
     max-width: 350px;
-    padding: 4px 4px 2px 4px !important;
+    padding: 0 0 0 0 !important;
     height: 32px !important;
+    /*
+    padding: 4px 4px 2px 4px !important;
+    border-radius: 6px;
+    */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    border-radius: 6px;
 }
 
 .DataTypeToolsAccordion {
@@ -2571,6 +2574,19 @@ form .row {
     font-weight: bold;
 }
 
+.ODRRecord .ODRFieldLabel {
+    font-weight: bold;
+}
+.ODRRecord label.ODRRadioField {
+    font-size: 100%;
+}
+
+.ODRRadioOptionsEdit {
+    max-height: 400px;
+    overflow-y: scroll;
+    margin-left: 20px;
+}
+
 .ODRPseudoField {
     border: 1px solid #ddd;
     padding: 0.48em 0.3em;
@@ -2771,8 +2787,10 @@ form .row {
 }
 
 .ODRReloadDiv {
-    background-color: #cccccc;
-    opacity: 0.8;
+    background-color: #fff;
+    opacity: 0.9;
+    color: #999;
+    font-size: 24px;
 }
 .ODROverlayDiv {
     position: absolute;
@@ -2782,7 +2800,8 @@ form .row {
 }
 
 .fa-globe {
-    color: #aaf;
+    /* color: #aaf; */
+    color: red;
 }
 
 .IconRed {
@@ -3297,7 +3316,8 @@ form .row {
 .ODRActiveIcon {
     /*border: 1px solid #00FF00;
     border-radius: 8px; */
-    color: gold;
+    /* color: darkolivegreen; */
+    color: darkseagreen;
 }
 
 /*

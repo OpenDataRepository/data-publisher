@@ -69,7 +69,7 @@ ODR\AdminBundle\Entity\ThemeMeta:
     manyToOne:
         theme:
             targetEntity: Theme
-            cascade: {  }
+            cascade: ["persist"]
             mappedBy: null
             inversedBy: themeMeta
             joinColumns:

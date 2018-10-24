@@ -26,10 +26,17 @@ class RadioOptions
     private $id;
 
     /**
-     * NOTE - this needs to remain in synch with the option name in the associated metadata entity...if it doesn't, CSV/XML importing can't check concurrently that a RadioOption exists
+     * NOTE - this needs to remain in synch with the option name in the associated metadata entity...
+     * If it doesn't, CSV/XML importing can't check concurrently that a RadioOption exists
+     *
      * @var string
      */
     private $optionName;
+
+    /**
+     * @var string
+     */
+    private $radioOptionUuid;
 
     /**
      * @var \DateTime
@@ -88,9 +95,11 @@ class RadioOptions
 
     /**
      * Set optionName
-     * NOTE - this needs to remain in synch with the option name in the associated metadata entity...if it doesn't, CSV/XML importing can't check concurrently that a RadioOption exists
+     * NOTE - this needs to remain in synch with the option name in the associated metadata entity
+     * if it doesn't, CSV/XML importing can't check concurrently that a RadioOption exists
      *
      * @param string $optionName
+     *
      * @return RadioOptions
      */
     public function setOptionName($optionName)
@@ -108,6 +117,30 @@ class RadioOptions
     public function getOptionName()
     {
         return $this->getRadioOptionMeta()->getOptionName();
+    }
+
+    /**
+     * Set radioOptionUuid
+     *
+     * @param string $radioOptionUuid
+     *
+     * @return RadioOptions
+     */
+    public function setRadioOptionUuid($radioOptionUuid)
+    {
+        $this->radioOptionUuid = $radioOptionUuid;
+
+        return $this;
+    }
+
+    /**
+     * Get radioOptionUuid
+     *
+     * @return string
+     */
+    public function getRadioOptionUuid()
+    {
+        return $this->radioOptionUuid;
     }
 
     /**

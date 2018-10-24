@@ -2,6 +2,13 @@ parameters:
 #    odr_open_repository_user.example.class: ODR\OpenRepository\UserBundle\Example
 
 services:
+
+    odr.tracked_path_service:
+        class: ODR\OpenRepository\UserBundle\Component\Service\TrackedPathService
+        arguments:
+            request_stack: "@request_stack"
+
+
     # override of change password form
     odr_user.change_password.form.type:
         class: ODR\OpenRepository\UserBundle\Form\Type\ChangePasswordFormType

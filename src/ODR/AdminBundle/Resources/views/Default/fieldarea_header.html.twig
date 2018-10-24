@@ -8,11 +8,13 @@
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a>{{ datatype.dataTypeMeta.shortName }}</a>
 
+            {#
             {% if is_link == 1 %}
                 <span style="margin-left: 15px;" title="This is a linked Datatype">
                     <i class="fa fa-lg fa-link Cursor"></i>
                 </span>
             {% endif %}
+            #}
         </h3>
         {% endif %}
 
@@ -21,11 +23,13 @@
         <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a>{{ datatype.dataTypeMeta.shortName }}</a>
+            {#
             {% if is_link == 1 %}
                 <span style="margin-left: 15px;" title="This is a linked Datatype">
                 <i class="fa fa-lg fa-link Cursor"></i>
             </span>
             {% endif %}
+            #}
         </h3>
 
         <div class="pure-u-1 ODRTabButtonHeader">
@@ -39,18 +43,22 @@
         <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a>{{ datatype.dataTypeMeta.shortName }}</a>
+            {#
             {% if is_link == 1 %}
                 <span style="margin-left: 15px;" title="This is a linked Datatype">
                 <i class="fa fa-lg fa-link Cursor"></i>
             </span>
             {% endif %}
+            #}
 
             {% if datarecord_list|length > 0 %}
-                <select id="DataType_{{ datatype.id }}_dropdown" class="accordion AccordionSelect">
-                {% for num, datarecord in datarecord_list %}
-                    <option value="{{ datarecord.id }}">{{ datarecord.nameField_value }}</option>
-                {% endfor %}
-                </select>
+                <span class="ODRSelectWrap AccordionSelect">
+                    <select id="DataType_{{ datatype.id }}_dropdown" class="accordion ODRSelect">
+                        {% for num, datarecord in datarecord_list %}
+                            <option value="{{ datarecord.id }}">{{ datarecord.nameField_value }}</option>
+                        {% endfor %}
+                    </select>
+                </span>
             {% endif %}
         </h3>
 
@@ -58,11 +66,13 @@
     {# just a header here...accordion_footer.html.twig doesn't need a closing tag #}
     <h3 class="ODRListDisplayHeader ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
         <a>{{ datatype.dataTypeMeta.shortName }}</a>
+        {#
         {% if is_link == 1 %}
             <span style="margin-left: 15px;" title="This is a linked Datatype">
                 <i class="fa fa-lg fa-link Cursor"></i>
             </span>
         {% endif %}
+        #}
     </h3>
 
 {% endif %}

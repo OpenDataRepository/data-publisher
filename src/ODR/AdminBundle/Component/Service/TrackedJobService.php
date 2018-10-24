@@ -60,6 +60,7 @@ class TrackedJobService
 //        'xml_import_validate',
         'mass_edit',
         'migrate',
+        'clone_and_link',
 //        'rebuild_thumbnails',
     );
 
@@ -96,7 +97,7 @@ class TrackedJobService
             return null;
 
         // If it exists, convert its data into an array and return that
-        $job_data = self::getJobData( array($job_id), $datatype_permissions );
+        $job_data = self::getJobData( array($tracked_job), $datatype_permissions );
         return $job_data;
     }
 

@@ -38,9 +38,7 @@
 
         // set innerhtml
         loadFileData(grandparent_datarecord_id, datarecord_id, datafield_id);
-
     }
-
 
 
     function loadFileData(grandparent_datarecord_id, datarecord_id, datafield_id) {
@@ -95,6 +93,7 @@
         });
     }
 
+
     function initFileDownloadDialogForm(target_datarecord_id, target_datafield_id) {
         $(".ODRTristateCheckbox").unbind('click').click(function() {
             var icon_div = $(this).children('.fa').first();
@@ -143,6 +142,7 @@
         }
     }
 
+
     function applyToParents(source_element) {
         var parent_list_element = $(source_element).parent().parent().parent().not('form');
         if (parent_list_element.length == 0)
@@ -169,11 +169,12 @@
         applyToParents(parent_checkbox_element);
     }
 
+
     function submitFileDownloadForm(form_id) {
         var file_count = 0;
         $("#ODRFileDownloadForm").find('.binary').each(function() {
             if ( $(this).children('.fa').first().hasClass('fa-check') ) {
-                $(this).children('input').removeProp('disabled');
+                $(this).children('input').prop('disabled', false);
                 file_count++;
             }
         });
@@ -185,9 +186,8 @@
         url = url.substring(0, (url.length-1));
         url += grandparent_datarecord_id;
 
-        console.log($("#ODRFileDownloadForm"));
-
         var file_list = $("#ODRFileDownloadForm").serialize();
+
         $("#ODRFileDownloadFormSubmit").attr('disabled', 'disabled');
 
         // Init display of progress

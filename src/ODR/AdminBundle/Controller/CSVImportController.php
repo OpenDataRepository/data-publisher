@@ -48,6 +48,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
@@ -1915,12 +1916,13 @@ class CSVImportController extends ODRCustomController
                             $already_uploaded_files = array();
                             if ($datarecord_id !== null) {
                                 $query_str =
-                                   'SELECT e.originalFileName
+                                   'SELECT em.originalFileName
                                     FROM ODRAdminBundle:'.$typeclass.' AS e
+                                    JOIN ODRAdminBundle:'.$typeclass.'Meta AS em WITH em.'.strtolower($typeclass).' = e
                                     WHERE e.dataRecord = :datarecord AND e.dataField = :datafield ';
                                 if ($typeclass == 'Image')
                                     $query_str .= 'AND e.original = 1 ';
-                                $query_str .= 'AND e.deletedAt IS NULL';
+                                $query_str .= 'AND e.deletedAt IS NULL AND em.deletedAt IS NULL';
 
                                 $query = $em->createQuery($query_str)->setParameters( array('datarecord' => $datarecord_id, 'datafield' => $datafield_id) );
                                 $results = $query->getArrayResult();
@@ -2107,12 +2109,12 @@ class CSVImportController extends ODRCustomController
                                         ),
                                     );
                                 }
-                                else if ( $option_length > 64 ) {
+                                else if ( $option_length > 255 ) {
                                     $errors[] = array(
                                         'level' => 'Warning',
                                         'body' => array(
                                             'line_num' => $line_num,
-                                            'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 64 characters',
+                                            'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 255 characters',
                                         ),
                                     );
                                 }
@@ -2120,12 +2122,12 @@ class CSVImportController extends ODRCustomController
                         }
                         else {
                             // Check length of option
-                            if ($length > 64) {
+                            if ($length > 255) {
                                 $errors[] = array(
                                     'level' => 'Warning',
                                     'body' => array(
                                         'line_num' => $line_num,
-                                        'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 64 characters',
+                                        'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 255 characters',
                                     ),
                                 );
                             }
@@ -2552,6 +2554,8 @@ class CSVImportController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
 
@@ -2768,6 +2772,9 @@ class CSVImportController extends ODRCustomController
                     // If this is a newly created image datafield, ensure it has the required ImageSizes entities
                     if ($new_datafield->getFieldType()->getTypeClass() == 'Image')
                         parent::ODR_checkImageSizes($em, $user, $new_datafield);
+
+                    // Also need to delete some search cache entries here...
+                    $search_cache_service->onDatafieldCreate($new_datafield);
                 }
 
                 // Save all changes
@@ -2920,6 +2927,10 @@ print_r($new_mapping);
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $entity_create_service */
+            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             if ($api_key !== $beanstalk_api_key)
@@ -3062,12 +3073,9 @@ exit();
             // Determine whether to create a new datarecord or not
             if ($datarecord == null) {
                 // Create a new datarecord, since one doesn't exist
-                $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
-                if ($parent_datarecord == null) {
-                    $datarecord->setParent($datarecord);
-                    $datarecord->setGrandparent($datarecord);
-                }
-                else {
+                $delay_flush = true;
+                $datarecord = $entity_create_service->createDatarecord($user, $datatype, $delay_flush);
+                if ( !is_null($parent_datarecord) ) {
                     $datarecord->setParent($parent_datarecord);
                     $datarecord->setGrandparent($parent_datarecord->getGrandparent());
                 }
@@ -3449,8 +3457,14 @@ exit();
                 $total = $tracked_job->getTotal();
                 $count = $tracked_job->incrementCurrent($em);
 
-                if ($count >= $total)
+                if ($count >= $total) {
                     $tracked_job->setCompleted( new \DateTime() );
+
+                    // TODO - really want a better system than this...
+                    // In theory, this means the job is done, so delete all search cache entries
+                    //  relevant to this datatype
+                    $search_cache_service->onDatatypeImport($datatype);
+                }
 
                 $em->persist($tracked_job);
 //                $em->flush();
@@ -3472,13 +3486,6 @@ exit();
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             $dri_service->updateDatarecordCacheEntry($datarecord, $user);
-
-
-            // Delete all cached search results for this datatype
-            // TODO - more precise deletion of cached search results...new datarecord created should delete all search results without datafields, update to a datafield should delete all search results with that datafield
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
-            $search_cache_service->clearByDatatypeId($datatype_id);
 
             $return['d'] = $status;
         }

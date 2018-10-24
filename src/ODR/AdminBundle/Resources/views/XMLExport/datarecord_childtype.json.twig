@@ -10,7 +10,7 @@
 
 {% for dr_id, datarecord in datarecord_array %}
 
-    {% if is_link == 0 %}
+    {% if is_link >= -1 %}
 
         {# each datarecord is its own JSON object #}
         {
@@ -19,6 +19,7 @@
             "internal_id": {{ datarecord.id }},
             "external_id": {{ datarecord.externalIdField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
             "record_name": {{ datarecord.nameField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
+            "template_uuid": "{{ datatype.masterDataType.unique_id }}",
 
         {% if using_metadata == true %}
             {# display metadata and datafields for top-level and child datarecords #}

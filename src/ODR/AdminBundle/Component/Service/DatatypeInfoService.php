@@ -25,6 +25,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 // Utility
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 
 
@@ -89,6 +90,8 @@ class DatatypeInfoService
 
         // ----------------------------------------
         // Otherwise, rebuild the list of top-level datatypes
+        // TODO - enforce dt.is_master_type = 0  here?
+        // TODO - cut out metadata datatypes from this?
         $query = $this->em->createQuery(
            'SELECT dt.id AS datatype_id
             FROM ODRAdminBundle:DataType AS dt
@@ -98,6 +101,7 @@ class DatatypeInfoService
         )->setParameters( array('setup_steps' => DataType::STATE_VIEWABLE) );
         $results = $query->getArrayResult();
 
+        // AND dt.metadataFor IS NULL
         $top_level_datatypes = array();
         foreach ($results as $result)
             $top_level_datatypes[] = $result['datatype_id'];
@@ -110,17 +114,22 @@ class DatatypeInfoService
     }
 
 
+    // TODO - create something to return top-level templates?
+
+
     /**
-     * Returns the id of the grandparent of the given datatype.
-     * @deprecated
+     * Traverses the cached version of the datatree array in order to return the grandparent id
+     * of the given datatype id.
      *
-     * @param integer $initial_datatype_id
+     * @param int $initial_datatype_id
+     * @param array|null $datatree_array
      *
-     * @return integer
+     * @return int
      */
-    public function getGrandparentDatatypeId($initial_datatype_id)
+    public function getGrandparentDatatypeId($initial_datatype_id, $datatree_array = null)
     {
-        $datatree_array = self::getDatatreeArray();
+        if ( is_null($datatree_array) )
+            $datatree_array = self::getDatatreeArray();
 
         $grandparent_datatype_id = $initial_datatype_id;
         while (
@@ -356,7 +365,10 @@ class DatatypeInfoService
         // Get all non-layout data for the requested datatype
         $query = $this->em->createQuery(
            'SELECT
-                dt, dtm,
+                dt, dtm, 
+                partial mdt.{id, unique_id}, 
+                partial md.{id},
+                partial mf.{id},
                 partial dt_cb.{id, username, email, firstName, lastName},
                 partial dt_ub.{id, username, email, firstName, lastName},
 
@@ -370,8 +382,11 @@ class DatatypeInfoService
 
             FROM ODRAdminBundle:DataType AS dt
             LEFT JOIN dt.dataTypeMeta AS dtm
+            LEFT JOIN dt.masterDataType AS mdt
             LEFT JOIN dt.createdBy AS dt_cb
             LEFT JOIN dt.updatedBy AS dt_ub
+            LEFT JOIN dt.metadata_datatype AS md
+            LEFT JOIN dt.metadata_for AS mf
 
             LEFT JOIN dtm.renderPlugin AS dt_rp
             LEFT JOIN dt_rp.renderPluginInstance AS dt_rpi WITH (dt_rpi.dataType = dt)
@@ -398,7 +413,11 @@ class DatatypeInfoService
                 dt.grandparent = :grandparent_datatype_id
                 AND dt.deletedAt IS NULL
             ORDER BY dt.id, df.id, rom.displayOrder, ro.id'
-        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        )->setParameters(
+            array(
+                'grandparent_datatype_id' => $grandparent_datatype_id
+            )
+        );
 
         $datatype_data = $query->getArrayResult();
 
@@ -418,8 +437,15 @@ class DatatypeInfoService
             $dt_id = $dt['id'];
 
             // Flatten datatype meta
-            $dtm = $dt['dataTypeMeta'][0];
+            // TODO Figure out why DTM is sometimes empty
+            if(count($dt['dataTypeMeta']) == 0) {
+                $dtm = null;
+            }
+            else {
+                $dtm = $dt['dataTypeMeta'][0];
+            }
             $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
+            $datatype_data[$dt_num]['masterDataType'] = $dt['masterDataType'];
 
             // Scrub irrelevant data from the datatype's createdBy and updatedBy properties
             $datatype_data[$dt_num]['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );
@@ -540,8 +566,6 @@ class DatatypeInfoService
      * If the datatype has a sort datafield set, then the contents of that datafield are used to
      * sort in ascending order.  Otherwise, the list is sorted by datarecord ids.
      *
-     * TODO - storing a single ordered list probably won't be sufficient for a filtering search system
-     *
      * @param integer $datatype_id
      * @param null|string $subset_str   If specified, the returned string will only contain datarecord ids from $subset_str
      *
@@ -600,9 +624,9 @@ class DatatypeInfoService
         else {
             // User specified they only wanted a subset of datarecords sorted...
             $dr_subset = explode(',', $subset_str);
-            // array_flip() with isset() is considerably faster than repeatedly calling in_array() on larger arrays...
-            $dr_subset = array_flip($dr_subset);
 
+            // array_flip() + isset() is orders of magnitude faster than in_array()...
+            $dr_subset = array_flip($dr_subset);
             foreach ($datarecord_list as $dr_id => $sort_value) {
                 // ...then only save the datarecord id if it's in the specified subset
                 if ( !isset($dr_subset[$dr_id]) )
@@ -671,130 +695,160 @@ class DatatypeInfoService
                 throw new ODRBadRequestException('Unable to sort a "'.$typename.'" datafield', 0x55059289);
         }
 
-        // Need a list of all datarecords for this datatype
-        $query = $this->em->createQuery(
-           'SELECT dr.id AS dr_id
-            FROM ODRAdminBundle:DataRecord AS dr
-            WHERE dr.dataType = :datatype AND dr.provisioned = false
-            AND dr.deletedAt IS NULL
-            ORDER BY dr.id'
-        )->setParameters( array('datatype' => $datatype->getId()) );
-        $results = $query->getArrayResult();
 
-        // Due to design decisions, ODR isn't guaranteed to have datarecordfield and/or storage
-        //  entity entries for every datafield.  If either of those entries is missing, the upcoming
-        //  query WILL NOT have an entry for that datarecord in its result set
-        foreach ($results as $num => $dr) {
-            $dr_id = $dr['dr_id'];
-            $datarecord_list[$dr_id] = '';
-        }
+        // ----------------------------------------
+        // Check whether this list is already cached or not...
+        $sorted_datarecord_list = $this->cache_service->get('cached_search_df_'.$datafield_id.'_ordering');
+        if ( !$sorted_datarecord_list )
+            $sorted_datarecord_list = array();
 
-        // Locate this datafield's value for each datarecord of this datatype
-        $typeclass = $datafield->getFieldType()->getTypeClass();
-        if ($typeclass == 'File' || $typeclass == 'Image') {
-            // Get the list of file names...have to left join the file table because datarecord id
-            //  is required, but there may not always be a file uploaded
+        // TODO - only store the ascending order, then array_reverse() if descending is wanted?
+        $key = 'ASC';
+        if (!$sort_ascending)
+            $key = 'DESC';
+
+
+        // ----------------------------------------
+        $datarecord_list = array();
+        if ( !isset($sorted_datarecord_list[$key]) ) {
+            // The requested list isn't in the cache...need to rebuild it
+
+            // Need a list of all datarecords for this datatype
             $query = $this->em->createQuery(
-               'SELECT em.originalFileName AS file_name, dr.id AS dr_id
+               'SELECT dr.id AS dr_id
                 FROM ODRAdminBundle:DataRecord AS dr
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                LEFT JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
-                LEFT JOIN ODRAdminBundle:'.$typeclass.'Meta AS em WITH em.'.strtolower($typeclass).' = e
-                WHERE dr.dataType = :datatype AND drf.dataField = :datafield
-                AND e.deletedAt IS NULL AND em.deletedAt IS NULL AND drf.deletedAt IS NULL
-                AND dr.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datatype' => $datatype->getId(),
-                    'datafield' => $datafield->getId(),
-                )
-            );
+                WHERE dr.dataType = :datatype AND dr.provisioned = false
+                AND dr.deletedAt IS NULL
+                ORDER BY dr.id'
+            )->setParameters(array('datatype' => $datatype->getId()));
             $results = $query->getArrayResult();
 
-            // Store the value of the datafield for each datarecord
-            foreach ($results as $num => $result) {
-                $dr_id = $result['dr_id'];
-                $filename = $result['file_name'];
-
-                $datarecord_list[$dr_id] = $filename;
+            // Due to design decisions, ODR isn't guaranteed to have datarecordfield and/or storage
+            //  entity entries for every datafield.  If either of those entries is missing, the
+            //  upcoming query WILL NOT have an entry for that datarecord in its result set
+            foreach ($results as $num => $dr) {
+                $dr_id = $dr['dr_id'];
+                $datarecord_list[$dr_id] = '';
             }
-        }
-        else if ($typeclass == 'Radio') {
-            $query = $this->em->createQuery(
-               'SELECT rom.optionName AS option_name, dr.id AS dr_id
-                FROM ODRAdminBundle:RadioOptions AS ro
-                JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
-                JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
-                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                WHERE dr.dataType = :datatype AND drf.dataField = :datafield AND rs.selected = 1
-                AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL
-                AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datatype' => $datatype->getId(),
-                    'datafield' => $datafield->getId()
-                )
-            );
-            $results = $query->getArrayResult();
 
-            // Store the value of the datafield for each datarecord
-            foreach ($results as $num => $result) {
-                $option_name = $result['option_name'];
-                $dr_id = $result['dr_id'];
+            // Locate this datafield's value for each datarecord of this datatype
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass == 'File' || $typeclass == 'Image') {
+                // Get the list of file names...have to left join the file table because datarecord
+                //  id is required, but there may not always be a file uploaded
+                $query = $this->em->createQuery(
+                   'SELECT em.originalFileName AS file_name, dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
+                    LEFT JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
+                    LEFT JOIN ODRAdminBundle:'.$typeclass.'Meta AS em WITH em.'.strtolower($typeclass).' = e
+                    WHERE dr.dataType = :datatype AND drf.dataField = :datafield
+                    AND e.deletedAt IS NULL AND em.deletedAt IS NULL AND drf.deletedAt IS NULL
+                    AND dr.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'datatype' => $datatype->getId(),
+                        'datafield' => $datafield->getId(),
+                    )
+                );
+                $results = $query->getArrayResult();
 
-                $datarecord_list[$dr_id] = $option_name;
+                // Store the value of the datafield for each datarecord
+                foreach ($results as $num => $result) {
+                    $dr_id = $result['dr_id'];
+                    $filename = $result['file_name'];
+
+                    $datarecord_list[$dr_id] = $filename;
+                }
             }
+            else if ($typeclass == 'Radio') {
+                $query = $this->em->createQuery(
+                   'SELECT rom.optionName AS option_name, dr.id AS dr_id
+                    FROM ODRAdminBundle:RadioOptions AS ro
+                    JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
+                    JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
+                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                    WHERE dr.dataType = :datatype AND drf.dataField = :datafield AND rs.selected = 1
+                    AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL
+                    AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'datatype' => $datatype->getId(),
+                        'datafield' => $datafield->getId()
+                    )
+                );
+                $results = $query->getArrayResult();
+
+                // Store the value of the datafield for each datarecord
+                foreach ($results as $num => $result) {
+                    $option_name = $result['option_name'];
+                    $dr_id = $result['dr_id'];
+
+                    $datarecord_list[$dr_id] = $option_name;
+                }
+            }
+            else {
+                // All other sortable fieldtypes have a value field that should be used
+                $query = $this->em->createQuery(
+                   'SELECT dr.id AS dr_id, e.value AS sort_value
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
+                    JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
+                    WHERE dr.dataType = :datatype AND e.dataField = :datafield
+                    AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'datatype' => $datatype->getId(),
+                        'datafield' => $datafield->getId()
+                    )
+                );
+                $results = $query->getArrayResult();
+
+                // Store the value of the datafield for each datarecord
+                foreach ($results as $num => $result) {
+                    $value = $result['sort_value'];
+                    $dr_id = $result['dr_id'];
+
+                    if ($typeclass == 'IntegerValue') {
+                        $value = intval($value);
+                    }
+                    else if ($typeclass == 'DecimalValue') {
+                        $value = floatval($value);
+                    }
+                    else if ($typeclass == 'DatetimeValue') {
+                        $value = $value->format('Y-m-d');
+                        if ($value == '9999-12-31')
+                            $value = '';
+                    }
+
+                    $datarecord_list[$dr_id] = $value;
+                }
+            }
+
+            // Natural sort works in most cases...
+            $flag = SORT_NATURAL;
+            if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
+                $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
+
+            if ($sort_ascending)
+                asort($datarecord_list, $flag);
+            else
+                arsort($datarecord_list, $flag);
+
+
+            // Store the result back in the cache
+            $sorted_datarecord_list[$key] = $datarecord_list;
+            $this->cache_service->set('cached_search_df_'.$datafield_id.'_ordering', $sorted_datarecord_list);
         }
         else {
-            // All other sortable fieldtypes have a value field that should be used
-            $query = $this->em->createQuery(
-               'SELECT dr.id AS dr_id, e.value AS sort_value
-                FROM ODRAdminBundle:DataRecord AS dr
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
-                WHERE dr.dataType = :datatype AND e.dataField = :datafield
-                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datatype' => $datatype->getId(),
-                    'datafield' => $datafield->getId()
-                )
-            );
-            $results = $query->getArrayResult();
-
-            // Store the value of the datafield for each datarecord
-            foreach ($results as $num => $result) {
-                $value = $result['sort_value'];
-                $dr_id = $result['dr_id'];
-
-                if ($typeclass == 'IntegerValue') {
-                    $value = intval($value);
-                }
-                else if ($typeclass == 'DecimalValue') {
-                    $value = floatval($value);
-                }
-                else if ($typeclass == 'DatetimeValue') {
-                    $value = $value->format('Y-m-d');
-                    if ($value == '9999-12-31')
-                        $value = '';
-                }
-
-                $datarecord_list[$dr_id] = $value;
-            }
+            // Otherwise, the list for this request was in the cache
+            $datarecord_list = $sorted_datarecord_list[$key];
         }
 
-        // Sort by value
-        $flag = SORT_NATURAL;
-        if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
-            $flag = SORT_NUMERIC;   // apparently natural sort doesn't always sort these two typeclasses correctly
 
-        if ($sort_ascending)
-            asort($datarecord_list, $flag);
-        else
-            arsort($datarecord_list, $flag);
-
-
+        // ----------------------------------------
+        // Now that we have the correct list of sorted datarecords...
         if ( is_null($subset_str) ) {
             // User just wanted the entire list of sorted datarecords
             return $datarecord_list;
@@ -806,7 +860,7 @@ class DatatypeInfoService
         else {
             // User specified they only wanted a subset of datarecords sorted...
             $dr_subset = explode(',', $subset_str);
-            // array_flip() with isset() is considerably faster than repeatedly calling in_array() on larger arrays...
+            // array_flip() + isset() is orders of magnitude faster than in_array() on larger arrays
             $dr_subset = array_flip($dr_subset);
 
             foreach ($datarecord_list as $dr_id => $sort_value) {
@@ -865,7 +919,7 @@ class DatatypeInfoService
 
 
     /**
-     * Should be called whenever the sort order of datarecords within a datatype changes.
+     * Should be called whenever the default sort order of datarecords within a datatype changes.
      *
      * @param int $datatype_id
      */
@@ -891,5 +945,157 @@ class DatatypeInfoService
                 unlink($graph_filepath.'/'.$filename);
             }
         }
+    }
+
+
+    /**
+     * Generates and returns a unique_id string that doesn't collide with any other datatype's
+     * "unique_id" property.  Shouldn't be used for the datatype's "template_group" property, as
+     * those should be based off of the grandparent datatype's "unique_id".
+     *
+     * @return string
+     * @throws \Exception
+     */
+    public function generateDatatypeUniqueId()
+    {
+        // Need to get all current ids in use in order to determine uniqueness of a new id...
+        $query = $this->em->createQuery(
+           'SELECT dt.unique_id
+            FROM ODRAdminBundle:DataType AS dt
+            WHERE dt.deletedAt IS NULL and dt.unique_id IS NOT NULL'
+        );
+        $results = $query->getArrayResult();
+
+        $existing_ids = array();
+        foreach ($results as $num => $result)
+            $existing_ids[ $result['unique_id'] ] = 1;
+
+
+        // Keep generating ids until one that's not in
+        $unique_id = UniqueUtility::uniqueIdReal();
+        while ( isset($existing_ids[$unique_id]) )
+            $unique_id = UniqueUtility::uniqueIdReal();
+
+        return $unique_id;
+    }
+
+
+    /**
+     * Generates and returns a unique_id string that doesn't collide with any other datafield's
+     * "unique_id" property.
+     *
+     * @return string
+     * @throws \Exception
+     */
+    public function generateDataFieldUniqueId()
+    {
+        // Need to get all current ids in use in order to determine uniqueness of a new id...
+        $query = $this->em->createQuery(
+           'SELECT df.fieldUuid
+            FROM ODRAdminBundle:DataFields AS df
+            WHERE df.deletedAt IS NULL and df.fieldUuid IS NOT NULL'
+        );
+        $results = $query->getArrayResult();
+
+        $existing_ids = array();
+        foreach ($results as $num => $result)
+            $existing_ids[ $result['fieldUuid'] ] = 1;
+
+
+        // Keep generating ids until one that's not in
+        $unique_id = UniqueUtility::uniqueIdReal();
+        while ( isset($existing_ids[$unique_id]) )
+            $unique_id = UniqueUtility::uniqueIdReal();
+
+        return $unique_id;
+    }
+
+
+    /**
+     * Generates and returns a unique_id string that doesn't collide with any other radio option's
+     * "unique_id" property.
+     *
+     * @return string
+     * @throws \Exception
+     */
+    public function generateRadioOptionUniqueId()
+    {
+        // Need to get all current ids in use in order to determine uniqueness of a new id...
+        $query = $this->em->createQuery(
+           'SELECT ro.radioOptionUuid
+            FROM ODRAdminBundle:RadioOptions AS ro
+            WHERE ro.deletedAt IS NULL and ro.radioOptionUuid IS NOT NULL'
+        );
+        $results = $query->getArrayResult();
+
+        $existing_ids = array();
+        foreach ($results as $num => $result)
+            $existing_ids[ $result['radioOptionUuid'] ] = 1;
+
+
+        // Keep generating ids until one that's not in
+        $unique_id = UniqueUtility::uniqueIdReal();
+        while ( isset($existing_ids[$unique_id]) )
+            $unique_id = UniqueUtility::uniqueIdReal();
+
+        return $unique_id;
+    }
+
+
+    public function addUUIDs($uuid_type) {
+        switch($uuid_type) {
+            case 'datatype':
+                $results = $this->em
+                    ->getRepository('ODRAdminBundle:DataType')
+                    ->findBy(
+                        array('unique_id' => null)
+                    );
+
+                /** @var DataType $result */
+                foreach ($results as $num => $result) {
+                    $result->setUniqueId(self::generateDatatypeUniqueId());
+                    if($result->getTemplateGroup() == null) {
+                        $result->setTemplateGroup($result->getUniqueId());
+                    }
+                    $this->em->persist($result);
+                }
+                break;
+
+            case 'field';
+                $results = $this->em
+                    ->getRepository('ODRAdminBundle:DataFields')
+                    ->findBy(
+                        array('fieldUuid' => null)
+                    );
+
+                /**
+                 * @var  $num
+                 * @var DataFields $result
+                 */
+                foreach ($results as $num => $result) {
+                    $result->setFieldUuid(self::generateDataFieldUniqueId());
+                    $this->em->persist($result);
+                }
+                break;
+
+            case 'radio':
+                $results = $this->em
+                    ->getRepository('ODRAdminBundle:RadioOptions')
+                    ->findBy(
+                        array('radioOptionUuid' => null)
+                    );
+
+                /**
+                 * @var  $num
+                 * @var RadioOptions $result
+                 */
+                foreach ($results as $num => $result) {
+                    $result->setRadioOptionUuid(self::generateRadioOptionUniqueId());
+                    $this->em->persist($result);
+                }
+                break;
+        }
+
+        $this->em->flush();
     }
 }

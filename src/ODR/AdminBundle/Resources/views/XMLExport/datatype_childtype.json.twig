@@ -12,6 +12,8 @@
     "internal_id": {{ datatype.id }},
     "name": {{ datatype_meta.shortName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
     "description": {{ datatype_meta.description|json_encode|raw }},
+    "template_uuid": {{ datatype.unique_id|json_encode|raw }},
+    "updated_at": "{{ datatype_meta.created|date('Y-m-d H:i:s') }}",
 
     {% if datatype_meta.renderPlugin.id != 1 %}
         "render_plugin": {{ datatype_meta.renderPlugin.pluginName|json_encode|raw }},
@@ -29,7 +31,7 @@
     },
 {% endif %}
 
-    {% if is_link == 0 %}
+    {% if is_link != -1 %}
         {# only detail datafields if this is not a linked datatype #}
         {% include 'ODRAdminBundle:XMLExport:datatype_fieldarea.json.twig' with {
             'datatype_array': datatype_array,

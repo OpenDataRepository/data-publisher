@@ -14,8 +14,19 @@
             <label for="{{ theme_datatype_form.display_type.vars.id }}">
                 {{ theme_datatype_form.display_type.vars.label }}
             </label>
-            {{ form_errors(theme_datatype_form.display_type) }}
-            {{ form_widget(theme_datatype_form.display_type, { 'attr': {'style': 'width:auto'} }) }}
+            <div class="ODRFieldWrapper">
+                {{ form_errors(theme_datatype_form.display_type) }}
+                <span class="ODRSelectWrap">
+                {{ form_widget(theme_datatype_form.display_type,
+                    {
+                        'attr': {
+                        'class': 'pure-u-1 ODRSelect',
+                        'data-error-type': 'inline'
+                    }
+                    })
+                }}
+                </span>
+            </div>
         </div>
 
         {{ form_rest(theme_datatype_form) }}

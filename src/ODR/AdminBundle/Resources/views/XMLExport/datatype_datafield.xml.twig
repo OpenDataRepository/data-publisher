@@ -21,6 +21,8 @@
     <name>{{ datafield_meta.fieldName|xml }}</name>
     <description>{{ datafield_meta.description|xml }}</description>
     <fieldtype>{{ field_typename }}</fieldtype>
+    <template_field_uuid>{{ datafield.fieldUuid }}</template_field_uuid>
+    <updated_at>{{ datafield_meta.created|date('Y-m-d H:i:s') }}</updated_at>
 
     {% if datafield_meta.renderPlugin.id != 1 %}
     <render_plugin>

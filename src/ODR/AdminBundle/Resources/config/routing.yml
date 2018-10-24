@@ -256,20 +256,58 @@ odr_list_types:
     path:  /admin/type/list/{section}
     defaults: { _controller: ODRAdminBundle:Datatype:list }
     requirements:
-        section: databases|templates
+        section: databases|templates|datatemplates
+
+odr_datatype_properties:
+    path:  /admin/type/properties/{datatype_id}/{wizard}
+    defaults: { _controller: ODRAdminBundle:Datatype:properties }
+    requirements:
+        datatype_id: \d+
+        wizard: 0|1
+
+odr_datatype_properties_meta:
+    path:  /admin/type/properties/update/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Datatype:update_properties }
+    requirements:
+        datatype_id: \d+
+
+odr_datatype_find_landing:
+    path:  /admin/find/landing/{datatype_unique_id}
+    defaults: { _controller: ODRAdminBundle:Datatype:find_landing }
+    requirements:
+        datatype_unique_id: '[a-zA-Z0-9]+'
+
+odr_datatype_landing:
+    path:  /admin/type/landing/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Datatype:landing }
+    requirements:
+        datatype_id: \d+
 
 odr_create_type:
     path:  /admin/type/create/{create_master}
     defaults: { _controller: ODRAdminBundle:Datatype:create }
     requirements:
-        create_master: 0|1
+        create_master: 0|1|2
 
 odr_create_type_info:
     path:  /admin/type/create/info/{template_choice}/{creating_master_template}
     defaults: { _controller: ODRAdminBundle:Datatype:createinfo }
     requirements:
         template_choice: \d+
-        creating_master_template: 0|1
+        creating_master_template: 0|1|2
+
+odr_add_metadata_type_chooser:
+    path:  /admin/type/addmeta/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Datatype:choosemeta }
+    requirements:
+        datatype_id: \d+
+
+odr_add_metadata_to_datatype:
+    path:  /admin/type/addmetadata/{template_choice}/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Datatype:addmetadata }
+    requirements:
+        template_choice: \d+
+        datatype_id: \d+
 
 odr_add_types:
     path:  /admin/type/add
@@ -339,12 +377,19 @@ odr_theme_reload_theme_element:
         source_datatype_id: \d+
         theme_element_id: \d+
 
+# TODO - ideally, this route wouldn't exist...the `odr_design_add_theme_element` route should always be used instead, with the page html being modified if that route isn't feasible to use for some reason
+odr_design_add_theme_element_by_datatype:
+    path:  /design/themeelement/add/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Theme:addthemeelementbydatatype }
+    requirements:
+        datatype_id:  \d+
 
 odr_design_add_theme_element:
-    path:  /design/themeelement/add/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Theme:addthemeelement }
+    path:  /design/themeelement/add/{theme_id}/{full_html}
+    defaults: { _controller: ODRAdminBundle:Theme:addthemeelement, full_html: 0 }
     requirements:
         theme_id:  \d+
+        full_html: 0|1
 
 odr_design_delete_theme_element:
     path:  /design/themeelement/delete/{theme_element_id}
@@ -407,8 +452,20 @@ odr_design_save_theme_datatype:
 
 #-----------------------------------------
 # Displaytemplate Controller
+odr_create_status_check:
+    path:  /design/status/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:check_status }
+    requirements:
+        datatype_id:  \d+
+
 odr_design_master_theme:
     path:  /design/displaytemplate/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:design }
+    requirements:
+        datatype_id:  \d+
+
+odr_design_metadata_theme:
+    path:  /design/metadatatemplate/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:design }
     requirements:
         datatype_id:  \d+
@@ -515,9 +572,20 @@ odr_design_save_radio_option_order:
     requirements:
         datafield_id: \d+
         alphabetical_sort: 0|1
+odr_design_save_radio_option_list:
+    path:  /design/displaytemplate/saveradiooptionlist/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:saveradiooptionlist }
+    methods: [ POST ]
+    requirements:
+        datafield_id:  \d+
 odr_design_add_radio_option:
     path:  /design/displaytemplate/addradiooption/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:addradiooption }
+    requirements:
+        datafield_id:  \d+
+odr_design_add_radio_option_from_list:
+    path:  /design/displaytemplate/addradiooptionfromlist/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:addradiooptionfromlist }
     requirements:
         datafield_id:  \d+
 odr_design_default_radio_option:
@@ -530,27 +598,28 @@ odr_design_delete_radio_option:
     defaults: { _controller: ODRAdminBundle:Displaytemplate:deleteradiooption }
     requirements:
         radio_option_id:  \d+
-
-
+odr_design_set_uuids:
+    path:  /design/displaytemplate/setuuids/{uuid_type}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:setuuids }
+    requirements:
+        uuid_type: 'datatype|field|radio'
 odr_design_public_datatype:
     path:  /design/displaytemplate/publicdatatype/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypepublic }
     requirements:
         datatype_id:  \d+
-
 odr_design_public_datafield:
     path:  /design/displaytemplate/publicdatafield/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldpublic }
     requirements:
         datafield_id:  \d+
-
 odr_markdown_help_dialog:
     path:  /design/displaytemplate/markdownhelp
     defaults: { _controller: ODRAdminBundle:Displaytemplate:markdownhelp }
-
 odr_save_search_notes:
     path:  /design/displaytemplate/save_notes/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:savesearchnotes }
+    methods: [POST]
     requirements:
         datatype_id: \d+
 
@@ -682,6 +751,13 @@ odr_record_get_field_history:
 
 #-----------------------------------------
 # Link Controller
+odr_design_get_link_templates:
+    path:  /design/displaytemplate/getlinktemplates/{datatype_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Link:getlinkabletemplates }
+    requirements:
+        datatype_id:  \d+
+        theme_element_id:  \d+
+
 odr_design_get_link_datatypes:
     path:  /design/displaytemplate/getlinktypes/{datatype_id}/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Link:getlinkabledatatypes }
@@ -692,6 +768,20 @@ odr_design_get_link_datatypes:
 odr_design_link_datatype:
     path:  /design/displaytemplate/linktype
     defaults: { _controller: ODRAdminBundle:Link:linkdatatype }
+    methods: [ POST ]
+
+odr_design_quicklink_datatype:
+    path:  /design/displaytemplate/quicklinktype/{local_datatype_id}/{remote_datatype_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Link:quicklinkdatatype }
+    methods: [ GET ]
+    requirements:
+        local_datatype_id:  \d+
+        remote_datatype_id:  \d+
+        theme_element_id:  \d+
+
+odr_design_clone_and_link_datatype:
+    path:  /design/clone_and_link
+    defaults: { _controller: ODRAdminBundle:Link:cloneandlink }
     methods: [ POST ]
 
 odr_record_get_linkable_datarecords:
@@ -707,6 +797,11 @@ odr_record_get_linkable_datarecords:
 odr_link_datarecords:
     path:  /edit/linkrecords
     defaults: { _controller: ODRAdminBundle:Link:linkdatarecords }
+    methods: [ POST ]
+
+odr_unlink_record:
+    path:  /edit/unlinkrecord
+    defaults: { _controller: ODRAdminBundle:Link:unlinkrecord }
     methods: [ POST ]
 
 #-----------------------------------------
@@ -1066,7 +1161,7 @@ odr_job_refresh:
     path:  /jobs/refresh/{job_type}/{job_id}
     defaults: { _controller: ODRAdminBundle:Job:refresh, job_id: 0 }
     requirements:
-        job_type: '|recache|migrate|mass_edit|rebuild_thumbnails|csv_import|csv_import_validate|csv_export'
+        job_type: '|recache|migrate|mass_edit|rebuild_thumbnails|csv_import|csv_import_validate|csv_export|clone_and_link'
         job_id: \d+
 
 #odr_get_job_errors:
@@ -1150,28 +1245,6 @@ odr_get_zip_archive_progress:
 
 #-----------------------------------------
 # Other stuff
-odr_dt_clear:
-    path: /admin/dt_clear/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Worker:dtclear, datatype_id: 0 }
-    requirements:
-        datatype_id: \d+
-odr_theme_clear:
-    path: /admin/theme_clear/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Worker:themeclear, datatype_id: 0 }
-    requirements:
-        datatype_id: \d+
-odr_dr_clear:
-    path: /admin/dr_clear/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Worker:drclear, datatype_id: 0 }
-    requirements:
-        datatype_id: \d+
-odr_search_clear:
-    path: /admin/search_clear
-    defaults: { _controller: ODRAdminBundle:Worker:searchclear }
-odr_permissions_clear:
-    path: /admin/permissions_clear
-    defaults: { _controller: ODRAdminBundle:Worker:permissionsclear }
-
 #odr_mass_encrypt:
 #    path: /admin/mass_encrypt/{object_type}
 #    defaults: { _controller: ODRAdminBundle:Worker:startencrypt }
@@ -1197,6 +1270,12 @@ odr_migrate_plugins:
 odr_create_theme_vesrions:
     path: /admin/theme_version_init
     defaults: { _controller: ODRAdminBundle:Worker:themeversioninit }
+odr_set_datatype_unique_ids:
+    path: /admin/set_unique_ids
+    defaults: { _controller: ODRAdminBundle:Worker:setuniqueids }
+odr_fix_setup_steps:
+    path: /admin/fix_setup_steps
+    defaults: { _controller: ODRAdminBundle:Worker:fixsetupsteps }
 
 #-----------------------------------------
 

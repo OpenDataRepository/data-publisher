@@ -1,0 +1,93 @@
+{% spaceless %}
+
+{% set can_edit_record = 0 %}
+{% set can_delete_record = 0 %}
+{% set can_add_record = 0 %}
+{% set is_datatype_admin = 0 %}
+
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
+    {# Edit page for a datarecord can be accessed if user has permissions for a childtype, need to verify that user has permissions to edit the parent datatype #}
+    {% set can_edit_record = 1 %}
+{% endif %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
+    {% set can_delete_record = 1 %}
+{% endif %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
+    {% set can_add_record = 1 %}
+{% endif %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+    {% set is_datatype_admin = 1 %}
+{% endif %}
+
+{% if can_edit_record == 1 %}
+<div class="ODRCreatedBy pure-u-1 PadRight">
+    <strong>Created by: </strong>{{ datarecord.createdBy.getuserstring }} <strong>on</strong> {{ datarecord.created|date('Y-m-d h:m:s') }} (UTC-5)
+    <strong>Last Modified by: </strong>{{ datarecord.updatedBy.getuserstring }} <strong>on</strong> {{ datarecord.updated|date('Y-m-d h:m:s') }} (UTC-5)
+</div>
+{% endif %}
+
+<div class="pure-u-1 clearfix">
+    <div class="pure-u-1">
+        {#<button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }}, 'view', '');">View DataRecord</button>#}
+        {% if is_datatype_admin == 1 %}
+            {% if datarecord.ispublic %}
+                <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make DataRecord Non-Public</button>
+            {% else %}
+                <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make DataRecord Public</button>
+            {% endif %}
+        {% endif %}
+        <button type="button" class="pure-button pure-button-primary" onclick="exportXML({{ datarecord.id }})">Export DataRecord</button>
+    </div>
+</div>
+
+<script>
+
+{% if is_datatype_admin == 1 %}
+    function publicRecord(datarecord_id) {
+        var url = '{{ path('odr_record_public', { 'datarecord_id': 0 }) }}';
+        url = url.substring(0, (url.length - 1));
+        url += datarecord_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                var html = $("#ODRPublicRecord").html();
+                if ( html.indexOf('Non') !== -1 )
+                    $("#ODRPublicRecord").html('Make DataRecord Public');
+                else
+                    $("#ODRPublicRecord").html('Make DataRecord Non-Public');
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+{% endif %}
+
+    function exportXML(datarecord_id) {
+        var url = '{{ path('odr_export_datarecord_single', {'datarecord_id': datarecord.id, '_format': 'json' }) }}';
+        document.location = url;
+    }
+
+
+</script>
+
+{# import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js #}
+
+{% endspaceless %}

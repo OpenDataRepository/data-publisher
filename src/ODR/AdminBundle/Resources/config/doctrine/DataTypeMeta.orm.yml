@@ -42,13 +42,13 @@ ODR\AdminBundle\Entity\DataTypeMeta:
 
         shortName:
             type: string
-            length: 32
+            length: 128
             fixed: false
             nullable: false
             column: short_name
         longName:
             type: string
-            length: 128
+            length: 255
             fixed: false
             nullable: false
             column: long_name
@@ -59,7 +59,7 @@ ODR\AdminBundle\Entity\DataTypeMeta:
             column: description
         xml_shortName:
             type: string
-            length: 32
+            length: 128
             fixed: false
             nullable: false
             column: xml_short_name

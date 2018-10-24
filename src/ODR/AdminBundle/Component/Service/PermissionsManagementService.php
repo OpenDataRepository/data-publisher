@@ -25,13 +25,12 @@ use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\GroupMeta;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\UserGroup;
-use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 // Other
 use Doctrine\ORM\EntityManager;
 use FOS\UserBundle\Model\UserManagerInterface;
@@ -57,9 +56,9 @@ class PermissionsManagementService
     private $dti_service;
 
     /**
-     * @var SearchCacheService
+     * @var SearchAPIService
      */
-    private $search_cache_service;
+    private $search_api_service;
 
     /**
      * @var UserManagerInterface
@@ -77,23 +76,23 @@ class PermissionsManagementService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param DatatypeInfoService $datatype_info_service
-     * @param SearchCacheService $search_cache_service
+     * @param DatatypeInfoService $datatypeInfoService
+     * @param SearchAPIService $searchAPIService
      * @param UserManagerInterface $user_manager
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        DatatypeInfoService $datatype_info_service,
-        SearchCacheService $search_cache_service,
+        DatatypeInfoService $datatypeInfoService,
+        SearchAPIService $searchAPIService,
         UserManagerInterface $user_manager,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $datatype_info_service;
-        $this->search_cache_service = $search_cache_service;
+        $this->dti_service = $datatypeInfoService;
+        $this->search_api_service = $searchAPIService;
         $this->user_manager = $user_manager;
         $this->logger = $logger;
     }
@@ -143,38 +142,30 @@ class PermissionsManagementService
      * @param ODRUser $user
      * @param Datatype $datatype
      *
-     * @throws ODRException
-     *
-     * @return null|string
+     * @return null|array
      */
     public function getDatarecordRestrictionList($user, $datatype)
     {
+        // Users which aren't logged in don't have additional datarecord restrictions
+        if ($user === "anon." || $user == null)
+            return null;
+
         $datatype_permissions = self::getDatatypePermissions($user);
         if ( isset($datatype_permissions[ $datatype->getId() ]['datarecord_restriction']) ) {
             // ...this further restriction is stored as an encoded search key in the database
             $search_key = $datatype_permissions[ $datatype->getId() ]['datarecord_restriction'];
-            $search_params = $this->search_cache_service->decodeSearchKey($search_key);
 
-            if ( !isset($search_params['dt_id']) )
-                throw new ODRBadRequestException('Invalid search key', 0xc7054271);
-            $datatype_id = intval($search_params['dt_id']);
+            // Don't need to validate or filter the search key...search as a super-admin
+            $search_result = $this->search_api_service->performSearch(
+                $datatype,
+                $search_key,
+                array(), // empty user permissions array since searching as super admin
+                0,       // use default sort order for datatype
+                true,    // sort ascending by default
+                true     // search as super admin, so no filtering takes place
+            );
 
-
-            // Grab the list of datarecords from this search key
-            $search_checksum = md5($search_key);
-
-            // Attempt to load the search result for this search_key
-            $cached_searches = $this->cache_service->get('cached_search_results');
-            if ( $cached_searches == false
-                || !isset($cached_searches[$datatype_id])
-                || !isset($cached_searches[$datatype_id][$search_checksum])
-            ) {
-                // TODO - need to move searching itself into a service...can't call the function in the search controller because of symfony constraints
-                throw new ODRNotImplementedException('Please wait a few minutes, then refresh the page.', 0xc7054271);
-            }
-
-            $cached_search_params = $cached_searches[$datatype_id][$search_checksum];
-            $complete_datarecord_list = $cached_search_params['complete_datarecord_list'];
+            $complete_datarecord_list = $search_result['complete_datarecord_list'];
 
             return $complete_datarecord_list;
         }
@@ -207,8 +198,7 @@ class PermissionsManagementService
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user);
-        $datatype_permissions = $user_permissions['datatypes'];
+        $datatype_permissions = self::getDatatypePermissions($user);
 
         if ( isset($datatype_permissions[ $datatype->getId() ])
             && isset($datatype_permissions[ $datatype->getId() ]['dt_view'])
@@ -218,6 +208,44 @@ class PermissionsManagementService
         }
         else {
             // User does not have the can_view_datatype permission
+            return false;
+        }
+    }
+
+
+    /**
+     * Returns whether the given user can view non-public Datarecords in this Datatype.  If the user
+     * has this permission, then they automatically have permission to view the Datatype.
+     *
+     * Users with this permission are able to...
+     *  - view non-public datatypes (due to automatically having the "can_view_datatype" permission)
+     *  - view non-public datarecords
+     *  - view non-public files/images (if they are also able to view the datafield itself)
+     *
+     * @param ODRUser $user
+     * @param DataType $datatype
+     *
+     * @return bool
+     */
+    public function canViewNonPublicDatarecords($user, $datatype)
+    {
+        // If the user isn't logged in, they can't view non-public datarecords
+        if ($user === "anon.")
+            return false;
+
+        // Otherwise, the user is logged in
+        $datatype_permissions = self::getDatatypePermissions($user);
+
+        if ( isset($datatype_permissions[ $datatype->getId() ])
+            && isset($datatype_permissions[ $datatype->getId() ]['dr_view'])
+        ) {
+            // TODO - add datarecord_restriction to this?
+
+            // User has the can_view_datarecord permission
+            return true;
+        }
+        else {
+            // User does not have the can_view_datarecord permission
             return false;
         }
     }
@@ -249,8 +277,7 @@ class PermissionsManagementService
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user);
-        $datatype_permissions = $user_permissions['datatypes'];
+        $datatype_permissions = self::getDatatypePermissions($user);
 
         $datatype = $datarecord->getDataType();
         if ( isset($datatype_permissions[ $datatype->getId() ])
@@ -289,8 +316,7 @@ class PermissionsManagementService
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user);
-        $datatype_permissions = $user_permissions['datatypes'];
+        $datatype_permissions = self::getDatatypePermissions($user);
 
         if ( isset($datatype_permissions[ $datatype->getId() ])
             && isset($datatype_permissions[ $datatype->getId() ]['dr_add'])
@@ -322,8 +348,7 @@ class PermissionsManagementService
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user);
-        $datatype_permissions = $user_permissions['datatypes'];
+        $datatype_permissions = self::getDatatypePermissions($user);
 
         // The user needs to be able to view the datatype before they can edit it...
         if ( !self::canViewDatatype($user, $datatype) )
@@ -368,8 +393,7 @@ class PermissionsManagementService
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user);
-        $datatype_permissions = $user_permissions['datatypes'];
+        $datatype_permissions = self::getDatatypePermissions($user);
 
         // The user needs to be able to view the datarecord before they can edit it...
         if ( !self::canViewDatarecord($user, $datarecord) )
@@ -383,7 +407,6 @@ class PermissionsManagementService
             //  might be a further restriction on which datarecords they're allowed to edit...
             $restricted_datarecord_list = self::getDatarecordRestrictionList($user, $datatype);
             if ( !is_null($restricted_datarecord_list) ) {
-                $restricted_datarecord_list = explode(',', $restricted_datarecord_list);
                 if ( in_array($datarecord->getId(), $restricted_datarecord_list) )
                     return true;
                 else
@@ -422,8 +445,7 @@ class PermissionsManagementService
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user);
-        $datatype_permissions = $user_permissions['datatypes'];
+        $datatype_permissions = self::getDatatypePermissions($user);
 
         if ( isset($datatype_permissions[ $datatype->getId() ])
             && isset($datatype_permissions[ $datatype->getId() ]['dr_delete'])
@@ -467,8 +489,7 @@ class PermissionsManagementService
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user);
-        $datatype_permissions = $user_permissions['datatypes'];
+        $datatype_permissions = self::getDatatypePermissions($user);
 
         if ( isset($datatype_permissions[ $datatype->getId() ])
             && isset($datatype_permissions[ $datatype->getId() ]['dt_admin'])
@@ -506,8 +527,7 @@ class PermissionsManagementService
             return false;
 
         // Otherwise, the user is logged in
-        $user_permissions = self::getUserPermissionsArray($user);
-        $datafield_permissions = $user_permissions['datafields'];
+        $datafield_permissions = self::getDatafieldPermissions($user);
 
         if ( isset($datafield_permissions[ $datafield->getId() ])
             && isset($datafield_permissions[ $datafield->getId() ]['view'])
@@ -547,8 +567,7 @@ class PermissionsManagementService
             return false;
 
         // Otherwise, the user is logged in and able to edit the Datarecord
-        $user_permissions = self::getUserPermissionsArray($user);
-        $datafield_permissions = $user_permissions['datafields'];
+        $datafield_permissions = self::getDatafieldPermissions($user);
 
         if ( isset($datafield_permissions[ $datafield->getId() ])
             && isset($datafield_permissions[ $datafield->getId() ]['edit'])
@@ -592,8 +611,7 @@ class PermissionsManagementService
             return false;
 
         // Otherwise, the user is logged in...
-        $user_permissions = self::getUserPermissionsArray($user);
-        $datatype_permissions = $user_permissions['datatypes'];
+        $datatype_permissions = self::getDatatypePermissions($user);
 
         $datatype = $file->getDataRecord()->getDataType();
         if ( isset($datatype_permissions[ $datatype->getId() ])
@@ -638,8 +656,7 @@ class PermissionsManagementService
             return false;
 
         // Otherwise, the user is logged in...
-        $user_permissions = self::getUserPermissionsArray($user);
-        $datatype_permissions = $user_permissions['datatypes'];
+        $datatype_permissions = self::getDatatypePermissions($user);
 
         $datatype = $image->getDataRecord()->getDataType();
         if ( isset($datatype_permissions[ $datatype->getId() ])
@@ -743,9 +760,11 @@ class PermissionsManagementService
                 }
 
                 // If it exists, store a restriction on which datarecords this permission applies to
-                $top_level_dt_id = $group_permission['top_level_datatype_id'];
-                if ( isset($group_permission['datarecord_restriction']) && $group_permission['datarecord_restriction'] !== '' )
-                    $user_permissions['datatypes'][$top_level_dt_id]['datarecord_restriction'] = $group_permission['datarecord_restriction'];
+                if(isset($group_permission['top_level_datatype_id'])) {
+                    $top_level_dt_id = $group_permission['top_level_datatype_id'];
+                    if ( isset($group_permission['datarecord_restriction']) && $group_permission['datarecord_restriction'] !== '' )
+                        $user_permissions['datatypes'][$top_level_dt_id]['datarecord_restriction'] = $group_permission['datarecord_restriction'];
+                }
 
                 // TODO - how to handle multiple datarecord_restrictions on the same datatype?
             }
@@ -1058,43 +1077,47 @@ if ($debug)
      * @param Group $group
      * @param ODRUser $admin_user
      * @param bool $delay_flush
+     * @param bool $check_group
      *
      * @return UserGroup
      */
-    public function createUserGroup($user, $group, $admin_user, $delay_flush = false)
+    public function createUserGroup($user, $group, $admin_user, $delay_flush = false, $check_group = true)
     {
         // Check to see if the User already belongs to this Group
-        $query = $this->em->createQuery(
-           'SELECT ug
+        // This will be bypassed in the case of newly created groups.
+        if($check_group) {
+            $query = $this->em->createQuery(
+                'SELECT ug
             FROM ODRAdminBundle:UserGroup AS ug
             WHERE ug.user = :user_id AND ug.group = :group_id
             AND ug.deletedAt IS NULL'
-        )->setParameters( array('user_id' => $user->getId(), 'group_id' => $group->getId()) );
-        /** @var UserGroup[] $results */
-        $results = $query->getResult();
+            )->setParameters( array('user_id' => $user->getId(), 'group_id' => $group->getId()) );
+            /** @var UserGroup[] $results */
+            $results = $query->getResult();
 
-        $user_group = null;
-        if ( count($results) > 0 ) {
-            // If an existing UserGroup entity was found, return it and don't do anything else
-            foreach ($results as $num => $ug)
-                return $ug;
+            $user_group = null;
+            if ( count($results) > 0 ) {
+                // If an existing UserGroup entity was found, return it and don't do anything else
+                // TODO This works but is strange....
+                foreach ($results as $num => $ug)
+                    return $ug;
+            }
         }
-        else {
-            // ...otherwise, create a new UserGroup entity
-            $user_group = new UserGroup();
-            $user_group->setUser($user);
-            $user_group->setGroup($group);
-            $user_group->setCreatedBy($admin_user);
 
-            // Ensure the "in-memory" versions of both the User and Group entities know about the new UserGroup entity
-            $group->addUserGroup($user_group);
-            $user->addUserGroup($user_group);
+        // ...otherwise, create a new UserGroup entity
+        $user_group = new UserGroup();
+        $user_group->setUser($user);
+        $user_group->setGroup($group);
+        $user_group->setCreatedBy($admin_user);
 
-            // Save all changes
-            $this->em->persist($user_group);
-            if (!$delay_flush)
-                $this->em->flush();
-        }
+        // Ensure the "in-memory" versions of both the User and Group entities know about the new UserGroup entity
+        $group->addUserGroup($user_group);
+        $user->addUserGroup($user_group);
+
+        // Save all changes
+        $this->em->persist($user_group);
+        if (!$delay_flush)
+            $this->em->flush();
 
         return $user_group;
     }
@@ -1111,6 +1134,13 @@ if ($debug)
      */
     public function createGroup($user, $datatype, $initial_purpose = '')
     {
+        // ----------------------------------------
+        // Groups should only be attached to top-level datatypes...child datatypes inherit groups
+        //  from their parent
+        if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+            throw new ODRBadRequestException('Child Datatypes are not allowed to have groups of their own.');
+
+
         // ----------------------------------------
         // Create the Group entity
         $group = new Group();
@@ -1162,10 +1192,7 @@ if ($debug)
 
 
         // ----------------------------------------
-        // Need to keep track of which datatypes are top-level
-        $top_level_datatypes = $this->dti_service->getTopLevelDatatypes();
-
-        // Create the initial datatype permission entries
+        // Locate the ids of all children of this top-level datatype
         $query = $this->em->createQuery(
            'SELECT dt.id AS dt_id
             FROM ODRAdminBundle:DataType AS dt
@@ -1178,7 +1205,7 @@ if ($debug)
         $associated_datatypes = array();
         foreach ($results as $result)
             $associated_datatypes[] = $result['dt_id'];
-//print_r($associated_datatypes);
+
 
         // Build a single INSERT INTO query to add GroupDatatypePermissions entries for this top-level datatype and for each of its children
         $query_str = '
@@ -1199,7 +1226,7 @@ if ($debug)
                 $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "1", "1", "1", "1", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
             else if ($initial_purpose == 'view_all')
                 $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "1", "1", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
-            else if ( $initial_purpose == 'view_only' || in_array($dt_id, $top_level_datatypes) )
+            else if ( $initial_purpose == 'view_only' || $dt_id === $datatype->getGrandparent()->getId() )
                 $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "1", "0", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
             else
                 $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "0", "0", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";

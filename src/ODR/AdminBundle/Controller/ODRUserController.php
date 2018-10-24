@@ -37,6 +37,7 @@ use ODR\AdminBundle\Form\ODRUserProfileForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
@@ -1685,41 +1686,13 @@ class ODRUserController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Load permissions for the target user
-            $user_permissions = $pm_service->getUserPermissionsArray($target_user);
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
-
-            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            $include_links = true;
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
-            $theme_array = $theme_service->getThemeArray($theme->getId());
-
-            // Filter by the target user's permissions
-            $datarecord_array = array();
-            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-            $stacked_datatype_array[ $datatype->getId() ] = $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
-            $stacked_theme_array[ $theme->getId() ] = $theme_service->stackThemeArray($theme_array, $theme->getId());
-
-
-            // ----------------------------------------
             // Render the datatype from the target user's point of view
-            $templating = $this->get('templating');
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->get('odr.render_service');
+            $page_html = $odr_render_service->getViewAsUserHTML($admin_user, $target_user, $theme);
+
             $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:view_ajax.html.twig',
-                    array(
-                        'datatype_permissions' => $datatype_permissions,
-                        'datafield_permissions' => $datafield_permissions,
-
-                        'datatype_array' => $stacked_datatype_array,
-                        'theme_array' => $stacked_theme_array,
-
-                        'initial_datatype_id' => $datatype->getId(),
-                        'initial_theme_id' => $theme->getId(),
-                    )
-                )
+                'html' => $page_html
             );
         }
         catch (\Exception $e) {

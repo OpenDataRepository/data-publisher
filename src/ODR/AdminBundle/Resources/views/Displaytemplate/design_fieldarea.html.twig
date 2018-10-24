@@ -23,38 +23,37 @@
 
         {# TODO Allow linked datatypes to be edited directly - need to warn user if used by other databases #}
         {% if is_datatype_admin %}
-            <div id="ThemeElementTools_{{ theme_element.id }}" class="ThemeElementTools pure-u-1"><span style="float:right;">
-                <i id="ODRThemeElement_{{ theme_element.id }}_addDF"
-                   class="Pointer tooltip fa fa-plus-square {% if has_childtype %}fa-muted{% endif %} ODRAddDatafield"
-                   title="Add Field" rel="{{ datatype.id }}">
-                </i>
-                <i id="ODRThemeElement_{{ theme_element.id }}_addCDT"
-                   class="Pointer tooltip fa fa-list-alt {% if has_childtype or has_datafields %}fa-muted{% endif %} ODRAddChildtype"
-                   title="Add Child Type" rel="{{ datatype.id }}">
-                </i>
+            {# Convert to JS Data for New interface #}
+            <script>
+                if (theme_element_properties === undefined) {
+                    var theme_element_properties = [];
+                    // var theme_element_properties = {};
+                }
 
-                {% if has_datafields or (has_childtype and not child_is_link) %}
-                    <i id="ODRThemeElement_{{ theme_element.id }}_linkDT"
-                       class="Pointer tooltip fa fa-link fa-muted ODRLinkDatatype"
-                       title="Link DataType" rel="{{ datatype.id }}">
-                    </i>
-                {% elseif has_childtype and child_is_link %}
-                    <i id="ODRThemeElement_{{ theme_element.id }}_linkDT"
-                       class="Pointer tooltip fa fa-link ODRActiveIcon ODRLinkDatatype"
-                       title="Link DataType" rel="{{ datatype.id }}">
-                    </i>
+                theme_element_properties[{{ theme_element.id }}] = {};
+
+                {% if has_childtype %}
+                theme_element_properties[{{ theme_element.id }}].has_childtype = 1;
                 {% else %}
-                    <i id="ODRThemeElement_{{ theme_element.id }}_linkDT"
-                       class="Pointer tooltip fa fa-link ODRLinkDatatype"
-                       title="Link DataType" rel="{{ datatype.id }}">
-                    </i>
+                theme_element_properties[{{ theme_element.id }}].has_childtype = 0;
                 {% endif %}
 
-                <i id="ODRThemeElement_{{ theme_element.id }}_delete"
-                   class="Pointer tooltip fa fa-trash-o {% if has_datafields or has_childtype %}fa-muted{% endif %} ODRDeleteThemeElement"
-                   title="Delete ThemeElement">
-                </i>
-            </span></div>
+                {% if has_datafields %}
+                theme_element_properties[{{ theme_element.id }}].has_datafields = 1;
+                {% else %}
+                theme_element_properties[{{ theme_element.id }}].has_datafields = 0;
+                {% endif %}
+
+                {% if child_is_link %}
+                theme_element_properties[{{ theme_element.id }}].child_is_link = 1;
+                {% else %}
+                theme_element_properties[{{ theme_element.id }}].child_is_link = 0;
+                {% endif %}
+
+                {#console.log('theme_element ' + {{ theme_element.id }});#}
+                {#console.log(theme_element_properties);#}
+                console.log(theme_element_properties[{{ theme_element.id }}]);
+            </script>
         {% endif %}
 
         {% if theme_element.themeDataFields is defined %}

@@ -63,6 +63,7 @@
                         {% if version == 'v1' %}
                             "database_{{ child_datatype_id }}": {
                                 "database_name": {{ child_datatype[child_datatype_id].dataTypeMeta.shortName|json_encode|raw }},
+                                "template_uuid": {{ child_datatype[child_datatype_id].masterDataType.unique_id|json_encode|raw }},
                         {% else %}
                             "{{ child_datatype.dataTypeMeta.xml_shortName }}": {
                         {% endif %}
