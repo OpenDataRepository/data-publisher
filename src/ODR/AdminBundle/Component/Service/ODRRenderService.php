@@ -7,7 +7,8 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * This service TODO
+ * This service contains the functions to render the datatype/theme/datarecord arrays (or pieces
+ * of them) via twig.
  */
 
 namespace ODR\AdminBundle\Component\Service;
@@ -18,6 +19,7 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -171,6 +173,14 @@ class ODRRenderService
     }
 
 
+    /**
+     * Renders and returns the HTML for the design page of a non-master theme.
+     *
+     * @param ODRUser $user
+     * @param Theme $theme
+     *
+     * @return string
+     */
     public function getThemeDesignHTML($user, $theme)
     {
         throw new ODRNotImplementedException();
@@ -383,7 +393,7 @@ class ODRRenderService
 
 
     /**
-     * TODO -
+     * Renders and returns the given template with the given parameters.
      *
      * @param ODRUser $user
      * @param string $template_name
@@ -647,5 +657,204 @@ class ODRRenderService
 
         // User isn't able to view anything that was added...do not notify
         return false;
+    }
+
+
+    /**
+     * Renders and returns the HTML for a single theme element on the master design page.
+     *
+     * @param ODRUser $user
+     * @param ThemeElement $theme_element
+     *
+     * @return string
+     */
+    public function reloadMasterDesignThemeElement($user, $theme_element)
+    {
+        $template_name = 'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig';
+
+        $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $theme_element->getTheme()->getDataType());
+        $extra_parameters = array(
+            'is_datatype_admin' => $is_datatype_admin
+        );
+
+        return self::reloadThemeElement($user, $template_name, $extra_parameters, $theme_element);
+    }
+
+
+    /**
+     * Renders and returns the HTML for a single theme element on the design page for a
+     * non-master theme.
+     *
+     * @param ODRUser $user
+     * @param ThemeElement $theme_element
+     *
+     * @return string
+     */
+    public function reloadThemeDesignThemeElement($user, $theme_element)
+    {
+        $template_name = 'ODRAdminBundle:Theme:theme_fieldarea.html.twig';
+
+        $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $theme_element->getTheme()->getDataType());
+        $extra_parameters = array(
+            'is_datatype_admin' => $is_datatype_admin
+        );
+
+        return self::reloadThemeElement($user, $template_name, $extra_parameters, $theme_element);
+    }
+
+
+    /**
+     * TODO - replace childtype reloading in edit page with this
+     */
+    public function reloadEditThemeElement()
+    {
+        throw new ODRNotImplementedException();
+    }
+
+
+    /**
+     * Renders and returns the HTML required to replce a single theme element in various display
+     * modes of ODR.
+     *
+     * @param ODRUser $user
+     * @param string $template_name
+     * @param array $extra_parameters
+     * @param ThemeElement $theme_element
+     *
+     * @return string
+     */
+    private function reloadThemeElement($user, $template_name, $extra_parameters, $theme_element)
+    {
+        // ----------------------------------------
+        // Most of the pages want to display linked datatypes, but for those that don't...
+        $include_links = true;
+        if ( isset($extra_parameters['include_links']) )
+            $include_links = $extra_parameters['include_links'];
+
+        // All templates need the datatype and theme arrays...
+        $initial_theme = $theme_element->getTheme();
+        $initial_datatype = $initial_theme->getDataType();
+
+        // This request could have been for a child datatype, but need the top-level theme and
+        //  datatype because that's how the cache entries are stored
+        $parent_theme = $initial_theme->getParentTheme();
+        $top_level_datatype = $parent_theme->getDataType();
+
+        $datatype_array = $this->dti_service->getDatatypeArray($top_level_datatype->getId(), $include_links);
+        $theme_array = $this->theme_service->getThemeArray($parent_theme->getId());
+
+        // ...only get the datarecord arrays if a datarecord was specified
+//        $initial_datarecord_id = null;
+//        $datarecord_array = array();
+//        if ( !is_null($datarecord) ) {
+//            $initial_datarecord_id = $datarecord->getId();
+//            $datarecord_array = $this->dri_service->getDatarecordArray($initial_datarecord_id, $include_links);
+//        }
+
+        // All of the templates rendered through this also require several boolean flags...
+        $is_top_level = false;
+        if ( $initial_datatype->getId() === $top_level_datatype->getId() )
+            $is_top_level = true;
+
+        $is_link = false;
+        if ( $initial_datatype->getGrandparent()->getId() !== $top_level_datatype->getId() )
+            $is_link = true;
+
+
+        // ----------------------------------------
+        // The datatype/datarecord arrays need to be filtered so the user isn't allowed to see stuff
+        //  they shouldn't...the theme array intentionally isn't filtered
+        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
+//        if ( isset($extra_parameters['target_user']) ) {
+//            // If rendering for "view_as_user" mode, then use the target user's permissions instead
+//            $user_permissions = $this->pm_service->getUserPermissionsArray( $extra_parameters['target_user'] );
+//        }
+
+        $datatype_permissions = $user_permissions['datatypes'];
+//        $datafield_permissions = $user_permissions['datafields'];
+
+//        if ( !isset($extra_parameters['group']) ) {
+//            $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+//
+//            // If rendering for Edit mode, the token list requires filtering to be done first...
+//            if (isset($extra_parameters['token_list']))
+//                $extra_parameters['token_list'] = $this->dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
+//        }
+//        else {
+//            // If displaying HTML for viewing/modifying a group, then the permission arrays need
+//            //  to be based off the group instead of the user
+//            /** @var Group $group */
+//            $group = $extra_parameters['group'];
+//
+//            $permissions = $this->cache_service->get('group_'.$group->getId().'_permissions');
+//            if ($permissions == false) {
+//                $permissions = $this->pm_service->rebuildGroupPermissionsArray($group->getId());
+//                $this->cache_service->set('group_'.$group->getId().'_permissions', $permissions);
+//            }
+//
+//            $datatype_permissions = $permissions['datatypes'];
+//            $datafield_permissions = $permissions['datafields'];
+//        }
+
+
+        // ----------------------------------------
+        // "Inflate" the currently flattened arrays to make twig's life easier...
+        $stacked_datatype_array[ $initial_datatype->getId() ] =
+            $this->dti_service->stackDatatypeArray($datatype_array, $initial_datatype->getId());
+        $stacked_theme_array[ $initial_theme->getId() ] =
+            $this->theme_service->stackThemeArray($theme_array, $initial_theme->getId());
+
+//        $stacked_datarecord_array = array();
+//        if ( !is_null($datarecord) ) {
+//            $stacked_datarecord_array[ $initial_datarecord_id ] =
+//                $this->dri_service->stackDatarecordArray($datarecord_array, $initial_datarecord_id);
+//        }
+
+
+        // If $stacked_theme_array was passed to the twig file, then every single theme_element of
+        //  this theme would get re-rendered...since we only want to re-render a single one, delete
+        //  the other theme_elements from the array
+        foreach ($stacked_theme_array[ $initial_theme->getId() ]['themeElements'] as $te_num => $te) {
+            if ( $te['id'] !== $theme_element->getId() )
+                unset( $stacked_theme_array[ $initial_theme->getId() ]['themeElements'][$te_num] );
+        }
+
+//print '<pre>'.print_r($stacked_datatype_array, true).'</pre>'; exit();
+//print '<pre>'.print_r($stacked_theme_array, true).'</pre>'; exit();
+//print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>'; exit();
+
+        // If any of the stacked data arrays are empty, it's most likely a permissions problem
+        // This probably only really happens when a user attempts to directly access child
+        //  datarecords they don't have permissions for
+//        if ( count($stacked_datarecord_array[ $requested_datarecord->getId() ]) == 0
+//            || count($stacked_datatype_array[ $requested_datatype->getId() ]) == 0
+//            || count($stacked_theme_array[ $theme_id ]) == 0
+//        ) {
+//            throw new ODRForbiddenException();
+//        }
+
+
+        // ----------------------------------------
+        // Most templates tend to use all of these parameters...
+        $parameters = array(
+            'datatype_array' => $stacked_datatype_array,
+            'theme_array' => $stacked_theme_array,
+
+            'target_datatype_id' => $initial_datatype->getId(),
+            'target_theme_id' => $initial_theme->getId(),
+
+            'datatype_permissions' => $datatype_permissions,
+
+            'is_top_level' => $is_top_level,
+            'is_link' => $is_link,
+        );
+
+        // ...but there are specialty parameters that need to be passed in as well
+        $parameters = array_merge($parameters, $extra_parameters);
+
+        return $this->templating->render(
+            $template_name,
+            $parameters
+        );
     }
 }

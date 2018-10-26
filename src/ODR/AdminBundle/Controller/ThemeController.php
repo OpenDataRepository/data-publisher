@@ -12,7 +12,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\AdminBundle\Component\Service\DesignInfoService;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -40,6 +39,7 @@ use ODR\AdminBundle\Form\UpdateThemeDatatypeForm;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
@@ -922,7 +922,7 @@ class ThemeController extends ODRCustomController
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
         $user_permissions = $pm_service->getUserPermissionsArray($user);
-        $datatype_permissions = $pm_service->getDatatypePermissions($user);
+        $datatype_permissions = $user_permissions['datatypes'];
         $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
 
 
@@ -1566,12 +1566,10 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
 
 
             /** @var DataType $source_datatype */
@@ -1599,11 +1597,6 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            $user_permissions = $pm_service->getUserPermissionsArray($user);
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
-
-            // Ensure user has permissions to be doing this
             $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $source_datatype);
 
             if ( $theme->getThemeType() === 'master' && !$is_datatype_admin)
@@ -1614,49 +1607,8 @@ class ThemeController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            $datatype_array = $dti_service->getDatatypeArray($source_datatype->getId());
-            $theme_array = $theme_service->getThemeArray($theme->getParentTheme()->getId());
-
-            // Delete everything from the datatype array that the user isn't allowed to see
-            $datarecord_array = array();
-            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-            // "Inflate" the currently flattened datatype and theme arrays
-            $stacked_datatype_array[ $datatype->getId() ] =
-                $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
-            $stacked_theme_array[ $theme->getId() ] =
-                $theme_service->stackThemeArray($theme_array, $theme->getId());
-
-
-            // ----------------------------------------
-            // Filter out all theme_elements that aren't the one to reload
-            foreach ($stacked_theme_array[ $theme->getId() ]['themeElements'] as $num => $te) {
-                if ( $te['id'] != $theme_element_id )
-                    unset( $stacked_theme_array[ $theme->getId() ]['themeElements'][$num] );
-            }
-
-
-            // ----------------------------------------
             // Render the required version of the page
-            $templating = $this->get('templating');
-            $html = $templating->render(
-                'ODRAdminBundle:Theme:theme_fieldarea.html.twig',
-                array(
-                    'datatype_array' => $stacked_datatype_array,
-                    'theme_array' => $stacked_theme_array,
-
-                    'target_datatype_id' => $datatype->getId(),
-                    'target_theme_id' => $theme->getId(),
-
-                    'datatype_permissions' => $datatype_permissions,
-                    'is_datatype_admin' => $is_datatype_admin,
-
-                    'is_top_level' => 0,    // the values for these two don't matter, for the moment
-                    'is_link' => 0,
-                )
-            );
-
+            $html = $odr_render_service->reloadThemeDesignThemeElement($user, $theme_element);
             $return['d'] = array(
                 'theme_element_id' => $theme_element_id,
                 'theme_element_hidden' => $theme_element->getHidden(),
@@ -1676,9 +1628,14 @@ class ThemeController extends ODRCustomController
         return $response;
     }
 
+
     /**
-     * @param $datatype_id
+     * Finds the given datatype's master theme, and then redirects to addthemeelementAction() to
+     * finish the adding a theme_element.
+     *
+     * @param int $datatype_id
      * @param Request $request
+     *
      * @return Response
      */
     public function addthemeelementbydatatypeAction($datatype_id, Request $request)
@@ -1693,11 +1650,12 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-//            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
             /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
@@ -1705,22 +1663,21 @@ class ThemeController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
 
-            // TODO - can't use this construct, linked datatypes have multiple 'master' themes differentiated only by parent_theme_id
-            // We can only operate on master themes here...
-            /** @var Theme $theme */
-/*
-            $theme = $repo_theme->findOneBy(
-                array(
-                    'themeType' => 'master',
-                    'dataType' => $datatype,
-                )
-            );
-*/
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // Since we only have a datatype, this can only add theme elements to that datatype's
+            //  master theme...
             $theme = $theme_info_service->getDatatypeMasterTheme($datatype_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
-            // TODO - the theme_element reload WILL NOT succeed, but at least the database won't be messed up afterwards...
             return $this->redirect(
                 $this->generateUrl(
                     'odr_design_add_theme_element',
@@ -1740,7 +1697,6 @@ class ThemeController extends ODRCustomController
         }
 
     }
-
 
 
     /**
@@ -1764,6 +1720,8 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
@@ -1823,17 +1781,12 @@ class ThemeController extends ODRCustomController
             // Update cached version of theme
             $theme_service->updateThemeCacheEntry($theme, $user);
 
-            // TODO - modify ODRRenderService to reload theme_elements...
             $html = "";
-            if($full_html) {
-
-                /** @var DesignInfoService $di_service */
-                $di_service = $this->container->get('odr.design_info_service');
-
-                $html = $di_service->GetDisplayData(
-                    $datatype->getGrandparent()->getId(),
-                    'theme_element',
-                    $theme_element->getId()
+            if ($full_html) {
+                // Need to insert the html of the new theme element directly onto the page
+                $html = $odr_render_service->reloadMasterDesignThemeElement(
+                    $user,
+                    $theme_element
                 );
             }
 

@@ -314,8 +314,6 @@ class ODRTabHelperService
         if ( is_null($tab_data) )
             return false;
 
-        // TODO - create a new entry for the tab if one doesn't exist?
-
         // Store the resulting tab data
         $tab_data['sort_criteria'] = array(
             'datafield_id' => $datafield_id,

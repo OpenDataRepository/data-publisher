@@ -81,8 +81,6 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
-// Utilities
-use ODR\AdminBundle\Component\Utility\UniqueUtility;
 
 
 class ODRCustomController extends Controller
@@ -175,8 +173,8 @@ class ODRCustomController extends Controller
             $logged_in = true;
 
         $user_permissions = $pm_service->getUserPermissionsArray($user);
-        $datatype_permissions = $pm_service->getDatatypePermissions($user);
-        $datafield_permissions = $pm_service->getDatafieldPermissions($user);
+        $datatype_permissions = $user_permissions['datatypes'];
+//        $datafield_permissions = $user_permissions['datafields'];
 
         // Store whether the user is permitted to edit at least one datarecord for this datatype
         $can_edit_datatype = $pm_service->canEditDatatype($user, $datatype);

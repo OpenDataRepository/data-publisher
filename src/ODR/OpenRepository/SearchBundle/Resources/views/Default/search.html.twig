@@ -7,11 +7,11 @@
 
     {% set datatype = datatype_array[target_datatype.id] %}
 
-    {% set can_search_target_datatype = false %}
-    {% for datafield in datatype['dataFields'] %}
+    {% set can_use_general_search = false %}
+    {% for df_id, datafield in datatype['dataFields'] %}
         {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-        {% if searchable > 0 %}
-            {% set can_search_target_datatype = true %}
+        {% if searchable == 1 or searchable == 2 %}
+            {% set can_use_general_search = true %}
         {% endif %}
     {% endfor %}
 
@@ -64,7 +64,7 @@
                             </label>
                             <input id="textbox_general"
                                    class="pure-u-1 pure-u-sm-1 pure-u-md-1-1 pure-u-lg-1-1 pure-u-xl-1-2" type="text" name="gen"
-                                   {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %} {% if can_search_target_datatype %}disabled="disabled" title="This datatype has no searchable datafields"{% endif %} />
+                                   {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %} {% if not can_use_general_search %}disabled="disabled" title="This datatype has no searchable datafields"{% endif %} />
                             <input type="hidden" id="search_type" value="basic"/>
                         </div>
 

@@ -1,21 +1,22 @@
 <?php
 
 /**
- *
  * Open Data Repository Data Publisher
- * Radio Form
+ * Radio Option List Form
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
+ * For creating multiple radio options at once by reading the contents of a textarea
  */
 
 namespace ODR\AdminBundle\Form;
+
+// Symfony Forms
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
-use Symfony\Component\OptionsResolver\OptionsResolverInterface;
-
-use ODR\AdminBundle\Form\DataTransformer\DataFieldsToNumberTransformer;
+use Symfony\Component\OptionsResolver\OptionsResolver;
+// Symfony Form classes
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 
 
@@ -23,14 +24,8 @@ class RadioOptionListForm extends AbstractType
 {
 
     /**
-    * TODO: short description.
-    *
-    *
-    */
-    public function __construct()
-    {
-    }
-
+     * {@inheritdoc}
+     */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
 
@@ -44,22 +39,41 @@ class RadioOptionListForm extends AbstractType
         );
 
     }
-    
+
+
+    /**
+     * Returns the name of this type.
+     *
+     * @return string The name of this type
+     */
     public function getName() {
         return 'RadioOptionListForm';
     }
 
+
     /**
-     * TODO: short description.
-     * 
-     * @param OptionsResolverInterface $resolver 
-     * 
-     * @return TODO
+     * Returns the prefix of the template block name for this type.
+     *
+     * The block prefixes default to the underscored short class name with
+     * the "Type" suffix removed (e.g. "UserProfileType" => "user_profile").
+     *
+     * @return string The prefix of the template block name
      */
-    public function setDefaultOptions(OptionsResolverInterface $resolver)
+    public function getBlockPrefix()
     {
-        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataFields'));
+        return 'RadioOptionListForm';
     }
 
 
+    /**
+     * {@inheritdoc}
+     */
+    public function configureOptions(OptionsResolver $resolver)
+    {
+        $resolver->setDefaults(
+            array(
+//                'data_class' => 'ODR\AdminBundle\Entity\DataFields'
+            )
+        );
+    }
 }

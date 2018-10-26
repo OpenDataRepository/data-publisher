@@ -39,7 +39,9 @@ class GraphController extends ODRCustomController
 {
 
     /**
-     * TODO
+     * Regular rendering of the GraphPlugin in Display mode leaves a link to this controller action
+     * when the cached version of the desired graph doesn't exist...this controller action calls
+     * the GraphPlugin again, but this time instructs it to actually build the graph.
      *
      * @param integer $plugin_id
      * @param integer $datatype_id

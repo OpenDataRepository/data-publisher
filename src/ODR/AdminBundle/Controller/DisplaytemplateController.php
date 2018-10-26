@@ -54,10 +54,8 @@ use ODR\AdminBundle\Form\UpdateThemeDatatypeForm;
 use ODR\AdminBundle\Form\RadioOptionListForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
-use ODR\AdminBundle\Component\Service\DesignInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
@@ -2120,6 +2118,7 @@ class DisplaytemplateController extends ODRCustomController
             // --------------------
 
 
+            // TODO - convert to use ODRAdminBundle:Form:RadioOptionListForm for csrf protection?
             $templating = $this->get('templating');
             $html = $templating->render(
                 'ODRAdminBundle:Displaytemplate:radio_option_list_import.html.twig',
@@ -2165,6 +2164,11 @@ class DisplaytemplateController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // Ensure required options exist
+            $post = $request->request->all();
+            if ( !isset($post['radio_option_list']) )
+                throw new ODRBadRequestException();
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
@@ -2196,10 +2200,9 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-
+            // TODO - should the server be reporting on the time taken?
             $start_time = microtime(true);
 
-            $post = $request->request->all();
             $radio_option_list = array();
             if ( strlen($post['radio_option_list']) > 0 )
                 $radio_option_list = preg_split("/\n/", $post['radio_option_list']);
@@ -2216,7 +2219,7 @@ class DisplaytemplateController extends ODRCustomController
                     continue;
 
                 // Add option to datafield
-                if (!in_array($option_name, $processed_options)) {
+                if ( !in_array($option_name, $processed_options) ) {
                     // Create a new RadioOption
                     $force_create = true;
                     $radio_option = parent::ODR_addRadioOption(
@@ -2228,19 +2231,14 @@ class DisplaytemplateController extends ODRCustomController
                             false
                     );
 
-//                    $radio_option->setOptionName($option);
-                    $radio_option_meta = $radio_option->getRadioOptionMeta();
-//                    $radio_option_meta->setOptionName($option);
-                    $em->persist($radio_option);
-                    $em->persist($radio_option_meta);
-
                     array_push($processed_options, $option_name);
                 }
             }
             $em->flush();
 
 
-            // If the datafield is sorting its radio options by name, then resort all of this datafield's radio options again
+            // If the datafield is sorting its radio options by name, then resort all of this
+            //  datafield's radio options again
             if ($datafield->getRadioOptionNameSort() == true)
                 self::sortRadioOptionsByName($em, $user, $datafield);
 
@@ -2599,6 +2597,8 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -2637,7 +2637,7 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_id = null;
             $return['d'] = array(
                 'theme_element_id' => $theme_element_id,
-                'html' => self::GetDisplayData($em, $source_datatype_id, 'theme_element', $theme_element_id, $request),
+                'html' => $odr_render_service->reloadMasterDesignThemeElement($user, $theme_element)
             );
         }
         catch (\Exception $e) {

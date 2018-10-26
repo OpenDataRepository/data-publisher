@@ -765,14 +765,15 @@ class ThemeInfoService
 
                     if ( isset($datatree_array['linked_from']) && isset($datatree_array['linked_from'][$child_dt_id]) ) {
                         // This child is a linked datatype somewhere...figure out whether the
-                        //  parent datatype in question actually links to it
+                        //  parent datatype in question actually links to it before storing the value
                         $parents = $datatree_array['linked_from'][$child_dt_id];
                         if ( in_array($dt_id, $parents) )
                             $te['themeDataType'][$tdt_num]['is_link'] = 1;
                     }
 
                     if ( isset($datatree_array['multiple_allowed']) && isset($datatree_array['multiple_allowed'][$child_dt_id]) ) {
-                        // TODO
+                        // Ensure this child/linked datatype is relevant before storing whether
+                        //  more than one child/linked datarecord is allowed
                         $parents = $datatree_array['multiple_allowed'][$child_dt_id];
                         if ( in_array($dt_id, $parents) )
                             $te['themeDataType'][$tdt_num]['multiple_allowed'] = 1;

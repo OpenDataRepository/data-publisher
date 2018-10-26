@@ -2697,7 +2697,7 @@ class EditController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = $pm_service->getUserPermissionsArray($user);
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
             if ( !$pm_service->canViewDatatype($user, $datatype) )

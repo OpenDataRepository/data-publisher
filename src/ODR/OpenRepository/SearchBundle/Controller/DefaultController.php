@@ -83,8 +83,8 @@ class DefaultController extends Controller
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $pm_service->getUserPermissionsArray($admin_user);
-            $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
-            $datafield_permissions = $pm_service->getDatafieldPermissions($admin_user);
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
             // Store if logged in or not
             $logged_in = true;
@@ -360,8 +360,8 @@ class DefaultController extends Controller
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $pm_service->getUserPermissionsArray($admin_user);
-            $datatype_permissions = $pm_service->getDatatypePermissions($admin_user);
-            $datafield_permissions = $pm_service->getDatafieldPermissions($admin_user);
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
             $logged_in = true;
 

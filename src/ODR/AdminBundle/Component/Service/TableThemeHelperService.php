@@ -244,7 +244,7 @@ class TableThemeHelperService
 
         // Filter out everything the user isn't allowed to view
         $user_permissions = $this->pm_service->getUserPermissionsArray($user);
-        $datatype_permissions = $this->pm_service->getDatatypePermissions($user);
+        $datatype_permissions = $user_permissions['datatypes'];
 
         $datarecord_array = array();
         $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);

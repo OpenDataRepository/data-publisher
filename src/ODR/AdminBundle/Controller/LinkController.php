@@ -561,7 +561,7 @@ class LinkController extends ODRCustomController
         $return['t'] = 'html';
         $return['d'] = '';
 
-        $conn = null;
+//        $conn = null;
 
         try {
             // Grab the data from the POST request
@@ -739,8 +739,8 @@ class LinkController extends ODRCustomController
         }
         catch (\Exception $e) {
             // Don't commit changes if any error was encountered...
-            if ( !is_null($conn) && $conn->isTransactionActive() )
-                $conn->rollBack();
+//            if ( !is_null($conn) && $conn->isTransactionActive() )
+//                $conn->rollBack();
 
             $source = 0xa1ee8e79;
             if ($e instanceof ODRException)
