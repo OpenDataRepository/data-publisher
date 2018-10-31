@@ -50,12 +50,14 @@
 
 {% if version == 'v1' %}
     "field_{{ datafield.id }}": {
-        "field_name": {{ datafield_meta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
+        "field_name": {{ datafield_meta.fieldName|json_encode|raw }},    {# lack of surrounding quotation marks necessary #}
 {% else %}
     "{{ datafield_meta.xml_fieldName }}": {
 {% endif %}
 
         "id": {{ datafield.id }},
+        "description": {{ datafield_meta.description|json_encode|raw }},    {# lack of surrounding quotation marks necessary #}
+        "fieldtype": "{{ field_typename }}",
         "field_uuid": "{{ datafield.fieldUuid }}",
         "template_field_uuid": "{{ datafield.templateFieldUuid }}",
         "updated_at": "{{ datafield_meta.updated|date('Y-m-d H:i:s') }}",    {# TODO - should this be controlled by using_metadata? #}

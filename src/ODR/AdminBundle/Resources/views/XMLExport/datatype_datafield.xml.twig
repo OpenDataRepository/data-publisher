@@ -7,7 +7,7 @@
 {% set tag_start = '' %}
 {% set tag_end = '' %}
 {% if version == 'v1' %}
-    {% set tag_start = '<field_' ~ datafield.id ~ '>' %}
+    {% set tag_start = '<field_' ~ datafield.id ~ '><field_name>' ~ datafield_meta.fieldName|xml|raw ~ '</field_name>' %}
     {% set tag_end = '</field_' ~ datafield.id ~ '>' %}
 {% elseif version == 'v2' %}
     {% set tag_start = '<' ~ datafield_meta.xml_fieldName ~ '>' %}
@@ -16,12 +16,11 @@
 
 
 {{ tag_start|raw }}
-
-    <internal_id>{{ datafield.id }}</internal_id>
-    <name>{{ datafield_meta.fieldName|xml }}</name>
+    <id>{{ datafield.id }}</id>
     <description>{{ datafield_meta.description|xml }}</description>
     <fieldtype>{{ field_typename }}</fieldtype>
-    <template_field_uuid>{{ datafield.fieldUuid }}</template_field_uuid>
+    <field_uuid>{{ datafield.fieldUuid }}</field_uuid>
+    <template_field_uuid>{{ datafield.templateFieldUuid }}</template_field_uuid>
     <updated_at>{{ datafield_meta.updated|date('Y-m-d H:i:s') }}</updated_at>    {# TODO - should this be controlled by using_metadata? #}
 
     {% if datafield_meta.renderPlugin.id != 1 %}

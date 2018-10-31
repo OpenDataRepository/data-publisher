@@ -63,6 +63,8 @@
 
 {{ tag_start|raw }}
     <id>{{ datafield.id }}</id>
+    <description>{{ datafield_meta.description|xml|raw }}</description>
+    <fieldtype>{{ field_typename }}</fieldtype>
     <field_uuid>{{ datafield.fieldUuid }}</field_uuid>
     <template_field_uuid>{{ datafield.templateFieldUuid }}</template_field_uuid>
     <updated_at>{{ datafield_meta.updated|date('Y-m-d H:i:s') }}</updated_at>    {# TODO - should this be controlled by using_metadata? #}
@@ -72,7 +74,7 @@
     {% for file in valuefield %}
         {% set file_meta = file.fileMeta %}
 
-        <file>
+        <files>
             <id>{{ file.id }}</id>
             <original_name>{% if file_meta.originalFileName != null %}{{ file_meta.originalFileName|xml|raw }}{% else %}File_{{ file.id }}{% endif %}</original_name>
             <href>{{ baseurl ~ path('odr_file_download', {'file_id': file.id}) }}</href>
@@ -88,7 +90,7 @@
             </_file_metadata>
             {% endif %}
 
-        </file>
+        </files>
     {% endfor %}
 
 {% elseif field_typename == "Image" %}
@@ -100,7 +102,7 @@
         {% set image_caption = oimage_meta.caption %}
         {% set image_filename = oimage_meta.originalFileName %}
 
-        <image>
+        <images>
             <id>{{ oimage.id }}</id>
             <original_name>{% if image_filename != '' %}{{ image_filename|xml|raw }}{% else %}Image_{{ oimage.id }}{% endif %}</original_name>
             <href>{{ baseurl ~ path('odr_image_download', {'image_id': oimage.id}) }}</href>
@@ -116,7 +118,7 @@
                 <_display_order>{{ oimage_meta.displayorder}}</_display_order>
             </_image_metadata>
             {% endif %}
-        </image>
+        </images>
     {% endfor %}
 
 {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
