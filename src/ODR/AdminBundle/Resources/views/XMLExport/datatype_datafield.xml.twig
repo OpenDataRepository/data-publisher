@@ -22,12 +22,10 @@
     <description>{{ datafield_meta.description|xml }}</description>
     <fieldtype>{{ field_typename }}</fieldtype>
     <template_field_uuid>{{ datafield.fieldUuid }}</template_field_uuid>
-    <updated_at>{{ datafield_meta.created|date('Y-m-d H:i:s') }}</updated_at>
+    <updated_at>{{ datafield_meta.updated|date('Y-m-d H:i:s') }}</updated_at>    {# TODO - should this be controlled by using_metadata? #}
 
     {% if datafield_meta.renderPlugin.id != 1 %}
-    <render_plugin>
-        <name>{{ datafield_meta.renderPlugin.pluginName }}</name>
-    </render_plugin>
+    <render_plugin>{{ datafield_meta.renderPlugin.pluginName }}</render_plugin>
     {% endif %}
 
     {% if datafield_meta.is_unique == 1 %}
@@ -39,7 +37,7 @@
         <_create_date>{{ datafield.created|date('Y-m-d H:i:s') }}</_create_date>
         <_create_auth>{% if datafield.createdBy != '' %}{{ datafield.createdBy|user_string|xml }}{% endif %}</_create_auth>
         <_public_date>{{ datafield_meta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
-    
+
         <_master_published_version>{{ datafield_meta.master_published_revision }}</_master_published_version>
         <_master_revision>{{ datafield_meta.master_revision }}</_master_revision>
         <_tracking_master_version>{{ datafield_meta.tracking_master_revision }}</_tracking_master_version>
@@ -47,10 +45,10 @@
     {% endif %}
 
     {% if field_typeclass == 'Radio' %}
-    <radio_options>
+    <value>
         {% if datafield.radioOptions is defined %}
         {% for radio_option in datafield.radioOptions %}
-            
+
             {% set radio_option_meta = radio_option.radioOptionMeta %}
 
             {% set radio_tag_start = '' %}
@@ -65,12 +63,15 @@
 
             {{ radio_tag_start|raw }}
                 <name>{{ radio_option_meta.optionName|xml }}</name>
+                <template_radio_option_uuid>{{ radio_option.radioOptionUuid }}</template_radio_option_uuid>
+                <updated_at>{{ radio_option_meta.updated|date('Y-m-d H:i:s') }}</updated_at>    {# TODO - should this be controlled by using_metadata? #}
             {{ radio_tag_end|raw }}
 
         {% endfor %}
+        {% endif %}
+    </value>
     {% endif %}
-    </radio_options>
-    {% endif %}
+
 {{ tag_end|raw }}
 
 {% endspaceless %}

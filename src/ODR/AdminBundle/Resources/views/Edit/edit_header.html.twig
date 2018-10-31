@@ -112,12 +112,14 @@
 {% if can_delete_record == 1 %}
     function deleteRecord(datarecord_id) {
         if ( confirm("Are you sure you want to delete this record?") ) {
-            var url = '{{ path('odr_record_delete', { 'datarecord_id': 0, 'search_key': '' }) }}';
-            url = url.substring(0, (url.length - 1));
+            // This is only available to be called from a top-level datarecord, so the value of
+            //  is_link technically doesn't matter
+            var url = '{{ path('odr_record_delete', { 'datarecord_id': 0, 'is_link': 0, 'search_key': '' }) }}';
+            url = url.substring(0, (url.length - 3));
 {% if search_key == '' %}
-            url += datarecord_id;
+            url += datarecord_id + '/0';
 {% else %}
-            url += datarecord_id + '/' + '{{ search_key }}';
+            url += datarecord_id + '/0/' + '{{ search_key }}';
 {% endif %}
 
             $.ajax({

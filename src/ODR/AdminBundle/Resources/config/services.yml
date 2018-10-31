@@ -72,17 +72,6 @@ services:
             request_stack: "@request_stack"
             token_generator: "@fos_user.util.token_generator"
 
-    odr.clone_master_datatype_service:
-        class: ODR\AdminBundle\Component\Service\CloneMasterDatatypeService
-        arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            cache_service: "@odr.cache_service"
-            clone_master_template_theme_service: "@odr.clone_master_template_theme_service"
-            datatype_info_service: "@odr.datatype_info_service"
-            permissions_service: "@odr.permissions_management_service"
-            theme_info_service: "@odr.theme_info_service"
-            user_manager: "@fos_user.user_manager"
-            logger: "@monolog.logger.clone_datatype"
 
     odr.clone_datatype_service:
         class: ODR\AdminBundle\Component\Service\CloneDatatypeService
@@ -113,6 +102,7 @@ services:
             permissions_service: "@odr.permissions_management_service"
             theme_service: "@odr.theme_info_service"
             logger: "@monolog.logger.clone_theme"
+
 
     odr.permissions_management_service:
         class: ODR\AdminBundle\Component\Service\PermissionsManagementService

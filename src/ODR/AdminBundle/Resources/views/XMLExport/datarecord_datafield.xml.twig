@@ -63,13 +63,12 @@
 
 {{ tag_start|raw }}
     <id>{{ datafield.id }}</id>
+    <field_uuid>{{ datafield.fieldUuid }}</field_uuid>
+    <template_field_uuid>{{ datafield.templateFieldUuid }}</template_field_uuid>
+    <updated_at>{{ datafield_meta.updated|date('Y-m-d H:i:s') }}</updated_at>    {# TODO - should this be controlled by using_metadata? #}
 
-{% if field_typename == "Boolean" %}
 
-    <selected>{% if valuefield_value == 1 %}1{% else %}0{% endif %}</selected>
-
-{% elseif field_typename == "File" %}
-
+{% if field_typename == "File" %}
     {% for file in valuefield %}
         {% set file_meta = file.fileMeta %}
 
@@ -93,7 +92,6 @@
     {% endfor %}
 
 {% elseif field_typename == "Image" %}
-
     {% for image in valuefield %}
         {% set oimage = image.parent %}
         {% set image_ext = oimage.ext %}
@@ -121,14 +119,9 @@
         </image>
     {% endfor %}
 
-{% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Short Text" or field_typename == "Medium Text" or field_typename == "Long Text" or field_typename == "Paragraph Text" %}
-
-    <value>{{ valuefield_value|xml|raw }}</value>
-
 {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
-
     {% if datafield.radioOptions is defined %}
-        <radio_options>
+        <value>
         {% for radio_option in datafield.radioOptions %}
             {% set is_selected = 0 %}
             {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
@@ -152,17 +145,21 @@
                 {{ radio_tag_start|raw }}
                     <id>{{ radio_option.id }}</id>
                     <selected>1</selected>
+                    <template_radio_option_uuid>{{ radio_option.radioOptionUuid }}</template_radio_option_uuid>
+                    <updated_at>{{ radio_option_meta.updated|date('Y-m-d H:i:s') }}</updated_at>    {# TODO - should this be controlled by using_metadata? #}
                 {{ radio_tag_end|raw }}
 
             {% endif %}
         {% endfor %}
-        </radio_options>
+        </value>
     {% endif %}
 
+{% elseif field_typename == "Boolean" %}
+    <selected>{% if valuefield_value == 1 %}1{% else %}0{% endif %}</selected>
 {% elseif field_typename == "DateTime" %}
-
     <value>{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != '9999-12-31' %}{{ valuefield_value|date('Y-m-d') }}{% endif %}</value>
-
+{% else %}
+    <value>{{ valuefield_value|xml|raw }}</value>
 {% endif %}
 
 {{ tag_end|raw }}   {# end of datafield #}

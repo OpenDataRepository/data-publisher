@@ -13,7 +13,7 @@
         "description": {{ datafield_meta.description|json_encode|raw }},
         "fieldtype": "{{ field_typename }}",
         "template_field_uuid": {{ datafield.fieldUuid|json_encode|raw }},
-        "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
+        "updated_at": "{{ datafield_meta.updated|date('Y-m-d H:i:s') }}",    {# TODO - should this be controlled by using_metadata? #}
 
     {% if datafield_meta.renderPlugin.id != 1 %}
         "render_plugin": {{ datafield_meta.renderPlugin.pluginName|json_encode|raw }},
@@ -37,26 +37,31 @@
 
     {% if field_typeclass == 'Radio' %}
         {% if datafield.radioOptions is defined %}
-        "radio_options": {
+        "value": [
             {% for radio_option in datafield.radioOptions %}
-
                 {% set radio_option_meta = radio_option.radioOptionMeta %}
 
-                {% if version == 'v1' %}
-                    "radio_option_{{ radio_option.id }}": {
-                        "name": "{{ radio_option_meta.optionName }}",
-                        "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
-                        "updated_at": "{{ radio_option.radioOptionMeta.created|date('Y-m-d H:i:s') }}",
-                {% elseif version == 'v2' %}
-                    "{{ radio_option.radioOptionMeta.optionName }}": {
-                        "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
-                        "updated_at": "{{ radio_option.radioOptionMeta.created|date('Y-m-d H:i:s') }}",
-                {% endif %}
-                    },   {# end of radio option #}
+            {# each radio option is its own JSON object...required because "value" is an array #}
+            {
 
+            {% if version == 'v1' %}
+                "radio_option_{{ radio_option.id }}": {
+                "name": "{{ radio_option_meta.optionName }}",
+            {% elseif version == 'v2' %}
+                "{{ radio_option.radioOptionMeta.optionName }}": {
+            {% endif %}
+
+                    "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
+                    "updated_at": "{{ radio_option_meta.updated|date('Y-m-d H:i:s') }}"    {# TODO - should this be controlled by using_metadata? #}
+
+                }   {# end of radio option #}
+
+            {# each radio option is its own JSON object #}
+            },
 
             {% endfor %}
-        },
+        ]    {# end of radio options #}
+
         {% endif %}
     {% endif %}
 

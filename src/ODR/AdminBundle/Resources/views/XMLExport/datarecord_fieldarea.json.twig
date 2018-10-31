@@ -40,7 +40,7 @@
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
 
-        {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
+        {# should only be a single child datatype per theme_datatype, but keep the loop incase that changes in the future #}
         {% for theme_datatype in theme_element.themeDataType %}
             {% set child_datatype_id = theme_datatype.dataType.id %}
             {% set child_theme_id = theme_datatype.childTheme.id %}
@@ -60,15 +60,23 @@
                     {% set content = mychildform.input(child_datatype, datarecord_array, child_theme, child_datatype_id, datarecord.id, child_theme_id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
 
                     {% if "{" in content|trim %}
+                        {% set child_datatype_meta = child_datatype[child_datatype_id].dataTypeMeta %}
+                        {% set child_datatype_master_datatype = child_datatype[child_datatype_id].masterDataType %}
+
                         {% if version == 'v1' %}
                             "database_{{ child_datatype_id }}": {
-                                "database_name": {{ child_datatype[child_datatype_id].dataTypeMeta.shortName|json_encode|raw }},
-                                "template_uuid": {{ child_datatype[child_datatype_id].masterDataType.unique_id|json_encode|raw }},
+                                "database_name": {{ child_datatype_meta.shortName|json_encode|raw }},    {# lack of surrounding quotation marks necessary #}
                         {% else %}
-                            "{{ child_datatype.dataTypeMeta.xml_shortName }}": {
+                            "{{ child_datatype_meta.xml_shortName }}": {
                         {% endif %}
 
-                        {{ content }}
+                                {% set master_datatype_unique_id = "" %}
+                                {% if child_datatype_master_datatype is not null %}
+                                    {% set master_datatype_unique_id = child_datatype_master_datatype.unique_id %}
+                                {% endif %}
+                                "template_uuid": "{{ master_datatype_unique_id }}",
+
+                                {{ content }}
 
                             {# closing brace for child datatype #}
                             },
@@ -88,7 +96,7 @@
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
 
-        {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
+        {# should only be a single linked datatype per theme_datatype, but keep the loop incase that changes in the future #}
         {% for theme_datatype in theme_element.themeDataType %}
             {% set child_datatype_id = theme_datatype.dataType.id %}
             {% set child_theme_id = theme_datatype.childTheme.id %}
@@ -108,14 +116,23 @@
                     {% set content = mychildform.input(child_datatype, datarecord_array, child_theme, child_datatype_id, datarecord.id, child_theme_id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
 
                     {% if "{" in content|trim %}
+                        {% set child_datatype_meta = child_datatype[child_datatype_id].dataTypeMeta %}
+                        {% set child_datatype_master_datatype = child_datatype[child_datatype_id].masterDataType %}
+
                         {% if version == 'v1' %}
                             "database_{{ child_datatype_id }}": {
-                                "database_name": {{ child_datatype[child_datatype_id].dataTypeMeta.shortName|json_encode|raw }},
+                                "database_name": {{ child_datatype_meta.shortName|json_encode|raw }},    {# lack of surrounding quotation marks necessary #}
                         {% else %}
-                            "{{ child_datatype.dataTypeMeta.xml_shortName }}": {
+                            "{{ child_datatype_meta.xml_shortName }}": {
                         {% endif %}
 
-                        {{ content }}
+                                {% set master_datatype_unique_id = "" %}
+                                {% if child_datatype_master_datatype is not null %}
+                                    {% set master_datatype_unique_id = child_datatype_master_datatype.unique_id %}
+                                {% endif %}
+                                "template_uuid": "{{ master_datatype_unique_id }}",
+
+                                {{ content }}
 
                             {# closing brace for linked datatype #}
                             },

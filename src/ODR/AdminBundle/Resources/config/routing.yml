@@ -675,10 +675,11 @@ odr_record_add:
         datatype_id:  \d+
 
 odr_record_delete:
-    path:  /edit/deletedatarecord/{datarecord_id}/{search_key}    # this path doesn't need {search_theme_id} or {offset}
+    path:  /edit/deletedatarecord/{datarecord_id}/{is_link}/{search_key}    # this path doesn't need {search_theme_id} or {offset}
     defaults: { _controller: ODRAdminBundle:Edit:deletedatarecord, search_key: '' }
     requirements:
         datarecord_id:  \d+
+        is_link: 0|1
         search_key: '[a-zA-Z0-9\-\_]*'
 
 odr_record_addchild:
@@ -687,12 +688,6 @@ odr_record_addchild:
     requirements:
         datatype_id:  \d+
         parent_id:  \d+
-
-odr_record_deletechild:
-    path:  /edit/deletechilddatarecord/{datarecord_id}
-    defaults: { _controller: ODRAdminBundle:Edit:deletechildrecord }
-    requirements:
-        datarecord_id:  \d+
 
 odr_record_radio_selection:
     path:  /edit/radioselection/{datarecord_id}/{datafield_id}/{radio_option_id}

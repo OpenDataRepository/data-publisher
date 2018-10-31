@@ -21,12 +21,10 @@
     <name>{{ datatype_meta.shortName|xml }}</name>
     <description>{{ datatype_meta.description|xml }}</description>
     <template_uuid>{{ datatype.unique_id }}</template_uuid>
-    <updated_at>{{ datatype_meta.created|date('Y-m-d H:i:s') }}</updated_at>
+    <updated_at>{{ datatype_meta.updated|date('Y-m-d H:i:s') }}</updated_at>    {# TODO - should this be controlled by using_metadata? #}
 
     {% if datatype_meta.renderPlugin.id != 1 %}
-    <render_plugin>
-        <name>{{ datatype_meta.renderPlugin.pluginName }}</name>
-    </render_plugin>
+    <render_plugin>{{ datatype_meta.renderPlugin.pluginName }}</render_plugin>
     {% endif %}
 
 {% if using_metadata == true %}
@@ -41,23 +39,20 @@
     </_database_meta>
 {% endif %}
 
-    {% if is_link == 0 %}
-        {# only detail datafields if this is not a linked datatype #}
-        {% include 'ODRAdminBundle:XMLExport:datatype_fieldarea.xml.twig' with {
-            'datatype_array': datatype_array,
-            'theme_array': theme_array,
+    {% include 'ODRAdminBundle:XMLExport:datatype_fieldarea.xml.twig' with {
+        'datatype_array': datatype_array,
+        'theme_array': theme_array,
 
-            'target_datatype_id': target_datatype_id,
-            'target_theme_id': target_theme_id,
+        'target_datatype_id': target_datatype_id,
+        'target_theme_id': target_theme_id,
 
-            'is_top_level': is_top_level,
-            'is_link': is_link,
+        'is_top_level': is_top_level,
+        'is_link': is_link,
 
-            'using_metadata': using_metadata,
-            'baseurl': baseurl,
-            'version': version,
-        } %}
-    {% endif %}
+        'using_metadata': using_metadata,
+        'baseurl': baseurl,
+        'version': version,
+    } %}
 
 {{ tag_end|raw }}
 

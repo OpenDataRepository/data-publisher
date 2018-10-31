@@ -136,6 +136,16 @@ odr_search_api_general_search:
         offset: \d+
         _format: '|json|xml'
 
+odr_search_api_general_search_post:
+    path: /api/{version}/search/{limit}/{offset}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:search, limit: 0, offset: 0, _format: 'json'}
+    methods: [ POST ]
+    requirements:
+        version: 'v1'
+        limit: \d+
+        offset: \d+
+        _format: '|json|xml'
+
 # ----------------------------------------
 
 # ----------------------------------------
