@@ -3138,6 +3138,11 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_form->handleRequest($request);
 
             if ($datatype_form->isSubmitted()) {
+                // Child datatypes aren't allowed to have search slugs
+                // Can't use $is_top_level for this, because that'll be false when accessing the
+                //  properties of a linked datatype
+                if ($datatype->getGrandparent()->getId() !== $datatype->getId())
+                    $submitted_data->setSearchSlug(null);
 
                 if ( $submitted_data->getSearchSlug() !== $datatype->getSearchSlug() ) {
                     // ...check that the new search slug is restricted to alphanumeric characters and a few symbols

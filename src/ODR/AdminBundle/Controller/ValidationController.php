@@ -1379,4 +1379,89 @@ class ValidationController extends ODRCustomController
         print "\n";
         return $query_targets;
     }
+
+
+    /**
+     * Apparently child datatypes managed to get search slugs before Sept 2017...which causes problems
+     * when changing their properties because the form always submits their search_slug as an
+     * empty string...but this change causes DisplaytemplateController::datatypepropertiesAction()
+     * to run a regex that intentionally blocks blank search slugs...resulting in the inability to
+     * modify any property of a child datatype until their search slugs are set to null in the
+     * backend database.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function childsearchslugfixAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        try {
+
+            $query = $em->createQuery(
+               'SELECT dtm
+                FROM ODRAdminBundle:DataType AS gp_dt
+                JOIN ODRAdminBundle:DataType AS dt WITH dt.grandparent = gp_dt
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                WHERE gp_dt.id != dt.id AND dtm.searchSlug IS NOT NULL
+                AND gp_dt.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                ORDER BY gp_dt.id, dt.id'
+            );
+            /** @var DataTypeMeta[] $results */
+            $results = $query->getResult();
+
+            if (!$save) {
+                print '<pre>';
+                print '<table>';
+                print '<tr>';
+                print '<th>grandparent_name</th>';
+                print '<th>datatype_name</th>';
+                print '<th>search_slug</th>';
+                print '</tr>';
+
+                foreach ($results as $result) {
+                    print '<tr>';
+                    print '<td>'.$result->getDataType()->getGrandparent()->getShortName().'</td>';
+                    print '<td>'.$result->getShortName().'</td>';
+                    print '<td>'.$result->getSearchSlug().'</td>';
+                    print '</tr>';
+                }
+
+                print '</table>';
+                print '</pre>';
+            }
+            else {
+                foreach ($results as $result) {
+                    $result->setSearchSlug(null);
+                    $em->persist($result);
+                }
+
+                $em->flush();
+            }
+        }
+        catch (\Exception $e) {
+            // Don't want any changes made being saved to the database
+            $em->clear();
+
+            $source = 0xba8a4083;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
 }

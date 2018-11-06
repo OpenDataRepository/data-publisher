@@ -1892,7 +1892,7 @@ class EditController extends ODRCustomController
 
         if (!$is_child_datatype) {
             $query = $em->createQuery(
-               'SELECT e.id
+               'SELECT e.value
                 FROM ODRAdminBundle:'.$typeclass.' AS e
                 JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
                 JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
@@ -1901,13 +1901,17 @@ class EditController extends ODRCustomController
             )->setParameters($parameters);
             $results = $query->getArrayResult();
 
-            // The given value already exists in this datafield
-            if ( count($results) > 0 )
-                return true;
+            // See if the given value already exists in this datafield...mysql comparisions ignore
+            //  case, so have to do it this way
+            foreach ($results as $result) {
+                $value = $result['value'];
+                if ($value === $new_value)
+                    return true;
+            }
         }
         else {
             $query = $em->createQuery(
-               'SELECT e.id
+               'SELECT e.value
                 FROM ODRAdminBundle:'.$typeclass.' AS e
                 JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
                 JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
@@ -1917,9 +1921,13 @@ class EditController extends ODRCustomController
             )->setParameters($parameters);
             $results = $query->getArrayResult();
 
-            // The given value already exists in this datafield
-            if ( count($results) > 0 )
-                return true;
+            // See if the given value already exists in this datafield...mysql comparisions ignore
+            //  case, so have to do it this way
+            foreach ($results as $result) {
+                $value = $result['value'];
+                if ($value === $new_value)
+                    return true;
+            }
         }
 
         // The given value does not exist in this datafield
