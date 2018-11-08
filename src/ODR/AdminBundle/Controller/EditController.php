@@ -33,6 +33,7 @@ use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
+use ODR\OpenRepository\GraphBundle\Plugins\GraphPluginInterface;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -615,7 +616,6 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-
             // Delete the decrypted version of this file from the server, if it exists
             $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
             $filename = 'File_'.$file_id.'.'.$file->getExt();
@@ -643,8 +643,44 @@ class EditController extends ODRCustomController
             // Delete cached search results involving this datafield
             $search_cache_service->onDatafieldModify($datafield);
 
-            // TODO - manually execute graph plugin?
 
+            // -----------------------------------
+            // Need to locate and load any render plugins affecting this datafield to determine
+            //  whether one of them is a graph-type plugin...
+            $query = $em->createQuery(
+               'SELECT rp.pluginClassName
+                FROM ODRAdminBundle:RenderPluginMap rpm
+                JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpm.renderPluginInstance = rpi
+                JOIN ODRAdminBundle:RenderPlugin rp WITH rpi.renderPlugin = rp
+                WHERE rpm.dataField = :datafield_id
+                AND rpm.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rp.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datafield_id' => $datafield->getId(),
+//                    'plugin_type' => RenderPlugin::DATATYPE_PLUGIN    // TODO - should this be required?
+                )
+            );
+            $results = $query->getArrayResult();
+
+            // Currently, there's going to be at most 2 results in here...one of them being a
+            //  datatype render plugin that uses this datafield, the other being a datafield render
+            //  plugin
+            foreach ($results as $result) {
+                $plugin_classname = $result['pluginClassName'];
+                $plugin = $plugin = $this->get($plugin_classname);
+
+                // If the datafield is being used by a graph-type plugin...
+                if ( $plugin instanceof GraphPluginInterface ) {
+                    // ...then that graph plugin needs to be notified that a file got deleted, so it
+                    //  can delete any cached entries/files it has created based off this file
+
+                    /** @var GraphPluginInterface $plugin */
+                    $plugin->onFileChange($datafield, $file_id);
+                }
+            }
+
+
+            // -----------------------------------
             // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
             if ($datafield->getAllowMultipleUploads() == "0")
                 $return['d'] = array('need_reload' => true);
@@ -809,7 +845,7 @@ class EditController extends ODRCustomController
             // Mark this file's datarecord as updated
             $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-            // TODO - manually execute graph plugin?
+            // TODO - execute graph plugin?  currently not needed because the graph plugin auto-decrypts files it needs to render a graph...
         }
         catch (\Exception $e) {
             $source = 0x5201b0cd;

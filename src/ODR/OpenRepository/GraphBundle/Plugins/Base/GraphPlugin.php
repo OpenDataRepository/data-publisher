@@ -13,17 +13,20 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 
+// Interfaces
+use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\GraphPluginInterface;
 // ODR
 use ODR\AdminBundle\Component\Service\CryptoService;
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
-use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 // Other
 use Ramsey\Uuid\Uuid;
 
 
-class GraphPlugin implements DatatypePluginInterface
+class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
 {
 
     /**
@@ -494,5 +497,37 @@ class GraphPlugin implements DatatypePluginInterface
         // This plugin doesn't need to do anything here
         // TODO - make this plugin delete cached graphs on settings change?  right now, changing an option ends up changing the filename for the cached graph...
         return;
+    }
+
+
+    /**
+     * Called when a file used by this render plugin is replaced or deleted.
+     *
+     * This might change in the future, but at the moment...the only relevant render plugin uses
+     * the file id as part of the cache entry filename.
+     *
+     * @param DataFields $datafield
+     * @param int $file_id
+     */
+    public function onFileChange($datafield, $file_id)
+    {
+        // Filenames of cached graphs have the ids of all the files that were read to create them
+        $filename_fragment = '_'.$file_id.'_';
+
+        // Graphs are organized into subdirectories by datatype id
+        $datatype_id = $datafield->getDataType()->getId();
+        $graph_filepath = $this->odr_web_directory.'/uploads/files/graphs/datatype_'.$datatype_id.'/';
+        if ( file_exists($graph_filepath) ) {
+            $files = scandir($graph_filepath);
+            foreach ($files as $filename) {
+                // TODO - assumes linux?
+                if ($filename === '.' || $filename === '..')
+                    continue;
+
+                // If this cached graph used this file, unlink it to force a rebuild later on
+                if ( strpos($filename, $filename_fragment) !== false )
+                    unlink($graph_filepath.'/'.$filename);
+            }
+        }
     }
 }

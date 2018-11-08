@@ -933,6 +933,7 @@ class DatatypeInfoService
         //  datarecord entries when the sort datafield is changed...
 
 
+        // TODO - this doesn't feel like it belongs here...but putting it in the GraphPluginInterface also doesn't quite make sense...
         // Also, delete any pre-rendered graph images for this datatype so they'll be rebuilt with
         //  the legend order matching the new datarecord order
         $graph_filepath = $this->odr_web_dir.'/uploads/files/graphs/datatype_'.$datatype_id.'/';
