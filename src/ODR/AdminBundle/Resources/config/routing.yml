@@ -275,7 +275,7 @@ odr_datatype_find_landing:
     path:  /admin/find/landing/{datatype_unique_id}
     defaults: { _controller: ODRAdminBundle:Datatype:find_landing }
     requirements:
-        datatype_unique_id: '[a-zA-Z0-9]+'
+        datatype_unique_id: '[a-zA-Z0-9\-\_]+'
 
 odr_datatype_landing:
     path:  /admin/type/landing/{datatype_id}
