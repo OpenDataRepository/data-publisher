@@ -1081,30 +1081,33 @@ if ($debug)
      * @param Group $group
      * @param ODRUser $admin_user
      * @param bool $delay_flush
+     * @param bool $check_group
      *
      * @return UserGroup
      */
-    public function createUserGroup($user, $group, $admin_user, $delay_flush = false)
+    public function createUserGroup($user, $group, $admin_user, $delay_flush = false, $check_group = true)
     {
-        // Doctrine can't actually enforce this because of soft-deleteable, but there should never
-        //  be more than a single active (user_id, group_id) pair in this table at any given time
-
         // Check to see if the User already belongs to this Group
-        $query = $this->em->createQuery(
-           'SELECT ug
+        // This will be bypassed in the case of newly created groups.
+        if($check_group) {
+            $query = $this->em->createQuery(
+                'SELECT ug
             FROM ODRAdminBundle:UserGroup AS ug
             WHERE ug.user = :user_id AND ug.group = :group_id
             AND ug.deletedAt IS NULL'
-        )->setParameters( array('user_id' => $user->getId(), 'group_id' => $group->getId()) );
-        /** @var UserGroup[] $results */
-        $results = $query->getResult();
+            )->setParameters( array('user_id' => $user->getId(), 'group_id' => $group->getId()) );
 
-        $user_group = null;
-        if ( count($results) > 0 ) {
-            // If an existing UserGroup entity was found, return it and don't do anything else
-            return $results[0];
+            /** @var UserGroup[] $results */
+            $results = $query->getResult();
+
+            $user_group = null;
+            if ( count($results) > 0 ) {
+                // If an existing UserGroup entity was found, return it and don't do anything else
+                // TODO This works but is strange....
+                foreach ($results as $num => $ug)
+                    return $ug;
+            }
         }
-
 
         // ...otherwise, create a new UserGroup entity
         $user_group = new UserGroup();
@@ -1123,7 +1126,6 @@ if ($debug)
 
         return $user_group;
     }
-
 
     /**
      * Create a new Group for users of the given datatype.
