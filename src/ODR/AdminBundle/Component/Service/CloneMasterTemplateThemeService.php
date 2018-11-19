@@ -30,7 +30,6 @@ use Symfony\Bridge\Monolog\Logger;
 
 class CloneMasterTemplateThemeService
 {
-
     /**
      * @var EntityManager $em
      */

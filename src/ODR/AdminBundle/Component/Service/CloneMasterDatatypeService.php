@@ -60,7 +60,7 @@ class CloneMasterDatatypeService
     /**
      * @var CloneMasterTemplateThemeService
      */
-    private $clone_theme_service;
+    private $clone_master_template_theme_service;
 
     /**
      * @var DatatypeInfoService
@@ -141,17 +141,11 @@ class CloneMasterDatatypeService
     private $existing_datatypes;
 
     /**
-     * @var Theme[]
-     */
-    private $t_mapping;
-
-
-    /**
      * CloneDatatypeService constructor.
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param CloneMasterTemplateThemeService $clone_theme_service
+     * @param CloneMasterTemplateThemeService $clone_master_template_theme_service
      * @param DatatypeInfoService $datatype_info_service
      * @param PermissionsManagementService $permissions_service
      * @param ThemeInfoService $theme_info_service
@@ -161,7 +155,7 @@ class CloneMasterDatatypeService
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        CloneMasterTemplateThemeService $clone_theme_service,
+        CloneMasterTemplateThemeService $clone_master_template_theme_service,
         DatatypeInfoService $datatype_info_service,
         PermissionsManagementService $permissions_service,
         ThemeInfoService $theme_info_service,
@@ -170,7 +164,7 @@ class CloneMasterDatatypeService
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->clone_theme_service = $clone_theme_service;
+        $this->clone_master_template_theme_service = $clone_master_template_theme_service;
         $this->dti_service = $datatype_info_service;
         $this->pm_service = $permissions_service;
         $this->tif_service = $theme_info_service;
@@ -699,10 +693,12 @@ class CloneMasterDatatypeService
 
 
     /**
+     *
      * After the Datatype, Datafield, Radio Option, and any RenderPlugin settings are cloned, the
      * Theme stuff from the master template needs to be cloned too...
+     *
      */
-    private function cloneTheme(DataType $master_datatype)
+    private function cloneTheme()
     {
         // Need to store each theme that got created...
         /** @var Theme[] $results */
@@ -718,7 +714,7 @@ class CloneMasterDatatypeService
         foreach ($results as $t) {
             // TODO If we don't flush the theme, we can reassign datatypes before committing
             $new_theme = $this->
-            clone_theme_service->
+            clone_master_template_theme_service->
             cloneSourceTheme(
                 $this->user,
                 $t,
