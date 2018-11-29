@@ -298,7 +298,7 @@ class ODRTabHelperService
      *
      * @param string $odr_tab_id
      * @param int $datafield_id
-     * @param string $sort_direction 'ASC'|'DESC'
+     * @param string $sort_direction 'asc'|'desc'
      *
      * @throws ODRException
      *
@@ -306,8 +306,8 @@ class ODRTabHelperService
      */
     public function setSortCriteria($odr_tab_id, $datafield_id, $sort_direction)
     {
-        if ($sort_direction !== 'ASC' && $sort_direction !== 'DESC')
-            throw new ODRBadRequestException('$sort_direction must be "ASC" or "DESC"', 0xebcca9ca);
+        if ($sort_direction !== 'asc' && $sort_direction !== 'desc')
+            throw new ODRBadRequestException('$sort_direction must be "asc" or "desc"', 0xebcca9ca);
 
         // Check that the requested tab exists in the user's session
         $tab_data = self::getTabData($odr_tab_id);
@@ -339,8 +339,8 @@ class ODRTabHelperService
      */
     public function hasSortCriteriaChanged($odr_tab_id, $datafield_id, $sort_direction)
     {
-        if ($sort_direction !== 'ASC' && $sort_direction !== 'DESC')
-            throw new ODRBadRequestException('$sort_direction must be "ASC" or "DESC"', 0x5ab8c2d1);
+        if ($sort_direction !== 'asc' && $sort_direction !== 'desc')
+            throw new ODRBadRequestException('$sort_direction must be "asc" or "desc"', 0x5ab8c2d1);
 
         // If the requested tab does not exist in the user's session, then the given parameters
         //  are different by default

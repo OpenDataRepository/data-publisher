@@ -4,9 +4,12 @@
 <databases>
 {% for database in datatype_list.databases %}
     <database>
-        <id>{{ database.database_id }}</id>
-        <name>{{ database.database_name|xml|raw }}</name>
-        <description>{{ database.database_description|xml|raw }}</description>
+        <database_id>{{ database.database_id }}</database_id>
+        <database_name>{{ database.database_name|xml|raw }}</database_name>
+        <database_description>{{ database.database_description|xml|raw }}</database_description>
+        <unique_id>{{ database.unique_id|xml|raw }}</unique_id>
+        <template_id>{{ database.template_id|xml|raw }}</template_id>
+
     {% if database.child_databases is defined %}
         <child_databases>
             {# Using macro otherwise twig can't compile the template due to infinite recursion #}

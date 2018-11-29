@@ -1,0 +1,14 @@
+{% spaceless %}
+
+<?xml version="1.0" encoding="UTF-8"?>
+<options>
+    {% for option_name, option_data in field_stats %}
+    <option>
+        <option_name>{{ option_name }}</option_name>
+        <count>{{ option_data['count'] }}</count>
+        <template_radio_option_uuid>{{ option_data['template_radio_option_uuid'] }}</template_radio_option_uuid>
+    </option>
+    {% endfor %}
+</options>
+
+{% endspaceless %}

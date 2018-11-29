@@ -114,7 +114,6 @@ class DatatypeExportService
         $theme_array = $this->theme_service->getThemeArray($master_theme->getId());
 
         // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-        // TODO Permissions turned off for demo - need to test if public fixes them...
         $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
         // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
@@ -179,6 +178,9 @@ class DatatypeExportService
                 else if ($data{$i} === ']' && substr($trimmed_str, -1) === ',') {
                     // If not in quotes and would end up transcribing a closing bracket immediately after a comma, replace the last comma with a closing bracket instead
                     $trimmed_str = substr_replace($trimmed_str, ']', -1);
+                }
+                else if ($data{$i} === ',' && substr($trimmed_str, -1) === ',') {
+                    // If not in quotes, then don't transcribe a comma when the previous character is also a comma
                 }
                 else if ($data{$i} !== ' ' && $data{$i} !== "\n") {
                     // If not in quotes and found a non-space character, transcribe it

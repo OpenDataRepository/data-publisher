@@ -72,6 +72,14 @@ services:
             request_stack: "@request_stack"
             token_generator: "@fos_user.util.token_generator"
 
+    odr.sort_service:
+        class: ODR\AdminBundle\Component\Service\SortService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            cache_service: "@odr.cache_service"
+            search_service: "@odr.search_service"
+            logger: "@logger"
+
 
     odr.clone_datatype_service:
         class: ODR\AdminBundle\Component\Service\CloneDatatypeService
@@ -157,6 +165,7 @@ services:
         class: ODR\AdminBundle\Component\Service\EntityCreationService
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
+            datarecord_info_service: "@odr.datarecord_info_service"
             logger: "@logger"
 
     odr.entity_meta_modify_service:

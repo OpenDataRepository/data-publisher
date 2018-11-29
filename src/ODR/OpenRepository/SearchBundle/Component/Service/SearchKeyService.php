@@ -18,6 +18,7 @@ use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Other
 use Symfony\Bridge\Monolog\Logger;
 
@@ -196,6 +197,27 @@ class SearchKeyService
                 // Nothing to validate
                 continue;
             }
+            else if ($key === 'sort_by') {
+                if ( !isset($value[0]) )
+                    continue;
+
+                // TODO - eventually need multi-datafield sorting
+                if ( count($value) > 1 )
+                    throw new ODRNotImplementedException('Unable to sort by multiple fields at the moment', $exception_code);
+
+                if ( !isset($value[0]['dir']) )
+                    throw new ODRBadRequestException('Invalid search key: "dir" not set in "sort_by" segment', $exception_code);
+                if ( !isset($value[0]['df_id']) )
+                    throw new ODRBadRequestException('Invalid search key: missing "df_id" inside "sort_by"', $exception_code);
+
+                $sort_dir = $value[0]['dir'];
+                $sort_df_id = $value[0]['df_id'];
+
+                if ($sort_dir !== 'asc' && $sort_dir !== 'desc')
+                    throw new ODRBadRequestException('Invalid search key: received invalid sort direction "'.$sort_dir.'"', $exception_code);
+                if ( !is_numeric($sort_df_id) )
+                    throw new ODRBadRequestException('Invalid search key: sort field id "'.$sort_df_id.'" is not numeric', $exception_code);
+            }
             else if ( is_numeric($key) ) {
                 // Ensure the datafield is valid to search on
                 // 0 - not searchable
@@ -363,7 +385,7 @@ class SearchKeyService
      * )
      *
      * @param string $search_key
-     * @param array $searchable_datafields @see self::getSearchableDatafieldsForUser()
+     * @param array $searchable_datafields @see SearchAPIService::getSearchableDatafieldsForUser()
      *
      * @return array
      */
@@ -374,12 +396,28 @@ class SearchKeyService
 
         $datatype_id = intval($search_params['dt_id']);
 
-        $criteria = array();
+        $criteria = array(
+            'search_type' => 'datatype',
+            $datatype_id => array(
+                'merge_type' => "AND",
+                'search_terms' => array(),
+            )
+        );
+
         foreach ($search_params as $key => $value) {
 
             if ($key === 'dt_id') {
                 // Don't want to do anything with this key
                 continue;
+            }
+            else if ($key === 'sort_by') {
+                $sort_dir = $value[0]['dir'];
+                $sort_df_id = $value[0]['df_id'];
+
+                $criteria['sort_by'] = array(
+                    'sort_dir' => $sort_dir,
+                    'sort_df_id' => $sort_df_id
+                );
             }
             else if ($key === 'gen') {
                 // General search needs to be its own facet
@@ -651,7 +689,10 @@ class SearchKeyService
 
         // Save the list of datatypes being searched on, not including the ones to be merged by OR
         $affected_datatypes = array();
-        foreach ($criteria as $facet) {
+        foreach ($criteria as $key => $facet) {
+            if ($key === 'search_type')
+                continue;
+
             if ($facet['merge_type'] === 'AND') {
                 foreach ($facet['search_terms'] as $key => $params) {
                     $dt_id = $params['datatype_id'];
@@ -664,6 +705,303 @@ class SearchKeyService
 
         // Also going to need a list of all datatypes this search could run on, for later hydration
         $criteria['all_datatypes'] = $this->search_service->getRelatedDatatypes($datatype_id);
+
+        return $criteria;
+    }
+
+
+    /**
+     * Takes a template search key and throws an exception if any part of the content is invalid.
+     *
+     * @param string $search_key
+     *
+     * @return bool
+     * @throws ODRBadRequestException
+     */
+    public function validateTemplateSearchKey($search_key)
+    {
+        $exception_code = 0x735c298b;
+
+        // Want the search key in array format...
+        $search_params = self::decodeSearchKey($search_key);
+
+        if ( !isset($search_params['template_uuid']) )
+            throw new ODRBadRequestException('Invalid search key: missing "template_uuid"', $exception_code);
+        $pattern = '/^[a-z0-9]{7}$/';
+        if ( preg_match($pattern, $search_params['template_uuid']) !== 1 )
+            throw new ODRBadRequestException('Invalid search key: "template_uuid" is in wrong format', $exception_code);
+
+        $template_uuid = $search_params['template_uuid'];
+        $dt = $this->dti_service->getDatatypeFromUniqueId($template_uuid);
+        $dt_id = $dt->getId();
+
+        $grandparent_datatype_id = $this->dti_service->getGrandparentDatatypeId($dt_id);
+        $datatype_array = $this->dti_service->getDatatypeArray($grandparent_datatype_id, true);
+
+        // The template search key isn't supposed to know about any datatypes derived from said
+        //  template, so this is an acceptable use of this function
+        $searchable_datafields = $this->search_service->getSearchableDatafields($dt_id);
+
+        $ignored_keys = array(
+            'template_uuid',
+            'template_name',
+            'field_name',
+            'name'
+        );
+
+        foreach ($search_params as $key => $value) {
+            if ( in_array($key, $ignored_keys) ) {
+                // Nothing to validate
+                continue;
+            }
+            else if ($key === 'general') {
+                // TODO
+            }
+            else if ($key === 'sort_by') {
+                if ( !isset($value[0]) )
+                    continue;
+
+                // TODO - eventually need multi-datafield sorting
+                if ( count($value) > 1 )
+                    throw new ODRNotImplementedException('Unable to sort by multiple fields at the moment', $exception_code);
+
+                if ( !isset($value[0]['dir']) )
+                    throw new ODRBadRequestException('Invalid search key: "dir" not set in "sort_by" segment', $exception_code);
+                if ( !isset($value[0]['template_field_uuid']) )
+                    throw new ODRBadRequestException('Invalid search key: missing "template_field_uuid" inside "sort_by"', $exception_code);
+
+                $sort_dir = $value[0]['dir'];
+                $sort_df_uuid = $value[0]['template_field_uuid'];
+
+                if ($sort_dir !== 'asc' && $sort_dir !== 'desc')
+                    throw new ODRBadRequestException('Invalid search key: received invalid sort direction "'.$sort_dir.'"', $exception_code);
+                if ( preg_match($pattern, $sort_df_uuid) !== 1 )
+                    throw new ODRBadRequestException('Invalid search key: sort field "'.$sort_df_uuid.'" is not in valid uuid format', $exception_code);
+            }
+            else if ($key === 'fields') {
+                foreach ($value as $num => $search_df) {
+                    // Ensure the unique id for this datafield is set...
+                    if ( !isset($search_df['template_field_uuid']) )
+                        throw new ODRBadRequestException('Invaild search key: missing "template_field_uuid" inside "fields", offset '.$num, $exception_code);
+
+                    // Ensure the unique id refers to a datafield in this datatype...
+                    $field_uuid = $search_df['template_field_uuid'];
+                    $df_id = null;
+                    $typeclass = null;
+                    $found = false;
+
+                    foreach ($searchable_datafields as $dt_id => $data) {
+                        // Search the public datafields first...
+                        $datafields = $data['datafields'];
+                        foreach ($datafields as $df_key => $df) {
+                            if ($df_key === 'non_public') {
+                                continue;
+                            }
+                            else if ($df['field_uuid'] === $field_uuid) {
+                                // Datafield is public...
+                                $found = true;
+                                $df_id = $df_key;
+                                $typeclass = $data['datafields'][$df_key]['typeclass'];
+                                break;
+                            }
+                        }
+
+                        if (!$found) {
+                            // ...then search the non-public datafields...
+                            $non_public_datafields = $data['datafields']['non_public'];
+                            foreach ($non_public_datafields as $df_key => $df) {
+                                if ($df['field_uuid'] === $field_uuid) {
+                                    // Datafield is non-public...
+                                    $found = true;
+                                    $df_id = $df_key;
+                                    $typeclass = $data['datafields'][$df_key]['typeclass'];
+                                    break;
+                                }
+                            }
+                        }
+
+                        if ($found)
+                            break;
+                    }
+
+                    if (!$found)
+                        throw new ODRBadRequestException('Invalid search key: invalid datafield '.$field_uuid, $exception_code);
+
+                    if ( isset($search_df['value']) ) {
+                        // TODO
+                    }
+                    else if ( isset($search_df['selected_options']) ) {
+                        // Radio selections
+                        if ($typeclass !== 'Radio')
+                            throw new ODRBadRequestException('Invalid search key: "selected_options" defined for a "'.$typeclass.'" datafield', $exception_code);
+
+                        foreach ($search_df['selected_options'] as $num => $option) {
+                            if ( !isset($option['template_radio_option_uuid']) )
+                                throw new ODRBadRequestException('Invalid search key: missing key "template_radio_option_uuid" for datafield '.$field_uuid, $exception_code);
+                            $option_uuid = $option['template_radio_option_uuid'];
+
+                            // Verify radio option belongs to datafield
+                            $found = false;
+                            foreach ($datatype_array[$dt_id]['dataFields'][$df_id]['radioOptions'] as $num => $ro) {
+                                if ( $option_uuid === $ro['radioOptionUuid'] ) {
+                                    $found = true;
+                                    break;
+                                }
+                            }
+
+                            if (!$found)
+                                throw new ODRBadRequestException('Invalid search key: radio option "'.$option_uuid.'" does not belong to datafield '.$field_uuid, $exception_code);
+                        }
+                    }
+                    else {
+                        //
+                        throw new ODRBadRequestException('Invalid search key: no search criteria defined for datafield '.$field_uuid, $exception_code);
+                    }
+                }
+            }
+        }
+
+        // No errors found
+        return true;
+    }
+
+
+    /**
+     * Converts a search key for templates into a format usable by performTemplateSearch()
+     *
+     * @param string $search_key
+     *
+     * @return array
+     */
+    public function convertSearchKeyToTemplateCriteria($search_key)
+    {
+        // Want the search key in array format...
+        $search_params = self::decodeSearchKey($search_key);
+
+        // TODO -
+        $template_uuid = $search_params['template_uuid'];
+        $criteria = array(
+            'search_type' => 'template',
+            $template_uuid => array(
+                'merge_type' => 'AND',    // TODO - combine_by_AND/combine_by_OR
+                'search_terms' => array()
+            )
+        );
+
+
+        foreach ($search_params as $key => $value) {
+
+            if ($key === 'template_uuid') {
+                // Don't want to do anything with this key
+                continue;
+            }
+            else if ($key === 'sort_by') {
+                $sort_dir = $value[0]['dir'];
+                $sort_df_uuid = $value[0]['template_field_uuid'];
+
+                $criteria['sort_by'] = array(
+                    'sort_dir' => $sort_dir,
+                    'sort_df_uuid' => $sort_df_uuid
+                );
+            }
+            else if ($key === 'general') {
+                // General search needs to be its own facet
+                $criteria['general'] = array(
+                    'merge_type' => 'OR',
+                    'search_terms' => array()
+                );
+
+                // TODO - actual general search, not this hijack bs so get_field_stats works
+                $pattern = '/^[a-z0-9]{7}$/';
+                if ( preg_match($pattern, $value) === 1 ) {
+                    $criteria['general']['search_terms'][$value] = array(
+                        'value' => 'any',
+                        'entity_type' => 'datafield',
+                        'entity_id' => $value,
+                        'datatype_id' => $template_uuid,
+                    );
+                }
+                else {
+                    // Don't want this in there if this isn't a part of the hijack...
+                    unset( $criteria['general'] );
+                }
+
+/*
+
+
+                // Need to find each datafield that qualifies for general search...
+                // 0 - not searchable
+                // 1 - searchable only through general search
+                // 2 - searchable in both general and advanced search
+                // 3 - searchable only in advanced search
+                foreach ($searchable_datafields as $dt_id => $df_list) {
+                    foreach ($df_list as $df_id => $df_data) {
+                        // For general search, both the searchable flag and the typeclass are needed
+                        $searchable = $df_data['searchable'];
+                        $typeclass = $df_data['typeclass'];
+
+                        if ($searchable == '1' || $searchable == '2') {
+                            switch ($typeclass) {
+                                case 'Boolean':
+                                    // Excluding because a Boolean's value has a different
+                                    //  meaning than the other fieldtypes
+                                case 'File':
+                                case 'Image':
+                                    // A general search doesn't make sense for Files/Images
+                                    continue;
+
+                                case 'IntegerValue':
+                                case 'DecimalValue':
+                                case 'ShortVarchar':
+                                case 'MediumVarchar':
+                                case 'LongVarchar':
+                                case 'LongText':
+                                case 'DatetimeValue':
+                                case 'Radio':
+                                    // A general search makes sense for each of these
+                                    $criteria['general']['search_terms'][$field_uuid] = array(
+                                        'value' => $value,
+                                        'entity_type' => 'datafield',
+                                        'entity_id' => $field_uuid,
+                                        'datatype_id' => $template_uuid,
+                                    );
+                                    break;
+                            }
+                        }
+                    }
+*/
+            }
+            else if ($key === 'fields') {
+                // TODO -
+                foreach ($value as $num => $df) {
+                    $field_uuid = $df['template_field_uuid'];
+
+                    if ( isset($df['selected_options']) ) {
+                        // This is a radio datafield
+                        $selections = array();
+                        foreach ($df['selected_options'] as $num => $ro) {
+                            $ro_uuid = $ro['template_radio_option_uuid'];
+
+                            // TODO - search for unselected radio options
+                            $selections[$ro_uuid] = 1;
+
+                            // TODO - combine_by_AND/combine_by_OR
+                        }
+
+                        $criteria[$template_uuid]['search_terms'][$field_uuid] = array(
+                            'combine_by_OR' => true,    // TODO - needs more robust setting
+                            'selections' => $selections,
+                            'entity_type' => 'datafield',
+                            'entity_id' => $field_uuid,
+                            'datatype_id' => $template_uuid,
+                        );
+                    }
+
+                    // TODO - other fieldtypes
+                }
+            }
+        }
+
 
         return $criteria;
     }

@@ -7,7 +7,9 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * This service stores the code to get xml or json versions of a single top-level datarecord.
+ * This service stores the code to get xml or json versions of top-level datarecords...it's capable
+ * of handling everything from exporting a single datarecord, to exporting multiple datarecords
+ * across multiple datatypes.
  */
 
 namespace ODR\AdminBundle\Component\Service;
@@ -93,40 +95,116 @@ class DatarecordExportService
     /**
      * Renders the specified datarecord in the requested format according to the user's permissions.
      *
-     * @param string $version           Which version of the export to render
-     * @param integer $datarecord_id    Which datarecord to render
-     * @param string $format            The format (json, xml, etc) to render the datarecord in
-     * @param boolean $using_metadata   Whether to display additional metadata (who created it, public date, revision, etc)
-     * @param ODRUser $user             Which user requested this
-     * @param string $baseurl           The current baseurl of this ODR installation, used for file/image links
+     * @param string $version          Which version of the export to render
+     * @param array $datarecord_ids    Which datarecords to render...this MUST NOT have datarecords the user isn't allowed to view
+     * @param string $format           The format (json, xml, etc) to render the datarecord in
+     * @param boolean $using_metadata  Whether to display additional metadata (who created it, public date, revision, etc)
+     * @param ODRUser $user            Which user requested this
+     * @param string $baseurl          The current baseurl of this ODR installation, used for file/image links
      *
      * @return string
      */
-    public function getData($version, $datarecord_id, $format, $using_metadata, $user, $baseurl)
+    public function getData($version, $datarecord_ids, $format, $using_metadata, $user, $baseurl)
     {
-        // All of these should already exist
-        /** @var DataRecord $datarecord */
-        $datarecord = $this->em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-        $datatype = $datarecord->getDataType();
+        // ----------------------------------------
+        // Since these datarecords could belong to multiple datatypes, it's faster to get ids
+        //  straight from the database...
+        $query = $this->em->createQuery(
+           'SELECT dt.id AS dt_id, t.id AS t_id, dr.id AS dr_id
+            FROM ODRAdminBundle:DataRecord AS dr
+            JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
+            JOIN ODRAdminBundle:Theme AS t WITH t.dataType = dt
+            WHERE dr.id IN (:datarecord_ids)
+            AND t.themeType = :theme_type AND t = t.sourceTheme
+            AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND t.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'datarecord_ids' => $datarecord_ids,
+                'theme_type' => 'master'
+            )
+        );
+        $results = $query->getArrayResult();
 
-        $master_theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
 
-        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
+        // Need unique lists of all ids...
+        $top_level_dr_ids = array();
+        $top_level_dt_ids = array();
+        $top_level_t_ids = array();
+        // Also need to store these ids in a slightly different format to make twig's life easier
+        $lookup_array = array();
+
+        foreach ($results as $result) {
+            $dr_id = $result['dr_id'];
+            $dt_id = $result['dt_id'];
+            $t_id = $result['t_id'];
+
+            $top_level_dr_ids[$dr_id] = 1;
+            $top_level_dt_ids[$dt_id] = 1;
+            $top_level_t_ids[$t_id] = 1;
+
+            $lookup_array[$dr_id] = array(
+                'datatype' => $dt_id,
+                'theme' => $t_id
+            );
+        }
+
 
         // ----------------------------------------
         // Grab all datarecords and datatypes for rendering purposes
         $include_links = true;
-        $datarecord_array = $this->dri_service->getDatarecordArray($datarecord->getId(), $include_links);
-        $datatype_array = $this->dti_service->getDatatypeArray($datatype->getId(), $include_links);
-        $theme_array = $this->theme_service->getThemeArray($master_theme->getId());
+
+        $datarecord_array = array();
+        foreach ($top_level_dr_ids as $dr_id => $num) {
+            $dr_data = $this->dri_service->getDatarecordArray($dr_id, $include_links);
+
+            foreach ($dr_data as $local_dr_id => $data)
+                $datarecord_array[$local_dr_id] = $data;
+        }
+
+        $datatype_array = array();
+        foreach ($top_level_dt_ids as $dt_id => $num) {
+            $dt_data = $this->dti_service->getDatatypeArray($dt_id, $include_links);
+
+            foreach ($dt_data as $local_dt_id => $data)
+                $datatype_array[$local_dt_id] = $data;
+        }
+
+        $theme_array = array();
+        foreach ($top_level_t_ids as $t_id => $num) {
+            $t_data = $this->theme_service->getThemeArray($t_id);
+
+            foreach ($t_data as $local_t_id => $data)
+                $theme_array[$local_t_id] = $data;
+        }
 
         // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
+        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
         $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
-        // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-        $stacked_datarecord_array[ $datarecord_id ] = $this->dri_service->stackDatarecordArray($datarecord_array, $datarecord_id);
-        $stacked_datatype_array[ $datatype->getId() ] = $this->dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
-        $stacked_theme_array[ $master_theme->getId() ] = $this->theme_service->stackThemeArray($theme_array, $master_theme->getId());
+        // "Inflate" the currently flattened arrays so that render plugins for a datatype can also
+        //  correctly render that datatype's child/linked datatypes
+        $stacked_datarecord_array = array();
+        foreach ($top_level_dr_ids as $dr_id => $num) {
+            // Double-stacking the ids like this allows this service to export datarecords across
+            //  multiple datatypes
+            $stacked_datarecord_array[$dr_id] = array(
+                $dr_id => $this->dri_service->stackDatarecordArray($datarecord_array, $dr_id)
+            );
+        }
+
+        $stacked_datatype_array = array();
+        foreach ($top_level_dt_ids as $dt_id => $num) {
+            $stacked_datatype_array[$dt_id] = array(
+                $dt_id => $this->dti_service->stackDatatypeArray($datatype_array, $dt_id)
+            );
+        }
+
+        $stacked_theme_array = array();
+        foreach ($top_level_t_ids as $t_id => $num) {
+            $stacked_theme_array[$t_id] = array(
+                $t_id => $this->theme_service->stackThemeArray($theme_array, $t_id)
+            );
+        }
 
 
         // ----------------------------------------
@@ -141,9 +219,7 @@ class DatarecordExportService
                 'datarecord_array' => $stacked_datarecord_array,
                 'theme_array' => $stacked_theme_array,
 
-                'initial_datatype_id' => $datatype->getId(),
-                'initial_datarecord_id' => $datarecord->getId(),
-                'initial_theme_id' => $master_theme->getId(),
+                'lookup_array' => $lookup_array,
 
                 'using_metadata' => $using_metadata,
                 'baseurl' => $baseurl,
@@ -188,6 +264,9 @@ class DatarecordExportService
                 else if ($data{$i} === ']' && substr($trimmed_str, -1) === ',') {
                     // If not in quotes and would end up transcribing a closing bracket immediately after a comma, replace the last comma with a closing bracket instead
                     $trimmed_str = substr_replace($trimmed_str, ']', -1);
+                }
+                else if ($data{$i} === ',' && substr($trimmed_str, -1) === ',') {
+                    // If not in quotes, then don't transcribe a comma when the previous character is also a comma
                 }
                 else if ($data{$i} !== ' ' && $data{$i} !== "\n") {
                     // If not in quotes and found a non-space character, transcribe it

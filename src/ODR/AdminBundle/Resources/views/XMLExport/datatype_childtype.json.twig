@@ -12,7 +12,8 @@
         "internal_id": {{ datatype.id }},
         "name": {{ datatype_meta.shortName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
         "description": {{ datatype_meta.description|json_encode|raw }},
-        "template_uuid": {{ datatype.unique_id|json_encode|raw }},
+        "datatype_uuid": "{{ datatype.unique_id }}",
+        "template_uuid": {% if datatype.masterDataType == null %}""{% else %}"{{ datatype.masterDataType.unique_id }}"{% endif %},
         "updated_at": "{{ datatype_meta.updated|date('Y-m-d H:i:s') }}",    {# TODO - should this be controlled by using_metadata? #}
 
         {% if datatype_meta.renderPlugin.id != 1 %}

@@ -597,11 +597,7 @@ odr_design_delete_radio_option:
     defaults: { _controller: ODRAdminBundle:Displaytemplate:deleteradiooption }
     requirements:
         radio_option_id:  \d+
-odr_design_set_uuids:
-    path:  /design/displaytemplate/setuuids/{uuid_type}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:setuuids }
-    requirements:
-        uuid_type: 'datatype|field|radio'
+
 odr_design_public_datatype:
     path:  /design/displaytemplate/publicdatatype/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypepublic }
@@ -612,6 +608,7 @@ odr_design_public_datafield:
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldpublic }
     requirements:
         datafield_id:  \d+
+
 odr_markdown_help_dialog:
     path:  /design/displaytemplate/markdownhelp
     defaults: { _controller: ODRAdminBundle:Displaytemplate:markdownhelp }
@@ -1264,9 +1261,11 @@ odr_migrate_plugins:
 odr_create_theme_vesrions:
     path: /admin/theme_version_init
     defaults: { _controller: ODRAdminBundle:Worker:themeversioninit }
-odr_set_datatype_unique_ids:
-    path: /admin/set_unique_ids
+odr_set_unique_ids:
+    path: /admin/set_unique_ids/{uuid_type}
     defaults: { _controller: ODRAdminBundle:Worker:setuniqueids }
+    requirements:
+        uuid_type: 'datatype|field|radio|record'
 odr_fix_setup_steps:
     path: /admin/fix_setup_steps
     defaults: { _controller: ODRAdminBundle:Worker:fixsetupsteps }
@@ -1285,10 +1284,17 @@ odr_fix_database_dates:
 odr_fix_missing_meta_entries:
     path: /admin/fix_meta_entries
     defaults: { _controller: ODRAdminBundle:Validation:fixmissingmetaentries }
+# Locates multiple meta entries that refer to the same entity
+odr_find_duplicate_meta_entries:
+    path: /admin/find_duplicate_meta_entries
+    defaults: { _controller: ODRAdminBundle:Validation:findduplicatemetaentries }
 # Locates meta entries that refer to deleted entities
-odr_find_extra_meta_entries:
-    path: /admin/delete_extra_meta_entries
-    defaults: { _controller: ODRAdminBundle:Validation:deleteextrametaentries }
+odr_find_undeleted_meta_entries:
+    path: /admin/find_undeleted_meta_entries
+    defaults: { _controller: ODRAdminBundle:Validation:findundeletedmetaentries }
+odr_find_overachieving_theme_elements:
+    path:  /admin/find_overachieving_theme_elements
+    defaults: { _controller: ODRAdminBundle:Validation:themeElementcheck }
 
 # Ensures the values stored in the Theme -> ThemeElement -> ThemeDataType tables match the DataTree entities
 odr_fix_datatree_entries:
@@ -1298,6 +1304,10 @@ odr_fix_datatree_entries:
 odr_find_orphaned_entities:
     path: /admin/find_orphaned_entities
     defaults: { _controller: ODRAdminBundle:Validation:findorphanedentities }
+
+odr_childtype_search_slug_fix:
+    path: /admin/childtype_search_slug_fix
+    defaults: { _controller: ODRAdminBundle:Validation:childsearchslugfix }
 
 #-----------------------------------------
 
@@ -1311,67 +1321,94 @@ odr_api_userdata:
         version: 'v1'
         _format: '|json|xml'
 
-odr_api_datatype_list:
-    path: /api/{version}/databases.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatatypeList, _format: json }
+odr_api_get_datatype_list:
+    path: /api/{version}/search/databases.{_format}
+    defaults: { _controller: ODRAdminBundle:API:getDatatypeList, type: 'databases',  _format: json }
     methods: [ GET ]
     requirements:
         version: 'v1'
         _format: '|json|xml'
-
-odr_export_get_datatype_single:    # Alternate URL to use cookie authentication instead of OAuth token to get the single datatype export
-    path:  /admin/datatype_export/{datatype_id}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, version: 'v1', _format: json }
+odr_api_get_template_list:
+    path: /api/{version}/search/templates.{_format}
+    defaults: { _controller: ODRAdminBundle:API:getDatatypeList, type: 'templates', _format: json }
     methods: [ GET ]
     requirements:
-        datatype_id: \d+
+        version: 'v1'
         _format: '|json|xml'
 
 odr_api_get_datatype_single:
-    path:  /api/{version}/databases/{datatype_id}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, _format: json }
+    path:  /api/{version}/search/database/{datatype_uuid}.{_format}
+    defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, type: 'databases', _format: json }
     methods: [ GET ]
     requirements:
         version: 'v1'
-        datatype_id: \d+
+        datatype_uuid: '^[a-z0-9]{7}$'
+        _format: '|json|xml'
+odr_api_get_template_single:
+    path:  /api/{version}/search/template/{datatype_uuid}.{_format}
+    defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, type: 'templates', _format: json }
+    methods: [ GET ]
+    requirements:
+        version: 'v1'
+        datatype_uuid: '^[a-z0-9]{7}$'
         _format: '|json|xml'
 
 odr_api_datarecord_list:
-    path: /api/{version}/databases/{datatype_id}/records.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatarecordList, _format: json }
+    path: /api/{version}/search/database/{datatype_uuid}/records/{limit}/{offset}.{_format}
+    defaults: { _controller: ODRAdminBundle:API:getDatarecordList, limit: 999999999, offset: 0, _format: json }
     methods: [ GET ]
     requirements:
         version: 'v1'
-        datatype_id: \d+
+        datatype_uuid: '^[a-z0-9]{7}$'
+        limit: \d+
+        offset: \d+
         _format: '|json|xml'
-
-odr_export_datarecord_single:    # Alternate URL to use cookie authentication instead of OAuth token to get the single datarecord export
-    path: /admin/datarecord_export/{datarecord_id}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatarecordExport, version: 'v1', _format: json }
+odr_api_template_datatype_list:
+    path: /api/{version}/search/template/{datatype_uuid}/databases/{limit}/{offset}.{_format}
+    defaults: { _controller: ODRAdminBundle:API:getTemplateDatatypeList, limit: 999999999, offset: 0, _format: json }
     methods: [ GET ]
     requirements:
-        datarecord_id: \d+
+        version: 'v1'
+        datatype_uuid: '^[a-z0-9]{7}$'
+        limit: \d+
+        offset: \d+
         _format: '|json|xml'
 
 odr_api_get_datarecord_single:
-    path:  /api/{version}/records/{datarecord_id}.{_format}
+    path:  /api/{version}/search/record/{datarecord_uuid}.{_format}
     defaults: { _controller: ODRAdminBundle:API:getDatarecordExport, _format: json }
     methods: [ GET ]
     requirements:
         version: 'v1'
-        datarecord_id: \d+
+        datarecord_uuid: '^[a-z0-9]{7}$'
+        format: '|xml|json'
+
+odr_api_get_field_stats:
+    path:  /api/{version}/search/field/stats/{template_uuid}/{template_field_uuid}.{_format}
+    defaults: { _controller: ODRAdminBundle:API:getfieldstats, _format: json }
+    methods: [ GET ]
+    requirements:
+        version: 'v1'
+        template_uuid: '^[a-z0-9]{7}$'
+        template_field_uuid: '^[a-z0-9]{7}$'
         format: '|xml|json'
 
 odr_api_download_file:
-    path: /api/{version}/file_download/{file_id}
+    path: /api/{version}/search/file_download/{file_id}
     defaults: { _controller: ODRAdminBundle:API:filedownload }
     methods: [ GET ]
     requirements:
         file_id: \d+
-
 odr_api_download_image:
-    path: /api/{version}/image_download/{image_id}
+    path: /api/{version}/search/image_download/{image_id}
     defaults: { _controller: ODRAdminBundle:API:imagedownload }
     methods: [ GET ]
     requirements:
         image_id: \d+
+
+
+
+odr_asdf:
+    path:  /admin/template_search
+    defaults: { _controller: ODRAdminBundle:Worker:testtemplatesearch }
+    methods: [ GET ]

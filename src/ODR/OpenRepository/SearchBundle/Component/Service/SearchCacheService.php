@@ -61,8 +61,7 @@ class SearchCacheService
         CacheService $cacheService,
         SearchService $searchService,
         Logger $logger
-    )
-    {
+    ) {
         $this->em = $entityManager;
         $this->cache_service = $cacheService;
         $this->search_service = $searchService;
@@ -77,8 +76,9 @@ class SearchCacheService
 
 
     /**
-     * Most likely, 'cached_search_dt_'.$dt_id.'_dr_parents' is the only entry that would need
-     * deleting, and then only when linked datatypes are involved...but being thorough won't hurt.
+     * When a datatype is deleted, it also deletes a mess of datarecords, datafields, and could
+     * also end up deleting a pile of other child datatypes...so anything related to the datatype
+     * being deleted needs to be cleared.
      *
      * @param DataType $datatype
      */
@@ -87,6 +87,9 @@ class SearchCacheService
         $related_datatypes = $this->search_service->getRelatedDatatypes($datatype->getGrandparent()->getId());
 
         foreach ($related_datatypes as $num => $dt_id) {
+            // Most likely, 'cached_search_dt_'.$dt_id.'_dr_parents' is the only entry that actually
+            //  needs deleting, and then only when linked datatypes are involved...but being
+            //  thorough won't hurt.
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_datafields');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
 
@@ -99,9 +102,31 @@ class SearchCacheService
 
 
         // ----------------------------------------
+        // Don't have any convenient cache entry, so need to run a query to locate all master
+        //  datatypes of the datatypes that are going to be deleted
+        $query = $this->em->createQuery(
+           'SELECT mdt.unique_id
+            FROM ODRAdminBundle:DataType AS dt
+            JOIN ODRAdminBundle:DataType AS mdt WITH dt.masterDataType = mdt
+            WHERE dt.id IN (:datatype_ids)
+            AND dt.deletedAt IS NULL AND mdt.deletedAt IS NULL'
+        ) ->setParameters(
+            array(
+                'datatype_ids' => $related_datatypes
+            )
+        );
+        $results = $query->getArrayResult();
+
+        if ( is_array($results) ) {
+            foreach ($results as $result)
+                $this->cache_service->delete('cached_search_template_dt_'.$result['unique_id'].'_dr_list');
+        }
+
+
+        // ----------------------------------------
         // Delete all cached search entries for all datafields of these datatypes
         $query = $this->em->createQuery(
-           'SELECT df.id
+           'SELECT df.id AS df_id, df.templateFieldUuid AS template_field_uuid
             FROM ODRAdminBundle:DataFields AS df
             WHERE df.dataType IN (:datatype_ids)
             AND df.deletedAt IS NULL'
@@ -110,14 +135,22 @@ class SearchCacheService
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
-                $this->cache_service->delete('cached_search_df_'.$result['id']);
-                $this->cache_service->delete('cached_search_df_'.$result['id'].'_ordering');
+                $df_id = $result['id'];
+                $template_df_uuid = $result['template_field_uuid'];
+
+                $this->cache_service->delete('cached_search_df_'.$df_id);
+                $this->cache_service->delete('cached_search_df_'.$df_id.'_ordering');
+
+                if ( !is_null($template_df_uuid) ) {
+                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid);
+                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid.'_ordering');
+                }
             }
         }
 
         // Delete all cached search entries for all radio options in these datatypes
         $query = $this->em->createQuery(
-           'SELECT ro.id
+           'SELECT ro.id AS ro_id, ro.radioOptionUuid AS ro_uuid
             FROM ODRAdminBundle:RadioOptions AS ro
             JOIN ODRAdminBundle:DataFields AS df WITH ro.dataField = df
             WHERE df.dataType IN (:datatype_ids)
@@ -126,8 +159,15 @@ class SearchCacheService
         $results = $query->getArrayResult();
 
         if ( is_array($results) ) {
-            foreach ($results as $result)
-                $this->cache_service->delete('cached_search_ro_'.$result['id']);
+            foreach ($results as $result) {
+                $ro_id = $result['ro_id'];
+                $ro_uuid = $result['ro_uuid'];
+
+                $this->cache_service->delete('cached_search_ro_'.$ro_id);
+
+                if ( !is_null($ro_uuid) )
+                    $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
+            }
         }
     }
 
@@ -189,11 +229,17 @@ class SearchCacheService
         $this->cache_service->delete('cached_search_df_'.$datafield->getId());
         $this->cache_service->delete('cached_search_df_'.$datafield->getId().'_ordering');
 
+        if ( !is_null($datafield->getMasterDataField()) ) {
+            $master_df_uuid = $datafield->getMasterDataField()->getFieldUuid();
+            $this->cache_service->delete('cached_search_template_df_'.$master_df_uuid);
+            $this->cache_service->delete('cached_search_template_df_'.$master_df_uuid.'_ordering');
+        }
+
         // If the datafield is a radio options datafield, then any change should also delete all of
         //  the cached radio options associated with this datafield
         if ($datafield->getFieldType()->getTypeClass() === 'Radio') {
             $query = $this->em->createQuery(
-               'SELECT ro.id
+               'SELECT ro.id AS ro_id, ro.radioOptionUuid AS ro_uuid
                 FROM ODRAdminBundle:RadioOptions AS ro
                 WHERE ro.dataField = :datafield_id
                 AND ro.deletedAt IS NULL'
@@ -201,8 +247,15 @@ class SearchCacheService
             $results = $query->getArrayResult();
 
             if ( is_array($results) ) {
-                foreach ($results as $result)
-                    $this->cache_service->delete('cached_search_ro_'.$result['id']);
+                foreach ($results as $result) {
+                    $ro_id = $result['ro_id'];
+                    $ro_uuid = $result['ro_uuid'];
+
+                    $this->cache_service->delete('cached_search_ro_'.$ro_id);
+
+                    if ( !is_null($ro_uuid) )
+                        $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
+                }
             }
         }
     }
@@ -250,6 +303,11 @@ class SearchCacheService
         // If a datarecord was created, then this needs to be rebuilt
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_dr_parents');
 
+        if ( !is_null($datatype->getMasterDataType()) ) {
+            $master_dt_uuid = $datatype->getMasterDataType()->getUniqueId();
+            $this->cache_service->delete('cached_search_template_dt_'.$master_dt_uuid.'_dr_list');
+        }
+
         // These could be made more precise...but that's likely overkill except for public_status
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_created');
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_createdBy');
@@ -263,7 +321,7 @@ class SearchCacheService
         // However, determining that takes too much effort...just delete all cached datafield
         //  entries for this datatype
         $query = $this->em->createQuery(
-           'SELECT df.id
+           'SELECT df.id AS df_id, df.templateFieldUuid AS template_field_uuid
             FROM ODRAdminBundle:DataFields AS df
             WHERE df.dataType = :datatype_id
             AND df.deletedAt IS NULL'
@@ -272,8 +330,16 @@ class SearchCacheService
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
-                $this->cache_service->delete('cached_search_df_'.$result['id']);
-                $this->cache_service->delete('cached_search_df_'.$result['id'].'_ordering');
+                $df_id = $result['id'];
+                $template_df_uuid = $result['template_field_uuid'];
+
+                $this->cache_service->delete('cached_search_df_'.$df_id);
+                $this->cache_service->delete('cached_search_df_'.$df_id.'_ordering');
+
+                if ( !is_null($template_df_uuid) ) {
+                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid);
+                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid.'_ordering');
+                }
             }
         }
 
@@ -281,7 +347,7 @@ class SearchCacheService
         //  entries for this datatype, but it takes as much effort to rebuild the "unselected"
         //  section as it does to rebuild both "unselected" and "selected"
         $query = $this->em->createQuery(
-           'SELECT ro.id
+           'SELECT ro.id AS ro_id, ro.radioOptionUuid AS ro_uuid
             FROM ODRAdminBundle:RadioOptions AS ro
             JOIN ODRAdminBundle:DataFields AS df WITH ro.dataField = df
             WHERE df.dataType = :datatype_id
@@ -290,8 +356,15 @@ class SearchCacheService
         $results = $query->getArrayResult();
 
         if ( is_array($results) ) {
-            foreach ($results as $result)
-                $this->cache_service->delete('cached_search_ro_'.$result['id']);
+            foreach ($results as $result) {
+                $ro_id = $result['ro_id'];
+                $ro_uuid = $result['ro_uuid'];
+
+                $this->cache_service->delete('cached_search_ro_'.$ro_id);
+
+                if ( !is_null($ro_uuid) )
+                    $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
+            }
         }
     }
 
@@ -340,11 +413,19 @@ class SearchCacheService
         foreach ($related_datatypes as $num => $dt_id) {
             // Would have to search through each of these entries to see whether they matched the
             //  deleted datarecord...faster to just wipe all of them
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_created');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_createdBy');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modified');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modifiedBy');
+        }
+
+        // Unlike onDatatypeDelete(), deleting a single datarecord only affects at most one of
+        //  these cache entries
+        if ( !is_null($datatype->getMasterDataType()) ) {
+            $master_dt_uuid = $datatype->getMasterDataType()->getUniqueId();
+            $this->cache_service->delete('cached_search_template_dt_'.$master_dt_uuid.'_dr_list');
         }
 
 
@@ -353,7 +434,7 @@ class SearchCacheService
         // However, determining that takes too much effort...just delete all cached datafield
         //  entries for this datatype
         $query = $this->em->createQuery(
-           'SELECT df.id
+           'SELECT df.id AS df_id, df.templateFieldUuid AS template_field_uuid
             FROM ODRAdminBundle:DataFields AS df
             WHERE df.dataType IN (:datatype_ids)
             AND df.deletedAt IS NULL'
@@ -362,8 +443,16 @@ class SearchCacheService
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
-                $this->cache_service->delete('cached_search_df_'.$result['id']);
-                $this->cache_service->delete('cached_search_df_'.$result['id'].'_ordering');
+                $df_id = $result['id'];
+                $template_df_uuid = $result['template_field_uuid'];
+
+                $this->cache_service->delete('cached_search_df_'.$df_id);
+                $this->cache_service->delete('cached_search_df_'.$df_id.'_ordering');
+
+                if ( !is_null($template_df_uuid) ) {
+                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid);
+                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid.'_ordering');
+                }
             }
         }
 
@@ -371,7 +460,7 @@ class SearchCacheService
         //  entries for this datatype, but it takes as much effort to rebuild the "unselected"
         //  section as it does to rebuild both "unselected" and "selected"
         $query = $this->em->createQuery(
-           'SELECT ro.id
+           'SELECT ro.id AS ro_id, ro.radioOptionUuid AS ro_uuid
             FROM ODRAdminBundle:RadioOptions AS ro
             JOIN ODRAdminBundle:DataFields AS df WITH ro.dataField = df
             WHERE df.dataType IN (:datatype_ids)
@@ -380,8 +469,15 @@ class SearchCacheService
         $results = $query->getArrayResult();
 
         if ( is_array($results) ) {
-            foreach ($results as $result)
-                $this->cache_service->delete('cached_search_ro_'.$result['id']);
+            foreach ($results as $result) {
+                $ro_id = $result['ro_id'];
+                $ro_uuid = $result['ro_uuid'];
+
+                $this->cache_service->delete('cached_search_ro_'.$ro_id);
+
+                if ( !is_null($ro_uuid) )
+                    $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
+            }
         }
     }
 
@@ -410,5 +506,8 @@ class SearchCacheService
         // If something now (or no longer) links to $descendant_datatype, then these cache entries
         //  need to be deleted
         $this->cache_service->delete('cached_search_dt_'.$descendant_datatype->getId().'_dr_parents');
+
+        // Don't need to clear the 'cached_search_template_dt_'.$master_dt_uuid.'_dr_list' entry here
+        // It doesn't contain any information about linking
     }
 }

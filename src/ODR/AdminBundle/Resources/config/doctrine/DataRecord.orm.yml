@@ -4,6 +4,10 @@ ODR\AdminBundle\Entity\DataRecord:
     gedmo:
         soft_deleteable:
             field_name: deletedAt
+    indexes:
+        uuid_index:
+            columns: [ unique_id ]
+
     fields:
         id:
             id: true

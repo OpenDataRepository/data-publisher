@@ -738,13 +738,151 @@ class ValidationController extends ODRCustomController
 
 
     /**
-     * Looks for and creates any missing meta entries
+     * Looks for multiple meta entries that belong to the same "primary" entity.
      *
      * @param Request $request
      *
      * @return Response
      */
-    public function deleteextrametaentriesAction(Request $request)
+    public function findduplicatemetaentriesAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        $conn = null;
+
+        try {
+            // ----------------------------------------
+            // Load required objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
+
+            // Load everything regardless of deleted status
+            $em->getFilters()->disable('softdeleteable');
+
+            // Going to run native SQL queries for this, doctrine doesn't do subqueries well
+            $conn = $em->getConnection();
+            // May end up doing a pile of mass updates, so begin a transation
+            $conn->beginTransaction();
+
+            print '<pre>';
+
+            // ----------------------------------------
+            $entities = array(
+                'DataFields' => 'dataField',
+                'DataRecord' => 'dataRecord',
+                'DataTree' => 'dataTree',
+                'DataType' => 'dataType',
+                'File' => 'file',
+                'Group' => 'group',
+                'Image' => 'image',
+                'RadioOptions' => 'radioOption',
+                'Theme' => 'theme',
+                'ThemeElement' => 'themeElement',
+            );
+
+            foreach ($entities as $classname => $relation) {
+                $query = $em->createQuery(
+                   'SELECT e.id AS entity_id, em.id AS entity_meta_id
+                    FROM ODRAdminBundle:'.$classname.' AS e
+                    JOIN ODRAdminBundle:'.$classname.'Meta AS em WITH em.'.$relation.' = e
+                    WHERE e.deletedAt IS NULL AND em.deletedAt IS NULL
+                    ORDER BY e.id'
+                );
+                $results = $query->getArrayResult();
+
+                $entity_ids = array();
+                $entity_meta_ids = array();
+                $to_delete = 0;
+
+                print $classname."\n";
+                if ( $results && is_array($results) ) {
+//                    print 'found '.count($results).' entries'."\n";
+                    foreach ($results as $result) {
+                        $e_id = $result['entity_id'];
+                        $em_id = $result['entity_meta_id'];
+
+                        if ( isset($entity_ids[$e_id]) ) {
+                            print ' -- '.$e_id.' already has the meta entry '.$entity_ids[$e_id].', but found another meta entry '.$em_id."\n";
+                            $entity_meta_ids[] = $em_id;
+                            $to_delete++;
+                        }
+                        else {
+                            $entity_ids[$e_id] = $em_id;
+                        }
+                    }
+
+                    if ( count($entity_meta_ids) > 0 )
+                        print 'intending to delete: '.print_r($entity_meta_ids, true)."\n";
+
+                    $query = $em->createQuery(
+                       'UPDATE ODRAdminBundle:'.$classname.'Meta AS em
+                        SET em.deletedAt = :now
+                        WHERE em.id IN (:entity_meta_ids)'
+                    )->setParameters(
+                        array(
+                            'now' => new \DateTime(),
+                            'entity_meta_ids' => $entity_meta_ids
+                        )
+                    );
+                    $rows = $query->execute();
+
+                    print ' >> expected to delete '.$to_delete.' entries, actually deleted '.$rows.' rows...'."\n";
+                    print 'END '.$classname."\n\n";
+                }
+                else {
+                    print ' -- no duplicate meta entries'."\n\n";
+                }
+
+            }
+
+            print '</pre>';
+
+            // Turn the deleted filter back on
+            $em->getFilters()->enable('softdeleteable');
+
+            if ($save)
+                $conn->commit();
+            else
+                $conn->rollBack();
+        }
+        catch (\Exception $e) {
+            $em->getFilters()->enable('softdeleteable');
+
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollBack();
+
+            $source = 0x50885ebf;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * Looks for meta entries belonging to delete "primary" entities and deletes them.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function findundeletedmetaentriesAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1376,6 +1514,16 @@ class ValidationController extends ODRCustomController
         }
         print "\n";
 
+        if ( isset($query_targets['DataFields']['masterDataField']) ) {
+            unset( $query_targets['DataFields']['masterDataField'] );
+            print '>> TODO - ignore undeleted DataField entities that reference deleted masterDataFields??'."\n";
+        }
+        if ( isset($query_targets['DataType']['masterDataType']) ) {
+            unset( $query_targets['DataType']['masterDataType'] );
+            print '>> TODO - ignore undeleted DataType entities that reference deleted masterDataTypes??'."\n";
+        }
+        print "\n";
+
         print "\n";
         return $query_targets;
     }
@@ -1421,17 +1569,21 @@ class ValidationController extends ODRCustomController
             $results = $query->getResult();
 
             if (!$save) {
-                print '<pre>';
+                print '<pre> These are the child datatypes that would be modified to have a null search slug'."\n\n";
                 print '<table>';
                 print '<tr>';
+                print '<th>grandparent_id</th>';
                 print '<th>grandparent_name</th>';
-                print '<th>datatype_name</th>';
+                print '<th>child_datatype_id</th>';
+                print '<th>child_datatype_name</th>';
                 print '<th>search_slug</th>';
                 print '</tr>';
 
                 foreach ($results as $result) {
                     print '<tr>';
+                    print '<td>'.$result->getDataType()->getGrandparent()->getId().'</td>';
                     print '<td>'.$result->getDataType()->getGrandparent()->getShortName().'</td>';
+                    print '<td>'.$result->getDataType()->getId().'</td>';
                     print '<td>'.$result->getShortName().'</td>';
                     print '<td>'.$result->getSearchSlug().'</td>';
                     print '</tr>';
@@ -1463,5 +1615,75 @@ class ValidationController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'text/html');
         return $response;
+    }
+
+
+    /**
+     * Theme elements should either be empty, or have one or more theme datafields, or exactly one
+     * theme datatype entry.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function themeElementcheckAction(Request $request)
+    {
+        $save = false;
+//        $save = true;
+
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        try {
+            $query = $em->createQuery(
+               'SELECT t.id AS t_id, te.id AS te_id, tdf.id AS tdf_id, df.id AS df_id, tdt.id AS tdt_id, dt.id AS dt_id
+                FROM ODRAdminBundle:Theme AS t
+                JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
+                LEFT JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
+                LEFT JOIN ODRAdminBundle:DataFields AS df WITH tdf.dataField = df
+                LEFT JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.themeElement = te
+                LEFT JOIN ODRAdminBundle:DataType AS dt WITH tdt.dataType = dt
+                WHERE t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL
+                AND tdt.deletedAt IS NULL AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+            $tmp = array();
+            foreach ($results as $result) {
+                $t_id = $result['t_id'];
+                $te_id = $result['te_id'];
+                $tdf_id = $result['tdf_id'];
+                $df_id = $result['df_id'];
+                $tdt_id = $result['tdt_id'];
+                $dt_id = $result['dt_id'];
+
+                if ( is_null($tdf_id) || is_null($tdt_id) )
+                    continue;
+
+                if ( !isset($tmp[$t_id]) )
+                    $tmp[$t_id] = array();
+                if ( !isset($tmp[$t_id][$te_id]) ) {
+                    $tmp[$t_id][$te_id] = array(
+                        'theme_datafields' => array(),
+                        'theme_dataypes' => array()
+                    );
+                }
+
+                $tmp[$t_id][$te_id]['theme_datafields'][$tdf_id] = $df_id;
+                $tmp[$t_id][$te_id]['theme_dataypes'][$tdt_id] = $dt_id;
+            }
+
+            exit('<pre>'.print_r($tmp, true).'</pre>' );
+        }
+        catch (\Exception $e) {
+            // Don't want any changes made being saved to the database
+            $em->clear();
+
+            $source = 0xd5882c91;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
     }
 }

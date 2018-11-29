@@ -35,7 +35,8 @@
 
     <div class="pure-u-1">
         <button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }}, 'view', '{{ offset }}');">View DataRecord</button>
-        <button type="button" class="pure-button pure-button-primary" onclick="exportXML({{ datarecord.id }})">Export DataRecord</button>
+        {# "datarecord.uniqueid" is required because the datarecord variable is hydrated...if it was an array, it would be "datarecord.unique_id" instead #}
+        <button type="button" class="pure-button pure-button-primary" onclick="exportDatarecord('{{ datarecord.uniqueid }}')">Export DataRecord</button>
 
         {% if is_datatype_admin == 1 %}
             {% if datarecord.ispublic %}
@@ -104,8 +105,13 @@
     }
 {% endif %}
 
-    function exportXML(datarecord_id) {
-        var url = '{{ path('odr_export_datarecord_single', {'datarecord_id': datarecord.id, '_format': 'json' }) }}';
+    function exportDatarecord(datarecord_uuid) {
+        // Default to JSON output
+        var url = "{{ path('odr_api_get_datarecord_single', {'datarecord_uuid': 0, 'version': 'v1' }) }}";
+        url = url.substring(0, (url.length-1));
+        url += datarecord_uuid;
+        url += '?download=file';
+
         document.location = url;
     }
 

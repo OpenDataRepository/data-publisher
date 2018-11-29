@@ -228,6 +228,91 @@ class SearchQueryService
 
 
     /**
+     * Returns two arrays of datarecord ids...one array has all the datarecords where the given
+     * template radio option is selected...the other array has all the datarecords where it isn't.
+     *
+     * @param array $all_datarecord_ids
+     * @param string $radio_option_uuid
+     *
+     * @return array
+     */
+    public function searchRadioTemplateDatafield($all_datarecord_ids, $radio_option_uuid)
+    {
+        // ----------------------------------------
+        // Get all datarecords of this datatype involving this radio option
+        $query =
+           'SELECT dt.id AS dt_id, df.id AS df_id, rs.selected, dr.id AS dr_id
+            FROM odr_data_type AS mdt
+            JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
+            JOIN odr_data_fields AS df ON df.data_type_id = dt.id
+            JOIN odr_radio_options AS ro ON ro.data_fields_id = df.id
+            LEFT JOIN odr_radio_selection AS rs ON rs.radio_option_id = ro.id
+            LEFT JOIN odr_data_record_fields AS drf ON rs.data_record_fields_id = drf.id
+            LEFT JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
+            WHERE ro.radio_option_uuid = :radio_option_uuid AND mdt.deletedAt IS NULL
+            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND ro.deletedAt IS NULL
+            AND (rs.deletedAt IS NULL OR rs.selected IS NULL)
+            AND (drf.deletedAt IS NULL OR drf.id IS NULL)
+            AND (dr.deletedAt IS NULL OR dr.id IS NULL)';
+
+        // Execute the native SQL query
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($query, array('radio_option_uuid' => $radio_option_uuid));
+
+        // Need to use the search result and $all_datarecord_ids to build two arrays...one of
+        //  datarecords that are selected, and another of all datarecords that aren't
+        $unselected_datarecords = array();
+        $selected_datarecords = array();
+        foreach ($results as $result) {
+            $dt_id = $result['dt_id'];
+            $df_id = $result['df_id'];
+            $selected = $result['selected'];
+            $dr_id = $result['dr_id'];
+
+            // Datatype/datafield ids should always exist in the array...
+            if ( !isset($unselected_datarecords[$dt_id]) ) {
+                $unselected_datarecords[$dt_id] = array();
+                $selected_datarecords[$dt_id] = array();
+            }
+            if ( !isset($unselected_datarecords[$dt_id][$df_id]) ) {
+                $unselected_datarecords[$dt_id][$df_id] = $all_datarecord_ids[$dt_id];
+                $selected_datarecords[$dt_id][$df_id] = array();
+            }
+
+            // The results set contains at least one entry for each datatype/datafield pair...
+            if ( !is_null($selected) && $selected === '1' ) {
+                // ...but only need to do extra stuff when the datarecord is selected
+                unset( $unselected_datarecords[$dt_id][$df_id][$dr_id] );
+                $selected_datarecords[$dt_id][$df_id][$dr_id] = 1;
+            }
+        }
+
+        // Filter out empty entries from both arrays
+        foreach ($unselected_datarecords as $dt_id => $df_list) {
+            foreach ($df_list as $df_id => $dr_list) {
+                if ( empty($dr_list) )
+                    unset( $unselected_datarecords[$dt_id][$df_id] );
+            }
+            if ( empty($unselected_datarecords[$dt_id]) )
+                unset( $unselected_datarecords[$dt_id] );
+        }
+        foreach ($selected_datarecords as $dt_id => $df_list) {
+            foreach ($df_list as $df_id => $dr_list) {
+                if ( empty($dr_list) )
+                    unset( $selected_datarecords[$dt_id][$df_id] );
+            }
+            if ( empty($selected_datarecords[$dt_id]) )
+                unset( $selected_datarecords[$dt_id] );
+        }
+
+        return array(
+            '0' => $unselected_datarecords,
+            '1' => $selected_datarecords
+        );
+    }
+
+
+    /**
      * Searches for all datarecord ids where the given datafield has a selected radio option matching
      * the given value.  Primarily useful for a "general" search.
      *
@@ -272,6 +357,84 @@ class SearchQueryService
             $datarecords[ $result['dr_id'] ] = 1;
 
         return $datarecords;
+    }
+
+
+    /**
+     * Searches for and returns an array that lists all datarecords that have at least one selected
+     * radio option from the given template datafield.
+     *
+     * The parts about radio_option_uuid and option_name are only necessary because of the API
+     * route for APIController::getfieldstatsAction()...unfortunately that specific route ends up
+     * requiring permissions across datatypes, and it's easier in the long run to hijack the
+     * existing template search system. (As opposed to re-implementing ~2/3rds of it just for that)
+     *
+     * @param string $master_template_uuid
+     * @param string $master_datafield_uuid
+     * @param string $value
+     *
+     * @return array
+     */
+    public function searchForSelectedTemplateRadioOptions($master_template_uuid, $master_datafield_uuid, $value)
+    {
+        $query =
+           'SELECT
+                dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id,
+                ro.radio_option_uuid, ro.option_name
+
+            FROM odr_data_type AS mdt
+            JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
+            JOIN odr_data_fields AS df ON df.data_type_id = dt.id
+            JOIN odr_radio_options AS ro ON ro.data_fields_id = df.id
+            JOIN odr_radio_selection AS rs ON rs.radio_option_id = ro.id
+            JOIN odr_data_record_fields AS drf ON rs.data_record_fields_id = drf.id
+            JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
+            WHERE mdt.unique_id = :template_dt_id AND df.template_field_uuid = :template_df_id
+            AND rs.selected = 1
+            AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
+            AND ro.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND dr.deletedAt IS NULL';
+
+        // TODO - search is currently locked to "any" radio option...need to allow searches on radio option names
+        $params = array(
+            'template_dt_id' => $master_template_uuid,
+            'template_df_id' => $master_datafield_uuid
+        );
+
+         // Execute the native SQL query
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($query, $params);
+
+         // Turn the result into useful arrays...
+        $labels = array();
+        $datarecords = array();
+        foreach ($results as $result) {
+            $dt_id = $result['dt_id'];
+            $df_id = $result['df_id'];
+            $dr_id = $result['dr_id'];
+            $ro_uuid = $result['radio_option_uuid'];
+            $option_name = $result['option_name'];
+
+            // To save a bit of space, store the labels separately
+            if ( !isset($labels[$ro_uuid]) )
+                $labels[$ro_uuid] = $option_name;
+
+            // Create an array structure so the matching datarecords can be filtered based on user
+            //  datatype/datafield permissions later
+            if ( !isset($datarecords[$dt_id]) )
+                $datarecords[$dt_id] = array();
+            if ( !isset($datarecords[$dt_id][$df_id]) )
+                $datarecords[$dt_id][$df_id] = array();
+            if ( !isset($datarecords[$dt_id][$df_id][$dr_id]) )
+                $datarecords[$dt_id][$df_id][$dr_id] = array();
+
+            $datarecords[$dt_id][$df_id][$dr_id][] = $ro_uuid;
+        }
+
+        return array(
+            'labels' => $labels,
+            'records' => $datarecords,
+        );
     }
 
 

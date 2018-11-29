@@ -136,7 +136,7 @@ class SearchService
                 );
 
                 // ...and store it in the cache
-                $this->cache_service->set('cached_search_ro_'.$datafield->getId(), $result);
+                $this->cache_service->set('cached_search_ro_'.$radio_option_id, $result);
             }
 
 
@@ -166,14 +166,159 @@ class SearchService
             }
         }
 
-
         // ...then return the search result
-        $stuff = array(
+        $result = array(
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $end_result
         );
 
-        return $stuff;
+        return $result;
+    }
+
+
+    /**
+     * Searches the specified radio option template datafield using the selections array, and
+     * returns an array of all datarecord ids that match the criteria.
+     *
+     * @param DataFields $template_datafield
+     * @param array $selections An array with radio option ids for keys, and 0 or 1 for values
+     * @param bool $merge_using_OR  If false, merge using AND instead
+     *
+     * @return array
+     */
+    public function searchRadioTemplateDatafield($template_datafield, $selections, $merge_using_OR = true)
+    {
+        // ----------------------------------------
+        // Don't continue if called on the wrong type of datafield
+        $typeclass = $template_datafield->getFieldType()->getTypeClass();
+        if ( $typeclass !== 'Radio' )
+            throw new ODRBadRequestException('searchRadioTemplateDatafield() called with '.$typeclass.' datafield', 0x5e0dc6db);
+        if ( !$template_datafield->getIsMasterField() )
+            throw new ODRBadRequestException('searchRadioTemplateDatafield() called on a non-master datafield', 0x5e0dc6db);
+
+        // Also don't continue if no selection specified
+        if ( count($selections) == 0 )
+            throw new ODRBadRequestException('searchRadioTemplateDatafield() called with empty selections array', 0x5e0dc6db);
+
+
+        // ----------------------------------------
+        // Otherwise, probably going to need to run searches again...
+        $end_result = null;
+        $datarecord_list = null;
+
+        foreach ($selections as $radio_option_uuid => $value) {
+            // Attempt to find the cached result for this radio option...
+            $result = $this->cache_service->get('cached_search_template_ro_'.$radio_option_uuid);
+            if ( !$result )
+                $result = array();
+
+            // If it doesn't exist...
+            if ( !isset($result[$value]) ) {
+                // ...then ensure we have the list of datarecords for this radio option's datatype
+                if ( is_null($datarecord_list) )
+                    $datarecord_list = self::getCachedTemplateDatarecordList($template_datafield->getDataType()->getUniqueId());
+
+                // ...run the search again
+                $result = $this->search_query_service->searchRadioTemplateDatafield(
+                    $datarecord_list,
+                    $radio_option_uuid
+                );
+
+                // ...and store it in the cache
+                $this->cache_service->set('cached_search_template_ro_'.$radio_option_uuid, $result);
+            }
+
+
+            // TODO - Eventually going to need something more refined than just a single merge_type flag
+            if ($merge_using_OR) {
+                // If first run, then start from empty array due to using isset() below
+                if ( is_null($end_result) )
+                    $end_result = array();
+
+                $end_result = self::templateResultsUnion($end_result, $result[$value]);
+            }
+            else {
+                // If first run, then use the first set of results to start off with
+                if ( is_null($end_result) ) {
+                    $end_result = $result[$value];
+                }
+                else {
+                    // Otherwise, only save the datarecord ids that are in both arrays
+                    $end_result = self::templateResultsIntersect($end_result, $result[$value]);
+                }
+
+                // If nothing in the array, then no results are possible
+                if ( count($end_result) == 0 )
+                    break;
+            }
+        }
+
+        // ...then return the search result
+        return $end_result;
+    }
+
+
+    /**
+     * A function to union lists of datarecord ids that are several layers deep is required when
+     * searching across templates for datarecords where at least one of the given radio options
+     * are selected.
+     *
+     * @param array $first_array
+     * @param array $second_array
+     *
+     * @return array
+     */
+    private function templateResultsUnion($first_array, $second_array)
+    {
+        foreach ($second_array as $dt_id => $df_list) {
+            if ( !isset($first_array[$dt_id]) )
+                $first_array[$dt_id] = array();
+
+            foreach ($df_list as $df_id => $dr_list) {
+                if ( !isset($first_array[$dt_id][$df_id]) )
+                    $first_array[$dt_id][$df_id] = array();
+
+                foreach ($dr_list as $dr_id => $num)
+                    $first_array[$dt_id][$df_id][$dr_id] = 1;
+            }
+        }
+
+        return $first_array;
+    }
+
+
+    /**
+     * Computing the intersection of lists of datarecord ids that are several layers deep is
+     * required when searching across templates for datarecords where all of the given radio options
+     * are selected.
+     *
+     * @param array $first_array
+     * @param array $second_array
+     *
+     * @return array
+     */
+    private function templateResultsIntersect($first_array, $second_array)
+    {
+        foreach ($first_array as $dt_id => $df_list) {
+            if ( !isset($second_array[$dt_id]) ) {
+                unset( $first_array[$dt_id] );
+            }
+            else {
+                foreach ($df_list as $df_id => $dr_list) {
+                    if ( !isset($second_array[$dt_id][$df_id]) ) {
+                        unset( $first_array[$dt_id][$df_id] );
+                    }
+                    else {
+                        foreach ($dr_list as $dr_id => $num) {
+                            if ( !isset($second_array[$dt_id][$df_id][$dr_id]) )
+                                unset( $first_array[$dt_id][$df_id][$dr_id] );
+                        }
+                    }
+                }
+            }
+        }
+
+        return $first_array;
     }
 
 
@@ -191,7 +336,7 @@ class SearchService
         // Don't continue if called on the wrong type of datafield
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( $typeclass !== 'Radio' )
-            throw new ODRBadRequestException('searchRadioDatafield() called with '.$typeclass.' datafield', 0x4f2a33f4);
+            throw new ODRBadRequestException('searchForSelectedRadioOptions() called with '.$typeclass.' datafield', 0x4f2a33f4);
 
 
         // ----------------------------------------
@@ -222,6 +367,55 @@ class SearchService
 
         // ...then return it
         return $end_result;
+    }
+
+
+    /**
+     * Searches for specified datafield for any selected radio options matching the given criteria.
+     *
+     * @param DataFields $template_datafield
+     * @param string $value
+     *
+     * @return array
+     */
+    public function searchForSelectedRadioTemplateOptions($template_datafield, $value)
+    {
+        // ----------------------------------------
+        // Don't continue if called on the wrong type of datafield
+        $typeclass = $template_datafield->getFieldType()->getTypeClass();
+        if ( $typeclass !== 'Radio' )
+            throw new ODRBadRequestException('searchForSelectedRadioTemplateOptions() called with '.$typeclass.' datafield', 0x4f2a33f4);
+        if ( !$template_datafield->getIsMasterField() )
+            throw new ODRBadRequestException('searchForSelectedRadioTemplateOptions() called with non-master datafield', 0x4f2a33f4);
+
+
+        // ----------------------------------------
+        // See if this search result is already cached...
+        $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid());
+        if ( !$cached_searches )
+            $cached_searches = array();
+
+        // TODO - cross-template search is currently locked to "any" radio option...need to allow searches on radio option names
+        $value = 'any';
+        if ( isset($cached_searches[$value]) )
+            return $cached_searches[$value];
+
+
+        // ----------------------------------------
+        // Otherwise, going to need to run the search again...
+        $result = $this->search_query_service->searchForSelectedTemplateRadioOptions(
+            $template_datafield->getDataType()->getUniqueId(),
+            $template_datafield->getFieldUuid(),
+            $value
+        );
+
+
+        // ...then recache the search result
+        $cached_searches[$value] = $result;
+        $this->cache_service->set('cached_search_template_df_'.$template_datafield->getFieldUuid(), $cached_searches);
+
+        // ...then return it
+        return $result;
     }
 
 
@@ -957,6 +1151,56 @@ class SearchService
 
 
     /**
+     * Searches on Radio datafields that cross templates need to have a list of all datarecords
+     * that also crosses templates...otherwise, they can't cache which RadioOptions are unselected.
+     *
+     * @param string $template_uuid
+     *
+     * @return array
+     */
+    public function getCachedTemplateDatarecordList($template_uuid)
+    {
+        // Attempt to load the datarecords for this template from the cache...
+        $list = $this->cache_service->get('cached_search_template_dt_'.$template_uuid.'_dr_list');
+        if ( !$list) {
+            // ...doesn't exist, need to rebuild
+            $query = $this->em->createQuery(
+               'SELECT dt.id AS dt_id, dr.id AS dr_id
+                FROM ODRAdminBundle:DataType AS mdt
+                JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
+                LEFT JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                WHERE mdt.unique_id = :template_uuid
+                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL
+                AND (dr.deletedAt IS NULL OR dr.id IS NULL)'
+            )->setParameters(array('template_uuid' => $template_uuid));
+            $results = $query->getArrayResult();
+
+            $list = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $dr_id = $result['dr_id'];
+
+                // NOTE - despite datafield ids being required for permissions filtering, it
+                //  doesn't make sense to load/store them here...the individual template-specific
+                //  search functions (currently just the radio search) have to use queries that
+                //  will tell them what the datafields are even if nothing matches
+                if ( !isset($list[$dt_id]) )
+                    $list[$dt_id] = array();
+
+                // It's possible that the derived datatype doesn't have any datarecords
+                if ( !is_null($dr_id) )
+                    $list[$dt_id][$dr_id] = 1;
+            }
+
+            // Store the list back in the cache
+            $this->cache_service->set('cached_search_template_dt_'.$template_uuid.'_dr_list', $list);
+        }
+
+        return $list;
+    }
+
+
+    /**
      * Returns an array of datafields, organized by public status, for each related datatype.  The
      * datatype's public status is also included, for additional ease of permissions filtering.
      *
@@ -1001,10 +1245,10 @@ class SearchService
         foreach ($related_datatypes as $num => $dt_id) {
             $df_list = $this->cache_service->get('cached_search_dt_'.$dt_id.'_datafields');
             if (!$df_list) {
-                // If not cached, need to
+                // If not cached, need to rebuild the list...
                 $query = $this->em->createQuery(
                    'SELECT
-                        df.id AS df_id, dfm.publicDate AS df_public_date,
+                        df.id AS df_id, df.fieldUuid AS df_uuid, dfm.publicDate AS df_public_date,
                         dfm.searchable, ft.typeClass,
                         dtm.publicDate AS dt_public_date
                 
@@ -1044,17 +1288,20 @@ class SearchService
 
 //                    if ( $searchable > 0 ) {
                         $df_id = $result['df_id'];
+                        $df_uuid = $result['df_uuid'];    // required for cross-template searching
 
                         if ($result['df_public_date']->format('Y-m-d') !== '2200-01-01') {
                             $df_list['datafields'][$df_id] = array(
                                 'searchable' => $searchable,
                                 'typeclass' => $typeclass,
+                                'field_uuid' => $df_uuid,
                             );
                         }
                         else {
                             $df_list['datafields']['non_public'][$df_id] = array(
                                 'searchable' => $searchable,
                                 'typeclass' => $typeclass,
+                                'field_uuid' => $df_uuid,
                             );
                         }
 //                    }
