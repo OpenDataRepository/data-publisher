@@ -28,6 +28,18 @@
         {% endif %}
         <template_uuid>{{ master_datatype_unique_id }}</template_uuid>
 
+        {% set metadata_datatype_unique_id = "" %}
+        {% if datatype.metadata_datatype is not null %}
+            {% set metadata_datatype_unique_id = datatype.metadata_datatype.unique_id %}
+        {% endif %}
+        <metadata_uuid>{{ metadata_datatype_unique_id }}</metadata_uuid>
+
+        {% set metadata_for_unique_id = "" %}
+        {% if datatype.metadata_for is not null %}
+            {% set metadata_for_unique_id = datatype.metadata_for.unique_id %}
+        {% endif %}
+        <metadata_for_uuid>{{ metadata_for_unique_id }}</metadata_for_uuid>
+
     {% if using_metadata == true %}
         {# display metadata and datafields for top-level and child datarecords #}
         <_record_metadata>

@@ -256,6 +256,95 @@ class ValidationController extends ODRCustomController
 
 
     /**
+     * Apparently child datatypes managed to get search slugs before Sept 2017...which causes problems
+     * when changing their properties because the form always submits their search_slug as an
+     * empty string...but this change causes DisplaytemplateController::datatypepropertiesAction()
+     * to run a regex that intentionally blocks blank search slugs...resulting in the inability to
+     * modify any property of a child datatype until their search slugs are set to null in the
+     * backend database.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function childsearchslugfixAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        try {
+
+            $query = $em->createQuery(
+               'SELECT dtm
+                FROM ODRAdminBundle:DataType AS gp_dt
+                JOIN ODRAdminBundle:DataType AS dt WITH dt.grandparent = gp_dt
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                WHERE gp_dt.id != dt.id AND dtm.searchSlug IS NOT NULL
+                AND gp_dt.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                ORDER BY gp_dt.id, dt.id'
+            );
+            /** @var DataTypeMeta[] $results */
+            $results = $query->getResult();
+
+            if (!$save) {
+                print '<pre> These are the child datatypes that would be modified to have a null search slug'."\n\n";
+                print '<table>';
+                print '<tr>';
+                print '<th>grandparent_id</th>';
+                print '<th>grandparent_name</th>';
+                print '<th>child_datatype_id</th>';
+                print '<th>child_datatype_name</th>';
+                print '<th>search_slug</th>';
+                print '</tr>';
+
+                foreach ($results as $result) {
+                    print '<tr>';
+                    print '<td>'.$result->getDataType()->getGrandparent()->getId().'</td>';
+                    print '<td>'.$result->getDataType()->getGrandparent()->getShortName().'</td>';
+                    print '<td>'.$result->getDataType()->getId().'</td>';
+                    print '<td>'.$result->getShortName().'</td>';
+                    print '<td>'.$result->getSearchSlug().'</td>';
+                    print '</tr>';
+                }
+
+                print '</table>';
+                print '</pre>';
+            }
+            else {
+                foreach ($results as $result) {
+                    $result->setSearchSlug(null);
+                    $em->persist($result);
+                }
+
+                $em->flush();
+            }
+        }
+        catch (\Exception $e) {
+            // Don't want any changes made being saved to the database
+            $em->clear();
+
+            $source = 0xba8a4083;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
      * Looks for and creates any missing meta entries
      *
      * @param Request $request
@@ -1355,6 +1444,10 @@ class ValidationController extends ODRCustomController
                 }
             }
 
+            // Datatypes also have a single metadata datatype...
+            $query_targets['DataType']['metadata_datatype'] = 'DataType';
+            $query_targets['DataType']['metadata_for'] = 'DataType';
+
             // Certain relationships are currently allowed to have undeleted child_entities that
             //  reference a deleted parent entity...
             $query_targets = self::removeAcceptableEntries($query_targets);
@@ -1362,6 +1455,41 @@ class ValidationController extends ODRCustomController
             // Load everything regardless of deleted status
             $em->getFilters()->disable('softdeleteable');
             $conn->beginTransaction();
+
+            // All datatypes require at least one theme...
+            $query =
+               'SELECT dt.id AS dt_id, t.id AS t_id
+                FROM odr_data_type dt
+                LEFT JOIN odr_theme t ON (t.data_type_id = dt.id AND t.deletedAt IS NULL)
+                WHERE dt.deletedAt IS NULL';
+            $results = $conn->fetchAll($query);
+
+            $dt_ids = array();
+            foreach ($results as $result) {
+                if ( is_null($result['t_id']) )
+                    $dt_ids[] = $result['dt_id'];
+            }
+
+            print count($dt_ids).' undeleted Datatype entities that lack a Theme...'."\n";
+            foreach ($dt_ids as $num => $dt_id)
+                print ' -- '.$dt_id.' => NULL'."\n";
+
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataType AS dt
+                SET dt.deletedAt = :now
+                WHERE dt.id IN (:datatype_ids)'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'datatype_ids' => $dt_ids
+                )
+            );
+            $rows = $query->execute();
+
+            if ($rows > 0)
+                print ' >> deleting '.$rows.' rows...';
+            print "\n\n";
+
 
             foreach ($query_targets as $classname => $relationships) {
                 foreach ($relationships as $relation => $target_entity) {
@@ -1530,95 +1658,6 @@ class ValidationController extends ODRCustomController
 
 
     /**
-     * Apparently child datatypes managed to get search slugs before Sept 2017...which causes problems
-     * when changing their properties because the form always submits their search_slug as an
-     * empty string...but this change causes DisplaytemplateController::datatypepropertiesAction()
-     * to run a regex that intentionally blocks blank search slugs...resulting in the inability to
-     * modify any property of a child datatype until their search slugs are set to null in the
-     * backend database.
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function childsearchslugfixAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        $save = false;
-//        $save = true;
-
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
-        try {
-
-            $query = $em->createQuery(
-               'SELECT dtm
-                FROM ODRAdminBundle:DataType AS gp_dt
-                JOIN ODRAdminBundle:DataType AS dt WITH dt.grandparent = gp_dt
-                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                WHERE gp_dt.id != dt.id AND dtm.searchSlug IS NOT NULL
-                AND gp_dt.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
-                ORDER BY gp_dt.id, dt.id'
-            );
-            /** @var DataTypeMeta[] $results */
-            $results = $query->getResult();
-
-            if (!$save) {
-                print '<pre> These are the child datatypes that would be modified to have a null search slug'."\n\n";
-                print '<table>';
-                print '<tr>';
-                print '<th>grandparent_id</th>';
-                print '<th>grandparent_name</th>';
-                print '<th>child_datatype_id</th>';
-                print '<th>child_datatype_name</th>';
-                print '<th>search_slug</th>';
-                print '</tr>';
-
-                foreach ($results as $result) {
-                    print '<tr>';
-                    print '<td>'.$result->getDataType()->getGrandparent()->getId().'</td>';
-                    print '<td>'.$result->getDataType()->getGrandparent()->getShortName().'</td>';
-                    print '<td>'.$result->getDataType()->getId().'</td>';
-                    print '<td>'.$result->getShortName().'</td>';
-                    print '<td>'.$result->getSearchSlug().'</td>';
-                    print '</tr>';
-                }
-
-                print '</table>';
-                print '</pre>';
-            }
-            else {
-                foreach ($results as $result) {
-                    $result->setSearchSlug(null);
-                    $em->persist($result);
-                }
-
-                $em->flush();
-            }
-        }
-        catch (\Exception $e) {
-            // Don't want any changes made being saved to the database
-            $em->clear();
-
-            $source = 0xba8a4083;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'text/html');
-        return $response;
-    }
-
-
-    /**
      * Theme elements should either be empty, or have one or more theme datafields, or exactly one
      * theme datatype entry.
      *
@@ -1685,5 +1724,313 @@ class ValidationController extends ODRCustomController
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
+    }
+
+
+    /**
+     * TODO
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function finddatatypeswithoutmasterthemesAction(Request $request)
+    {
+//        $top_level = false;
+        $top_level = true;
+
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        try {
+            $query = null;
+            if (!$top_level) {
+                $query = $em->createQuery(
+                   'SELECT dt.id AS dt_id, t.id AS t_id, t.themeType AS theme_type, p_t.id AS pt_id, s_t.id AS st_id
+                    FROM ODRAdminBundle:DataType AS dt
+                    LEFT JOIN ODRAdminBundle:Theme AS t WITH t.dataType = dt
+                    LEFT JOIN ODRAdminBundle:Theme AS p_t WITH t.parentTheme = p_t
+                    LEFT JOIN ODRAdminBundle:Theme AS s_t WITH t.sourceTheme = s_t
+                    WHERE 1=1 AND dt != dt.grandparent
+                    AND dt.deletedAt IS NULL AND t.deletedAt IS NULL AND s_t.deletedAt IS NULL
+                    AND p_t.deletedAt IS NULL
+                    ORDER BY dt.id'
+                )->setParameters(
+                    array(
+//                        'theme_type' => 'master'
+                    )
+                );
+            }
+            else {
+                $query = $em->createQuery(
+                   'SELECT dt.id AS dt_id, t.id AS t_id, t.themeType AS theme_type, p_t.id AS pt_id, s_t.id AS st_id
+                    FROM ODRAdminBundle:DataType AS dt
+                    LEFT JOIN ODRAdminBundle:Theme AS t WITH t.dataType = dt
+                    LEFT JOIN ODRAdminBundle:Theme AS p_t WITH t.parentTheme = p_t
+                    LEFT JOIN ODRAdminBundle:Theme AS s_t WITH t.sourceTheme = s_t
+                    WHERE 1=1 AND dt = dt.grandparent
+                    AND dt.deletedAt IS NULL AND t.deletedAt IS NULL AND s_t.deletedAt IS NULL
+                    AND p_t.deletedAt IS NULL
+                    ORDER BY dt.id'
+                )->setParameters(
+                    array(
+//                        'theme_type' => 'master'
+                    )
+                );
+            }
+            $results = $query->getArrayResult();
+
+//            dt = dt.grandparent AND t.themeType != :theme_type
+
+            print '<pre>';
+
+            $theme_data = array();
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $t_id = $result['t_id'];
+                $st_id = $result['st_id'];
+                $pt_id = $result['pt_id'];
+                $theme_type = $result['theme_type'];
+
+                if ( !isset($theme_data[$dt_id]) )
+                    $theme_data[$dt_id] = array();
+
+                $theme_data[$dt_id][$t_id] = array(
+                    'theme_type' => $theme_type,
+                    'source' => $st_id,
+                    'parent' => $pt_id,
+                );
+            }
+
+            print print_r($theme_data, true);
+
+            $datatypes_with_master_themes = array();
+            foreach ($theme_data as $dt_id => $theme_datum) {
+                if ( !isset($datatypes_with_master_themes[$dt_id]) )
+                    $datatypes_with_master_themes[$dt_id] = false;
+
+                foreach ($theme_datum as $t_id => $t_data) {
+                    $st_id = $t_data['source'];
+                    if ($t_id === $st_id)
+                        $datatypes_with_master_themes[$dt_id] = true;
+                }
+            }
+
+            foreach ($datatypes_with_master_themes as $dt_id => $value) {
+                if ($value === true)
+                    unset( $datatypes_with_master_themes[$dt_id] );
+            }
+
+            print print_r($datatypes_with_master_themes, true);
+            print count($datatypes_with_master_themes).' datatypes do not have correctly formatted master themes'."\n";
+
+
+            if ($top_level) {
+                // FIX TOP-LEVEL DATATYPES
+                $strings = array();
+                foreach ($datatypes_with_master_themes as $dt_id => $value) {
+                    print "----------------------------------------\n";
+                    print print_r($theme_data[$dt_id], true)."\n";
+
+                    $source_theme_id = null;
+                    foreach ($theme_data[$dt_id] as $t_id => $t_data) {
+                        if ($t_id == '' || $t_data['source'] == '')
+                            continue;
+
+                        if ($t_data['parent'] === $t_id)
+                            $source_theme_id = $t_id;
+                    }
+
+                    // Now that we've found the intended source theme...
+                    if (!is_null($source_theme_id)) {
+                        foreach ($theme_data[$dt_id] as $t_id => $t_data) {
+                            $string = "UPDATE odr_theme SET source_theme_id = ".$source_theme_id." WHERE id = ".$t_id.";\n";
+                            $strings[] = $string;
+
+                            print $string;
+                        }
+                    }
+                    print "\n";
+                }
+
+                print 'START TRANSACTION;'."\n";
+                foreach ($strings as $string)
+                    print $string;
+                print 'COMMIT;'."\n";
+            }
+            else {
+                // FIX CHILD DATATYPES
+                $strings = array();
+                foreach ($datatypes_with_master_themes as $dt_id => $value) {
+                    print "----------------------------------------\n";
+                    print print_r($theme_data[$dt_id], true)."\n";
+
+                    // Now that we've found the intended source theme...
+                    foreach ($theme_data[$dt_id] as $t_id => $t_data) {
+                        if ($t_id == '' || $t_data['source'] == '')
+                            continue;
+
+                        $string = "UPDATE odr_theme SET source_theme_id = ".$t_id." WHERE id = ".$t_id.";\n";
+                        $strings[] = $string;
+
+                        print $string;
+                    }
+                    print "\n";
+                }
+
+                print 'START TRANSACTION;'."\n";
+                foreach ($strings as $string)
+                    print $string;
+                print 'COMMIT;'."\n";
+            }
+
+            print '</pre>';
+
+            exit();
+        }
+        catch (\Exception $e) {
+            // Don't want any changes made being saved to the database
+            $em->clear();
+
+            $source = 0xfa5b93c9;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * TODO -
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function tracethemeancestoryAction(Request $request)
+    {
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
+
+            $query =
+               'SELECT
+                    t.id AS t_id, t.parent_theme_id, t.source_theme_id, t.data_type_id AS dt_id,
+                    tdt.child_theme_id, tdt.data_type_id AS child_datatype_id
+                FROM odr_theme t
+                JOIN odr_theme_element te ON te.theme_id = t.id
+                JOIN odr_theme_data_type tdt ON tdt.theme_element_id = te.id
+                WHERE t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL';
+
+            $results = $conn->fetchAll($query);
+//            exit('<pre>'.print_r($results, true).'</pre>');
+
+            $dt_map = array();
+            $data = array();
+            foreach ($results as $result) {
+                $dt_id = intval($result['dt_id']);
+                $pt_id = intval($result['parent_theme_id']);
+                $child_theme_id = intval($result['child_theme_id']);
+                $theme_id = intval($result['t_id']);
+
+                if ( !isset($data[$pt_id]) )
+                    $data[$pt_id] = array();
+
+                $data[$pt_id][$child_theme_id] = $theme_id;
+
+                $dt_map[$theme_id] = $dt_id;
+            }
+            print '<pre>'.print_r($data, true).'</pre>';
+
+            print '<pre>';
+            foreach ($data as $t_id => $datum) {
+                foreach ($datum as $child_theme_id => $parent_theme_id) {
+                    if ( $parent_theme_id !== $t_id && !isset($datum[$parent_theme_id]) )
+                        print 'theme '.$child_theme_id.' does not have an ancestor inside parent theme '.$t_id."\n";
+                }
+            }
+            print '</pre>';
+
+            exit();
+        }
+        catch (\Exception $e) {
+            $source = 0x5fc5aa02;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * A number of datafields in the database have a master datafield, but don't also have its
+     * associated field_uuid as their template_field_uuid...
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function fixmissingdatafielduuidsAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+        $conn = $em->getConnection();
+
+        try {
+            $conn->beginTransaction();
+
+            $query = $em->createQuery(
+               'SELECT df.id AS df_id, mdf.id AS mdf_id
+                FROM ODRAdminBundle:DataFields df
+                JOIN ODRAdminBundle:DataFields mdf WITH df.masterDataField = mdf
+                WHERE df.masterDataField IS NOT NULL AND df.templateFieldUuid IS NULL
+                AND df.deletedAt IS NULL AND mdf.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+            print '<pre>'.count($results).' datafields have a master datafield but no template_uuid'."\n";
+            foreach ($results as $result)
+                print '-- '.$result['df_id'].' => '.$result['mdf_id']."\n";
+
+            $sql =
+               'UPDATE odr_data_fields mdf, odr_data_fields df
+                SET df.template_field_uuid = mdf.field_uuid
+                WHERE df.master_datafield_id = mdf.id
+                AND df.master_datafield_id IS NOT NULL AND df.template_field_uuid IS NULL
+                AND df.deletedAt IS NULL AND mdf.deletedAt IS NULL';
+            $rows = $conn->executeUpdate($sql);
+            print 'updated '.$rows.' rows';
+            print '</pre>';
+
+            if ($save)
+                $conn->commit();
+            else
+                $conn->rollBack();
+        }
+        catch (\Exception $e) {
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollBack();
+
+            $source = 0x5fc5aa03;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
     }
 }

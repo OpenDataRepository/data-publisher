@@ -394,8 +394,8 @@ class DatatypeInfoService
            'SELECT
                 dt, dtm, 
                 partial mdt.{id, unique_id}, 
-                partial md.{id},
-                partial mf.{id},
+                partial md.{id, unique_id},
+                partial mf.{id, unique_id},
                 partial dt_cb.{id, username, email, firstName, lastName},
                 partial dt_ub.{id, username, email, firstName, lastName},
 

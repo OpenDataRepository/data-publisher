@@ -249,14 +249,9 @@ class SearchAPIService
      */
     public function performTemplateSearch($search_key, $user_permissions, $api_hijack = false, $search_as_super_admin = false)
     {
-//print '<pre>';
-//$function_start_time = microtime(true);
-//$start_time = microtime(true);
-
-        // Unlike the regular searching, this function doesn't need to filter the search key with
-        //  the list of searchable datafields...that'll take place later on during the actual
-        //  searching
-        // TODO - will not having $searchable_datafields available here impede general search implementation?
+        // ----------------------------------------
+        // Unlike regular searching, this function doesn't need to filter the search key with the
+        //  list of searchable datafields...that'll take place later on during the actual searching
         $criteria = $this->search_key_service->convertSearchKeyToTemplateCriteria($search_key);
 
         // Extract sort information from the search key if it exists
@@ -273,17 +268,13 @@ class SearchAPIService
         }
 
 
-//print 'criteria took: '.(microtime(true) - $start_time).'ms'."\n";
-//$start_time = microtime(true);
-
         // Need to grab hydrated versions of the datafields/datatypes being searched on
         $hydrated_entities = self::hydrateCriteria($criteria);
 
-//print 'hydration took: '.(microtime(true) - $start_time).'ms'."\n";
-//$start_time = microtime(true);
-
         // No longer need what type of search this is
         unset( $criteria['search_type'] );
+        // ...or the list of all templates
+        unset( $criteria['all_templates'] );
 
         // Easier for the rest of the searching if there's a shortcut for this...
         $top_level_datatype_ids = array();
@@ -294,13 +285,10 @@ class SearchAPIService
         }
 
 
+        // ----------------------------------------
         // Convert the search key into a format suitable for searching
         $searchable_datafields = self::getSearchableDatafieldsForUser($top_level_datatype_ids, $user_permissions, $search_as_super_admin);
 
-//print 'getting searchable datafields took: '.(microtime(true) - $start_time).'ms'."\n";
-//$start_time = microtime(true);
-
-        // ----------------------------------------
         // TODO - figure out a way to merge this section with hydrateCriteria()?
         // Each datatype being searched on (or the datatype of a datafield being search on) needs
         //  to be initialized to "-1" (does not match) before the results of each facet search
@@ -335,17 +323,12 @@ class SearchAPIService
         // Get the base information needed so getSearchArrays() can properly setup the search arrays
         $search_permissions = self::getSearchPermissionsArray($hydrated_entities['datatype'], $affected_datatypes, $user_permissions, $search_as_super_admin);
 
-//print 'getting search permissions took: '.(microtime(true) - $start_time).'ms'."\n";
-//$start_time = microtime(true);
-
         // Going to need these two arrays to be able to accurately determine which datarecords
         //  end up matching the query
         $search_arrays = self::getSearchArrays($top_level_datatype_ids, $search_permissions);
         $flattened_list = $search_arrays['flattened'];
         $inflated_list = $search_arrays['inflated'];
 
-//print 'getting search arrays took: '.(microtime(true) - $start_time).'ms'."\n";
-//$start_time = microtime(true);
 
         // An "empty" search run with no criteria needs to return all top-level datarecord ids
         $return_all_results = true;
@@ -388,7 +371,7 @@ class SearchAPIService
 
                     if ($typeclass === 'Boolean') {
                         // Only split from the text/number searches to avoid parameter confusion
-//                        $dr_list = $this->search_service->searchBooleanDatafield($entity, $search_term['value']);
+                        $results = $this->search_service->searchBooleanTemplateDatafield($entity, $search_term['value']);
                     }
                     else if ($typeclass === 'Radio' && $facet === 'general') {
                         // General search only provides a string, and only wants selected radio options
@@ -399,27 +382,23 @@ class SearchAPIService
                             // Apply the datatype/datafield/datarecord permissions now
                             return self::getfieldstatsFilter($results, $searchable_datafields, $flattened_list);
                         }
-                        else {
-                            // Don't care about the labels, discard them
-                            $results = $results['records'];
-                        }
                     }
                     else if ($typeclass === 'Radio' && $facet !== 'general') {
                         // The more specific version of searching a radio datafield provides an array of selected/deselected options
                         $results = $this->search_service->searchRadioTemplateDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
                     }
-//                    else if ($typeclass === 'File' || $typeclass === 'Image') {
+                    else if ($typeclass === 'File' || $typeclass === 'Image') {
                         // Searches on Files/Images are effectively interchangable
-//                        $dr_list = $this->search_service->searchFileOrImageDatafield($entity, $search_term['filename'], $search_term['has_files']);
-//                    }
-//                    else if ($typeclass === 'DatetimeValue') {
+                        $results = $this->search_service->searchFileOrImageTemplateDatafield($entity, $search_term['filename'], $search_term['has_files']);
+                    }
+                    else if ($typeclass === 'DatetimeValue') {
                         // DatetimeValue needs to worry about before/after...
-//                        $dr_list = $this->search_service->searchDatetimeDatafield($entity, $search_term['before'], $search_term['after']);
-//                    }
-//                    else {
-                        // Short/Medium/LongVarchar, Paragraph Text, Integer/DecimalValue, and DatetimeValue
-//                        $dr_list = $this->search_service->searchTextOrNumberDatafield($entity, $search_term['value']);
-//                    }
+                        $results = $this->search_service->searchDatetimeTemplateDatafield($entity, $search_term['before'], $search_term['after']);
+                    }
+                    else {
+                        // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
+                        $results = $this->search_service->searchTextOrNumberTemplateDatafield($entity, $search_term['value']);
+                    }
 //                }
 
 
@@ -483,7 +462,7 @@ class SearchAPIService
             if (!is_null($final_dr_list)) {
                 foreach ($final_dr_list as $dr_id => $num) {
                     // ...but only if they're not excluded because of public status
-                    if ($flattened_list[$dr_id] >= -1)
+                    if ( isset($flattened_list[$dr_id]) && $flattened_list[$dr_id] >= -1 )
                         $flattened_list[$dr_id] = 1;
                 }
             }
@@ -506,22 +485,13 @@ class SearchAPIService
         }
 
 
-//print 'searching took: '.(microtime(true) - $start_time).'ms'."\n";
-//$start_time = microtime(true);
-
         // ----------------------------------------
         // Need to transfer the values from $flattened_list into the tree structure of $inflated_list
         self::mergeSearchArrays($flattened_list, $inflated_list);
 
-//print 'merging search arrays took: '.(microtime(true) - $start_time).'ms'."\n";
-//$start_time = microtime(true);
-
         // Traverse $inflated_list to get the final set of datarecords that match the search
         $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list);
         $datarecord_ids = array_keys($datarecord_ids);
-
-//print 'getting matching datarecords took: '.(microtime(true) - $start_time).'ms'."\n";
-//$start_time = microtime(true);
 
         // Traverse the top-level of $inflated_list to get the grandparent datarecords that match
         //  the search
@@ -536,17 +506,17 @@ class SearchAPIService
 
         // Sort the resulting array
         $sorted_datarecord_list = array();
-        if ( !is_null($sort_df_uuid) )
+        if ( !is_null($sort_df_uuid) ) {
             $sorted_datarecord_list = $this->sort_service->sortDatarecordsByTemplateDatafield($sort_df_uuid, $sort_ascending, implode(',', $grandparent_ids));
-        else
+
+            // Convert from ($dr_id => $sort_value) into ($num => $dr_id)
+            $sorted_datarecord_list = array_keys($sorted_datarecord_list);
+        }
+        else {
+            // list is already in ($num => $dr_id) format
             $sorted_datarecord_list = $grandparent_ids;
+        }
 
-        // Convert from ($dr_id => $sort_value) into ($num => $dr_id)
-        $sorted_datarecord_list = array_keys($sorted_datarecord_list);
-
-
-//print 'sorting took: '.(microtime(true) - $start_time).'ms'."\n";
-//$start_time = microtime(true);
 
         // ----------------------------------------
         // Save/return the end result
@@ -554,11 +524,6 @@ class SearchAPIService
             'complete_datarecord_list' => $datarecord_ids,
             'grandparent_datarecord_list' => $sorted_datarecord_list,
         );
-
-//print 'total function took: '.(microtime(true) - $function_start_time).'ms'."\n";
-//print "\n".print_r($search_result, true)."\n";
-//print '</pre>';
-//exit();
 
         // There's not really any need or point to caching the end result
         return $search_result;
@@ -723,7 +688,7 @@ class SearchAPIService
                         $dr_list = $this->search_service->searchDatetimeDatafield($entity, $search_term['before'], $search_term['after']);
                     }
                     else {
-                        // Short/Medium/LongVarchar, Paragraph Text, Integer/DecimalValue, and DatetimeValue
+                        // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
                         $dr_list = $this->search_service->searchTextOrNumberDatafield($entity, $search_term['value']);
                     }
                 }
@@ -770,7 +735,7 @@ class SearchAPIService
             if (!is_null($final_dr_list)) {
                 foreach ($final_dr_list as $dr_id => $num) {
                     // ...but only if they're not excluded because of public status
-                    if ($flattened_list[$dr_id] >= -1)
+                    if ( isset($flattened_list[$dr_id]) && $flattened_list[$dr_id] >= -1 )
                         $flattened_list[$dr_id] = 1;
                 }
             }
@@ -804,21 +769,25 @@ class SearchAPIService
         // Traverse the top-level of $inflated_list to get the grandparent datarecords that match
         //  the search
         $grandparent_ids = array();
-        foreach ($inflated_list[$datatype->getId()] as $gp_id => $data) {
-            if ($flattened_list[$gp_id] == 1)
-                $grandparent_ids[] = $gp_id;
+        if ( isset($inflated_list[$datatype->getId()]) ) {
+            foreach ($inflated_list[$datatype->getId()] as $gp_id => $data) {
+                if ($flattened_list[$gp_id] == 1)
+                    $grandparent_ids[] = $gp_id;
+            }
         }
 
 
         // Sort the resulting array
         $sorted_datarecord_list = array();
-        if ($sort_df_id === 0)
-            $sorted_datarecord_list = $this->sort_service->getSortedDatarecordList($datatype->getId(), implode(',', $grandparent_ids));
-        else
-            $sorted_datarecord_list = $this->sort_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, implode(',', $grandparent_ids));
+        if ( !empty($grandparent_ids) ) {
+            if ($sort_df_id === 0)
+                $sorted_datarecord_list = $this->sort_service->getSortedDatarecordList($datatype->getId(), implode(',', $grandparent_ids));
+            else
+                $sorted_datarecord_list = $this->sort_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, implode(',', $grandparent_ids));
 
-        // Convert from ($dr_id => $sort_value) into ($num => $dr_id)
-        $sorted_datarecord_list = array_keys($sorted_datarecord_list);
+            // Convert from ($dr_id => $sort_value) into ($num => $dr_id)
+            $sorted_datarecord_list = array_keys($sorted_datarecord_list);
+        }
 
 
         // ----------------------------------------
@@ -848,14 +817,6 @@ class SearchAPIService
         $search_type = $criteria['search_type'];
         unset( $criteria['search_type'] );
 
-        $template_uuids = array();
-        if ($search_type === 'template') {
-            foreach ($criteria as $template_uuid => $data)
-                $template_uuids[] = $template_uuid;
-        }
-
-
-        // ----------------------------------------
         // Want to find all datafield entities listed in the criteria array
         $datafield_ids = array();
         foreach ($criteria as $facet => $data) {
@@ -886,7 +847,7 @@ class SearchAPIService
         if ( $search_type === 'datatype' )
             $datatypes = self::hydrateDatatypes($search_type, $criteria['all_datatypes']);
         else
-            $datatypes = self::hydrateDatatypes($search_type, $template_uuids);
+            $datatypes = self::hydrateDatatypes($search_type, $criteria['all_templates']);
 
 
         // ----------------------------------------

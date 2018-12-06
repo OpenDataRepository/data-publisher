@@ -887,9 +887,12 @@ class APIController extends ODRCustomController
             // Craft a search key specifically for this API call
             $params = array(
                 "template_uuid" => $template_uuid,
-                "general" => $template_field_uuid,    // TODO - make it some other key?
+                "field_stats" => $template_field_uuid,
             );
             $search_key = $search_key_service->encodeSearchKey($params);
+
+            // Don't need to validate the search key...don't want people to be able to run this
+            //  type of search without going through this action anyways
 
             $result = $search_api_service->performTemplateSearch(
                 $search_key,

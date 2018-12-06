@@ -1279,7 +1279,15 @@ odr_fix_setup_steps:
 odr_fix_database_dates:
     path: /admin/fix_dates
     defaults: { _controller: ODRAdminBundle:Validation:fixdatabasedates }
+# Child datatypes must have a null search slug
+odr_childtype_search_slug_fix:
+    path: /admin/childtype_search_slug_fix
+    defaults: { _controller: ODRAdminBundle:Validation:childsearchslugfix }
 
+# Theme_elements aren't allowed to have both theme_datatype and theme_datafield entries
+odr_find_overachieving_theme_elements:
+    path:  /admin/find_overachieving_theme_elements
+    defaults: { _controller: ODRAdminBundle:Validation:themeElementcheck }
 # Locates entities without meta entries
 odr_fix_missing_meta_entries:
     path: /admin/fix_meta_entries
@@ -1288,26 +1296,31 @@ odr_fix_missing_meta_entries:
 odr_find_duplicate_meta_entries:
     path: /admin/find_duplicate_meta_entries
     defaults: { _controller: ODRAdminBundle:Validation:findduplicatemetaentries }
+# Locate/delete a pile of child entities that make no sense when their parent entities are deleted
+odr_find_orphaned_entities:
+    path: /admin/find_orphaned_entities
+    defaults: { _controller: ODRAdminBundle:Validation:findorphanedentities }
 # Locates meta entries that refer to deleted entities
 odr_find_undeleted_meta_entries:
     path: /admin/find_undeleted_meta_entries
     defaults: { _controller: ODRAdminBundle:Validation:findundeletedmetaentries }
-odr_find_overachieving_theme_elements:
-    path:  /admin/find_overachieving_theme_elements
-    defaults: { _controller: ODRAdminBundle:Validation:themeElementcheck }
+# Locate themes that have the same parent_theme_id, but there's no theme_datatype trail to reach them
+odr_trace_theme_ancestory:
+    path: /admin/trace_theme_ancestory
+    defaults: { _controller: ODRAdminBundle:Validation:tracethemeancestory }
 
 # Ensures the values stored in the Theme -> ThemeElement -> ThemeDataType tables match the DataTree entities
 odr_fix_datatree_entries:
     path: /admin/fix_datatree_entries
     defaults: { _controller: ODRAdminBundle:Validation:fixdatatreeentries }
 
-odr_find_orphaned_entities:
-    path: /admin/find_orphaned_entities
-    defaults: { _controller: ODRAdminBundle:Validation:findorphanedentities }
-
-odr_childtype_search_slug_fix:
-    path: /admin/childtype_search_slug_fix
-    defaults: { _controller: ODRAdminBundle:Validation:childsearchslugfix }
+# zeta/epsilon has a whole mess of problems related to themes...
+odr_find_datatypes_without_master_themes:
+    path:  /admin/find_datatypes_without_master_themes
+    defaults: { _controller: ODRAdminBundle:Validation:finddatatypeswithoutmasterthemes }
+odr_fix_missing_datafield_template_uuids:
+    path:  /admin/fix_missing_datafield_template_uuids
+    defaults: { _controller: ODRAdminBundle:Validation:fixmissingdatafielduuids }
 
 #-----------------------------------------
 

@@ -84,8 +84,8 @@ class SearchCacheService
      */
     public function onDatatypeDelete($datatype)
     {
+        // ----------------------------------------
         $related_datatypes = $this->search_service->getRelatedDatatypes($datatype->getGrandparent()->getId());
-
         foreach ($related_datatypes as $num => $dt_id) {
             // Most likely, 'cached_search_dt_'.$dt_id.'_dr_parents' is the only entry that actually
             //  needs deleting, and then only when linked datatypes are involved...but being
@@ -98,6 +98,11 @@ class SearchCacheService
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_createdBy');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modified');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modifiedBy');
+        }
+
+        $related_datatypes = $this->search_service->getRelatedTemplateDatatypes($datatype->getGrandparent()->getUniqueId());
+        foreach ($related_datatypes as $num => $dt_uuid) {
+            $this->cache_service->delete('cached_search_template_dt_'.$dt_uuid.'_datafields');
         }
 
 
@@ -199,6 +204,7 @@ class SearchCacheService
     {
         // This entry has the datatype's public date in it, so it should be cleared
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
+        $this->cache_service->delete('cached_search_template_dt_'.$datatype->getUniqueId().'_datafields');
     }
 
 
@@ -213,6 +219,7 @@ class SearchCacheService
 
         // Need to delete these entries...
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
+        $this->cache_service->delete('cached_search_template_dt_'.$datatype->getUniqueId().'_datafields');
     }
 
 
@@ -275,6 +282,7 @@ class SearchCacheService
         // Also need to delete this entry
         $datatype = $datafield->getDataType();
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
+        $this->cache_service->delete('cached_search_template_dt_'.$datatype->getUniqueId().'_datafields');
     }
 
 
@@ -289,6 +297,9 @@ class SearchCacheService
 
         // Need to delete these entries...
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_datafields');
+
+        // "cached_search_template_dt_<template_uuid>_datafields"  does not store public dates, so
+        //  it doesn't need to be cleared
     }
 
 

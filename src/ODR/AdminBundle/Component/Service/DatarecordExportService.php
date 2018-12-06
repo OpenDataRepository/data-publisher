@@ -215,6 +215,8 @@ class DatarecordExportService
         $str = $this->templating->render(
             $template,
             array(
+                'sorted_datarecord_ids' => $datarecord_ids,    // Use the given array of datarecord ids to as the output order
+
                 'datatype_array' => $stacked_datatype_array,
                 'datarecord_array' => $stacked_datarecord_array,
                 'theme_array' => $stacked_theme_array,

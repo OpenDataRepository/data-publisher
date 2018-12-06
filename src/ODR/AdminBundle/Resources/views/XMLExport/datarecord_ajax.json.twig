@@ -7,7 +7,9 @@
 {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
 
 [
-{% for initial_datarecord_id, data in lookup_array %}
+{% for initial_datarecord_id in sorted_datarecord_ids %}
+    {% set data = lookup_array[initial_datarecord_id] %}
+
     {% set initial_datatype_id = data['datatype'] %}
     {% set initial_theme_id = data['theme'] %}
 
