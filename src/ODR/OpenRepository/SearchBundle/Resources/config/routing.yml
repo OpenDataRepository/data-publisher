@@ -1,3 +1,5 @@
+# NOTE: odr.search_slug_blacklist parameter is defined in SearchBundle/Resources/config/services.yml
+
 # ----------------------------------------
 odr_search_box:
     path:  /edit/search_box/{target_datatype_id}
@@ -72,73 +74,42 @@ odr_search_api_get_datarecord_single:
         _format: '|json|xml'
 
 
+# API for searching
+#odr_search_api_database_get:
+#    path: /api/{version}/search/databases/{json_key}/{limit}/{offset}.{_format}
+#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchDatabaseGet, _format: json }
+#    methods: [ GET ]
+#    requirements:
+#        version: 'v1'
+#        json_key: '[a-zA-Z0-9\=]+'    # this is base64 encoding of JSON, not an ODR search_key as used throughout other routes
+#        limit: \d+
+#        offset: \d+
+#        _format: '|json|xml'
+#
+#odr_search_api_database_post:
+#    path: /api/{version}/search/databases/{limit}/{offset}.{_format}
+#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchDatabasePost, _format: json }
+#    methods: [ POST ]
+#    requirements:
+#        version: 'v1'
+#        limit: \d+
+#        offset: \d+
+#        _format: '|json|xml'
 
-# API for cross template search
-odr_search_api_get_template_by_uuid_no_format:
-    path: /api/{version}/search/template/{template_uuid}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getTemplate, version: 'v1', _format: 'json' }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        template_uuid: '[a-z0-9]+'
-
-odr_search_api_get_template_by_uuid:
-    path: /api/{version}/search/template/{template_uuid}.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getTemplate, version: 'v1' }
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        template_uuid: '[a-z0-9]+'
-        _format: '|json|xml'
-
-odr_search_api_get_field_stats_by_uuid:
-    path: /api/{version}/search/field/stats/{template_uuid}/{template_field_uuid}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:search_field_stats, _format: 'json'}
-    methods: [ GET ]
-    requirements:
-        version: 'v1'
-        template_uuid: '[a-z0-9]+'
-        template_field_uuid: '[a-z0-9]+'
-
-odr_search_api_get_field_by_uuid:
-    path: /api/{version}/search/field/{template_field_uuid}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getfield }
+odr_search_api_template_get:
+    path: /api/{version}/search/{json_key}/{limit}/{offset}.{_format}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplateGet, _format: json }
     methods: [ GET ]
     requirements:
         version: 'v1'
-        template_field_uuid: '[a-z0-9]+'
-
-odr_search_api_get_record_no_format:
-    path: /api/{version}/search/record/{datarecord_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getrecord, _format: 'json' }
-    methods: [ GET ]
-    requirements:
-        version: 'v1'
-        datarecord_id: \d+
-
-odr_search_api_get_record:
-    path: /api/{version}/search/record/{datarecord_id}.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getrecord, _format: 'json', version: 'v1' }
-    methods: [ GET ]
-    requirements:
-        version: 'v1'
-        datarecord_id: \d+
-        _format: '|json|xml'
-
-odr_search_api_general_search:
-    path: /api/{version}/search/{search_key}/{limit}/{offset}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:search, limit: 0, offset: 0, _format: 'json'}
-    methods: [ GET ]
-    requirements:
-        version: 'v1'
-        search_key: '[a-zA-Z0-9\=]+'
+        json_key: '[a-zA-Z0-9\=]+'    # this is base64 encoding of JSON, not an ODR search_key as used throughout other routes
         limit: \d+
         offset: \d+
         _format: '|json|xml'
 
-odr_search_api_general_search_post:
-    path: /api/{version}/search/{limit}/{offset}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:search, limit: 0, offset: 0, _format: 'json'}
+odr_search_api_template_post:
+    path: /api/{version}/search/{limit}/{offset}.{_format}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePost, _format: json }
     methods: [ POST ]
     requirements:
         version: 'v1'
@@ -149,7 +120,8 @@ odr_search_api_general_search_post:
 # ----------------------------------------
 
 # ----------------------------------------
-# These routes MUST be the absolute last routes imported by ODR due to generic terms...they'll typically override any route imported later
+# These routes MUST be the absolute last routes imported by ODR due to generic terms...any route
+#  defined later will typically never get triggered because these routes match almost everything
 odr_search_immediate:
     path:  /{search_slug}/{search_string}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage }
@@ -161,10 +133,3 @@ odr_search:
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage, search_slug: '', search_string: '' }
     requirements:
         search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
-
-
-odr_search_find_landing:
-    path:  /admin/find/landing/{datatype_unique_id}
-    defaults: { _controller: ODRAdminBundle:Datatype:find_landing }
-    requirements:
-        datatype_unique_id: '[a-zA-Z0-9]+'

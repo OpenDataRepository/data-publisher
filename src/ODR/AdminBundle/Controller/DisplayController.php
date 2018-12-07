@@ -256,18 +256,18 @@ class DisplayController extends ODRCustomController
                 if ( is_null($sort_criteria) ) {
                     if (is_null($datatype->getSortField())) {
                         // ...this datarecord list is currently ordered by id
-                        $odr_tab_service->setSortCriteria($odr_tab_id, 0, 'ASC');
+                        $odr_tab_service->setSortCriteria($odr_tab_id, 0, 'asc');
                     }
                     else {
                         // ...this datarecord list is ordered by whatever the sort datafield for this datatype is
                         $sort_df_id = $datatype->getSortField()->getId();
-                        $odr_tab_service->setSortCriteria($odr_tab_id, $sort_df_id, 'ASC');
+                        $odr_tab_service->setSortCriteria($odr_tab_id, $sort_df_id, 'asc');
                     }
                 }
                 else {
                     // Load the criteria from the user's session
                     $sort_df_id = $sort_criteria['datafield_id'];
-                    if ($sort_criteria['sort_direction'] === 'DESC')
+                    if ($sort_criteria['sort_direction'] === 'desc')
                         $sort_ascending = false;
                 }
 

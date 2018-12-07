@@ -26,6 +26,7 @@ use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
+use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\Theme;
@@ -45,6 +46,7 @@ use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -1533,17 +1535,21 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
+     * TODO -
+     *
+     * @param string $uuid_type
      * @param Request $request
      *
      * @return Response
      */
-    public function setuniqueidsAction(Request $request)
+    public function setuniqueidsAction($uuid_type, Request $request)
     {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
 
+        // NOTE - go into the orm files for each of these entities and disable the gedmo timestampable on update first
         $save = false;
 //        $save = true;
 
@@ -1559,38 +1565,66 @@ $ret .= '  Set current to '.$count."\n";
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
 
+            if ($uuid_type === 'datatype') {
+                // Need all datatypes, as well as a list of which ones are top-level...
+                $top_level_datatype_ids = $dti_service->getTopLevelDatatypes();
 
-            // Need all datatypes, as well as a list of which ones are top-level...
-            $top_level_datatype_ids = $dti_service->getTopLevelDatatypes();
+                /** @var DataType[] $all_datatypes */
+                $all_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
 
-            /** @var DataType[] $all_datatypes */
-            $all_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
+                // Go through all the top-level datatypes first...
+                print '<pre>';
+                foreach ($all_datatypes as $dt) {
+                    if (in_array($dt->getId(), $top_level_datatype_ids)) {
+                        // If the top-level datatype has a unique_id but no template_group, fix that
+                        if ($dt->getUniqueId() !== '' && (is_null($dt->getTemplateGroup() || $dt->getTemplateGroup() === ''))) {
+                            $dt->setTemplateGroup($dt->getUniqueId());
 
-            // Go through all the top-level datatypes first...
-            print '<pre>';
-            foreach ($all_datatypes as $dt) {
-                if ( in_array($dt->getId(), $top_level_datatype_ids) ) {
-                    // If the top-level datatype has a unique_id but no template_group, fix that
-                    if ( $dt->getUniqueId() !== '' && ( is_null($dt->getTemplateGroup() || $dt->getTemplateGroup() === '') ) ) {
-                        $dt->setTemplateGroup( $dt->getUniqueId() );
+                            print 'set top-level datatype '.$dt->getId().' "'.$dt->getShortName().'" was missing a template_group, set to "'.$dt->getUniqueId().'"'."\n";
 
-                        print 'set top-level datatype '.$dt->getId().' "'.$dt->getShortName().'" was missing a template_group, set to "'.$dt->getUniqueId().'"'."\n";
+                            if ($save) {
+                                $em->persist($dt);
+                                $em->flush();
+                                $em->refresh($dt);
+                            }
+                        }
 
-                        if ($save) {
-                            $em->persist($dt);
-                            $em->flush();
-                            $em->refresh($dt);
+                        // If the top-level datatype does not have a unique_id, create one
+                        if (is_null($dt->getUniqueId()) || $dt->getUniqueId() === '') {
+                            $unique_id = $dti_service->generateDatatypeUniqueId();
+
+                            $dt->setUniqueId($unique_id);
+                            $dt->setTemplateGroup($unique_id);
+
+                            print 'set top-level datatype '.$dt->getId().' "'.$dt->getShortName().'" to have unique_id and template_group "'.$unique_id.'"'."\n";
+
+                            if ($save) {
+                                $em->persist($dt);
+                                $em->flush();
+                                $em->refresh($dt);
+                            }
                         }
                     }
+                }
 
-                    // If the top-level datatype does not have a unique_id, create one
-                    if ( is_null($dt->getUniqueId()) || $dt->getUniqueId() === '' ) {
-                        $unique_id = $dti_service->generateDatatypeUniqueId();
+                // ...now that the grandparent datatypes have unique_ids and template_groups, the
+                //  child datatypes can be set to use their grandparent's template_group...
+                foreach ($all_datatypes as $dt) {
+                    if (!in_array($dt->getId(), $top_level_datatype_ids)) {
+                        // Child datatypes should always match their grandparent's template_group...
+                        if ( $dt->getTemplateGroup() !== $dt->getGrandparent()->getTemplateGroup() ) {
+                            $dt->setTemplateGroup($dt->getGrandparent()->getTemplateGroup());
 
-                        $dt->setUniqueId($unique_id);
-                        $dt->setTemplateGroup($unique_id);
+                            print 'set child datatype '.$dt->getId().' "'.$dt->getShortName().'" to have template_group "'.$dt->getGrandparent()->getTemplateGroup().'"'."\n";
+                        }
 
-                        print 'set top-level datatype '.$dt->getId().' "'.$dt->getShortName().'" to have unique_id and template_group "'.$unique_id.'"'."\n";
+                        // If the child datatype does not have a unique_id, create one
+                        if (is_null($dt->getUniqueId()) || $dt->getUniqueId() === '') {
+                            $unique_id = $dti_service->generateDatatypeUniqueId();
+                            $dt->setUniqueId($unique_id);
+
+                            print 'set child datatype '.$dt->getId().' "'.$dt->getShortName().'" to have unique_id "'.$unique_id.'"'."\n";
+                        }
 
                         if ($save) {
                             $em->persist($dt);
@@ -1599,33 +1633,144 @@ $ret .= '  Set current to '.$count."\n";
                         }
                     }
                 }
+                print '</pre>';
             }
+            else if ($uuid_type === 'field') {
+                print '<pre>';
+                // Need to get all current ids in use in order to determine uniqueness of a new id...
+                $query = $em->createQuery(
+                   'SELECT df.fieldUuid
+                    FROM ODRAdminBundle:DataFields AS df
+                    WHERE df.deletedAt IS NULL and df.fieldUuid IS NOT NULL'
+                );
+                $results = $query->getArrayResult();
 
-            // ...now that the grandparent datatypes have unique_ids and template_groups, the
-            //  child datatypes can be set to use their grandparent's template_group...
-            foreach ($all_datatypes as $dt) {
-                if ( !in_array($dt->getId(), $top_level_datatype_ids) ) {
-                    // Child datatypes should always match their grandparent's template_group...
-                    $dt->setTemplateGroup( $dt->getGrandparent()->getTemplateGroup() );
+                $existing_ids = array();
+                foreach ($results as $num => $result)
+                    $existing_ids[ $result['fieldUuid'] ] = 1;
 
-                    print 'set child datatype '.$dt->getId().' "'.$dt->getShortName().'" to have template_group "'.$dt->getGrandparent()->getTemplateGroup().'"'."\n";
+                // Now that we have a list of the existing unique ids...
+                /** @var DataFields[] $datafields */
+                $datafields = $em->getRepository('ODRAdminBundle:DataFields')->findBy(
+                    array('fieldUuid' => null)
+                );
+                // Only ~7k datafields, easily done with a single query
 
-                    // If the child datatype does not have a unique_id, create one
-                    if ( is_null($dt->getUniqueId()) || $dt->getUniqueId() === '' ) {
-                        $unique_id = $dti_service->generateDatatypeUniqueId();
-                        $dt->setUniqueId($unique_id);
+                foreach ($datafields as $df) {
+                    // Keep generating ids until we come across one that's not in use
+                    $unique_id = UniqueUtility::uniqueIdReal();
+                    while ( isset($existing_ids[$unique_id]) )
+                        $unique_id = UniqueUtility::uniqueIdReal();
 
-                        print 'set child datatype '.$dt->getId().' "'.$dt->getShortName().'" to have unique_id "'.$unique_id.'"'."\n";
-                    }
+                    // Now that we found one that's not in use, save it...
+                    $df->setFieldUuid($unique_id);
 
-                    if ($save) {
-                        $em->persist($dt);
+                    print 'set datafield '.$df->getId().' to have unique id '.$unique_id."\n";
+
+                    // ...update the existing list of unique_ids so this one doesn't get used again
+                    $existing_ids[ $unique_id ] = 1;
+                    // ...and persist the datarecord
+                    if ($save)
+                        $em->persist($df);
+                }
+                print '</pre>';
+            }
+            else if ($uuid_type === 'radio') {
+                print '<pre>';
+                // Need to get all current ids in use in order to determine uniqueness of a new id...
+                $query = $em->createQuery(
+                   'SELECT ro.radioOptionUuid
+                    FROM ODRAdminBundle:RadioOptions AS ro
+                    WHERE ro.deletedAt IS NULL and ro.radioOptionUuid IS NOT NULL'
+                );
+                $results = $query->getArrayResult();
+
+                $existing_ids = array();
+                foreach ($results as $num => $result)
+                    $existing_ids[ $result['radioOptionUuid'] ] = 1;
+
+
+                // Now that we have a list of the existing unique ids...
+                /** @var RadioOptions[] $radio_options */
+                $radio_options = $em->getRepository('ODRAdminBundle:RadioOptions')->findBy(
+                    array('radioOptionUuid' => null)
+                );
+                // Appears to be able to work in a single call
+
+                foreach ($radio_options as $ro) {
+                    // Keep generating ids until we come across one that's not in use
+                    $unique_id = UniqueUtility::uniqueIdReal();
+                    while ( isset($existing_ids[$unique_id]) )
+                        $unique_id = UniqueUtility::uniqueIdReal();
+
+                    // Now that we found one that's not in use, save it...
+                    $ro->setRadioOptionUuid($unique_id);
+
+                    print 'set radio option '.$ro->getId().' to have unique id '.$unique_id."\n";
+
+                    // ...update the existing list of unique_ids so this one doesn't get used again
+                    $existing_ids[ $unique_id ] = 1;
+                    // ...and persist the datarecord
+                    if ($save)
+                        $em->persist($ro);
+                }
+                print '</pre>';
+            }
+            else if ($uuid_type === 'record') {
+                print '<pre>';
+                // Need to get all current ids in use in order to determine uniqueness of a new id...
+                $query = $em->createQuery(
+                   'SELECT dr.unique_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.deletedAt IS NULL and dr.unique_id IS NOT NULL'
+                );
+                $results = $query->getArrayResult();
+
+                $existing_ids = array();
+                foreach ($results as $num => $result)
+                    $existing_ids[ $result['unique_id'] ] = 1;
+
+
+                // Now that we have a list of the existing unique ids, load a pile of datarecords
+                //  that don't have a unique id yet
+                $query = $em->createQuery(
+                   'SELECT dr
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.unique_id IS NULL AND dr.deletedAt IS NULL'
+                );
+                // Can't go much above this, or the query will timeout apparently
+                $query->setMaxResults(15000);
+
+                /** @var DataRecord[] $datarecords */
+                $datarecords = $query->getResult();
+
+                $count = 0;
+                foreach ($datarecords as $dr) {
+                    // Keep generating ids until we come across one that's not in use
+                    $unique_id = UniqueUtility::uniqueIdReal();
+                    while ( isset($existing_ids[$unique_id]) )
+                        $unique_id = UniqueUtility::uniqueIdReal();
+
+                    // Now that we found one that's not in use, save it...
+                    $dr->setUniqueId($unique_id);
+
+                    print 'set datarecord '.$dr->getId().' to have unique id '.$unique_id."\n";
+                    $count++;
+
+                    // ...update the existing list of unique_ids so this one doesn't get used again
+                    $existing_ids[ $unique_id ] = 1;
+                    // ...and persist the datarecord
+                    if ($save)
+                        $em->persist($dr);
+
+                    if ($save && ($count % 5000) === 0 )
                         $em->flush();
-                        $em->refresh($dt);
-                    }
                 }
+                print '</pre>';
             }
-            print '</pre>';
+
+            if ($save)
+                $em->flush();
         }
         catch (\Exception $e) {
             $source = 0x74a51771;

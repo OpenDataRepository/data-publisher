@@ -36,7 +36,8 @@
                 <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make DataRecord Public</button>
             {% endif %}
         {% endif %}
-        <button type="button" class="pure-button pure-button-primary" onclick="exportXML({{ datarecord.id }})">Export DataRecord</button>
+        {# "datarecord.uniqueid" is required because the datarecord variable is hydrated...if it was an array, it would be "datarecord.unique_id" instead #}
+        <button type="button" class="pure-button pure-button-primary" onclick="exportDatarecord()">Export DataRecord</button>
     </div>
 </div>
 
@@ -80,12 +81,13 @@
     }
 {% endif %}
 
-    function exportXML(datarecord_id) {
-        var url = '{{ path('odr_export_datarecord_single', {'datarecord_id': datarecord.id, '_format': 'json' }) }}';
+    function exportDatarecord() {
+        // Default to JSON output
+        var url = "{{ path('odr_api_get_datarecord_single', {'datarecord_uuid': datarecord.uniqueid, 'version': 'v1' }) }}";
+        url += '?download=file';
+
         document.location = url;
     }
-
-
 </script>
 
 {# import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js #}

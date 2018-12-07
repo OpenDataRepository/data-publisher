@@ -4,6 +4,10 @@ ODR\AdminBundle\Entity\RadioOptions:
     gedmo:
         soft_deleteable:
             field_name: deletedAt
+    indexes:
+        uuid_index:
+            columns: [ radio_option_uuid ]
+
     fields:
         id:
             id: true

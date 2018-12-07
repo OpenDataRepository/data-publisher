@@ -4,6 +4,12 @@ ODR\AdminBundle\Entity\DataFields:
     gedmo:
         soft_deleteable:
             field_name: deletedAt
+    indexes:
+        field_uuid_index:
+            columns: [ field_uuid ]
+        template_uuid_index:
+            columns: [ template_field_uuid ]
+
     fields:
         id:
             id: true

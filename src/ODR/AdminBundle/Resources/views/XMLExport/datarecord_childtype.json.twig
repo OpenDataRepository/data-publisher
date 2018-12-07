@@ -4,8 +4,10 @@
 {% set theme = theme_array[target_theme_id] %}
 {% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
 
-{# all lists of datarecords are wrapped in an array structure #}
+{# all lists of datarecords are wrapped in an array structure...top-level wrapper taken care of in datarecord_ajax.json.twig #}
+{% if is_top_level == 0 %}
 "records": [
+{% endif %}
 {# ---------- #}
 
 {% for dr_id, datarecord in datarecord_array %}
@@ -15,14 +17,32 @@
     {# ---------- #}
 
         "internal_id": {{ datarecord.id }},
+        "unique_id": "{{ datarecord.unique_id }}",
         "external_id": {{ datarecord.externalIdField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
         "record_name": {{ datarecord.nameField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
 
+        "datatype_uuid": "{{ datatype.unique_id }}",
         {% set master_datatype_unique_id = "" %}
         {% if datatype.masterDataType is not null %}
             {% set master_datatype_unique_id = datatype.masterDataType.unique_id %}
         {% endif %}
         "template_uuid": "{{ master_datatype_unique_id }}",
+
+        {% set metadata_datatype_unique_id = "" %}
+        {% if datatype.metadata_datatype is not null %}
+            {% set metadata_datatype_unique_id = datatype.metadata_datatype.unique_id %}
+        {% endif %}
+        "metadata_uuid": "{{ metadata_datatype_unique_id }}",
+
+        {% set metadata_for_unique_id = "" %}
+        {% if datatype.metadata_for is not null %}
+            {% set metadata_for_unique_id = datatype.metadata_for.unique_id %}
+        {% endif %}
+        "metadata_for_uuid": "{{ metadata_for_unique_id }}",
+
+        {% if is_top_level == 1 %}
+        "search_slug": {{ datatype.dataTypeMeta.searchSlug|json_encode|raw }},    {# lack of surrounding quotation makrs necessary #}
+        {% endif %}
 
     {% if using_metadata == true %}
         {# display metadata and datafields for top-level and child datarecords #}
@@ -57,8 +77,10 @@
 
 {% endfor %}
 
-{# all lists of datarecords are wrapped in an array structure #}
+{# all lists of datarecords are wrapped in an array structure...top-level wrapper taken care of in datarecord_ajax.json.twig #}
+{% if is_top_level == 0 %}
 ]
+{% endif %}
 {# ---------- #}
 
 {% endmacro %}

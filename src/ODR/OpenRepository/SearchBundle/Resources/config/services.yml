@@ -16,6 +16,7 @@ services:
             search_service: "@odr.search_service"
             search_cache_service: "@odr.search_cache_service"
             search_key_service: "@odr.search_key_service"
+            sort_service: "@odr.sort_service"
             logger: "@logger"
 
     odr.search_cache_service:

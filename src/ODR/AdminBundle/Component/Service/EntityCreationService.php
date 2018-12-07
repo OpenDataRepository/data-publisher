@@ -33,6 +33,11 @@ class EntityCreationService
     private $em;
 
     /**
+     * @var DatarecordInfoService
+     */
+    private $dri_service;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -42,13 +47,16 @@ class EntityCreationService
      * EntityCreationService constructor.
      *
      * @param EntityManager $entityManager
+     * @param DatarecordInfoService $datarecordInfoService
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entityManager,
+        DatarecordInfoService $datarecordInfoService,
         Logger $logger
     ) {
         $this->em = $entityManager;
+        $this->dri_service = $datarecordInfoService;
 
         $this->logger = $logger;
     }
@@ -63,7 +71,7 @@ class EntityCreationService
      * @param bool $delay_flush
      *
      * @return DataRecord
-     * @throws \Doctrine\ORM\OptimisticLockException
+     * @throws \Exception
      */
     public function createDatarecord($user, $datatype, $delay_flush = false)
     {
@@ -79,7 +87,7 @@ class EntityCreationService
         $datarecord->setGrandparent($datarecord);
 
         $datarecord->setProvisioned(true);  // Prevent most areas of the site from doing anything with this datarecord...whatever created this datarecord needs to eventually set this to false
-        $datarecord->setUniqueId(null);
+        $datarecord->setUniqueId( $this->dri_service->generateDatarecordUniqueId() );
 
         $this->em->persist($datarecord);
 

@@ -6,8 +6,10 @@
 {% set theme = theme_array[target_theme_id] %}
 {% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
 
-{# all lists of datarecords are wrapped #}
+{# all lists of datarecords are wrapped...top-level wrapper taken care of in datarecord_ajax.xml.twig #}
+{% if is_top_level == 0 %}
 <records>
+{% endif %}
 
 {% for dr_id, datarecord in datarecord_array %}
 
@@ -15,14 +17,32 @@
     <record>
 
         <internal_id>{{ datarecord.id }}</internal_id>
+        <unique_id>{{ datarecord.unique_id }}</unique_id>
         <external_id>{{ datarecord.externalIdField_value|xml }}</external_id>
         <record_name>{{ datarecord.nameField_value|xml }}</record_name>
 
+        <datatype_uuid>{{ datatype.unique_id }}</datatype_uuid>
         {% set master_datatype_unique_id = "" %}
         {% if datatype.masterDataType is not null %}
             {% set master_datatype_unique_id = datatype.masterDataType.unique_id %}
         {% endif %}
         <template_uuid>{{ master_datatype_unique_id }}</template_uuid>
+
+        {% set metadata_datatype_unique_id = "" %}
+        {% if datatype.metadata_datatype is not null %}
+            {% set metadata_datatype_unique_id = datatype.metadata_datatype.unique_id %}
+        {% endif %}
+        <metadata_uuid>{{ metadata_datatype_unique_id }}</metadata_uuid>
+
+        {% set metadata_for_unique_id = "" %}
+        {% if datatype.metadata_for is not null %}
+            {% set metadata_for_unique_id = datatype.metadata_for.unique_id %}
+        {% endif %}
+        <metadata_for_uuid>{{ metadata_for_unique_id }}</metadata_for_uuid>
+
+        {% if is_top_level == 1 %}
+         <search_slug>{{ datatype.dataTypeMeta.searchSlug|xml }}</search_slug>
+        {% endif %}
 
     {% if using_metadata == true %}
         {# display metadata and datafields for top-level and child datarecords #}
@@ -56,8 +76,10 @@
 
 {% endfor %}
 
-{# all lists of datarecords are wrapped #}
+{# all lists of datarecords are wrapped...top-level wrapper taken care of in datarecord_ajax.xml.twig #}
+{% if is_top_level == 0 %}
 </records>
+{% endif %}
 
 {% endspaceless %}
 

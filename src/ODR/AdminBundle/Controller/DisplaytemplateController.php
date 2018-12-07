@@ -4826,32 +4826,4 @@ if ($debug)
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
-
-
-    public function setuuidsAction($uuid_type, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-
-            $dti_service->addUUIDs($uuid_type);
-
-            $return['d'] = array('html' => 'Done [' . random_int(1000000,9999999) . ']');
-        } catch (\Exception $e) {
-            $source = 0x71382afe;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
 }

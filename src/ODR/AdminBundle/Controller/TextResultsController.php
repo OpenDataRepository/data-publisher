@@ -29,9 +29,9 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
@@ -80,10 +80,10 @@ class TextResultsController extends ODRCustomController
 
             // Need to also deal with requests for a sorted table...
             $sort_column = 0;
-            $sort_dir = 'ASC';
+            $sort_dir = 'asc';
             if ( isset($post['order']) && isset($post['order']['0']) ) {
                 $sort_column = intval( $post['order']['0']['column'] );
-                $sort_dir = strtoupper( $post['order']['0']['dir'] );
+                $sort_dir = strtolower( $post['order']['0']['dir'] );
             }
 
 
@@ -100,8 +100,6 @@ class TextResultsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->container->get('odr.tab_helper_service');
             /** @var PermissionsManagementService $pm_service */
@@ -110,6 +108,8 @@ class TextResultsController extends ODRCustomController
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
             /** @var TableThemeHelperService $tth_service */
             $tth_service = $this->container->get('odr.table_theme_helper_service');
 
@@ -173,7 +173,7 @@ class TextResultsController extends ODRCustomController
                 //  keeping around just in case
 
                 // Grab the sorted list of datarecords for this datatype
-                $list = $dti_service->getSortedDatarecordList($datatype->getId());
+                $list = $sort_service->getSortedDatarecordList($datatype->getId());
                 // Convert the list into a comma-separated string
                 $original_datarecord_list = array_keys($list);
             }
@@ -209,7 +209,7 @@ class TextResultsController extends ODRCustomController
 
             // Convert sort direction into a boolean for later...
             $sort_ascending = true;
-            if ($sort_dir == 'DESC')
+            if ($sort_dir == 'desc')
                 $sort_ascending = false;
 
 
@@ -232,18 +232,18 @@ class TextResultsController extends ODRCustomController
                 if ( is_null($sort_criteria) ) {
                     if (is_null($datatype->getSortField())) {
                         // ...this datarecord list is currently ordered by id
-                        $odr_tab_service->setSortCriteria($odr_tab_id, 0, 'ASC');
+                        $odr_tab_service->setSortCriteria($odr_tab_id, 0, 'asc');
                     }
                     else {
                         // ...this datarecord list is ordered by whatever the sort datafield for this datatype is
                         $sort_df_id = $datatype->getSortField()->getId();
-                        $odr_tab_service->setSortCriteria($odr_tab_id, $sort_df_id, 'ASC');
+                        $odr_tab_service->setSortCriteria($odr_tab_id, $sort_df_id, 'asc');
                     }
                 }
                 else {
                     // Load the criteria from the user's session
                     $sort_df_id = $sort_criteria['datafield_id'];
-                    if ($sort_criteria['sort_direction'] === 'DESC')
+                    if ($sort_criteria['sort_direction'] === 'desc')
                         $sort_ascending = false;
                 }
 

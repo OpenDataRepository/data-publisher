@@ -42,11 +42,12 @@ security:
 
             context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
 
-        api:
-            pattern:    ^/api
-            fos_oauth:  true
-            stateless:  true
-            anonymous:  true
+        # currently disabled because there's no route using this...
+#        api:
+#            pattern:    ^/oauth_api
+#            fos_oauth:  true
+#            stateless:  true
+#            anonymous:  true
 
         main:
             pattern: ^/

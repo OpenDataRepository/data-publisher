@@ -18,6 +18,7 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 // Services
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\SortService;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -52,6 +53,11 @@ class SearchAPIService
     private $search_key_service;
 
     /**
+     * @var SortService
+     */
+    private $sort_service;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -65,6 +71,7 @@ class SearchAPIService
      * @param SearchService $searchService
      * @param SearchCacheService $searchCacheService
      * @param SearchKeyService $searchKeyService
+     * @param SortService $sortService
      * @param Logger $logger
      */
     public function __construct(
@@ -73,6 +80,7 @@ class SearchAPIService
         SearchService $searchService,
         SearchCacheService $searchCacheService,
         SearchKeyService $searchKeyService,
+        SortService $sortService,
         Logger $logger
     ) {
         $this->em = $entityManager;
@@ -80,6 +88,7 @@ class SearchAPIService
         $this->search_service = $searchService;
         $this->search_cache_service = $searchCacheService;
         $this->search_key_service = $searchKeyService;
+        $this->sort_service = $sortService;
         $this->logger = $logger;
     }
 
@@ -88,14 +97,14 @@ class SearchAPIService
      * Returns an array of searchable datafield ids, filtered to what the user can see, and
      * organized by their datatype id.
      *
-     * @param int $top_level_datatype_id
+     * @param int[] $top_level_datatype_ids
      * @param array $user_permissions The permissions of the user doing the search, or an empty
      *                                array when not logged in
      * @param bool $search_as_super_admin If true, don't filter anything by permissions
      *
      * @return array
      */
-    public function getSearchableDatafieldsForUser($top_level_datatype_id, $user_permissions, $search_as_super_admin = false)
+    public function getSearchableDatafieldsForUser($top_level_datatype_ids, $user_permissions, $search_as_super_admin = false)
     {
         // Going to need to filter the resulting list based on the user's permissions
         $datatype_permissions = array();
@@ -106,48 +115,54 @@ class SearchAPIService
             $datafield_permissions = $user_permissions['datafields'];
 
 
-        // Get all possible datafields that can be searched on for this datatype
-        $searchable_datafields = $this->search_service->getSearchableDatafields($top_level_datatype_id);
-        foreach ($searchable_datafields as $dt_id => $datatype_data) {
-            $is_public = true;
-            if ( $datatype_data['dt_public_date'] === '2200-01-01' )
-                $is_public = false;
+        $all_searchable_datafields = array();
+        foreach ($top_level_datatype_ids as $num => $top_level_datatype_id) {
+            // Get all possible datafields that can be searched on for this datatype
+            $searchable_datafields = $this->search_service->getSearchableDatafields($top_level_datatype_id);
+            foreach ($searchable_datafields as $dt_id => $datatype_data) {
+                $is_public = true;
+                if ($datatype_data['dt_public_date'] === '2200-01-01')
+                    $is_public = false;
 
-            $can_view_dt = false;
-            if ($search_as_super_admin)
-                $can_view_dt = true;
-            else if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']) )
-                $can_view_dt = true;
+                $can_view_dt = false;
+                if ($search_as_super_admin)
+                    $can_view_dt = true;
+                else if (isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']))
+                    $can_view_dt = true;
 
-            if ( !$is_public && !$can_view_dt ) {
-                // User can't view datatype, filter it out
-                unset( $searchable_datafields[$dt_id] );
-            }
-            else {
-                // User can view datatype, filter datafields if needed...public datafields are always
-                //  visible when the datatype can be viewed
-                foreach ($datatype_data['datafields']['non_public'] as $df_id => $datafield_data) {
-                    $can_view_df = false;
-                    if ($search_as_super_admin)
-                        $can_view_df = true;
-                    else if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
-                        $can_view_df = true;
-
-                    // If user can view datafield, move it out of the non_public section
-                    if ( $can_view_df )
-                        $searchable_datafields[$dt_id]['datafields'][$df_id] = $datafield_data;
+                if (!$is_public && !$can_view_dt) {
+                    // User can't view datatype, filter it out
+                    unset($searchable_datafields[$dt_id]);
                 }
+                else {
+                    // User can view datatype, filter datafields if needed...public datafields are always
+                    //  visible when the datatype can be viewed
+                    foreach ($datatype_data['datafields']['non_public'] as $df_id => $datafield_data) {
+                        $can_view_df = false;
+                        if ($search_as_super_admin)
+                            $can_view_df = true;
+                        else if (isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']))
+                            $can_view_df = true;
 
-                // Get rid of the non_public section
-                unset( $searchable_datafields[$dt_id]['datafields']['non_public'] );
+                        // If user can view datafield, move it out of the non_public section
+                        if ($can_view_df)
+                            $searchable_datafields[$dt_id]['datafields'][$df_id] = $datafield_data;
+                    }
 
-                // Only want the array of datafield ids that the user can see
-                $searchable_datafields[$dt_id] = $searchable_datafields[$dt_id]['datafields'];
+                    // Get rid of the non_public section
+                    unset($searchable_datafields[$dt_id]['datafields']['non_public']);
+
+                    // Only want the array of datafield ids that the user can see
+                    $searchable_datafields[$dt_id] = $searchable_datafields[$dt_id]['datafields'];
+                }
             }
+
+            foreach ($searchable_datafields as $dt_id => $data)
+                $all_searchable_datafields[$dt_id] = $data;
         }
 
         // Return the final list
-        return $searchable_datafields;
+        return $all_searchable_datafields;
     }
 
 
@@ -171,7 +186,7 @@ class SearchAPIService
         $filtered_search_params = array();
 
         // Get all the datatypes/datafields the user is allowed to search on...
-        $searchable_datafields = self::getSearchableDatafieldsForUser($datatype->getId(), $user_permissions, $search_as_super_admin);
+        $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions, $search_as_super_admin);
 
         foreach ($search_params as $key => $value) {
             if ($key === 'dt_id' || $key === 'gen') {
@@ -222,6 +237,350 @@ class SearchAPIService
 
 
     /**
+     * Runs a cross-template search specified by the given $search_key.  The end result is filtered
+     * based on the user's permissions.
+     *
+     * @param string $search_key
+     * @param array $user_permissions
+     * @param bool $api_hijack If true, run a single search and abort before merging facets together
+     * @param bool $search_as_super_admin If true, bypass all permissions checking
+     *
+     * @return array
+     */
+    public function performTemplateSearch($search_key, $user_permissions, $api_hijack = false, $search_as_super_admin = false)
+    {
+        // ----------------------------------------
+        // Unlike regular searching, this function doesn't need to filter the search key with the
+        //  list of searchable datafields...that'll take place later on during the actual searching
+        $criteria = $this->search_key_service->convertSearchKeyToTemplateCriteria($search_key);
+
+        // Extract sort information from the search key if it exists
+        $sort_df_uuid = null;
+        $sort_ascending = true;
+        if ( isset($criteria['sort_by']) ) {
+            $sort_df_uuid = $criteria['sort_by']['sort_df_uuid'];
+
+            if ( $criteria['sort_by']['sort_dir'] === 'desc' )
+                $sort_ascending = false;
+
+            // Sort criteria extracted, get rid of it so the search isn't messed up
+            unset( $criteria['sort_by'] );
+        }
+
+
+        // Need to grab hydrated versions of the datafields/datatypes being searched on
+        $hydrated_entities = self::hydrateCriteria($criteria);
+
+        // No longer need what type of search this is
+        unset( $criteria['search_type'] );
+        // ...or the list of all templates
+        unset( $criteria['all_templates'] );
+
+        // Easier for the rest of the searching if there's a shortcut for this...
+        $top_level_datatype_ids = array();
+        foreach ($hydrated_entities['datatype'] as $dt_id => $dt) {
+            /** @var DataType $dt */
+            if ( $dt->getId() === $dt->getGrandparent()->getId() )
+                $top_level_datatype_ids[] = $dt_id;
+        }
+
+
+        // ----------------------------------------
+        // Convert the search key into a format suitable for searching
+        $searchable_datafields = self::getSearchableDatafieldsForUser($top_level_datatype_ids, $user_permissions, $search_as_super_admin);
+
+        // TODO - figure out a way to merge this section with hydrateCriteria()?
+        // Each datatype being searched on (or the datatype of a datafield being search on) needs
+        //  to be initialized to "-1" (does not match) before the results of each facet search
+        //  are merged together into the final array
+        $affected_datafields = array();
+        foreach ($criteria as $dt_uuid => $dt_criteria) {
+            foreach ($dt_criteria['search_terms'] as $df_uuid => $df_criteria)
+                $affected_datafields[$df_uuid] = 1;
+        }
+        $affected_datafields = array_keys($affected_datafields);
+
+        // Need to get all datatypes that have the template datafields being searched on...
+        $query = $this->em->createQuery(
+           'SELECT dt.id AS dt_id
+            FROM ODRAdminBundle:DataFields AS mdf
+            JOIN ODRAdminBundle:DataType AS mdt WITH mdf.dataType = mdt
+            JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
+            WHERE mdf.fieldUuid IN (:field_uuids)
+            AND mdf.deletedAt IS NULL AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL'
+        )->setParameters( array('field_uuids' => $affected_datafields) );
+        $results = $query->getArrayResult();
+
+        $affected_datatypes = array();
+        foreach ($results as $result) {
+            $dt_id = $result['dt_id'];
+            $affected_datatypes[$dt_id] = 1;
+        }
+        $affected_datatypes = array_keys($affected_datatypes);
+
+
+        // ----------------------------------------
+        // Get the base information needed so getSearchArrays() can properly setup the search arrays
+        $search_permissions = self::getSearchPermissionsArray($hydrated_entities['datatype'], $affected_datatypes, $user_permissions, $search_as_super_admin);
+
+        // Going to need these two arrays to be able to accurately determine which datarecords
+        //  end up matching the query
+        $search_arrays = self::getSearchArrays($top_level_datatype_ids, $search_permissions);
+        $flattened_list = $search_arrays['flattened'];
+        $inflated_list = $search_arrays['inflated'];
+
+
+        // An "empty" search run with no criteria needs to return all top-level datarecord ids
+        $return_all_results = true;
+
+        // Need to keep track of the result list for each facet separately...they end up merged
+        //  together after all facets are searched on
+        $facet_dr_list = array();
+        foreach ($criteria as $facet => $facet_data) {
+            // Don't return all top-level datarecord ids at the end
+            $return_all_results = false;
+
+            // Need to keep track of the matches for each facet individually
+            $facet_dr_list[$facet] = null;
+            $merge_type = $facet_data['merge_type'];
+            $search_terms = $facet_data['search_terms'];
+
+            // For each search term within this facet...
+            foreach ($search_terms as $key => $search_term) {
+                // ...extract the entity for this search term
+                $entity_type = $search_term['entity_type'];
+                $entity_id = $search_term['entity_id'];
+                /** @var DataType|DataFields $entity */
+                $entity = $hydrated_entities[$entity_type][$entity_id];
+
+                // Run/load the desired query based on the criteria
+                $results = array();
+//                if ($key === 'created')
+//                    $dr_list = $this->search_service->searchCreatedDate($entity, $search_term['before'], $search_term['after']);
+//                else if ($key === 'createdBy')
+//                    $dr_list = $this->search_service->searchCreatedBy($entity, $search_term['user']);
+//                else if ($key === 'modified')
+//                    $dr_list = $this->search_service->searchModifiedDate($entity, $search_term['before'], $search_term['after']);
+//                else if ($key === 'modifiedBy')
+//                    $dr_list = $this->search_service->searchModifiedBy($entity, $search_term['user']);
+//                else if ($key === 'publicStatus')
+//                    $dr_list = $this->search_service->searchPublicStatus($entity, $search_term['value']);
+//                else {
+                    // Datafield search depends on the typeclass of the field
+                    $typeclass = $entity->getFieldType()->getTypeClass();
+
+                    if ($typeclass === 'Boolean') {
+                        // Only split from the text/number searches to avoid parameter confusion
+                        $results = $this->search_service->searchBooleanTemplateDatafield($entity, $search_term['value']);
+                    }
+                    else if ($typeclass === 'Radio' && $facet === 'general') {
+                        // General search only provides a string, and only wants selected radio options
+                        $results = $this->search_service->searchForSelectedRadioTemplateOptions($entity, $search_term['value']);
+
+                        if ($api_hijack) {
+                            // For API purposes, sometimes the search needs to abort early
+                            // Apply the datatype/datafield/datarecord permissions now
+                            return self::getfieldstatsFilter($results, $searchable_datafields, $flattened_list);
+                        }
+                    }
+                    else if ($typeclass === 'Radio' && $facet !== 'general') {
+                        // The more specific version of searching a radio datafield provides an array of selected/deselected options
+                        $results = $this->search_service->searchRadioTemplateDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
+                    }
+                    else if ($typeclass === 'File' || $typeclass === 'Image') {
+                        // Searches on Files/Images are effectively interchangable
+                        $results = $this->search_service->searchFileOrImageTemplateDatafield($entity, $search_term['filename'], $search_term['has_files']);
+                    }
+                    else if ($typeclass === 'DatetimeValue') {
+                        // DatetimeValue needs to worry about before/after...
+                        $results = $this->search_service->searchDatetimeTemplateDatafield($entity, $search_term['before'], $search_term['after']);
+                    }
+                    else {
+                        // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
+                        $results = $this->search_service->searchTextOrNumberTemplateDatafield($entity, $search_term['value']);
+                    }
+//                }
+
+
+                // ----------------------------------------
+                // Filter out the results from $dr_list that are from datatypes/datafields the user
+                //  isn't allowed to see...
+                $tmp_dr_list = array();
+                foreach ($results as $dt_id => $df_list) {
+                    if ( isset($searchable_datafields[$dt_id]) ) {
+                        foreach ($df_list as $df_id => $dr_list) {
+                            if ( isset($searchable_datafields[$dt_id][$df_id]) ) {
+                                foreach ($dr_list as $dr_id => $num)
+                                    $tmp_dr_list[$dr_id] = 1;
+                            }
+                        }
+                    }
+                }
+                // ...after the filtering is done, we only care about the datarecord ids
+                $dr_list = array(
+                    'records' => $tmp_dr_list
+                );
+
+
+                // Need to merge this result with the existing matches for this facet
+                if ($merge_type === 'OR') {
+                    if ( is_null($facet_dr_list[$facet]) )
+                        $facet_dr_list[$facet] = array();
+
+                    // Merging by 'OR' criteria...every datarecord returned from the search matches
+                    foreach ($dr_list['records'] as $dr_id => $num)
+                        $facet_dr_list[$facet][$dr_id] = $num;
+                }
+                else {
+                    // Merging by 'AND' criteria...if this is the first (or only) criteria...
+                    if ( is_null($facet_dr_list[$facet]) ) {
+                        // ...use the datarecord list returned by the first search
+                        $facet_dr_list[$facet] = $dr_list['records'];
+                    }
+                    else {
+                        // Otherwise, intersect the list returned by the search with the existing list
+                        $facet_dr_list[$facet] = array_intersect_key($facet_dr_list[$facet], $dr_list['records']);
+                    }
+                }
+            }
+        }
+
+
+        // ----------------------------------------
+        // In most cases, there will be a number of different datarecord lists by this point...
+        if (!$return_all_results) {
+            // Perform the final merge, getting all facets down into a single list of matching datarecords
+            $final_dr_list = null;
+            foreach ($facet_dr_list as $facet => $dr_list) {
+                if (is_null($final_dr_list))
+                    $final_dr_list = $dr_list;
+                else
+                    $final_dr_list = array_intersect_key($final_dr_list, $dr_list);
+            }
+
+            // Need to transfer the values from $facet_dr_list into $flattened_list...
+            if (!is_null($final_dr_list)) {
+                foreach ($final_dr_list as $dr_id => $num) {
+                    // ...but only if they're not excluded because of public status
+                    if ( isset($flattened_list[$dr_id]) && $flattened_list[$dr_id] >= -1 )
+                        $flattened_list[$dr_id] = 1;
+                }
+            }
+            else if (count($criteria) === 0) {
+                // If a search was run without criteria, then everything that the user can see
+                //  matches the search
+                foreach ($flattened_list as $dr_id => $num) {
+                    if ($num >= -1)
+                        $flattened_list[$dr_id] = 1;
+                }
+            }
+        }
+        else {
+            // ...but when no search criteria was specified, then every datarecord that the user
+            // can see needs to be marked as "matching" the search
+            foreach ($flattened_list as $dr_id => $num) {
+                if ($num >= -1)
+                    $flattened_list[$dr_id] = 1;
+            }
+        }
+
+
+        // ----------------------------------------
+        // Need to transfer the values from $flattened_list into the tree structure of $inflated_list
+        self::mergeSearchArrays($flattened_list, $inflated_list);
+
+        // Traverse $inflated_list to get the final set of datarecords that match the search
+        $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list);
+        $datarecord_ids = array_keys($datarecord_ids);
+
+        // Traverse the top-level of $inflated_list to get the grandparent datarecords that match
+        //  the search
+        $grandparent_ids = array();
+        foreach ($inflated_list as $dt_id => $dr_list) {
+            foreach ($dr_list as $gp_id => $something) {
+                if ($flattened_list[$gp_id] == 1)
+                    $grandparent_ids[] = $gp_id;
+            }
+        }
+
+
+        // Sort the resulting array
+        $sorted_datarecord_list = array();
+        if ( !is_null($sort_df_uuid) ) {
+            $sorted_datarecord_list = $this->sort_service->sortDatarecordsByTemplateDatafield($sort_df_uuid, $sort_ascending, implode(',', $grandparent_ids));
+
+            // Convert from ($dr_id => $sort_value) into ($num => $dr_id)
+            $sorted_datarecord_list = array_keys($sorted_datarecord_list);
+        }
+        else {
+            // list is already in ($num => $dr_id) format
+            $sorted_datarecord_list = $grandparent_ids;
+        }
+
+
+        // ----------------------------------------
+        // Save/return the end result
+        $search_result = array(
+            'complete_datarecord_list' => $datarecord_ids,
+            'grandparent_datarecord_list' => $sorted_datarecord_list,
+        );
+
+        // There's not really any need or point to caching the end result
+        return $search_result;
+    }
+
+
+    /**
+     * APIController::getfieldstatsAction() wants to return a count of how many datarecords have
+     * a specific radio option selected across all instances of a template datafield.
+     *
+     * SearchService::searchForSelectedRadioTemplateOptions() returns the info required to compile
+     * that data, but the result needs to be filtered by the user's permissions before the controller
+     * action can use it.
+     *
+     * @param array $result @see SearchService::searchForSelectedRadioTemplateOptions()
+     * @param array $searchable_datafields @see self::getSearchableDatafieldsForUser()
+     * @param array $flattened_list @see self::getSearchArrays()
+     *
+     * @return array
+     */
+    private function getfieldstatsFilter($result, $searchable_datafields, $flattened_list)
+    {
+        $labels = $result['labels'];
+        $records = $result['records'];
+
+        foreach ($records as $dt_id => $df_list) {
+            // Filter out datatypes the user can't see...
+            if ( !isset($searchable_datafields[$dt_id]) ) {
+                unset( $records[$dt_id] );
+            }
+            else {
+                foreach ($df_list as $df_id => $dr_list) {
+                    // Filter out datafields the user can't see...
+                    if ( !isset($searchable_datafields[$dt_id][$df_id]) ) {
+                        unset( $records[$dt_id][$df_id] );
+                    }
+                    else {
+                        // Filter out non-public datarecords the user can't see
+                        foreach ($dr_list as $dr_id => $ro_list) {
+                            if ( $flattened_list[$dr_id] === -2 ) {
+                                unset( $records[$dt_id][$df_id][$dr_id] );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Return the filtered list back to the APIController
+        return array(
+            'labels' => $labels,
+            'records' => $records
+        );
+    }
+
+
+    /**
      * Runs a search specified by the given $search_key.  The contents of the search key are
      * silently tweaked based on the user's permissions.
      *
@@ -241,7 +600,7 @@ class SearchAPIService
     {
         // ----------------------------------------
         // Convert the search key into a format suitable for searching
-        $searchable_datafields = self::getSearchableDatafieldsForUser($datatype->getId(), $user_permissions, $search_as_super_admin);
+        $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions, $search_as_super_admin);
         $criteria = $this->search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields);
 
         // Need to grab hydrated versions of the datafields/datatypes being searched on
@@ -255,6 +614,8 @@ class SearchAPIService
 
         // Also don't want the list of all datatypes anymore either
         unset( $criteria['all_datatypes'] );
+        // ...or what type of search this is
+        unset( $criteria['search_type'] );
 
 
         // ----------------------------------------
@@ -263,10 +624,12 @@ class SearchAPIService
 
         // Going to need these two arrays to be able to accurately determine which datarecords
         //  end up matching the query
-        $search_arrays = self::getSearchArrays($datatype->getId(), $search_permissions);
+        $search_arrays = self::getSearchArrays(array($datatype->getId()), $search_permissions);
         $flattened_list = $search_arrays['flattened'];
         $inflated_list = $search_arrays['inflated'];
 
+        // An "empty" search run with no criteria needs to return all top-level datarecord ids
+        $return_all_results = true;
 
         // Need to keep track of the result list for each facet separately...they end up merged
         //  together after all facets are searched on
@@ -279,6 +642,9 @@ class SearchAPIService
 
             // For each search term within this facet...
             foreach ($search_terms as $key => $search_term) {
+                // Don't return all top-level datarecord ids at the end
+                $return_all_results = false;
+
                 // ...extract the entity for this search term
                 $entity_type = $search_term['entity_type'];
                 $entity_id = $search_term['entity_id'];
@@ -322,7 +688,7 @@ class SearchAPIService
                         $dr_list = $this->search_service->searchDatetimeDatafield($entity, $search_term['before'], $search_term['after']);
                     }
                     else {
-                        // Short/Medium/LongVarchar, Paragraph Text, Integer/DecimalValue, and DatetimeValue
+                        // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
                         $dr_list = $this->search_service->searchTextOrNumberDatafield($entity, $search_term['value']);
                     }
                 }
@@ -354,26 +720,37 @@ class SearchAPIService
 
 
         // ----------------------------------------
-        // Perform the final merge, getting all facets down into a single list of matching datarecords
-        $final_dr_list = null;
-        foreach ($facet_dr_list as $facet => $dr_list) {
-            if ( is_null($final_dr_list) )
-                $final_dr_list = $dr_list;
-            else
-                $final_dr_list = array_intersect_key($final_dr_list, $dr_list);
-        }
+        // In most cases, there will be a number of different datarecord lists by this point...
+        if (!$return_all_results) {
+            // Perform the final merge, getting all facets down into a single list of matching datarecords
+            $final_dr_list = null;
+            foreach ($facet_dr_list as $facet => $dr_list) {
+                if (is_null($final_dr_list))
+                    $final_dr_list = $dr_list;
+                else
+                    $final_dr_list = array_intersect_key($final_dr_list, $dr_list);
+            }
 
-        // Need to transfer the values from $facet_dr_list into $flattened_list...
-        if ( !is_null($final_dr_list) ) {
-            foreach ($final_dr_list as $dr_id => $num) {
-                // ...but only if they're not excluded because of public status
-                if ($flattened_list[$dr_id] >= -1)
-                    $flattened_list[$dr_id] = 1;
+            // Need to transfer the values from $facet_dr_list into $flattened_list...
+            if (!is_null($final_dr_list)) {
+                foreach ($final_dr_list as $dr_id => $num) {
+                    // ...but only if they're not excluded because of public status
+                    if ( isset($flattened_list[$dr_id]) && $flattened_list[$dr_id] >= -1 )
+                        $flattened_list[$dr_id] = 1;
+                }
+            }
+            else if (count($criteria) === 0) {
+                // If a search was run without criteria, then everything that the user can see
+                //  matches the search
+                foreach ($flattened_list as $dr_id => $num) {
+                    if ($num >= -1)
+                        $flattened_list[$dr_id] = 1;
+                }
             }
         }
-        else if ( count($criteria) === 0 ) {
-            // If a search was run without criteria, then everything that the user can see
-            //  matches the search
+        else {
+            // ...but when no search criteria was specified, then every datarecord that the user
+            // can see needs to be marked as "matching" the search
             foreach ($flattened_list as $dr_id => $num) {
                 if ($num >= -1)
                     $flattened_list[$dr_id] = 1;
@@ -392,21 +769,25 @@ class SearchAPIService
         // Traverse the top-level of $inflated_list to get the grandparent datarecords that match
         //  the search
         $grandparent_ids = array();
-        foreach ($inflated_list[$datatype->getId()] as $gp_id => $data) {
-            if ($flattened_list[$gp_id] == 1)
-                $grandparent_ids[] = $gp_id;
+        if ( isset($inflated_list[$datatype->getId()]) ) {
+            foreach ($inflated_list[$datatype->getId()] as $gp_id => $data) {
+                if ($flattened_list[$gp_id] == 1)
+                    $grandparent_ids[] = $gp_id;
+            }
         }
 
 
         // Sort the resulting array
         $sorted_datarecord_list = array();
-        if ($sort_df_id === 0)
-            $sorted_datarecord_list = $this->dti_service->getSortedDatarecordList($datatype->getId(), implode(',', $grandparent_ids));
-        else
-            $sorted_datarecord_list = $this->dti_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, implode(',', $grandparent_ids));
+        if ( !empty($grandparent_ids) ) {
+            if ($sort_df_id === 0)
+                $sorted_datarecord_list = $this->sort_service->getSortedDatarecordList($datatype->getId(), implode(',', $grandparent_ids));
+            else
+                $sorted_datarecord_list = $this->sort_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, implode(',', $grandparent_ids));
 
-        // Convert from ($dr_id => $sort_value) into ($num => $dr_id)
-        $sorted_datarecord_list = array_keys($sorted_datarecord_list);
+            // Convert from ($dr_id => $sort_value) into ($num => $dr_id)
+            $sorted_datarecord_list = array_keys($sorted_datarecord_list);
+        }
 
 
         // ----------------------------------------
@@ -432,6 +813,10 @@ class SearchAPIService
     private function hydrateCriteria($criteria)
     {
         // ----------------------------------------
+        // Searching is *just* different enough between datatypes and templates to be a pain...
+        $search_type = $criteria['search_type'];
+        unset( $criteria['search_type'] );
+
         // Want to find all datafield entities listed in the criteria array
         $datafield_ids = array();
         foreach ($criteria as $facet => $data) {
@@ -453,39 +838,20 @@ class SearchAPIService
         // ----------------------------------------
         // Need to hydrate all of the datafields/datatypes so the search functions work
         $datafields = array();
-        $datatypes = array();
+        if ( !empty($datafield_ids) )
+            $datafields = self::hydrateDatafields($search_type, $datafield_ids);
 
-        if ( !empty($datafield_ids) ) {
-            $query = $this->em->createQuery(
-               'SELECT df
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-                WHERE df.id IN (:datafield_ids)
-                AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters( array('datafield_ids' => $datafield_ids) );
-            $results = $query->getResult();
-
-            /** @var DataFields $df */
-            foreach ($results as $df)
-                $datafields[ $df->getId() ] = $df;
-        }
 
         // Because of permissions, need to hydrate all datatypes...
-        $query = $this->em->createQuery(
-           'SELECT dt
-            FROM ODRAdminBundle:DataType AS dt
-            WHERE dt.id IN (:datatype_ids)
-            AND dt.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $criteria['all_datatypes']) );
-        $results = $query->getResult();
-
-        /** @var DataType $dt */
-        foreach ($results as $dt)
-            $datatypes[ $dt->getId() ] = $dt;
+        $datatypes = array();
+        if ( $search_type === 'datatype' )
+            $datatypes = self::hydrateDatatypes($search_type, $criteria['all_datatypes']);
+        else
+            $datatypes = self::hydrateDatatypes($search_type, $criteria['all_templates']);
 
 
         // ----------------------------------------
-        // Return the finished array
+        // Return the hydrated arrays
         return array(
             'datafield' => $datafields,
             'datatype' => $datatypes
@@ -494,12 +860,130 @@ class SearchAPIService
 
 
     /**
+     * The hydration requirements are slightly different between "regular" searches and "template"
+     * searches...
+     *
+     * TODO - is hydration even required, technically?
+     *
+     * @param string $search_type
+     * @param array $datafield_ids
+     *
+     * @return DataFields[]
+     */
+    private function hydrateDatafields($search_type, $datafield_ids)
+    {
+        $datafields = array();
+
+        if ($search_type === 'datatype') {
+            // For a regular search, need to hydrate all datafields being searched on
+            $params = array(
+                'datafield_ids' => $datafield_ids
+            );
+
+            $query = $this->em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                WHERE df.id IN (:datafield_ids)
+                AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            )->setParameters($params);
+            $results = $query->getResult();
+
+            /** @var DataFields[] $results */
+            foreach ($results as $df)
+                $datafields[ $df->getId() ] = $df;
+        }
+        else {
+            // For a template search, only want to hydrate the master template fields...otherwise
+            //  we would have to hydrate every single datafield that uses the searched template
+            //  fields as their master datafields.
+            // Not really a good idea, especially since the actual searching functions can just
+            //  have the database queries return a datafield id for permissions purposes
+            $params = array(
+                'field_uuids' => $datafield_ids
+            );
+
+            $query = $this->em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                WHERE df.fieldUuid IN (:field_uuids) AND df.is_master_field = 1
+                AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            )->setParameters($params);
+            $results = $query->getResult();
+
+            /** @var DataFields[] $results */
+            foreach ($results as $df)
+                $datafields[ $df->getFieldUuid() ] = $df;
+        }
+
+        return $datafields;
+    }
+
+
+    /**
+     * They hydration requirements are slightly different between "regular" searches and "template"
+     * searches...
+     *
+     * TODO - is hydration even required, technically?
+     *
+     * @param string $search_type
+     * @param int[]|string $datatype_ids
+     *
+     * @return DataType[]
+     */
+    private function hydrateDatatypes($search_type, $datatype_ids)
+    {
+        $results = array();
+        if ($search_type === 'datatype') {
+            // For a regular search, need to hydrate all datatypes that could be searched on
+            // Otherwise, we can't deal with permissions properly
+            $params = array(
+                'datatype_ids' => $datatype_ids
+            );
+
+            $query = $this->em->createQuery(
+               'SELECT dt
+                FROM ODRAdminBundle:DataType AS dt
+                WHERE dt.id IN (:datatype_ids)
+                AND dt.deletedAt IS NULL'
+            )->setParameters($params);
+            $results = $query->getResult();
+        }
+        else {
+            // For a template search, we still need to hydrate all the non-template datatypes that
+            //  are being searched on...otherwise, we can't deal with permissions properly
+            $params = array(
+                'template_uuids' => $datatype_ids
+            );
+
+            $query = $this->em->createQuery(
+               'SELECT dt
+                FROM ODRAdminBundle:DataType AS mdt
+                JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
+                JOIN ODRAdminBundle:DataType AS gp WITH dt.grandparent = gp
+                WHERE mdt.unique_id IN (:template_uuids)
+                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND gp.deletedAt IS NULL'
+            )->setParameters($params);
+            $results = $query->getResult();
+        }
+
+        /** @var DataType[] $results */
+        $datatypes = array();
+        foreach ($results as $dt)
+            $datatypes[ $dt->getId() ] = $dt;
+
+        return $datatypes;
+    }
+
+
+    /**
      * It's easier for performSearch() when getSearchArrays() returns arrays that already contain
-     * the  user's permissions and which datatypes are being searched on...this utility function
+     * the user's permissions and which datatypes are being searched on...this utility function
      * gathers that required info in a single spot.
      *
      * @param DataType[] $hydrated_datatypes
-     * @param int[] $affected_datatypes
+     * @param int[] $affected_datatypes @see SearchKeyService::convertSearchKeyToCriteria()
      * @param array $user_permissions The permissions of the user doing the search, or an empty
      *                                array when not logged in
      * @param bool $search_as_super_admin If true, don't filter anything by permissions
@@ -576,21 +1060,21 @@ class SearchAPIService
      *  - num == -2 -- this datarecord is excluded because the user can't view it
      *  - num == -1 -- this datarecord is currently excluded...it must match the search being run
      *  - num ==  0 -- this datarecord is not being searched on
-     *  - num ==  1 -- set in performSearch(), indicates this datarecord matches the search being run
-     * This array is used so performSearch() doesn't have to deal with recursion while collating
-     * search results.
+     *  - num ==  1 -- set in performSearch(), indicates this datarecord matches the search being
+     *  run This array is used so performSearch() doesn't have to deal with recursion while
+     *  collating search results.
      *
      * The second array is an "inflated" version of all datarecords that could potentially match
      * a search being run on $top_level_datatype_id, assuming the user has permissions to see
      * everything.  This array is recursively traversed by mergeSearchArrays() to determine all the
      * datarecords which matched the search.
      *
-     * @param int $top_level_datatype_id
+     * @param int[] $top_level_datatype_ids
      * @param array $permissions_array @see self::getSearchPermissionsArray()
      *
      * @return array
      */
-    private function getSearchArrays($top_level_datatype_id, $permissions_array)
+    private function getSearchArrays($top_level_datatype_ids, $permissions_array)
     {
 
         // ----------------------------------------
@@ -609,11 +1093,12 @@ class SearchAPIService
 
         // Base setup for both arrays...
         $flattened_list = array();
-        $inflated_list = array(
-            0 => array(
-                $top_level_datatype_id => array()
-            )
-        );
+        $inflated_list = array(0 => array());
+        foreach ($top_level_datatype_ids as $num => $dt_id)
+            $inflated_list[0][$dt_id] = array();
+
+        // Flip this array so isset() can be used instead of in_array() later on
+        $top_level_datatype_ids = array_flip($top_level_datatype_ids);
 
 
         // ----------------------------------------
@@ -646,7 +1131,7 @@ class SearchAPIService
 
             // Inserting into $inflated_list depends on what type of datatype this is...
             // @see self::buildDatarecordTree() for the eventual structure
-            if ( $dt_id === $top_level_datatype_id ) {
+            if ( isset($top_level_datatype_ids[$dt_id]) ) {
                 // These are top-level datarecords for a top-level datatype...the 0 is in there
                 //  to make recursion in buildDatarecordTree() easier
                 foreach ($list as $dr_id => $value)
@@ -819,8 +1304,8 @@ class SearchAPIService
      * four possible values for $vote...
      *
      * -2: This datarecord is excluded because the user can't view it...this has no effect on
-     *      whether its parent datarecord is included or not, but all of its children are immediately
-     *      excluded
+     *      whether its parent datarecord is included or not, but all of its children are
+     *      immediately excluded
      * -1: This datarecord did not match the search...this datarecord and its children are excluded
      *      from the search, and if all datarecords of this datatype also "don't match", then this
      *      datarecord's parent will be excluded as well
