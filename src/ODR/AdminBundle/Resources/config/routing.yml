@@ -1308,6 +1308,10 @@ odr_find_undeleted_meta_entries:
 odr_trace_theme_ancestory:
     path: /admin/trace_theme_ancestory
     defaults: { _controller: ODRAdminBundle:Validation:tracethemeancestory }
+# Locate duplicate (user, group) pairs in the UserGroup table
+odr_find_duplicate_user_groups:
+    path: /admin/find_duplicate_user_groups
+    defaults: { _controller: ODRAdminBundle:Validation:findduplicateusergroups }
 
 # Ensures the values stored in the Theme -> ThemeElement -> ThemeDataType tables match the DataTree entities
 odr_fix_datatree_entries:

@@ -1089,12 +1089,12 @@ if ($debug)
     {
         // Check to see if the User already belongs to this Group
         // This will be bypassed in the case of newly created groups.
-        if($check_group) {
+        if ($check_group) {
             $query = $this->em->createQuery(
-                'SELECT ug
-            FROM ODRAdminBundle:UserGroup AS ug
-            WHERE ug.user = :user_id AND ug.group = :group_id
-            AND ug.deletedAt IS NULL'
+               'SELECT ug
+                FROM ODRAdminBundle:UserGroup AS ug
+                WHERE ug.user = :user_id AND ug.group = :group_id
+                AND ug.deletedAt IS NULL'
             )->setParameters( array('user_id' => $user->getId(), 'group_id' => $group->getId()) );
 
             /** @var UserGroup[] $results */
@@ -1126,6 +1126,7 @@ if ($debug)
 
         return $user_group;
     }
+
 
     /**
      * Create a new Group for users of the given datatype.

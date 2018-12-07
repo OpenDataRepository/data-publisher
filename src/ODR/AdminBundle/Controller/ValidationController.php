@@ -2033,4 +2033,63 @@ class ValidationController extends ODRCustomController
         $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
+
+
+    /**
+     * Should only ever be a single active (user, group) pair in the database...
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function findduplicateusergroupsAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
+
+            $query = $em->createQuery(
+               'SELECT u.id AS user_id, g.id AS group_id
+                FROM ODROpenRepositoryUserBundle:User AS u
+                JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
+                JOIN ODRAdminBundle:Group AS g WITH ug.group = g
+                WHERE ug.deletedAt IS NULL AND g.deletedAt IS NULL
+                ORDER BY u.id, g.id'
+            );
+            $results = $query->getArrayResult();
+
+            print '<pre>';
+            $data = array();
+            foreach ($results as $result) {
+                $user_id = $result['user_id'];
+                $group_id = $result['group_id'];
+
+                if ( !isset($data[$user_id]) )
+                    $data[$user_id] = array();
+
+                if ( isset($data[$user_id][$group_id]) )
+                    print ' user '.$user_id.' has multiple entries for group '.$group_id."\n";
+
+                $data[$user_id][$group_id] = 1;
+            }
+            print '</pre>';
+        }
+        catch (\Exception $e) {
+            $source = 0xc0b59c97;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
 }
