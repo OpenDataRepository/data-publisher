@@ -9,6 +9,7 @@
         <database_description>{{ database.database_description|xml|raw }}</database_description>
         <unique_id>{{ database.unique_id|xml|raw }}</unique_id>
         <template_id>{{ database.template_id|xml|raw }}</template_id>
+        <search_slug>{{ database.search_slug|xml|raw }}</search_slug>
 
     {% if database.child_databases is defined %}
         <child_databases>

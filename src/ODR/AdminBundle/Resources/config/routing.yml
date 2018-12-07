@@ -1418,10 +1418,3 @@ odr_api_download_image:
     methods: [ GET ]
     requirements:
         image_id: \d+
-
-
-
-odr_asdf:
-    path:  /admin/template_search
-    defaults: { _controller: ODRAdminBundle:Worker:testtemplatesearch }
-    methods: [ GET ]

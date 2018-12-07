@@ -20,6 +20,10 @@
         "render_plugin": {{ datatype_meta.renderPlugin.pluginName|json_encode|raw }},
         {% endif %}
 
+        {% if is_top_level == 1 %}
+        "search_slug": {{ datatype_meta.searchSlug|json_encode|raw }},    {# lack of surrounding quotation marks necessary #}
+        {% endif %}
+
     {% if using_metadata == true %}
         "_database_metadata": {
             "_create_date": "{{ datatype.created|date('Y-m-d H:i:s') }}",

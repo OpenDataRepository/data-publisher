@@ -158,7 +158,7 @@ class APIController extends ODRCustomController
                 // Build/execute a query to get basic info on all datatypes
                 $query = $em->createQuery(
                    'SELECT
-                       dt.id AS database_id, dtm.shortName AS database_name,
+                       dt.id AS database_id, dtm.shortName AS database_name, dtm.searchSlug AS search_slug,
                        dtm.description AS database_description, dtm.publicDate AS public_date,
                        dt.unique_id AS unique_id, mdt.unique_id AS template_id
                     FROM ODRAdminBundle:DataType AS dt
@@ -179,7 +179,7 @@ class APIController extends ODRCustomController
                 // Build/execute a query to get basic info on all top-level datatypes
                 $query = $em->createQuery(
                     'SELECT
-                       dt.id AS database_id, dtm.shortName AS database_name,
+                       dt.id AS database_id, dtm.shortName AS database_name, dtm.searchSlug AS search_slug,
                        dtm.description AS database_description, dtm.publicDate AS public_date,
                        dt.unique_id AS unique_id, mdt.unique_id AS template_id
                     FROM ODRAdminBundle:DataType AS dt

@@ -1549,6 +1549,7 @@ $ret .= '  Set current to '.$count."\n";
         $return['t'] = '';
         $return['d'] = '';
 
+        // NOTE - go into the orm files for each of these entities and disable the gedmo timestampable on update first
         $save = false;
 //        $save = true;
 
@@ -1563,9 +1564,6 @@ $ret .= '  Set current to '.$count."\n";
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-
 
             if ($uuid_type === 'datatype') {
                 // Need all datatypes, as well as a list of which ones are top-level...
@@ -1656,6 +1654,7 @@ $ret .= '  Set current to '.$count."\n";
                 $datafields = $em->getRepository('ODRAdminBundle:DataFields')->findBy(
                     array('fieldUuid' => null)
                 );
+                // Only ~7k datafields, easily done with a single query
 
                 foreach ($datafields as $df) {
                     // Keep generating ids until we come across one that's not in use
@@ -1696,6 +1695,7 @@ $ret .= '  Set current to '.$count."\n";
                 $radio_options = $em->getRepository('ODRAdminBundle:RadioOptions')->findBy(
                     array('radioOptionUuid' => null)
                 );
+                // Appears to be able to work in a single call
 
                 foreach ($radio_options as $ro) {
                     // Keep generating ids until we come across one that's not in use
@@ -1731,12 +1731,20 @@ $ret .= '  Set current to '.$count."\n";
                     $existing_ids[ $result['unique_id'] ] = 1;
 
 
-                // Now that we have a list of the existing unique ids...
-                /** @var DataRecord[] $datarecords */
-                $datarecords = $em->getRepository('ODRAdminBundle:DataRecord')->findBy(
-                    array('unique_id' => null)
+                // Now that we have a list of the existing unique ids, load a pile of datarecords
+                //  that don't have a unique id yet
+                $query = $em->createQuery(
+                   'SELECT dr
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.unique_id IS NULL AND dr.deletedAt IS NULL'
                 );
+                // Can't go much above this, or the query will timeout apparently
+                $query->setMaxResults(15000);
 
+                /** @var DataRecord[] $datarecords */
+                $datarecords = $query->getResult();
+
+                $count = 0;
                 foreach ($datarecords as $dr) {
                     // Keep generating ids until we come across one that's not in use
                     $unique_id = UniqueUtility::uniqueIdReal();
@@ -1747,12 +1755,16 @@ $ret .= '  Set current to '.$count."\n";
                     $dr->setUniqueId($unique_id);
 
                     print 'set datarecord '.$dr->getId().' to have unique id '.$unique_id."\n";
+                    $count++;
 
                     // ...update the existing list of unique_ids so this one doesn't get used again
                     $existing_ids[ $unique_id ] = 1;
                     // ...and persist the datarecord
                     if ($save)
                         $em->persist($dr);
+
+                    if ($save && ($count % 5000) === 0 )
+                        $em->flush();
                 }
                 print '</pre>';
             }

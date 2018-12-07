@@ -9,6 +9,8 @@
     <unique_id>{{ database.unique_id|xml|raw }}</unique_id>
     <template_id>{{ database.template_id|xml|raw }}</template_id>
 
+    {# child datatypes do not have search slugs #}
+
 {% if database.child_databases is defined %}
     <child_databases>
         {# Using macro otherwise twig can't compile the template due to infinite recursion #}
