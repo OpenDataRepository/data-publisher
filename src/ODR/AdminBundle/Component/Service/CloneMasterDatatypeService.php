@@ -20,6 +20,7 @@ namespace ODR\AdminBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\GroupDatafieldPermissions;
 use ODR\AdminBundle\Entity\GroupDatatypePermissions;
@@ -31,6 +32,7 @@ use ODR\AdminBundle\Entity\RenderPluginOptions;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
+use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\UserGroup;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -43,9 +45,8 @@ use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 
 
-class CloneDatatypeService
+class CloneMasterDatatypeService
 {
-
     /**
      * @var EntityManager $em
      */
@@ -57,9 +58,9 @@ class CloneDatatypeService
     private $cache_service;
 
     /**
-     * @var CloneThemeService
+     * @var CloneMasterTemplateThemeService
      */
-    private $clone_theme_service;
+    private $clone_master_template_theme_service;
 
     /**
      * @var DatatypeInfoService
@@ -111,6 +112,11 @@ class CloneDatatypeService
     /**
      * @var DataType[]
      */
+    private $associated_datatypes;
+
+    /**
+     * @var DataType[]
+     */
     private $created_datatypes;
 
     /**
@@ -135,17 +141,11 @@ class CloneDatatypeService
     private $existing_datatypes;
 
     /**
-     * @var Theme[]
-     */
-    private $t_mapping;
-
-
-    /**
      * CloneDatatypeService constructor.
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param CloneThemeService $clone_theme_service
+     * @param CloneMasterTemplateThemeService $clone_master_template_theme_service
      * @param DatatypeInfoService $datatype_info_service
      * @param PermissionsManagementService $permissions_service
      * @param ThemeInfoService $theme_info_service
@@ -155,7 +155,7 @@ class CloneDatatypeService
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        CloneThemeService $clone_theme_service,
+        CloneMasterTemplateThemeService $clone_master_template_theme_service,
         DatatypeInfoService $datatype_info_service,
         PermissionsManagementService $permissions_service,
         ThemeInfoService $theme_info_service,
@@ -164,7 +164,7 @@ class CloneDatatypeService
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->clone_theme_service = $clone_theme_service;
+        $this->clone_master_template_theme_service = $clone_master_template_theme_service;
         $this->dti_service = $datatype_info_service;
         $this->pm_service = $permissions_service;
         $this->tif_service = $theme_info_service;
@@ -226,18 +226,6 @@ class CloneDatatypeService
                 $this->logger->debug('----------------------------------------');
             }
 
-            /*
-            if (!$this->em->isOpen()) {
-                $this->em = $this->em->create(
-                    $this->em->getConnection(),
-                    $this->em->getConfiguration()
-                );
-                $this->em->clear();
-                $this->em->flush();
-            }
-            */
-
-
             // Save which user started this creation process
             $this->user = $this->user_manager->findUserBy( array('id' => $user_id) );
             if ( is_null($this->user) )
@@ -291,7 +279,6 @@ class CloneDatatypeService
                 $associated_datatypes[] = $result['dt_id'];
             $this->logger->debug('CloneDatatypeService: $associated_datatypes: '.print_r($associated_datatypes, true));
 
-            // TODO Remove linked types that already exist in this template group
             // Remove linked datatypes that already exist in template group
             $this->existing_datatypes = array(); // $repo_datatype->findBy(array('template_group' => $template_group));
             if($template_group !== "" && strlen($template_group) > 0) {
@@ -318,6 +305,9 @@ class CloneDatatypeService
                 $this->existing_datatypes = $valid_existing_datatypes;
             }
             $this->logger->debug('CloneDatatypeService: $associated_datatypes [filtered]: '.print_r($associated_datatypes, true));
+
+            // Save this associated datatypes for later use
+            $this->associated_datatypes = $associated_datatypes;
 
             // Clone the master template datatype, and all its linked/child datatypes as well
             $this->created_datatypes = array();
@@ -367,50 +357,11 @@ class CloneDatatypeService
                 $dt_str .= '['.$dt_id.'] => '.$dt->getId().'  ';
             $this->logger->debug('CloneDatatypeService: $this->datatype_mapping: '.$dt_str);
 
+            // TODO Like to get rid of this
             $df_str = '';
             foreach ($this->df_mapping as $df_id => $df)
                 $df_str .= '['.$df_id.'] => '.$df->getId().'  ';
             $this->logger->debug('CloneDatatypeService: $this->datafield_mapping: '.$df_str);
-
-
-            // ----------------------------------------
-            // Go through the datatype meta entries and change the external/name/sort/background
-            //  image datafields to point to the newly created ones
-            $this->logger->info('CloneDatatypeService: ensuring new datatypeMeta entries point to correct datafields...');
-            foreach ($this->dt_mapping as $dt_id => $dt) {
-                // see note about $dt_mapping above...
-                if ($dt_id == $dt->getId())
-                    continue;
-
-                $dt_meta = $dt->getDataTypeMeta();
-                $this->logger->info('CloneDatatypeService: -- datatypeMeta '.$dt_meta->getId().' "'.$dt->getShortName().'"...');
-
-                $df = $dt_meta->getExternalIdField();
-                if ( !is_null($df) ) {
-                    $dt_meta->setExternalIdField( $this->df_mapping[ $df->getId() ] );
-                    $this->logger->info('CloneDatatypeService: -- -- set external id field to '.$this->df_mapping[ $df->getId() ]->getId());
-                }
-                $df = $dt_meta->getNameField();
-                if ( !is_null($df) ) {
-                    $dt_meta->setNameField( $this->df_mapping[ $df->getId() ] );
-                    $this->logger->info('CloneDatatypeService: -- -- set name field to '.$this->df_mapping[ $df->getId() ]->getId());
-                }
-                $df = $dt_meta->getSortField();
-                if ( !is_null($df) ) {
-                    $dt_meta->setSortField( $this->df_mapping[ $df->getId() ] );
-                    $this->logger->info('CloneDatatypeService: -- -- set sort field to '.$this->df_mapping[ $df->getId() ]->getId());
-                }
-                $df = $dt_meta->getBackgroundImageField();
-                if ( !is_null($df) ) {
-                    $dt_meta->setBackgroundImageField( $this->df_mapping[ $df->getId() ] );
-                    $this->logger->info('CloneDatatypeService: -- -- set background image field to '.$this->df_mapping[ $df->getId() ]->getId());
-                }
-
-                // Don't need to update created/updated by again, so just persist it...
-                $this->em->persist($dt_meta);
-            }
-
-            $this->em->flush();
 
 
             // ----------------------------------------
@@ -419,19 +370,18 @@ class CloneDatatypeService
             //  been created out of order, and cloning themes requires them to be properly set...
             $this->logger->info('----------------------------------------');
 
-            // TODO THIS IS A TOTAL DISASTER. These corrections must be made on the datatype before persisting and flushing.
-            // TODO MAJOR MAJOR MAJOR ISSUE
             foreach ($this->created_datatypes as $dt) {
                 $corrected_parent = $this->dt_mapping[ $dt->getParent()->getId() ];
                 $corrected_grandparent = $this->dt_mapping[ $dt->getGrandparent()->getId() ];
 
                 $dt->setParent($corrected_parent);
                 $dt->setGrandparent($corrected_grandparent);
-                $this->em->persist($dt);
+                $this->em->persist($dt, true);
 
                 $this->logger->info('CloneDatatypeService: correcting ancestors for datatype '.$dt->getId().' "'.$dt->getShortName().'"...parent set to dt '.$corrected_parent->getId().', grandparent set to dt '.$corrected_grandparent->getId());
             }
 
+            // TODO Let's make this the first flush.... Or possibly defer to later...
             $this->em->flush();
 
 
@@ -447,12 +397,13 @@ class CloneDatatypeService
             // ----------------------------------------
             // Clone all themes for this master template...
             $this->logger->info('----------------------------------------');
-            self::cloneTheme();
+            self::cloneTheme($this->master_datatype);
 
 
             // ----------------------------------------
             // Clone Datatree and DatatreeMeta entries
             $this->logger->info('----------------------------------------');
+            // TODO Convert to delayed flush and flush at once
             self::cloneDatatree($this->master_datatype);
 
             foreach ($this->created_datatypes as $dt)
@@ -463,20 +414,29 @@ class CloneDatatypeService
             // Create all of the Group entries required for cloning permissions
             $this->logger->info('----------------------------------------');
             foreach ($this->created_datatypes as $dt)
+                // TODO Convert to delayed flush and flush at once
                 self::cloneDatatypeGroups($dt);
+
+
+            // Flush so groups are available for next portion.
+            $this->em->flush();
 
             // Clone the datatype and datafield permissions for each of the created datatypes
             $this->logger->info('----------------------------------------');
             foreach ($this->created_datatypes as $dt) {
                 $this->logger->info('----------------------------------------');
+                // TODO Convert to delayed flush and flush at once
                 self::cloneDatatypePermissions($dt);
+
+                // TODO Might need to flush here - not sure
+                $this->em->flush();
 
                 /** @var DataFields[] $datafields */
                 $datafields = $dt->getDataFields();
                 foreach ($datafields as $df)
+                    // TODO Convert to delayed flush and flush at once
                     self::cloneDatafieldPermissions($df);
             }
-
 
             // ----------------------------------------
             // The datatypes are now ready for viewing since they have all their datafield, theme,
@@ -485,7 +445,7 @@ class CloneDatatypeService
                 $dt->setSetupStep(DataType::STATE_OPERATIONAL);
 
                 // These don't need to be immediately flushed...
-                $this->em->persist($dt);
+                $this->em->persist($dt, true);
             }
 
             $this->em->flush();
@@ -559,13 +519,8 @@ class CloneDatatypeService
         $new_datatype->setMasterDataType($parent_datatype);
         $new_datatype->setSetupStep(DataType::STATE_INITIAL);
 
-        // TODO Need to deal with properties database here...
-        // Unset metadata_datatype_id and metadata_for_id
-        // $new_datatype->setMetadataDatatype(null);
-        // $new_datatype->setMetadataFor(null);
-        // TODO will need to reset these later to be correctly linked
+        self::persistObject($new_datatype, true);
 
-        self::persistObject($new_datatype);
         array_push($this->created_datatypes, $new_datatype);
 
         $this->logger->debug('CloneDatatypeService: datatype '.$new_datatype->getId().' using datatype '.$parent_datatype->getId().' as its master template...');
@@ -588,24 +543,12 @@ class CloneDatatypeService
             $new_meta->setDescription($existing_meta->getDescription());
 
             // Ensure the "in-memory" version of $new_datatype doesn't references the old meta entry
+            // TODO - I don't think this makes sense now....
             $new_datatype->removeDataTypeMetum($existing_meta);     // TODO - investigate whether this helps or hurts
-
-            // Delete the existing DatatypeMeta entry
-            $this->em->remove($existing_meta);
-            self::persistObject($new_meta);
         }
         else {
-            // $new_meta is for a child/linked datatype
-
-            // If the search slug is set, then this is a linked datatype...attach a suffix so it
-            //  doesn't collide with the previous linked datatype  TODO - better checking?
-            // if ( !is_null($new_meta->getSearchSlug()) && $new_meta->getSearchSlug() !== '' )
-                // $new_meta->setSearchSlug( $new_meta->getSearchSlug().'_'.$new_meta->getDataType()->getId() );
-
             // All cloned datatypes get a unique id which can be used as search slug
             $new_meta->setSearchSlug($new_datatype->getUniqueId());
-
-            // TODO - do something similar for the short name?
         }
 
 
@@ -616,7 +559,10 @@ class CloneDatatypeService
         // Track the published version
         $new_meta->setMasterRevision(0);
         $new_meta->setMasterPublishedRevision(0);
-        if ( is_null($parent_datatype->getMasterPublishedRevision()) )
+
+        /** @var DataTypeMeta $temp_parent_meta */
+        $temp_parent_meta = $parent_datatype->getDataTypeMeta();
+        if ( !$temp_parent_meta || is_null($temp_parent_meta->getMasterPublishedRevision()) )
             $new_meta->setTrackingMasterRevision(-100);
         else
             $new_meta->setTrackingMasterRevision($parent_datatype->getDataTypeMeta()->getMasterPublishedRevision());
@@ -627,9 +573,8 @@ class CloneDatatypeService
 
         // Ensure the "in-memory" version of $new_datatype knows about its meta entry
         $new_datatype->addDataTypeMetum($new_meta);
-        self::persistObject($new_meta);
+        self::persistObject($new_meta, true);
         $this->logger->debug('CloneDatatypeService: meta entry cloned for datatype '.$new_datatype->getId());
-
 
         // ----------------------------------------
         // Process data fields so themes and render plugin map can be created
@@ -649,14 +594,50 @@ class CloneDatatypeService
 
             // Ensure the "in-memory" version of $new_datatype knows about the new datafield
             $new_datatype->addDataField($new_df);
-            self::persistObject($new_df);
+            self::persistObject($new_df, true);
 
+            // This is the field map
             $this->df_mapping[ $parent_df->getId() ] = $new_df;
 
             $this->logger->info('CloneDatatypeService: copied master datafield '.$parent_df->getId().' "'.$parent_df->getFieldName().'" into new datafield '.$new_df->getId());
 
+            // Need to update datatype meta to point to correct fields
+            // Set the DatatypeMeta External ID field
+            if(
+                $parent_meta->getExternalIdField() != null
+                && $parent_df->getId() == $parent_meta->getExternalIdField()->getId()
+            ) {
+                // This is the new external ID
+                $new_meta->setExternalIdField($new_df);
+            }
+
+            if(
+                $parent_meta->getNameField() != null
+                && $parent_df->getId() == $parent_meta->getNameField()->getId()
+            ) {
+                // This is the new external ID
+                $new_meta->setNameField($new_df);
+            }
+
+            if(
+                $parent_meta->getSortField() != null
+                && $parent_df->getId() == $parent_meta->getSortField()->getId()
+            ) {
+                // This is the new external ID
+                $new_meta->setSortField($new_df);
+            }
+
+            if(
+                $parent_meta->getBackgroundImageField() != null
+                && $parent_df->getId() == $parent_meta->getBackgroundImageField()->getId()
+            ) {
+                // This is the new external ID
+                $new_meta->setBackgroundImageField($new_df);
+            }
+
             // Process Meta Records
             $parent_df_meta = $parent_df->getDataFieldMeta();
+            // Check if object
             if ($parent_df_meta) {
                 // TODO - why does this not exist sometimes?  failed migration?  error elsewhere?
                 $new_df_meta = clone $parent_df_meta;
@@ -667,7 +648,7 @@ class CloneDatatypeService
 
                 // Ensure the "in-memory" version of $new_df knows about the new meta entry
                 $new_df->addDataFieldMetum($new_df_meta);
-                self::persistObject($new_df_meta);
+                self::persistObject($new_df_meta, true);
 
                 $this->logger->debug('CloneDatatypeService: -- meta entry cloned for datafield '.$new_df->getId());
             }
@@ -698,8 +679,8 @@ class CloneDatatypeService
                 }
             }
 
-            // flush options to database
-            $this->em->flush();
+            // Persist the DataType metadata changes (after field remapping fixes)
+            self::persistObject($new_meta, true);
 
             // Copy any render plugin settings for this datafield from the master template
             self::cloneRenderPluginSettings($parent_df->getRenderPlugin(), null, $new_df);
@@ -712,208 +693,138 @@ class CloneDatatypeService
 
 
     /**
+     *
      * After the Datatype, Datafield, Radio Option, and any RenderPlugin settings are cloned, the
      * Theme stuff from the master template needs to be cloned too...
+     *
      */
     private function cloneTheme()
     {
         // Need to store each theme that got created...
-        /** @var Theme[] $new_parent_themes */
-        $new_parent_themes = array();
-        // Also need to store which new themes was created from which master template theme...
-        $this->t_mapping = array();
-
-        // Clone each of the themes of the master template.  The created themes will end up attached
-        //  to the master template initially, but doing it this way guarantees the parentTheme property
-        //  and the childTheme property in the related ThemeDatatype entries are properly set
-        //  from the beginning...
-        $datatype_ids = array();
-        foreach ($this->dt_mapping as $id => $dt) {
-            // Filtering for top-level datatypes and storing master datatype...
-            if ($dt->getId() === $dt->getGrandparent()->getId())
-                $datatype_ids[] = $id;
-        }
-
+        /** @var Theme[] $results */
         $query = $this->em->createQuery(
-           'SELECT t
+            'SELECT t
             FROM ODRAdminBundle:Theme AS t
             WHERE t.dataType IN (:datatype_ids) AND t = t.parentTheme
             AND t.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $datatype_ids) );
+        )->setParameters( array('datatype_ids' => $this->associated_datatypes) );
+        // )->setParameters( array('datatype_ids' => [$master_datatype->getId()]) );
         $results = $query->getResult();
 
-        /** @var Theme[] $results */
         foreach ($results as $t) {
-            $new_theme = $this->clone_theme_service->cloneSourceTheme($this->user, $t, $t->getThemeType());
+            // TODO If we don't flush the theme, we can reassign datatypes before committing
+            $new_theme = $this->
+            clone_master_template_theme_service->
+            cloneSourceTheme(
+                $this->user,
+                $t,
+                $t->getThemeType(),
+                $this->dt_mapping,
+                $this->df_mapping,
+                true
+            );
+
             $new_parent_themes[] = $new_theme;
-
-            // For each master theme, store the original sourceTheme id and the newly cloned master
-            //  theme that all of these cloned datatypes should be using...
-            if ($t->getThemeType() === 'master') {
-                // Don't need to check/store new themes belonging to other theme types, since other
-                //  themes should never point to them
-                $query = $this->em->createQuery(
-                    'SELECT t
-                    FROM ODRAdminBundle:Theme AS t
-                    WHERE t.parentTheme = :theme_id'
-                )->setParameters(array('theme_id' => $new_theme->getId()));
-                $this->logger->info('CloneDatatypeService: theme query ' . $query->getSQL());
-                $sub_results = $query->getResult();
-
-                /** @var Theme[] $sub_results */
-                foreach ($sub_results as $sub_result) {
-                    $dt = $sub_result->getDataType();
-                    if ($dt->getId() !== $dt->getGrandparent()->getId()) {
-                        // Child datatype...will only ever have one master theme, so always store
-                        $this->t_mapping[$sub_result->getSourceTheme()->getId()] = $sub_result;
-                    } else {
-                        // Top-level (or linked) datatype...only store when this theme is top-level
-                        if ($sub_result->getId() === $sub_result->getParentTheme()->getId())
-                            $this->t_mapping[$sub_result->getSourceTheme()->getId()] = $sub_result;
-                    }
-
-                }
-            }
-
-            $dt = $t->getDataType();
-            $this->logger->info('CloneDatatypeService: cloned theme ' . $t->getId() . ' "' . $t->getThemeType() . '" from the original datatype ' . $dt->getId() . ' "' . $dt->getShortName() . '"...new theme has id ' . $new_theme->getId());
-
-            // Also need to ensure theme default/shared status matches the master template
-            if ($t->isDefault()) {
-                $new_theme->getThemeMeta()->setIsDefault(true);
-                $this->logger->debug('CloneDatatypeService: -- theme is now default');
-            }
-            if ($t->isShared()) {
-                $new_theme->getThemeMeta()->setShared(true);
-                $this->logger->debug('CloneDatatypeService: -- theme is now shared');
-            }
-
-            self::persistObject($new_theme->getThemeMeta(), true);    // These don't need to be flushed/refreshed immediately...
         }
 
+        /** @var Theme[] $new_parent_themes */
+        foreach($new_parent_themes as $t) {
+            /** @var Theme $t */
+            // Go through theme and fix datatype ids to new datatype ids
+            // These should all be same parent?
+            self::correctThemeData($t, $t, $t->getSourceTheme());
+            // Persist after correction
+            self::persistObject($t, true);
+        }
+
+        // Flush to commit theme fixes...
         $this->em->flush();
 
-        $t_str = '';
-        foreach ($this->t_mapping as $t_id => $t)
-            $t_str .= '['.$t_id.'] => '.$t->getId().'  ';
-        $this->logger->debug('CloneDatatypeService: $this->theme_mapping: '.$t_str);
-
-
-        // Now, for all parent themes that got created...
-        $all_new_themes = array();
-        foreach ($new_parent_themes as $t) {
-            // ...load all themes with this theme as their parent...
-            $query = $this->em->createQuery(
-               'SELECT t
-                FROM ODRAdminBundle:Theme AS t
-                WHERE t.parentTheme = :theme_id
-                AND t.deletedAt IS NULL'
-            )->setParameters( array('theme_id' => $t->getId()) );
-            $results = $query->getResult();
-
-            /** @var Theme[] $results */
-            foreach ($results as $result) {
-                $dt_id = $result->getDataType()->getId();
-
-                $correct_dt = $this->dt_mapping[$dt_id];
-                $correct_t = $this->t_mapping[ $result->getSourceTheme()->getId() ];
-
-                // ...update the theme to point to the correct newly cloned datatype
-                $result->setDataType($correct_dt);
-
-                // If correct_dt is an existing datatype, tie to source of existing datatype theme
-                $existing = false;
-                foreach($this->existing_datatypes as $edt) {
-                    if($edt->getId() === $correct_dt->getId()) {
-                        $existing = true;
-                    }
-                }
-                if($existing) {
-                    // if parent == correct_t, then we need to delete it if existing datatype
-                    if ($result->getParentTheme()->getId() === $correct_t->getId()) {
-                        // We need to delete this one
-                        $this->em->remove($result);
-                    }
-                    else {
-                        // Use theme info service to get master
-                        $source_theme = $this->tif_service->getDatatypeMasterTheme($correct_dt->getId());
-
-                        $result->setSourceTheme($source_theme);
-                        self::persistObject($result, true);    // These don't need to be flushed/refreshed immediately...
-                        $all_new_themes[$result->getId()] = $result;
-                    }
-                }
-                else {
-                    // ...set this theme to use the correct newly cloned theme as its source
-                    $result->setSourceTheme($correct_t);
-                    self::persistObject($result, true);    // These don't need to be flushed/refreshed immediately...
-                    $all_new_themes[$result->getId()] = $result;
-                }
-
-                $this->logger->debug('CloneDatatypeService: set theme '.$result->getId().' to point to datatype '.$correct_dt->getId().' "'.$correct_dt->getShortName().'", and to use theme '.$correct_t->getId().' as its source theme');
-            }
-        }
-
-        $this->em->flush();
-        foreach ($all_new_themes as $t_id => $t)
-            $this->em->refresh($t);
-
-
-        // Additionally, each theme_datatype belonging to these themes needs to have their
-        //  childDatatype property switched over to point to the newly created datatypes.
-        $query = $this->em->createQuery(
-           'SELECT tdt
-            FROM ODRAdminBundle:ThemeDataType AS tdt
-            JOIN ODRAdminBundle:ThemeElement AS te WITH tdt.themeElement = te
-            WHERE te.theme IN (:theme_ids)
-            AND tdt.deletedAt IS NULL AND te.deletedAt IS NULL'
-        )->setParameters( array('theme_ids' => array_keys($all_new_themes)) );
-        $results = $query->getResult();
-
-        /** @var ThemeDataType[] $results */
-        foreach ($results as $result) {
-            $dt_id = $result->getDataType()->getId();
-            $correct_dt = $this->dt_mapping[$dt_id];
-
-            $result->setDataType($correct_dt);
-            self::persistObject($result, true);    // These don't need to be flushed/refreshed immediately...
-
-            $this->logger->debug('CloneDatatypeService: set themeDatatype '.$result->getId().' (theme '.$result->getThemeElement()->getTheme()->getId().') to point to datatype '.$correct_dt->getId().' "'.$correct_dt->getShortName().'"');
-        }
-
-        // Finally, get the newly cloned theme_datafield entries to point to the correct datafields...
-        $query = $this->em->createQuery(
-           'SELECT tdf
-            FROM ODRAdminBundle:ThemeDataField AS tdf
-            JOIN ODRAdminBundle:ThemeElement AS te WITH tdf.themeElement = te
-            WHERE te.theme IN (:theme_ids)
-            AND tdf.deletedAt IS NULL AND te.deletedAt IS NULL'
-        )->setParameters( array('theme_ids' => array_keys($all_new_themes)) );
-        $results = $query->getResult();
-
-        /** @var ThemeDataField[] $results */
-        foreach ($results as $result) {
-            $df_id = $result->getDataField()->getId();
-            $correct_df = $this->df_mapping[$df_id];
-
-            $result->setDataField($correct_df);
-            self::persistObject($result, true);    // These don't need to be flushed/refreshed immediately...
-
-            $this->logger->debug('CloneDatatypeService: set themeDatafield '.$result->getId().' (theme '.$result->getThemeElement()->getTheme()->getId().') to point to datafield '.$correct_df->getId().' "'.$correct_df->getFieldName().'"');
-        }
-
-        $this->em->flush();
-
-        // All new themes are complete here.
-        // TODO delete duplicate "master => parent = source" themes
-        // and change source to be source of already created datatype of same id.
-
-        // Ensure the cached themes will get rebuilt with the correct data
-        $this->cache_service->delete('top_level_themes');
-        foreach ($new_parent_themes as $t)
-            $this->cache_service->delete('cached_theme_'.$t->getId());
     }
 
+    private function correctThemeData(Theme $theme, Theme $parent_theme, Theme $source_theme) {
+        $this->logger->info('Theme analysis... ');
+        $this->logger->info('Theme type: ' . $theme->getThemeType());
+        $this->logger->info('Theme ID: ' . $theme->getId());
+        $this->logger->info('Theme Source: ' . $theme->getSourceTheme()->getId());
+        $this->logger->info('Theme Name: ' . $theme->getThemeMeta()->getTemplateName());
+        $this->logger->info('Theme Datatype: ' . $theme->getDataType()->getId());
+
+        // Correct the Datatype ID if needed
+        /*
+        $corrected_dt = $this->dt_mapping[$theme->getDataType()->getId()];
+        $this->dt_mapping[$corrected_dt->getId()] = $corrected_dt;
+        $theme->setDataType($corrected_dt);
+        $this->logger->info('        Theme Corrected Datatype ID: ' . $corrected_dt->getId());
+        */
+
+
+        // Set source and parent
+        $theme->setParentTheme($parent_theme);
+        /*
+        $theme->setSourceTheme($source_theme);
+        */
+
+        /** @var ThemeElement[] $te_array */
+        $te_array = $theme->getThemeElements();
+        foreach($te_array as $te) {
+            /** @var ThemeElement $te */
+            self::correctThemeElement($theme, $parent_theme, $te);
+        }
+        // Save changes to object
+        // self::persistObject($theme, true);
+        // $this->logger->info('Persisting Theme Changes ID: ' . $theme->getId());
+    }
+
+    private function correctThemeElement(Theme $theme, Theme $parent_theme, ThemeElement $te) {
+        /** @var ThemeElement $te */
+        $this->logger->info('    Theme Element ID: ' . $te->getId());
+        $this->logger->info('    Theme Element Meta ID: ' . $te->getThemeElementMeta()->getId());
+
+//        /** @var ThemeDataField[] $tdf_array */
+//        $tdf_array = $te->getThemeDataFields();
+//        foreach($tdf_array as $tdf) {
+//            /** @var ThemeDataField $tdf */
+//            self::correctThemeDataField($tdf);
+//        }
+
+
+        /** @var ThemeDataType[] $tdt_array */
+        $tdt_array = $te->getThemeDataType();
+        foreach($tdt_array as $tdt) {
+            // NOTE Parent theme is actually grandparent theme.
+            // Using $theme results in a tree structure as opposed to the
+            // flat grandparent theme structure.
+            /** @var ThemeDataType $tdt */
+            self::correctThemeDataType($parent_theme, $tdt);
+        }
+
+    }
+
+    private function correctThemeDataField(ThemeDataField $tdf) {
+        $this->logger->info('        Theme Data Field ID: ' . $tdf->getId());
+        $this->logger->info('        Theme Data Field -> Field ID: ' . $tdf->getDataField()->getId());
+
+        $corrected_df = $this->df_mapping[$tdf->getDataField()->getId()];
+        $this->df_mapping[$corrected_df->getId()] = $corrected_df;
+        $tdf->setDataField($corrected_df);
+        $this->logger->info('        Theme Data Field -> Corrected Field ID: ' . $corrected_df->getId());
+    }
+
+    private function correctThemeDataType(Theme $parent_theme, ThemeDataType $tdt) {
+        // May need to fix theme
+        $this->logger->info('        Theme Data Type ID: ' . $tdt->getId());
+        $this->logger->info('        Theme Data Type DT ID: ' . $tdt->getDataType()->getId());
+
+        /*
+        $corrected_dt = $this->dt_mapping[$tdt->getDataType()->getId()];
+        $this->dt_mapping[$corrected_dt->getId()] = $corrected_dt;
+        $tdt->setDataType($corrected_dt);
+        $this->logger->info('        Theme Data Type Corrected DT ID: ' . $corrected_dt->getId());
+        */
+
+        self::correctThemeData($tdt->getChildTheme(), $parent_theme, $tdt->getChildTheme()->getSourceTheme());
+    }
 
     /**
      * Once the theme stuff from the master template and its children are fully cloned, the
@@ -953,12 +864,10 @@ class CloneDatatypeService
                     $new_meta->setDataTree($new_dt);
                     self::persistObject($new_meta);
 
-                    $is_link = 0;
-                    if ($new_dt->getIsLink())
-                        $is_link = 1;
+                    $new_dt->addDataTreeMetum($new_meta);
+                    self::persistObject($new_dt);
 
-                    $this->logger->info('CloneDatatypeService: -- created new datatree with datatype '.$current_ancestor->getId().' "'.$current_ancestor->getShortName().'" as ancestor and datatype '.$datatype->getId().' "'.$datatype->getShortName().'" as descendant, is_link = '.$is_link);
-
+                    $this->logger->info('CloneDatatypeService: -- created new datatree with datatype '.$current_ancestor->getId().' "'.$current_ancestor->getShortName().'" as ancestor and datatype '.$datatype->getId().' "'.$datatype->getShortName().'" as descendant, is_link = '.$new_meta->getIsLink());
                     // Also create any datatree entries required for this newly-created datatype
                     self::cloneDatatree($datatype->getMasterDataType());
                 }
@@ -981,7 +890,7 @@ class CloneDatatypeService
         /** @var DataTree[] $datatree_array */
         $datatree_array = $this->em->getRepository('ODRAdminBundle:DataTree')->findBy( array('descendant' => $datatype->getId()) );
         foreach ($datatree_array as $datatree) {
-            if ($datatree->getIsLink() == 0) {
+            if ($datatree->getDataTreeMeta()->getIsLink() == 0) {
                 // This datatype is a child of some other datatype...do NOT create any groups for it
                 return;
             }
@@ -1003,7 +912,6 @@ class CloneDatatypeService
 
             // Ensure the "in-memory" version of $datatype knows about the new group
             $datatype->addGroup($new_group);
-            self::persistObject($new_group);
 
             // Store that a group was created
             $this->created_groups[] = $new_group;
@@ -1015,7 +923,9 @@ class CloneDatatypeService
 
             // Ensure the "in-memory" version of $new_group knows about its new meta entry
             $new_group->addGroupMetum($new_group_meta);
-            self::persistObject($new_group_meta);
+
+            self::persistObject($new_group_meta, true);
+            self::persistObject($new_group, true);
 
             $this->logger->info('CloneDatatypeService: created new Group '.$new_group->getId().' from parent "'.$master_group->getPurpose().'" Group '.$master_group->getId().' for datatype '.$datatype->getId());
 
@@ -1028,7 +938,7 @@ class CloneDatatypeService
                 foreach ($user_list as $u) {
                     if ( $u->hasRole('ROLE_SUPER_ADMIN') ) {
                         // ...add the super admin to this new admin group
-                        $this->pm_service->createUserGroup($u, $new_group, $this->user, true);    // These don't need to be flushed/refreshed immediately...
+                        $this->pm_service->createUserGroup($u, $new_group, $this->user, true, false);    // These don't need to be flushed/refreshed immediately...
                         $this->logger->debug('-- added super_admin user '.$u->getId().' to admin group');
 
                         // Don't bother deleting this user's cached permissions here...
@@ -1040,7 +950,7 @@ class CloneDatatypeService
                 // If the user isn't a super-admin, then add them to the admin group as well...
                 // ...otherwise, they won't be able to see the new datatype either
                 if (!$this->user->hasRole('ROLE_SUPER_ADMIN')) {
-                    $this->pm_service->createUserGroup($this->user, $new_group, $this->user, true);    // These don't need to be flushed/refreshed immediately...
+                    $this->pm_service->createUserGroup($this->user, $new_group, $this->user, true, false);    // These don't need to be flushed/refreshed immediately...
                     $this->logger->debug('-- added user '.$this->user->getId().' to admin group');
 
                     // If the user's cached permissions were deleted here, the user would likely
@@ -1048,7 +958,10 @@ class CloneDatatypeService
                 }
             }
 
-            $this->em->flush();
+            // TODO No reason to flush here....
+            // $this->em->flush();
+
+            // TODO But we should persist here?
 
             // Don't need to delete cached permissions for any other users or groups...nobody
             //  belongs to them yet
@@ -1083,6 +996,7 @@ class CloneDatatypeService
         $grandparent_datatype_id = $datatype->getId();
 
         $datatree_array = array();
+        // TODO Seriously bad.
         do {
             //
             $is_child = false;
@@ -1090,7 +1004,7 @@ class CloneDatatypeService
             /** @var DataTree[] $datatree_array */
             $datatree_array = $repo_datatree->findBy( array('descendant' => $grandparent_datatype_id) );
             foreach ($datatree_array as $datatree) {
-                if ($datatree->getIsLink() == 0) {
+                if ($datatree->getDataTreeMeta()->getIsLink() == 0) {
                     $is_child = true;
                     $grandparent_datatype_id = $datatree->getAncestor()->getId();
                 }
@@ -1134,9 +1048,9 @@ class CloneDatatypeService
             }
         }
 
-        $this->em->flush();
+        // TODO No reason to flush here....
+        // $this->em->flush();
     }
-
 
     /**
      * Clones all GroupDatafield permission entries from $datafield's master datafield.
@@ -1155,7 +1069,6 @@ class CloneDatatypeService
         if ( is_null($master_gdf_permissions) )
             throw new ODRException('CloneDatatypeService: Master Datafield '.$master_datafield->getId().' has no permission entries to clone.');
 
-
         // NOTE - can't use $this->dti_service->getGrandparentDatatypeId() for this...the functions
         //  that rely on that service assume that they're only dealing with datatypes that are
         //  functional, and this datatype is currently still incomplete
@@ -1173,7 +1086,7 @@ class CloneDatatypeService
             /** @var DataTree[] $datatree_array */
             $datatree_array = $repo_datatree->findBy( array('descendant' => $grandparent_datatype_id) );
             foreach ($datatree_array as $datatree) {
-                if ($datatree->getIsLink() == 0) {
+                if ($datatree->getDataTreeMeta()->getIsLink() == 0) {
                     $is_child = true;
                     $grandparent_datatype_id = $datatree->getAncestor()->getId();
                 }
@@ -1217,7 +1130,8 @@ class CloneDatatypeService
             }
         }
 
-        $this->em->flush();
+        // TODO No reason to flush here....
+        // $this->em->flush();
     }
 
 
@@ -1257,7 +1171,7 @@ class CloneDatatypeService
             $new_rpi = clone $parent_rpi;
             $new_rpi->setDataType($datatype);
             $new_rpi->setDataField($datafield);
-            self::persistObject($new_rpi);
+            self::persistObject($new_rpi, true);
 
             $df_id = 'NULL';
             if ( !is_null($datafield) )
@@ -1301,7 +1215,8 @@ class CloneDatatypeService
                 $this->logger->debug('CloneDatatypeService: -- -- cloned render_plugin_map '.$parent_rpm->getId().', set datafield to '.$df_id.' and set datatype to '.$dt_id);
             }
 
-            $this->em->flush();
+            // TODO NO FLUSH
+            // $this->em->flush();
         }
     }
 }

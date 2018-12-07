@@ -23,10 +23,10 @@
         <li class="{% if wizard_step == 3 %}current{% endif %}">
             {% if datatype_id > 0 %}
             <a href="#{{ path('odr_design_master_theme', {'datatype_id': datatype_id}) }}">
-                <span class="wizardStatusText">Edit Database Design B</span>
+                <span class="wizardStatusText">Edit Database Design <!-- B --></span>
             </a>
             {% else %}
-                <span class="wizardStatusText">Edit Database Design C</span>
+                <span class="wizardStatusText">Edit Database Design <!-- C --></span>
             {% endif %}
         </li>
         <li class="{% if wizard_step == 4 %}current{% endif %}">
