@@ -421,6 +421,14 @@ class APIController extends ODRCustomController
     {
         try {
             // ----------------------------------------
+            // Default to returning the data straight to the browser...
+            $download_response = false;
+            if ($request->query->has('download') && $request->query->get('download') == 'file')
+                // ...but return the data as a download on request
+                $download_response = true;
+
+
+            // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -564,8 +572,17 @@ class APIController extends ODRCustomController
                 )
             );
 
-            // Symfony should automatically set the response format based on the request format
-            return new Response($data);
+            // Set up a response to send the datatype back
+            $response = new Response();
+
+            if ($download_response) {
+                $response->setPrivate();
+                //$response->headers->set('Content-Length', filesize($xml_export_path.$filename));
+                $response->headers->set('Content-Disposition', 'attachment; filename="Datatype_'.$datatype_uuid.'_list.'.$request->getRequestFormat().'";');
+            }
+
+            $response->setContent($data);
+            return $response;
         }
         catch (\Exception $e) {
             $source = 0xd12ec6ee;
@@ -591,6 +608,14 @@ class APIController extends ODRCustomController
     public function getTemplateDatatypeListAction($version, $datatype_uuid, $limit, $offset, Request $request)
     {
         try {
+            // ----------------------------------------
+            // Default to returning the data straight to the browser...
+            $download_response = false;
+            if ($request->query->has('download') && $request->query->get('download') == 'file')
+                // ...but return the data as a download on request
+                $download_response = true;
+
+
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -649,7 +674,7 @@ class APIController extends ODRCustomController
                'SELECT
                     dt.id AS database_id, dt.unique_id AS unique_id, dtm.shortName AS database_name,
                     dtm.description AS database_description, dtm.publicDate AS public_date,
-                    mdt.unique_id AS template_id
+                    dtm.searchSlug AS search_slug, mdt.unique_id AS template_id
                 FROM ODRAdminBundle:DataType AS dt
                 JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
                 JOIN ODRAdminBundle:DataType AS mdt WITH dt.masterDataType = mdt
@@ -700,8 +725,17 @@ class APIController extends ODRCustomController
                 )
             );
 
-            // Symfony should automatically set the response format based on the request format
-            return new Response($data);
+            // Set up a response to send the datatype back
+            $response = new Response();
+
+            if ($download_response) {
+                $response->setPrivate();
+                //$response->headers->set('Content-Length', filesize($xml_export_path.$filename));
+                $response->headers->set('Content-Disposition', 'attachment; filename="template_'.$datatype_uuid.'_list.'.$request->getRequestFormat().'";');
+            }
+
+            $response->setContent($data);
+            return $response;
         }
         catch (\Exception $e) {
             $source = 0x1c7b55d0;

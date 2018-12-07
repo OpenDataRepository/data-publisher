@@ -51,51 +51,32 @@ odr_default_search_render:
 
 # ----------------------------------------
 # Alternative API access routes
-odr_search_api_get_datatype_single:
-    path:  /{search_slug}/api/info.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatatypeExport, search_slug: '', _format: json }
-    requirements:
-        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'    # any 32 charactera alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
-        _format: '|json|xml'
+#odr_search_api_get_datatype_single:
+#    path:  /{search_slug}/api/info.{_format}
+#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatatypeExport, search_slug: '', _format: json }
+#    requirements:
+#        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'    # any 32 character alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
+#        _format: '|json|xml'
 
-odr_search_api_get_datarecord_list:
-    path:  /{search_slug}/api/records.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatarecordList, search_slug: '', _format: json }
-    requirements:
-        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
-        _format: '|json|xml'
+#odr_search_api_get_datarecord_list:
+#    path:  /{search_slug}/api/records/{limit}/{offset}.{_format}
+#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatarecordList, search_slug: '', limit: 999999999, offset: 0, _format: json }
+#    requirements:
+#        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
+#        limit: \d+
+#        offset: \d+
+#        _format: '|json|xml'
 
-odr_search_api_get_datarecord_single:
-    path:  /{search_slug}/api/records/{datarecord_id}.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatarecordExport, search_slug: '', _format: json }
-    requirements:
-        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
-        datarecord_id: \d+
-        _format: '|json|xml'
+#odr_search_api_get_datarecord_single:
+#    path:  /{search_slug}/api/records/{datarecord_id}.{_format}
+#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatarecordExport, search_slug: '', _format: json }
+#    requirements:
+#        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
+#        datarecord_id: \d+
+#        _format: '|json|xml'
 
 
 # API for searching
-#odr_search_api_database_get:
-#    path: /api/{version}/search/databases/{json_key}/{limit}/{offset}.{_format}
-#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchDatabaseGet, _format: json }
-#    methods: [ GET ]
-#    requirements:
-#        version: 'v1'
-#        json_key: '[a-zA-Z0-9\=]+'    # this is base64 encoding of JSON, not an ODR search_key as used throughout other routes
-#        limit: \d+
-#        offset: \d+
-#        _format: '|json|xml'
-#
-#odr_search_api_database_post:
-#    path: /api/{version}/search/databases/{limit}/{offset}.{_format}
-#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchDatabasePost, _format: json }
-#    methods: [ POST ]
-#    requirements:
-#        version: 'v1'
-#        limit: \d+
-#        offset: \d+
-#        _format: '|json|xml'
-
 odr_search_api_template_get:
     path: /api/{version}/search/{json_key}/{limit}/{offset}.{_format}
     defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplateGet, _format: json }

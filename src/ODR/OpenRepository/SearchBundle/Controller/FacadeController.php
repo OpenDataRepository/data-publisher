@@ -66,13 +66,18 @@ class FacadeController extends Controller
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
+            $type = 'databases';
+            if ($datatype->getIsMasterType())
+                $type = 'templates';
+
             // Let the APIController do the rest of the error-checking
             return $this->forward(
                 'ODRAdminBundle:API:getDatatypeExport',
                 array(
                     'version' => 'v1',
                     'datatype_uuid' => $datatype->getUniqueId(),
-                    '_format' => $request->getRequestFormat()
+                    '_format' => $request->getRequestFormat(),
+                    'type' => $type,
                 ),
                 $request->query->all()
             );
@@ -115,6 +120,7 @@ class FacadeController extends Controller
                 throw new ODRNotFoundException('Datatype');
 
 
+            // TODO - apparently this demands the limit/offset parameters are defined beforehand?
             // Let the APIController do the rest of the error-checking
             return $this->forward(
                 'ODRAdminBundle:API:getDatarecordList',
@@ -368,7 +374,11 @@ class FacadeController extends Controller
             // ----------------------------------------
             // Validate the given search information
             $post = $request->request->all();
-            $search_key = $search_key_service->convertPOSTtoSearchKey($post);
+            if ( !isset($post['search_key']) )
+                throw new ODRBadRequestException();
+            $json = $post['search_key'];
+
+            $search_key = $search_key_service->convertJSONtoSearchKey($json);
             $search_key_service->validateTemplateSearchKey($search_key);
 
             // Now that the search key is valid, load the datatype being searched on
