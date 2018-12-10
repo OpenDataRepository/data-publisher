@@ -85,7 +85,7 @@ class FacadeController extends Controller
         catch (\Exception $e) {
             $source = 0x9ab9a4bf;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -135,7 +135,7 @@ class FacadeController extends Controller
         catch (\Exception $e) {
             $source = 0x100ae284;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -192,7 +192,7 @@ class FacadeController extends Controller
         catch (\Exception $e) {
             $source = 0x50cf3669;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -246,7 +246,7 @@ class FacadeController extends Controller
 
             // ----------------------------------------
             // Validate the given search information
-            $search_key = $search_key_service->convertJSONtoSearchKey($json_key);
+            $search_key = $search_key_service->convertBase64toSearchKey($json_key);
             $search_key_service->validateTemplateSearchKey($search_key);
 
             // Now that the search key is valid, load the datatype being searched on
@@ -320,7 +320,7 @@ class FacadeController extends Controller
         catch (\Exception $e) {
             $source = 0x9c2fcbde;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -376,9 +376,9 @@ class FacadeController extends Controller
             $post = $request->request->all();
             if ( !isset($post['search_key']) )
                 throw new ODRBadRequestException();
-            $json = $post['search_key'];
+            $base64 = $post['search_key'];
 
-            $search_key = $search_key_service->convertJSONtoSearchKey($json);
+            $search_key = $search_key_service->convertBase64toSearchKey($base64);
             $search_key_service->validateTemplateSearchKey($search_key);
 
             // Now that the search key is valid, load the datatype being searched on
@@ -452,7 +452,7 @@ class FacadeController extends Controller
         catch (\Exception $e) {
             $source = 0x7f543ec7;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

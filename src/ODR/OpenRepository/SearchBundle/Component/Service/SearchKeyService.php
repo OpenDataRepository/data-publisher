@@ -105,16 +105,16 @@ class SearchKeyService
 
 
     /**
-     * Converts some form of JSON into an ODR search key...
-     * TODO - this is just a placeholder
+     * Converts a Base64-encoded JSON string into an ODR search key...
      *
-     * @param string $json
+     * @param string $base64
      *
      * @return string
      */
-    public function convertJSONtoSearchKey($json)
+    public function convertBase64toSearchKey($base64)
     {
         // TODO
+        $json = base64_decode($base64);
         $post = json_decode($json);
 
         $search_params = array();
