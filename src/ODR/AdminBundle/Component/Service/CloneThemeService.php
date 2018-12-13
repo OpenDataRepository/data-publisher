@@ -26,6 +26,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+use Symfony\Component\Filesystem\LockHandler;
 
 
 class CloneThemeService
@@ -136,7 +137,7 @@ class CloneThemeService
         if ( $theme->getThemeType() !== 'master' && $theme->getCreatedBy()->getId() !== $user->getId() )
             return false;
 
-
+/*
         // ----------------------------------------
         // Otherwise...for each theme that has the provided theme as its parent, check whether its
         //  source theme has had any Datafields or child/linked Datatypes added to it
@@ -153,15 +154,15 @@ class CloneThemeService
         )->setParameters( array('theme_id' => $theme->getId()) );
         $results = $query->getArrayResult();
 
-
-        // TODO Temporarily turning off theme synching due to issues caused by Nate's setting 
-        // that new cloned datatypes reference their "master template" theme as source
-        return false;
-
         foreach ($results as $result) {
             if ( intval($result['current_version']) !== intval($result['source_version']) )
                 return true;
         }
+*/
+        // TODO - dig through all of ODR and ensure the version numbers are getting updated correctly
+        $tmp = self::getThemeSourceDiff($theme);
+        if ( count($tmp) > 0 )
+            return true;
 
         // Otherwise, no appreciable changes have been made...no need to synchronize
         return false;
@@ -389,6 +390,17 @@ class CloneThemeService
         // No sense running this if there's nothing to sync
         if ( count($theme_diff_array) == 0 )
             return false;
+
+
+        // Bad Things (tm) happen if multiple processes attempt to synchronize the same theme at
+        //  the same time, so use Symfony's LockHandler component to prevent that...
+        $lockHandler = new LockHandler('theme_'.$theme->getId().'_sync.lock');
+        if (!$lockHandler->lock()) {
+            // Another process is already synchronizing this theme...block until it's done...
+            $lockHandler->lock(true);
+            // ...then abort the synchronization without duplicating any changes
+            return false;
+        }
 
 
         // ----------------------------------------

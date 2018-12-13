@@ -629,7 +629,7 @@ class ValidationController extends ODRCustomController
             $query =
                 'SELECT i.id AS i_id
                  FROM odr_image AS i
-                 WHERE i.id NOT IN (
+                 WHERE i.original = 1 AND i.id NOT IN (
                      SELECT DISTINCT(im.image_id)
                      FROM odr_image_meta AS im
                  )';

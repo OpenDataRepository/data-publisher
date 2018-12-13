@@ -3939,7 +3939,13 @@ class ODRCustomController extends Controller
         $theme_diff_array = $clone_theme_service->getThemeSourceDiff($theme);
 
         // Then synchronize the theme...
-        $clone_theme_service->syncThemeWithSource($user, $theme);
+        $synched = $clone_theme_service->syncThemeWithSource($user, $theme);
+        if (!$synched) {
+            // If the synchronization didn't actually do anything, then don't update the version
+            //  numbers in the database or notify the user of anything
+            return false;
+        }
+
 
         // Since this theme got synched, also synch the version numbers of all themes with this
         //  this theme as their parent...

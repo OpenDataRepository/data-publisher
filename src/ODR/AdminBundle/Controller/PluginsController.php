@@ -879,12 +879,16 @@ class PluginsController extends ODRCustomController
 
 
             if ($datafield_id == 0) {
+                // If datafield id isn't defined, this is a render plugin for a datatype
+
                 /** @var DataType $datatype */
                 $datatype = $repo_datatype->find($datatype_id);
                 if ( is_null($datatype) )
                     throw new ODRNotFoundException('Datatype');
             }
             else {
+                // ...otherwise, this is a render plugin for a datafield
+
                 /** @var DataFields $datafield */
                 $datafield = $repo_datafield->find($datafield_id);
                 if ( is_null($datafield) )

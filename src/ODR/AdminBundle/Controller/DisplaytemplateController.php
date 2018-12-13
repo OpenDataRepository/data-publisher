@@ -139,8 +139,9 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRException('Preventing deletion of this DataField, because it is currently being migrated to another Fieldtype...');
 
             // Check that the datafield isn't being used for something else before deleting it
-            if ( !self::canDeleteDatafield($em, $datafield) )
-                throw new ODRBadRequestException('Datafield is in use, unable to delete');
+            $reason = self::canDeleteDatafield($em, $datafield);
+            if ( $reason['prevent_deletion'] )
+                throw new ODRBadRequestException( $reason['prevent_deletion_message'] );
 
 
             // ----------------------------------------
@@ -2509,79 +2510,12 @@ class DisplaytemplateController extends ODRCustomController
 
 
     /**
-     * Triggers a re-render and reload of a child DataType div in the design.
-     *
-     * @param integer $source_datatype_id  The database id of the top-level Datatype
-     * @param integer $datatype_id         The database id of the child DataType that needs to be re-rendered.
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function reloadchildAction($source_datatype_id, $datatype_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
-
-
-            /** @var DataType $source_datatype */
-            $source_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($source_datatype_id);
-            if ($source_datatype == null)
-                throw new ODRNotFoundException('Source Datatype');
-
-            /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ($datatype == null)
-                throw new ODRNotFoundException('Datatype');
-
-            // Ensure the datatype has a master theme...
-            $theme_service->getDatatypeMasterTheme($datatype->getId());
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            // Ensure user has permissions to be doing this
-            if ( !$pm_service->isDatatypeAdmin($user, $source_datatype) )
-                throw new ODRForbiddenException();
-            // --------------------
-
-            $return['d'] = array(
-                'datatype_id' => $datatype_id,
-                'html' => self::GetDisplayData($em, $source_datatype_id, 'child_datatype', $datatype_id, $request),
-            );
-        }
-        catch (\Exception $e) {
-            $source = 0x940ecdfe;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
      * Triggers a re-render and reload of a ThemeElement in the design.
      *
-     * @param integer $source_datatype_id  The database id of the top-level datatype being rendered?
-     * @param integer $theme_element_id    The database id of the ThemeElement that needs to be re-rendered.
+     * @param integer $source_datatype_id Which Datatype the design page is currently focused on...
+     *                                    can't infer this because of the user could need to reload
+     *                                    a ThemeElement in a linked Datatype
+     * @param integer $theme_element_id Which ThemeElement to reload
      * @param Request $request
      *
      * @return Response
@@ -2657,13 +2591,18 @@ class DisplaytemplateController extends ODRCustomController
     /**
      * Triggers a re-render and reload of a DataField in the design.
      *
-     * @param integer $source_datatype_id
-     * @param integer $datafield_id       The database id of the DataField that needs to be re-rendered.
+     * @param integer $source_datatype_id Which Datatype the design page is currently focused on...
+     *                                    can't infer this because of the user could need to reload
+     *                                    a datafield in a linked Datatype
+     * @param integer $theme_element_id Which ThemeElement the Datafield to reload is within...can't
+     *                                  infer this because of the possibility of the same Datatype
+     *                                  being linked to multiple times
+     * @param integer $datafield_id Which Datafield to reload
      * @param Request $request
      *
      * @return Response
      */
-    public function reloaddatafieldAction($source_datatype_id, $datafield_id, Request $request)
+    public function reloaddatafieldAction($source_datatype_id, $theme_element_id, $datafield_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2674,6 +2613,8 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
@@ -2684,6 +2625,11 @@ class DisplaytemplateController extends ODRCustomController
             $source_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($source_datatype_id);
             if ($source_datatype == null)
                 throw new ODRNotFoundException('Source Datatype');
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ($theme_element == null)
+                throw new ODRNotFoundException('ThemeElement');
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -2711,7 +2657,7 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_id = null;
             $return['d'] = array(
                 'datafield_id' => $datafield_id,
-                'html' => self::GetDisplayData($em, $source_datatype_id, 'datafield', $datafield_id, $request),
+                'html' => $odr_render_service->reloadMasterDesignDatafield($user, $source_datatype, $theme_element, $datafield)
             );
         }
         catch (\Exception $e) {
@@ -2725,295 +2671,6 @@ class DisplaytemplateController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * Renders and returns the HTML for a DesignTemplate version of a DataType.
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $source_datatype_id  The datatype that originally requested this Displaytemplate rendering
-     * @param string $template_name        One of 'default', 'child_datatype', 'theme_element', 'datafield'
-     * @param integer $target_id           If $template_name == 'default', then $target_id should be a top-level datatype id
-     *                                     If $template_name == 'child_datatype', then $target_id should be a child/linked datatype id
-     *                                     If $template_name == 'theme_element', then $target_id should be a theme_element id
-     *                                     If $template_name == 'datafield', then $target_id should be a datafield id
-     * @param Request $request
-     *
-     * @throws ODRException
-     *
-     * @return string
-     */
-    private function GetDisplayData($em, $source_datatype_id, $template_name, $target_id, Request $request)
-    {
-        // ----------------------------------------
-        // Don't need to check permissions
-
-        // Required objects
-        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-
-        /** @var DatatypeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatype_info_service');
-        /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
-        /** @var ThemeInfoService $theme_service */
-        $theme_service = $this->container->get('odr.theme_info_service');
-
-
-        // Going to need these...
-        $datatree_array = $dti_service->getDatatreeArray();
-
-        /** @var DataType $grandparent_datatype */
-        $grandparent_datatype = $repo_datatype->find($source_datatype_id);
-        $master_theme = $theme_service->getDatatypeMasterTheme($source_datatype_id);
-
-
-        // ----------------------------------------
-        // Load required objects based on parameters...don't need to check whether they're deleted
-        /** @var DataType $datatype */
-        $datatype = null;
-        /** @var Theme $theme */
-        $theme = null;
-
-        /** @var ThemeElement|null $theme_element */
-        $theme_element = null;
-        /** @var DataFields|null $datafield */
-        $datafield = null;
-
-
-        if ($template_name == 'default') {
-            $datatype = $grandparent_datatype;
-            $theme = $master_theme;
-        }
-        else if ($template_name == 'child_datatype') {
-            $datatype = $repo_datatype->find($target_id);
-            $theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
-
-            // Check whether this was actually a re-render request for a top-level datatype...
-            if ( !isset($datatree_array['descendant_of'][ $datatype->getId() ]) || $datatree_array['descendant_of'][ $datatype->getId() ] == '' ) {
-                // ...it is, re-rendering should still work properly if various flags are set right
-                $datatype = $grandparent_datatype;
-            }
-
-            // TODO - ...need to have either the theme_datatype or theme_element this child is in to be able to reload the right one where multiple linked datatypes are involved...
-        }
-        else if ($template_name == 'theme_element') {
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($target_id);
-            $theme = $theme_element->getTheme();
-
-            $datatype = $theme->getDataType();
-
-            // TODO - ...need to have either the theme_datatype or theme_element this child is in to be able to reload the right one where multiple linked datatypes are involved...
-        }
-        else if ($template_name == 'datafield') {
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($target_id);
-            $datatype = $datafield->getDataType();
-            $theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
-
-            $datatype = $datafield->getDataType();
-
-            // TODO - ...need to have either the theme_datatype or theme_element this child is in to be able to reload the right one where multiple linked datatypes are involved...
-        }
-
-
-        // ----------------------------------------
-        /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
-        $user_permissions = $pm_service->getUserPermissionsArray($user);
-        $datatype_permissions = $pm_service->getDatatypePermissions($user);
-
-        // Store whether the user is an admin of this datatype...this usually is true, but the user
-        //  may not have the permission if this function is reloading stuff for a linked datatype
-        $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $grandparent_datatype);
-
-
-        // ----------------------------------------
-        // Grab the cached version of the grandparent datatype
-        $include_links = true;
-        $datatype_array = $dti_service->getDatatypeArray($grandparent_datatype->getId(), $include_links);
-
-        // Also grab the cached version of the theme
-        $theme_array = $theme_service->getThemeArray($master_theme->getId());
-
-        // Due to the possibility of linked datatypes the user may not have permissions for, the
-        //  datatype array needs to be filtered.
-        $datarecord_array = array();
-        $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-        // "Inflate" the currently flattened datatype and theme arrays
-        $stacked_datatype_array[ $datatype->getId() ] =
-            $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
-        $stacked_theme_array[ $theme->getId() ] =
-            $theme_service->stackThemeArray($theme_array, $theme->getId());
-
-
-        // ----------------------------------------
-        // Need an array of fieldtype ids and typenames for notifications when changing fieldtypes
-        $fieldtype_array = array();
-        /** @var FieldType[] $fieldtypes */
-        $fieldtypes = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
-        foreach ($fieldtypes as $fieldtype)
-            $fieldtype_array[ $fieldtype->getId() ] = $fieldtype->getTypeName();
-
-        // Store whether this datatype has datarecords..affects warnings when changing fieldtypes
-        $query = $em->createQuery(
-           'SELECT COUNT(dr) AS dr_count
-            FROM ODRAdminBundle:DataRecord AS dr
-            WHERE dr.dataType = :datatype_id'
-        )->setParameters( array('datatype_id' => $datatype->getId()) );
-        $results = $query->getArrayResult();
-
-        $has_datarecords = false;
-        if ( $results[0]['dr_count'] > 0 )
-            $has_datarecords = true;
-
-
-        // ----------------------------------------
-        // Render the required version of the page
-        $templating = $this->get('templating');
-
-        $html = '';
-        if ($template_name == 'default') {
-            // ----------------------------------------
-            // Determine whether the currently preferred theme needs to be synchronized with its source
-            //  and the user notified of it
-            $notify_of_sync = self::notifyOfThemeSync($theme, $user);
-
-
-            $html = $templating->render(
-                'ODRAdminBundle:Displaytemplate:design_ajax.html.twig',
-                array(
-                    'datatype_array' => $stacked_datatype_array,
-                    'theme_array' => $stacked_theme_array,
-
-                    'initial_datatype_id' => $datatype->getId(),
-                    'initial_theme_id' => $theme->getId(),
-
-                    'datatype_permissions' => $datatype_permissions,
-
-                    'fieldtype_array' => $fieldtype_array,
-                    'has_datarecords' => $has_datarecords,
-
-                    'notify_of_sync' => $notify_of_sync,
-                )
-            );
-        }
-        else if ($template_name == 'child_datatype') {
-
-            // Set variables properly incase this was a theme_element for a child/linked datatype
-            $target_datatype_id = $datatype->getId();
-            $is_top_level = 0;
-            if ($datatype->getId() == $grandparent_datatype->getId()) {
-                $target_datatype_id = $grandparent_datatype->getId();
-                $is_top_level = 1;
-            }
-
-            // If the top-level datatype id found doesn't match the original datatype id of the
-            //  design page, then this is a request for a linked datatype
-            $is_link = 0;
-            if ($source_datatype_id != $grandparent_datatype->getId())
-                $is_link = 1;
-
-
-            $html = $templating->render(
-                'ODRAdminBundle:Displaytemplate:design_childtype.html.twig',
-                array(
-                    'datatype_array' => $stacked_datatype_array,
-                    'theme_array' => $stacked_theme_array,
-
-                    'target_datatype_id' => $target_datatype_id,
-                    'target_theme_id' => $theme->getId(),
-
-                    'datatype_permissions' => $datatype_permissions,
-                    'is_datatype_admin' => $is_datatype_admin,
-
-                    'is_link' => $is_link,
-                    'is_top_level' => $is_top_level,
-                )
-            );
-        }
-        else if ($template_name == 'theme_element') {
-
-            // Set variables properly incase this was a theme_element for a child/linked datatype
-            $target_datatype_id = $datatype->getId();
-            $is_top_level = 0;
-            if ($datatype->getId() == $grandparent_datatype->getId()) {
-                $target_datatype_id = $grandparent_datatype->getId();
-                $is_top_level = 1;
-            }
-
-            // If the top-level datatype id found doesn't match the original datatype id of the
-            //  design page, then this is a request for a linked datatype
-            $is_link = 0;
-            if ($source_datatype_id != $grandparent_datatype->getId())
-                $is_link = 1;
-
-            // design_fieldarea.html.twig attempts to render all theme_elements in the given theme,
-            //  but this request is to only re-render one of them...unset all theme_elements except
-            //  the one that's being re-rendered
-            foreach ($stacked_theme_array[ $theme->getId() ]['themeElements'] as $te_num => $te) {
-                if ( $te['id'] != $target_id )
-                    unset( $stacked_theme_array[ $theme->getId() ]['themeElements'][$te_num] );
-            }
-//print '<pre>'.print_r($theme_array, true).'</pre>'; exit();
-
-            $html = $templating->render(
-                'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig',
-                array(
-                    'datatype_array' => $stacked_datatype_array,
-                    'theme_array' => $stacked_theme_array,
-
-                    'target_datatype_id' => $target_datatype_id,
-                    'target_theme_id' => $theme->getId(),
-
-                    'datatype_permissions' => $datatype_permissions,
-                    'is_datatype_admin' => $is_datatype_admin,
-
-                    'is_top_level' =>  $is_top_level,
-                    'is_link' => $is_link,
-                )
-            );
-        }
-        else if ($template_name == 'datafield') {
-
-            // Locate the array versions of the requested datafield and its associated theme_datafield entry
-            $datafield_array = null;
-            $theme_datafield_array = null;
-
-            if ( isset($datatype_array[ $datatype->getId() ]['dataFields'][ $datafield->getId() ]) )
-                $datafield_array = $datatype_array[ $datatype->getId() ]['dataFields'][ $datafield->getId() ];
-
-            foreach ($theme_array[ $theme->getId() ]['themeElements'] as $te_num => $te) {
-                if ( isset($te['themeDataFields']) ) {
-                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                        if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $datafield->getId() ) {
-                            $theme_datafield_array = $tdf;
-                            break;
-                        }
-                    }
-                }
-
-                if ($theme_datafield_array !== null)
-                    break;
-            }
-
-            if ( $datafield_array == null )
-                throw new ODRException('Unable to locate array entry for datafield '.$datafield->getId());
-            if ( $theme_datafield_array == null )
-                throw new ODRException('Unable to locate theme array entry for datafield '.$datafield->getId());
-
-            $html = $templating->render(
-                'ODRAdminBundle:Displaytemplate:design_datafield.html.twig',
-                array(
-                    'theme_datafield' => $theme_datafield_array,
-                    'datafield' => $datafield_array,
-
-                    'is_datatype_admin' => $is_datatype_admin,
-                )
-            );
-        }
-
-        return $html;
     }
 
 
@@ -3883,12 +3540,14 @@ class DisplaytemplateController extends ODRCustomController
 
 
                 // Keep track of conditions where parts of the datafield shouldn't be changed...
-                $ret = self::canDeleteDatafield($em, $datafield);
-                $prevent_datafield_deletion = $ret['prevent_deletion'];
-                $prevent_datafield_deletion_message = $ret['prevent_deletion_message'];
                 $ret = self::canChangeFieldtype($em, $datafield);
                 $prevent_fieldtype_change = $ret['prevent_change'];
                 $prevent_fieldtype_change_message = $ret['prevent_change_message'];
+
+                // Prevention of datafield deletion happens inside design_fieldarea.html.twig
+//                $ret = self::canDeleteDatafield($em, $datafield);
+//                $prevent_datafield_deletion = $ret['prevent_deletion'];
+//                $prevent_datafield_deletion_message = $ret['prevent_deletion_message'];
 
 
                 // Render the html for the form
@@ -3901,8 +3560,8 @@ class DisplaytemplateController extends ODRCustomController
                             'has_multiple_uploads' => $has_multiple_uploads,
                             'prevent_fieldtype_change' => $prevent_fieldtype_change,
                             'prevent_fieldtype_change_message' => $prevent_fieldtype_change_message,
-                            'prevent_datafield_deletion' => $prevent_datafield_deletion,
-                            'prevent_datafield_deletion_message' => $prevent_datafield_deletion_message,
+//                            'prevent_datafield_deletion' => $prevent_datafield_deletion,
+//                            'prevent_datafield_deletion_message' => $prevent_datafield_deletion_message,
 
                             'used_by_table_theme' => $used_by_table_theme,
 

@@ -66,18 +66,37 @@
                 {% else %}
                     {% set datafield = datatype['dataFields'][datafield_id] %}
 
+                    {# Users aren't allowed to delete datafields that are being used in special ways by the datatype #}
+                    {% set is_external_id_field = false %}
+                    {% if datatype.dataTypeMeta.externalIdField == datafield_id %}
+                        {% set is_external_id_field = true %}
+                    {% endif %}
+
+                    {% set is_datatype_render_plugin_field = false %}
+                    {% if datatype.dataTypeMeta.renderPlugin.pluginClassName != 'odr_plugins.base.default' %}
+                        {% for rpi in datatype.dataTypeMeta.renderPlugin.renderPluginInstance %}
+                            {% for rpm in rpi.renderPluginMap %}
+                                {% if rpm.dataField.id == datafield_id %}
+                                    {% set is_datatype_render_plugin_field = true %}
+                                {% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                    {% endif %}
+
                     {% include 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig' with {
                         'theme_datafield': theme_datafield,
                         'datafield': datafield,
 
                         'is_datatype_admin': is_datatype_admin,
+                        'is_external_id_field': is_external_id_field,
+                        'is_datatype_render_plugin_field': is_datatype_render_plugin_field,
                     } %}
                 {% endif %}
 
             {% endfor %}
         {% elseif theme_element.themeDataType is defined %}
 
-            {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
+            {# should only ever be a single child/linked datatype, but keep the loop incase that changes in the future #}
             {% for theme_datatype in theme_element.themeDataType %}
                 {% set child_datatype_id = theme_datatype.dataType.id %}
                 {% set child_theme_id = theme_datatype.childTheme.id %}

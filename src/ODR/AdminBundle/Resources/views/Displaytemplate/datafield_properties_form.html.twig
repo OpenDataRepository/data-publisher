@@ -88,20 +88,18 @@
             </span>
             {% if typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar' or typeclass == 'LongVarchar' or typeclass == 'LongText' or typeclass == 'IntegerValue' or typeclass == 'DecimalValue' %}
             <span>
-                <a
-                        target="_blank"
-                        class="ODRDataInspector"
-                        href="#{{ path( 'odr_design_analyze_datafield_content', {'datafield_id': datafield.id }) }}"
-                        title="Show all values stored in this Datafield..."
+                <a target="_blank"
+                   class="ODRDataInspector"
+                   href="#{{ path( 'odr_design_analyze_datafield_content', {'datafield_id': datafield.id }) }}"
+                   title="Show all values stored in this Datafield..."
                 ><i class="fa fa-list fa-lg"></i></a>
             </span>
             {% elseif typeclass == 'Radio' %}
             <span>
-                <a
-                        target="_blank"
-                        class="ODRDataInspector"
-                        href="#{{ path( 'odr_design_analyze_radio_selections', {'datafield_id': datafield.id }) }}"
-                        title="Show all Datarecords with multiple selected RadioOptions for this Datafield..."
+                <a target="_blank"
+                   class="ODRDataInspector"
+                   href="#{{ path( 'odr_design_analyze_radio_selections', {'datafield_id': datafield.id }) }}"
+                   title="Show all Datarecords with multiple selected RadioOptions for this Datafield..."
                 ><i class="fa fa-list fa-lg"></i></a>
             </span>
             {% endif %}
@@ -170,11 +168,10 @@
             <label for="{{ datafield_form.is_unique.vars.id }}">
                 {{ datafield_form.is_unique.vars.label }}
                 <span>
-                    <a
-                        target="_blank"
-                        class="ODRDataInspector"
-                        href="#{{ path( 'odr_design_analyze_datafield_unique', {'datafield_id': datafield.id }) }}"
-                        title="Show Datarecords with duplicate values for this Datafield..."
+                    <a target="_blank"
+                       class="ODRDataInspector"
+                       href="#{{ path( 'odr_design_analyze_datafield_unique', {'datafield_id': datafield.id }) }}"
+                       title="Show Datarecords with duplicate values for this Datafield..."
                     ><i class="fa fa-list fa-lg"></i></a>
                 </span>
             </label>
@@ -184,13 +181,11 @@
         {% if typename == 'Image' or typename == 'Single Radio' or typename == 'Multiple Radio' %}
         <div class="">
             <label for="{{ datafield_form.children_per_row.vars.id }}">
-
                 {% if typename == 'Image' %}
                     Images per row:&nbsp;
                 {% else %}
                     Options per row:&nbsp;
                 {% endif %}
-
             </label>
             {{ form_errors(datafield_form.children_per_row) }}
             {{ form_widget(datafield_form.children_per_row, { 'attr': {'class': 'ODRDatafieldChildren', 'style': 'width:auto'} }) }}
@@ -259,11 +254,10 @@
             </span>
 
             <span>
-                <a
-                        target="_blank"
-                        class="ODRDataInspector"
-                        href="#{{ path( 'odr_design_analyze_file_uploads', {'datafield_id': datafield.id }) }}"
-                        title="Show Datarecords with multiple uploaded {{ typename }}s in this Datafield..."
+                <a target="_blank"
+                   class="ODRDataInspector"
+                   href="#{{ path( 'odr_design_analyze_file_uploads', {'datafield_id': datafield.id }) }}"
+                   title="Show Datarecords with multiple uploaded {{ typename }}s in this Datafield..."
                 ><i class="fa fa-list fa-lg"></i></a>
             </span>
 

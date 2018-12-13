@@ -14,6 +14,7 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
@@ -166,8 +167,8 @@ class ODRRenderService
         // TODO - eventually replace with $this->theme_service->getPreferredTheme()?
         $theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
 
-        // TODO - enable this once a better non-master theme designer gets worked out...
-//        $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($theme, $user);
+        // Ensure all relevant themes are in sync before rendering the end result
+        $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($theme, $user);
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
@@ -218,7 +219,7 @@ class ODRRenderService
             $theme = $this->em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
         }
 
-        // TODO - modify the rest of the functions so this runs regardless of which render request...
+        // Ensure all relevant themes are in sync before rendering the end result
         $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($theme, $user);
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
@@ -262,7 +263,7 @@ class ODRRenderService
             $theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
         }
 
-        // TODO - modify the rest of the functions so this runs regardless of which render request...
+        // Ensure all relevant themes are in sync before rendering the end result
         $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($theme, $user);
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
@@ -299,6 +300,9 @@ class ODRRenderService
             $theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
         }
 
+        // Not allowed to mass edit linked datarecords, so it doesn't make sense to ensure they're
+        //  in sync first
+
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
 
@@ -333,6 +337,9 @@ class ODRRenderService
             $theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
         }
 
+        // Not allowed to csv export linked datarecords, so it doesn't make sense to ensure they're
+        //  in sync first
+
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
 
@@ -365,6 +372,8 @@ class ODRRenderService
 
         $theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
 
+        // Modification of group permissions doesn't need linked themes to be updated
+
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
 
@@ -388,6 +397,9 @@ class ODRRenderService
         $datatype = $theme->getDataType();
         $datarecord = null;
 
+        // Ensure all relevant themes are in sync before rendering the end result
+        $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($theme, $user);
+
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
 
@@ -406,12 +418,6 @@ class ODRRenderService
      */
     private function getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme)
     {
-        // ----------------------------------------
-        // Verify the theme is up-to-date before letting the user see it
-        // TODO - ...what happens when two people attempt to access the same out-of-date theme simultaneously?
-        // TODO - allow modes other than display/edit/design to display stuff for this...
-//        $notify_of_sync = self::notifyOfThemeSync($theme, $user);
-
         // ----------------------------------------
         // Most of the pages want to display linked datatypes, but for those that don't...
         $include_links = true;
@@ -449,7 +455,7 @@ class ODRRenderService
             $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
             // If rendering for Edit mode, the token list requires filtering to be done first...
-            if (isset($extra_parameters['token_list']))
+            if ( isset($extra_parameters['token_list']) )
                 $extra_parameters['token_list'] = $this->dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
         }
         else {
@@ -524,17 +530,15 @@ class ODRRenderService
     }
 
 
-    // TODO - probably should move theme_element and datafield reloading into here as well...
-    // TODO - modify childtype reloading to instead be theme_element reloading?
-
-
     /**
      * Synchronizes the given theme with its source theme if needed, and returns whether to notify
-     *  the user it did so.  At the moment, a notification isn't needed when the synchronization adds
-     *  a datafield/datatype that the user can't view due to permissions.
+     * the user it did so.  At the moment, a notification isn't needed when the synchronization adds
+     * a datafield/datatype that the user can't view due to permissions.
      *
      * This may thematically fit better in the ThemeInfoService, but the CloneThemeService depends
-     *  on that service so it can't go in there...TODO - or should it go in CloneThemeService anyways?
+     * on that service so it can't go in there.  The CloneThemeService uses Symfony's LockHandler
+     * component to ensure that only a single request can synchronize the requested theme, but all
+     * other simultaneous requests will block until the first request finishes the synchronization.
      *
      * @param Theme $theme
      * @param ODRUser $user
@@ -543,7 +547,8 @@ class ODRRenderService
      */
     private function notifyOfThemeSync($theme, $user)
     {
-        // If the theme can't be synched, then there's no sense notifying the user of anything...
+        // If the theme doesn't need to be synched, or the user isn't in a position to review the
+        //  theme afterwards, then there's no sense synchronizing anything
         if ( !$this->clone_theme_service->canSyncTheme($theme, $user) )
             return false;
 
@@ -552,9 +557,15 @@ class ODRRenderService
         // Otherwise, save the diff from before the impending synchronization...
         $theme_diff_array = $this->clone_theme_service->getThemeSourceDiff($theme);
 
-        // Then synchronize the theme...
-        $this->clone_theme_service->syncThemeWithSource($user, $theme);
+        // ...then synchronize the theme
+        $synched = $this->clone_theme_service->syncThemeWithSource($user, $theme);
         $this->em->refresh($theme);
+        if (!$synched) {
+            // If the synchronization didn't actually do anything, then don't update the version
+            //  numbers in the database or notify the user of anything
+            return false;
+        }
+
 
         // Since this theme got synched, also synch the version numbers of all themes with this
         //  this theme as their parent...
@@ -677,6 +688,10 @@ class ODRRenderService
             'is_datatype_admin' => $is_datatype_admin
         );
 
+        // Ensure all relevant themes are in sync before rendering the end result
+        $parent_theme = $theme_element->getTheme()->getParentTheme();
+        $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($parent_theme, $user);
+
         return self::reloadThemeElement($user, $template_name, $extra_parameters, $theme_element);
     }
 
@@ -699,6 +714,11 @@ class ODRRenderService
             'is_datatype_admin' => $is_datatype_admin
         );
 
+        // TODO - is this needed?  I'm guessing it'll never actually do something unless somebody else is modifying the master theme at the same time...
+        // Ensure all relevant themes are in sync before rendering the end result
+        $parent_theme = $theme_element->getTheme()->getParentTheme();
+        $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($parent_theme, $user);
+
         return self::reloadThemeElement($user, $template_name, $extra_parameters, $theme_element);
     }
 
@@ -713,7 +733,7 @@ class ODRRenderService
 
 
     /**
-     * Renders and returns the HTML required to replce a single theme element in various display
+     * Renders and returns the HTML required to replace a single theme element in various display
      * modes of ODR.
      *
      * @param ODRUser $user
@@ -850,6 +870,196 @@ class ODRRenderService
         );
 
         // ...but there are specialty parameters that need to be passed in as well
+        $parameters = array_merge($parameters, $extra_parameters);
+
+        return $this->templating->render(
+            $template_name,
+            $parameters
+        );
+    }
+
+
+    /**
+     * Renders and returns the HTML for a single datafield on the master design page.
+     *
+     * @param ODRUser $user
+     * @param DataType $source_datatype
+     * @param ThemeElement $theme_element
+     * @param DataFields $datafield
+     *
+     * @return string
+     */
+    public function reloadMasterDesignDatafield($user, $source_datatype, $theme_element, $datafield)
+    {
+        $datatype = $datafield->getDataType();
+        $is_datatype_admin = $this->pm_service->isDatatypeAdmin($user, $datatype);
+
+        // Store whether this datafield is the datatype's external id field
+        $is_external_id_field = false;
+        if ( !is_null($datatype->getExternalIdField()) && $datatype->getExternalIdField()->getId() == $datafield->getId() )
+            $is_external_id_field = true;
+
+        // Store whether this datafield is being used by the datatype's render plugin or not
+        $is_datatype_render_plugin_field = false;
+        if ( $datatype->getRenderPlugin()->getPluginClassName() !== 'odr_plugins.base.default' ) {
+            // Datafield is part of a Datatype using a render plugin...check to see if the Datafield is actually in use for the render plugin
+            $query = $this->em->createQuery(
+               'SELECT rpf.fieldName
+                FROM ODRAdminBundle:RenderPluginInstance AS rpi
+                JOIN ODRAdminBundle:RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
+                JOIN ODRAdminBundle:RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
+                WHERE rpi.dataType = :datatype_id AND rpm.dataField = :datafield_id AND rpf.active = 1
+                AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL AND rpf.deletedAt IS NULL'
+            )->setParameters( array('datatype_id' => $datatype->getId(), 'datafield_id' => $datafield->getId()) );
+            $results = $query->getArrayResult();
+
+            if ( count($results) > 0 )
+                $is_datatype_render_plugin_field = true;
+        }
+
+        $extra_parameters = array(
+            'is_datatype_admin' => $is_datatype_admin,
+            'is_external_id_field' => $is_external_id_field,
+            'is_datatype_render_plugin_field' => $is_datatype_render_plugin_field,
+        );
+
+        // It doesn't make sense to synchronize the entire theme when just the datafield is getting
+        //  reloaded TODO - correct?
+
+        $template_name = 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig';
+        return self::reloadDatafield($user, $template_name, $extra_parameters, $source_datatype, $theme_element, $datafield);
+    }
+
+
+    /**
+     * Renders and returns the HTML for a single datafield on the edit page.
+     *
+     * @param ODRUser $user
+     * @param DataType $source_datatype
+     * @param ThemeElement $theme_element
+     * @param DataFields $datafield
+     * @param DataRecord $datarecord
+     *
+     * @return string
+     */
+    public function reloadEditDatafield($user, $source_datatype, $theme_element, $datafield, $datarecord)
+    {
+        throw new ODRNotImplementedException();
+
+        if ($datafield->getDataType()->getId() !== $datarecord->getDataType()->getId())
+            throw new ODRBadRequestException();
+
+        $extra_parameters = array(
+            'force_image_reload' => false,
+            'token_list' => array(),
+        );
+
+        // It doesn't make sense to synchronize the entire theme when just the datafield is getting
+        //  reloaded TODO - correct?
+
+        $template_name = 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig';
+        return self::reloadDatafield($user, $template_name, $extra_parameters, $source_datatype, $theme_element, $datafield, $datarecord);
+    }
+
+
+    /**
+     * Renders and returns the HTML required to replace a single datafield in various display
+     * modes of ODR.
+     *
+     * @param ODRuser $user
+     * @param string $template_name
+     * @param array $extra_parameters
+     * @param DataType $source_datatype
+     * @param ThemeElement $theme_element
+     * @param DataFields $datafield
+     * @param DataRecord|null $datarecord
+     *
+     * @return string
+     */
+    private function reloadDatafield($user, $template_name, $extra_parameters, $source_datatype, $theme_element, $datafield, $datarecord = null)
+    {
+        // ----------------------------------------
+        // Make the assumption that linked datatypes are available here
+        $include_links = true;
+
+        // All templates need the datatype and theme arrays...
+        $datafield_id = $datafield->getId();
+        $initial_datatype_id = $datafield->getDataType()->getId();
+        $initial_theme_id = $theme_element->getTheme()->getId();
+
+        $datatype_array = $this->dti_service->getDatatypeArray($source_datatype->getId(), $include_links);
+        $master_theme = $this->theme_service->getDatatypeMasterTheme($source_datatype->getId());
+        $theme_array = $this->theme_service->getThemeArray($master_theme->getId());
+
+        // ...only get the datarecord arrays if a datarecord was specified
+        $initial_datarecord_id = null;
+        $datarecord_array = array();
+        if ( !is_null($datarecord) ) {
+            $initial_datarecord_id = $datarecord->getId();
+            $datarecord_array = $this->dri_service->getDatarecordArray($initial_datarecord_id, $include_links);
+        }
+
+
+        // ----------------------------------------
+        // The datatype/datarecord arrays need to be filtered so the user isn't allowed to see stuff
+        //  they shouldn't...the theme array intentionally isn't filtered
+        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
+        $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+        // If rendering for Edit mode, the token list requires filtering to be done first...
+        if ( isset($extra_parameters['token_list']) )
+            $extra_parameters['token_list'] = $this->dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
+
+
+        // ----------------------------------------
+        // It doesn't make any sense to "inflate" the datatype/theme/datarecord arrays for a datafield
+        //  reload...just want a small segment of the arrays
+
+        $parameters = array();
+        if ( isset($extra_parameters['token_list']) ) {
+            // This is a datafield reload for the edit page...need to locate array entries for
+            //  the datatype, datarecord, and datafield...also need to figure out whether this is
+            //  for a linked datarecord or not
+            /*
+                {% include 'ODRAdminBundle:Edit:edit_datafield.html.twig' with {
+                    'datatype': datatype,
+                    'datarecord': datarecord,
+                    'datafield': datafield,
+                    'is_link': is_link,
+                    'force_image_reload' : false,
+                    'token_list': token_list,
+                } %}
+            */
+        }
+        else {
+            // This is a datafield reload for the master layout design page...need to locate the
+            //  datafield and the theme_datafield array entries
+            $datafield_array = $datatype_array[$initial_datatype_id]['dataFields'][$datafield_id];
+
+            $theme_datafield = null;
+            foreach ($theme_array[$initial_theme_id]['themeElements'] as $te_num => $te) {
+                // No sense continuing to look if the array entry was already found
+                if (!is_null($theme_datafield))
+                    break;
+
+                if (isset($te['themeDataFields'])) {
+                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                        if ($tdf['dataField']['id'] === $datafield_id) {
+                            $theme_datafield = $tdf;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            $parameters = array(
+                'theme_datafield' => $theme_datafield,
+                'datafield' => $datafield_array,
+            );
+        }
+
+
+        // ...merge in the last few special parameters before rendering and returning the html
         $parameters = array_merge($parameters, $extra_parameters);
 
         return $this->templating->render(

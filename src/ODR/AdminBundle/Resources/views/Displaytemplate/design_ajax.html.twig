@@ -1054,6 +1054,7 @@
 
                 console.log('datafield id: ', id);
                 props = datafield_properties[id];
+                console.log(props);
 
                 // Render Plugin
                 tools.render.removeClass('faded');
@@ -1070,7 +1071,7 @@
 
                 // Public Status
                 tools.pub_stat.removeClass('faded');
-                if(props.is_public > 0) {
+                if (props.is_public > 0) {
                     tools.pub_stat.find('i').addClass('ODRActiveIcon');
                     tools.pub_stat.find('.link-text').html('Field is public');
                     tools.pub_stat.attr('title', 'Users may view fields marked public without additional permissions if the parent record is also public.');
@@ -1091,7 +1092,7 @@
                 tools.add_df.parent().hide();
                 tools.copy_df.parent().show();
 
-                if(props.can_copy) {
+                if (props.can_copy) {
                     tools.copy_df.removeClass('faded');
                     tools.copy_df.find('i').addClass('ODRActiveIcon');
                     tools.copy_df.unbind('click').click(function () {
@@ -1100,16 +1101,22 @@
                 }
 
                 // Delete Datafield
-                tools.del_dt.removeClass('faded');
-                tools.del_dt.find('i').addClass('ODRActiveIcon');
                 tools.del_dt.find('.link-text').html('Delete Field');
-                tools.del_dt.attr('title', 'Click to delete this field.');
+                if (props.can_delete) {
+                    tools.del_dt.removeClass('faded');
+                    tools.del_dt.find('i').addClass('ODRActiveIcon');
+                    tools.del_dt.attr('title', 'Click to delete this field.');
 
-                tools.del_dt.unbind('click').click(function () {
-                    if( confirm("This will delete the Datafield from all layouts, and ALL data (including files and images) stored in it.\n\nAre you certain you want to do this?")) {
-                        DeleteDatafield(id);
-                    }
-                });
+                    tools.del_dt.unbind('click').click(function () {
+                        if (confirm("This will delete the Datafield from all layouts, and ALL data (including files and images) stored in it.\n\nAre you certain you want to do this?")) {
+                            DeleteDatafield(id);
+                        }
+                    });
+                }
+                else {
+                    tools.del_dt.attr('title', props.delete_message);
+                    tools.del_dt.unbind('click');
+                }
                 break;
 
 
@@ -1161,7 +1168,6 @@
     }
 
     function addChildType(theme_element_id) {
-
         // Load display template menu
         var url  = '{{ path('odr_design_add_childtype', {'theme_element_id': 0 } ) }}';
         url = url.substring(0,(url.length - 1)) + theme_element_id;
@@ -1269,7 +1275,6 @@
 
                 // if ( $(this).hasClass('fa-muted') )
                     // return;
-
 
                 var url = '{{ path('odr_design_add_datafield', { 'theme_element_id': 0 }) }}';
                 url = url.substring(0, (url.length - 1)) + id;
@@ -1801,7 +1806,7 @@
         console.log('Setting up Radio options');
         $(".ODRRadioOptions").unbind('click').click(function() {
             var datafield_id = $(this).attr('rel');
-            console.log('setting up radio options', datafield_id);
+            console.log('setting up radio options, df_id: ' + datafield_id);
 
             $("#ThemeDesignForm").fadeOut().html("");
             var url  = '{{ path('odr_design_get_radio_options', {'datafield_id': 0} ) }}';
@@ -1816,24 +1821,6 @@
                 success: function(data) {
                     // Load the form
                     $("#ThemeDesignForm").html(data.d.html).fadeIn('fast');
-
-                    // TODO Convert to use modal
-                    /*
-                    modal_options = {
-                        title: 'Edit Options',
-                        loading: false,
-                        body: data.d.html,
-                        buttons: [
-                            {
-                                id: 'ODRRenderPluginFormSubmit',
-                                text: 'Exit',
-                                // secondary: true,
-                                disabled: false
-                            }
-                        ]
-                    };
-                    openODRRemodal(modal_options);
-                    */
                     InitRadioOptionsForm(datafield_id);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
@@ -1855,6 +1842,7 @@
             });
         });
     }
+
 
     var datafield_properties_xhr = null;
     var save_datafield_xhr = null;
@@ -1954,15 +1942,11 @@
 
     function SetupDataFields() {
         $(".ODRDataField").unbind('click').click(function(event) {
-
             // Setup Resizeable
             setupElement(this);
 
             // Render Tool Set
             RenderToolSet($(this).attr('id').replace(/Field_/,''), 'datafield');
-
-
-
 
             // The icon to open RadioOption properties will be overridden by this click
             // event unless this if statement is active
@@ -2044,6 +2028,7 @@
     function InitDatafieldPropertiesForm() {
         // Setup Radio Options.
         SetupRadioOptions();
+
         // Init Field Properties forms
         $(".ODRMarkdownHelp").unbind('click').click(function() {
             {# defined in ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig #}
@@ -2741,7 +2726,6 @@
                         $("#Option_" + radio_option_id + "_name").html(option_name);    // single/multiple radio
                     else
                         $("#Option_" + radio_option_id).text(option_name);  // single/multiple select
-
                 }
 
                 SaveRadioOptionNameInterval[radio_option_id] = window.clearInterval(SaveRadioOptionNameInterval[radio_option_id]);
@@ -2895,7 +2879,6 @@
 
                 // If the Sfjs object exists
                 if (typeof Sfjs !== "undefined") {
-
                     // Grab the toolbar element
                     var currentElement = $('.sf-toolbar')[0];
 
@@ -2905,6 +2888,7 @@
             }
         });
     }
+
 
     function AddOption(datafield_id) {
         var url = '{{ path('odr_design_add_radio_option', { 'datafield_id': 0 }) }}';
@@ -3019,61 +3003,37 @@
         });
     }
 
+
+    // Called in ODRAdminBundle:Plugins:plugin_settings_dialog.html.twig
     function ReloadChild(datatype_id) {
-        var url = '{{ path('odr_design_reload_child', { 'source_datatype_id': 0, 'datatype_id': 0 }) }}';
-        url = url.substring(0, url.length-3);
-        url += {{ datatype.id }} + '/' + datatype_id;
-
-        var append = true;
-        var datatype_div = $("#DataType_" + datatype_id);
-        var element = $(datatype_div).prev();
-        if ( $(element).attr('class') === undefined ) {
-            append = false;
-            element = $(datatype_div).parent();
-        }
-
-        // Create a loading div to block off the datafield?
-        insertLoadingDiv("DataType_" + datatype_id);
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: 'json',
-            success: function(data) {
-                // remove old datatype
-                $(datatype_div).fadeOut();
-                $(datatype_div).remove();
-
-                // insert new html
-                if (append)
-                    $(element).after(data.d.html);
-                else
-                    $(element).prepend(data.d.html);
-
-                initPage();
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                // Don't need to do anything specific on an error
-            },
-            complete: function(jqXHR) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+        // Find all theme elements that contain the given datatype on the page...they all need to
+        //  be reloaded
+        var theme_element_ids = [];
+        $(".ODRDataType").each(function() {
+            var dt_id = 'DataType_' + datatype_id;
+            if ( $(this).attr('id') == dt_id ) {
+                var te_id = $(this).parent().parent().attr('id');
+                if (te_id == 'ThemeDesignArea') {
+                    // This is a top-level datatype...just reload the page
+                    window.location.reload();
+                }
+                else {
+                    te_id = te_id.split(/_/);
+                    theme_element_ids.push(te_id[1]);
                 }
             }
         });
+
+        // Reload each of the theme elements in the array
+        $.each(theme_element_ids, function(index, theme_element_id) {
+            ReloadThemeElement(theme_element_id);
+        });
     }
 
+
     function ReloadThemeElement(theme_element_id) {
+        console.log('reloading theme_element: ' + theme_element_id);
+
         var url = '{{ path('odr_design_reload_theme_element', { 'source_datatype_id': 0, 'theme_element_id': 0 }) }}';
         url = url.substring(0, url.length-3);
         url += {{ datatype.id }} + '/' + theme_element_id;
@@ -3086,8 +3046,10 @@
             element = $(theme_element).parent();
         }
 
-        // Create a loading div to block off the datafield?
-        insertLoadingDiv("ThemeElement_" + theme_element_id);
+        // Create a loading div to block off the datafield
+        var datafield_css_selector = "#ThemeElement_" + theme_element_id;
+        var loading_div_selector = "ThemeElement_" + theme_element_id;
+        insertLoadingDiv(datafield_css_selector, loading_div_selector);
 
         $.ajax({
             cache: false,
@@ -3128,81 +3090,84 @@
     }
 
     function ReloadDatafield(datafield_id) {
-        var url = '{{ path('odr_design_reload_datafield', { 'source_datatype_id': 0, 'datafield_id': 0 }) }}';
-        url = url.substring(0, url.length-3);
-        url += {{ datatype.id }} + '/' + datafield_id;
-
-        var datafield = $("#Field_" + datafield_id);
-        /*
-        var append = true;
-        var element = $(datafield).prev();
-
-        if ( $(element).attr('class') === undefined ) {
-            append = false;
-            element = $(datafield).parent();
-        }
-        */
-
-        // Create a loading div to block off the datafield?
-        insertLoadingDiv("Field_" + datafield_id);
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: 'json',
-            success: function(data) {
-                // Replace old datafield
-                $(datafield).replaceWith(data.d.html);
-                console.log('setting up data fields ');
-                SetupDataFields($(datafield));
-
-                console.log('highlight datafield');
-                var new_datafield = $("#Field_" + datafield_id);
-                setupElement(new_datafield);
-
-                // Insert new html
-                /*
-                if (append)
-                    $(element).after(data.d.html);
-                else
-                    $(element).prepend(data.d.html);
-
-                initPage();
-                */
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                // Don't need to do anything specific on an error
-            },
-            complete: function(jqXHR) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
+        // Find all theme elements that contain the given datafield on the page...they all need to
+        //  be reloaded
+        var theme_element_ids = [];
+        $(".ODRDataField").each(function() {
+            var df_id = 'Field_' + datafield_id;
+            if ( $(this).attr('id') == df_id ) {
+                var te_id = $(this).parent().parent().attr('id').split(/_/);
+                theme_element_ids.push(te_id[1]);
             }
+        });
+
+
+        // For each of the theme element ids in the array...
+        $.each(theme_element_ids, function(index, theme_element_id) {
+            ReloadThemeElement(theme_element_id);
+            return;
+
+            // ...reload the given datafield in each of the theme elements
+            console.log('reloading datafield: ' + datafield_id + ' inside theme_element: ' + theme_element_id);
+
+            var url = '{{ path('odr_design_reload_datafield', { 'source_datatype_id': 0, 'theme_element_id': 0, 'datafield_id': 0 }) }}';
+            url = url.substring(0, url.length-5);
+            url += {{ datatype.id }} + '/' + theme_element_id + '/' + datafield_id;
+
+            // Create a loading div to block off the datafield
+            var datafield_css_selector = "#ThemeElement_" + theme_element_id + " #Field_" + datafield_id;
+            var loading_div_selector = "ThemeElement_" + theme_element_id + "_Field_" + datafield_id;
+            insertLoadingDiv(datafield_css_selector, loading_div_selector);
+
+            var datafield = $(datafield_css_selector);
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: 'json',
+                success: function(data) {
+                    // Replace old datafield
+                    $(datafield).replaceWith(data.d.html);
+                    console.log('setting up data fields ');
+                    SetupDataFields($(datafield));
+
+                    console.log('highlight datafield');
+                    var new_datafield = $(datafield_css_selector);
+                    setupElement(new_datafield);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
         });
     }
 
-    function insertLoadingDiv(parent_div_id) {
-
+    function insertLoadingDiv(css_selector, loading_div_selector) {
         // Need dimensions of parent div...
-        var element = $("#" + parent_div_id);
+        var element = $(css_selector);
         var height = $(element).css('height');
         var width = $(element).css('width');
 
         // Create a loading div
-        $(element).prepend("<div id=\"" + parent_div_id + "_loading_div\" class=\"ODROverlayDiv ODRReloadDiv\"><strong>Loading...</strong></div>");
+        $(element).prepend("<div id=\"" + loading_div_selector + "_loading_div\" class=\"ODROverlayDiv ODRReloadDiv\"><strong>Loading...</strong></div>");
 
         // Apply dimensions of parent div to loading div
-        $("#" + parent_div_id + "_loading_div").css({"height": height, "line-height": height, "width": width});
+        $("#" + loading_div_selector + "_loading_div").css({"height": height, "line-height": height, "width": width});
     }
 
 </script>

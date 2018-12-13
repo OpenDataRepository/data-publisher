@@ -392,7 +392,8 @@ class DatatypeInfoService
         // Get all non-layout data for the requested datatype
         $query = $this->em->createQuery(
            'SELECT
-                dt, dtm, 
+                dt, dtm,
+                partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id}, partial dt_bif.{id},
                 partial mdt.{id, unique_id}, 
                 partial md.{id, unique_id},
                 partial mf.{id, unique_id},
@@ -408,12 +409,17 @@ class DatatypeInfoService
                 df_rp, df_rpi, df_rpo, df_rpm
 
             FROM ODRAdminBundle:DataType AS dt
-            LEFT JOIN dt.dataTypeMeta AS dtm
             LEFT JOIN dt.masterDataType AS mdt
             LEFT JOIN dt.createdBy AS dt_cb
             LEFT JOIN dt.updatedBy AS dt_ub
             LEFT JOIN dt.metadata_datatype AS md
             LEFT JOIN dt.metadata_for AS mf
+
+            LEFT JOIN dt.dataTypeMeta AS dtm
+            LEFT JOIN dtm.externalIdField AS dt_eif
+            LEFT JOIN dtm.nameField AS dt_nf
+            LEFT JOIN dtm.sortField AS dt_sf
+            LEFT JOIN dtm.backgroundImageField AS dt_bif
 
             LEFT JOIN dtm.renderPlugin AS dt_rp
             LEFT JOIN dt_rp.renderPluginInstance AS dt_rpi WITH (dt_rpi.dataType = dt)
