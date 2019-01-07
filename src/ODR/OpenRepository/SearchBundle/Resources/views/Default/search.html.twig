@@ -227,8 +227,10 @@
             });
 
             {% if search_string is defined and search_string != '' %}
-            // No need to set up rest of form, just do an immediate search
-            doSearch();
+            if (window.location.hash.length === 0) {
+                // No need to set up rest of form, just do an immediate search
+                doSearch();
+            }
             {% endif %}
 
             {% if is_datatype_admin %}

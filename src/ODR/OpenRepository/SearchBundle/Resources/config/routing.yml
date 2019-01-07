@@ -79,7 +79,7 @@ odr_default_search_render:
 # API for searching
 odr_search_api_template_get:
     path: /api/{version}/search/{json_key}/{limit}/{offset}.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplateGet, _format: json }
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplateGet, limit: 0, offset: 0, _format: json }
     methods: [ GET ]
     requirements:
         version: 'v1'
@@ -90,7 +90,7 @@ odr_search_api_template_get:
 
 odr_search_api_template_post:
     path: /api/{version}/search/{limit}/{offset}.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePost, _format: json }
+    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePost, limit: 0, offset: 0, _format: json }
     methods: [ POST ]
     requirements:
         version: 'v1'
@@ -107,7 +107,7 @@ odr_search_immediate:
     path:  /{search_slug}/{search_string}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage }
     requirements:
-        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'    # any 32 charactera alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
+        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'    # any 32 character alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
 
 odr_search:
     path:  /{search_slug}

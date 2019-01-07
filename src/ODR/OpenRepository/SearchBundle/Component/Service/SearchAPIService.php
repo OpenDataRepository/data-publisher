@@ -254,6 +254,9 @@ class SearchAPIService
         //  list of searchable datafields...that'll take place later on during the actual searching
         $criteria = $this->search_key_service->convertSearchKeyToTemplateCriteria($search_key);
 
+        $template_uuid = $criteria['template_uuid'];
+        unset( $criteria['template_uuid'] );
+
         // Extract sort information from the search key if it exists
         $sort_df_uuid = null;
         $sort_ascending = true;
@@ -276,14 +279,16 @@ class SearchAPIService
         // ...or the list of all templates
         unset( $criteria['all_templates'] );
 
-        // Easier for the rest of the searching if there's a shortcut for this...
+        // With regards to a cross-template search, the top-level datatypes are the ones derived
+        //  from the template being searched on, which is typically a shorter list than the datatypes
+        //  where their id equals their grandparent id...having these in a list makes the rest of the
+        //  search routine easier to deal with
         $top_level_datatype_ids = array();
         foreach ($hydrated_entities['datatype'] as $dt_id => $dt) {
             /** @var DataType $dt */
-            if ( $dt->getId() === $dt->getGrandparent()->getId() )
+            if ( $dt->getMasterDataType()->getUniqueId() === $template_uuid )
                 $top_level_datatype_ids[] = $dt_id;
         }
-
 
         // ----------------------------------------
         // Convert the search key into a format suitable for searching
@@ -1076,7 +1081,6 @@ class SearchAPIService
      */
     private function getSearchArrays($top_level_datatype_ids, $permissions_array)
     {
-
         // ----------------------------------------
         // Intentionally not caching the results of this function for two reasons
         // 1) these arrays need to be initialized based on the search being run, and the
@@ -1114,8 +1118,16 @@ class SearchAPIService
             if ( isset($datatree_array['linked_from'][$dt_id]) )
                 $is_linked_type = true;
 
+            // If this is the datatype being searched on (or one of the datatypes directly derived
+            //  from the template being searched on), then $is_linked_type needs to be false, so
+            //  getCachedSearchDatarecordList() will return all datarecords...otherwise, it'll only
+            //  return those that are linked to from somewhere (which is usually desired for when
+            //  searching a linked datatype)
+            if ( isset($top_level_datatype_ids[$dt_id]) )
+                $is_linked_type = false;
+
             // Attempt to load this datatype's datarecords and their parents from the cache...
-            $list = $this->search_service->getCachedSearchDatarecordList($dt_id);
+            $list = $this->search_service->getCachedSearchDatarecordList($dt_id, $is_linked_type);
 
 
             // Storing the datarecord ids in the flattened list is easy...

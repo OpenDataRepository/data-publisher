@@ -1832,13 +1832,23 @@ class ValidationController extends ODRCustomController
                     print "----------------------------------------\n";
                     print print_r($theme_data[$dt_id], true)."\n";
 
+                    // Top-level datatypes (including linked datatypes) can have multiple "master"
+                    //  themes...but should have just one theme where theme.id == parent_theme_id...
+                    //  all other themes for this datatype should point to that one
                     $source_theme_id = null;
                     foreach ($theme_data[$dt_id] as $t_id => $t_data) {
                         if ($t_id == '' || $t_data['source'] == '')
                             continue;
 
-                        if ($t_data['parent'] === $t_id)
-                            $source_theme_id = $t_id;
+                        if ($t_data['theme_type'] === 'master' && $t_data['parent'] === $t_id) {
+                            if ( !is_null($source_theme_id) ) {
+                                $source_theme_id = '!!!';
+                                print 'MULTIPLE MASTER THEMES DETECTED FOR TOP-LEVEL DATATYPE';
+                            }
+                            else {
+                                $source_theme_id = $t_id;
+                            }
+                        }
                     }
 
                     // Now that we've found the intended source theme...
@@ -1865,12 +1875,30 @@ class ValidationController extends ODRCustomController
                     print "----------------------------------------\n";
                     print print_r($theme_data[$dt_id], true)."\n";
 
+                    // Child datatypes are supposed to only have a single "master" theme...any
+                    //  variants use that one theme as their source
+                    $source_theme_id = null;
+                    foreach ($theme_data[$dt_id] as $t_id => $t_data) {
+                        if ($t_id == '' || $t_data['source'] == '')
+                            continue;
+
+                        if ($t_data['theme_type'] === 'master') {
+                            if ( !is_null($source_theme_id) ) {
+                                $source_theme_id = '!!!';
+                                print 'MULTIPLE MASTER THEMES DETECTED FOR CHILD DATATYPE';
+                            }
+                            else {
+                                $source_theme_id = $t_id;
+                            }
+                        }
+                    }
+
                     // Now that we've found the intended source theme...
                     foreach ($theme_data[$dt_id] as $t_id => $t_data) {
                         if ($t_id == '' || $t_data['source'] == '')
                             continue;
 
-                        $string = "UPDATE odr_theme SET source_theme_id = ".$t_id." WHERE id = ".$t_id.";\n";
+                        $string = "UPDATE odr_theme SET source_theme_id = ".$source_theme_id." WHERE id = ".$t_id.";\n";
                         $strings[] = $string;
 
                         print $string;

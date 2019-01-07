@@ -1367,7 +1367,7 @@ odr_api_get_template_single:
 
 odr_api_datarecord_list:
     path: /api/{version}/search/database/{datatype_uuid}/records/{limit}/{offset}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getDatarecordList, limit: 999999999, offset: 0, _format: json }
+    defaults: { _controller: ODRAdminBundle:API:getDatarecordList, limit: 0, offset: 0, _format: json }
     methods: [ GET ]
     requirements:
         version: 'v1'
@@ -1377,7 +1377,7 @@ odr_api_datarecord_list:
         _format: '|json|xml'
 odr_api_template_datatype_list:
     path: /api/{version}/search/template/{datatype_uuid}/databases/{limit}/{offset}.{_format}
-    defaults: { _controller: ODRAdminBundle:API:getTemplateDatatypeList, limit: 999999999, offset: 0, _format: json }
+    defaults: { _controller: ODRAdminBundle:API:getTemplateDatatypeList, limit: 0, offset: 0, _format: json }
     methods: [ GET ]
     requirements:
         version: 'v1'
@@ -1417,3 +1417,8 @@ odr_api_download_image:
     methods: [ GET ]
     requirements:
         image_id: \d+
+
+
+odr_asdf:
+    path:  /admin/asdf
+    defaults: { _controller: ODRAdminBundle:Worker:asdf }

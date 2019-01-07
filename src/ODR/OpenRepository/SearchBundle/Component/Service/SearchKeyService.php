@@ -933,6 +933,7 @@ class SearchKeyService
         $template_uuid = $search_params['template_uuid'];
         $criteria = array(
             'search_type' => 'template',
+            'template_uuid' => $template_uuid,
         );
 
         foreach ($search_params as $key => $value) {

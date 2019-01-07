@@ -365,7 +365,7 @@ class EditController extends ODRCustomController
 
             // Store whether this was a deletion for a top-level datarecord or not
             $is_top_level = true;
-            if ( $datatype->getId() !== $parent_datarecord->getId() )
+            if ( $datatype->getId() !== $parent_datarecord->getDataType()->getId() )
                 $is_top_level = false;
 
             // Also store whether this was for a linked datarecord or not

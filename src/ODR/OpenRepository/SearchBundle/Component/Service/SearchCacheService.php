@@ -94,6 +94,7 @@ class SearchCacheService
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
 
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_parents');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_created');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_createdBy');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modified');
@@ -140,7 +141,7 @@ class SearchCacheService
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
-                $df_id = $result['id'];
+                $df_id = $result['df_id'];
                 $template_df_uuid = $result['template_field_uuid'];
 
                 $this->cache_service->delete('cached_search_df_'.$df_id);
@@ -313,6 +314,7 @@ class SearchCacheService
         // ----------------------------------------
         // If a datarecord was created, then this needs to be rebuilt
         $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_dr_parents');
+        $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_parents');
 
         if ( !is_null($datatype->getMasterDataType()) ) {
             $master_dt_uuid = $datatype->getMasterDataType()->getUniqueId();
@@ -341,7 +343,7 @@ class SearchCacheService
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
-                $df_id = $result['id'];
+                $df_id = $result['df_id'];
                 $template_df_uuid = $result['template_field_uuid'];
 
                 $this->cache_service->delete('cached_search_df_'.$df_id);
@@ -425,6 +427,7 @@ class SearchCacheService
             // Would have to search through each of these entries to see whether they matched the
             //  deleted datarecord...faster to just wipe all of them
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_parents');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_created');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_createdBy');
@@ -454,7 +457,7 @@ class SearchCacheService
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
-                $df_id = $result['id'];
+                $df_id = $result['df_id'];
                 $template_df_uuid = $result['template_field_uuid'];
 
                 $this->cache_service->delete('cached_search_df_'.$df_id);
@@ -516,7 +519,7 @@ class SearchCacheService
         // ----------------------------------------
         // If something now (or no longer) links to $descendant_datatype, then these cache entries
         //  need to be deleted
-        $this->cache_service->delete('cached_search_dt_'.$descendant_datatype->getId().'_dr_parents');
+        $this->cache_service->delete('cached_search_dt_'.$descendant_datatype->getId().'_linked_dr_parents');
 
         // Don't need to clear the 'cached_search_template_dt_'.$master_dt_uuid.'_dr_list' entry here
         // It doesn't contain any information about linking

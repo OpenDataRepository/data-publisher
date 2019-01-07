@@ -225,6 +225,9 @@ class SearchService
                     $radio_option_uuid
                 );
 
+                // NOTE - $result won't contain results from datatypes that aren't up to date
+                // TODO - should they be automatically marked as "unselected"?
+
                 // ...and store it in the cache
                 $this->cache_service->set('cached_search_template_ro_'.$radio_option_uuid, $result);
             }
@@ -1411,32 +1414,38 @@ class SearchService
      * datatype, and their parent datarecords (or ancestors if this is a linked datatype).
      *
      * @param int $datatype_id
+     * @param bool $search_as_linked_datatype If true, then the returned array will only contain
+     *                                        datarecords of this datatype that have been linked to
+     *                                        If false, then the returned array will contain all
+     *                                        datarecords of this datatype
      *
      * @return array
      */
-    public function getCachedSearchDatarecordList($datatype_id)
+    public function getCachedSearchDatarecordList($datatype_id, $search_as_linked_datatype = false)
     {
-        // In order to properly build the search arrays, all child/linked datatypes with some
-        //  connection to this datatype need to be located first
-        $datatree_array = $this->dti_service->getDatatreeArray();
+        // In order to properly build the search arrays, all child/linked datarecords with some
+        //  connection to the datatype being searched on need to be located...
+        $list = array();
 
-        // If the datatype is linked...then the backend query to rebuild the cache entry is
-        //  different, as is the insertion of the resulting datarecords into the "inflated" list
-        $is_linked_type = false;
-        if ( isset($datatree_array['linked_from'][$datatype_id]) )
-            $is_linked_type = true;
-
-        // Attempt to load this datatype's datarecords and their parents from the cache...
-        $list = $this->cache_service->get('cached_search_dt_'.$datatype_id.'_dr_parents');
-        if (!$list) {
-            // Need to rebuild this list
-            if (!$is_linked_type)
+        if (!$search_as_linked_datatype) {
+            // The given $datatype_id is either the datatype being searched on, or some child
+            //  datatype
+            $list = $this->cache_service->get('cached_search_dt_'.$datatype_id.'_dr_parents');
+            if (!$list)
                 $list = $this->search_query_service->getParentDatarecords($datatype_id);
-            else
+
+            $this->cache_service->set('cached_search_dt_'.$datatype_id.'_dr_parents', $list);
+        }
+        else {
+            // The datatype being searched on (irrelevant to this function) somehow links to the
+            //  given $datatype_id...since a datarecord could be linked to from multiple ancestor
+            //  datarecords (instead of having a single "ancestor" in the case of a child datarecord),
+            //  the returned array has a different structure
+            $list = $this->cache_service->get('cached_search_dt_'.$datatype_id.'_linked_dr_parents');
+            if (!$list)
                 $list = $this->search_query_service->getLinkedParentDatarecords($datatype_id);
 
-            // Store the list back in the cache
-            $this->cache_service->set('cached_search_dt_'.$datatype_id.'_dr_parents', $list);
+            $this->cache_service->set('cached_search_dt_'.$datatype_id.'_linked_dr_parents', $list);
         }
 
         return $list;
@@ -1455,7 +1464,7 @@ class SearchService
     {
         // Attempt to load the datarecords for this template from the cache...
         $list = $this->cache_service->get('cached_search_template_dt_'.$template_uuid.'_dr_list');
-        if ( !$list) {
+        if (!$list) {
             // ...doesn't exist, need to rebuild
             $query = $this->em->createQuery(
                'SELECT dt.id AS dt_id, dr.id AS dr_id

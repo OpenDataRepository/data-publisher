@@ -472,6 +472,10 @@ class APIController extends ODRCustomController
             $offset = intval($offset);
             $limit = intval($limit);
 
+            // If limit is set to 0, then return all results
+            if ($limit === 0)
+                $limit = 999999999;
+
             if ($offset >= 1000000000)
                 throw new ODRBadRequestException('Offset must be less than a billion');
             if ($limit >= 1000000000)
@@ -661,6 +665,10 @@ class APIController extends ODRCustomController
             // Allow users to specify positive integer values less than a billion for these variables
             $offset = intval($offset);
             $limit = intval($limit);
+
+            // If limit is set to 0, then return all results
+            if ($limit === 0)
+                $limit = 999999999;
 
             if ($offset >= 1000000000)
                 throw new ODRBadRequestException('Offset must be less than a billion');

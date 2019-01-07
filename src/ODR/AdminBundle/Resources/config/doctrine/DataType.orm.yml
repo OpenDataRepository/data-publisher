@@ -168,6 +168,8 @@ ODR\AdminBundle\Entity\DataType:
                 master_datatype_id:
                     referencedColumnName: id
 
+        # This property is required by docrine, but isn't used...
+        # The "renderPlugin" relationship in DataTypeMeta is used instead
         renderPlugin:
             targetEntity: RenderPlugin
             cascade: {  }
