@@ -579,10 +579,12 @@ class CloneMasterTemplateThemeService
             $datatype = $source_theme->getDataType();
         }
         */
+        $this->logger->info('CloneThemeService: cloning theme ' . $source_theme->getId());
 
         $new_theme = clone $source_theme;
         $new_theme->setDataType($dest_datatype[$source_theme->getDataType()->getId()]);
-        $new_theme->setSourceTheme( $source_theme->getSourceTheme() );
+        // $new_theme->setSourceTheme( $source_theme->getSourceTheme() );
+        $new_theme->setSourceTheme( $new_theme );
         $new_theme->setThemeType($dest_theme_type);
         // Need to flush/refresh before setting parent theme
 
