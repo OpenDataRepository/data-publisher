@@ -87,6 +87,8 @@ class ODRCustomController extends Controller
 {
 
     /**
+     * @deprecated replaced by EntityMetaModifyService
+     *
      * Returns true if caller should create a new meta entry, or false otherwise.
      * Currently, this decision is based on when the last change was made, and who made the change
      * ...if change was made by a different person, or within the past hour, don't create a new entry
@@ -979,6 +981,7 @@ class ODRCustomController extends Controller
 
     /**
      * @deprecated
+     *
      * Gets or creates a TrackedJob entity in the database for use by background processes
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -1031,6 +1034,7 @@ class ODRCustomController extends Controller
 
     /**
      * @deprecated
+     *
      * Gets an array of TrackedError entities for a specified TrackedJob
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -1057,6 +1061,7 @@ class ODRCustomController extends Controller
 
     /**
      * @deprecated
+     *
      * Deletes all TrackedError entities associated with a specified TrackedJob
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -1111,7 +1116,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * @deprecated
+     * @deprecated replaced by EntityCreationService
      *
      * Creates and persists a new DataRecord and its associated Meta entity.  The caller needs to
      * flush afterwards.
@@ -1226,6 +1231,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated Replaced by EntityCreationService
+     *
      * Creates and persists a new Datatree entry.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -2103,6 +2110,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated Replaced by EntityMetaModifyService
+     *
      * Modifies a meta entry for a given RadioOptions entity by copying the old meta entry to a new meta entry,
      *  updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
      *
@@ -2300,6 +2309,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated Replaced by EntityMetaModifyService
+     *
      * Modifies a meta entry for a given Datatype entity by copying the old meta entry to a new meta entry,
      *  updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
      *
@@ -2576,6 +2587,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated Replaced by EntityMetaModifyService
+     *
      * Modifies a meta entry for a given DataField entity by copying the old meta entry to a new meta entry,
      *  updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
      *
@@ -2731,6 +2744,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated Replaced by EntityMetaModifyService
+     *
      * Copies the contents of the given ThemeMeta entity into a new ThemeMeta entity if something was changed
      *
      * The $properties parameter must contain at least one of the following keys...
@@ -2835,6 +2850,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated Replaced by EntityCreationService
+     *
      * Creates and persists a new ThemeElement entity.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -2959,6 +2976,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated Replaced by EntityCreationService
+     *
      * Creates and persists a new ThemeDataField entity.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -3076,6 +3095,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated Replaced by EntityCreationService
+     *
      * Creates and persists a new ThemeDataType entity.  The caller needs to flush afterwards.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -3907,7 +3928,7 @@ class ODRCustomController extends Controller
 
 
     /**
-     * @deprecated
+     * @deprecated Want to replace with ODRRenderService...
      *
      * Synchronizes the given theme with its source theme if needed, and returns whether to notify
      *  the user it did so.  At the moment, a notification isn't needed when the synchronization adds

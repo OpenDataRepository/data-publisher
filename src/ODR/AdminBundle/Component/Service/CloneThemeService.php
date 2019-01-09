@@ -19,10 +19,10 @@ use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
-use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -300,18 +300,24 @@ class CloneThemeService
 //            'source_theme_id' => $source_theme_id,
             'new_datafields' => array(),
             'new_datatypes' => array(),
+
+            'copy_theme_structure' => true,
         );
 
         foreach ($theme_array[$source_theme_id]['theme_datafields'] as $df_id => $tdf_id) {
             if ( !isset($theme_array[$theme_id]['theme_datafields'][$df_id]) )
                 $diff_array['new_datafields'][$df_id] = $tdf_id;
+            else
+                $diff_array['copy_theme_structure'] = false;
         }
         foreach ($theme_array[$source_theme_id]['theme_datatypes'] as $dt_id => $tdt) {
             if ( !isset($theme_array[$theme_id]['theme_datatypes'][$dt_id]) )
                 $diff_array['new_datatypes'][$dt_id] = $tdt['tdt_id'];
         }
-        if ( count($diff_array['new_datafields']) == 0 )
+        if ( count($diff_array['new_datafields']) == 0 ) {
             unset( $diff_array['new_datafields'] );
+            unset( $diff_array['copy_theme_structure'] );
+        }
         if ( count($diff_array['new_datatypes']) == 0 )
             unset( $diff_array['new_datatypes'] );
 
@@ -406,7 +412,6 @@ class CloneThemeService
         // ----------------------------------------
         // Going to need these repositories...
         $repo_theme = $this->em->getRepository('ODRAdminBundle:Theme');
-        $repo_theme_datafield = $this->em->getRepository('ODRAdminBundle:ThemeDataField');
         $repo_theme_datatype = $this->em->getRepository('ODRAdminBundle:ThemeDataType');
 
 
@@ -420,83 +425,20 @@ class CloneThemeService
             /** @var Theme $current_theme */
             $current_theme = $repo_theme->find($theme_id);
 
+            // If the theme being synchronized doesn't have any user modifications, then the sizes
+            //  and positions of the various theme entities should be cloned...otherwise, any new
+            //  datafields/datatypes need to be inserted into a hidden theme_element
+            $copy_theme_structure = false;
+            if ( isset($diff_array['copy_theme_structure']) )
+                $copy_theme_structure = $diff_array['copy_theme_structure'];
+
+
             // If entries for datafields need to be created...
             if ( isset($diff_array['new_datafields']) ) {
-                // ...attempt to locate an empty, hidden theme element
-                $query = $this->em->createQuery(
-                   'SELECT te
-                    FROM ODRAdminBundle:ThemeElement AS te
-                    JOIN ODRAdminBundle:ThemeElementMeta AS tem WITH tem.themeElement = te
-                    JOIN ODRAdminBundle:Theme AS t WITH te.theme = t
-                    WHERE t.id = :theme_id AND tem.hidden = :hidden
-                    AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tem.deletedAt IS NULL'
-                )->setParameters(
-                    array(
-                        'theme_id' => $current_theme->getId(),
-                        'hidden' => 1
-                    )
-                );
-                $results = $query->getResult();
-
-                $this->logger->debug('CloneThemeService: attempting to locate a theme element to copy themeDatafield entries into for theme '.$current_theme->getId().'...');
-
-                $target_theme_element = null;
-                if ( count($results) > 0 ) {
-                    /** @var ThemeElement[] $results */
-                    foreach ($results as $te) {
-                        if ( count($te->getThemeDataFields()) == 0 && count($te->getThemeDataType()) == 0 ) {   // TODO - should a hidden theme element be selected if it's empty or has at least one tdf entry?
-                            $target_theme_element = $te;
-                            break;
-                        }
-                    }
-                }
-
-                // If an empty/hidden theme element doesn't exist in this theme...
-                if ($target_theme_element == null) {
-                    // ...create a new theme element
-                    $target_theme_element = new ThemeElement();
-                    $target_theme_element->setTheme($current_theme);
-
-                    $current_theme->addThemeElement($target_theme_element);
-                    self::persistObject($target_theme_element, $user);
-
-                    // ...create a new meta entry for the new theme element
-                    $new_tem = new ThemeElementMeta();
-                    $new_tem->setThemeElement($target_theme_element);
-
-                    $new_tem->setDisplayOrder(-1);
-                    $new_tem->setHidden(1);
-                    $new_tem->setCssWidthMed('1-1');
-                    $new_tem->setCssWidthXL('1-1');
-
-                    // Ensure the in-memory version of the new theme element knows about its meta entry
-                    $target_theme_element->addThemeElementMetum($new_tem);
-                    self::persistObject($new_tem, $user);
-
-                    $this->logger->debug('CloneThemeService: -- created a new theme element '.$target_theme_element->getId());
-                }
-                else {
-                    $this->logger->debug('CloneThemeService: -- found an existing theme element '.$target_theme_element->getId());
-                }
-
-
-                foreach ($diff_array['new_datafields'] as $df_id => $tdf_id) {
-                    // Load the themeDatafield entry that needs to be cloned
-                    /** @var ThemeDataField $theme_datafield */
-                    $theme_datafield = $repo_theme_datafield->find($tdf_id);
-
-                    // Clone the theme datafield entry
-                    $new_theme_datafield = clone $theme_datafield;
-                    $new_theme_datafield->setThemeElement($target_theme_element);
-                    $new_theme_datafield->setDisplayOrder(999);
-
-                    $target_theme_element->addThemeDataField($new_theme_datafield);
-                    self::persistObject($new_theme_datafield, $user, true);    // These don't need to be flushed/refreshed immediately...
-
-                    $this->logger->debug('CloneThemeService: -- -- cloned theme datafield '.$tdf_id.' for datafield '.$df_id.' "'.$theme_datafield->getDataField()->getFieldName().'"');
-                }
-
-                $this->em->flush();
+                if ($copy_theme_structure)
+                    self::copyDatafieldStructure($current_theme, $user);
+                else
+                    self::attachAdditionalDatafields($diff_array, $current_theme, $user);
             }
 
             // If entries for datatypes need to be created...
@@ -518,11 +460,11 @@ class CloneThemeService
 
                     // ----------------------------------------
                     // Clone the theme element...
-                    $new_theme_element = clone $source_theme_element;
+                    $new_theme_element = new ThemeElement();
                     $new_theme_element->setTheme($current_theme);
 
                     $theme->addThemeElement($new_theme_element);
-                    self::persistObject($new_theme_element, $user);
+                    self::persistObject($new_theme_element, $user, true);
 
                     // ...then the theme element's meta entry
                     $new_theme_element_meta = clone $source_theme_element->getThemeElementMeta();
@@ -530,7 +472,7 @@ class CloneThemeService
                     $new_theme_element_meta->setThemeElement($new_theme_element);
 
                     $new_theme_element->addThemeElementMetum($new_theme_element_meta);
-                    self::persistObject($new_theme_element_meta, $user);
+                    self::persistObject($new_theme_element_meta, $user, true);
 
                     $this->logger->debug('CloneThemeService: -- created new theme element '.$new_theme_element->getId());
 
@@ -541,6 +483,9 @@ class CloneThemeService
                 }
             }
         }
+
+        // Should be okay to flush by now
+        $this->em->flush();
 
 
         // Mark the theme as updated
@@ -555,6 +500,155 @@ class CloneThemeService
 
         // Return that changes were made
         return true;
+    }
+
+
+    /**
+     * In cases where the theme doesn't have any datafields, this process can copy the datafield
+     * layout exactly as it is from the source theme...there's no existing customized layout for
+     * it to clobber.
+     *
+     * @param Theme $current_theme
+     * @param ODRUser $user
+     */
+    private function copyDatafieldStructure($current_theme, $user)
+    {
+        //
+        $source_theme = $current_theme->getSourceTheme();
+
+        foreach ($source_theme->getThemeElements() as $te) {
+            /** @var ThemeElement $te */
+            $tdf_list = $te->getThemeDataFields();
+
+            if ( count($tdf_list) > 0 ) {
+                // Create a new theme element to store the themeDatafield entries
+
+                // Do NOT clone the relevant source themeElement, as that seems to carry over that
+                //  source themeElement's themeDatafield list
+                $new_te = new ThemeElement();
+                $new_te->setTheme($current_theme);
+
+                $current_theme->addThemeElement($new_te);
+                self::persistObject($new_te, $user, true);
+
+                $new_te_meta = clone $te->getThemeElementMeta();
+                $new_te_meta->setThemeElement($new_te);
+
+                $new_te->addThemeElementMetum($new_te_meta);
+                self::persistObject($new_te_meta, $user, true);
+
+                $this->logger->debug('CloneThemeService: -- cloned theme_element '.$te->getId().' for derived theme '.$current_theme->getId());
+
+                // Now clone each datafield in the theme element...
+                foreach ($tdf_list as $num => $tdf) {
+                    /** @var ThemeDataField $tdf */
+
+                    // Clone the existing theme datafield entry
+                    $new_tdf = clone $tdf;
+                    $new_tdf->setThemeElement($new_te);
+
+                    $new_te->addThemeDataField($new_tdf);
+                    self::persistObject($new_tdf, $user, true);
+
+                    $this->logger->debug('CloneTemplateService: -- -- cloned theme_datafield entry for datafield '.$tdf->getDataField()->getId().' "'.$tdf->getDataField()->getFieldName().'"');
+                }
+            }
+            else {
+                // This is a theme element for a child/linked datatype...ignore for now
+            }
+        }
+    }
+
+
+    /**
+     * If a theme being synchronized already has at least datafield, then it's impossible to know
+     * whether some user has already customized the layout...since this process shouldn't clobber
+     * the visuals of a customized layout, any new datafields should be attached into a hidden
+     * ThemeElement.
+     *
+     * @param array $diff_array
+     * @param Theme $current_theme
+     * @param ODRUser $user
+     */
+    private function attachAdditionalDatafields($diff_array, $current_theme, $user)
+    {
+        $repo_theme_datafield = $this->em->getRepository('ODRAdminBundle:ThemeDataField');
+
+        // ...attempt to locate an empty, hidden theme element
+        $query = $this->em->createQuery(
+           'SELECT te
+            FROM ODRAdminBundle:ThemeElement AS te
+            JOIN ODRAdminBundle:ThemeElementMeta AS tem WITH tem.themeElement = te
+            JOIN ODRAdminBundle:Theme AS t WITH te.theme = t
+            WHERE t.id = :theme_id AND tem.hidden = :hidden
+            AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tem.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'theme_id' => $current_theme->getId(),
+                'hidden' => 1
+            )
+        );
+        $results = $query->getResult();
+
+        $this->logger->debug('CloneThemeService: attempting to locate a theme element to copy themeDatafield entries into for theme '.$current_theme->getId().'...');
+
+        $target_theme_element = null;
+        if ( count($results) > 0 ) {
+            /** @var ThemeElement[] $results */
+            foreach ($results as $te) {
+                if ( count($te->getThemeDataFields()) == 0 && count($te->getThemeDataType()) == 0 ) {   // TODO - should a hidden theme element be selected if it's empty or has at least one tdf entry?
+                    $target_theme_element = $te;
+                    break;
+                }
+            }
+        }
+
+        // If an empty/hidden theme element doesn't exist in this theme...
+        if ($target_theme_element == null) {
+            // ...create a new theme element
+            $target_theme_element = new ThemeElement();
+            $target_theme_element->setTheme($current_theme);
+
+            $current_theme->addThemeElement($target_theme_element);
+            self::persistObject($target_theme_element, $user);
+
+            // ...create a new meta entry for the new theme element
+            $new_tem = new ThemeElementMeta();
+            $new_tem->setThemeElement($target_theme_element);
+
+            $new_tem->setDisplayOrder(-1);
+            $new_tem->setHidden(1);
+            $new_tem->setCssWidthMed('1-1');
+            $new_tem->setCssWidthXL('1-1');
+
+            // Ensure the in-memory version of the new theme element knows about its meta entry
+            $target_theme_element->addThemeElementMetum($new_tem);
+            self::persistObject($new_tem, $user);
+
+            $this->logger->debug('CloneThemeService: -- created a new theme element '.$target_theme_element->getId());
+        }
+        else {
+            $this->logger->debug('CloneThemeService: -- found an existing theme element '.$target_theme_element->getId());
+        }
+
+
+        foreach ($diff_array['new_datafields'] as $df_id => $tdf_id) {
+            // Load the themeDatafield entry that needs to be cloned
+            /** @var ThemeDataField $theme_datafield */
+            $theme_datafield = $repo_theme_datafield->find($tdf_id);
+
+            // Clone the theme datafield entry
+            $new_theme_datafield = clone $theme_datafield;
+            $new_theme_datafield->setThemeElement($target_theme_element);
+            $new_theme_datafield->setDisplayOrder(999);
+
+            $target_theme_element->addThemeDataField($new_theme_datafield);
+            self::persistObject($new_theme_datafield, $user, true);    // These don't need to be flushed/refreshed immediately...
+
+            $this->logger->debug('CloneThemeService: -- -- cloned theme datafield '.$tdf_id.' for datafield '.$df_id.' "'.$theme_datafield->getDataField()->getFieldName().'"');
+        }
+
+//        $this->em->flush();
     }
 
 
@@ -664,8 +758,9 @@ class CloneThemeService
 //            $this->logger->debug('----------------------------------------');
 
             /** @var ThemeElement $source_te */
-            // ...create a new theme element
-            $new_te = clone $source_te;
+            // ...create a new theme element...do NOT clone because that also brings over doctrine's
+            //  cached themeDatafield list
+            $new_te = new ThemeElement();
             $new_te->setTheme($new_theme);
 
             // Ensure the "in-memory" representation of $new_theme knows about the new theme entry

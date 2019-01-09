@@ -403,6 +403,7 @@ class DatatypeInfoService
                 dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
 
                 df, dfm, ft,
+                partial mdf.{id},
                 partial df_cb.{id, username, email, firstName, lastName},
 
                 ro, rom,
@@ -429,6 +430,7 @@ class DatatypeInfoService
             LEFT JOIN dt_rpm.dataField AS dt_rpm_df
 
             LEFT JOIN dt.dataFields AS df
+            LEFT JOIN df.masterDataField AS mdf
 
             LEFT JOIN df.dataFieldMeta AS dfm
             LEFT JOIN df.createdBy AS df_cb
@@ -491,7 +493,7 @@ class DatatypeInfoService
             foreach ($dt['dataFields'] as $df_num => $df) {
                 $df_id = $df['id'];
 
-                // Flatten datafield_meta of each datafield
+                // Flatten datafield_meta and masterDatafield of each datafield
                 $dfm = $df['dataFieldMeta'][0];
                 $df['dataFieldMeta'] = $dfm;
 

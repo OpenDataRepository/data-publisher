@@ -37,7 +37,6 @@ use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Exceptions
@@ -55,6 +54,8 @@ use ODR\AdminBundle\Form\RadioOptionListForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
@@ -1708,6 +1709,8 @@ class DisplaytemplateController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1746,21 +1749,10 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // Update the radio option's name
-            $new_name = trim($post['option_name']);
-            if ($radio_option->getOptionName() !== $new_name) {
-                // TODO - regexp validation on new name?
-                // TODO - reset xml_fieldname on change?
-
-                // Update the radio option's name to prevent concurrency issues during CSV/XML importing
-                $radio_option->setOptionName($new_name);
-                $em->persist($radio_option);
-
-                // Create a new meta entry using the new radio option's name
-                $properties = array(
-                    'optionName' => $new_name
-                );
-                parent::ODR_copyRadioOptionsMeta($em, $user, $radio_option, $properties);
-            }
+            $properties = array(
+                'optionName' => trim($post['option_name'])
+            );
+            $emm_service->updateRadioOptionsMeta($user, $radio_option, $properties);
 
 
             // Update the cached version of the datatype...
@@ -2299,6 +2291,10 @@ class DisplaytemplateController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
@@ -2352,123 +2348,64 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Defaults
-            /** @var RenderPlugin $render_plugin */
-            $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->findOneBy( array('pluginClassName' => 'odr_plugins.base.default') );
+            // Create the new child datatype...
+            $child_datatype = $ec_service->createDatatype($user, 'New Child', true);    // Don't flush immediately...
 
-            // Create the new child Datatype
-            $child_datatype = new DataType();
-            $child_datatype->setRevision(0);
+            // Several of the child datatype's properties are inherited from its parent...
             $child_datatype->setParent($parent_datatype);
-            $child_datatype->setGrandparent( $parent_datatype->getGrandparent() );
-            $child_datatype->setCreatedBy($user);
-            $child_datatype->setUpdatedBy($user);
-
-
-            $unique_id = $dti_service->generateDatatypeUniqueId();
-            $child_datatype->setUniqueId($unique_id);
-
-            // This must be passed as parameter
+            $child_datatype->setGrandparent($parent_datatype->getGrandparent());
             $child_datatype->setTemplateGroup($parent_datatype->getTemplateGroup());
-
-            $child_datatype->setIsMasterType(false);
-            $child_datatype->setSetupStep(DataType::STATE_INITIAL);
             if ($parent_datatype->getIsMasterType())
                 $child_datatype->setIsMasterType(true);
 
-            // Save all changes made
             $em->persist($child_datatype);
-            $em->flush();
-            $em->refresh($child_datatype);
 
-            // Create the associated metadata entry for this new child datatype
-            $datatype_meta = new DataTypeMeta();
-            $datatype_meta->setDataType($child_datatype);
-            $datatype_meta->setRenderPlugin($default_render_plugin);
-
-            $datatype_meta->setSearchSlug(null);    // child datatypes don't have search slugs
-            $datatype_meta->setShortName("New Child");
-            $datatype_meta->setLongName("New Child");
-            $datatype_meta->setDescription("New Child Type");
-            $datatype_meta->setXmlShortName('');
-
-            $datatype_meta->setSearchNotesUpper(null);
-            $datatype_meta->setSearchNotesLower(null);
-
-            $datatype_meta->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
-
-            $datatype_meta->setExternalIdField(null);
-            $datatype_meta->setNameField(null);
-            $datatype_meta->setSortField(null);
-            $datatype_meta->setBackgroundImageField(null);
-
-            $datatype_meta->setMasterPublishedRevision(0);
-            $datatype_meta->setMasterRevision(0);
-            $datatype_meta->setTrackingMasterRevision(0);
-
-            // Set the initial Master Revision
+            // ...same for its meta entry
+            $child_datatype_meta = $child_datatype->getDataTypeMeta();
+            $child_datatype_meta->setSearchSlug(null);    // child datatypes don't have search slugs
             if ($child_datatype->getIsMasterType())
-                $datatype_meta->setMasterRevision(1);
+                $child_datatype_meta->setMasterRevision(1);
 
-            $datatype_meta->setCreatedBy($user);
-            $datatype_meta->setUpdatedBy($user);
+            $em->persist($child_datatype_meta);
 
-            // Ensure the "in-memory" version of the new child Datatype entry knows about its meta entry
-            $child_datatype->addDataTypeMetum($datatype_meta);
-            $em->persist($datatype_meta);
 
-            // Create a new DataTree entry to link the original datatype and this new child datatype
+            // Create a new DataTree entry to link the new child datatype with its parent...
             $is_link = false;
             $multiple_allowed = true;
-            $datatree = parent::ODR_addDatatree($em, $user, $parent_datatype, $child_datatype, $is_link, $multiple_allowed);
-
-            // Create a new master theme for this new child datatype
-            $child_theme = new Theme();
-            $child_theme->setDataType($child_datatype);
-            $child_theme->setThemeType('master');
-            $child_theme->setParentTheme( $theme->getParentTheme() );
-            $child_theme->setCreatedBy($user);
-            $child_theme->setUpdatedBy($user);
-
-            // Ensure the "in-memory" version of the new child Datatype entry knows about its master theme
-            $child_datatype->addTheme($child_theme);
-            $em->persist($child_theme);
+            $ec_service->createDatatree($user, $parent_datatype, $child_datatype, $is_link, $multiple_allowed, true);    // don't flush immediately...
 
 
-            $em->flush();
-            $em->refresh($datatree);
-            $em->refresh($child_theme);
-
-            // Master themes for child datatypes are their own source theme
+            // Create a new master Theme for this child datatype...
+            $child_theme = $ec_service->createTheme($user, $child_datatype, true);    // don't flush immediately...
+            $child_theme->setParentTheme($theme->getParentTheme());
             $child_theme->setSourceTheme($child_theme);
+
             $em->persist($child_theme);
 
-            // Create a new ThemeMeta entity to store properties of the childtype's Theme
-            $theme_meta = new ThemeMeta();
-            $theme_meta->setTheme($child_theme);
-            $theme_meta->setTemplateName('');
-            $theme_meta->setTemplateDescription('');
-            $theme_meta->setIsDefault(true);
-            $theme_meta->setShared(true);
-            $theme_meta->setSourceSyncVersion(1);
-            $theme_meta->setIsTableTheme(false);
-            $theme_meta->setCreatedBy($user);
-            $theme_meta->setUpdatedBy($user);
+            // The new theme inherits a few properties from its parent as well...
+            $child_theme_meta = $child_theme->getThemeMeta();
+            $child_theme_meta->setIsDefault($theme->isDefault());
+            $child_theme_meta->setShared($theme->isShared());
 
-            // Ensure the "in-memory" version of the new Theme entry knows about its meta entry
-            $theme->addThemeMetum($theme_meta);
-            $em->persist($theme_meta);
+
+            // Create a new ThemeDatatype entry to let the renderer know it has to render a child
+            //  datatype in this ThemeElement
+            $ec_service->createThemeDatatype($user, $theme_element, $child_datatype, $child_theme, true);    // don't flush immediately...
+
+
+            // Since a child datatype was added, any themes that use this master theme as their
+            //  source need to get updated themselves
+            $properties = array(
+                'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
+            );
+            $emm_service->updateThemeMeta($user, $theme, $properties, true);
 
 
             // ----------------------------------------
-            // Create a new ThemeDatatype entry to let the renderer know it has to render a child datatype in this ThemeElement
-            parent::ODR_addThemeDatatype($em, $user, $child_datatype, $theme_element, $child_theme);
+            // Now that most of the required entities have been created, flush and reload the child
+            //  datatype so that native SQL queries can copy groups for this child datatype
             $em->flush();
             $em->refresh($child_datatype);
-
-
-            // Delete the cached version of the datatree array because a child datatype was created
-            $cache_service->delete('cached_datatree_array');
 
             // Create the default groups for this child datatype
             $pm_service->createGroupsForDatatype($user, $child_datatype);
@@ -2480,20 +2417,16 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Delete the cached version of the datatree array because a child datatype was created
+            $cache_service->delete('cached_datatree_array');
+
+            // Don't need to delete the "associated_datatypes_for_<dt_id>" cache entry...that only
+            // stores top-level datatypes, and this was a new child datatype
+
             // Update the cached version of this datatype
             $dti_service->updateDatatypeCacheEntry($parent_datatype, $user);
             // Do the same for the cached version of this theme
             $theme_service->updateThemeCacheEntry($theme, $user);
-
-
-            // ----------------------------------------
-            // A child datatype was added, so any themes that use this master theme as their source
-            //  need to get updated themselves
-            $properties = array(
-                'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
-            );
-            parent::ODR_copyThemeMeta($em, $user, $theme, $properties);
-
         }
         catch (\Exception $e) {
             $source = 0xe1cadbac;

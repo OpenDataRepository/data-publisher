@@ -84,8 +84,10 @@ class SearchCacheService
      */
     public function onDatatypeDelete($datatype)
     {
+        $grandparent_datatype = $datatype->getGrandparent();
+
         // ----------------------------------------
-        $related_datatypes = $this->search_service->getRelatedDatatypes($datatype->getGrandparent()->getId());
+        $related_datatypes = $this->search_service->getRelatedDatatypes($grandparent_datatype->getId());
         foreach ($related_datatypes as $num => $dt_id) {
             // Most likely, 'cached_search_dt_'.$dt_id.'_dr_parents' is the only entry that actually
             //  needs deleting, and then only when linked datatypes are involved...but being
@@ -101,9 +103,23 @@ class SearchCacheService
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modifiedBy');
         }
 
-        $related_datatypes = $this->search_service->getRelatedTemplateDatatypes($datatype->getGrandparent()->getUniqueId());
-        foreach ($related_datatypes as $num => $dt_uuid) {
-            $this->cache_service->delete('cached_search_template_dt_'.$dt_uuid.'_datafields');
+
+        // TODO - figure out whether there needs to be restrictions on when datatypes related to templates can be deleted
+        if ( !is_null($grandparent_datatype->getMasterDataType()) ) {
+            // If this datatype was derived from a master template...
+            $master_datatype = $datatype->getGrandparent()->getMasterDataType();
+
+            // ...then the cache entries that reference this datatype's datafields need to get cleared
+            $related_datatypes = $this->search_service->getRelatedTemplateDatatypes($master_datatype->getUniqueId());
+            foreach ($related_datatypes as $num => $dt_uuid)
+                $this->cache_service->delete('cached_search_template_dt_'.$dt_uuid.'_datafields');
+        }
+        else if ( $grandparent_datatype->getIsMasterType() ) {
+            // If the datatype being deleted is a master template, then delete the cache entries
+            //  that store the datafields for all datatypes derived from this template
+            $related_datatypes = $this->search_service->getRelatedTemplateDatatypes($grandparent_datatype->getUniqueId());
+            foreach ($related_datatypes as $num => $dt_uuid)
+                $this->cache_service->delete('cached_search_template_dt_'.$dt_uuid.'_datafields');
         }
 
 

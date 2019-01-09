@@ -567,6 +567,7 @@ class ODRRenderService
         }
 
 
+        // TODO - this likely doesn't really do anything at the moment since some/most parts of ODR don't keep these version numbers up to date...
         // Since this theme got synched, also synch the version numbers of all themes with this
         //  this theme as their parent...
         $query = $this->em->createQuery(
@@ -577,6 +578,7 @@ class ODRRenderService
         )->setParameters( array('theme_id' => $theme->getId()) );
         $results = $query->getResult();
 
+        $need_flush = false;
         /** @var Theme[] $results */
         foreach ($results as $t) {
             $current_theme_version = $t->getSourceSyncVersion();
@@ -586,9 +588,12 @@ class ODRRenderService
                 $properties = array(
                     'sourceSyncVersion' => $source_theme_version
                 );
-                $this->emm_service->copyThemeMeta($user, $t, $properties);
+                $this->emm_service->updateThemeMeta($user, $t, $properties, true);    // don't flush immediately, if possible...
+                $need_flush = true;
             }
         }
+        if ($need_flush)
+            $this->em->flush();
 
 
         // ----------------------------------------
