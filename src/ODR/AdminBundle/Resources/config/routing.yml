@@ -1313,6 +1313,10 @@ odr_fix_datatree_entries:
     path: /admin/fix_datatree_entries
     defaults: { _controller: ODRAdminBundle:Validation:fixdatatreeentries }
 
+odr_find_datatype_meta_errors:
+    path: /admin/find_datatype_meta_errors
+    defaults: { _controller: ODRAdminBundle:Validation:finddatatypemetaerrors }
+
 # zeta/epsilon has a whole mess of problems related to themes...
 odr_find_datatypes_without_master_themes:
     path:  /admin/find_datatypes_without_master_themes

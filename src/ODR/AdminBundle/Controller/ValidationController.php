@@ -2080,7 +2080,6 @@ class ValidationController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $conn = $em->getConnection();
 
             $query = $em->createQuery(
                'SELECT u.id AS user_id, g.id AS group_id
@@ -2110,6 +2109,67 @@ class ValidationController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0xc0b59c97;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * Datatypes shouldn't claim external_id/name/sort/background_image datafields that actually
+     * belong to another Datatype...
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function finddatatypemetaerrorsAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // If a datatype has
+            $relationships = array(
+                'externalIdField',
+                'nameField',
+                'sortField',
+                'backgroundImageField'
+            );
+
+            foreach ($relationships as $relationship) {
+                $query = $em->createQuery(
+                   'SELECT dt_1.id AS dt_1_id, dtm_1.shortName AS dt_1_name, dfm.fieldName AS df_name, dt_2.id AS dt_2_id, dtm_2.shortName AS dt_2_name
+                    FROM ODRAdminBundle:DataType AS dt_1
+                    JOIN ODRAdminBundle:DataTypeMeta AS dtm_1 WITH dtm_1.dataType = dt_1
+                    JOIN ODRAdminBundle:DataFields AS df WITH dtm_1.'.$relationship.' = df
+                    JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                    JOIN ODRAdminBundle:DataType AS dt_2 WITH df.dataType = dt_2
+                    JOIN ODRAdminBundle:DataTypeMeta AS dtm_2 WITH dtm_2.dataType = dt_2
+                    WHERE dt_1.id != dt_2.id
+                    AND dt_1.deletedAt IS NULL AND dtm_1.deletedAt IS NULL
+                    AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
+                    AND dt_2.deletedAt IS NULL AND dtm_2.deletedAt IS NULL'
+                );
+                $results = $query->getArrayResult();
+
+                print_r( '<pre>Datatypes claiming a '.$relationship.' datafield that belongs to another Datatype: '.print_r($results, true).'</pre>' );
+            }
+
+        }
+        catch (\Exception $e) {
+            $source = 0x3e162dec;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else

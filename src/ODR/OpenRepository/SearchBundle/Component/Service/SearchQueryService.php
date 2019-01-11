@@ -824,82 +824,138 @@ class SearchQueryService
      */
     public function searchTextOrNumberTemplateDatafield($master_datafield_uuid, $typeclass, $value)
     {
+        $typeclasses = array(
+            0 => 'odr_short_varchar',
+            1 => 'odr_medium_varchar',
+            2 => 'odr_long_varchar',
+            3 => 'odr_long_text',
+            4 => 'odr_integer_value',
+            5 => 'odr_decimal_value',
+        );
+        $fieldtypes = array(
+            0 => 'ShortVarchar',
+            1 => 'MediumVarchar',
+            2 => 'LongVarchar',
+            3 => 'LongText',
+            4 => 'IntegerValue',
+            5 => 'DecimalValue',
+        );
+        $params = array();
+        $queries = array();
+        $null_queries = array(
+            0 => false,
+            1 => false,
+            2 => false,
+            3 => false,
+            4 => false,
+            5 => false,
+        );
+
+
         // ----------------------------------------
-        // Convert the given value into an array of parameters
+        // Convert the given value into two arrays of parameters...
         $is_filename = false;
 
-        // The value stored in the text-based datafields searched by this can't be null...
-        $can_be_null = false;
-        if ($typeclass === 'IntegerValue' || $typeclass === 'DecimalValue')
-            // ...but the value stored in the number-based datafields can
-            $can_be_null = true;
+        // ...one for the text fieldtypes because their value columns can't store nulls...
+        $search_params_text = self::parseField($value, $is_filename, false);
+        $search_params_text['params']['template_df_id'] = $master_datafield_uuid;
+        $params[0] = $params[1] = $params[2] = $params[3] = $search_params_text;
 
-        $search_params = self::parseField($value, $is_filename, $can_be_null);
-        $search_params['params']['template_df_id'] = $master_datafield_uuid;
-
-        // Define the base query for searching
-        $query =
-           'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
-            FROM odr_data_type AS mdt
-            JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
-            JOIN odr_data_fields AS df ON df.data_type_id = dt.id
-            JOIN odr_data_record_fields AS drf ON drf.data_field_id = df.id
-            JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
-            JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-            WHERE df.template_field_uuid = :template_df_id AND ('.$search_params['str'].')
-            AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
-            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
-
-        // Also define the query used when one of the search parameters is the empty string
-        $null_query =
-           'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
-            FROM odr_data_type AS mdt
-            JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
-            JOIN odr_data_record AS dr ON dr.data_type_id = dt.id
-            JOIN odr_data_fields AS df ON df.data_type_id = dt.id
-            LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = df.id AND drf.deletedAt IS NULL) OR drf.id IS NULL)
-            LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-            WHERE df.template_field_uuid = :template_df_id AND e.id IS NULL
-            AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL
-            AND dr.deletedAt IS NULL AND df.deletedAt IS NULL';
-        // This query won't pick up cases where the drf exists and the storage entity was deleted,
-        //  but that shouldn't happen...if it does, most likely it's either a botched fieldtype
-        //  migration, or a change to the contents of a storage entity didn't complete properly
+        // ...and a second for the numericla fieldtypes because their value columns can store nulls
+        $search_params_num = self::parseField($value, $is_filename, true);
+        $search_params_num['params']['template_df_id'] = $master_datafield_uuid;
+        $params[4] = $params[5] = $search_params_num;
 
 
-        // ----------------------------------------
         // Determine whether this query's search parameters contain an empty string...if so, may
         //  have to to run an additional query because of how ODR is designed...
-        if ( self::isNullDrfPossible($search_params['str'], $search_params['params']) ) {
+        if ( self::isNullDrfPossible($search_params_text['str'], $search_params_text['params']) ) {
             // ...but only when the query actually has a logical chance of returning results...
-            if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
-//                $search_params['params']['datatype_id'] = $datatype_id;
-                $query .= "\nUNION\n".$null_query;
+            if ( self::canQueryReturnResults($search_params_text['str'], $search_params_text['params']) ) {
+                $null_queries[0] = $null_queries[1] = $null_queries[2] = $null_queries[3] = true;
+            }
+        }
+
+        // ...I believe that currently, the question "is a null drf possible" will always have the
+        //  same answer for both a text query and a numerical query...keeping them separate just
+        //  in case, though...
+        if ( self::isNullDrfPossible($search_params_num['str'], $search_params_num['params']) ) {
+            if ( self::canQueryReturnResults($search_params_num['str'], $search_params_num['params']) ) {
+                $null_queries[4] = $null_queries[5] = true;
             }
         }
 
 
         // ----------------------------------------
-        // Execute and return the native SQL query
+        // Define the base queries for each of the typeclasses to be searched on
+        foreach ($typeclasses as $id => $typeclass) {
+            $queries[$id] =
+                // The joins to the DatafieldMeta and FieldType tables aren't strictly necessary
+                //  in this query, but they are in the subsequent null query...
+               'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
+                FROM odr_data_type AS mdt
+                JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
+                JOIN odr_data_fields AS df ON df.data_type_id = dt.id
+                JOIN odr_data_fields_meta AS dfm ON dfm.data_field_id = df.id
+                JOIN odr_field_type AS ft ON dfm.field_type_id = ft.id
+                JOIN odr_data_record_fields AS drf ON drf.data_field_id = df.id
+                JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
+                JOIN '.$typeclass.' AS e ON e.data_record_fields_id = drf.id
+                WHERE df.template_field_uuid = :template_df_id AND ft.type_class = "'.$fieldtypes[$id].'"
+                AND ('.$params[$id]['str'].')
+                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
+                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+
+            if ($null_queries[$id]) {
+                $queries[$id] .= "\nUNION\n".
+                   'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
+                    FROM odr_data_type AS mdt
+                    JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
+                    JOIN odr_data_record AS dr ON dr.data_type_id = dt.id
+                    JOIN odr_data_fields AS df ON df.data_type_id = dt.id
+                    JOIN odr_data_fields_meta AS dfm ON dfm.data_field_id = df.id
+                    JOIN odr_field_type AS ft ON dfm.field_type_id = ft.id
+                    LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = df.id AND drf.deletedAt IS NULL) OR drf.id IS NULL)
+                    LEFT JOIN '.$typeclass.' AS e ON e.data_record_fields_id = drf.id
+                    WHERE df.template_field_uuid = :template_df_id AND ft.type_class = "'.$fieldtypes[$id].'"
+                    AND e.id IS NULL
+                    AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL
+                    AND dr.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL';
+
+                // This query won't pick up cases where the drf exists and the storage entity was
+                //  deleted, but that shouldn't happen...if it does, most likely it's either a
+                //  botched fieldtype migration, or a change to the contents of a storage entity
+                //  didn't complete properly
+            }
+        }
+
+
+        // ----------------------------------------
+        // Execute each of the native SQL queries
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $search_params['params']);
 
+        $results = array();
+        foreach ($typeclasses as $id => $typeclass)
+            $results[$id] = $conn->fetchAll($queries[$id], $params[$id]['params']);
+
+        // Create an array structure so the matching datarecords can be filtered based on user
+        //  datatype/datafield permissions later
         $datarecords = array();
-        foreach ($results as $result) {
-            $dt_id = $result['dt_id'];
-            $df_id = $result['df_id'];
-            $dr_id = $result['dr_id'];
+        foreach ($results as $id => $result_set) {
+            foreach ($result_set as $result) {
+                $dt_id = $result['dt_id'];
+                $df_id = $result['df_id'];
+                $dr_id = $result['dr_id'];
 
-            // Create an array structure so the matching datarecords can be filtered based on user
-            //  datatype/datafield permissions later
-            if ( !isset($datarecords[$dt_id]) )
-                $datarecords[$dt_id] = array();
-            if ( !isset($datarecords[$dt_id][$df_id]) )
-                $datarecords[$dt_id][$df_id] = array();
-            if ( !isset($datarecords[$dt_id][$df_id][$dr_id]) )
-                $datarecords[$dt_id][$df_id][$dr_id] = array();
-
-            $datarecords[$dt_id][$df_id][$dr_id] = 1;
+                if ( !isset($datarecords[$dt_id]) )
+                    $datarecords[$dt_id] = array();
+                if ( !isset($datarecords[$dt_id][$df_id]) )
+                    $datarecords[$dt_id][$df_id] = array();
+                if ( !isset($datarecords[$dt_id][$df_id][$dr_id]) )
+                    $datarecords[$dt_id][$df_id][$dr_id] = array();
+                $datarecords[$dt_id][$df_id][$dr_id] = 1;
+            }
         }
 
         return $datarecords;
