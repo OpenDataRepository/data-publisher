@@ -68,8 +68,13 @@
 
                     {# Users aren't allowed to delete datafields that are being used in special ways by the datatype #}
                     {% set is_external_id_field = false %}
-                    {% if datatype.dataTypeMeta.externalIdField == datafield_id %}
+                    {% if datatype.dataTypeMeta.externalIdField is not null and datatype.dataTypeMeta.externalIdField.id == datafield_id %}
                         {% set is_external_id_field = true %}
+                    {% endif %}
+
+                    {% set is_master_template_field = false %}
+                    {% if datafield.masterDataField is defined and datafield.masterDataField is not null %}
+                        {% set is_master_template_field = true %}
                     {% endif %}
 
                     {% set is_datatype_render_plugin_field = false %}
@@ -89,6 +94,7 @@
 
                         'is_datatype_admin': is_datatype_admin,
                         'is_external_id_field': is_external_id_field,
+                        'is_master_template_field': is_master_template_field,
                         'is_datatype_render_plugin_field': is_datatype_render_plugin_field,
                     } %}
                 {% endif %}

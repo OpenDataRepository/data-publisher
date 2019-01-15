@@ -614,6 +614,18 @@ odr_save_search_notes:
     requirements:
         datatype_id: \d+
 
+odr_design_sync_with_template:
+    path: /design/displaytemplate/templatesync/{datatype_id}/{sync_metadata}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:syncwithtemplate }
+    requirements:
+        datatype_id: \d+
+        sync_metadata: 0|1
+odr_design_check_sync_with_template:
+    path: /design/displaytemplate/checktemplatesync/{datatype_id}/{sync_metadata}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:checksyncwithtemplate }
+    requirements:
+        datatype_id: \d+
+        sync_metadata: 0|1
 
 #-----------------------------------------
 
@@ -974,6 +986,11 @@ odr_migrate_field:
 odr_crypto_request:
     path: /beanstalk/crypto_request
     defaults: { _controller: ODRAdminBundle:Worker:cryptorequest }
+    methods: [ POST ]
+
+odr_sync_with_template_worker:
+    path: /beanstalk/sync_with_template
+    defaults: { _controller: ODRAdminBundle:Worker:syncwithtemplate }
     methods: [ POST ]
 
 #-----------------------------------------
@@ -1421,8 +1438,3 @@ odr_api_download_image:
     methods: [ GET ]
     requirements:
         image_id: \d+
-
-
-odr_asdf:
-    path:  /admin/asdf
-    defaults: { _controller: ODRAdminBundle:Worker:asdf }

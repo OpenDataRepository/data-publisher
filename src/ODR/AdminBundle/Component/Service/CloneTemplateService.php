@@ -18,7 +18,6 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -251,8 +250,9 @@ class CloneTemplateService
             throw new ODRBadRequestException('The given datatype is not derived from a Master Template...unable to check for differences');
 
 
-        // TODO - at the moment, only new datafields and new child/linked datatypes are considered "noteworthy"
-        // TODO - is there more stuff like that?  fieldtype changes definitely are...
+        // At the moment, only new datafields, new child/linked datatypes, and fieldtype changes
+        //  are considered"noteworthy"...TODO - is there more stuff that should be?
+
 
         // ----------------------------------------
         // Load, stack, and clean the cached_datatype array for the master template
@@ -431,7 +431,9 @@ class CloneTemplateService
                         $change_made = false;
 
                         if ( $template_datafields[$master_df_id]['fieldType'] !== $fieldtype ) {
-                            // TODO - deal with fieldtype changes
+                            // The derived datafield has a different fieldtype than the template
+                            //  datafield...TODO - figure out what it would take to enable this...
+//                            $change_made = true;
                         }
 
                         if ( isset($template_datafields[$master_df_id]['radioOptions']) ) {
@@ -796,6 +798,11 @@ class CloneTemplateService
             $this->cache_service->delete('cached_theme_'.$master_theme->getId());
         }
 
+        // TODO - this checker construct needs a database entry, but i'm pretty sure this isn't the intended use
+        $datatype->setDatatypeType(null);
+        $this->em->persist($datatype);
+        $this->em->flush();
+
         return true;
     }
 
@@ -909,8 +916,15 @@ class CloneTemplateService
                     $this->logger->debug('CloneTemplateService:'.$indent_text.' -- cloned new datafield "'.$new_df->getFieldName().'" (dt '.$derived_datatype->getId().') from master datafield '.$master_df->getId().' (dt_id '.$master_dt->getId().')');
                 }
 
-                if ( $derived_df->getFieldType()->getTypeClass() !== $master_df->getFieldType()->getTypeClass() ) {
-                    // TODO - do stuff when fieldtype of master datafield changes?
+                $derived_df_typeclass = $derived_df->getFieldType()->getTypeClass();
+                $master_df_typeclass = $master_df->getFieldType()->getTypeClass();
+                if ( $derived_df_typeclass !== $master_df_typeclass ) {
+                    // TODO - how to deal with change to the fieldtype of master datafield?
+                    // TODO - refactor datafield migration so that it's not as slow?
+                    // TODO - ...make datafield migration into a service?
+                    // TODO - give the user the choice of which stuff to synchronize? (instead of "all at once")
+                    // TODO - how to deal with deletion of datafields from the template?
+//                    $this->logger->debug('CloneTemplateService:'.$indent_text.' -- datafield "'.$derived_df->getFieldName().'" (dt '.$derived_datatype->getId().') has the fieldtype "'.$derived_df_typeclass.'", while the master datafield '.$master_df->getId().' (dt_id '.$master_dt->getId().') has the fieldtype "'.$master_df_typeclass.'"');
                 }
 
                 // Create any missing radio options, or update the name of existing ones

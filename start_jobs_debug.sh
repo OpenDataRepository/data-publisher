@@ -31,7 +31,8 @@ php -dxdebug.remote_autostart=On app/console --env=dev odr_datatype:clone_master
 #php -dxdebug.remote_autostart=On app/console --env=dev odr_crypto:worker  >> app/logs/crypto_worker.log 2>&1 &
 
 
-
 # temporary kludge to flush cache for clone processes
 php app/console odr_datatype:clone_monitor >> app/logs/clone_monitor.log 2>&1 &
 php app/console odr_datatype:clone_and_link_monitor >> app/logs/clone_and_link_monitor.log 2>&1 &
+
+php app/console odr_datatype:sync_template >> app/logs/sync_template.log 2>&1 &

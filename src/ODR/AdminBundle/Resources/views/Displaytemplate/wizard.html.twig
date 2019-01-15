@@ -105,6 +105,24 @@
                         <a class="ODRWizardLink" href="#{{ path('odr_datatype_landing', {'datatype_id': datatype_id}) }}">
                             <span class="wizardStatusText">Click to Begin Managing Your Database</span>
                         </a>
+
+                        {% if sync_with_template is defined and sync_with_template == true %}
+                        <p></p>
+                        <a class="ODRWizardLink">
+                            <span class="wizardStatusText ODRSyncWithTemplate" rel="dt_{{ datatype.id }}">
+                                Click to synchronize this database with its master template.
+                            </span>
+                        </a>
+                        {% endif %}
+
+                        {% if sync_metadata_with_template is defined and sync_metadata_with_template == true %}
+                        <p></p>
+                        <a class="ODRWizardLink">
+                            <span class="wizardStatusText ODRSyncWithTemplate" rel="mdt_{{ datatype.metadata_datatype.id }}">
+                                Click to synchronize this database's metadata entry with its master template.
+                            </span>
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -160,4 +178,54 @@
             </div>
         </div>
     {% endif %}
+
+{% if (sync_with_template is defined and sync_with_template == true) or
+    (sync_metadata_with_template is defined and sync_metadata_with_template == true)
+%}
+<script>
+    $(function () {
+        $(".ODRSyncWithTemplate").unbind('click').click(function() {
+            var data = $(this).attr('rel').split(/_/);
+
+            var datatype_id = data[1];
+            var sync_metadata = 0;    // will eventually redirect back to the design page of the datatype being synched
+            if (data[0] === 'mdt')
+                sync_metadata = 1;    // will eventually redirect back to
+
+            var url = '{{ path('odr_design_sync_with_template', {'datatype_id': 0, 'sync_metadata': 0}) }}';
+            url = url.substr(0, url.length-3);
+            url += datatype_id + '/' + sync_metadata;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: 'json',
+                success: function(data) {
+                    // Redirect to the status checker page
+                    LoadContentFullAjax(data.d.url);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+    });
+</script>
+{% endif %}
+
 {% endspaceless %}

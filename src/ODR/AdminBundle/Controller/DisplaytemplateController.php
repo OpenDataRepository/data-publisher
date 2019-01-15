@@ -53,6 +53,7 @@ use ODR\AdminBundle\Form\UpdateThemeDatatypeForm;
 use ODR\AdminBundle\Form\RadioOptionListForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CloneTemplateService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
@@ -3523,7 +3524,10 @@ class DisplaytemplateController extends ODRCustomController
 
 
     /**
-     * Helper function to determine whether a datafield can be deleted
+     * Helper function to determine whether a datafield can be deleted.  Changes to this also need
+     * to be made in ODRRenderService, ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig,
+     * and ODRAdminBundle:Displaytemplate:design_datafield.html.twig.
+     *
      * TODO - move into a datafield info service?
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -3543,6 +3547,13 @@ class DisplaytemplateController extends ODRCustomController
             return array(
                 'prevent_deletion' => true,
                 'prevent_deletion_message' => "This datafield is currently in use as the Datatype's external ID field...unable to delete",
+            );
+        }
+
+        if ( !is_null($datatype->getMasterDataType()) && !is_null($datafield->getMasterDataField()) ) {
+            return array(
+                'prevent_deletion' => true,
+                'prevent_deletion_message' => "This datafield is currently required by the Datatype's master template...unable to delete",
             );
         }
 
@@ -4408,6 +4419,225 @@ if ($debug)
         }
         catch (\Exception $e) {
             $source = 0xc3bf4313;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * It's possible that the process of synchronizing a datatype with its master template could
+     * take long enough for a single request to time out, so for safety it needs to be handled by
+     * a background process...
+     *
+     * @param int $datatype_id
+     * @param bool $sync_metadata
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function syncwithtemplateAction($datatype_id, $sync_metadata, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CloneTemplateService $clone_template_service */
+            $clone_template_service = $this->container->get('odr.clone_template_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // Don't start the synchronization process if it's pointless to do so
+            if ( !$clone_template_service->canSyncWithTemplate($datatype, $user) )
+                throw new ODRBadRequestException();
+
+            // If $sync_metadata is true, then this action needs to have been called on a metadata
+            //  datatype...
+            if ( $sync_metadata && is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException();
+
+
+            // ----------------------------------------
+            // Grab necessary stuff for pheanstalk...
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            $api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->get('pheanstalk');
+
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $this->container->get('router')->generate('odr_sync_with_template_worker');
+
+            // Create a job and insert into beanstalk's queue
+//            $priority = 1024;   // should be roughly default priority
+            $payload = json_encode(
+                array(
+                    "user_id" => $user->getId(),
+                    "datatype_id" => $datatype->getId(),
+
+                    "redis_prefix" => $redis_prefix,    // debug purposes only
+                    "url" => $url,
+                    "api_key" => $api_key,
+                )
+            );
+
+            $pheanstalk->useTube('synch_template')->put($payload);
+
+            // TODO - this checker construct needs a database entry, but i'm pretty sure this isn't the intended use
+            $datatype->setDatatypeType('synchronizing');
+            $em->persist($datatype);
+            $em->flush();
+
+
+            // ----------------------------------------
+            // Redirect the user to the status checker
+            $return['d'] = array(
+                'url' => $this->generateUrl(
+                    'odr_design_check_sync_with_template',
+                    array(
+                        'datatype_id' => $datatype->getId(),
+                        'sync_metadata' => $sync_metadata
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x0d869f58;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * It's possible that the process of synchronizing a datatype with its master template could
+     * take long enough for a single request to time out, so there needs to be a controller action
+     * to check on the progress of the background process...
+     *
+     * @param int $datatype_id
+     * @param bool $sync_metadata
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function checksyncwithtemplateAction($datatype_id, $sync_metadata, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $templating = $this->get('templating');
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // If $sync_metadata is true, then this action needs to have been called on a metadata
+            //  datatype...
+            if ( $sync_metadata && is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException();
+
+
+            // Ensure the in-memory version of the datatype is up to date
+            $em->refresh($datatype);
+            if ($datatype->getDatatypeType() === 'synchronizing') {
+                // The datatype is still being synchronized
+                $return['d'] = array(
+                    'html' => $templating->render(
+                        'ODRAdminBundle:Datatype:sync_status_checker.html.twig',
+                        array(
+                            'datatype' => $datatype,
+                            'sync_metadata' => $sync_metadata,
+                        )
+                    )
+                );
+            }
+            else {
+                // The datatype is done being synchronized
+
+                // Usually want to redirect the user back to the design page of the datatype that
+                //  just got synchronized...
+                $target_datatype = $datatype;
+                if ($sync_metadata) {
+                    // ...unless they clicked on the link to synchronize this datatype's metadata
+                    //  datatype instead
+                    $target_datatype = $datatype->getMetadataFor();
+                }
+
+                // Redirect the user back to the correct datatype
+                $url = $this->generateUrl(
+                    'odr_design_master_theme',
+                    array(
+                        'datatype_id' => $target_datatype->getId()
+                    ),
+                    false
+                );
+
+                $return['d'] = array(
+                    'html' => $templating->render(
+                        'ODRAdminBundle:Datatype:sync_status_checker_redirect.html.twig',
+                        array(
+                            "url" => $url
+                        )
+                    )
+                );
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x9f58b300;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else

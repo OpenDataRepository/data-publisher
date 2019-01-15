@@ -70,6 +70,11 @@ class ODRRenderService
     private $clone_theme_service;
 
     /**
+     * @var CloneTemplateService
+     */
+    private $clone_template_service;
+
+    /**
      * @var EntityMetaModifyService
      */
     private $emm_service;
@@ -94,7 +99,8 @@ class ODRRenderService
      * @param DatatypeInfoService $dti_service
      * @param PermissionsManagementService $pm_service
      * @param ThemeInfoService $theme_service
-     * @param CloneThemeService $clone_theme_service
+     * @param CloneThemeService $cloneThemeService
+     * @param CloneTemplateService $cloneTemplateService
      * @param EntityMetaModifyService $emm_service
      * @param EngineInterface $templating
      * @param Logger $logger
@@ -106,7 +112,8 @@ class ODRRenderService
         DatatypeInfoService $dti_service,
         PermissionsManagementService $pm_service,
         ThemeInfoService $theme_service,
-        CloneThemeService $clone_theme_service,
+        CloneThemeService $cloneThemeService,
+        CloneTemplateService $cloneTemplateService,
         EntityMetaModifyService $emm_service,
         EngineInterface $templating,
         Logger $logger
@@ -117,7 +124,8 @@ class ODRRenderService
         $this->dti_service = $dti_service;
         $this->pm_service = $pm_service;
         $this->theme_service = $theme_service;
-        $this->clone_theme_service = $clone_theme_service;
+        $this->clone_theme_service = $cloneThemeService;
+        $this->clone_template_service = $cloneTemplateService;
         $this->emm_service = $emm_service;
         $this->templating = $templating;
         $this->logger = $logger;
@@ -160,6 +168,9 @@ class ODRRenderService
         $extra_parameters = array(
             'fieldtype_array' => $fieldtype_array,
             'has_datarecords' => $has_datarecords,
+
+            'sync_with_template' => false,
+            'sync_metadata_with_template' => false,
         );
 
         $datarecord = null;
@@ -169,6 +180,19 @@ class ODRRenderService
 
         // Ensure all relevant themes are in sync before rendering the end result
         $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($theme, $user);
+
+
+        // Check whether the datatype is up to date with its master template if applicable
+        if ( !is_null($datatype->getMasterDataType()) )
+            $extra_parameters['sync_with_template'] = $this->clone_template_service->canSyncWithTemplate($datatype, $user);
+
+        // Also check whether the metadata datatype needs a sync
+        if ( !is_null($datatype->getMetadataDatatype())
+            && !is_null($datatype->getMetadataDatatype()->getMasterDataType())
+        ) {
+            $extra_parameters['sync_metadata_with_template'] =
+                $this->clone_template_service->canSyncWithTemplate($datatype->getMetadataDatatype(), $user);
+        }
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
@@ -904,6 +928,11 @@ class ODRRenderService
         if ( !is_null($datatype->getExternalIdField()) && $datatype->getExternalIdField()->getId() == $datafield->getId() )
             $is_external_id_field = true;
 
+        // Store whether this datafield is derived from some master template
+        $is_master_template_field = false;
+        if ( !is_null($datafield->getMasterDataField()) )
+            $is_master_template_field = true;
+
         // Store whether this datafield is being used by the datatype's render plugin or not
         $is_datatype_render_plugin_field = false;
         if ( $datatype->getRenderPlugin()->getPluginClassName() !== 'odr_plugins.base.default' ) {
@@ -925,6 +954,7 @@ class ODRRenderService
         $extra_parameters = array(
             'is_datatype_admin' => $is_datatype_admin,
             'is_external_id_field' => $is_external_id_field,
+            'is_master_template_field' => $is_master_template_field,
             'is_datatype_render_plugin_field' => $is_datatype_render_plugin_field,
         );
 

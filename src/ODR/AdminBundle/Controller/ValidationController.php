@@ -2136,9 +2136,16 @@ class ValidationController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
+        $save = false;
+//        $save = true;
+
+        $conn = null;
+
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            $conn = $em->getConnection();
+            $conn->beginTransaction();
 
             // If a datatype has
             $relationships = array(
@@ -2165,10 +2172,34 @@ class ValidationController extends ODRCustomController
                 $results = $query->getArrayResult();
 
                 print_r( '<pre>Datatypes claiming a '.$relationship.' datafield that belongs to another Datatype: '.print_r($results, true).'</pre>' );
+
+                $datatype_ids = array();
+                foreach ($results as $result) {
+                    $dt_1_id = $result['dt_1_id'];
+                    $datatype_ids[] = $dt_1_id;
+                }
+
+                print_r( '<pre>clearing '.$relationship.' for datatypes: '.print_r($datatype_ids, true).'</pre>' );
+
+                $update_query = $em->createQuery(
+                   'UPDATE ODRAdminBundle:DataTypeMeta AS dtm
+                    SET dtm.'.$relationship.' = NULL
+                    WHERE dtm.deletedAt IS NULL AND dtm.dataType IN (:datatype_ids)'
+                )->setParameters( array('datatype_ids' => $datatype_ids) );
+                $rows = $update_query->execute();
+                print '<pre>updated '.$rows.' rows</pre>';
             }
 
+            if (!$save)
+                $conn->rollBack();
+            else
+                $conn->commit();
         }
         catch (\Exception $e) {
+
+            if (!is_null($conn) && $conn->isTransactionActive())
+                $conn->rollBack();
+
             $source = 0x3e162dec;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));

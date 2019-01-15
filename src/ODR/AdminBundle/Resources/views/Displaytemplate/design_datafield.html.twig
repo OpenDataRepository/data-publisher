@@ -27,6 +27,9 @@
     {% if is_external_id_field %}
         datafield_properties[{{ datafield.id }}].can_delete = 0;
         datafield_properties[{{ datafield.id }}].delete_message = "This datafield is currently in use as the Datatype's external ID field...unable to delete";
+    {% elseif is_master_template_field %}
+        datafield_properties[{{ datafield.id }}].can_delete = 0;
+        datafield_properties[{{ datafield.id }}].delete_message = "This datafield is currently required by the Datatype's master template...unable to delete";
     {% elseif is_datatype_render_plugin_field %}
         datafield_properties[{{ datafield.id }}].can_delete = 0;
         datafield_properties[{{ datafield.id }}].delete_message = "This Datafield is currently required by the Datatype's Render Plugin...unable to delete";

@@ -42,6 +42,7 @@ use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneThemeService;
+use ODR\AdminBundle\Component\Service\CloneTemplateService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
@@ -283,6 +284,77 @@ $ret .= '  Set current to '.$count."\n";
             $request->setRequestFormat('json');
 
             $source = 0x5e17488a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Called by background processes to synchronize a datatype with its master template
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function syncwithtemplateAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+//print_r($post);
+            if ( !isset($post['datatype_id']) || !isset($post['user_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $datatype_id = $post['datatype_id'];
+            $user_id = $post['user_id'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CloneTemplateService $clone_template_service */
+            $clone_template_service = $this->container->get('odr.clone_template_service');
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new ODRBadRequestException('Invalid Form');
+
+            // Grab necessary objects
+            /** @var User $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+
+            if ($user == null)
+                throw new ODRException('User '.$user_id.' does not exist');
+            if ($datatype == null)
+                throw new ODRException('Datatype '.$datatype_id.' does not exist');
+
+
+            // Perform the synchronization
+            $clone_template_service->syncWithTemplate($user, $datatype);
+
+            $return['d'] = "Synchronization completed\n";
+        }
+        catch (\Exception $e) {
+            // This is only ever called from command-line...
+            $request->setRequestFormat('json');
+
+            $source = 0x7057656e;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -1842,4 +1914,5 @@ $ret .= '  Set current to '.$count."\n";
         $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
+
 }
