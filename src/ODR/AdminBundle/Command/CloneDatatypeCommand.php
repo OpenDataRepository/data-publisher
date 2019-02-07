@@ -50,6 +50,11 @@ class CloneDatatypeCommand extends ContainerAwareCommand
         $logger = $container->get('logger');
         $pheanstalk = $container->get('pheanstalk');
 
+        $current_time = new \DateTime();
+        $msg = $current_time->format('Y-m-d H:i:s').' (UTC-5)';
+        $msg .= ' :: Clone Master Startup.';
+        $output->writeln($msg);
+
         $count = 0;
         while (true) {
             // Run command until manually stopped
@@ -88,6 +93,7 @@ class CloneDatatypeCommand extends ContainerAwareCommand
 
 
                 $count++;
+                // Only run twice.  Monitor restarts process...
                 if($count > 1 || $data->clone_and_link) {
                     $msg = $current_time->format('Y-m-d H:i:s').' (UTC-5)';
                     $msg .= ' :: Exiting Clone Datatype Command';

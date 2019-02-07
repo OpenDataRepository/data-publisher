@@ -274,6 +274,14 @@
         </div>
         {% endif %}
 
+        <div class="">
+            <label for="{{ datafield_form.internal_reference_name.vars.id }}">
+                {{ datafield_form.internal_reference_name.vars.label }}
+            </label>
+            {{ form_errors(datafield_form.internal_reference_name) }}
+            {{ form_widget(datafield_form.internal_reference_name, { 'attr': {'class': 'ODRInternalReferenceName pure-u-1', 'data-error-type': 'inline' } }) }}
+        </div>
+
         <div style="display: none">
         {{ form_rest(datafield_form) }}
         </div>

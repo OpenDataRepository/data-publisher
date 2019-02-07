@@ -112,33 +112,32 @@ class CloneMasterDatatypeService
     /**
      * @var DataType[]
      */
-    private $associated_datatypes;
+    private $associated_datatypes = array();
 
     /**
      * @var DataType[]
      */
-    private $created_datatypes;
+    private $created_datatypes = array();
 
     /**
      * @var Group[]
      */
-    private $created_groups;
-
+    private $created_groups = array();
 
     /**
      * @var DataType[]
      */
-    private $dt_mapping;
+    private $dt_mapping = array();
 
     /**
      * @var DataFields[]
      */
-    private $df_mapping;
+    private $df_mapping = array();
 
     /**
      * @var DataType[]
      */
-    private $existing_datatypes;
+    private $existing_datatypes = array();
 
     /**
      * CloneDatatypeService constructor.

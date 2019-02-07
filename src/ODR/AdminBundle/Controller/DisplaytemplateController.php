@@ -3408,6 +3408,7 @@ class DisplaytemplateController extends ODRCustomController
                         'radio_option_display_unselected' => $submitted_data->getRadioOptionDisplayUnselected(),
                         'searchable' => $submitted_data->getSearchable(),
                         'publicDate' => $submitted_data->getPublicDate(),
+                        'internal_reference_name' => $submitted_data->getInternalReferenceName(),
                     );
                     parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
 

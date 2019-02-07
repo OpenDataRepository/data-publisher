@@ -75,9 +75,17 @@ class UpdateDataFieldsForm extends AbstractType
             )
         );
 */
+        $builder->add(
+            'internal_reference_name',
+            TextType::class,
+            array(
+                'required' => true,
+                'label'  => 'Internal Reference Name',
+            )
+        );
 
         $builder->add(
-            'field_name', 
+            'field_name',
             TextType::class,
             array(
                 'required' => true,
