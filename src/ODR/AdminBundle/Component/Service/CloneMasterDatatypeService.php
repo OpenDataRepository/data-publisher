@@ -68,14 +68,19 @@ class CloneMasterDatatypeService
     private $dti_service;
 
     /**
-     * @var PermissionsManagementService
+     * @var EntityCreationService
      */
-    private $pm_service;
+    private $ec_service;
 
     /**
      * @var ThemeInfoService
      */
     private $tif_service;
+
+    /**
+     * @var UUIDService
+     */
+    private $uuid_service;
 
     /**
      * @var UserManagerInterface
@@ -140,15 +145,17 @@ class CloneMasterDatatypeService
      */
     private $existing_datatypes;
 
+
     /**
-     * CloneDatatypeService constructor.
+     * CloneMasterDatatypeService constructor.
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param CloneMasterTemplateThemeService $clone_master_template_theme_service
      * @param DatatypeInfoService $datatype_info_service
-     * @param PermissionsManagementService $permissions_service
+     * @param EntityCreationService $entityCreationService
      * @param ThemeInfoService $theme_info_service
+     * @param UUIDService $UUIDService
      * @param UserManagerInterface $user_manager
      * @param Logger $logger
      */
@@ -157,8 +164,9 @@ class CloneMasterDatatypeService
         CacheService $cache_service,
         CloneMasterTemplateThemeService $clone_master_template_theme_service,
         DatatypeInfoService $datatype_info_service,
-        PermissionsManagementService $permissions_service,
+        EntityCreationService $entityCreationService,
         ThemeInfoService $theme_info_service,
+        UUIDService $UUIDService,
         UserManagerInterface $user_manager,
         Logger $logger
     ) {
@@ -166,8 +174,9 @@ class CloneMasterDatatypeService
         $this->cache_service = $cache_service;
         $this->clone_master_template_theme_service = $clone_master_template_theme_service;
         $this->dti_service = $datatype_info_service;
-        $this->pm_service = $permissions_service;
+        $this->ec_service = $entityCreationService;
         $this->tif_service = $theme_info_service;
+        $this->uuid_service = $UUIDService;
         $this->user_manager = $user_manager;
         $this->logger = $logger;
     }
@@ -344,14 +353,14 @@ class CloneMasterDatatypeService
             // ----------------------------------------
             // For convenience, define an array where the keys are ids of the master template
             //  datatypes, and the values are the new datatypes cloned from the master template
-            $this->logger->info('----------------------------------------');
+//            $this->logger->info('----------------------------------------');
             $this->dt_mapping = array($this->original_datatype->getId() => $this->original_datatype);    // TODO - why does $dt_mapping contain this?
             // $this->dt_mapping = array($this->original_datatype->getMasterDataType()->getId() => $this->original_datatype);    // TODO - why does $dt_mapping contain this?
 
             // This creates the dt_mapping array
             foreach ($this->created_datatypes as $dt)
                 $this->dt_mapping[ $dt->getMasterDataType()->getId() ] = $dt;
-
+/*
             $dt_str = '';
             foreach ($this->dt_mapping as $dt_id => $dt)
                 $dt_str .= '['.$dt_id.'] => '.$dt->getId().'  ';
@@ -362,7 +371,7 @@ class CloneMasterDatatypeService
             foreach ($this->df_mapping as $df_id => $df)
                 $df_str .= '['.$df_id.'] => '.$df->getId().'  ';
             $this->logger->debug('CloneDatatypeService: $this->datafield_mapping: '.$df_str);
-
+*/
 
             // ----------------------------------------
             // Now that the datatypes are created, ensure their parent/grandparent datatype entries
@@ -503,13 +512,13 @@ class CloneMasterDatatypeService
         if ( is_null($new_datatype) ) {
             $new_datatype = clone $parent_datatype;
             // All clones from parent need new UUIDs
-            $unique_id = $this->dti_service->generateDatatypeUniqueId();
+            $unique_id = $this->uuid_service->generateDatatypeUniqueId();
             $new_datatype->setUniqueId($unique_id);
         }
 
         if ($new_datatype->getUniqueId() == null) {
             // Set a unique ID if this is a clone - existing DT should already have one.
-            $unique_id = $this->dti_service->generateDatatypeUniqueId();
+            $unique_id = $this->uuid_service->generateDatatypeUniqueId();
             $new_datatype->setUniqueId($unique_id);
         }
 
@@ -590,7 +599,7 @@ class CloneMasterDatatypeService
             // Copy old unique id to template_field_uuid
             $new_df->setTemplateFieldUuid($new_df->getFieldUuid());
             // Assign new uuid
-            $new_df->setFieldUuid($this->dti_service->generateDataFieldUniqueId());
+            $new_df->setFieldUuid($this->uuid_service->generateDatafieldUniqueId());
 
             // Ensure the "in-memory" version of $new_datatype knows about the new datafield
             $new_datatype->addDataField($new_df);
@@ -599,7 +608,7 @@ class CloneMasterDatatypeService
             // This is the field map
             $this->df_mapping[ $parent_df->getId() ] = $new_df;
 
-            $this->logger->info('CloneDatatypeService: copied master datafield '.$parent_df->getId().' "'.$parent_df->getFieldName().'" into new datafield '.$new_df->getId());
+            $this->logger->info('CloneDatatypeService: copied master datafield '.$parent_df->getId().' "'.$parent_df->getFieldName().'" into new datafield');
 
             // Need to update datatype meta to point to correct fields
             // Set the DatatypeMeta External ID field
@@ -650,7 +659,7 @@ class CloneMasterDatatypeService
                 $new_df->addDataFieldMetum($new_df_meta);
                 self::persistObject($new_df_meta, true);
 
-                $this->logger->debug('CloneDatatypeService: -- meta entry cloned for datafield '.$new_df->getId());
+                $this->logger->debug('CloneDatatypeService: -- meta entry cloned');
             }
 
             // Need to process Radio Options....
@@ -762,7 +771,7 @@ class CloneMasterDatatypeService
         // Set source and parent
         $theme->setParentTheme($parent_theme);
         /*
-        $theme->setSourceTheme($source_theme);
+        $theme->setSourceTheme($source_theme);    // TODO - newly cloned master themes need to be set as their own source
         */
 
         /** @var ThemeElement[] $te_array */
@@ -938,7 +947,7 @@ class CloneMasterDatatypeService
                 foreach ($user_list as $u) {
                     if ( $u->hasRole('ROLE_SUPER_ADMIN') ) {
                         // ...add the super admin to this new admin group
-                        $this->pm_service->createUserGroup($u, $new_group, $this->user, true, false);    // These don't need to be flushed/refreshed immediately...
+                        $this->ec_service->createUserGroup($u, $new_group, $this->user, true, false);    // These don't need to be flushed/refreshed immediately... TODO - test this
                         $this->logger->debug('-- added super_admin user '.$u->getId().' to admin group');
 
                         // Don't bother deleting this user's cached permissions here...
@@ -950,7 +959,7 @@ class CloneMasterDatatypeService
                 // If the user isn't a super-admin, then add them to the admin group as well...
                 // ...otherwise, they won't be able to see the new datatype either
                 if (!$this->user->hasRole('ROLE_SUPER_ADMIN')) {
-                    $this->pm_service->createUserGroup($this->user, $new_group, $this->user, true, false);    // These don't need to be flushed/refreshed immediately...
+                    $this->ec_service->createUserGroup($this->user, $new_group, $this->user, true, false);    // These don't need to be flushed/refreshed immediately... TODO - test this
                     $this->logger->debug('-- added user '.$this->user->getId().' to admin group');
 
                     // If the user's cached permissions were deleted here, the user would likely

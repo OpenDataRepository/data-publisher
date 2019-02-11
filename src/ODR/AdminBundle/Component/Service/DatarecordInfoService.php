@@ -19,7 +19,6 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 // Utility
-use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
@@ -633,36 +632,5 @@ class DatarecordInfoService
         }
 
         return $token_list;
-    }
-
-
-    /**
-     * Generates and returns a unique_id string that doesn't collide with any other datarecord's
-     * "unique_id" property.
-     *
-     * @return string
-     * @throws \Exception
-     */
-    public function generateDatarecordUniqueId()
-    {
-        // Need to get all current ids in use in order to determine uniqueness of a new id...
-        $query = $this->em->createQuery(
-           'SELECT dr.unique_id
-            FROM ODRAdminBundle:DataRecord AS dr
-            WHERE dr.deletedAt IS NULL and dr.unique_id IS NOT NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $existing_ids = array();
-        foreach ($results as $num => $result)
-            $existing_ids[ $result['unique_id'] ] = 1;
-
-
-        // Keep generating ids until we come across one that's not in use
-        $unique_id = UniqueUtility::uniqueIdReal();
-        while ( isset($existing_ids[$unique_id]) )
-            $unique_id = UniqueUtility::uniqueIdReal();
-
-        return $unique_id;
     }
 }

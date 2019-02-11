@@ -95,6 +95,8 @@ class DisplaytemplateController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
@@ -212,18 +214,20 @@ class DisplaytemplateController extends ODRCustomController
             $rows = $query->execute();
 
 
-            // Ensure that the datatype dosen't continue to think the deleted datafield is something special
+            // ----------------------------------------
+            // If this datafield was an external_id/name/sort/background_image datafield, then its
+            //  datatype needs an update so it doesn't inadvertently point to a deleted datafield...
             $properties = array();
             // Ensure that the datatype doesn't continue to think this datafield is its external id field
-            if ($datatype->getExternalIdField() !== null && $datatype->getExternalIdField()->getId() === $datafield->getId())
+            if ( !is_null($datatype->getExternalIdField()) && $datatype->getExternalIdField()->getId() === $datafield->getId() )
                 $properties['externalIdField'] = null;
 
             // Ensure that the datatype doesn't continue to think this datafield is its name field
-            if ($datatype->getNameField() !== null && $datatype->getNameField()->getId() === $datafield->getId())
+            if ( !is_null($datatype->getNameField()) && $datatype->getNameField()->getId() === $datafield->getId() )
                 $properties['nameField'] = null;
 
             // Ensure that the datatype doesn't continue to think this datafield is its sort field
-            if ($datatype->getSortField() !== null && $datatype->getSortField()->getId() === $datafield->getId()) {
+            if ( !is_null($datatype->getSortField()) && $datatype->getSortField()->getId() === $datafield->getId() ) {
                 $properties['sortField'] = null;
 
                 // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
@@ -231,11 +235,11 @@ class DisplaytemplateController extends ODRCustomController
             }
 
             // Ensure that the datatype doesn't continue to think this datafield is its background image field
-            if ($datatype->getBackgroundImageField() !== null && $datatype->getBackgroundImageField()->getId() === $datafield->getId())
+            if ( !is_null($datatype->getBackgroundImageField()) && $datatype->getBackgroundImageField()->getId() === $datafield->getId() )
                 $properties['backgroundImageField'] = null;
 
             if ( count($properties) > 0 )
-                parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+                $emm_service->updateDatatypeMeta($user, $datatype, $properties);
 
             // ----------------------------------------
             // Delete any cached search results that use this soon-to-be-deleted datafield
@@ -449,11 +453,11 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
-
-            $repo_radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta');
 
             /** @var RadioOptions $radio_option */
             $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find( $radio_option_id );
@@ -484,31 +488,28 @@ class DisplaytemplateController extends ODRCustomController
             if ( $field_typename == 'Single Radio' || $field_typename == 'Single Select' ) {
                 // Only one option allowed to be default for Single Radio/Select DataFields, find the other option(s) where isDefault == true
                 $query = $em->createQuery(
-                   'SELECT rom.id
-                    FROM ODRAdminBundle:RadioOptionsMeta AS rom
-                    JOIN ODRAdminBundle:RadioOptions AS ro WITH rom.radioOption = ro
+                   'SELECT ro
+                    FROM ODRAdminBundle:RadioOptions AS ro
+                    JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
                     WHERE rom.isDefault = 1 AND ro.dataField = :datafield
-                    AND rom.deletedAt IS NULL AND ro.deletedAt IS NULL'
+                    AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
                 )->setParameters( array('datafield' => $datafield->getId()) );
                 $results = $query->getResult();
 
-                foreach ($results as $num => $result) {
-                    /** @var RadioOptionsMeta $radio_option_meta */
-                    $radio_option_meta = $repo_radio_option_meta->find( $result['id'] );
-                    $ro = $radio_option_meta->getRadioOption();
-
+                /** @var RadioOptions[] $results */
+                foreach ($results as $num => $ro) {
                     $properties = array(
                         'isDefault' => false
                     );
-                    parent::ODR_copyRadioOptionsMeta($em, $user, $ro, $properties);
+                    $emm_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
                 }
 
-                // TODO - currently not allowed to remove a default option from one of these fields once a a default has been set
+                // TODO - currently not allowed to remove a default option from a single radio/select once a default has been set...
                 // Set this radio option as selected by default
                 $properties = array(
                     'isDefault' => true
                 );
-                parent::ODR_copyRadioOptionsMeta($em, $user, $radio_option, $properties);
+                $emm_service->updateRadioOptionsMeta($user, $radio_option, $properties);    // ...flush here instead
             }
             else {
                 // Multiple options allowed as defaults, toggle default status of current radio option
@@ -518,7 +519,7 @@ class DisplaytemplateController extends ODRCustomController
                 if ($radio_option->getIsDefault() == true)
                     $properties['isDefault'] = false;
 
-                parent::ODR_copyRadioOptionsMeta($em, $user, $radio_option, $properties);
+                $emm_service->updateRadioOptionsMeta($user, $radio_option, $properties);
             }
 
 
@@ -1174,6 +1175,8 @@ class DisplaytemplateController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1259,7 +1262,7 @@ class DisplaytemplateController extends ODRCustomController
                         'multiple_allowed' => $submitted_data->getMultipleAllowed(),
                         'is_link' => $submitted_data->getIsLink(),
                     );
-                    parent::ODR_copyDatatreeMeta($em, $user, $datatree, $properties);
+                    $emm_service->updateDatatreeMeta($user, $datatree, $properties);
 
                     // Need to delete the cached version of the datatree array
                     $cache_service->delete('cached_datatree_array');
@@ -1322,6 +1325,10 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
@@ -1385,21 +1392,17 @@ class DisplaytemplateController extends ODRCustomController
             $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find('1');
 
             // Create the datafield
-            $objects = parent::ODR_addDataField($em, $user, $datatype, $fieldtype, $render_plugin);
-            /** @var DataFields $datafield */
-            $datafield = $objects['datafield'];
+            $datafield = $ec_service->createDatafield($user, $datatype, $fieldtype, $render_plugin, true);    // Don't flush immediately...
 
             // Tie the datafield to the theme element
-            parent::ODR_addThemeDataField($em, $user, $datafield, $theme_element);
-
-            // Technically don't need to flush due to ODR_copyThemeMeta()...
+            $ec_service->createThemeDatafield($user, $theme_element, $datafield, true);    // Don't flush immediately...
 
             // A datafield was added, so any themes that use this master theme as their source
             //  need to get updated themselves
             $properties = array(
                 'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
             );
-            parent::ODR_copyThemeMeta($em, $user, $theme, $properties);
+            $emm_service->updateThemeMeta($user, $theme, $properties);    // Flush here
 
 
             // design_ajax.html.twig calls ReloadThemeElement()
@@ -1450,6 +1453,8 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
@@ -1547,15 +1552,15 @@ class DisplaytemplateController extends ODRCustomController
             $new_df->addDataFieldMetum($new_df_meta);
             self::persistObject($em, $new_df_meta, $user);
 
-            // Need to create the groups for the datafield...
-            $pm_service->createGroupsForDatafield($user, $new_df);
+            // Need to create the groups for the new datafield...
+            $ec_service->createGroupsForDatafield($user, $new_df);
 
 
             // Clone the old datafield's theme_datafield entry...
             /** @var ThemeDataField $new_tdf */
             $new_tdf = clone $old_theme_datafield;
             $new_tdf->setDataField($new_df);
-            // Intentionally not setting displayOrder...new field should appear just after the
+            // Intentionally not changing displayOrder...new field should appear just after the
             //  old datafield, in theory
 
             // Ensure the "in-memory" theme_element knows about the new theme_datafield entry
@@ -1812,6 +1817,8 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
@@ -1849,20 +1856,28 @@ class DisplaytemplateController extends ODRCustomController
             $properties = array(
                 'radio_option_name_sort' => $alphabetical_sort
             );
-            parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
+            $emm_service->updateDatafieldMeta($user, $datafield, $properties);
 
 
             // ----------------------------------------
-            // Load all RadioOptionMeta entities for this datafield
+            // Load all RadioOption and RadioOptionMeta entities for this datafield
             $query = $em->createQuery(
-               'SELECT rom
-                FROM ODRAdminBundle:RadioOptionsMeta AS rom
-                JOIN ODRAdminBundle:RadioOptions AS ro WITH rom.radioOption = ro
+               'SELECT ro, rom
+                FROM ODRAdminBundle:RadioOptions AS ro
+                JOIN ro.radioOptionMeta AS rom
                 WHERE ro.dataField = :datafield
-                AND rom.deletedAt IS NULL AND ro.deletedAt IS NULL'
+                AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
             )->setParameters( array('datafield' => $datafield_id) );
-            /** @var RadioOptionsMeta[] $results */
+            /** @var RadioOptions[] $results */
             $results = $query->getResult();
+
+            // Organize by the id of the radio option
+            /** @var RadioOptions[] $radio_option_list */
+            $radio_option_list = array();
+            foreach ($results as $result) {
+                $ro_id = $result->getId();
+                $radio_option_list[$ro_id] = $result;
+            }
 
 
             if ($alphabetical_sort == 1 ) {
@@ -1870,28 +1885,27 @@ class DisplaytemplateController extends ODRCustomController
                 self::sortRadioOptionsByName($em, $user, $datafield);
             }
             else {
-                // Organize by radio option id
-                $all_options_meta = array();
-                foreach ($results as $radio_option_meta)
-                    $all_options_meta[ $radio_option_meta->getRadioOption()->getId() ] = $radio_option_meta;
-                /** @var RadioOptionsMeta[] $all_options_meta */
-
                 // Look to the $_POST for the new order
+                $changes_made = false;
                 foreach ($post as $index => $radio_option_id) {
-                    if ( !isset($all_options_meta[$radio_option_id]) )
+                    $ro_id = intval($radio_option_id);
+                    if ( !isset($radio_option_list[$ro_id]) )
                         throw new ODRBadRequestException();
 
-                    $radio_option_meta = $all_options_meta[$radio_option_id];
-                    $radio_option = $radio_option_meta->getRadioOption();
-
-                    if ( $radio_option_meta->getDisplayOrder() != $index ) {
+                    $ro = $radio_option_list[$ro_id];
+                    if ( $ro->getDisplayOrder() !== $index ) {
                         // This radio option should be in a different spot
                         $properties = array(
                             'displayOrder' => $index,
                         );
-                        parent::ODR_copyRadioOptionsMeta($em, $user, $radio_option, $properties);
+                        $emm_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
+                        $changes_made = true;
                     }
                 }
+
+                // Flush now that all changes have been made
+                if ($changes_made)
+                    $em->flush();
             }
 
 
@@ -1923,44 +1937,51 @@ class DisplaytemplateController extends ODRCustomController
      */
     private function sortRadioOptionsByName($em, $user, $datafield)
     {
+        /** @var EntityMetaModifyService $emm_service */
+        $emm_service = $this->container->get('odr.entity_meta_modify_service');
+
         // Don't do anything if this datafield isn't sorting its radio options by name
         if (!$datafield->getRadioOptionNameSort())
             return;
 
-        // Load all RadioOptionMeta entities for this datafield
         $query = $em->createQuery(
-           'SELECT rom
-            FROM ODRAdminBundle:RadioOptionsMeta AS rom
-            JOIN ODRAdminBundle:RadioOptions AS ro WITH rom.radioOption = ro
+           'SELECT ro, rom
+            FROM ODRAdminBundle:RadioOptions AS ro
+            JOIN ro.radioOptionMeta AS rom
             WHERE ro.dataField = :datafield
-            AND rom.deletedAt IS NULL AND ro.deletedAt IS NULL'
+            AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
         )->setParameters( array('datafield' => $datafield->getId()) );
-        /** @var RadioOptionsMeta[] $results */
+        /** @var RadioOptions[] $results */
         $results = $query->getResult();
 
-
-        // Organize by name, and re-sort the list
-        $all_options_meta = array();
-        foreach ($results as $radio_option_meta)
-            $all_options_meta[ $radio_option_meta->getOptionName() ] = $radio_option_meta;
-        ksort($all_options_meta);
-        /** @var RadioOptionsMeta[] $all_options_meta */
+        // Organize by the name of the radio option, and then sort the list
+        /** @var RadioOptions[] $radio_option_list */
+        $radio_option_list = array();
+        foreach ($results as $result) {
+            $option_name = $result->getOptionName();
+            $radio_option_list[$option_name] = $result;
+        }
+        ksort($radio_option_list);
 
         // Save any changes in the sort order
         $index = 0;
-        foreach ($all_options_meta as $option_name => $radio_option_meta) {
-            $radio_option = $radio_option_meta->getRadioOption();
-
-            if ($radio_option_meta->getDisplayOrder() != $index) {
+        $changes_made = false;
+        foreach ($radio_option_list as $option_name => $ro) {
+            if ( $ro->getDisplayOrder() !== $index ) {
                 // This radio option should be in a different spot
                 $properties = array(
                     'displayOrder' => $index,
                 );
-                parent::ODR_copyRadioOptionsMeta($em, $user, $radio_option, $properties);
+                $emm_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
+                $changes_made = true;
             }
 
             $index++;
         }
+
+        // Flush now that all changes have been made
+        if ($changes_made)
+            $em->flush();
     }
 
 
@@ -1985,6 +2006,10 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
@@ -2013,13 +2038,22 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // Create a new RadioOption
-            $force_create = true;
-            $radio_option = parent::ODR_addRadioOption($em, $user, $datafield, $force_create);
+            $force_create = false;
+            $option_name = "Option";
+            $radio_option = $ec_service->createRadioOption($user, $datafield, $force_create, $option_name);
 
+            // Master Template Data Fields must increment Master Revision on all change requests.
+            if ( $datafield->getIsMasterField() ) {
+                $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
+                $emm_service->updateDatafieldMeta($user, $datafield, $dfm_properties, true);
+            }
+
+            // createRadioOption() does not automatically flush when $force_create == true
             $em->flush();
-//            $em->refresh($radio_option);
+            $em->refresh($radio_option);
 
-            // If the datafield is sorting its radio options by name, then resort all of this datafield's radio options again
+            // If the datafield is sorting its radio options by name, then force a re-sort of all
+            //  of this datafield's radio options
             if ($datafield->getRadioOptionNameSort() == true)
                 self::sortRadioOptionsByName($em, $user, $datafield);
 
@@ -2168,6 +2202,10 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
@@ -2204,7 +2242,6 @@ class DisplaytemplateController extends ODRCustomController
             // Parse and process radio options
             $processed_options = array();
             foreach ($radio_option_list as $option_name) {
-
                 // Remove whitespace
                 $option_name = trim($option_name);
 
@@ -2216,30 +2253,33 @@ class DisplaytemplateController extends ODRCustomController
                 if ( !in_array($option_name, $processed_options) ) {
                     // Create a new RadioOption
                     $force_create = true;
-                    $radio_option = parent::ODR_addRadioOption(
-                            $em,
-                            $user,
-                            $datafield,
-                            $force_create,
-                            $option_name,
-                            false
+                    $ec_service->createRadioOption(
+                        $user,
+                        $datafield,
+                        $force_create,
+                        $option_name
                     );
 
                     array_push($processed_options, $option_name);
                 }
             }
+
+            // Now that all the radio options are created...
+            // Master Template Data Fields must increment Master Revision on all change requests.
+            if ( $datafield->getIsMasterField() ) {
+                $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
+                $emm_service->updateDatafieldMeta($user, $datafield, $dfm_properties, true);
+            }
+
+            // createRadioOption() does not automatically flush when $force_create == true
             $em->flush();
 
 
-            // If the datafield is sorting its radio options by name, then resort all of this
+            // If the datafield is sorting its radio options by name, then re-sort all of this
             //  datafield's radio options again
             if ($datafield->getRadioOptionNameSort() == true)
                 self::sortRadioOptionsByName($em, $user, $datafield);
 
-            if ($datafield->getIsMasterField()) {
-                $dfm_properties['master_revision'] = $datafield->getMasterRevision() + 1;
-                parent::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
-            }
 
             // Update the cached version of the datatype
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
@@ -2409,7 +2449,7 @@ class DisplaytemplateController extends ODRCustomController
             $em->refresh($child_datatype);
 
             // Create the default groups for this child datatype
-            $pm_service->createGroupsForDatatype($user, $child_datatype);
+            $ec_service->createGroupsForDatatype($user, $child_datatype);
 
             // Child datatype should be fully operational now
             $child_datatype->setSetupStep(DataType::STATE_OPERATIONAL);
@@ -2633,6 +2673,8 @@ class DisplaytemplateController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
@@ -2665,7 +2707,12 @@ class DisplaytemplateController extends ODRCustomController
             $theme_datatype = null;
 
             if ($parent_datatype_id !== '') {
-                $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $parent_datatype_id, 'descendant' => $datatype_id) );
+                $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                    array(
+                        'ancestor' => $parent_datatype_id,
+                        'descendant' => $datatype_id
+                    )
+                );
                 if ($datatree == null)
                     throw new ODRNotFoundException('Datatree');
 
@@ -2682,7 +2729,12 @@ class DisplaytemplateController extends ODRCustomController
                     JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.themeElement = te
                     WHERE t = :parent_master_theme AND tdt.dataType = :child_datatype
                     AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL'
-                )->setParameters( array('parent_master_theme' => $parent_theme->getId(), 'child_datatype' => $datatype_id) );
+                )->setParameters(
+                    array(
+                        'parent_master_theme' => $parent_theme->getId(),
+                        'child_datatype' => $datatype_id
+                    )
+                );
                 $results = $query->getResult();
 
                 if ( !isset($results[0]) )
@@ -2692,23 +2744,19 @@ class DisplaytemplateController extends ODRCustomController
 
             // Store the current external id/name/sort datafield ids
             $old_external_id_field = $datatype->getExternalIdField();
-            if ($old_external_id_field !== null)
+            if ( !is_null($old_external_id_field) )
                 $old_external_id_field = $old_external_id_field->getId();
             $old_namefield = $datatype->getNameField();
-            if ($old_namefield !== null)
+            if ( !is_null($old_namefield) )
                 $old_namefield = $old_namefield->getId();
             $old_sortfield = $datatype->getSortField();
-            if ($old_sortfield !== null)
+            if ( !is_null($old_sortfield) )
                 $old_sortfield = $old_sortfield->getId();
 
 
             // Create the form for the Datatype
             $submitted_data = new DataTypeMeta();
-/*
-            $is_top_level = true;
-            if ($datatree != null)
-                $is_top_level = false;
-*/
+
             $is_top_level = true;
             if ( $parent_datatype_id !== '' && $parent_datatype_id !== $datatype_id )
                 $is_top_level = false;
@@ -2735,7 +2783,7 @@ class DisplaytemplateController extends ODRCustomController
                 if ($datatype->getGrandparent()->getId() !== $datatype->getId())
                     $submitted_data->setSearchSlug(null);
 
-                if ( $submitted_data->getSearchSlug() !== $datatype->getSearchSlug() ) {
+                if ( !is_null($submitted_data->getSearchSlug()) && $submitted_data->getSearchSlug() !== $datatype->getSearchSlug() ) {
                     // ...check that the new search slug is restricted to alphanumeric characters and a few symbols
                     $pattern = '/^[0-9a-zA-Z][0-9a-zA-Z\_\-]+$/';
                     if ( !preg_match($pattern, $submitted_data->getSearchSlug()) )
@@ -2757,7 +2805,7 @@ class DisplaytemplateController extends ODRCustomController
                     )->setParameters(array('search_slug' => $submitted_data->getSearchSlug()));
                     $results = $query->getArrayResult();
 
-                    if (count($results) > 0)
+                    if ( count($results) > 0 )
                         $datatype_form->addError( new FormError('A different Datatype is already using this abbreviation') );
                 }
 
@@ -2775,21 +2823,26 @@ class DisplaytemplateController extends ODRCustomController
 
                     // If any of the external/name/sort datafields got changed, clear the relevant cache fields for datarecords of this datatype
                     $new_external_id_field = $submitted_data->getExternalIdField();
-                    if ($new_external_id_field !== null)
+                    if ( !is_null($new_external_id_field) )
                         $new_external_id_field = $new_external_id_field->getId();
                     $new_namefield = $submitted_data->getNameField();
-                    if ($new_namefield !== null)
+                    if ( !is_null($new_namefield) )
                         $new_namefield = $new_namefield->getId();
                     $new_sortfield = $submitted_data->getSortField();
-                    if ($new_sortfield !== null)
+                    if ( !is_null($new_sortfield) )
                         $new_sortfield = $new_sortfield->getId();
 
 
                     $update_sort_order = false;
-                    if ($old_sortfield !== $new_sortfield)  // These are integers or null at this point
+                    if ($old_sortfield !== $new_sortfield)  // These are either null or datafield ids at this point
                         $update_sort_order = true;
 
-                    if ($old_external_id_field !== $new_external_id_field || $old_namefield !== $new_namefield || $old_sortfield !== $new_sortfield) {
+                    // Since the values of the external_id/name/sort datafields are cached with the
+                    //  datarecord data, changing any of these fields requires them to be rebuilt
+                    if ( $old_external_id_field !== $new_external_id_field
+                        || $old_namefield !== $new_namefield
+                        || $old_sortfield !== $new_sortfield
+                    ) {
                         // Locate all datarecords of this datatype's grandparent
                         $grandparent_datatype_id = $datatype->getGrandparent()->getId();
 
@@ -2810,7 +2863,7 @@ class DisplaytemplateController extends ODRCustomController
                     }
 
                     // Convert the submitted Form entity into an array of relevant properties
-                    // This should really only have properties listed in the UpdateDataTypeForm
+                    // This should only have properties listed in the UpdateDataTypeForm
                     $properties = array(
                         'renderPlugin' => $datatype->getRenderPlugin()->getId(),
 
@@ -2847,7 +2900,7 @@ class DisplaytemplateController extends ODRCustomController
                     if ($datatype->getIsMasterType() > 0)
                         $properties['master_revision'] = $datatype->getMasterRevision() + 1;
 
-                    parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+                    $emm_service->updateDatatypeMeta($user, $datatype, $properties);
 
                     // Master Template Data Types must increment parent master template
                     // revision when changed.
@@ -3009,6 +3062,8 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
@@ -3098,15 +3153,14 @@ class DisplaytemplateController extends ODRCustomController
 //print print_r($results, true);
 
                 foreach ($results as $result) {
-                    if ( $result[1] > 1 ) {
-                        // If $result[1] > 1, then multiple files/images are attached to this datafield...
+                    if ( intval($result[1]) > 1 ) {
                         if ( $datafield->getAllowMultipleUploads() == 0 ) {
-                            // This datafield somehow managed to acquire multiple uploads without being set as such...fix that
+                            // This datafield somehow has multiple files uploaded to it while being
+                            //  set to only allow a single upload...fix that
                             $properties = array(
                                 'allow_multiple_uploads' => true,
-                                'displayOrder' => -1,   // do not allow in TextResults
                             );
-                            parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
+                            $emm_service->updateDatafieldMeta($user, $datafield, $properties);
 
                             $need_refresh = true;
                         }
@@ -3135,10 +3189,21 @@ class DisplaytemplateController extends ODRCustomController
             $df_fieldtypes = $allowed_fieldtypes;
             if ( $datafield->getRenderPlugin()->getPluginClassName() !== 'odr_plugins.base.default' ) {
                 /** @var RenderPluginInstance $rpi */
-                $rpi = $repo_render_plugin_instance->findOneBy( array('renderPlugin' => $datafield->getRenderPlugin()->getId(), 'dataField' => $datafield->getId()) );
+                $rpi = $repo_render_plugin_instance->findOneBy(
+                    array(
+                        'renderPlugin' => $datafield->getRenderPlugin()->getId(),
+                        'dataField' => $datafield->getId()
+                    )
+                );
+
                 if ($rpi !== null) {
                     /** @var RenderPluginMap $rpm */
-                    $rpm = $repo_render_plugin_map->findOneBy( array('renderPluginInstance' => $rpi->getId(), 'dataField' => $datafield->getId()) );
+                    $rpm = $repo_render_plugin_map->findOneBy(
+                        array(
+                            'renderPluginInstance' => $rpi->getId(),
+                            'dataField' => $datafield->getId()
+                        )
+                    );
                     $rpf = $rpm->getRenderPluginFields();
 
                     $df_fieldtypes = explode(',', $rpf->getAllowedFieldtypes());
@@ -3148,18 +3213,27 @@ class DisplaytemplateController extends ODRCustomController
             // Determine if the datafield's datatype has a render plugin applied to it...
             $dt_fieldtypes = $allowed_fieldtypes;
             if ( $datatype->getRenderPlugin()->getPluginClassName() !== 'odr_plugins.base.default' ) {
-                // Datafield is part of a Datatype using a render plugin...check to see if the Datafield is actually in use for the render plugin
+                // This datafield's datatype is using a render plugin...need to see if some part of
+                //  the render plugin is mapped to this datafield
                 /** @var RenderPluginInstance $rpi */
-                $rpi = $repo_render_plugin_instance->findOneBy( array('renderPlugin' => $datatype->getRenderPlugin()->getId(), 'dataType' => $datatype->getId()) );
+                $rpi = $repo_render_plugin_instance->findOneBy(
+                    array(
+                        'renderPlugin' => $datatype->getRenderPlugin()->getId(),
+                        'dataType' => $datatype->getId()
+                    )
+                );
 
-                if($rpi !== null) {
-                    /** @var RenderPluginMap $rpm */
-                    $rpm = $repo_render_plugin_map->findOneBy( array('renderPluginInstance' => $rpi->getId(), 'dataField' => $datafield->getId()) );
+                /** @var RenderPluginMap|null $rpm */
+                $rpm = null;
+                if ($rpi !== null) {
+                    $rpm = $repo_render_plugin_map->findOneBy(
+                        array(
+                            'renderPluginInstance' => $rpi->getId(),
+                            'dataField' => $datafield->getId()
+                        )
+                    );
                 }
-                else {
-                    /** @var RenderPluginMap $rpm */
-                    $rpm = null;
-                }
+
                 if ($rpm !== null) {
                     // Datafield in use, get restrictions
                     $rpf = $rpm->getRenderPluginFields();
@@ -3167,7 +3241,8 @@ class DisplaytemplateController extends ODRCustomController
                     $dt_fieldtypes = explode(',', $rpf->getAllowedFieldtypes());
                 }
                 else {
-                    /* Datafield is not being used by a render plugin, so there are no restrictions placed on it */
+                    // This datafield is not being used by its datatype's render plugin, so there
+                    //  are no fieldtype restrictions placed on it
                 }
             }
 
@@ -3256,7 +3331,9 @@ class DisplaytemplateController extends ODRCustomController
                             $migrate_data = true;
                         }
 
-                        // If fieldtype got changed to/from Markdown, File, Image, or Radio...force a reload of the right slideout, because options on that slideout are different for these fieldtypes
+                        // If fieldtype got changed to/from Markdown, File, Image, or Radio...force
+                        //  a reload of the right slideout, because options on that slideout are
+                        //  different for these fieldtypes
                         switch ($old_fieldtype->getTypeClass()) {
                             case 'Radio':
                             case 'File':
@@ -3320,6 +3397,7 @@ class DisplaytemplateController extends ODRCustomController
                         case 'MediumVarchar':
                         case 'ShortVarchar':
                         case 'Radio':
+                        case 'Tag':
                             // All of the above fields can have any value for searchable
                             break;
 
@@ -3342,29 +3420,7 @@ class DisplaytemplateController extends ODRCustomController
 
                     // ----------------------------------------
                     // If the fieldtype changed, then check several of the properties to see if they need changed too...
-                    $update_field_order = false;
                     if ( $old_fieldtype_id !== $new_fieldtype_id ) {
-                        // Reset the datafield's displayOrder if it got changed to a fieldtype that can't go in TextResults
-                        switch ( $new_fieldtype->getTypeName() ) {
-                            case 'Image':
-                            case 'Multiple Radio':
-                            case 'Multiple Select':
-                            case 'Markdown':
-                                // Datafields with these fieldtypes can't be in TextResults
-                                $update_field_order = true;
-                                break;
-
-                            case 'File':
-                                // File datafields can be in TextResults if they're only allowed to have a single upload
-                                if ( $submitted_data->getAllowMultipleUploads() == '1' )
-                                    $update_field_order = true;
-                                break;
-
-                            default:
-                                // The remaining fieldtypes have no restrictions on being in TextResults
-                                break;
-                        }
-
                         // Reset a datafield's markdown text if it's not longer a markdown field
                         if ($new_fieldtype->getTypeName() !== 'Markdown')
                             $submitted_data->setMarkdownText('');
@@ -3376,12 +3432,7 @@ class DisplaytemplateController extends ODRCustomController
                         }
                     }
 
-                    // TODO - disabled for now, but is this safe to delete?
-                    // Ensure a File datafield isn't in TextResults if it is set to allow multiple uploads
-                    if ( !$current_datafield_meta->getAllowMultipleUploads() && $submitted_data->getAllowMultipleUploads() )
-                        $update_field_order = true;
-
-                    // If the radio options are now supposed to be sorted by name, do that
+                    // If the radio options are now supposed to be sorted by name, ensure that happens
                     $sort_radio_options = false;
                     if ( $submitted_data->getRadioOptionNameSort() == true && $current_datafield_meta->getRadioOptionNameSort() == false )
                         $sort_radio_options = true;
@@ -3406,12 +3457,12 @@ class DisplaytemplateController extends ODRCustomController
                         'children_per_row' => $submitted_data->getChildrenPerRow(),
                         'radio_option_name_sort' => $submitted_data->getRadioOptionNameSort(),
                         'radio_option_display_unselected' => $submitted_data->getRadioOptionDisplayUnselected(),
+                        'tags_allow_multiple_levels' => $submitted_data->getTagsAllowMultipleLevels(),
+                        'tags_allow_non_admin_edit' => $submitted_data->getTagsAllowNonAdminEdit(),
                         'searchable' => $submitted_data->getSearchable(),
                         'publicDate' => $submitted_data->getPublicDate(),
                     );
-                    parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
-
-
+                    $emm_service->updateDatafieldMeta($user, $datafield, $properties);
                     $em->refresh($datafield);
 
                     //
@@ -4097,6 +4148,8 @@ if ($debug)
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -4123,14 +4176,14 @@ if ($debug)
                 $properties = array(
                     'publicDate' => new \DateTime('2200-01-01 00:00:00')
                 );
-                parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+                $emm_service->updateDatatypeMeta($user, $datatype, $properties);
             }
             else {
                 // Make the datatype public
                 $properties = array(
                     'publicDate' => new \DateTime()
                 );
-                parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+                $emm_service->updateDatatypeMeta($user, $datatype, $properties);
             }
 
             // Updated cached version of datatype
@@ -4173,6 +4226,8 @@ if ($debug)
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
@@ -4206,14 +4261,14 @@ if ($debug)
                 $properties = array(
                     'publicDate' => new \DateTime('2200-01-01 00:00:00')
                 );
-                parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
+                $emm_service->updateDatafieldMeta($user, $datafield, $properties);
             }
             else {
                 // Make the datafield public
                 $properties = array(
                     'publicDate' => new \DateTime()
                 );
-                parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
+                $emm_service->updateDatafieldMeta($user, $datafield, $properties);
             }
 
             // Update cached version of datatype
@@ -4384,6 +4439,8 @@ if ($debug)
             $em = $this->getDoctrine()->getManager();
             $post = $request->request->all();
 
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -4413,7 +4470,7 @@ if ($debug)
                 'searchNotesUpper' => $post['upper_value'],
                 'searchNotesLower' => $post['lower_value'],
             );
-            parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+            $emm_service->updateDatatypeMeta($user, $datatype, $properties);
 
             // TODO - return something?
         }

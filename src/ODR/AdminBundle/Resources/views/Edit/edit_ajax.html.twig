@@ -1521,7 +1521,7 @@ function ReloadDatafield(datarecord_id, datafield_id) {
     var datafield_div = $("#Field_" + datarecord_id + "_" + datafield_id);
     var theme_id = $(datafield_div).attr('rel');
 
-    var url = '{{ path('odr_record_reload_datafield', { 'datarecord_id': 0, 'datafield_id': 0 }) }}';
+    var url = '{{ path('odr_record_reload_datafield', { 'source_datarecord_id': initial_datarecord_id, 'datarecord_id': 0, 'datafield_id': 0 }) }}';
     url = url.substring(0, (url.length - 3));
     url += datarecord_id + '/' + datafield_id;
 

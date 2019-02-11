@@ -230,6 +230,8 @@ class SortService
             case 'Multiple Radio':
             case 'Multiple Select':
             case 'Markdown':
+            case 'Tag':
+            default:
                 throw new ODRBadRequestException('Unable to sort a "'.$typename.'" datafield', $exception_code);
         }
 
@@ -445,6 +447,8 @@ class SortService
             case 'Multiple Radio':
             case 'Multiple Select':
             case 'Markdown':
+            case 'Tag':
+            default:
                 throw new ODRBadRequestException('Unable to sort a "'.$typename.'" datafield', $exception_code);
         }
 

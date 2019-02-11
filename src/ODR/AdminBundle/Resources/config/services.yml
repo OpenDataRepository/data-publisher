@@ -88,8 +88,8 @@ services:
             cache_service: "@odr.cache_service"
             clone_master_template_theme_service: "@odr.clone_master_template_theme_service"
             datatype_info_service: "@odr.datatype_info_service"
-            permissions_service: "@odr.permissions_management_service"
             theme_info_service: "@odr.theme_info_service"
+            uuid_service: "@odr.uuid_service"
             user_manager: "@fos_user.user_manager"
             logger: "@monolog.logger.clone_datatype"
 
@@ -113,6 +113,7 @@ services:
             entity_creation_service: "@odr.entity_creation_service"
             permissions_service: "@odr.permissions_management_service"
             theme_service: "@odr.theme_info_service"
+            uuid_service: "@odr.uuid_service"
             logger: "@monolog.logger.clone_template"
 
     odr.clone_master_template_theme_service:
@@ -177,8 +178,8 @@ services:
         class: ODR\AdminBundle\Component\Service\EntityCreationService
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
-            datarecord_info_service: "@odr.datarecord_info_service"
-            datatype_info_service: "@odr.datatype_info_service"
+            cache_service: "@odr.cache_service"
+            uuid_service: "@odr.uuid_service"
             logger: "@logger"
 
     odr.entity_meta_modify_service:
@@ -230,6 +231,13 @@ services:
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
             datatype_info_service: "@odr.datatype_info_service"
+            logger: "@logger"
+
+
+    odr.uuid_service:
+        class: ODR\AdminBundle\Component\Service\UUIDService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
             logger: "@logger"
 
 

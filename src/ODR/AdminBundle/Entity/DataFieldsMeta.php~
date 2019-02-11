@@ -113,6 +113,16 @@ class DataFieldsMeta
     private $radio_option_display_unselected;
 
     /**
+     * @var boolean
+     */
+    private $tags_allow_multiple_levels;
+
+    /**
+     * @var boolean
+     */
+    private $tags_allow_non_admin_edit;
+
+    /**
      * @var integer
      */
     private $searchable;
@@ -566,6 +576,54 @@ class DataFieldsMeta
     public function getRadioOptionDisplayUnselected()
     {
         return $this->radio_option_display_unselected;
+    }
+
+    /**
+     * Set tagsAllowMultipleLevels
+     *
+     * @param boolean $tagsAllowMultipleLevels
+     *
+     * @return DataFieldsMeta
+     */
+    public function setTagsAllowMultipleLevels($tagsAllowMultipleLevels)
+    {
+        $this->tags_allow_multiple_levels = $tagsAllowMultipleLevels;
+
+        return $this;
+    }
+
+    /**
+     * Get tagsAllowMultipleLevels
+     *
+     * @return boolean
+     */
+    public function getTagsAllowMultipleLevels()
+    {
+        return $this->tags_allow_multiple_levels;
+    }
+
+    /**
+     * Set tagsAllowNonAdminEdit
+     *
+     * @param boolean $tagsAllowNonAdminEdit
+     *
+     * @return DataFieldsMeta
+     */
+    public function setTagsAllowNonAdminEdit($tagsAllowNonAdminEdit)
+    {
+        $this->tags_allow_non_admin_edit = $tagsAllowNonAdminEdit;
+
+        return $this;
+    }
+
+    /**
+     * Get tagsAllowNonAdminEdit
+     *
+     * @return boolean
+     */
+    public function getTagsAllowNonAdminEdit()
+    {
+        return $this->tags_allow_non_admin_edit;
     }
 
     /**

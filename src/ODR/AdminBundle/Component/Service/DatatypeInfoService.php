@@ -24,7 +24,6 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 // Utility
-use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 
 
@@ -665,99 +664,5 @@ class DatatypeInfoService
                 unlink($graph_filepath.'/'.$filename);
             }
         }
-    }
-
-
-    /**
-     * Generates and returns a unique_id string that doesn't collide with any other datatype's
-     * "unique_id" property.  Shouldn't be used for the datatype's "template_group" property, as
-     * those should be based off of the grandparent datatype's "unique_id".
-     *
-     * @return string
-     * @throws \Exception
-     */
-    public function generateDatatypeUniqueId()
-    {
-        // Need to get all current ids in use in order to determine uniqueness of a new id...
-        $query = $this->em->createQuery(
-           'SELECT dt.unique_id
-            FROM ODRAdminBundle:DataType AS dt
-            WHERE dt.deletedAt IS NULL and dt.unique_id IS NOT NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $existing_ids = array();
-        foreach ($results as $num => $result)
-            $existing_ids[ $result['unique_id'] ] = 1;
-
-
-        // Keep generating ids until we come across one that's not in use
-        $unique_id = UniqueUtility::uniqueIdReal();
-        while ( isset($existing_ids[$unique_id]) )
-            $unique_id = UniqueUtility::uniqueIdReal();
-
-        return $unique_id;
-    }
-
-
-    /**
-     * Generates and returns a unique_id string that doesn't collide with any other datafield's
-     * "unique_id" property.
-     *
-     * @return string
-     * @throws \Exception
-     */
-    public function generateDataFieldUniqueId()
-    {
-        // Need to get all current ids in use in order to determine uniqueness of a new id...
-        $query = $this->em->createQuery(
-           'SELECT df.fieldUuid
-            FROM ODRAdminBundle:DataFields AS df
-            WHERE df.deletedAt IS NULL and df.fieldUuid IS NOT NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $existing_ids = array();
-        foreach ($results as $num => $result)
-            $existing_ids[ $result['fieldUuid'] ] = 1;
-
-
-        // Keep generating ids until we come across one that's not in use
-        $unique_id = UniqueUtility::uniqueIdReal();
-        while ( isset($existing_ids[$unique_id]) )
-            $unique_id = UniqueUtility::uniqueIdReal();
-
-        return $unique_id;
-    }
-
-
-    /**
-     * Generates and returns a unique_id string that doesn't collide with any other radio option's
-     * "unique_id" property.
-     *
-     * @return string
-     * @throws \Exception
-     */
-    public function generateRadioOptionUniqueId()
-    {
-        // Need to get all current ids in use in order to determine uniqueness of a new id...
-        $query = $this->em->createQuery(
-           'SELECT ro.radioOptionUuid
-            FROM ODRAdminBundle:RadioOptions AS ro
-            WHERE ro.deletedAt IS NULL and ro.radioOptionUuid IS NOT NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $existing_ids = array();
-        foreach ($results as $num => $result)
-            $existing_ids[ $result['radioOptionUuid'] ] = 1;
-
-
-        // Keep generating ids until we come across one that's not in use
-        $unique_id = UniqueUtility::uniqueIdReal();
-        while ( isset($existing_ids[$unique_id]) )
-            $unique_id = UniqueUtility::uniqueIdReal();
-
-        return $unique_id;
     }
 }

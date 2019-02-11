@@ -647,9 +647,10 @@ odr_record_reload_child:
         child_datatype_id: \d+
         parent_datarecord_id: \d+
 odr_record_reload_datafield:
-    path: /edit/datafieldreload/{datarecord_id}/{datafield_id}
+    path: /edit/datafieldreload/{source_datarecord_id}/{datarecord_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Edit:reloaddatafield }
     requirements:
+        source_datarecord_id: \d+
         datarecord_id: \d+
         datafield_id: \d+
 odr_record_reload_file_datafield:

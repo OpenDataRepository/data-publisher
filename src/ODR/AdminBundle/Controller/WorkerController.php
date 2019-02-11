@@ -46,7 +46,10 @@ use ODR\AdminBundle\Component\Service\CloneTemplateService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -103,6 +106,11 @@ class WorkerController extends ODRCustomController
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException('Invalid Form');
@@ -170,7 +178,8 @@ class WorkerController extends ODRCustomController
                         if ($radio_selection->getSelected() == 1) {
                             // Ensure this RadioSelection is unselected
                             $properties = array('selected' => 0);
-                            parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
+//                            parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
+                            $emm_service->updateRadioSelection($user, $radio_selection, $properties);    // TODO - test this
 
                             $ret .= '>> Deselected Radio Option '.$ro_id.' ('.$option_name.')'."\n";
                         }
@@ -245,8 +254,10 @@ class WorkerController extends ODRCustomController
                         $ret .= 'set dest_entity to "'.$value.'"'."\n";
                     $em->remove($src_entity);
 
-                    $new_obj = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                    parent::ODR_copyStorageEntity($em, $user, $new_obj, array('value' => $value));
+//                    $new_obj = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                    $new_obj = $ec_service->createStorageEntity($user, $datarecord, $datafield);    // TODO - test this
+//                    parent::ODR_copyStorageEntity($em, $user, $new_obj, array('value' => $value));    // TODO - why was this separate?
+                    $emm_service->updateStorageEntity($user, $new_obj, array('value' => $value));    // TODO - test this
                 }
                 else {
                     $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";
@@ -1636,6 +1647,8 @@ $ret .= '  Set current to '.$count."\n";
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var UUIDService $uuid_service */
+            $uuid_service = $this->container->get('odr.uuid_service');
 
             if ($uuid_type === 'datatype') {
                 // Need all datatypes, as well as a list of which ones are top-level...
@@ -1663,7 +1676,7 @@ $ret .= '  Set current to '.$count."\n";
 
                         // If the top-level datatype does not have a unique_id, create one
                         if (is_null($dt->getUniqueId()) || $dt->getUniqueId() === '') {
-                            $unique_id = $dti_service->generateDatatypeUniqueId();
+                            $unique_id = $uuid_service->generateDatatypeUniqueId();
 
                             $dt->setUniqueId($unique_id);
                             $dt->setTemplateGroup($unique_id);
@@ -1692,7 +1705,7 @@ $ret .= '  Set current to '.$count."\n";
 
                         // If the child datatype does not have a unique_id, create one
                         if (is_null($dt->getUniqueId()) || $dt->getUniqueId() === '') {
-                            $unique_id = $dti_service->generateDatatypeUniqueId();
+                            $unique_id = $uuid_service->generateDatatypeUniqueId();
                             $dt->setUniqueId($unique_id);
 
                             print 'set child datatype '.$dt->getId().' "'.$dt->getShortName().'" to have unique_id "'.$unique_id.'"'."\n";
@@ -1915,4 +1928,256 @@ $ret .= '  Set current to '.$count."\n";
         return $response;
     }
 
+
+    public function asdfAction(Request $request)
+    {
+        try {
+/*
+            $array = array(
+                "fields" => array(
+//                    0 => array(
+//                        "field_name" => "Astrobiology Disciplines",
+//                        "selected_options" => array(
+//                            0 => array(
+//                                "name" => "geochemistry",
+//                                "template_radio_option_uuid" => "0730d71",
+//                            )
+//                        ),
+//                        "template_field_uuid" => "cfc0199",
+//                    )
+                    0 => array(
+//                        "field_name" => "Dataset Name",
+                        "value" => "c",
+                        "template_field_uuid" => "08088a9"
+//                        "template_field_uuid" => "a4b7180"
+                    )
+                ),
+                "general" => "",
+                "sort_by" => array(
+//                    0 => array(
+//                        "dir" => "asc",
+//                        "template_field_uuid" => "08088a9",
+//                    )
+                ),
+//                "template_name" => "AHED Core 1.0 Properties",
+                "template_uuid" => "2ea627b",
+            );
+
+            $json = json_encode($array);
+//            exit( '<pre>'.print_r($json, true).'</pre>' );
+            $base64 = base64_encode($json);
+            exit( '<pre>'.print_r($base64, true).'</pre>' );
+*/
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+
+            $query = $em->createQuery(
+               'SELECT df.fieldUuid, ro.radioOptionUuid, rom.optionName
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+                JOIN ODRAdminBundle:RadioOptions AS ro WITH ro.dataField = df
+                JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
+                WHERE dt.unique_id = :dt_uuid AND df.fieldUuid IN (:df_uuids)
+                AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
+                AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
+//                ORDER BY df.fieldUuid'
+            )->setParameters(
+                array(
+                    'dt_uuid' => '2ea627b',
+                    'df_uuids' => array(
+                        '3efc620',
+                        '3653d7f',
+                        '979523a',
+                        'cfc0199',
+                        '72d4cf2',
+                        '2c5f861',
+                    )
+                )
+            );
+            $results = $query->getArrayResult();
+
+            $original_fullnames = array();
+            foreach ($results as $result) {
+                $df_uuid = $result['fieldUuid'];
+                $full_option_name = $result['optionName'];
+
+                if ( !isset($original_fullnames[$df_uuid]) )
+                    $original_fullnames[$df_uuid] = array();
+
+                $original_fullnames[$df_uuid][] = $full_option_name;
+            }
+
+            foreach ($original_fullnames as $df_uuid => $options) {
+                $tmp = $options;
+                asort($tmp);
+                $original_fullnames[$df_uuid] = $tmp;
+            }
+
+//            asort($original_fullnames);
+//            $original_fullnames = array_values($original_fullnames);
+            print '<pre>'.print_r($original_fullnames, true).'</pre>';
+
+
+            $options = array();
+            $children = array();
+            $parents = array();
+            foreach ($results as $result) {
+                $df_uuid = $result['fieldUuid'];
+                $full_option_name = $result['optionName'];
+                $option_pieces = explode(' > ', $full_option_name);
+
+//                exit( '<pre>'.print_r($option_pieces, true).'</pre>' );
+
+                if ( !isset($options[$df_uuid]) )
+                    $options[$df_uuid] = array(0 => '');
+
+                $parent_piece = null;
+                foreach ($option_pieces as $piece) {
+                    if ( !in_array($piece, $options[$df_uuid]) ) {
+                        $options[$df_uuid][] = $piece;
+                    }
+
+                    if ( is_null($parent_piece) ) {
+                        // top-level piece
+                        $parent_piece = $piece;
+
+                        $parent_key = array_search($parent_piece, $options[$df_uuid], true);
+
+                        if ( !isset($children[$df_uuid]) )
+                            $children[$df_uuid] = array(0 => array());
+                        $children[$df_uuid][0][$parent_key] = 1;
+                    }
+                    else {
+                        $parent_key = array_search($parent_piece, $options[$df_uuid], true);
+                        $current_key = array_search($piece, $options[$df_uuid], true);
+
+                        if ( !isset($children[$df_uuid]) )
+                            $children[$df_uuid] = array(0 => array());
+                        if ( !isset($children[$df_uuid][$parent_key]) )
+                            $children[$df_uuid][$parent_key] = array();
+
+                        $children[$df_uuid][$parent_key][$current_key] = 1;
+
+                        if ( !isset($parents[$df_uuid]) )
+                            $parents[$df_uuid] = array();
+                        if ( !isset($parents[$df_uuid][$current_key]) )
+                            $parents[$df_uuid][$current_key] = array();
+
+                        $parents[$df_uuid][$current_key][$parent_key] = 1;
+
+                        $parent_piece = $piece;
+                    }
+                }
+            }
+
+//            print '<pre>'.print_r($options, true).'</pre>';
+//            print '<pre>'.print_r($children, true).'</pre>';
+//            print '<pre>'.print_r($parents, true).'</pre>';    //exit();
+
+            $duplicates = array();
+            foreach ($parents as $df_uuid => $key_list) {
+                foreach ($key_list as $child_key => $parent_keys) {
+                    if ( count($parent_keys) > 1 ) {
+                        if ( !isset($duplicates[$df_uuid]) )
+                            $duplicates[$df_uuid] = array();
+
+                        $child_option_name = $options[$df_uuid][$child_key];
+                        $duplicates[$df_uuid][$child_option_name] = array();
+                        foreach ($parent_keys as $parent_key => $num) {
+                            $parent_option_name = $options[$df_uuid][$parent_key];
+                            $duplicates[$df_uuid][$child_option_name][] = $parent_option_name;
+                        }
+                    }
+                }
+            }
+
+            print '<pre>'.print_r($duplicates, true).'</pre>';
+
+            print '<pre>';
+            foreach ($duplicates as $df_uuid => $data) {
+                print 'datafield "'.$df_uuid.'" has '.count($data).' entries with more than one parent'."\n";
+            }
+            print '</pre>';
+            exit();
+
+
+            print '<pre>';
+            $reconstructed_fullnames = self::findcycles($options, $children);
+            print '</pre>';
+
+//            asort($reconstructed_fullnames);
+//            $reconstructed_fullnames = array_values($reconstructed_fullnames);
+            print '<pre>'.print_r($reconstructed_fullnames, true).'</pre>';
+
+            exit('no cycles detected');
+        }
+        catch (\Exception $e) {
+            $source = 0xd895a5e6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+/*
+    private function findduplicates($options, $children)
+    {
+        foreach ($children as $df_uuid => $ro_list) {
+            self::findduplicates_worker($options[$df_uuid], $children[$df_uuid], 0, );
+        }
+    }
+
+
+    private function findduplicates_worker($options, $children, $index, )
+    {
+
+    }
+*/
+
+    private function findcycles($options, $children)
+    {
+        $reconstructed_fullnames = array();
+
+        foreach ($children as $df_uuid => $ro_list) {
+//            print 'looking into df "'.$df_uuid.'"...'."\n";
+
+            $tmp = array();
+            self::findcycles_worker($options[$df_uuid], $ro_list, 0, array(), $tmp);
+            $reconstructed_fullnames[$df_uuid] = $tmp;
+
+//            print "\n\n";
+        }
+
+        return $reconstructed_fullnames;
+    }
+
+
+    private function findcycles_worker($options, $children, $index, $visited, &$reconstructed_fullnames)
+    {
+        // If this number is already in the visited array, then there's a cycle in the tag hierarchy
+        if ( isset($visited[$index]) )
+            exit ( ' >> already seen index "'.$visited.'" inside '.print_r($visited, true).'</pre>' );
+
+        // Otherwise, mark this as visited
+        $visited[$index] = 1;
+
+        if ( isset($children[$index]) ) {
+            foreach ($children[$index] as $child_index => $num) {
+                self::findcycles_worker($options, $children, $child_index, $visited, $reconstructed_fullnames);
+            }
+        }
+        else {
+            $str = '';
+            foreach ($visited as $id => $num)
+//                $str .= $options[$id].' > ';
+                $str .= $id.' ';
+//            $str = substr($str, 3, -3);
+
+            $reconstructed_fullnames[] = $str;
+        }
+    }
 }

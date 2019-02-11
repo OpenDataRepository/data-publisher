@@ -79,6 +79,13 @@ ODR\AdminBundle\Entity\DataFields:
             inversedBy: null
             orphanRemoval: false
 
+        tags:
+            targetEntity: Tags
+            cascade: {  }
+            mappedBy: dataField
+            inversedBy: null
+            orphanRemoval: false
+
         dataFieldMeta:
             targetEntity: DataFieldsMeta
             cascade: {  }

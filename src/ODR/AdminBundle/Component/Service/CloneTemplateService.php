@@ -73,6 +73,11 @@ class CloneTemplateService
     private $ti_service;
 
     /**
+     * @var UUIDService
+     */
+    private $uuid_service;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -124,6 +129,7 @@ class CloneTemplateService
      * @param EntityCreationService $entityCreationService
      * @param PermissionsManagementService $pm_service
      * @param ThemeInfoService $themeInfoService
+     * @param UUIDService $UUIDService
      * @param Logger $logger
      */
     public function __construct(
@@ -135,6 +141,7 @@ class CloneTemplateService
         EntityCreationService $entityCreationService,
         PermissionsManagementService $pm_service,
         ThemeInfoService $themeInfoService,
+        UUIDService $UUIDService,
         Logger $logger
     ) {
         $this->em = $entity_manager;
@@ -145,6 +152,7 @@ class CloneTemplateService
         $this->ec_service = $entityCreationService;
         $this->pm_service = $pm_service;
         $this->ti_service = $themeInfoService;
+        $this->uuid_service = $UUIDService;
         $this->logger = $logger;
 
         $this->template_datatypes = array();
@@ -895,7 +903,7 @@ class CloneTemplateService
                     $new_df = clone $master_df;
                     $new_df->setMasterDataField($master_df);
                     $new_df->setTemplateFieldUuid($master_df->getFieldUuid());
-                    $new_df->setFieldUuid($this->dti_service->generateDataFieldUniqueId());
+                    $new_df->setFieldUuid($this->uuid_service->generateDatafieldUniqueId());
                     $new_df->setIsMasterField(false);
                     $new_df->setDataType($derived_datatype);
 
@@ -1047,7 +1055,7 @@ class CloneTemplateService
                         }
 
                         // Create a new ThemeDataField entry for this new datafield...
-                        $this->ec_service->createThemeDataField($user, $new_te, $new_df, true);    // don't flush immediately...
+                        $this->ec_service->createThemeDatafield($user, $new_te, $new_df, true);    // don't flush immediately...
                         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- created new theme_datafield entry for datafield '.$new_df->getId().' "'.$new_df->getFieldName().'"');
                     }
 
@@ -1057,15 +1065,15 @@ class CloneTemplateService
             }
         }
 
-        // Need to flush here so the newly created datafields get their correct IDs prior to the
-        //  creation of the GroupDatafield entries
-        $this->em->flush();
-
         // Create the permission entries for each of the new datafields...
         foreach ($created_datafields as $master_df_id => $new_df) {
-            $this->pm_service->createGroupsForDatafield($user, $new_df);
+            $this->ec_service->createGroupsForDatafield($user, $new_df, true);
             $this->logger->debug('CloneTemplateService:'.$indent_text.' -- created GroupDatafieldPermission entries for datafield '.$new_df->getId().' "'.$new_df->getFieldName().'" (master df '.$master_df_id.')');
         }
+
+        // Can flush here now that the newly created datafields and their GroupDatafield entries
+        // have been created
+        $this->em->flush();
 
 
         // ----------------------------------------
@@ -1289,11 +1297,8 @@ class CloneTemplateService
         $this->ec_service->createThemeDatatype($user, $theme_element, $child_datatype, $child_theme, true);
         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- created theme_datatype entry for child datatype '.$child_datatype->getId());
 
-        // Should be able to flush here prior to group creation
-        $this->em->flush();
-
         // ...and finally need to create groups for the new child Datatype
-        $this->pm_service->createGroupsForDatatype($user, $child_datatype);
+        $this->ec_service->createGroupsForDatatype($user, $child_datatype);
         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- copied groups for child datatype '.$child_datatype->getId());
 
 
@@ -1327,7 +1332,7 @@ class CloneTemplateService
         $linked_datatype = $this->ec_service->createDatatype(
             $user,
             $master_datatype->getShortName(),
-            true
+            true    // don't flush immediately...
         );
 
         $linked_datatype->setTemplateGroup($parent_datatype->getTemplateGroup());
@@ -1377,11 +1382,8 @@ class CloneTemplateService
         $this->ec_service->createThemeDatatype($user, $theme_element, $linked_datatype, $linked_theme_copy, true);
         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- created theme_datatype entry for linked datatype '.$linked_datatype->getId());
 
-        // Should be able to flush here prior to group creation
-        $this->em->flush();
-
         // ...and finally need to create groups for the new linked Datatype
-        $this->pm_service->createGroupsForDatatype($user, $linked_datatype);
+        $this->ec_service->createGroupsForDatatype($user, $linked_datatype);
         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- created groups for linked datatype '.$linked_datatype->getId());
 
 

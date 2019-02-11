@@ -44,6 +44,8 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
@@ -622,6 +624,8 @@ exit();
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
 
@@ -670,7 +674,8 @@ exit();
                     $public_date = new \DateTime('2200-01-01 00:00:00');
 
                     $properties = array('publicDate' => $public_date);
-                    parent::ODR_copyDatarecordMeta($em, $user, $datarecord, $properties);
+                    $emm_service->updateDatarecordMeta($user, $datarecord, $properties);    // TODO - test this
+//                    parent::ODR_copyDatarecordMeta($em, $user, $datarecord, $properties);
 
                     $updated = true;
                     $ret .= 'set datarecord '.$datarecord_id.' to non-public'."\n";
@@ -680,7 +685,8 @@ exit();
                     $public_date = new \DateTime();
 
                     $properties = array('publicDate' => $public_date);
-                    parent::ODR_copyDatarecordMeta($em, $user, $datarecord, $properties);
+                    $emm_service->updateDatarecordMeta($user, $datarecord, $properties);    // TODO - test this
+//                    parent::ODR_copyDatarecordMeta($em, $user, $datarecord, $properties);
 
                     $updated = true;
                     $ret .= 'set datarecord '.$datarecord_id.' to public'."\n";
@@ -781,6 +787,10 @@ exit();
             $crypto_service = $this->container->get('odr.crypto_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
 
@@ -832,7 +842,8 @@ exit();
 
                 if ($field_typeclass == 'Radio') {
                     // Ensure a datarecordfield entity exists...will receive the existing one back if it already exists
-                    $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
+//                    $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
+                    $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);    // TODO - test this
 
                     // Grab all selection objects attached to this radio object
                     $radio_selections = array();
@@ -849,11 +860,13 @@ exit();
                         // Ensure a RadioSelection entity exists
                         /** @var RadioOptions $radio_option */
                         $radio_option = $repo_radio_option->find($radio_option_id);
-                        $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf);
+//                        $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf);
+                        $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);    // TODO - test this
 
                         // Ensure it has the correct selected value
                         $properties = array('selected' => $selected);
-                        parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
+//                        parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
+                        $emm_service->updateRadioSelection($user, $radio_selection, $properties);    // TODO - test this
 
                         $ret .= 'setting radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.' to '.$selected."\n";
 
@@ -867,7 +880,8 @@ exit();
                             if ( $rs->getSelected() == 1 ) {
                                 // Ensure this RadioSelection is deselected
                                 $properties = array('selected' => 0);
-                                parent::ODR_copyRadioSelection($em, $user, $rs, $properties);
+//                                parent::ODR_copyRadioSelection($em, $user, $rs, $properties);
+                                $emm_service->updateRadioSelection($user, $rs, $properties, true);    // TODO - test this
 
                                 $ret .= 'deselecting radio_option_id '.$radio_option_id.' for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
                             }
@@ -892,7 +906,8 @@ exit();
                                 if ( $file->isPublic() && $value == -1 ) {
                                     // File is public, but needs to be non-public
                                     $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
-                                    parent::ODR_copyFileMeta($em, $user, $file, $properties);
+//                                    parent::ODR_copyFileMeta($em, $user, $file, $properties);
+                                    $emm_service->updateFileMeta($user, $file, $properties);    // TODO - test this
 
                                     // Delete the decrypted version of the file, if it exists
                                     $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
@@ -907,7 +922,8 @@ exit();
                                 else if ( !$file->isPublic() && $value == 1 ) {
                                     // File is non-public, but needs to be public
                                     $properties = array('publicDate' => new \DateTime());
-                                    parent::ODR_copyFileMeta($em, $user, $file, $properties);
+//                                    parent::ODR_copyFileMeta($em, $user, $file, $properties);
+                                    $emm_service->updateFileMeta($user, $file, $properties);    // TODO - test this
 
                                     // Immediately decrypt the file...don't need to specify a
                                     //  filename because the file is guaranteed to be public
@@ -938,7 +954,8 @@ exit();
                                 if ( $image->isPublic() && $value == -1 ) {
                                     // Image is public, but needs to be non-public
                                     $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
-                                    parent::ODR_copyImageMeta($em, $user, $image, $properties);
+//                                    parent::ODR_copyImageMeta($em, $user, $image, $properties);
+                                    $emm_service->updateImageMeta($user, $image, $properties);    // TODO - test this
 
                                     // Delete the decrypted version of the file, if it exists
                                     $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
@@ -953,7 +970,8 @@ exit();
                                 else if ( !$image->isPublic() && $value == 1 ) {
                                     // Image is non-public, but needs to be public
                                     $properties = array('publicDate' => new \DateTime());
-                                    parent::ODR_copyImageMeta($em, $user, $image, $properties);
+//                                    parent::ODR_copyImageMeta($em, $user, $image, $properties);
+                                    $emm_service->updateImageMeta($user, $image, $properties);    // TODO - test this
 
                                     // Immediately decrypt the image...don't need to specify a
                                     //  filename because the image is guaranteed to be public
@@ -970,12 +988,14 @@ exit();
                 else if ($field_typeclass == 'DatetimeValue') {
                     // For the DateTime fieldtype...
                     /** @var DatetimeValue $storage_entity */
-                    $storage_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);    // will create if it doesn't exist, and return existing entity otherwise
+//                    $storage_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);    // will create if it doesn't exist, and return existing entity otherwise
+                    $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);    // TODO - test this
                     $old_value = $storage_entity->getValue()->format('Y-m-d');
 
                     if ($old_value != $value) {
                         // Make the change to the value stored in the storage entity
-                        parent::ODR_copyStorageEntity($em, $user, $storage_entity, array('value' => new \DateTime($value)));
+//                        parent::ODR_copyStorageEntity($em, $user, $storage_entity, array('value' => new \DateTime($value)));    // TODO - why was this separate?
+                        $emm_service->updateStorageEntity($user, $storage_entity, array('value' => new \DateTime($value)));    // TODO - test this
 
                         $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
                     }
@@ -987,12 +1007,14 @@ exit();
                 else {
                     // For every other fieldtype...ensure the storage entity exists
                     /** @var Boolean|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
-                    $storage_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);    // will create if it doesn't exist, and return existing entity otherwise
+//                    $storage_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);    // will create if it doesn't exist, and return existing entity otherwise
+                    $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);    // TODO - test this
                     $old_value = $storage_entity->getValue();
 
                     if ($old_value != $value) {
                         // Make the change to the value stored in the storage entity
-                        parent::ODR_copyStorageEntity($em, $user, $storage_entity, array('value' => $value));
+//                        parent::ODR_copyStorageEntity($em, $user, $storage_entity, array('value' => $value));    // TODO - why was this separate?
+                        $emm_service->updateStorageEntity($user, $storage_entity, array('value' => $value));    // TODO - test this
 
                         $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
                     }
