@@ -1,10 +1,18 @@
 {% macro write(logged_in) %}
 <script>
-
     {# This is intentionally placed outside the $(function() {...} block #}
     {# jquery3 modified how the 'load' event was handled, and firefox wouldn't trigger this reliably #}
     $(window).on('load', function() {
-        if ( window.location.hash != '') {
+        // Skip this process for the search page
+        if(
+            window.location.hash !== ""
+            && (window.location.hash.substr(1).match(/\/search/) ||
+            window.location.hash.substr(1).match(/\/app_dev.php\/search/))
+        ) {
+            loadSearchContent(window.location.hash.substr(1))
+            return;
+        }
+        else if ( window.location.hash !== '') {
             // window.location.hash doesn't preserve url encoding...
             var tmp = window.location.href.split('#');
             var url = tmp[1];
@@ -28,7 +36,6 @@
 
                 default:    {# 400, 403, 404, 405, 500, etc #}
                     var response = $.parseJSON( jqxhr.responseText );
-//                    console.log( response );
                     createJGrowlError(response);
                     break;
             }
@@ -56,14 +63,20 @@
         $(window).on("hashchange", function(event) {
             // Needed?
             event.preventDefault();
-//            console.log('hashchange event'); console.log(event);
+
+            // Grab the URL from the browser and reload it
+            // Skip this process for the search page
+            if(
+                window.location.hash.substr(1).match(/\/search/) ||
+                window.location.hash.substr(1).match(/\/app_dev.php\/search/)
+                ) {
+                loadSearchContent(window.location.hash.substr(1))
+                return;
+            }
 
             // Close Menu
             $("#ODRNav").hide();
             $(".overhang").remove();
-
-            // always scroll to the top of the page?
-//            window.scrollTo(0,0);
 
             // If the hashchange event is manually triggered, event.originalEvent won't be defined...
             var url = '';
@@ -258,6 +271,32 @@
                 }
             });
         });
+    }
+
+    function loadSearchContent(url) {
+        showSearchOverlay();
+        $.ajax({
+            type: 'GET',
+            url: url,
+            dataType: 'json',
+            success: function (data) {
+                $('#ODRSearchContent').html(data.d.html);
+                hideSearchOverlay();
+            }
+        });
+    }
+
+    function showSearchOverlay() {
+        $("#loading-overlay").fadeIn('fast');
+        $("#loading").html('<span>Searching...</span>');
+        $("#loading").fadeIn('fast');
+        $("#ODRSearchContent").html('');
+    }
+
+    function hideSearchOverlay() {
+        $("#loading-overlay").fadeOut('fast');
+        $("#loading").html('<span>Loading...</span>');
+        $("#loading").fadeOut('fast');
     }
 
     function setupAccordionHighlights() {

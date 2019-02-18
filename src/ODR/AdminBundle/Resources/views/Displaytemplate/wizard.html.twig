@@ -1,7 +1,7 @@
 {% spaceless %}
 
     <ul id="wizardStatus">
-        {# Only template-based databases will see this page. #}
+        {# Only template-based datasets will see this page. #}
         {% if create_master > 0 %}
             <li class="{% if wizard_step == 1 %}current{% endif %}">
                 <span class="wizardStatusText">Initial Instructions</span>
@@ -14,28 +14,28 @@
         <li class="{% if wizard_step == 2 %}current{% endif %}">
             {% if datatype_id > 0 %}
                 <a href="#{{ path('odr_datatype_properties', {'datatype_id': datatype_id, 'wizard': 1}) }}">
-                    <span class="wizardStatusText">Database Properties</span>
+                    <span class="wizardStatusText">Dataset Properties</span>
                 </a>
             {% else %}
-                <span class="wizardStatusText">Database Properties</span>
+                <span class="wizardStatusText">Dataset Properties</span>
             {% endif %}
         </li>
         <li class="{% if wizard_step == 3 %}current{% endif %}">
             {% if datatype_id > 0 %}
             <a href="#{{ path('odr_design_master_theme', {'datatype_id': datatype_id}) }}">
-                <span class="wizardStatusText">Edit Database Design <!-- B --></span>
+                <span class="wizardStatusText">Edit Dataset Design <!-- B --></span>
             </a>
             {% else %}
-                <span class="wizardStatusText">Edit Database Design <!-- C --></span>
+                <span class="wizardStatusText">Edit Dataset Design <!-- C --></span>
             {% endif %}
         </li>
         <li class="{% if wizard_step == 4 %}current{% endif %}">
             {% if datatype_id > 0 %}
             <a href="#{{ path('odr_datatype_landing', {'datatype_id': datatype_id}) }}">
-                <span class="wizardStatusText">Manage Database</span>
+                <span class="wizardStatusText">Manage Dataset</span>
             </a>
             {% else %}
-                <span class="wizardStatusText">Manage Database</span>
+                <span class="wizardStatusText">Manage Dataset</span>
             {% endif %}
         </li>
     </ul>
@@ -45,11 +45,11 @@
                 <div class="ODRInnerBox pure-u-1">
                     <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Choose Template</h3>
                     <div class="ODRBodyContent">
-                        <p>Select a pre-defined template or create a completely custom database by selecting from the
-                            database templates column.</p>
-                        <p>If you choose a template, most of the work of creating a database will be automatically
-                            completed. Creating a custom database requires the administrator to add all fields to the
-                            database using the template editor.</p>
+                        <p>Select a pre-defined template or create a completely custom dataset by selecting from the
+                            dataset templates column.</p>
+                        <p>If you choose a template, most of the work of creating a dataset will be automatically
+                            completed. Creating a custom dataset requires the administrator to add all fields to the
+                            dataset using the template editor.</p>
                     </div>
                 </div>
             </div>
@@ -59,33 +59,33 @@
         <div class="ODRContentWrapper pure-u-1">
             <div class="ODRThemeElement pure-u-1">
                 <div class="ODRInnerBox pure-u-1">
-                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Database Properties</h3>
+                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Dataset Properties</h3>
                     {% if create_master %} {# Master Template Creation #}
                         <div class="ODRBodyContent">
-                            <p>Please choose a name for your database template and
+                            <p>Please choose a name for your dataset template and
                                 enter a description so users can identify the purpose of the template.</p>
                         </div>
-                    {% elseif master_type_id == 0 %} {# Custom Database #}
+                    {% elseif master_type_id == 0 %} {# Custom Dataset #}
                         <div class="ODRBodyContent">
-                            <p>Please choose a name for your database and enter the relevant info to ensure proper attribution of your database.</p>
-                            <p>After completing the information below, you will be forwarded to the database management
-                                system to design your database by adding fields and display preferences.</p>
+                            <p>Please choose a name for your dataset and enter the relevant info to ensure proper attribution of your dataset.</p>
+                            <p>After completing the information below, you will be forwarded to the dataset management
+                                system to design your dataset by adding fields and display preferences.</p>
                         </div>
-                    {% else %} {# Database from template #}
+                    {% else %} {# Dataset from template #}
                         <div class="ODRBodyContent">
-                            <p>Please choose a name for your database and enter the relevant info to ensure proper attribution of your database.</p>
+                            <p>Please choose a name for your dataset and enter the relevant info to ensure proper attribution of your dataset.</p>
                             {% for datatype in master_templates %}
                                 {% if datatype.id == master_type_id %}
                                     <p>You have chosen the
                                         {{ datatype.dataTypeMeta[0].shortName }}
-                                        template for your database.  After submitting the information below
-                                        your database will be created according to the requirements of the
-                                        database template.
+                                        template for your dataset.  After submitting the information below
+                                        your dataset will be created according to the requirements of the
+                                        dataset template.
                                     </p>
                                 {% endif %}
                             {% endfor %}
                             <a class="ODRWizardLink" href="#{{ path('odr_design_master_theme', {'datatype_id': datatype_id}) }}">
-                                <span class="wizardStatusText">Click to Continue to Step 3</span>
+                                <span class="wizardStatusText">Next step: Edit Dataset Design</span>
                             </a>
                         </div>
                     {% endif %}
@@ -97,20 +97,20 @@
         <div class="ODRContentWrapper pure-u-1">
             <div class="ODRThemeElement pure-u-1">
                 <div class="ODRInnerBox pure-u-1">
-                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Edit Database Design</h3>
+                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Edit Dataset Design</h3>
 
                     <div class="ODRBodyContent">
-                        <p>The database may be extended or modified using this design system.  The system will alert you when a change will
+                        <p>The dataset may be extended or modified using this design system.  The system will alert you when a change will
                             break compatibility with the parent template.</p>
                         <a class="ODRWizardLink" href="#{{ path('odr_datatype_landing', {'datatype_id': datatype_id}) }}">
-                            <span class="wizardStatusText">Click to Begin Managing Your Database</span>
+                            <span class="wizardStatusText">Next step: Manage Dataset</span>
                         </a>
 
                         {% if sync_with_template is defined and sync_with_template == true %}
                         <p></p>
                         <a class="ODRWizardLink">
                             <span class="wizardStatusText ODRSyncWithTemplate" rel="dt_{{ datatype.id }}">
-                                Click to synchronize this database with its master template.
+                                Click to synchronize this dataset with its master template.
                             </span>
                         </a>
                         {% endif %}
@@ -119,7 +119,7 @@
                         <p></p>
                         <a class="ODRWizardLink">
                             <span class="wizardStatusText ODRSyncWithTemplate" rel="mdt_{{ datatype.metadata_datatype.id }}">
-                                Click to synchronize this database's metadata entry with its master template.
+                                Click to synchronize this dataset's metadata entry with its master template.
                             </span>
                         </a>
                         {% endif %}
@@ -134,11 +134,11 @@
                 <div class="ODRInnerBox pure-u-1">
                     <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Choose Template</h3>
                     <div class="ODRBodyContent">
-                        <p>Select a pre-defined template or create a completely custom database by selecting from the
-                            database templates column.</p>
-                        <p>If you choose a template, most of the work of creating a database will be automatically
-                            completed. Creating a custom database requires the administrator to add all fields to the
-                            database using the template editor.</p>
+                        <p>Select a pre-defined template or create a completely custom dataset by selecting from the
+                            dataset templates column.</p>
+                        <p>If you choose a template, most of the work of creating a dataset will be automatically
+                            completed. Creating a custom dataset requires the administrator to add all fields to the
+                            dataset using the template editor.</p>
                     </div>
                 </div>
             </div>
@@ -150,11 +150,11 @@
                 <div class="ODRInnerBox pure-u-1">
                     <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Choose Template</h3>
                     <div class="ODRBodyContent">
-                        <p>Select a pre-defined template or create a completely custom database by selecting from the
-                            database templates column.</p>
-                        <p>If you choose a template, most of the work of creating a database will be automatically
-                            completed. Creating a custom database requires the administrator to add all fields to the
-                            database using the template editor.</p>
+                        <p>Select a pre-defined template or create a completely custom dataset by selecting from the
+                            dataset templates column.</p>
+                        <p>If you choose a template, most of the work of creating a dataset will be automatically
+                            completed. Creating a custom dataset requires the administrator to add all fields to the
+                            dataset using the template editor.</p>
                     </div>
                 </div>
             </div>
@@ -171,7 +171,7 @@
                         <i class="fa fa-2x fa-cog fa-spin"></i>
                     </div>
                     <div class="pure-u-5-6 pure-u-lg-20-24 pure-u-md-19-24 pure-u-sm-16-24 pure-u-">
-                        <p>Please wait while the system generates your database from the requested template.</p>
+                        <p>Please wait while the system generates your dataset from the requested template.</p>
                         <p>This operation should take no more than 30 seconds.</p>
                     </div>
                 </div>

@@ -1708,6 +1708,7 @@ class EditController extends ODRCustomController
      */
     public function updateAction($datarecord_id, $datafield_id, Request $request)
     {
+        // TODO - This should be changed to a transaction....
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -1726,6 +1727,8 @@ class EditController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
 
 
             /** @var DataRecord $datarecord */
@@ -1736,7 +1739,6 @@ class EditController extends ODRCustomController
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -1851,6 +1853,68 @@ class EditController extends ODRCustomController
                         // Save the value
                         parent::ODR_copyStorageEntity($em, $user, $storage_entity, array('value' => $new_value));
 
+
+                        // TODO Create mirror function for datatypes that have metadata
+
+
+                        // Update related records/datatypes depending on internal reference name
+                        $flush_required = false;
+                        switch($storage_entity->getDataField()->getDataFieldMeta()->getInternalReferenceName()) {
+                            // Update parent datatype name automatically
+                            case 'datatype_name':
+                                // Check if this is a metadata_for datatype
+                                $ancestor_datatype = $storage_entity->getDataRecord()->getDataType()->getGrandparent();
+
+                                if($related_datatype = $ancestor_datatype->getMetadataFor()) {
+                                    // TODO - coerce value to string.  Possibly needed
+                                    // clone datatypemeta
+                                    $datatype_meta = $related_datatype->getDataTypeMeta();
+
+                                    $new_meta = clone $datatype_meta;
+                                    $new_meta->setLongName($storage_entity->getValue());
+                                    $new_meta->setShortName($storage_entity->getValue());
+                                    $new_meta->setCreatedBy($user);
+                                    $new_meta->setUpdatedBy($user);
+
+                                    $em->persist($new_meta);
+                                    $em->remove($datatype_meta);
+
+                                    $flush_required = true;
+                                }
+
+
+                                break;
+
+                            // Update parent datatype description
+                            case 'datatype_description':
+                                $ancestor_datatype = $storage_entity->getDataRecord()->getDataType()->getGrandparent();
+
+                                if($related_datatype = $ancestor_datatype->getMetadataFor()) {
+                                    // TODO - coerce value to string.  Possibly needed
+                                    // clone datatypemeta
+                                    $datatype_meta = $related_datatype->getDataTypeMeta();
+
+                                    $new_meta = clone $datatype_meta;
+                                    $new_meta->setDescription($storage_entity->getValue());
+                                    $new_meta->setCreatedBy($user);
+                                    $new_meta->setUpdatedBy($user);
+
+                                    $em->persist($new_meta);
+                                    $em->remove($datatype_meta);
+
+                                    $flush_required = true;
+                                }
+                                break;
+
+                            default:
+                                break;
+                        }
+
+                        if($flush_required && isset($related_datatype)) {
+                            $em->flush();
+                            // Need to flush datatype cache
+                            $cache_service->delete('cached_datatype_'.$related_datatype->getId());
+                        }
 
                         // ----------------------------------------
                         // Mark this datarecord as updated

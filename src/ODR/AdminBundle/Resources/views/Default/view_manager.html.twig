@@ -32,6 +32,30 @@
             </li>
             {% endif %}
         </ul>
+    {% if display_export_options is defined and display_export_options == true and intent == 'searching' and user_role == 'ROLE_ADMIN' and has_datarecords %}
+        <div class="ODRExportButtons Cursor">
+            <div style="float:left;">
+                {% if can_edit_datatype or is_datatype_admin %}
+                    <button id="ODRMassEdit" class="pure-button" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
+                {% endif %}
+                <button id="ODRCSVExport" class="pure-button" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>
+            </div>
+
+            {% if use_jupyterhub %}
+                <div style="float:right;">
+                    <span id="jupyterhub_app_list" style="padding-right: 10px;"></span>
+
+                    <form target="_blank" action="{{ path('odr_jupyterhub_export') }}" method="post" style="display: inline;">
+                        <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />
+                        <input type="hidden" name="search_key" value="{{ search_key }}" />
+                        <input type="hidden" name="app_id" id="jupyterhub_app_id" />
+
+                        <button id="ODRRunApp" type="submit" class="pure-button">Run this Jupyterhub app on these search results</button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
     </div>
 
 <script>

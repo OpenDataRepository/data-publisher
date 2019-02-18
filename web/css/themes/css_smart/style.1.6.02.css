@@ -826,6 +826,7 @@ ul#wizardStatus li.completed:before{
 .ODRWizardLink {
     padding-top: 12px;
     padding-bottom: 12px;
+    text-align: right;
 }
 
 /*
@@ -1496,4 +1497,28 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
 .ODRRadioOptionListImport textarea {
     min-width: 250px;
     min-height: 300px;
+}
+
+.ODRPropertiesWarning {
+    font-size: 12px;
+    color: #049cdb;
+}
+
+#ODRPropertiesPage #ODRPublicExportButtons {
+    float: right;
+    text-align: right;
+}
+
+.ODRCreatedBy {
+    position: absolute;
+    top: 36px;
+    right: 10px;
+}
+
+#ThemeDesignArea .ODRDataField .pure-img {
+    padding: 10px;
+}
+
+#ODRSearchContent {
+    margin-bottom: 20px;
 }

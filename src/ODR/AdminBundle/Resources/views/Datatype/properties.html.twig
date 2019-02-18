@@ -1,4 +1,4 @@
-<h3>Database Properties</h3>
+<h3>Dataset Properties</h3>
 {% if wizard %}
     {% if datatype.getsetupstep != "operational" %}
         {% if datatype.getismastertype == 1 %} {# Master Template Creation #}
@@ -14,7 +14,7 @@
             } %}
         {% endif %}
     {% elseif datatype.getmasterdatatype is not null %}
-        {# Database creation wizard is complete - menu for managing? #}
+        {# Dataset creation wizard is complete - menu for managing? #}
         {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
             'wizard_step': 2,
             'datatype_id': datatype.getid,

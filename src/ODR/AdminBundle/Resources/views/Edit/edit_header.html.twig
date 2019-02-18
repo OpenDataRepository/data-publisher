@@ -26,32 +26,32 @@
 </div>
 {% endif %}
 
-<div class="pure-u-1 clearfix">
+<div class="pure-u-1 clearfix" id="ODRSearchHeaderWrapper">
     {% if search_key != '' %}
         <div class="pure-u-1" style="text-align: right">
             {% include 'ODRAdminBundle:Default:search_header.html.twig' with { 'search_key': search_key, 'page_length': page_length, 'offset': offset, 'prev_datarecord': prev_datarecord, 'next_datarecord': next_datarecord, 'redirect_path': redirect_path, 'search_result_current': search_result_current, 'search_result_count': search_result_count } %}
         </div>
     {% endif %}
 
-    <div class="pure-u-1">
-        <button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }}, 'view', '{{ offset }}');">View DataRecord</button>
+    <div class="pure-u-1" id="ODRPublicExportButtons">
+        <button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }}, 'view', '{{ offset }}');">View Record</button>
         {# "datarecord.uniqueid" is required because the datarecord variable is hydrated...if it was an array, it would be "datarecord.unique_id" instead #}
-        <button type="button" class="pure-button pure-button-primary" onclick="exportDatarecord()">Export DataRecord</button>
+        <button type="button" class="pure-button pure-button-primary" onclick="exportDatarecord()">Export Record</button>
 
         {% if is_datatype_admin == 1 %}
             {% if datarecord.ispublic %}
-                <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make DataRecord Non-Public</button>
+                <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make Record Non-Public</button>
             {% else %}
-                <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make DataRecord Public</button>
+                <button id="ODRPublicRecord" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make Record Public</button>
             {% endif %}
         {% endif %}
 
         {% if can_delete_record == 1 %}
-            <button id="ODRDeleteRecord" type="button" class="pure-button pure-button-primary" onclick="deleteRecord( {{ datarecord.id }} );">Delete DataRecord</button>
+            <button id="ODRDeleteRecord" type="button" class="pure-button pure-button-primary" onclick="deleteRecord( {{ datarecord.id }} );">Delete Record</button>
         {% endif %}
 
         {% if can_add_record == 1 and is_top_level == 1 and datatype.isMasterType == 0 %}
-            <button id="ODRAddRecord" type="button" class="pure-button pure-button-primary" onclick="addDataRecord( {{ datatype.id }} );">Add New DataRecord</button>
+            <button id="ODRAddRecord" type="button" class="pure-button pure-button-primary" onclick="addDataRecord( {{ datatype.id }} );">Add New Record</button>
         {% endif %}
 
         <button type="button" class="pure-button pure-button-primary" onclick="openFileDownloadDialog( {{ datarecord.id }}, 0, 0 );">Download Files...</button>
@@ -81,9 +81,9 @@
             success: function(data, textStatus, jqXHR) {
                 var html = $("#ODRPublicRecord").html();
                 if ( html.indexOf('Non') !== -1 )
-                    $("#ODRPublicRecord").html('Make DataRecord Public');
+                    $("#ODRPublicRecord").html('Make Record Public');
                 else
-                    $("#ODRPublicRecord").html('Make DataRecord Non-Public');
+                    $("#ODRPublicRecord").html('Make Record Non-Public');
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

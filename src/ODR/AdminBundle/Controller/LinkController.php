@@ -646,14 +646,14 @@ class LinkController extends ODRCustomController
             // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name since they're already from the form
             $datatype_meta_data = new DataTypeMeta();
             $datatype_meta_data->setDataType($datatype);
-            $datatype_meta_data->setShortName('New Database');
-            $datatype_meta_data->setLongName('New Database');
+            $datatype_meta_data->setShortName('New Dataset');
+            $datatype_meta_data->setLongName('New Dataset');
 
             /** @var RenderPlugin $default_render_plugin */
             $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
             $datatype_meta_data->setRenderPlugin($default_render_plugin);
 
-            // Default search slug to Database ID
+            // Default search slug to Dataset ID
             $datatype_meta_data->setSearchSlug($datatype->getUniqueId());
             $datatype_meta_data->setXmlShortName('');
 
@@ -1000,8 +1000,10 @@ class LinkController extends ODRCustomController
 
                 // ----------------------------------------
                 // Delete the cached version of the datatree array because a link between datatypes got deleted
+                $current_datatree_array_1 = $dti_service->getDatatreeArray();
                 $cache_service->delete('cached_datatree_array');
                 $cache_service->delete('associated_datatypes_for_' . $local_datatype->getGrandparent()->getId());
+                $current_datatree_array_2 = $dti_service->getDatatreeArray();
 
                 // Mark the ancestor datatype as has having been updated
                 $dti_service->updateDatatypeCacheEntry($local_datatype, $user);
@@ -1378,13 +1380,31 @@ class LinkController extends ODRCustomController
             )
         );
         if ( !is_null($datatree) ) {
-            $datatree_meta = $datatree->getDataTreeMeta();
 
-            $datatree->setDeletedBy($user);
-            $em->persist($datatree);
+            $query = $em->createQuery(
+                'UPDATE ODRAdminBundle:DataTreeMeta AS dtm
+                SET dtm.deletedAt = :now
+                WHERE dtm.id IN (:dtm_id) AND dtm.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'dtm_id' => $datatree->getDataTreeMeta()->getId()
+                )
+            );
+            $query->execute();
 
-            $em->remove($datatree);
-            $em->remove($datatree_meta);
+            $query = $em->createQuery(
+                'UPDATE ODRAdminBundle:DataTree AS dt
+                SET dt.deletedAt = :now, dt.deletedBy = :user_id
+                WHERE dt.id = (:dt_id) AND dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'user_id' => $user->getId(),
+                    'dt_id' => $datatree->getId()
+                )
+            );
+            $query->execute();
         }
 
 
@@ -1541,7 +1561,8 @@ class LinkController extends ODRCustomController
             $local_datatype = $local_datarecord->getDataType();
             if ($local_datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Local Datatype');
-            $local_datatype_id = $local_datatype->getId();
+
+            // $local_datatype_id = $local_datatype->getId();
 
             /** @var DataType $ancestor_datatype */
             $ancestor_datatype = $repo_datatype->find($ancestor_datatype_id);
@@ -1599,14 +1620,6 @@ class LinkController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-$debug = true;
-$debug = false;
-if ($debug) {
-    print "local datarecord: ".$local_datarecord_id."\n";
-    print "ancestor datatype: ".$ancestor_datatype_id."\n";
-    print "descendant datatype: ".$descendant_datatype_id."\n";
-}
-
             // ----------------------------------------
             // Determine which datatype we're trying to create a link with
             $local_datarecord_is_ancestor = false;
@@ -1622,9 +1635,6 @@ if ($debug) {
             }
             /** @var DataType $remote_datatype */
 
-if ($debug)
-    print "\nremote datatype: ".$remote_datatype->getId()."\n";
-
             // Ensure the remote datatype has a suitable theme...
             if ($remote_datatype->getSetupStep() == DataType::STATE_INITIAL)
                 throw new ODRBadRequestException('Remote Datatype is still being created');
@@ -1632,9 +1642,6 @@ if ($debug)
             // Since the above statement didn't throw an exception, the one below shouldn't either...
             $theme_id = $theme_service->getPreferredTheme($user, $remote_datatype->getId(), 'search_results');
             // $theme_id may be for a "master" theme instead of a "search_results" or "table" theme
-            // Theoretically, it shouldn't matter which type of theme gets returned here
-//            if ($theme_id == null)
-//                throw new ODRException('Remote Datatype does not have a suitable Theme');
 
 
             // ----------------------------------------
@@ -1693,13 +1700,6 @@ if ($debug)
                 }
             }
 
-if ($debug) {
-    print "\nlinked datarecords:\n";
-    foreach ($linked_datarecords as $id => $value)
-        print '-- '.$id."\n";
-}
-
-
             // ----------------------------------------
             // Store whether the link allows multiples or not
             $datatree_array = $dti_service->getDatatreeArray();
@@ -1713,13 +1713,6 @@ if ($debug) {
             ) {
                 $allow_multiple_links = true;
             }
-
-if ($debug) {
-    if ($allow_multiple_links)
-        print "\nallow multiple links: true\n";
-    else
-        print "\nallow multiple links: false\n";
-}
 
             // ----------------------------------------
             // Determine which, if any, datarecords can't be linked to because doing so would
@@ -1746,7 +1739,6 @@ if ($debug) {
                     )
                 );
                 $results = $query->getArrayResult();
-//print_r($results);
 
                 foreach ($results as $num => $result) {
                     $dr_id = $result['id'];
@@ -1754,12 +1746,6 @@ if ($debug) {
                 }
             }
 
-if ($debug) {
-    print "\nillegal datarecords:\n";
-    foreach ($illegal_datarecords as $key => $id)
-        print '-- datarecord '.$id."\n";
-}
-//exit();
 
             // ----------------------------------------
             // Convert the list of linked datarecords into a slightly different format so the datatables plugin can use it
@@ -1769,14 +1755,11 @@ if ($debug) {
 
             $table_html = $tth_service->getRowData($user, $datarecord_list, $remote_datatype->getId(), $theme_id);
             $table_html = json_encode($table_html);
-//print_r($table_html);
 
             // Grab the column names for the datatables plugin
             $column_data = $tth_service->getColumnNames($user, $remote_datatype->getId(), $theme_id);
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
-
-//print '<pre>'.print_r($column_data, true).'</pre>';  exit();
 
             // Render the dialog box for this request
             $templating = $this->get('templating');

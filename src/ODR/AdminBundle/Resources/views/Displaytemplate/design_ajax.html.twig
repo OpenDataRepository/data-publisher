@@ -905,7 +905,12 @@
                     console.log('datatype is link');
                     tools.link_dt.removeClass('faded');
                     tools.link_dt.find('i').addClass('ODRActiveIcon');
-                    tools.link_dt.find('.link-text').html('Linked dataset');
+                    if(isMasterType) {
+                        tools.link_dt.find('.link-text').html('Linked Template');
+                    }
+                    else {
+                        tools.link_dt.find('.link-text').html('Linked Dataset');
+                    }
                     tools.link_dt.attr('title', 'This is a linked dataset.  Click to choose a different dataset.');
                     tools.link_dt.unbind('click').click(function () {
                         $(this).effect("highlight", {}, 2000);
@@ -1019,7 +1024,12 @@
                     console.log('ted is link');
                     tools.link_dt.removeClass('faded');
                     tools.link_dt.find('i').addClass('ODRActiveIcon');
-                    tools.link_dt.find('.link-text').html('Linked dataset');
+                    if(isMasterType) {
+                        tools.link_dt.find('.link-text').html('Linked Template');
+                    }
+                    else {
+                        tools.link_dt.find('.link-text').html('Linked Dataset');
+                    }
                     tools.link_dt.attr('title', 'This is a linked dataset.  Click to choose a different dataset.');
                     tools.link_dt.unbind('click').click(function () {
                         linkDatatype(id);
@@ -2314,6 +2324,9 @@
     function SaveDatatypeProperties(datatype_id) {
         if (SaveDataTypeInterval[datatype_id] !== undefined)
             SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
+
+        // Set Short Name equal to Long Name for Datatype Properties
+        $('#UpdateDataTypeForm_short_name').val($('#UpdateDataTypeForm_long_name').val());
 
         var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
