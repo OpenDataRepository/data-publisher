@@ -3779,6 +3779,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     top: 12px;
     right: 14px;
     cursor: pointer;
+    color: #999999;
 }
 
 .ODRSearchVisible {
@@ -3794,4 +3795,16 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     width: 100% !important;
     -webkit-transition: width 0.3s; /* Safari */
     transition: width 0.3s;
+}
+@media only screen and (max-width : 740px) {
+    .ODRSearchVisible {
+        position: relative;
+    }
+    .ODRSearchHidden {
+        position: relative !important;
+        right: 0;
+    }
+    .ODRSearchToggle {
+        display: none;
+    }
 }
