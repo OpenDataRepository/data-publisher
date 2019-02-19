@@ -19,9 +19,13 @@
         {% include 'ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig' %}
     </div>
 
-    <div class="pure-u-1 pure-u-md-1-3 ODRContentWrapper">
+    <div class="pure-u-1 pure-u-md-1-3 ODRContentWrapper ODRSearchVisible">
         <div class="ODRThemeElement">
             <div class="ODRInnerBox">
+                <span class="ODRSearchToggle">
+                    <i class="fa fa-lg fa-arrow-circle-left"></i>
+                    <i class="fa fa-lg fa-arrow-circle-right hidden"></i>
+                </span>
                 {% if intent == 'searching' %}
                     {% include 'ODROpenRepositorySearchBundle:Default:searchpage_markdown.html.twig' with {
                         'datatype': target_datatype,
@@ -747,9 +751,29 @@
 
             // TODO Parser to set search options based on hash string
 
+            $(".ODRSearchToggle").unbind('click').click(function() {
+                searchToggle();
+            })
         });
 
 
+
+        function searchToggle() {
+            var search = $(".ODRContentWrapper");
+            var searchToggle = $(".ODRSearchToggle");
+            if(search.hasClass("ODRSearchVisible")) {
+                search.removeClass("ODRSearchVisible").addClass("ODRSearchHidden");
+                searchToggle.find(".fa-arrow-circle-left").addClass('hidden');
+                searchToggle.find(".fa-arrow-circle-right").removeClass('hidden');
+                $("#ODRSearchContent").addClass("ODRSearchResultsWide");
+            }
+            else {
+                search.removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
+                searchToggle.find(".fa-arrow-circle-right").addClass('hidden');
+                searchToggle.find(".fa-arrow-circle-left").removeClass('hidden');
+                $("#ODRSearchContent").removeClass("ODRSearchResultsWide");
+            }
+        }
 
 
 

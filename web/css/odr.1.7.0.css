@@ -3774,3 +3774,24 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     text-align: left;
     color: #2b2e38;
 }
+.ODRSearchToggle {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    cursor: pointer;
+}
+
+.ODRSearchVisible {
+    position: relative;
+}
+.ODRSearchHidden {
+    position: absolute;
+    -webkit-transition: right 0.3s linear; /* Safari */
+    transition: right 0.3s linear;
+    right: 96vw;
+}
+.ODRSearchResultsWide {
+    width: 100% !important;
+    -webkit-transition: width 0.3s; /* Safari */
+    transition: width 0.3s;
+}
