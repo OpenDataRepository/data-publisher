@@ -6,42 +6,53 @@
     {% set field_typeclass = datafield['dataFieldMeta']['fieldType']['typeClass'] %}
 
     <div class="ODRAdvSearch_datafield pure-u-1">
-        <span class="pure-u-1-3">
-            <label for="datafield_{{ datafield.id }}" class="pure-u-1" title="{{ description }}">{{ fieldname }}:</label>
-            {% if field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
-                <span class="pure-u-1 ODRSelectAll" rel="{{ datafield.id }}">- <u>Select All</u></span>
+        <span class="pure-u-1">
+            <label for="datafield_{{ datafield.id }}" class="pure-u-1" title="{{ description }}">{{ fieldname }}:
+            {% if field_typeclass == "Radio"%}
+                <span class="pure-u-1 ODRSelectAll ODRSelectAllOption" rel="{{ datafield.id }}">
+                    <span class="ODRTristateCheckbox" rel="multiple">
+                       <i class="fa fa-check"></i>
+                    </span>
+                </span>
+                <span class="pure-u-1 ODRDeselectAll ODRSelectAllOption" rel="{{ datafield.id }}">
+                    <span class="ODRTristateCheckbox" rel="multiple">
+                       <i class="fa fa-ban"></i>
+                    </span>
+                </span>
+                <span class="pure-u-1 ODRClearAll ODRSelectAllOption" rel="{{ datafield.id }}">
+                    <span class="ODRTristateCheckbox" rel="multiple">
+                       <i class="fa"></i>
+                    </span>
+                </span>
             {% endif %}
-            {% if field_typeclass == "Radio" %}
-                <span class="pure-u-1 ODRDeselectAll" rel="{{ datafield.id }}">- <u>Deselect All</u></span>
-                <span class="pure-u-1 ODRClearAll" rel="{{ datafield.id }}">- <u>Clear All</u></span>
-            {% endif %}
+            </label>
         </span>
 
         {% if field_typename == "Boolean" %}
-            <select class="ODRInput pure-u-2-3" id="datafield_{{ datafield.id }}" name="{{ datafield.id }}" rel="{{ datatype_id }}">
+            <select class="ODRInput pure-u-1" id="datafield_{{ datafield.id }}" name="{{ datafield.id }}" rel="{{ datatype_id }}">
                 <option value="">Any</option>
                 <option value="0">Unselected</option>
                 <option value="1">Selected</option>
             </select>
 
         {% elseif field_typename == "File" or field_typename == "Image" %}
-            <input type="text" class="ODRInput ODRFileDatafieldName pure-u-2-3" id="datafield_{{ datafield.id }}_fn" name="{{ datafield.id }}" rel="{{ datatype_id }}" title="Search based on the {{ field_typename }}'s filename"/>
+            <input type="text" class="ODRInput ODRFileDatafieldName pure-u-1" id="datafield_{{ datafield.id }}_fn" name="{{ datafield.id }}" rel="{{ datatype_id }}" title="Search based on the {{ field_typename }}'s filename"/>
 
-            <label class="pure-u-1-3"></label>
-            <select class="ODRInput ODRFileDatafieldExist pure-u-2-3" id="datafield_{{ datafield.id }}_ex" {#name="{{ datafield.id }}_ex"#} rel="{{ datatype_id }}" title="Search based on whether this Datafield has any {{ field_typename }}s uploaded or not">
+            <label class="pure-u-1"></label>
+            <select class="ODRInput ODRFileDatafieldExist pure-u-1" id="datafield_{{ datafield.id }}_ex" {#name="{{ datafield.id }}_ex"#} rel="{{ datatype_id }}" title="Search based on whether this Datafield has any {{ field_typename }}s uploaded or not">
                 <option value="">Any</option>
                 <option value="1">Has {{ field_typename }}s</option>
                 <option value="0">Does not have {{ field_typename }}s</option>
             </select>
 
         {% elseif field_typename == 'DateTime' %}
-            <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="df_{{ datafield.id }}_start" name="{{ datafield.id }}_s" value="" rel="df_{{ datafield.id }}" title="Find Datarecords with a value AFTER this date" />
+            <input type="text" class="ODRInput ODRDatePicker pure-u-1" id="df_{{ datafield.id }}_start" name="{{ datafield.id }}_s" value="" rel="df_{{ datafield.id }}" title="Find Datarecords with a value AFTER this date" />
 
-            <label class="pure-u-1-3"></label>
-            <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="df_{{ datafield.id }}_end" name="{{ datafield.id }}_e" value="" rel="df_{{ datafield.id }}" title="Find Datarecords with a value BEFORE this date" />
+            <label class="pure-u-1"></label>
+            <input type="text" class="ODRInput ODRDatePicker pure-u-1" id="df_{{ datafield.id }}_end" name="{{ datafield.id }}_e" value="" rel="df_{{ datafield.id }}" title="Find Datarecords with a value BEFORE this date" />
 
         {% elseif field_typeclass == "Radio" %}
-            <span class="pure-u-2-3 ODRRadioSearchDiv" id="Input_{{ datafield.id }}" rel="{{ datatype_id }}">
+            <span class="pure-u-1 ODRRadioSearchDiv ODRSearchScrollbox" id="Input_{{ datafield.id }}" rel="{{ datatype_id }}">
                 {% if datafield['radioOptions'] is defined %}
                     <input type="hidden" id="datafield_{{ datafield.id }}" name="{{ datafield.id }}" {#rel="{{ radio_option.id }}"#} value="" />
 
@@ -58,7 +69,7 @@
             </span>
 
         {% else %}
-            <input type="text" class="ODRInput pure-u-2-3" id="datafield_{{ datafield.id }}" name="{{ datafield.id }}" rel="{{ datatype_id }}"/>
+            <input type="text" class="ODRInput pure-u-1" id="datafield_{{ datafield.id }}" name="{{ datafield.id }}" rel="{{ datatype_id }}"/>
         {% endif %}
     </div>
 

@@ -449,6 +449,7 @@ class SearchKeyService
                                 case 'Boolean':
                                     // Excluding because a Boolean's value has a different
                                     //  meaning than the other fieldtypes
+                                case 'DatetimeValue':
                                 case 'File':
                                 case 'Image':
                                     // A general search doesn't make sense for Files/Images
@@ -460,7 +461,6 @@ class SearchKeyService
                                 case 'MediumVarchar':
                                 case 'LongVarchar':
                                 case 'LongText':
-                                case 'DatetimeValue':
                                 case 'Radio':
                                     // A general search makes sense for each of these
                                     $criteria['general']['search_terms'][$df_id] = array(
@@ -997,6 +997,7 @@ class SearchKeyService
                                 case 'Boolean':
                                     // Excluding because a Boolean's value has a different
                                     //  meaning than the other fieldtypes
+                                case 'DatetimeValue':
                                 case 'File':
                                 case 'Image':
                                     // A general search doesn't make sense for Files/Images
@@ -1008,7 +1009,6 @@ class SearchKeyService
                                 case 'MediumVarchar':
                                 case 'LongVarchar':
                                 case 'LongText':
-                                case 'DatetimeValue':
                                 case 'Radio':
                                     // A general search makes sense for each of these
                                     $criteria['general']['search_terms'][$df_uuid] = array(

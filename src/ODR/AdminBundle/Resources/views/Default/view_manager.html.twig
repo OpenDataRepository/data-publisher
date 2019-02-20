@@ -7,13 +7,16 @@
     {% set title = "Edit Record" %}
 {% endif %}
 
+    {% if notitle is defined  %}
+    {% else %}
     <h1 class="no-margin-top-phone">
         <span>{{ title }} &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
         <a id="page_settings" name="page_settings"><i class="fa fa-md fa-fw fa-cog"></i></a>
     </h1>
+    {% endif %}
 
     {# Record View Menu #}
-    <div id="page_settings_menu" class="pure-menu pure-menu-horizontal" style="display:none;">
+    <div id="page_settings_menu" class="pure-u-1" style="display:none;">
         <ul class="pure-menu-list">
             <li class="pure-menu-item">
                 <label id="ChooseView" class="pure-button">

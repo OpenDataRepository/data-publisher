@@ -32,26 +32,6 @@
 
 
 
-        {# Page/View Options #}
-        {% set page_type = 'search_results' %}
-        {% if intent == 'linking' %}
-            {% set page_type = 'linking' %}
-        {% endif %}
-
-        {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
-            'datatype': datatype,
-            'theme': theme,
-            'page_type': page_type,
-            'search_key': search_key,
-
-            'display_export_options': true,
-            'intent': intent,
-            'user_role': user_role,
-            'has_datarecords': has_datarecords,
-
-            'has_search_restriction': has_search_restriction,
-            'editable_only': editable_only,
-        } %}
 
     {% if has_datarecords %}
         {% include 'ODRAdminBundle:ShortResults:shortresults_ajax.html.twig' with {

@@ -1,102 +1,142 @@
 {% spaceless %}
 
-{% set start = offset - 2 %}
+{% set start = offset - 1 %}
 {% if start < 1 %}
     {% set start = 1 %}
 {% endif %}
 
-{% set end = offset + 2 %}
+{% set end = offset + 1 %}
 {% if end > num_pages %}
     {% set end = num_pages %}
 {% endif %}
 
-<div id="pagination_header" style="text-align: center;">
+<div id="pagination_header">
+    <div class="pure-u-1 pure-u-xl-5-8">
 
-    <div>
-    {% if num_datarecords > 0 %}
-        <span>{{ num_datarecords }} records found.</span>
-        
-    {% endif %}
+        <form id="ODRPageSelectForm" name="ODRPageSelectForm">
+            <span id="ODRPageSelect" class="odr_page_button Pointer">
+                <i class="fa fa-caret-down fa-lg"></i><span class="ODRPaginationLabel">Page&nbsp;</span>
+                <input type="text" id="odr_page_input" value="{{ offset }}" size="3" length="10" autocomplete="off"/>&nbsp;of&nbsp;<b>{{ num_pages }}</b>
+            </span>
+            <span id="ODRPagePopup">Jump to page:
+                <button type="button" id="ODRPageSelectButton" class="pure-button" type="submit">Go</button>
+            </span>
+            {% if offset >= 4 %}
+                <button class="pure-button" onclick="UpdateURL('#{{ path_str }}/1');">
+                    <span>1</span>
+                </button>
+            {% endif %}
+
+            {% if offset >= 5 %}
+                &nbsp;<i class="fa fa-ellipsis-h"></i>
+            {% endif %}
+
+            {% for i in start..end %}
+                <button class="pure-button {% if i == offset %}pure-button-primary{% endif %}"
+                        onclick="UpdateURL('#{{ path_str }}/{{ i }}');">
+                    <span>{{ i }}</span>
+                </button>
+            {% endfor %}
+
+            {% if offset <= num_pages - 4 %}
+                &nbsp;<i class="fa fa-ellipsis-h"></i>
+            {% endif %}
+
+            {% if offset <= num_pages - 3 %}
+                <button class="pure-button" onclick="UpdateURL('#{{ path_str }}/{{ num_pages }}');">
+                    <span>{{ num_pages }}</span>
+                </button>
+            {% endif %}
+
+            {% if num_datarecords > 0 %}
+                <span class="ODRResultsNumRecords"><b>{{ num_datarecords }}</b>&nbsp;<span class="ODRPaginationLabel">records</span></span>
+            {% endif %}
+
+        </form>
+    </div>
+    <div class="pure-u-1 pure-u-xl-3-8">
         <span>
-            Show:
+            <span class="ODRPaginationLabel">Show:</span>
             <button type="button" class="ODRPageLength pure-button {% if page_length == 10 %}pure-button-primary{% endif %}" rel="10">10</button>
             <button type="button" class="ODRPageLength pure-button {% if page_length == 25 %}pure-button-primary{% endif %}" rel="25">25</button>
             <button type="button" class="ODRPageLength pure-button {% if page_length == 50 %}pure-button-primary{% endif %}" rel="50">50</button>
             <button type="button" class="ODRPageLength pure-button {% if page_length == 100 %}pure-button-primary{% endif %}" rel="100">100</button>
-            Records per page
+            <span class="ODRPaginationLabel hidden"> records/page</span>
         </span>
+
+        <a id="page_settings" name="page_settings"><i class="fa fa-md fa-fw fa-cog"></i></a>
     </div>
-
-    <fieldset></fieldset>
-
-    <div>
-
-        <span id="ODRPageSelect" class="odr_page_button Pointer">
-            <i class="fa fa-caret-down fa-lg"></i>Page {{ offset }} of {{ num_pages }}
-        </span>
-        <span id="ODRPagePopup">Jump to page: <input type="text" id="odr_page_input" size="10" length="10" />&nbsp;&nbsp;<button type="button" id="ODRPageSelectButton" class="pure-button">Go</button></span>
-
-        {% if offset >= 4 %}
-            <button class="pure-button" onclick="UpdateURL('#{{ path_str }}/1');">
-                <span>1</span>
-            </button>
+        {% set is_datatype_admin = false %}
+        {% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+            {% set is_datatype_admin = true %}
         {% endif %}
 
-        {% if offset >= 5 %}
-            <i class="fa fa-ellipsis-h"></i>
+        {% set user_role = '' %}
+        {% if user != 'anon.' %}
+            {% for role in user.getroles %}
+                {% if role == 'ROLE_ADMIN' %}
+                    {% set user_role = 'ROLE_ADMIN' %}
+                {% endif %}
+            {% endfor %}
         {% endif %}
 
-        {% for i in start..end %}
-            <button class="pure-button {% if i == offset %}pure-button-primary{% endif %}" onclick="UpdateURL('#{{ path_str }}/{{ i }}');">
-                <span>{{ i }}</span>
-            </button>
-        {% endfor %}
 
-        {% if offset <= num_pages - 4 %}
-            <i class="fa fa-ellipsis-h"></i>
+        {# Page/View Options #}
+        {% set page_type = 'search_results' %}
+        {% if intent == 'linking' %}
+            {% set page_type = 'linking' %}
         {% endif %}
 
-        {% if offset <= num_pages - 3 %}
-            <button class="pure-button" onclick="UpdateURL('#{{ path_str }}/{{ num_pages }}');">
-                <span>{{ num_pages }}</span>
-            </button>
-        {% endif %}
+        {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
+            'datatype': datatype,
+            'theme': theme,
+            'page_type': page_type,
+            'search_key': search_key,
 
-    </div>
+            'display_export_options': true,
+            'intent': intent,
+            'user_role': user_role,
+            'has_datarecords': has_datarecords,
+
+            'notitle': true,
+            'has_search_restriction': has_search_restriction,
+            'editable_only': editable_only,
+        } %}
 
 </div>
 
 <script>
     $(function() {
 
+        $("#ODRPageSelectForm input[type='text']")
+            .on("click", function () {
+                $(this).select();
+            });
+
+        $("#ODRPageSelectForm")
+            .unbind('submit').submit(function (event) {
+                event.preventDefault();
+                goToPage();
+            });
+
         $("#ODRPageSelect").unbind('click').click(function() {
             if ( $("#ODRPagePopup").is(':hidden') )
-                $("#ODRPagePopup").fadeIn();
+                $("#ODRPagePopup").fadeIn('fast');
             else
-                $("#ODRPagePopup").fadeOut();
+                $("#ODRPagePopup").fadeOut('fast');
 
             // Calculate where the popup should go
             var selector_offset = $("#ODRPageSelect").offset();
             var selector_height = $("#ODRPageSelect").height();
 
-            var new_offset = {top: selector_offset.top + selector_height + 20, left: selector_offset.left};
+            var new_offset = {top: selector_offset.top + selector_height + 24, left: selector_offset.left + 20};
             $("#ODRPagePopup").offset( new_offset );
         });
 
+
+
         $("#ODRPageSelectButton").unbind('click').click(function() {
-            var page = parseInt( $("#odr_page_input").val() );
-            if ( isNaN(page) ) {
-                $("#odr_page_input").val('');
-                return;
-            }
-
-            if (page < 1)
-                page = 1;
-            if (page > {{ num_pages }})
-                page = {{ num_pages }};
-
-            var url = "{{ path_str }}" + '/' + page;
-            UpdateURL(url);
+            goToPage();
         });
 
         $(".ODRPageLength").unbind('click').click(function() {
@@ -118,7 +158,7 @@
                 data: data,
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
-                    var url = "{{ path_str }}" + "/" + "{{ offset }}";
+                    var url = "{{ path_str }}" + "/" + "{{ offset }}?odr_tab_id=" + window.sessionStorage.getItem('odr_tab_id');
                     UpdateURL(url);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
@@ -182,6 +222,22 @@
     });
 
     function introJsExitHandler() {
+    }
+
+    function goToPage() {
+        var page = parseInt( $("#odr_page_input").val() );
+        if ( isNaN(page) ) {
+            $("#odr_page_input").val('');
+            return;
+        }
+
+        if (page < 1)
+            page = 1;
+        if (page > {{ num_pages }})
+            page = {{ num_pages }};
+
+        var url = "{{ path_str }}" + '/' + page;
+        UpdateURL(url);
     }
 
     function introJsStepBeforeChangeHandler(elem) {

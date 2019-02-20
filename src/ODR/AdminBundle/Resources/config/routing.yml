@@ -97,6 +97,7 @@ odr_session_pagelength:
     defaults: { _controller: ODRAdminBundle:ODRUser:pagelength }
     requirements:
         length: 10|25|50|100
+
 odr_session_toggle_show_editable:
     path:  /session/toggle/show_editable
     defaults: { _controller: ODRAdminBundle:ODRUser:toggleshoweditable }
