@@ -1,0 +1,43 @@
+{% spaceless %}
+
+{% set has_children = false %}
+{% if tag.children is defined and tag.children is not empty %}
+    {% set has_children = true %}
+{% endif %}
+
+{% set is_selected = 0 %}
+{% if tag_selections[ tag.id ] is defined %}
+    {% set is_selected = tag_selections[ tag.id ].selected %}
+{% endif %}
+
+<li class="ODRTagItem">
+{% if has_children %}
+    <span class="ODRTagSpacer ODRTagParent"><i class="fa fa-caret-down Pointer"></i></span>
+{% else %}
+    <span class="ODRTagSpacer"></span>
+{% endif %}
+
+{% if has_children %}
+    <label class="ODRTagLabel">{{ tag.tagMeta.tagName }}</label>
+{% else %}
+    <label for="TagForm_{{ unique_id }}_{{ tag.id }}" class="ODRTagLabel">
+        <input id="TagForm_{{ unique_id }}_{{ tag.id }}" class="ODRTagEdit" type="checkbox" {% if is_selected == 1 %}checked{% endif %} />
+        {{ tag.tagMeta.tagName }}
+    </label>
+{% endif %}
+
+{% if has_children %}
+    <ul class="ODRTagGroup">
+        {% for tag_id, child_tag in tag.children %}
+            {% include 'ODRAdminBundle:Edit:tag.html.twig' with {
+                'unique_id': unique_id,
+
+                'tag_selections': tag_selections,
+                'tag': child_tag,
+            } %}
+        {% endfor %}
+    </ul>
+{% endif %}
+</li>
+
+{% endspaceless %}

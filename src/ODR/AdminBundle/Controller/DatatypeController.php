@@ -1638,12 +1638,33 @@ class DatatypeController extends ODRCustomController
                             // ...otherwise, this is a new custom datatype
 
                             // Create a default master theme for it
-                            $ec_service->createTheme($admin, $datatype);
+                            $master_theme = $ec_service->createTheme($admin, $datatype, true);    // Don't flush immediately...
+
+                            $master_theme_meta = $master_theme->getThemeMeta();
+                            $master_theme_meta->setIsDefault(true);
+                            $master_theme_meta->setShared(true);
+                            $em->persist($master_theme_meta);
+
+                            // Create a default search results theme for it too...
+                            $search_theme = $ec_service->createTheme($admin, $datatype, true);    // Don't flush immediately...
+                            $search_theme->setThemeType('search_results');
+                            $search_theme->setSourceTheme($master_theme);
+                            $em->persist($search_theme);
+
+                            $search_theme_meta = $search_theme->getThemeMeta();
+                            $search_theme_meta->setIsDefault(true);
+                            $search_theme_meta->setShared(true);
+                            $em->persist($search_theme_meta);
+
+                            // Now flush the new theme stuff
+                            $em->flush();
+
 
                             // Delete the cached version of the datatree array and the list of top-level datatypes
                             $cache_service->delete('cached_datatree_array');
                             $cache_service->delete('top_level_datatypes');
                             $cache_service->delete('top_level_themes');
+
 
                             // Create the groups for the new datatype here so the datatype can be viewed
                             $ec_service->createGroupsForDatatype($admin, $datatype);

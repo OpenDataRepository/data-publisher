@@ -1,0 +1,41 @@
+{% spaceless %}
+
+{% set has_children = false %}
+{% if tag.children is defined and tag.children is not empty %}
+    {% set has_children = true %}
+{% endif %}
+    
+<li class="ODRTagItem" rel="{{ tag.id }}">
+    <span class="ODRTagAnchor"><i class="fa fa-arrows Pointer"></i></span>
+
+    <input id="ODRTag_{{ tag.id }}_name"
+           class="ODRTagLabel"
+           type="text"
+           name="tag_name"
+           value="{{ tag.tagMeta.tagName }}"
+           maxlength="255"
+    />
+
+    {% if tag.children is defined and tag.children|length > 0 %}
+    <ul class="ODRTagGroup">
+        <li class="ODRTagItem ODRPlaceholderTag"></li>
+
+        {% for tag_id, child_tag in tag.children %}
+            {% include 'ODRAdminBundle:Tags:tag.html.twig' with {
+                'datafield': datafield,
+                'tag': child_tag,
+            } %}
+        {% endfor %}
+
+        {#<li class="ODRTagItem ODRPlaceholderTag"></li>#}
+    </ul>
+    {% else %}
+        {% if datafield.dataFieldMeta.tags_allow_multiple_levels == true %}
+        <ul class="ODRTagGroup ODRTagGroupPlaceholder">
+            <li class="ODRTagItem ODRPlaceholderTag"></li>
+        </ul>
+        {% endif %}
+    {% endif %}
+</li>
+
+{% endspaceless %}

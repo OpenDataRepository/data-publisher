@@ -195,6 +195,16 @@
         </select>
     </fieldset>
 
+    {% elseif field_typename == "Tags" %}
+    <fieldset>
+        <label class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+        {% if datafield.tags is defined %}
+            {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
+                'stacked_tags': datafield.tags,
+            } %}
+        {% endif %}
+    </fieldset>
+
     {% elseif field_typename == "DateTime" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1{% if is_datatype_admin %} Pointer{% endif %}">

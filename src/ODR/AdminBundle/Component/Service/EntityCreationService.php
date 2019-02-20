@@ -7,8 +7,10 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * TODO -
+ * Stores the code to create a default version of just about every ODR entity.  Users are handled
+ * inside ODRCustomController, and files/images are still handled inside ODRCustomController.
  *
+ * TODO - tracked job stuff?
  */
 
 namespace ODR\AdminBundle\Component\Service;
@@ -359,13 +361,6 @@ class EntityCreationService
 
                 $this->em->persist($linked_datatree);
                 $this->em->flush();
-
-                // TODO - this shouldn't go here
-                // Force a rebuild of the cached entry for the ancestor datarecord
-//                $this->dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
-
-                // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
-//                $this->cache_service->delete('associated_datarecords_for_'.$ancestor_datarecord->getGrandparent()->getId());
 
                 // Now that the entity exists, release the lock
                 $lockHandler->release();
@@ -1357,7 +1352,6 @@ class EntityCreationService
 
 
     /**
-     * TODO - test this
      * Creates a new Tag entity.  If a new tag is being forcibly created, this function does not
      * automatically flush.  Otherwise, a lock is used to ensure no duplicates are created, and the
      * result is immediately flushed.
@@ -1456,7 +1450,7 @@ class EntityCreationService
         $tag_meta->setTag($tag);
         $tag_meta->setTagName($tag_name);
         $tag_meta->setXmlTagName('');
-        $tag_meta->setDisplayOrder(0);
+        $tag_meta->setDisplayOrder(9999);    // append new tags to the end
 
         $tag_meta->setCreatedBy($user);
         $tag_meta->setCreated( new \DateTime() );
@@ -1470,7 +1464,6 @@ class EntityCreationService
 
 
     /**
-     * TODO - test this
      * Create a tag link from $ancestor_tag to $descendant_tag.
      *
      * This function doesn't permit delaying flushes, because it's impossible to lock properly.
@@ -1481,7 +1474,7 @@ class EntityCreationService
      *
      * @return TagTree
      */
-    public function createTagLink($user, $parent_tag, $child_tag)
+    public function createTagTree($user, $parent_tag, $child_tag)
     {
         // Check to see if the two tags are already linked
         /** @var TagTree $tag_tree */
@@ -1519,13 +1512,6 @@ class EntityCreationService
                 $this->em->persist($tag_tree);
                 $this->em->flush();
 
-                // TODO - should this exist?  if so, it shouldn't go here
-                // Force a rebuild of the cached entry for...what exactly?
-//                $this->dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
-
-                // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
-//                $this->cache_service->delete('associated_datarecords_for_'.$ancestor_datarecord->getGrandparent()->getId());
-
                 // Now that the entity exists, release the lock
                 $lockHandler->release();
             }
@@ -1537,7 +1523,6 @@ class EntityCreationService
 
 
     /**
-     * TODO - test this
      * Creates a new TagSelection entity for the specified Tag/Datarecordfield pair if one doesn't
      * already exist.
      *

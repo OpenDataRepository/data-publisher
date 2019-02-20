@@ -271,6 +271,9 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Ensure that the cached tag hierarchy doesn't reference this datafield
+            $cache_service->delete('cached_tag_tree_'.$grandparent_datatype_id);
+
             // Wipe cached data for all the datatype's datarecords
             $query = $em->createQuery(
                'SELECT dr.id AS dr_id
@@ -361,6 +364,10 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRNotFoundException('Grandparent Datatype');
             $grandparent_datatype_id = $grandparent_datatype->getId();
 
+            // This should only work on a Radio field
+            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
+                throw new ODRBadRequestException();
+
 
             // --------------------
             // Determine user privileges
@@ -372,10 +379,6 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // ----------------------------------------
-            // Delete any cached search results involving this datafield
-            $search_cache_service->onDatafieldModify($datafield);
-
 
             // ----------------------------------------
             // Delete all radio selection entities attached to the radio option
@@ -383,7 +386,12 @@ class DisplaytemplateController extends ODRCustomController
                'UPDATE ODRAdminBundle:RadioSelection AS rs
                 SET rs.deletedAt = :now
                 WHERE rs.radioOption = :radio_option_id AND rs.deletedAt IS NULL'
-            )->setParameters( array('now' => new \DateTime(), 'radio_option_id' => $radio_option_id) );
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'radio_option_id' => $radio_option_id
+                )
+            );
             $updated = $query->execute();
 
 
@@ -416,6 +424,9 @@ class DisplaytemplateController extends ODRCustomController
                 $cache_service->delete('cached_datarecord_'.$dr_id);
                 $cache_service->delete('cached_table_data_'.$dr_id);
             }
+
+            // Delete any cached search results involving this datafield
+            $search_cache_service->onDatafieldModify($datafield);
 
         }
         catch (\Exception $e) {
@@ -471,6 +482,10 @@ class DisplaytemplateController extends ODRCustomController
             $datatype = $datafield->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
+
+            // This should only work on a Radio field
+            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
+                throw new ODRBadRequestException();
 
 
             // --------------------
@@ -898,6 +913,9 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Ensure that the cached tag hierarchy doesn't reference this datatype anymore
+            $cache_service->delete('cached_tag_tree_'.$grandparent_datatype_id);
+
             // Delete cached versions of all Datarecords of this Datatype if needed
             if ($datatype->getId() == $grandparent_datatype_id) {
                 $query = $em->createQuery(
@@ -959,8 +977,6 @@ class DisplaytemplateController extends ODRCustomController
             // ...cached theme data
             foreach ($cached_themes_to_delete as $num => $t_id)
                 $cache_service->delete('cached_theme_'.$t_id);
-
-            // ...TODO - layout data?
 
 
             // ...and the cached version of the datatree array
@@ -1650,6 +1666,10 @@ class DisplaytemplateController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
+            // This should only work on a Radio field
+            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
+                throw new ODRBadRequestException();
+
 
             // --------------------
             // Determine user privileges
@@ -1719,6 +1739,8 @@ class DisplaytemplateController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             // Grab necessary objects
@@ -1741,6 +1763,10 @@ class DisplaytemplateController extends ODRCustomController
             $datatype = $datafield->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
+
+            // This should only work on a Radio field
+            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
+                throw new ODRBadRequestException();
 
 
             // --------------------
@@ -1780,6 +1806,10 @@ class DisplaytemplateController extends ODRCustomController
                     $cache_service->delete('cached_table_data_'.$result['dr_id']);
                 }
             }
+
+            // Delete any cached search results involving this datafield
+            $search_cache_service->onDatafieldModify($datafield);
+
         }
         catch (\Exception $e) {
             $source = 0xdf4e2574;
@@ -1839,6 +1869,10 @@ class DisplaytemplateController extends ODRCustomController
 
             // Ensure the datatype has a master theme...
             $theme_service->getDatatypeMasterTheme($datatype->getId());
+
+            // This should only work on a Radio field
+            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
+                throw new ODRBadRequestException();
 
 
             // --------------------
@@ -1913,6 +1947,8 @@ class DisplaytemplateController extends ODRCustomController
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Don't need to update cached versions of datarecords or themes
+
+            // A change in order doesn't affect cached search results either
         }
         catch (\Exception $e) {
             $source = 0x89f8d46f;
@@ -2025,6 +2061,10 @@ class DisplaytemplateController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
+            // This should only work on a Radio field
+            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
+                throw new ODRBadRequestException();
+
 
             // --------------------
             // Determine user privileges
@@ -2134,6 +2174,10 @@ class DisplaytemplateController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
+            // This should only work on a Radio field
+            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
+                throw new ODRBadRequestException();
+
 
             // --------------------
             // Determine user privileges
@@ -2220,6 +2264,10 @@ class DisplaytemplateController extends ODRCustomController
             $datatype = $datafield->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
+
+            // This should only work on a Radio field
+            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
+                throw new ODRBadRequestException();
 
 
             // --------------------
@@ -3255,7 +3303,14 @@ class DisplaytemplateController extends ODRCustomController
             // ----------------------------------------
             // Populate new DataFields form
             $submitted_data = new DataFieldsMeta();
-            $datafield_form = $this->createForm(UpdateDataFieldsForm::class, $submitted_data, array('allowed_fieldtypes' => $allowed_fieldtypes) );
+            $datafield_form = $this->createForm(
+                UpdateDataFieldsForm::class,
+                $submitted_data,
+                array(
+                    'allowed_fieldtypes' => $allowed_fieldtypes,
+                    'current_typename' => $datafield->getFieldType()->getTypeName(),
+                )
+            );
 
             $datafield_form->handleRequest($request);
 
@@ -3331,14 +3386,15 @@ class DisplaytemplateController extends ODRCustomController
                             $migrate_data = true;
                         }
 
-                        // If fieldtype got changed to/from Markdown, File, Image, or Radio...force
-                        //  a reload of the right slideout, because options on that slideout are
-                        //  different for these fieldtypes
+                        // If fieldtype got changed to/from Markdown, File, Image, Radio, or Tags...
+                        //  force a reload of the right slideout, because options on that slideout
+                        //  are different for these fieldtypes
                         switch ($old_fieldtype->getTypeClass()) {
                             case 'Radio':
                             case 'File':
                             case 'Image':
                             case 'Markdown':
+                            case 'Tag':
                                 $force_slideout_reload = true;
                                 break;
                         }
@@ -3347,11 +3403,16 @@ class DisplaytemplateController extends ODRCustomController
                             case 'File':
                             case 'Image':
                             case 'Markdown':
+                            case 'Tag':
                                 $force_slideout_reload = true;
                                 break;
                         }
                     }
                 }
+
+                // TODO - don't allow migration to/from tags yet
+                if ($old_fieldtype->getTypeClass() === 'Tag' || $new_fieldtype->getTypeClass() === 'Tag')
+                    $prevent_fieldtype_change = true;
 
                 // If not allowed to change fieldtype, ensure the datafield always has the old fieldtype
                 if ($prevent_fieldtype_change) {
@@ -3425,17 +3486,23 @@ class DisplaytemplateController extends ODRCustomController
                         if ($new_fieldtype->getTypeName() !== 'Markdown')
                             $submitted_data->setMarkdownText('');
 
-                        // Clear properties related to radio options if it's no longer a radio field
-                        if ($new_fieldtype->getTypeClass() !== 'Radio') {
+                        // Clear properties related to radio options and tags if it's no longer
+                        //  one of those fieldtypes
+                        if ($new_fieldtype->getTypeClass() !== 'Radio' || $new_fieldtype->getTypeClass() !== 'Tag') {
                             $submitted_data->setRadioOptionNameSort(false);
                             $submitted_data->setRadioOptionDisplayUnselected(false);
                         }
                     }
 
-                    // If the radio options are now supposed to be sorted by name, ensure that happens
+                    // If the radio options or tags are now supposed to be sorted by name, ensure
+                    //  that happens
                     $sort_radio_options = false;
                     if ( $submitted_data->getRadioOptionNameSort() == true && $current_datafield_meta->getRadioOptionNameSort() == false )
                         $sort_radio_options = true;
+
+                    // TODO - how to deal with this when the sorting happens in another controller?
+                    if ($sort_radio_options && $submitted_data->getFieldType()->getTypeClass() === 'Tag')
+                        throw new ODRNotImplementedException();
 
 
                     // ----------------------------------------
@@ -3465,9 +3532,16 @@ class DisplaytemplateController extends ODRCustomController
                     $emm_service->updateDatafieldMeta($user, $datafield, $properties);
                     $em->refresh($datafield);
 
-                    //
-                    if ($sort_radio_options)
-                        self::radiooptionorderAction($datafield->getId(), true, $request);  // TODO - might be race condition issue with design_ajax
+                    // TODO - might be race condition issue with design_ajax
+                    if ($sort_radio_options) {
+                        $submitted_typeclass = $submitted_data->getFieldType()->getTypeClass();
+                        if ($submitted_typeclass == 'Radio')
+                            self::radiooptionorderAction($datafield->getId(), true, $request);
+                        else if ($submitted_typeclass == 'Tag') {
+                            // TODO - how to deal with this when the sorting happens in another controller?
+                            throw new ODRNotImplementedException();
+                        }
+                    }
 
                     if ($check_image_sizes)
                         parent::ODR_checkImageSizes($em, $user, $datafield);
@@ -3521,7 +3595,14 @@ class DisplaytemplateController extends ODRCustomController
 
                 // Create the form for the datafield entry
                 $datafield_meta = $datafield->getDataFieldMeta();
-                $datafield_form = $this->createForm(UpdateDataFieldsForm::class, $datafield_meta, array('allowed_fieldtypes' => $allowed_fieldtypes) );
+                $datafield_form = $this->createForm(
+                    UpdateDataFieldsForm::class,
+                    $datafield_meta,
+                    array(
+                        'allowed_fieldtypes' => $allowed_fieldtypes,
+                        'current_typename' => $datafield->getFieldType()->getTypeName(),
+                    )
+                );
 
 
                 // Keep track of conditions where parts of the datafield shouldn't be changed...

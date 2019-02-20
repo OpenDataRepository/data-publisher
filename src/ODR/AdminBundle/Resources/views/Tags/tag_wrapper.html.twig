@@ -1,0 +1,362 @@
+{% spaceless %}
+
+<div class="ODRTagWrapper_design">
+
+    {# this form is for tag displayOrder and setting parent/child relationships #}
+    <form id="ODRTagPositionForm" rel="{{ datafield.id }}"></form>
+
+    <div class="ODRThemeElement">
+        {# this form is for renaming tags #}
+        <form id="ODRTagForm" rel="{{ datafield.id }}">
+            <ul class=""><li class="">
+                <span>Tags:&nbsp;</span>
+                <ul class="ODRTagGroup ODRTopLevelTagGroup">
+                    {#<li class="ODRTagItem ODRPlaceholderTag"></li>#}
+
+                    {% for tag_id, tag in stacked_tags %}
+                        {% include 'ODRAdminBundle:Tags:tag.html.twig' with {
+                            'datafield' : datafield,
+                            'tag': tag,
+                        } %}
+                    {% endfor %}
+
+                    <li class="ODRTagItem ODRPlaceholderTag"></li>
+                </ul>
+            </li></ul>
+        </form>
+    </div>
+</div>
+
+<div class="ODRThemeElement">
+    <button class="ODRAddTag pure-button pure-button-primary">Create new tag</button>
+</div>
+
+<script>
+
+    var SaveTimeout = 2000;
+
+    function notifySaved() {
+        $.jGrowl('SAVED');
+    }
+
+    $(function () {
+
+        // Ensure an old sortable instance doesn't exist
+        if ( $(".ODRTagGroup").sortable("instance") !== undefined )
+            $(".ODRTagGroup").sortable("destroy");
+
+        var sortable_config = {
+            handle: ".ODRTagAnchor",
+            items: "> .ODRTagItem",
+
+            start: function (event, ui) {
+                // Attach the position assist css to the tag before the one that just got selected
+                //  for dragging
+                $(ui.item).prev().addClass("ODRNeighorTag");
+
+                // The placeholder is inserted immediately after the item selected for dragging,
+                //  so attach the position assist css to the tag after the placeholder
+                $(ui.item).next().next().addClass("ODRNeighorTag");
+            },
+            change: function (event, ui) {
+                // This event fires when the tag's position changes in the list...remove the previous
+                //  position assist css
+                $(".ODRNeighorTag").each(function(index, element) {
+                    $(element).removeClass("ODRNeighorTag");
+                });
+
+                // If the tag is dragged back around the original spot, then the sortable helper
+                //  will get picked up by next()/prev()...but stepping over another item will target
+                //  the correct HTML element
+                var prev = $(ui.placeholder).prev();
+                if ( $(prev).hasClass("ui-sortable-helper") )
+                    prev = $(ui.placeholder).prev().prev();
+
+                var next = $(ui.placeholder).next();
+                if ( $(next).hasClass("ui-sortable-helper") )
+                    next = $(ui.placeholder).next().next();
+
+                // Attach the position assist css to the intended element
+                $(prev).addClass("ODRNeighorTag");
+                $(next).addClass("ODRNeighorTag");
+            },
+            stop: function (event, ui) {
+                // Remove the attribute crap that sortable attached
+                $(ui.item).removeAttr('style');
+
+                // Get rid of any remaining position assist stuff
+                $(".ODRNeighorTag").each(function(index, element) {
+                    $(element).removeClass("ODRNeighorTag");
+                });
+
+                {% if datafield.dataFieldMeta.tags_allow_multiple_levels == true %}
+                {# Don't delete/create child tag placeholders if restricted to a single level #}
+                tagSortableCleanup( $(ui.item), sortable_config );
+                {% endif %}
+
+                MoveTag( $(ui.item) );
+            },
+
+            placeholder: "ODRTagHighlight",
+            connectWith: ".ODRTagGroup"
+        };
+        $(".ODRTagGroup").sortable(sortable_config);
+
+        $(".ODRAddTag").unbind('click').click(function() {
+            AddTag({{ datafield.id }});
+        });
+
+        $(".ODRDeleteTag").unbind('click').click(function() {
+            var tag_id = $(this).attr('rel');
+            DeleteTag(tag_id);
+        });
+
+        $(".ODRTagLabel").unbind('keyup paste').on('keyup paste', function() {
+            var tag_data = $(this).attr('id').split(/_/);
+            var tag_id = tag_data[1];
+
+            SaveTagPropertyInterval[tag_id] = window.clearInterval(SaveTagPropertyInterval[tag_id]);
+            SaveTagPropertyInterval[tag_id] = window.setInterval("SaveTagProperty(" + tag_id + ")", SaveTimeout);
+
+            save_tag_xhr = true;
+        });
+    });
+
+
+    var save_tag_xhr = null;
+    var SaveTagPropertyInterval = [];
+    function SaveTagProperty(tag_id) {
+        if (SaveTagPropertyInterval[tag_id] != undefined)
+            SaveTagPropertyInterval[tag_id] = window.clearInterval(SaveTagPropertyInterval[tag_id]);
+
+        var url = '{{ path('odr_rename_tag', { 'tag_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += tag_id;
+
+        var post_data = $("#ODRTagForm").find("#ODRTag_" + tag_id + "_name").serialize();    // only want one tag
+        $.ajax({
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: post_data,
+            success: function(data) {
+                notifySaved();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything on error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+
+                save_datafield_xhr = null;
+            }
+        });
+    }
+
+    function AddTag(datafield_id) {
+        var url = '{{ path('odr_create_tag', { 'datafield_id': 0 }) }}';
+        // Load display template menu
+        url = url.substring(0,(url.length - 1));
+        url += datafield_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                //
+                $(".ODRTopLevelTagGroup").append(data.d.html);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function DeleteTag(tag_id) {
+        var url = '{{ path('odr_delete_tag', { 'tag_id': 0 }) }}';
+        // Load display template menu
+        url = url.substring(0,(url.length - 1));
+        url += tag_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                // TODO
+                window.location.reload();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function tagSortableCleanup(item, sortable_config) {
+        var placeholder_text = '<ul class="ODRTagGroup ODRTagGroupPlaceholder"><li class="ODRTagItem ODRPlaceholderTag"></li></ul>';
+
+        // If this tag is the first child of another tag...
+        if ( $(item).parent().hasClass('ODRTagGroupPlaceholder') ) {
+            // ...then the new parent tag no longer needs a fake child tag div
+            $(item).parent().removeClass('ODRTagGroupPlaceholder');
+            // ...or a fake child tag
+            $(item).parent().children(".ODRTagItem.ODRPlaceholderTag").remove();
+        }
+
+        // Also, remove empty ul.ODRTagGroup elements
+        $(".ODRTagGroup").each(function(index, element) {
+            if ( $(element).children().length === 0 )
+                $(element).remove();
+        });
+
+        $(".ODRTagItem").each(function(index, element) {
+            // Ignore placeholder tags
+            if ( $(element).hasClass('ODRPlaceholderTag') )
+                return;
+
+            // Debug...
+            // var tag_label = $(element).children(".ODRTagLabel").first().html();
+            // var parent_tag_label = $(element).parent().parent().children(".ODRTagLabel").first().html();
+
+            var children = null;
+            var placeholder = null;
+            $(element).children("ul.ODRTagGroup").each(function(index, child_element) {
+                if ( $(child_element).hasClass("ODRTagGroupPlaceholder") )
+                    placeholder = $(child_element);
+                else
+                    children = $(child_element);
+            });
+
+            if ( children != null && placeholder != null ) {
+                // Has children and placeholder, get rid of placeholder
+                $(placeholder).remove();
+
+                // Doesn't seem to be needed, but leaving around just in case
+            }
+            else if ( children != null && placeholder == null ) {
+                // Has children but no placeholder...already correct
+            }
+            else if ( children == null && placeholder != null ) {
+                // Has no children and a placeholder...already correct
+            }
+            else if ( children == null && placeholder == null ) {
+                // Has no children and no placeholder...add the placeholder
+                $(element).append(placeholder_text);
+
+                // Immediately attach the sortable event to the new placeholder
+                $(element).children(".ODRTagGroup").sortable(sortable_config);
+
+                //  Using $(".ODRTagGroup").sortable("destroy"); here will throw an error...apparently,
+                //   jqueryUI does not check for and ignore instances where the selector finds items
+                //   without a sortable configuration
+            }
+        });
+    }
+
+    function MoveTag(item) {
+
+        // Remove any pre-existing input elements added by this function
+        $(".ODRTagPositionForm_input").remove();
+
+        // Get a list of tags on "this level" that the tag got moved to
+        var parent = $(item).parent();
+        $(parent).children(".ODRTagItem").not(".ODRPlaceholderTag").each(function(index, element) {
+            var tag_id = $(element).attr('rel');
+            var form_element = $("<input>", {"class": "ODRTagPositionForm_input", "type": "hidden", "value": tag_id, "name": "tag_ordering[" + index + "]"});
+            $("#ODRTagPositionForm").append(form_element);
+        });
+
+
+        // Get the (new) parent of the tag that just got moved
+        var child_tag_id = $(item).attr('rel');
+        var child_tag = $("<input>", {"class": "ODRTagPositionForm_input", "type": "hidden", "value": child_tag_id, "name": "child_tag_id"});
+        $("#ODRTagPositionForm").append(child_tag);
+
+        var parent_tag_id = $(item).parent().parent().attr('rel');
+        var parent_tag = $("<input>", {"class": "ODRTagPositionForm_input", "type": "hidden", "value": parent_tag_id, "name": "parent_tag_id"});
+        $("#ODRTagPositionForm").append(parent_tag);
+
+
+        var datafield_id = $("#ODRTagPositionForm").attr('rel');
+        var url = '{{ path('odr_move_tag', { 'datafield_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += datafield_id;
+
+        // return;
+
+        var post_data = $("#ODRTagPositionForm").serialize();
+        $.ajax({
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: post_data,
+            success: function(data) {
+                notifySaved();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Forcibly reload on error
+                window.location.reload();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+
+                save_datafield_xhr = null;
+            }
+        });
+    }
+</script>
+
+{% endspaceless %}

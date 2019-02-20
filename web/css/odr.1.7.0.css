@@ -3774,3 +3774,83 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     text-align: left;
     color: #2b2e38;
 }
+
+.ODRPluginErrorDiv {
+    margin: 0.5em;
+}
+
+
+#ODRTagPositionForm {
+    display: none;
+}
+
+.ODRTagWrapper_design {
+    /*max-height: 200px;*/
+    /*overflow-y: scroll;*/
+}
+.ODRTagWrapper_design li {
+    list-style-type: none;
+}
+.ODRTagWrapper_design .ODRTagGroup {
+    padding-left: 30px;
+}
+
+.ODRTagWrapper_view {
+    /*max-height: 200px;*/
+    /*overflow-y: scroll;*/
+}
+.ODRTagWrapper_view li {
+    list-style-type: none;
+}
+.ODRTagWrapper_view .ODRTagGroup {
+    padding-left: 15px;
+}
+
+.ODRTagWrapper_edit {
+    /*max-height: 200px;*/
+    /*overflow-y: scroll;*/
+}
+.ODRTagWrapper_edit li {
+    list-style-type: none;
+}
+.ODRTagWrapper_edit .ODRTagGroup {
+    padding-left: 15px;
+}
+
+.ODRTagLabel {
+    cursor: default;
+}
+.ODRTagSpacer {
+    width: 20px;
+    display: inline-block;
+}
+.ODRTagAnchor {
+    min-width: 22px;
+    display: inline-block;
+}
+
+.ODRTagItem {
+    border: 1px solid transparent;
+    border-radius: 5px;
+}
+.ODRNeighorTag {
+    border: 1px solid #1c81d0 !important;
+    border-radius: 5px;
+}
+.ODRTagHighlight {
+    margin-left: 10px;
+    background-color: #ffffcc;
+
+    border: 2px solid transparent;
+    border-radius: 5px;
+}
+.ODRTagGroupPlaceholder {
+    display: block; /* sortable plugin jumps all over the place without this */
+}
+.ODRPlaceholderTag {
+    display: block; /* sortable plugin jumps all over the place without this */
+    height: 8px; /* originally was 7px */
+
+    /* makes debugging easier */
+    /*background-color: #ffbbbb;*/
+}

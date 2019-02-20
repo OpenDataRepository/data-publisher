@@ -41,6 +41,11 @@ class DatatypeInfoService
     private $cache_service;
 
     /**
+     * @var TagHelperService
+     */
+    private $th_service;
+
+    /**
      * @var string
      */
     private $odr_web_dir;
@@ -56,17 +61,20 @@ class DatatypeInfoService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param TagHelperService $tagHelperService
      * @param string $odr_web_dir
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        TagHelperService $tagHelperService,
         $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->th_service = $tagHelperService;
         $this->odr_web_dir = $odr_web_dir;
         $this->logger = $logger;
     }
@@ -375,19 +383,16 @@ class DatatypeInfoService
      */
     private function buildDatatypeData($grandparent_datatype_id)
     {
-/*
-        $timing = true;
-        $timing = false;
-
-        $t0 = $t1 = $t2 = null;
-        if ($timing)
-            $t0 = microtime(true);
-*/
         // This function is only called when the cache entry doesn't exist
 
         // Going to need the datatree array to rebuild this
         $datatree_array = self::getDatatreeArray();
 
+        // Going to need any tag hierarchy data for this datatype
+        $tag_hierarchy = $this->th_service->getTagHierarchy($grandparent_datatype_id);
+
+
+        // ----------------------------------------
         // Get all non-layout data for the requested datatype
         $query = $this->em->createQuery(
            'SELECT
@@ -405,7 +410,7 @@ class DatatypeInfoService
                 partial mdf.{id},
                 partial df_cb.{id, username, email, firstName, lastName},
 
-                ro, rom,
+                ro, rom, t, tm,
                 df_rp, df_rpi, df_rpo, df_rpm
 
             FROM ODRAdminBundle:DataType AS dt
@@ -438,6 +443,9 @@ class DatatypeInfoService
             LEFT JOIN df.radioOptions AS ro
             LEFT JOIN ro.radioOptionMeta AS rom
 
+            LEFT JOIN df.tags AS t
+            LEFT JOIN t.tagMeta AS tm
+
             LEFT JOIN dfm.renderPlugin AS df_rp
             LEFT JOIN df_rp.renderPluginInstance AS df_rpi WITH (df_rpi.dataField = df)
             LEFT JOIN df_rpi.renderPluginOptions AS df_rpo
@@ -456,13 +464,7 @@ class DatatypeInfoService
         $datatype_data = $query->getArrayResult();
 
         // TODO - if $datatype_data is empty, then $grandparent_datatype_id was deleted...should this return something special in that case?
-/*
-        if ($timing) {
-            $t1 = microtime(true);
-            $diff = $t1 - $t0;
-            print 'buildDatatypeData('.$datatype_id.')'."\n".'query execution in: '.$diff."\n";
-        }
-*/
+
         // The entity -> entity_metadata relationships have to be one -> many from a database
         // perspective, even though there's only supposed to be a single non-deleted entity_metadata
         // object for each entity.  Therefore, the preceding query generates an array that needs
@@ -508,6 +510,32 @@ class DatatypeInfoService
                 if ( count($df['radioOptions']) == 0 )
                     unset( $df['radioOptions'] );
 
+                // Flatten tags if they exist
+                $tag_list = array();
+                foreach ($df['tags'] as $t_num => $t) {
+                    $tag_id = $t['id'];
+                    $tag_list[$tag_id] = $t;
+                    $tag_list[$tag_id]['tagMeta'] = $t['tagMeta'][0];
+                }
+                if ( count($tag_list) == 0 ) {
+                    // No tags, get rid of entry to reduce twig confusion
+                    unset( $df['tags'] );
+                }
+                else {
+                    // Tags exist, attempt to locate any tag hierarchy data
+                    $tag_tree = array();
+                    if ( isset($tag_hierarchy[$dt_id]) && isset($tag_hierarchy[$dt_id][$df_id]) )
+                        $tag_tree = $tag_hierarchy[$dt_id][$df_id];
+
+                    // Stack/order the tags before saving them in the array
+                    $tag_list = $this->th_service->stackTagArray($tag_list, $tag_tree);
+                    $this->th_service->orderStackedTagArray($tag_list);
+
+                    // Also save the tag hierarchy in here for convenience
+                    $df['tags'] = $tag_list;
+                    $df['tagTree'] = $tag_tree;
+                }
+
                 $new_datafield_array[$df_id] = $df;
             }
 
@@ -517,7 +545,8 @@ class DatatypeInfoService
 
             // ----------------------------------------
             // Build up a list of child/linked datatypes and their basic information
-            // I don't think the 'is_link' and 'multiple_allowed' properties are used, but meh
+            // I think the 'is_link' property is used during rendering, but I'm not sure about the
+            //  'multiple_allowed' property
             $descendants = array();
             foreach ($datatree_array['descendant_of'] as $child_dt_id => $parent_dt_id) {
                 if ($parent_dt_id == $dt_id)
@@ -537,7 +566,7 @@ class DatatypeInfoService
         }
 
 
-        // Organize by datatype id
+        // Organize by datatype id...permissions filtering doesn't work if the array isn't flat
         $formatted_datatype_data = array();
         foreach ($datatype_data as $num => $dt_data) {
             $dt_id = $dt_data['id'];
@@ -545,14 +574,8 @@ class DatatypeInfoService
             $formatted_datatype_data[$dt_id] = $dt_data;
         }
 
-/*
-        if ($timing) {
-            $t1 = microtime(true);
-            $diff = $t2 - $t1;
-            print 'buildDatatypeData('.$datatype_id.')'."\n".'array formatted in: '.$diff."\n";
-        }
-*/
 
+        // ----------------------------------------
         // Save the formatted datarecord data back in the cache, and return it
         $this->cache_service->set('cached_datatype_'.$grandparent_datatype_id, $formatted_datatype_data);
         return $formatted_datatype_data;

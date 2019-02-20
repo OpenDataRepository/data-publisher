@@ -1,0 +1,28 @@
+{% spaceless %}
+
+{% set has_children = false %}
+{% if tag.children is defined and tag.children is not empty %}
+    {% set has_children = true %}
+{% endif %}
+
+<li class="ODRTagItem">
+{% if has_children %}
+    <span class="ODRTagSpacer ODRTagParent"><i class="fa fa-caret-down Pointer"></i></span>
+{% else %}
+    <span class="ODRTagSpacer"></span>
+{% endif %}
+
+    <label class="ODRTagLabel">{{ tag.tagMeta.tagName }}</label>
+
+{% if has_children %}
+    <ul class="ODRTagGroup">
+        {% for tag_id, child_tag in tag.children %}
+            {% include 'ODRAdminBundle:Displaytemplate:tag.html.twig' with {
+                'tag': child_tag,
+            } %}
+        {% endfor %}
+    </ul>
+{% endif %}
+</li>
+
+{% endspaceless %}

@@ -141,6 +141,7 @@ services:
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
+            tag_helper_service: "@odr.tag_helper_service"
             token_manager: "@security.csrf.token_manager"
             logger: "@logger"
 
@@ -149,6 +150,7 @@ services:
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
+            tag_helper_service: "@odr.tag_helper_service"
             odr_web_dir: "%odr_web_directory%"
             logger: "@logger"
 
@@ -159,6 +161,15 @@ services:
             cache_service: "@odr.cache_service"
             datatype_info_service: "@odr.datatype_info_service"
             session: "@session"
+            logger: "@logger"
+
+
+    odr.tag_helper_service:
+        class: ODR\AdminBundle\Component\Service\TagHelperService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            cache_service: "@odr.cache_service"
+            token_manager: "@security.csrf.token_manager"
             logger: "@logger"
 
     odr.table_theme_helper_service:

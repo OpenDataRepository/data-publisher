@@ -2055,8 +2055,13 @@ if ($debug) {
                 }
 
                 // Ensure there is a link between the two datarecords
-                // This function will also take care of marking as updated and cache clearing
                 $ec_service->createDatarecordLink($user, $ancestor_datarecord, $descendant_datarecord);
+
+
+                // Force a rebuild of the cached entry for the ancestor datarecord
+                $dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
+                // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
+                $cache_service->delete('associated_datarecords_for_'.$ancestor_datarecord->getGrandparent()->getId());
             }
 
             $em->flush();

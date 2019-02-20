@@ -535,7 +535,9 @@ class PermissionsManagementService
 
 
     /**
-     * Returns whether the given user can edit the given Datafield for the given Datarecord.
+     * Returns whether the given user can edit the given Datafield.  The Datarecord parameter is
+     * technically optional...but should be passed in if at all possible.  Without it, the return
+     * value of of this function CAN NOT take datarecord_restriction into consideration.
      *
      * Users with this permission are able to...
      *  - change the content of this datafield
@@ -544,19 +546,27 @@ class PermissionsManagementService
      *
      * @param ODRUser $user
      * @param DataFields $datafield
-     * @param DataRecord $datarecord
+     * @param DataRecord|null $datarecord
      *
      * @return bool
      */
-    public function canEditDatafield($user, $datafield, $datarecord)
+    public function canEditDatafield($user, $datafield, $datarecord = null)
     {
         // If the user isn't logged in, they can't edit any Datafield
         if ($user === "anon.")
             return false;
 
-        // The user is only allowed to edit this Datafield if they can also edit the Datarecord
-        if ( !self::canEditDatarecord($user, $datarecord) )
+        // Ensure the user has the "dr_edit" permission for this Datatype first...
+        if ( !self::canEditDatatype($user, $datafield->getDataType()) )
             return false;
+
+        // ...and if a Datarecord was specified...
+        if ( !is_null($datarecord) ) {
+            // ...ensure they can edit this specific Datarecord as well
+            if ( !self::canEditDatarecord($user, $datarecord) )
+                return false;
+        }
+
 
         // Otherwise, the user is logged in and able to edit the Datarecord
         $datafield_permissions = self::getDatafieldPermissions($user);

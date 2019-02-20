@@ -1626,6 +1626,10 @@ class EditController extends ODRCustomController
                     throw new ODRNotFoundException('RadioOption');
             }
 
+            // This should only work on a Radio field
+            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
+                throw new ODRBadRequestException();
+
 
             // --------------------
             // Determine user privileges

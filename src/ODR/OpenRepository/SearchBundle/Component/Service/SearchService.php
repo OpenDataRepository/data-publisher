@@ -1410,6 +1410,9 @@ class SearchService
 
 
     /**
+     * TODO - rename this?
+     * TODO - hunt down everywhere that queries the database for a datarecord list and replace with this function?
+     *
      * Building/modifying the two search arrays requires knowledge of all datarecords of a given
      * datatype, and their parent datarecords (or ancestors if this is a linked datatype).
      *
@@ -1431,10 +1434,10 @@ class SearchService
             // The given $datatype_id is either the datatype being searched on, or some child
             //  datatype
             $list = $this->cache_service->get('cached_search_dt_'.$datatype_id.'_dr_parents');
-            if (!$list)
+            if (!$list) {
                 $list = $this->search_query_service->getParentDatarecords($datatype_id);
-
-            $this->cache_service->set('cached_search_dt_'.$datatype_id.'_dr_parents', $list);
+                $this->cache_service->set('cached_search_dt_'.$datatype_id.'_dr_parents', $list);
+            }
         }
         else {
             // The datatype being searched on (irrelevant to this function) somehow links to the
@@ -1442,10 +1445,10 @@ class SearchService
             //  datarecords (instead of having a single "ancestor" in the case of a child datarecord),
             //  the returned array has a different structure
             $list = $this->cache_service->get('cached_search_dt_'.$datatype_id.'_linked_dr_parents');
-            if (!$list)
+            if (!$list) {
                 $list = $this->search_query_service->getLinkedParentDatarecords($datatype_id);
-
-            $this->cache_service->set('cached_search_dt_'.$datatype_id.'_linked_dr_parents', $list);
+                $this->cache_service->set('cached_search_dt_'.$datatype_id.'_linked_dr_parents', $list);
+            }
         }
 
         return $list;

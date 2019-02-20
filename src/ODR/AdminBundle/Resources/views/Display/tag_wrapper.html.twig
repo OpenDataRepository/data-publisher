@@ -1,0 +1,39 @@
+{% spaceless %}
+
+{% set display_unselected = false %}
+{% if datafield.dataFieldMeta.radio_option_display_unselected == 1 %}
+    {% set display_unselected = true %}
+{% endif %}
+
+{% set tag_selections = drf.tagSelection %}
+{% set child_tag_selections = drf.child_tagSelections %}
+
+<div class="ODRTagWrapper_view">
+    <ul class="ODRTagGroup">
+        {% for tag_id, tag in stacked_tags %}
+            {# Store whether this top-level tag is selected #}
+            {% set is_selected = 0 %}
+            {% if tag_selections[ tag.id ] is defined %}
+                {% set is_selected = tag_selections[ tag.id ].selected %}
+            {% endif %}
+
+            {# Store whether this top-level tag has children which are selected #}
+            {% set child_is_selected = 0 %}
+            {% if child_tag_selections[ tag.id ] is defined %}
+                {% set child_is_selected = 1 %}
+            {% endif %}
+
+            {% if display_unselected or (is_selected == 1 or child_is_selected == 1) %}
+                {% include 'ODRAdminBundle:Display:tag.html.twig' with {
+                    'display_unselected': display_unselected,
+
+                    'tag_selections': tag_selections,
+                    'child_tag_selections': child_tag_selections,
+                    'tag': tag,
+                } %}
+            {% endif %}
+        {% endfor %}
+    </ul>
+</div>
+
+{% endspaceless %}

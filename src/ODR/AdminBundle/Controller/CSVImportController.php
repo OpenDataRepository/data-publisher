@@ -3660,10 +3660,15 @@ exit();
 
             // ----------------------------------------
             // Ensure a link exists from the local datarecord to the remote datarecord
-            // This function will also take care of marking as updated and cache clearing
 //            parent::ODR_linkDataRecords($em, $user, $local_datarecord, $remote_datarecord);
             $ec_service->createDatarecordLink($user, $local_datarecord, $remote_datarecord);    // TODO - test this
             $status .= ' -- Datarecord '.$local_datarecord->getId().' (external id: "'.$local_external_id.'") is now linked to Datarecord '.$remote_datarecord->getId().' (external id: "'.$remote_external_id.'")'."\n";
+
+            // TODO - put this somewhere, it's no longer inside createDatarecordLink()
+            // Force a rebuild of the cached entry for the ancestor datarecord
+//            $dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
+            // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
+//            $cache_service->delete('associated_datarecords_for_'.$ancestor_datarecord->getGrandparent()->getId());
 
             // Linking/unlinking a datarecord has no effect on datarecord order
 

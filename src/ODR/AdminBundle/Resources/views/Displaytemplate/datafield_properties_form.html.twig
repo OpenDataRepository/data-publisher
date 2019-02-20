@@ -82,10 +82,12 @@
                 {% endif %}
             </span>
 
-
+            {% if typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar' or typeclass == 'LongVarchar' or typeclass == 'LongText' %}
             <span id="field_type_meta" class="Cursor ODRDataInspector" title="{% if typename == 'Long Text' %}255{% elseif typename == 'Medium Text' %}64{% elseif typename == 'Short Text' %}32{% else %}No{% endif %} Character Limit">
                 &nbsp;<i class="fa fa-question-circle fa-lg"></i>
             </span>
+            {% endif %}
+
             {% if typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar' or typeclass == 'LongVarchar' or typeclass == 'LongText' or typeclass == 'IntegerValue' or typeclass == 'DecimalValue' %}
             <span>
                 <a target="_blank"
@@ -192,7 +194,7 @@
         </div>
         {% endif %}
 
-        {% if typename == 'Single Radio' or typename == 'Multiple Radio' or typename == 'Single Select' or typename == 'Multiple Select' %}
+        {% if typename == 'Single Radio' or typename == 'Multiple Radio' or typename == 'Single Select' or typename == 'Multiple Select' or typename == 'Tags' %}
         <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.radio_option_name_sort) }}
             {{ form_widget(datafield_form.radio_option_name_sort, { 'attr': {'class': 'ODRDatafieldNameSort ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
@@ -207,10 +209,14 @@
                 {{ datafield_form.radio_option_display_unselected.vars.label }}
             </label>
         </div>
-        <div class="ODRCheckboxProperty ODRRadioOptions" rel="{{ datafield.id }}">
-            <i id="Field_{{ datafield.id }}_radio_options" class="Pointer fa fa-lg fa-cog" title="Edit Options"></i>
-            Edit Available Choices
-        </div>
+            {% if typename != 'Tags' %}
+            <div class="ODRCheckboxProperty ODRRadioOptions" rel="{{ datafield.id }}">
+                <i id="Field_{{ datafield.id }}_radio_options" class="Pointer fa fa-lg fa-cog" title="Edit Options"></i>
+                Edit Available Choices
+            </div>
+            {% else %}
+                <div>TODO</div>
+            {% endif %}
         {% endif %}
 
         {% if typename != 'Markdown' %}   {# all fields except markdown are searchable to some degree #}

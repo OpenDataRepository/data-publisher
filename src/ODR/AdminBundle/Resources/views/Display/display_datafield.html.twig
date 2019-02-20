@@ -32,6 +32,8 @@
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typeclass == "Radio" %}
         {% set valuefield = datarecordfield.radioSelection %}
+    {% elseif field_typeclass == "Tag" %}
+        {% set valuefield = datarecordfield.tagSelection %}
     {% elseif field_typename == "Short Text" and datarecordfield.shortVarchar[0] is defined %}
         {% set valuefield = datarecordfield.shortVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
@@ -192,6 +194,19 @@
                         </label>
                     {% endif %}
                 {% endfor %}
+            {% endif %}
+        </fieldset>
+
+    {% elseif field_typename == "Tags" %}
+        <fieldset>
+            <label class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            {% if datafield.tags is defined %}
+                {% include 'ODRAdminBundle:Display:tag_wrapper.html.twig' with {
+                    'datafield': datafield,
+
+                    'drf': datarecordfield,
+                    'stacked_tags': datafield.tags,
+                } %}
             {% endif %}
         </fieldset>
 
