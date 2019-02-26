@@ -1900,6 +1900,17 @@
         url = url.substring(0, (url.length - 1));
         url += datafield_id;
 
+        var theme_element_data = $("#Field_" + datafield_id)
+            .closest(".ODRThemeElement").parent().closest(".ODRThemeElement").attr('id').split(/_/);
+
+        var theme_element_id = null;
+        if(theme_element_data.length > 1) {
+            theme_element_id = theme_element_data[1];
+            url += "/" + theme_element_id;
+        }
+
+        // TODO need to send the TED id if this
+
         var tdf = $("#ThemeDesignForm");
         var post_data = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
         $.ajax({
@@ -2034,6 +2045,15 @@
                 var url = '{{ path('odr_design_get_datafield_properties', { 'datafield_id': 0 } ) }}';
                 url = url.substring(0, (url.length - 1));
                 url += datafield_id;
+
+                var theme_element_data = $("#Field_" + datafield_id)
+                    .closest(".ODRThemeElement").parent().closest(".ODRThemeElement").attr('id').split(/_/);
+
+                var theme_element_id = null;
+                if(theme_element_data.length > 1) {
+                    theme_element_id = theme_element_data[1];
+                    url += "/" + theme_element_id;
+                }
 
                 // Attempt to ensure only the most recent datafield property request goes through
                 if (datafield_properties_xhr !== null)

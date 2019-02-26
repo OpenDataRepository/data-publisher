@@ -547,30 +547,57 @@ class ThemeInfoService
      * Returns the given datatype's "master" theme.
      *
      * @param integer $datatype_id
+     * @param integer $theme_element_id
      *
      * @return Theme
      */
-    public function getDatatypeMasterTheme($datatype_id)
+    public function getDatatypeMasterTheme($datatype_id, $theme_element_id = 0)
     {
         // Query the database to get this datatype's master theme
-        $query = $this->em->createQuery(
-           'SELECT t
+        if($theme_element_id > 0) {
+            $query = $this->em->createQuery(
+                'SELECT t
+            FROM ODRAdminBundle:Theme AS t
+            JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
+            INNER JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.childTheme = t
+            WHERE 
+                t.dataType = :datatype_id 
+                AND tdt.themeElement = :theme_element_id
+                AND t.themeType = :theme_type
+            AND t = t.sourceTheme
+            AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datatype_id' => $datatype_id,
+                    'theme_element_id' => $theme_element_id,
+                    'theme_type' => 'master',
+                )
+            );
+        }
+        else {
+            $query = $this->em->createQuery(
+                'SELECT t
             FROM ODRAdminBundle:Theme AS t
             JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
             WHERE t.dataType = :datatype_id AND t.themeType = :theme_type
             AND t = t.sourceTheme
             AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'datatype_id' => $datatype_id,
-                'theme_type' => 'master',
-            )
-        );
+            )->setParameters(
+                array(
+                    'datatype_id' => $datatype_id,
+                    'theme_type' => 'master',
+                )
+            );
+        }
         $result = $query->getResult();
 
 
         // Sanity check...
-        if ( count($result) !== 1 ) {
+        if ( count($result) >= 1 ) {
+            // Return this datatype's master theme
+            return $result[0];
+        }
+        else if ( count($result) !== 1 ) {
             throw new ODRException('This datatype does not have a "master" theme', 500, 0x2e0a8d28);
         }
         else {

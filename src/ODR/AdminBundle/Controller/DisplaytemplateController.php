@@ -3005,11 +3005,12 @@ class DisplaytemplateController extends ODRCustomController
      * Loads/saves an ODR DataFields properties Form.
      *
      * @param integer $datafield_id The database id of the DataField being modified.
+     * @param integer $theme_element_id
      * @param Request $request
      *
      * @return Response
      */
-    public function datafieldpropertiesAction($datafield_id, Request $request)
+    public function datafieldpropertiesAction($datafield_id, $theme_element_id = 0, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -3044,8 +3045,10 @@ class DisplaytemplateController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
+            // TODO Add Check if TED Exists and if datafield is related to it
+
             // Ensure the datatype has a master theme...
-            $theme_service->getDatatypeMasterTheme($datatype->getId());
+            $theme_service->getDatatypeMasterTheme($datatype->getId(), $theme_element_id);
 
 
             // --------------------

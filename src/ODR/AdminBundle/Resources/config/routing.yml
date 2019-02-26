@@ -507,6 +507,13 @@ odr_design_get_datafield_properties:
     requirements:
         datafield_id:  \d+
 
+odr_design_get_datafield_properties_with_ted:
+    path:  /design/displaytemplate/datafieldproperties/{datafield_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldproperties }
+    requirements:
+        datafield_id:  \d+
+        theme_element_id: \d+
+
 odr_design_delete_datafield:
     path:  /design/displaytemplate/deletefield/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:deletedatafield }
