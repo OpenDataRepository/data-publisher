@@ -57,6 +57,11 @@
 <div id="download_files_dialog_wrapper">
     {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
 </div>
+<div id="tag_edit_dialog_wrapper">
+    {% include 'ODRAdminBundle:Edit:tag_wrapper_dialog.html.twig' with {
+        'datarecord': datarecord
+    } %}
+</div>
 {% endspaceless %}
 
 <script>
@@ -103,6 +108,13 @@ function initPage() {
 
     // Attach click handlers to tags
     setupTagTree();
+
+    $(".ODRTagsEdit").unbind('click').click(function() {
+        {# defined in ODRAdminBundle:Edit:tag_wrapper_dialog.html.twig #}
+        var datafield_id = $(this).attr('rel');
+        openTagEditDialog(datafield_id);
+    });
+
 
     $(".ODRFileDownloadProgress").hide();
 

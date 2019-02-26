@@ -513,18 +513,32 @@ class DatarecordInfoService
                     // ...then a list of which non-leaf tags have selected child/grandchild/etc tags
                     //  needs to be created and stored
                     $tag_tree = array();
-                    if ( isset($tag_hierarchy[$dt_id]) && isset($tag_hierarchy[$dt_id][$df_id]) )
+                    $inversed_tag_tree = array();
+                    if ( isset($tag_hierarchy[$dt_id]) && isset($tag_hierarchy[$dt_id][$df_id]) ) {
                         $tag_tree = $tag_hierarchy[$dt_id][$df_id];
+
+                        // Building the list of which tags have selected child tags is easier if
+                        //  the tag tree is inverted first
+                        foreach ($tag_tree as $parent_tag_id => $children) {
+                            foreach ($children as $child_tag_id => $tmp)
+                                $inversed_tag_tree[$child_tag_id] = $parent_tag_id;
+                        }
+                    }
 
                     // For each tag that is selected...
                     $selections = array();
                     foreach ($drf['tagSelection'] as $t_id => $ts) {
-                        if ( $ts['selected'] === 1 ) {
-                            // ...if it's a child of another tag...
+                        if ( isset($tag_tree[$t_id]) ) {
+                            // ...if it's a tag with children, it shouldn't have a tagSelection entry
+                            unset( $drf['tagSelection'][$t_id] );
+                        }
+                        else if ( $ts['selected'] === 1 ) {
+                            // ...otherwise, it's a tag without children and is selected...
                             $current_tag_id = $t_id;
-                            while ( isset($tag_tree[$current_tag_id]) ) {
-                                // ...then store that the parent has a child tag that is selected
-                                $parent_tag_id = $tag_tree[$current_tag_id];
+                            // ...then for every ancestor of this tag...
+                            while ( isset($inversed_tag_tree[$current_tag_id]) ) {
+                                // ...store that they have a descendant tag that is selected
+                                $parent_tag_id = $inversed_tag_tree[$current_tag_id];
                                 $selections[$parent_tag_id] = '';
 
                                 // ...continue looking for parent tags

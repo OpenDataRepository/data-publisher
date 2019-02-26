@@ -294,7 +294,13 @@
 
     {% elseif field_typename == "Tags" %}
         <fieldset>
-            <label class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">
+                {{ datafield_meta.fieldName }}
+                {% if datafield_meta.tags_allow_non_admin_edit or is_datatype_admin %}
+                <span class="ODRTagsEdit" rel="{{ datafield.id }}"><i class="Pointer fa fa-lg fa-cog" title="Edit Tags"></i></span>
+                {% endif %}
+            </label>
+
             {% if datafield.tags is defined %}
                 {% include 'ODRAdminBundle:Edit:tag_wrapper.html.twig' with {
                     'unique_id': unique_id,

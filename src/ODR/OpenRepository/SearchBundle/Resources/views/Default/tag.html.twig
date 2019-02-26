@@ -1,0 +1,31 @@
+{% spaceless %}
+
+{# Store whether this tag has any child tags #}
+{% set has_children = false %}
+{% if tag.children is defined and tag.children is not empty %}
+    {% set has_children = true %}
+{% endif %}
+
+<li class="ODRTagItem">
+    {#<span class="ODRTagSpacer"></span>#}
+
+    <label id="Label_{{ tag.id }}" for="Input_{{ tag.id }}" class="ODRTagLabel pure-u-1">
+        <span class="ODRTristateCheckbox">
+            <i class="fa"></i>
+            <input type="hidden" rel="{{ tag.id }}" value="" {% if has_children %}class="ODRSearchParentTag"{% endif %} />
+        </span>
+        {{ tag.tagMeta.tagName }}
+    </label>
+
+{% if has_children %}
+    <ul class="ODRTagGroup">
+        {% for tag_id, child_tag in tag.children %}
+            {% include 'ODROpenRepositorySearchBundle:Default:tag.html.twig' with {
+                'tag': child_tag,
+            } %}
+        {% endfor %}
+    </ul>
+{% endif %}
+</li>
+
+{% endspaceless %}

@@ -15,6 +15,11 @@
     and datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
     {% set can_delete_record = 1 %}
 {% endif %}
+{% set is_datatype_admin = 0 %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+    {% set is_datatype_admin = 1 %}
+{% endif %}
 
 {#
 --------------------</br>
@@ -97,8 +102,9 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
 
                             <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}">
                             {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
-                                {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
-                            {# elseif is_link == 0 and can_edit_datafield == 1 #}
+                                {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {
+                                    'datafield': datafield
+                                } %}
                             {% elseif can_edit_datafield == 1 %}
                                 {% include 'ODRAdminBundle:Edit:edit_datafield.html.twig' with {
                                     'datatype': datatype,
@@ -107,9 +113,10 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
                                     'is_link': is_link,
                                     'force_image_reload' : false,
                                     'token_list': token_list,
+                                    'is_datatype_admin': is_datatype_admin,
                                 } %}
                             {% else %}
-                                {# datafield from a linked datatype, or user isn't allowed to edit datafield#}
+                                {# user isn't allowed to edit datafield #}
                                 {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
                                     'datarecord': datarecord,
                                     'datafield': datafield,

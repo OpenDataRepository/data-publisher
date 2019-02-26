@@ -1510,6 +1510,11 @@ pre .support.value  {
     .ODRRadioLabel {
         margin: 0.5em 0;
     }
+    .ODRTagSearchDiv {
+        max-height: 300px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
 
     .fa {
         padding: 0px;
@@ -1520,8 +1525,8 @@ pre .support.value  {
     .ODRTristateCheckbox > .fa-check {
         color: green;
     }
-    .ODRTristateCheckbox > .fa-check.partial {
-        color: grey;
+    .ODRTristateCheckbox > .partial {
+        color: grey !important;
     }
     .ODRTristateCheckbox {
         cursor: pointer;
@@ -3785,14 +3790,17 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 .ODRTagWrapper_design {
-    /*max-height: 200px;*/
-    /*overflow-y: scroll;*/
+    text-align: left;
+    color: #555;
 }
 .ODRTagWrapper_design li {
     list-style-type: none;
 }
 .ODRTagWrapper_design .ODRTagGroup {
     padding-left: 30px;
+}
+.ODRTagGroupContainer {
+    padding-left: 0px;
 }
 
 .ODRTagWrapper_view {
@@ -3817,14 +3825,17 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     padding-left: 15px;
 }
 
-.ODRTagLabel {
+.ODRTagWrapper_view .ODRTagLabel {
+    cursor: default;
+}
+.ODRTagWrapper_edit .ODRTagLabel {
     cursor: default;
 }
 .ODRTagSpacer {
     width: 20px;
     display: inline-block;
 }
-.ODRTagAnchor {
+.ODRTagAnchor, .ODRTagDelete {
     min-width: 22px;
     display: inline-block;
 }

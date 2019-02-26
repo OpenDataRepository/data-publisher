@@ -215,7 +215,10 @@
                 Edit Available Choices
             </div>
             {% else %}
-                <div>TODO</div>
+                <div class="ODRCheckboxProperty ODRTagsEdit" rel="{{ datafield.id }}">
+                    <i id="Field_{{ datafield.id }}_tags" class="Pointer fa fa-lg fa-cog" title="Edit Tags"></i>
+                    Edit Available Tags
+                </div>
             {% endif %}
         {% endif %}
 

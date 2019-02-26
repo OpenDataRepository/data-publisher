@@ -5,8 +5,15 @@
     {% set display_unselected = true %}
 {% endif %}
 
-{% set tag_selections = drf.tagSelection %}
-{% set child_tag_selections = drf.child_tagSelections %}
+{% set tag_selections = [] %}
+{% if drf.tagSelection is defined %}
+    {% set tag_selections = drf.tagSelection %}
+{% endif %}
+
+{% set child_tag_selections = [] %}
+{% if drf.child_tagSelections is defined %}
+    {% set child_tag_selections = drf.child_tagSelections %}
+{% endif %}
 
 <div class="ODRTagWrapper_view">
     <ul class="ODRTagGroup">

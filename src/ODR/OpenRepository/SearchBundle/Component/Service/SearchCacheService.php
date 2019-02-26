@@ -191,6 +191,28 @@ class SearchCacheService
                     $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
             }
         }
+
+        // Delete all cached search entries for all tags in these datatypes
+        $query = $this->em->createQuery(
+           'SELECT t.id AS t_id, t.tagUuid AS t_uuid
+            FROM ODRAdminBundle:Tags AS t
+            JOIN ODRAdminBundle:DataFields AS df WITH t.dataField = df
+            WHERE df.dataType IN (:datatype_ids)
+            AND t.deletedAt IS NULL AND df.deletedAt IS NULL'
+        )->setParameters( array('datatype_ids' => $related_datatypes) );
+        $results = $query->getArrayResult();
+
+        if ( is_array($results) ) {
+            foreach ($results as $result) {
+                $t_id = $result['t_id'];
+                $t_uuid = $result['t_uuid'];
+
+                $this->cache_service->delete('cached_search_tag_'.$t_id);
+
+                if ( !is_null($t_uuid) )
+                    $this->cache_service->delete('cached_search_template_tag_'.$t_uuid);
+            }
+        }
     }
 
 
@@ -279,6 +301,28 @@ class SearchCacheService
 
                     if ( !is_null($ro_uuid) )
                         $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
+                }
+            }
+        }
+        // Do the same if it's a tag datafield
+        else if ($datafield->getFieldType()->getTypeClass() === 'Tag') {
+            $query = $this->em->createQuery(
+               'SELECT t.id AS t_id, t.tagUuid AS t_uuid
+                FROM ODRAdminBundle:Tags AS t
+                WHERE t.dataField = :datafield_id
+                AND t.deletedAt IS NULL'
+            )->setParameters( array('datafield_id' => $datafield->getId()) );
+            $results = $query->getArrayResult();
+
+            if ( is_array($results) ) {
+                foreach ($results as $result) {
+                    $t_id = $result['t_id'];
+                    $t_uuid = $result['t_uuid'];
+
+                    $this->cache_service->delete('cached_search_tag_'.$t_id);
+
+                    if ( !is_null($t_uuid) )
+                        $this->cache_service->delete('cached_search_template_tag_'.$t_uuid);
                 }
             }
         }
@@ -395,6 +439,28 @@ class SearchCacheService
                     $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
             }
         }
+
+        // Same deal for tag datafields
+        $query = $this->em->createQuery(
+           'SELECT t.id AS t_id, t.tagUuid AS t_uuid
+            FROM ODRAdminBundle:Tags AS t
+            JOIN ODRAdminBundle:DataFields AS df WITH t.dataField = df
+            WHERE df.dataType = :datatype_id
+            AND t.deletedAt IS NULL AND df.deletedAt IS NULL'
+        )->setParameters( array('datatype_id' => $datatype->getId()) );
+        $results = $query->getArrayResult();
+
+        if ( is_array($results) ) {
+            foreach ($results as $result) {
+                $t_id = $result['t_id'];
+                $t_uuid = $result['t_uuid'];
+
+                $this->cache_service->delete('cached_search_tag_'.$t_id);
+
+                if ( !is_null($t_uuid) )
+                    $this->cache_service->delete('cached_search_template_tag_'.$t_uuid);
+            }
+        }
     }
 
 
@@ -507,6 +573,28 @@ class SearchCacheService
 
                 if ( !is_null($ro_uuid) )
                     $this->cache_service->delete('cached_search_template_ro_'.$ro_uuid);
+            }
+        }
+
+        // Same theory for tag datafields
+        $query = $this->em->createQuery(
+           'SELECT t.id AS t_id, t.tagUuid AS t_uuid
+            FROM ODRAdminBundle:Tags AS t
+            JOIN ODRAdminBundle:DataFields AS df WITH t.dataField = df
+            WHERE df.dataType = :datatype_id
+            AND t.deletedAt IS NULL AND df.deletedAt IS NULL'
+        )->setParameters( array('datatype_id' => $datatype->getId()) );
+        $results = $query->getArrayResult();
+
+        if ( is_array($results) ) {
+            foreach ($results as $result) {
+                $t_id = $result['t_id'];
+                $t_uuid = $result['t_uuid'];
+
+                $this->cache_service->delete('cached_search_tag_'.$t_id);
+
+                if ( !is_null($t_uuid) )
+                    $this->cache_service->delete('cached_search_template_tag_'.$t_uuid);
             }
         }
     }

@@ -1067,13 +1067,21 @@ class ODRRenderService
             if ( $source_datatype->getId() !== $datarecord->getDataType()->getGrandparent()->getId() )
                 $is_link = true;
 
+            // Tag datafields need to know whether the user is a datatype admin or not
+            $is_datatype_admin = 0;
+            if ( $this->pm_service->isDatatypeAdmin($user, $source_datatype) )
+                $is_datatype_admin = 1;
+
+
             // The 'token_list' and 'force_image_reload' parameters will be merged into this shortly
             $parameters = array(
                 'datatype' => $target_datatype,
                 'datarecord' => $target_datarecord,
                 'datafield' => $target_datafield,
 
-                'is_link' => $is_link
+                'is_link' => $is_link,
+                'force_image_reload' => false,
+                'is_datatype_admin' => $is_datatype_admin,
             );
         }
         else {

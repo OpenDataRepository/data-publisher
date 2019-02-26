@@ -26,6 +26,8 @@ use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\SortService;
+use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Exceptions
@@ -50,7 +52,7 @@ class TagsController extends ODRCustomController
      *
      * @return Response
      */
-    public function gettaglistAction($datafield_id, Request $request)
+    public function loadtagmodalAction($datafield_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -99,9 +101,15 @@ class TagsController extends ODRCustomController
             // This should only work on a Tag field
             if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
                 throw new ODRBadRequestException();
+            // This should not work on a datafield that is derived from a master template
+            if ( !is_null($datafield->getMasterDataField()) )
+                throw new ODRBadRequestException();
 
 
-            // TODO - should tag design actually be on its own page?  wouldn't have to modify the master layout page for users without the "is_datatype_admin" permissions...
+            // ----------------------------------------
+            // Since tag design can be modified from the edit page, and by people without the
+            //  "is_datatype_admin" permission, it makes more sense for tag design to be in a modal
+            // This also reduces the chances that jQuery Sortable will mess something up
             $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId());
 
             $stacked_tag_list = array();
@@ -173,6 +181,8 @@ class TagsController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
 
 
             /** @var DataFields $datafield */
@@ -206,8 +216,12 @@ class TagsController extends ODRCustomController
             // This should only work on a Tag field
             if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
                 throw new ODRBadRequestException();
+            // This should not work on a datafield that is derived from a master template
+            if ( !is_null($datafield->getMasterDataField()) )
+                throw new ODRBadRequestException();
 
 
+            // ----------------------------------------
             // Create a new tag
             $force_create = true;
             $tag_name = "New Tag";
@@ -225,7 +239,7 @@ class TagsController extends ODRCustomController
 
             // If the datafield is configured to sort tags by name, then force a re-sort
             if ($datafield->getRadioOptionNameSort() == true)
-                self::sortTagsByName($user, $datafield);
+                $sort_service->sortTagsByName($user, $datafield);
 
 
             // ----------------------------------------
@@ -264,10 +278,10 @@ class TagsController extends ODRCustomController
             $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
-                    'ODRAdminBundle:Tags:tag_design.html.twig',
+                    'ODRAdminBundle:Tags:tag.html.twig',
                     array(
                         'datafield' => $df_array,
-                        'current_tag' => $tag_array,
+                        'tag' => $tag_array,
                     )
                 )
             );
@@ -324,6 +338,8 @@ class TagsController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
 
 
             /** @var DataFields $datafield */
@@ -357,8 +373,12 @@ class TagsController extends ODRCustomController
             // This should only work on a Tag field
             if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
                 throw new ODRBadRequestException();
+            // This should not work on a datafield that is derived from a master template
+            if ( !is_null($datafield->getMasterDataField()) )
+                throw new ODRBadRequestException();
 
 
+            // ----------------------------------------
             $tag_list = array();
             if ( strlen($post['tag_list']) > 0 )
                 $tag_list = preg_split("/\n/", $post['tag_list']);
@@ -400,7 +420,7 @@ class TagsController extends ODRCustomController
 
             // If the datafield is sorting its tags by name, then all of its tags need a re-sort
             if ($datafield->getRadioOptionNameSort() == true)
-                self::sortTagsByName($user, $datafield);
+                $sort_service->sortTagsByName($user, $datafield);
 
 
             // Update the cached version of the datatype
@@ -424,103 +444,6 @@ class TagsController extends ODRCustomController
 
 
     /**
-     * TODO - test this
-     * Sorts this datafield's tags based on their current name.
-     *
-     * @param ODRUser $user
-     * @param DataFields $datafield
-     */
-    private function sortTagsByName($user, $datafield)
-    {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
-        /** @var EntityMetaModifyService $emm_service */
-        $emm_service = $this->container->get('odr.entity_meta_modify_service');
-
-
-        // ----------------------------------------
-        // Need to create a lookup of tags incase any property needs changed later...
-        $query = $em->createQuery(
-           'SELECT t
-            FROM ODRAdminBundle:Tags AS t
-            WHERE t.dataField = :datafield_id
-            AND t.deletedAt IS NULL'
-        )->setParameters( array('datafield_id' => $datafield->getId()) );
-        /** @var Tags[] $results */
-        $results = $query->getResult();
-
-        // Organize the tags by their id...
-        /** @var Tags[] $tag_list */
-        $tag_list = array();
-        foreach ($results as $tag)
-            $tag_list[ $tag->getId() ] = $tag;
-
-
-        // Also need the actual tag names to sort on
-        $query = $em->createQuery(
-           'SELECT t.id AS tag_id, tm.tagName, p_t.id AS parent_tag_id
-            FROM ODRAdminBundle:Tags AS t
-            JOIN ODRAdminBundle:TagMeta AS tm WITH tm.tag = t
-            LEFT JOIN ODRAdminBundle:TagTree AS tt WITH tt.child = t
-            LEFT JOIN ODRAdminBundle:Tags AS p_t WITH tt.parent = p_t
-            WHERE t.dataField = :datafield_id
-            AND t.deletedAt IS NULL AND tm.deletedAt IS NULL
-            AND tt.deletedAt IS NULL AND p_t.deletedAt IS NULL'
-        )->setParameters( array('datafield_id' => $datafield->getId()) );
-        $results = $query->getArrayResult();
-
-        $tag_groups = array();
-        foreach ($results as $result) {
-            $tag_id = $result['tag_id'];
-            $tag_name = $result['tagName'];
-            $parent_tag_id = $result['parent_tag_id'];
-
-            if ( is_null($parent_tag_id) )
-                $parent_tag_id = 0;
-
-            // Each of the tags needs to be "grouped" by its parent
-            if ( !isset($tag_groups[$parent_tag_id]) )
-                $tag_groups[$parent_tag_id] = array();
-            $tag_groups[$parent_tag_id][$tag_id] = $tag_name;
-        }
-
-
-        // ----------------------------------------
-        // Each "group" of tags can then be sorted individually
-        foreach ($tag_groups as $parent_tag_id => $tag_group) {
-            $tmp = $tag_group;
-            asort($tmp);
-            $tag_groups[$parent_tag_id] = $tmp;
-        }
-
-        // Now that each "group" of tags is sorted...
-        $changes_made = false;
-        foreach ($tag_groups as $parent_tag_id => $tag_group) {
-            $index = 0;
-            foreach ($tag_group as $tag_id => $tag_name) {
-                $tag = $tag_list[$tag_id];
-
-                if ( $tag->getDisplayOrder() !== $index ) {
-                    // ...update each tag's displayOrder to match the sorted list
-                    $properties = array(
-                        'displayOrder' => $index
-                    );
-                    $emm_service->updateTagMeta($user, $tag, $properties, true);    // don't flush immediately...
-                    $changes_made = true;
-                }
-
-                $index++;
-            }
-        }
-
-        // Flush now that all changes have been made
-        if ($changes_made)
-            $em->flush();
-    }
-
-
-    /**
      * Deletes the given Tag.
      *
      * @param int $tag_id
@@ -536,9 +459,6 @@ class TagsController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // TODO - figure out how to handle deletion of non-leaf tags
-            throw new ODRNotImplementedException();
-
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -550,8 +470,12 @@ class TagsController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var TagHelperService $th_service */
+            $th_service = $this->container->get('odr.tag_helper_service');
 
 
             /** @var Tags $tag */
@@ -594,6 +518,20 @@ class TagsController extends ODRCustomController
             // This should only work on a Tag field
             if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
                 throw new ODRBadRequestException();
+            // This should not work on a datafield that is derived from a master template
+            if ( !is_null($datafield->getMasterDataField()) )
+                throw new ODRBadRequestException();
+
+
+            // TODO - figure out how to handle this
+            $tag_hierarchy = $th_service->getTagHierarchy($grandparent_datatype->getId());
+            if ( isset($tag_hierarchy[$datatype->getId()])
+                && isset($tag_hierarchy[$datatype->getId()][$datafield->getId()])
+            ) {
+                $tag_tree = $tag_hierarchy[$datatype->getId()][$datafield->getId()];
+                 if ( isset($tag_tree[$tag->getId()]) )
+                     throw new ODRNotImplementedException('Unsure how to handle deletion of tags with children');
+            }
 
 
             // ----------------------------------------
@@ -627,21 +565,23 @@ class TagsController extends ODRCustomController
             // Mark this datatype as updated
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
-            // Ensure that the cached tag hierarchy doesn't reference this tag
-            $cache_service->delete('cached_tag_tree_'.$grandparent_datatype_id);
+            // Delete the separately cached tag tree for this datatype's grandparent
+            if ( $grandparent_datatype->getIsMasterType() ) {
+                // This is a master template datatype...cross-template searches use this entry
+                //  in the same way a search on a single datatype uses 'cached_tag_tree_<dt_id>"
+                $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
+            }
+            else {
+                // This is not a master template datatype, so it will only have this cache entry
+                $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
 
-            // Wipe cached data for all the datatype's datarecords
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                WHERE dr.dataType = :datatype_id'
-            )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
-            $results = $query->getArrayResult();
+                // Wipe cached data for all the datatype's datarecords
+                $dr_list = $search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
+                foreach ($dr_list as $dr_id => $parent_dr_id)
+                    $cache_service->delete('cached_datarecord_'.$dr_id);
 
-            foreach ($results as $result) {
-                $dr_id = $result['dr_id'];
-                $cache_service->delete('cached_datarecord_'.$dr_id);
-                $cache_service->delete('cached_table_data_'.$dr_id);
+                // Doesn't make sense to delete the "cached_table_data_<dr_id>" entry...tag data
+                //  isn't displayed in table themes
             }
 
             // Delete any cached search results involving this datafield
@@ -696,6 +636,8 @@ class TagsController extends ODRCustomController
             $search_service = $this->container->get('odr.search_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
 
 
             /** @var DataFields $datafield */
@@ -709,6 +651,9 @@ class TagsController extends ODRCustomController
 
             // This should only work on a Tag field
             if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
+                throw new ODRBadRequestException();
+            // This should not work on a datafield that is derived from a master template
+            if ( !is_null($datafield->getMasterDataField()) )
                 throw new ODRBadRequestException();
 
 
@@ -877,7 +822,7 @@ class TagsController extends ODRCustomController
             // If the datafield is set to automatically sort by tag name...
             if ( $datafield->getRadioOptionNameSort() ) {
                 // ...then ignore whatever is in $tag_ordering and resort the entire tag list
-                self::sortTagsByName($user, $datafield);
+                $sort_service->sortTagsByName($user, $datafield);
             }
             else {
                 // Otherwise, modify each Tag to have the newly defined order
@@ -907,27 +852,31 @@ class TagsController extends ODRCustomController
             if ($create_new_entry || $delete_old_entry) {
                 // Delete the separately cached tag tree for this datatype's grandparent
                 $grandparent_datatype = $datatype->getGrandparent();
-                $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
+                if ( $grandparent_datatype->getIsMasterType() ) {
+                    // This is a master template datatype...cross-template searches use this entry
+                    //  in the same way a search on a single datatype uses 'cached_tag_tree_<dt_id>"
+                    $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
+                }
+                else {
+                    // This is not a master template datatype, so it will only have this cache entry
+                    $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
 
-                // All of the cached datarecord entries of this datatype have a 'child_tagSelections'
-                //  entry somewhere in them because otherwise Display mode can't handle the
-                //  "display_unselected_radio_options" config option...this entry depended on the
-                //  "cached_tag_tree_<dt_id>" entry that just got deleted, so all of the cached
-                //  datarecord entries for this datatype also need to get deleted...
-                $dr_list = $search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
-                foreach ($dr_list as $dr_id => $parent_dr_id)
-                    $cache_service->delete('cached_datarecord_'.$dr_id);
+                    // All of the cached datarecord entries of this datatype have a 'child_tagSelections'
+                    //  entry somewhere in them because otherwise Display mode can't handle the
+                    //  "display_unselected_radio_options" config option...this entry depended on
+                    //  the "cached_tag_tree_<dt_id>" entry that just got deleted, so all of the
+                    //  cached datarecord entries for this datatype also need to get deleted...
+                    $dr_list = $search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
+                    foreach ($dr_list as $dr_id => $parent_dr_id)
+                        $cache_service->delete('cached_datarecord_'.$dr_id);
+
+                    // Doesn't make sense to delete the "cached_table_data_<dr_id>" entry...tag data
+                    //  isn't displayed in table themes
+                }
 
                 // Also need to clear a whole pile of cached data specifically required for searching
                 $search_cache_service->onDatafieldModify($datafield);
             }
-
-
-            // ----------------------------------------
-            // TODO - Don't need to return anything because the page is already correct?
-//            $return['d'] = array(
-//                'reload_datafield' => $reload_datafield    // TODO - ???
-//            );
 
         }
         catch (\Exception $e) {
@@ -1013,6 +962,9 @@ class TagsController extends ODRCustomController
             // This should only work on a Tag field
             if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
                 throw new ODRBadRequestException();
+            // This should not work on a datafield that is derived from a master template
+            if ( !is_null($datafield->getMasterDataField()) )
+                throw new ODRBadRequestException();
 
 
             // Update the tag's name
@@ -1065,8 +1017,6 @@ class TagsController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var EntityCreationService $ec_service */
@@ -1103,6 +1053,11 @@ class TagsController extends ODRCustomController
             if ( $datarecord->getDataType()->getId() !== $datatype->getId() )
                 throw new ODRBadRequestException();
 
+            // TODO - Doesn't make sense for a master template to do this
+            // TODO - ...same for most of the rest of the Edit page stuff?
+//            if ( $datatype->getIsMasterType() )
+//                throw new ODRBadRequestException();
+
 
             // --------------------
             // Determine user privileges
@@ -1125,7 +1080,12 @@ class TagsController extends ODRCustomController
             // This should only work on a Tag field
             if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
                 throw new ODRBadRequestException();
+            // This should not work on a datafield that is derived from a master template
+            if ( !is_null($datafield->getMasterDataField()) )
+                throw new ODRBadRequestException();
 
+
+            // ----------------------------------------
             // Don't allow changing a selection if the tag has a child
             $query = $em->createQuery(
                'SELECT c_t
@@ -1162,10 +1122,6 @@ class TagsController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Ensure that the cached datarecord entry can properly set the "child_is_selected"
-            //  property for its non-leaf tags
-            $cache_service->delete('cached_tag_tree_'.$datatype->getGrandparent()->getId());
-
             // Mark this datarecord as updated
             $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 

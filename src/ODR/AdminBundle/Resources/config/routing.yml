@@ -750,9 +750,9 @@ odr_record_get_field_history:
 
 #-----------------------------------------
 # Tags Controller
-odr_get_tag_list:
-    path:  /design/tags/list/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Tags:gettaglist }
+odr_get_tag_modal:
+    path:  /design/tags/modal/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Tags:loadtagmodal }
     requirements:
         datafield_id: \d+
 

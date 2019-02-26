@@ -8,6 +8,9 @@
  * Released under the GPLv2
  *
  * This service stores the code to get and rebuild the info required to sort lists of datarecords.
+ *
+ * Also contains the functions to re-sort the contents of a Radio Option or Tag datafield by
+ * option/tag name, and save the results back to the database.
  */
 
 namespace ODR\AdminBundle\Component\Service;
@@ -15,6 +18,9 @@ namespace ODR\AdminBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\RadioOptions;
+use ODR\AdminBundle\Entity\Tags;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -24,6 +30,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
+
 
 class SortService
 {
@@ -37,6 +44,11 @@ class SortService
      * @var CacheService
      */
     private $cache_service;
+
+    /**
+     * @var EntityMetaModifyService
+     */
+    private $emm_service;
 
     /**
      * @var SearchService
@@ -54,17 +66,20 @@ class SortService
      *
      * @param EntityManager $entityManager
      * @param CacheService $cacheService
+     * @param EntityMetaModifyService $entityMetaModifyService
      * @param SearchService $searchService
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entityManager,
         CacheService $cacheService,
+        EntityMetaModifyService $entityMetaModifyService,
         SearchService $searchService,
         Logger $logger
     ) {
         $this->em = $entityManager;
         $this->cache_service = $cacheService;
+        $this->emm_service = $entityMetaModifyService;
         $this->search_service = $searchService;
         $this->logger = $logger;
     }
@@ -609,5 +624,150 @@ class SortService
         // ----------------------------------------
         // Now that we have the correct list of sorted datarecords...
         return self::applySubsetFilter($datarecord_list, $subset_str);
+    }
+
+
+    /**
+     * Sorts all radio options of the given datafield by name
+     *
+     * @param ODRUser $user
+     * @param Datafields $datafield
+     */
+    public function sortRadioOptionsByName($user, $datafield)
+    {
+        // Don't do anything if this datafield isn't sorting its radio options by name
+        if (!$datafield->getRadioOptionNameSort())
+            return;
+
+        $query = $this->em->createQuery(
+           'SELECT ro, rom
+            FROM ODRAdminBundle:RadioOptions AS ro
+            JOIN ro.radioOptionMeta AS rom
+            WHERE ro.dataField = :datafield
+            AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
+        )->setParameters( array('datafield' => $datafield->getId()) );
+        /** @var RadioOptions[] $results */
+        $results = $query->getResult();
+
+        // Organize by the name of the radio option, and then sort the list
+        /** @var RadioOptions[] $radio_option_list */
+        $radio_option_list = array();
+        foreach ($results as $result) {
+            $option_name = $result->getOptionName();
+            $radio_option_list[$option_name] = $result;
+        }
+        ksort($radio_option_list);
+
+        // Save any changes in the sort order
+        $index = 0;
+        $changes_made = false;
+        foreach ($radio_option_list as $option_name => $ro) {
+            if ( $ro->getDisplayOrder() !== $index ) {
+                // This radio option should be in a different spot
+                $properties = array(
+                    'displayOrder' => $index,
+                );
+                $this->emm_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
+                $changes_made = true;
+            }
+
+            $index++;
+        }
+
+        // Flush now that all changes have been made
+        if ($changes_made)
+            $this->em->flush();
+    }
+
+
+    /**
+     * Sorts this datafield's tags based on their current name.
+     *
+     * @param ODRUser $user
+     * @param DataFields $datafield
+     */
+    public function sortTagsByName($user, $datafield)
+    {
+        // Don't do anything if this datafield isn't sorting its tags by name
+        if ( !$datafield->getRadioOptionNameSort() )
+            return;
+
+        // Need to create a lookup of tags incase any property needs changed later...
+        $query = $this->em->createQuery(
+           'SELECT t
+            FROM ODRAdminBundle:Tags AS t
+            WHERE t.dataField = :datafield_id
+            AND t.deletedAt IS NULL'
+        )->setParameters( array('datafield_id' => $datafield->getId()) );
+        /** @var Tags[] $results */
+        $results = $query->getResult();
+
+        // Organize the tags by their id...
+        /** @var Tags[] $tag_list */
+        $tag_list = array();
+        foreach ($results as $tag)
+            $tag_list[ $tag->getId() ] = $tag;
+
+
+        // Also need the actual tag names to sort on
+        $query = $this->em->createQuery(
+           'SELECT t.id AS tag_id, tm.tagName, p_t.id AS parent_tag_id
+            FROM ODRAdminBundle:Tags AS t
+            JOIN ODRAdminBundle:TagMeta AS tm WITH tm.tag = t
+            LEFT JOIN ODRAdminBundle:TagTree AS tt WITH tt.child = t
+            LEFT JOIN ODRAdminBundle:Tags AS p_t WITH tt.parent = p_t
+            WHERE t.dataField = :datafield_id
+            AND t.deletedAt IS NULL AND tm.deletedAt IS NULL
+            AND tt.deletedAt IS NULL AND p_t.deletedAt IS NULL'
+        )->setParameters( array('datafield_id' => $datafield->getId()) );
+        $results = $query->getArrayResult();
+
+        $tag_groups = array();
+        foreach ($results as $result) {
+            $tag_id = $result['tag_id'];
+            $tag_name = $result['tagName'];
+            $parent_tag_id = $result['parent_tag_id'];
+
+            if ( is_null($parent_tag_id) )
+                $parent_tag_id = 0;
+
+            // Each of the tags needs to be "grouped" by its parent
+            if ( !isset($tag_groups[$parent_tag_id]) )
+                $tag_groups[$parent_tag_id] = array();
+            $tag_groups[$parent_tag_id][$tag_id] = $tag_name;
+        }
+
+
+        // ----------------------------------------
+        // Each "group" of tags can then be sorted individually
+        foreach ($tag_groups as $parent_tag_id => $tag_group) {
+            $tmp = $tag_group;
+            asort($tmp);
+            $tag_groups[$parent_tag_id] = $tmp;
+        }
+
+        // Now that each "group" of tags is sorted...
+        $changes_made = false;
+        foreach ($tag_groups as $parent_tag_id => $tag_group) {
+            $index = 0;
+            foreach ($tag_group as $tag_id => $tag_name) {
+                $tag = $tag_list[$tag_id];
+
+                if ( $tag->getDisplayOrder() !== $index ) {
+                    // ...update each tag's displayOrder to match the sorted list
+                    $properties = array(
+                        'displayOrder' => $index
+                    );
+                    $this->emm_service->updateTagMeta($user, $tag, $properties, true);    // don't flush immediately...
+                    $changes_made = true;
+                }
+
+                $index++;
+            }
+        }
+
+        // Flush now that all changes have been made
+        if ($changes_made)
+            $this->em->flush();
     }
 }

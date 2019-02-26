@@ -149,6 +149,9 @@
     <div id="markdown_help_dialog_wrapper">
         {% include 'ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig' %}
     </div>
+    <div id="tag_edit_dialog_wrapper">
+        {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper_dialog.html.twig' %}
+    </div>
 
 {#  TODO - get this working again...
     <div id="deleted_fields_dialog_wrapper">
@@ -1846,7 +1849,6 @@
         });
     }
 
-
     var datafield_properties_xhr = null;
     var save_datafield_xhr = null;
     var SaveDatafieldPropertyInterval = [];
@@ -2029,13 +2031,18 @@
     }
 
     function InitDatafieldPropertiesForm() {
-        // Setup Radio Options.
+        // Setup Radio Options
         SetupRadioOptions();
 
         // Init Field Properties forms
         $(".ODRMarkdownHelp").unbind('click').click(function() {
             {# defined in ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig #}
             openMarkdownHelpDialog();
+        });
+        $(".ODRTagsEdit").unbind('click').click(function() {
+            {# defined in ODRAdminBundle:Displaytemplate:tag_wrapper_dialog.html.twig #}
+            var datafield_id = $(this).attr('rel');
+            openTagEditDialog(datafield_id);
         });
 
         $("#ThemeDesignForm").find(".ODRDeleteField").each(function() {

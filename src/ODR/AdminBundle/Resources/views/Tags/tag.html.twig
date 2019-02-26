@@ -6,7 +6,10 @@
 {% endif %}
     
 <li class="ODRTagItem" rel="{{ tag.id }}">
+    <span class="ODRDeleteTag" rel="{{ tag.id }}"><i class="fa fa-trash Pointer"></i></span>
+    {% if datafield.dataFieldMeta.radio_option_name_sort == false %}
     <span class="ODRTagAnchor"><i class="fa fa-arrows Pointer"></i></span>
+    {% endif %}
 
     <input id="ODRTag_{{ tag.id }}_name"
            class="ODRTagLabel"

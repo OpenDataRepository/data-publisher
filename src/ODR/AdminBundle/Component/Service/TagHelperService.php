@@ -73,17 +73,27 @@ class TagHelperService
      * a tag hierarchy.
      *
      * @param int $grandparent_datatype_id
+     * @param bool $use_tag_uuids If true, use tag_uuids instead of tag_ids, and store in a different
+     *                            cache entry
      *
      * @return array
      */
-    public function getTagHierarchy($grandparent_datatype_id)
+    public function getTagHierarchy($grandparent_datatype_id, $use_tag_uuids = false)
     {
         // Attempt to load this from the cache first...
-        $tag_hierarchy = $this->cache_service->get('cached_tag_tree_'.$grandparent_datatype_id);
+        $tag_hierarchy = null;
+        if (!$use_tag_uuids)
+            $tag_hierarchy = $this->cache_service->get('cached_tag_tree_'.$grandparent_datatype_id);
+        else
+            $tag_hierarchy = $this->cache_service->get('cached_template_tag_tree_'.$grandparent_datatype_id);    // TODO - test this
+
         if ($tag_hierarchy == false) {
             // ...but rebuild if it doesn't exist
             $query = $this->em->createQuery(
-               'SELECT dt.id AS dt_id, df.id AS df_id, c_t.id AS child_tag_id, p_t.id AS parent_tag_id
+               'SELECT dt.id AS dt_id, df.id AS df_id,
+                    c_t.id AS child_tag_id, p_t.id AS parent_tag_id,
+                    c_t.tagUuid AS child_tag_uuid, p_t.tagUuid AS parent_tag_uuid
+
                 FROM ODRAdminBundle:DataType AS dt
                 JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
                 JOIN ODRAdminBundle:Tags AS c_t WITH c_t.dataField = df
@@ -105,17 +115,27 @@ class TagHelperService
                 $df_id = $result['df_id'];
                 $child_tag_id = $result['child_tag_id'];
                 $parent_tag_id = $result['parent_tag_id'];
+                if ($use_tag_uuids) {
+                    $child_tag_id = $result['child_tag_uuid'];
+                    $parent_tag_id = $result['parent_tag_uuid'];
+                }
 
                 if ( !isset($tag_hierarchy[$dt_id]) )
                     $tag_hierarchy[$dt_id] = array();
                 if ( !isset($tag_hierarchy[$dt_id][$df_id]) )
                     $tag_hierarchy[$dt_id][$df_id] = array();
+                if ( !isset($tag_hierarchy[$dt_id][$df_id][$parent_tag_id]) )
+                    $tag_hierarchy[$dt_id][$df_id][$parent_tag_id] = array();
 
-                $tag_hierarchy[$dt_id][$df_id][$child_tag_id] = $parent_tag_id;
+                $tag_hierarchy[$dt_id][$df_id][$parent_tag_id][$child_tag_id] = '';
             }
 
             // Store results back in the cache
-            $this->cache_service->set('cached_tag_tree_'.$grandparent_datatype_id, $tag_hierarchy);
+            if (!$use_tag_uuids)
+                $this->cache_service->set('cached_tag_tree_'.$grandparent_datatype_id, $tag_hierarchy);
+            else
+                $this->cache_service->set('cached_template_tag_tree_'.$grandparent_datatype_id, $tag_hierarchy);
+
         }
 
         return $tag_hierarchy;
@@ -127,38 +147,37 @@ class TagHelperService
      * DatarecordInfoService::stackDatarecordArray().
      *
      * @param array $tag_list An array tag data from the database, organized by tag_id
-     * @param array $children An array of ($child_tag_id => $parent_tag_id) pairs
+     * @param array $tag_tree @see self::getTagHierarchy()
      *
      * @return array
      */
-    public function stackTagArray($tag_list, $children)
+    public function stackTagArray($tag_list, $tag_tree)
     {
+        // Traverse the tag tree to create a list of tags which have parents
+        $child_tags = array();
+        foreach ($tag_tree as $parent_tag_id => $children) {
+            foreach ($children as $child_tag_id => $tmp)
+                $child_tags[$child_tag_id] = '';
+        }
+
         // Create an array to store the stacked data in...
         $stacked_tags = array();
         foreach ($tag_list as $tag_id => $tag) {
-            // Tags which have actual parents aren't top-level
-            if ( !isset($children[$tag_id]) )
+            // Tags which have parents aren't top-level
+            if ( !isset($child_tags[$tag_id]) )
                 $stacked_tags[$tag_id] = $tag;
-        }
-
-        // Inverse the $children array...repeated in_array() calls are slow
-        $parents = array();
-        foreach ($children as $child_tag_id => $parent_tag_id) {
-            if ( !isset($parents[$parent_tag_id]) )
-                $parents[$parent_tag_id] = array();
-            $parents[$parent_tag_id][$child_tag_id] = 1;
         }
 
         // Locate and store all child tags underneath each top-level tag
         foreach ($stacked_tags as $tag_id => $tag) {
             // If this tag has no children
-            if ( !isset($parents[$tag_id]) ) {
-                // ...then don't need to do anything, it's already storing an empty array
+            if ( !isset($tag_tree[$tag_id]) ) {
+                // ...then don't need to do anything...don't need to store an empty array
 //                $stacked_tags[$tag_id]['children'] = array();
             }
             else {
                 // ...otherwise, build up a list of child tags for this top-level tag
-                $stacked_tags[$tag_id]['children'] = self::stackTagArray_worker($tag_list, $parents, $tag_id);
+                $stacked_tags[$tag_id]['children'] = self::stackTagArray_worker($tag_list, $tag_tree, $tag_id);
             }
         }
 
@@ -171,28 +190,28 @@ class TagHelperService
      * Does the recursive part of stacking tags.
      *
      * @param array $tag_list An array tag data from the database, organized by tag_id
-     * @param array $parents An array of ($parent_tag_id => (array) $child_tags)
+     * @param array $tag_tree @see self::getTagHierarchy()
      * @param int $parent_tag_id The tag currently being stacked
      *
      * @return array
      */
-    private function stackTagArray_worker($tag_list, $parents, $parent_tag_id)
+    private function stackTagArray_worker($tag_list, $tag_tree, $parent_tag_id)
     {
         // Create an array of all of $parent_tag_id's children
         $tmp = array();
-        foreach ($parents[$parent_tag_id] as $child_tag_id => $num)
+        foreach ($tag_tree[$parent_tag_id] as $child_tag_id => $num)
             $tmp[$child_tag_id] = $tag_list[$child_tag_id];
 
         // For each child of $parent_tag_id...
         foreach ($tmp as $child_tag_id => $child_tag) {
             // ...if this child tag has no children itself
-            if ( !isset($parents[$child_tag_id]) ) {
-                // ...then don't need to do anything, it's already storing an empty array
+            if ( !isset($tag_tree[$child_tag_id]) ) {
+                // ...then don't need to do anything...don't need to store an empty array
 //                $stacked_tags[$tag_id]['children'] = array();
             }
             else {
                 // ...otherwise, build up a list of child tags for child tag
-                $tmp[$child_tag_id]['children'] = self::stackTagArray_worker($tag_list, $parents, $child_tag_id);
+                $tmp[$child_tag_id]['children'] = self::stackTagArray_worker($tag_list, $tag_tree, $child_tag_id);
             }
         }
 
@@ -205,6 +224,8 @@ class TagHelperService
      * Ordering a stacked tag array by each tag's displayOrder property is non-trivial...each tag
      * needs to be "grouped" with the other tags that have the same parent (or are top-level), and
      * each group needs to be ordered individually.
+     *
+     * Does not make any changes to the database.
      *
      * @param $stacked_tag_array @see self::stackTagArray()
      */

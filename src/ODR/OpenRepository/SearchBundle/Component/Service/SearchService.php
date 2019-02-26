@@ -26,6 +26,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\TagHelperService;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -50,6 +51,11 @@ class SearchService
     private $dti_service;
 
     /**
+     * @var TagHelperService
+     */
+    private $th_service;
+
+    /**
      * @var SearchQueryService
      */
     private $search_query_service;
@@ -66,6 +72,7 @@ class SearchService
      * @param EntityManager $entityManager
      * @param CacheService $cacheService
      * @param DatatypeInfoService $datatypeInfoService
+     * @param TagHelperService $tagHelperService
      * @param SearchQueryService $searchQueryService
      * @param Logger $logger
      */
@@ -73,12 +80,14 @@ class SearchService
         EntityManager $entityManager,
         CacheService $cacheService,
         DatatypeInfoService $datatypeInfoService,
+        TagHelperService $tagHelperService,
         SearchQueryService $searchQueryService,
         Logger $logger
     ) {
         $this->em = $entityManager;
         $this->cache_service = $cacheService;
         $this->dti_service = $datatypeInfoService;
+        $this->th_service = $tagHelperService;
         $this->search_query_service = $searchQueryService;
         $this->logger = $logger;
     }
@@ -109,8 +118,17 @@ class SearchService
 
         // ----------------------------------------
         // Otherwise, probably going to need to run searches again...
+        $selected = null;
+        $unselected = null;
         $end_result = null;
-        $datarecord_list = null;
+
+        // This should already be cached from earlier in the search routine
+        $datarecord_list = self::getCachedSearchDatarecordList($datafield->getDataType()->getId());
+
+        // Probably not strictly necessary, but keep parent datarecord ids out of the query function
+        foreach ($datarecord_list as $dr_id => $parent_id)
+            $datarecord_list[$dr_id] = 1;
+
 
         foreach ($selections as $radio_option_id => $value) {
             // Attempt to find the cached result for this radio option...
@@ -120,16 +138,6 @@ class SearchService
 
             // If it doesn't exist...
             if ( !isset($result[$value]) ) {
-                // ...then ensure we have the list of datarecords for this radio option's datatype
-                if ( is_null($datarecord_list) ) {
-                    $datarecord_list = self::getCachedSearchDatarecordList($datafield->getDataType()->getId());
-
-                    // Probably not strictly necessary, but keep parent datarecord ids out of the
-                    //  search results for this
-                    foreach ($datarecord_list as $dr_id => $parent_id)
-                        $datarecord_list[$dr_id] = 1;
-                }
-
                 // ...run the search again
                 $result = $this->search_query_service->searchRadioDatafield(
                     $datarecord_list,
@@ -141,31 +149,59 @@ class SearchService
             }
 
 
-            // TODO - Eventually going to need something more refined than just a single merge_type flag
-            if ($merge_using_OR) {
-                // If first run, then start from empty array due to using isset() below
-                if ( is_null($end_result) )
-                    $end_result = array();
+            // TODO - Eventually going to need something more refined than just a single merge_type flag?
+            if ($value === 1) {
+                // Selected options can be combined by either AND or OR
+                if ( is_null($selected) ) {
+                    $selected = $result[$value];
+                }
+                else {
+                    // TODO - allow users to pick which merge type to use, defaults to OR for now
+                    if ($merge_using_OR) {
+                        // array_merge() is slower than using isset() and array_flip() later...
+                        foreach ($result[$value] as $dr_id => $num)
+                            $selected[$dr_id] = 1;
+                    }
+                    else {
+                        // Otherwise, only save the datarecord ids that are in both arrays
+                        $selected = array_intersect_key($selected, $result[$value]);
 
-                // array_merge() is slower than using isset() and array_flip() later
-                foreach ($result[$value] as $dr_id => $num)
-                    $end_result[$dr_id] = 1;
+                        // If nothing in $selected, then no results are possible...but don't exit
+                        //  early because the final array_intersect_key() could get screwed up
+                    }
+                }
             }
             else {
-                // If first run, then use the first set of results to start off with
-                if ( is_null($end_result) ) {
-                    $end_result = $result[$value];
+                // Unselected options are always combined by AND
+                if ( is_null($unselected) ) {
+                    // If first run, then use the first set of results to start off with
+                    $unselected = $result[$value];
                 }
                 else {
                     // Otherwise, only save the datarecord ids that are in both arrays
-                    $end_result = array_intersect_key($end_result, $result[$value]);
+                    $unselected = array_intersect_key($unselected, $result[$value]);
                 }
 
-                // If nothing in the array, then no results are possible
-                if ( count($end_result) == 0 )
-                    break;
+                // If nothing in $selected, then no results are possible...but don't exit early
+                //  because the final array_intersect_key() could get screwed up
             }
         }
+
+
+        // At least one of the arrays should not be null...
+        if ( is_null($selected) ) {
+            // Search didn't specify any selected options, just use the matching unselected options
+            $end_result = $unselected;
+        }
+        else if ( is_null($unselected) ) {
+            // Search didn't specify any unselected options, just use the matching selected options
+            $end_result = $selected;
+        }
+        else {
+            // Search specified both selected and unselected options...merge the two results by AND
+            $end_result = array_intersect_key($selected, $unselected);
+        }
+
 
         // ...then return the search result
         $result = array(
@@ -327,6 +363,297 @@ class SearchService
 
 
     /**
+     * Searches the specified tag datafield using the selections array, and returns an array of all
+     * datarecord ids that match the criteria.
+     *
+     * @param DataFields $datafield
+     * @param array $selections An array with tag ids for keys, and 0 or 1 for values
+     * @param bool $merge_using_OR  If false, merge using AND instead
+     *
+     * @return array
+     */
+    public function searchTagDatafield($datafield, $selections, $merge_using_OR = true)
+    {
+        // ----------------------------------------
+        // Don't continue if called on the wrong type of datafield
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+        if ( $typeclass !== 'Tag' )
+            throw new ODRBadRequestException('searchTagDatafield() called with '.$typeclass.' datafield', 0x385d0acd);
+
+        // Also don't continue if no selection specified
+        if ( count($selections) == 0 )
+            throw new ODRBadRequestException('searchTagDatafield() called with empty selections array', 0x385d0acd);
+
+
+        // ----------------------------------------
+        // In order for caching to work, any non-leaf tags in the tag selections list need to get
+        //  transformed into a list of leaf tags...so need the tag hierarchy for this datafield...
+        $use_tag_uuids = false;
+        $leaf_selections = self::expandTagSelections($datafield, $selections, $use_tag_uuids);
+
+
+        // Otherwise, probably going to need to run searches again...
+        $selected = null;
+        $unselected = null;
+        $end_result = null;
+
+        // This should already be cached from earlier in the search routine
+        $datarecord_list = self::getCachedSearchDatarecordList($datafield->getDataType()->getId());
+
+        // Probably not strictly necessary, but keep parent datarecord ids out of the query function
+        foreach ($datarecord_list as $dr_id => $parent_id)
+            $datarecord_list[$dr_id] = 1;
+
+
+        foreach ($leaf_selections as $tag_id => $value) {
+            // Attempt to find the cached result for this tag...
+            $result = $this->cache_service->get('cached_search_tag_'.$tag_id);
+            if ( !$result )
+                $result = array();
+
+            // If it doesn't exist...
+            if ( !isset($result[$value]) ) {
+                // ...run the search again
+                $result = $this->search_query_service->searchTagDatafield(
+                    $datarecord_list,
+                    $tag_id
+                );
+
+                // ...and store it in the cache
+                $this->cache_service->set('cached_search_tag_'.$tag_id, $result);
+            }
+
+
+            // TODO - Eventually going to need something more refined than just a single merge_type flag?
+            if ($value === 1) {
+                // Selected options can be combined by either AND or OR
+                if ( is_null($selected) ) {
+                    $selected = $result[$value];
+                }
+                else {
+                    // TODO - allow users to pick which merge type to use, defaults to OR for now
+                    if ($merge_using_OR) {
+                        // array_merge() is slower than using isset() and array_flip() later...
+                        foreach ($result[$value] as $dr_id => $num)
+                            $selected[$dr_id] = 1;
+                    }
+                    else {
+                        // Otherwise, only save the datarecord ids that are in both arrays
+                        $selected = array_intersect_key($selected, $result[$value]);
+
+                        // If nothing in $selected, then no results are possible...but don't exit
+                        //  early because the final array_intersect_key() could get screwed up
+                    }
+                }
+            }
+            else {
+                // Unselected options are always combined by AND
+                if ( is_null($unselected) ) {
+                    // If first run, then use the first set of results to start off with
+                    $unselected = $result[$value];
+                }
+                else {
+                    // Otherwise, only save the datarecord ids that are in both arrays
+                    $unselected = array_intersect_key($unselected, $result[$value]);
+                }
+
+                // If nothing in $selected, then no results are possible...but don't exit early
+                //  because the final array_intersect_key() could get screwed up
+            }
+        }
+
+
+        // At least one of the arrays should not be null...
+        if ( is_null($selected) ) {
+            // Search didn't specify any selected options, just use the matching unselected options
+            $end_result = $unselected;
+        }
+        else if ( is_null($unselected) ) {
+            // Search didn't specify any unselected options, just use the matching selected options
+            $end_result = $selected;
+        }
+        else {
+            // Search specified both selected and unselected options...merge the two results by AND
+            $end_result = array_intersect_key($selected, $unselected);
+        }
+
+
+        // ...then return the search result
+        $result = array(
+            'dt_id' => $datafield->getDataType()->getId(),
+            'records' => $end_result
+        );
+
+        return $result;
+    }
+
+
+    /**
+     * Searches the specified tag template datafield using the selections array, and returns an
+     * array of all datarecord ids that match the criteria.
+     *
+     * @param DataFields $template_datafield
+     * @param array $selections
+     * @param bool $merge_using_OR
+     *
+     * @return array
+     */
+    public function searchTagTemplateDatafield($template_datafield, $selections, $merge_using_OR = true)
+    {
+        // TODO - test this
+
+        // ----------------------------------------
+        // Don't continue if called on the wrong type of datafield
+        $typeclass = $template_datafield->getFieldType()->getTypeClass();
+        if ( $typeclass !== 'Tag' )
+            throw new ODRBadRequestException('searchTagTemplateDatafield() called with '.$typeclass.' datafield', 0x9bdd0ba3);
+        if ( !$template_datafield->getIsMasterField() )
+            throw new ODRBadRequestException('searchTagTemplateDatafield() called on a non-master datafield', 0x9bdd0ba3);
+
+        // Also don't continue if no selection specified
+        if ( count($selections) == 0 )
+            throw new ODRBadRequestException('searchTagTemplateDatafield() called with empty selections array', 0x9bdd0ba3);
+
+
+        // ----------------------------------------
+        // In order for caching to work, any non-leaf tags in the tag selections list need to get
+        //  transformed into a list of leaf tags...so need the tag hierarchy for this datafield...
+        $use_tag_uuids = true;
+        $leaf_selections = self::expandTagSelections($template_datafield, $selections, $use_tag_uuids);
+
+
+        // Otherwise, probably going to need to run searches again...
+        $end_result = null;
+        $datarecord_list = null;
+
+        foreach ($leaf_selections as $tag_uuid => $value) {
+            // Attempt to find the cached result for this tag...
+            $result = $this->cache_service->get('cached_search_template_tag_'.$tag_uuid);
+            if ( !$result )
+                $result = array();
+
+            // If it doesn't exist...
+            if ( !isset($result[$value]) ) {
+                // ...then ensure we have the list of datarecords for this tag's datatype
+                if ( is_null($datarecord_list) )
+                    $datarecord_list = self::getCachedTemplateDatarecordList($template_datafield->getDataType()->getUniqueId());
+
+                // ...run the search again
+                $result = $this->search_query_service->searchTagTemplateDatafield(
+                    $datarecord_list,
+                    $tag_uuid
+                );
+
+                // NOTE - $result won't contain results from datatypes that aren't up to date
+                // TODO - should they be automatically marked as "unselected"?
+
+                // ...and store it in the cache
+                $this->cache_service->set('cached_search_template_tag_'.$tag_uuid, $result);
+            }
+
+
+            // TODO - Eventually going to need something more refined than just a single merge_type flag
+            if ($merge_using_OR) {
+                // If first run, then start from empty array due to using isset() below
+                if ( is_null($end_result) )
+                    $end_result = array();
+
+                $end_result = self::templateResultsUnion($end_result, $result[$value]);
+            }
+            else {
+                // If first run, then use the first set of results to start off with
+                if ( is_null($end_result) ) {
+                    $end_result = $result[$value];
+                }
+                else {
+                    // Otherwise, only save the datarecord ids that are in both arrays
+                    $end_result = self::templateResultsIntersect($end_result, $result[$value]);
+                }
+
+                // If nothing in the array, then no results are possible
+                if ( count($end_result) == 0 )
+                    break;
+            }
+        }
+
+        // ...then return the search result
+        return $end_result;
+    }
+
+
+    /**
+     * Takes the given array of tag selections and returns an array that is guaranteed to have only
+     * leaf tags in it...non-leaf tags pass their desired selection value down to their children. In
+     * the case that both an ancestor tag and any of its descendants are defined in the given array,
+     * the value defined for the descendant has priority.
+     *
+     * As an example, assume there's a tag structure of  Country => State/Provice => City.
+     * If the given array defined a value of 1 for a Country and a value of 0 for a City within that
+     * Country, then that City would still have a value of 0, while every other City would have a
+     * value of 1.
+     *
+     * This theory works on both single datafield and template datafield searches.
+     *
+     * @param DataFields $datafield
+     * @param array $selections
+     * @param bool $use_tag_uuids If true, organize by tag_uuids instead of tag_ids
+     *
+     * @return array
+     */
+    private function expandTagSelections($datafield, $selections, $use_tag_uuids)
+    {
+        // Load the tag hierarchy for this datatype
+        $datatype = $datafield->getDataType();
+        $grandparent_datatype = $datatype->getGrandparent();
+        $tag_hierarchy = $this->th_service->getTagHierarchy($grandparent_datatype->getId(), $use_tag_uuids);
+
+        // A datafield may not necessarily have a tag hierarchy...
+        $tag_tree = array();
+        if ( isset($tag_hierarchy[$datatype->getId()])
+            && isset($tag_hierarchy[$datatype->getId()][$datafield->getId()])
+        ) {
+            $tag_tree = $tag_hierarchy[$datatype->getId()][$datafield->getId()];
+        }
+
+        // It's easier for people to understand that values explictly defined for lower-level tags
+        //  take precedence over values defined for higher-level tags...therefore, it's easiest to
+        //  insert new entries into the tag selection array
+        $selections_to_process = $selections;
+        while ( !empty($selections_to_process) ) {
+            $tmp = $selections_to_process;
+            $selections_to_process = array();
+
+            // For each of the tags that were added last iteration...
+            foreach ($tmp as $t_id => $val) {
+                // ...if the tag was not leaf-level...
+                if ( isset($tag_tree[$t_id]) ) {
+                    // ...then for each of its child tags...
+                    foreach ($tag_tree[$t_id] as $child_tag_id => $num) {
+                        // ...insert a value into the selections array if it doesn't already have one
+                        if ( !isset($selections[$child_tag_id]) ) {
+                            $selections[$child_tag_id] = $val;
+
+                            // ...and processs the child tag in the next iteration
+                            $selections_to_process[$child_tag_id] = $val;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Copy the values for just the leaf tags into another array, and return it
+        // Because $tag_tree isn't stacked, this will filter out top-level and mid-level tags
+        $leaf_selections = array();
+        foreach ($selections as $t_id => $val) {
+            if ( !isset($tag_tree[$t_id]) )
+                $leaf_selections[$t_id] = $val;
+        }
+
+        return $leaf_selections;
+    }
+
+
+    /**
      * Searches for specified datafield for any selected radio options matching the given criteria.
      *
      * @param DataFields $datafield
@@ -413,6 +740,126 @@ class SearchService
             $template_datafield->getDataType()->getUniqueId(),
             $template_datafield->getFieldUuid(),
             $value
+        );
+
+
+        // ...then recache the search result
+        $cached_searches[$value] = $result;
+        $this->cache_service->set('cached_search_template_df_'.$template_datafield->getFieldUuid(), $cached_searches);
+
+        // ...then return it
+        return $result;
+    }
+
+
+    /**
+     * Searches for specified datafield for any selected tags matching the given criteria.
+     *
+     * @param DataFields $datafield
+     * @param string $value
+     *
+     * @return array
+     */
+    public function searchforSelectedTags($datafield, $value)
+    {
+        // ----------------------------------------
+        // Don't continue if called on the wrong type of datafield
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+        if ( $typeclass !== 'Tag' )
+            throw new ODRBadRequestException('searchforSelectedTags() called with '.$typeclass.' datafield', 0xdfd23fd8);
+
+
+        // ----------------------------------------
+        // See if this search result is already cached...
+        $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
+        if ( !$cached_searches )
+            $cached_searches = array();
+
+        if ( isset($cached_searches[$value]) )
+            return $cached_searches[$value];
+
+
+        // ----------------------------------------
+        // Otherwise, going to need to run the search again...
+        $matching_tags = $this->search_query_service->searchForTagNames(
+            $datafield->getId(),
+            $value
+        );
+
+        // Convert the matching tag names into an array that self::searchTagDatafield() can use
+        $selections = array();
+        foreach ($matching_tags as $tag_id => $tag_data) {
+            $selections[$tag_id] = 1;
+        }
+
+        // This function will turn any non-leaf tags that matched the original search query into
+        //  a (larger) set of leaf tags, and then search for records that have those selected
+        $end_result = self::searchTagDatafield(
+            $datafield,
+            $selections
+        );
+
+
+        // ...then recache the search result
+        $cached_searches[$value] = $end_result;
+        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
+
+        // ...then return it
+        return $end_result;
+    }
+
+
+    /**
+     * Searches the specified tag template datafield for any selected tags matching the given
+     * criteria, and returns an array of all datarecord ids that match the criteria.
+     *
+     * @param DataFields $template_datafield
+     * @param string $value
+     *
+     * @return array
+     */
+    public function searchForSelectedTemplateTags($template_datafield, $value)
+    {
+        // TODO - test this
+
+        // ----------------------------------------
+        // Don't continue if called on the wrong type of datafield
+        $typeclass = $template_datafield->getFieldType()->getTypeClass();
+        if ( $typeclass !== 'Tag' )
+            throw new ODRBadRequestException('searchForSelectedTemplateTags() called with '.$typeclass.' datafield', 0xac84634b);
+        if ( !$template_datafield->getIsMasterField() )
+            throw new ODRBadRequestException('searchForSelectedTemplateTags() called with non-master datafield', 0xac84634b);
+
+
+        // ----------------------------------------
+        // See if this search result is already cached...
+        $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid());
+        if ( !$cached_searches )
+            $cached_searches = array();
+
+        // TODO - cross-template search is currently locked to "any" tag...need to allow searches on tag names
+//        $value = 'any';
+//        if ( isset($cached_searches[$value]) )
+//            return $cached_searches[$value];
+
+
+        // ----------------------------------------
+        // Otherwise, going to need to run the search again...
+        $matching_tags = $this->search_query_service->searchForTagNames(
+            $template_datafield->getId(),    // TODO - will this screw up the results?
+            $value
+        );
+
+        // Convert the matching tag names into an array that self::searchTagDatafield() can use
+        $selections = array();
+        foreach ($matching_tags as $tag_id => $tag_data) {
+            $tag_uuid = $tag_data['tag_uuid'];
+            $selections[$tag_uuid] = 1;
+        }
+
+        $result = self::searchTagTemplateDatafield(
+            $template_datafield,
+            $selections
         );
 
 

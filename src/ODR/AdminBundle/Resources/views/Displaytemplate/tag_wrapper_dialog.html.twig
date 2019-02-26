@@ -1,0 +1,81 @@
+{% spaceless %}
+
+<!-- Tag Edit Dialog Form -->
+
+<script>
+
+    var tag_edit_body = '<div id="ODRTagEditDialogWrapper" class="ODRHidden"> </div>';
+
+    function openTagEditDialog(datafield_id) {
+        // open dialog
+        modal_options = {
+            title: 'Tag Design',
+            loading: true,
+            body: tag_edit_body,
+            buttons: [
+                {
+                    id: 'ODRTagEdit_close',
+                    text: 'Close'
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
+
+        loadTagEditDialog(datafield_id);
+
+        // Attach an event handler to the close button
+        $("#ODRTagEdit_close").unbind('click').click(function() {
+            closeODRRemodal();
+            {# defined in ODRAdminBundle:DisplayTemplate:design_ajax.html.twig #}
+            ReloadDatafield(datafield_id);
+        });
+    }
+
+    function loadTagEditDialog(datafield_id) {
+
+        var url  = '{{ path('odr_get_tag_modal', {'datafield_id': 0} ) }}';
+        url = url.substring(0,(url.length-1));
+        url += datafield_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                $("#ODRTagEditDialogWrapper").html( data.d.html );
+
+                // remove loading spinner
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    $(".ODRRemodalButtons").show();
+                    $("#ODRTagEditDialogWrapper").show();
+
+                    // Resize ODRFileDownloadModal to take up full height
+                    resetRemodalInnerHeight();
+                });
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+<!-- End of Tag Edit Dialog Form -->
+
+{% endspaceless %}

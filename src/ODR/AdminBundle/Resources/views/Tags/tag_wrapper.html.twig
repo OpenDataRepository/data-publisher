@@ -1,6 +1,6 @@
 {% spaceless %}
 
-<div class="ODRTagWrapper_design">
+<div class="ODRTagWrapper_design pure-form">
 
     {# this form is for tag displayOrder and setting parent/child relationships #}
     <form id="ODRTagPositionForm" rel="{{ datafield.id }}"></form>
@@ -8,8 +8,8 @@
     <div class="ODRThemeElement">
         {# this form is for renaming tags #}
         <form id="ODRTagForm" rel="{{ datafield.id }}">
-            <ul class=""><li class="">
-                <span>Tags:&nbsp;</span>
+            <ul class="ODRTagGroupContainer"><li class="">
+                {#<span>Tags:&nbsp;</span>#}
                 <ul class="ODRTagGroup ODRTopLevelTagGroup">
                     {#<li class="ODRTagItem ODRPlaceholderTag"></li>#}
 
@@ -200,6 +200,9 @@
     }
 
     function DeleteTag(tag_id) {
+        if ( !confirm('Are you sure you want to delete this tag?') )
+            return;
+
         var url = '{{ path('odr_delete_tag', { 'tag_id': 0 }) }}';
         // Load display template menu
         url = url.substring(0,(url.length - 1));

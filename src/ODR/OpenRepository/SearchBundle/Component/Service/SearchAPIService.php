@@ -392,6 +392,22 @@ class SearchAPIService
                         // The more specific version of searching a radio datafield provides an array of selected/deselected options
                         $results = $this->search_service->searchRadioTemplateDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
                     }
+                    else if ($typeclass === 'Tag' && $facet === 'general') {
+                        // TODO - test this
+                        // General search only provides a string, and only wants selected tags
+                        $results = $this->search_service->searchForSelectedTemplateTags($entity, $search_term['value']);
+
+                        if ($api_hijack) {
+                            // For API purposes, sometimes the search needs to abort early
+                            // Apply the datatype/datafield/datarecord permissions now
+                            return self::getfieldstatsFilter($results, $searchable_datafields, $flattened_list);
+                        }
+                    }
+                    else if ($typeclass === 'Tag' && $facet !== 'general') {
+                        // TODO - test this
+                        // The more specific version of searching a tag datafield provides an array of selected/deselected options
+                        $results = $this->search_service->searchTagTemplateDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
+                    }
                     else if ($typeclass === 'File' || $typeclass === 'Image') {
                         // Searches on Files/Images are effectively interchangable
                         $results = $this->search_service->searchFileOrImageTemplateDatafield($entity, $search_term['filename'], $search_term['has_files']);
@@ -536,6 +552,7 @@ class SearchAPIService
 
 
     /**
+     * TODO - implement this with regards to tags
      * APIController::getfieldstatsAction() wants to return a count of how many datarecords have
      * a specific radio option selected across all instances of a template datafield.
      *
@@ -683,6 +700,14 @@ class SearchAPIService
                     else if ($typeclass === 'Radio' && $facet !== 'general') {
                         // The more specific version of searching a radio datafield provides an array of selected/deselected options
                         $dr_list = $this->search_service->searchRadioDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
+                    }
+                    else if ($typeclass === 'Tag' && $facet === 'general') {
+                        // General search only provides a string, and only wants selected tags
+                        $dr_list = $this->search_service->searchforSelectedTags($entity, $search_term['value']);
+                    }
+                    else if ($typeclass === 'Tag' && $facet !== 'general') {
+                        // The more specific version of searching a tag datafield provides an array of selected/deselected options
+                        $dr_list = $this->search_service->searchTagDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
                     }
                     else if ($typeclass === 'File' || $typeclass === 'Image') {
                         // Searches on Files/Images are effectively interchangable

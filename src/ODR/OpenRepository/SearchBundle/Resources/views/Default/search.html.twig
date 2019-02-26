@@ -389,6 +389,22 @@
                             $(this).parent().slideUp(200);
                     });
 
+                    // Tag fields also need special treatment...
+                    $(content_div).find('.ODRTagSearchDiv').each(function () {
+                        // Search for a selection made in this radio field
+                        var selected = false;
+                        $(this).find('i').each(function () {
+                            if ($(this).hasClass('fa-check') || $(this).hasClass('fa-ban')) {
+                                selected = true;
+                                return false;
+                            }
+                        });
+
+                        // If nothing selected, hide this datafield
+                        if (!selected)
+                            $(this).parent().slideUp(200);
+                    });
+
                     $(this).find('i').removeClass('fa-caret-up').addClass('fa-caret-down');
                 }
             });
@@ -417,8 +433,8 @@
                     $("#datafield_" + datafield_id + "_fn").val('');
             });
 
-            // Tristate checkbox
-            $(".ODRTristateCheckbox").unbind('click').click(function () {
+            // radio Tristate checkbox
+            $(".ODRRadioLabel > .ODRTristateCheckbox").unbind('click').click(function () {
                 // Grab data about the option being clicked
                 var icon = $(this).children('i').first();
                 var input = $(this).children('input').first();
@@ -453,6 +469,52 @@
                     $(input).val(radio_option_id);
                 }
             });
+
+            // tag Tristate checkbox
+            $(".ODRTagLabel > .ODRTristateCheckbox").unbind('click').click(function () {
+                // Grab data about the tag being clicked
+                var tag_item = $(this).parent().parent();
+
+                if ( $(this).children('i').first().hasClass('fa-check') ) {
+                    // Currently selected, change this tag and all its children to deselected
+                    $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                        // Don't change title attribute of a non-leaf tag
+                        if ( !$(element).hasClass('ODRSearchParentTag') )
+                            $(element).attr('title', 'Search for Datarecords where this tag is unselected');
+
+                        $(element).children('i').first().removeClass('fa-check').addClass('fa-ban');
+
+                        var tag_id = $(element).children('input').first().attr('rel');
+                        $(element).children('input').first().val('-' + tag_id);
+                    });
+                }
+                else if ( $(this).children('i').first().hasClass('fa-ban') ) {
+                    // Currently deselected, change this tag and all its children to blank
+                    $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                        $(element).removeAttr('title');
+                        $(element).children('i').first().removeClass('fa-ban');
+
+                        var tag_id = $(element).children('input').first().attr('rel');
+                        $(element).children('input').first().val('');
+                    });
+                }
+                else {
+                    // Currently blank, change this tag and all its children to selected
+                    $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                        // Don't change title attribute of a non-leaf tag
+                        if ( !$(element).hasClass('ODRSearchParentTag') )
+                            $(element).attr('title', 'Search for Datarecords where this tag is selected');
+
+                        $(element).children('i').first().addClass('fa-check');
+
+                        var tag_id = $(element).children('input').first().attr('rel');
+                        $(element).children('input').first().val(tag_id);
+                    });
+                }
+
+                applyToTagParents( $(tag_item) );
+            });
+
 
             // Shortcut to select all options of a Multiple Radio/Select datafield
             $(".ODRSelectAll").unbind('click').click(function () {
@@ -549,6 +611,43 @@
             });
         });
 
+        function applyToTagParents(source_element) {
+            var parent_tag = $(source_element).parent().parent().not('div');
+            if ( $(parent_tag).length === 0)
+                return;
+
+            // $(parent_tag) should be a <li class="ODRTagItem"> element
+            var parent_checkbox_icon = $(parent_tag).children('label').children('.ODRTristateCheckbox').first().children('i');
+
+            var selected_count = $(parent_tag).children('ul').find('.fa-check').length;
+            var unselected_count = $(parent_tag).children('ul').find('.fa-ban').length;
+            var total_count = $(parent_tag).children('ul').find('.fa').length;
+
+            if (selected_count === 0 && unselected_count === 0) {
+                // No children selected, so this one should be unselected too
+                $(parent_checkbox_icon).removeClass('fa-check fa-ban partial');
+            }
+            else if (selected_count === total_count) {
+                // All children selected, so this one should be selected too
+                $(parent_checkbox_icon).removeClass('fa-ban partial').addClass('fa-check');
+            }
+            else if (unselected_count === total_count) {
+                // All children selected, so this one should be selected too
+                $(parent_checkbox_icon).removeClass('fa-check partial').addClass('fa-ban');
+            }
+            else if (selected_count > 0) {
+                // Some children selected, so this one should be partially selected
+                $(parent_checkbox_icon).removeClass('fa-ban').addClass('fa-check partial');
+            }
+            else if (unselected_count > 0) {
+                // No children are selected, but at least one child is unselected...so this one
+                //  should be partially unselected
+                $(parent_checkbox_icon).removeClass('fa-check').addClass('fa-ban partial');
+            }
+
+            applyToTagParents( $(parent_tag) );
+        }
+
         function changeSearch() {
             if ($("#search_type").val() === 'basic') {
                 // Show all advanced search datafields
@@ -577,9 +676,9 @@
         }
 
         function doReset() {
-            // radio fields
+            // radio and tag fields
             $(".ODRTristateCheckbox").removeAttr('title');
-            $(".ODRTristateCheckbox > .fa").removeClass('fa-check').removeClass('fa-ban');
+            $(".ODRTristateCheckbox > .fa").removeClass('fa-check fa-ban partial');
             $(".ODRTristateCheckbox > input").val('');
 
             // general field
@@ -603,7 +702,6 @@
         }
 
         function doSearch() {
-
             // Values for Radio datafields need to be manually set
             $(".ODRRadioSearchDiv").each(function () {
 
@@ -616,6 +714,37 @@
 
                 $(this).find('input').each(function () {
                     // Grab the radio_option_id
+                    var value = $(this).val().trim();
+                    if (value == '')
+                        return;
+
+                    has_selections = true;
+
+                    if (!first_selection) {
+                        str += ',' + value;
+                    }
+                    else {
+                        first_selection = false;
+                        str += value;
+                    }
+                });
+
+                if (has_selections)
+                    $("#datafield_" + datafield_id).val(str);
+            });
+
+            // Same for tag datafields
+            $(".ODRTagSearchDiv").each(function () {
+
+                var data = $(this).attr('id').split(/_/);
+                var datafield_id = data[1];
+
+                var str = '';
+                var first_selection = true;
+                var has_selections = false;
+
+                $(this).find('input').not('.ODRSearchParentTag').each(function () {
+                    // Grab the tag
                     var value = $(this).val().trim();
                     if (value == '')
                         return;
@@ -710,7 +839,8 @@
                     {% endif %}
                 },
                 error: function (jqXHR, textStatus, errorThrown) {
-                    // Don't need to do anything specific on an error
+                    // TODO - should everything get reset on an error?
+                    // doReset();
                 },
                 complete: function (jqXHR, textStatus) {
                     $("#loading-overlay").fadeOut('fast');
