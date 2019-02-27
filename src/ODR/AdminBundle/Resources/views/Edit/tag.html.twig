@@ -28,7 +28,7 @@
 
 {% if has_children %}
     <ul class="ODRTagGroup">
-        {% for tag_id, child_tag in tag.children %}
+        {% for child_tag_id, child_tag in tag.children %}
             {% include 'ODRAdminBundle:Edit:tag.html.twig' with {
                 'unique_id': unique_id,
 

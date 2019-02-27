@@ -69,6 +69,10 @@
         {% endfor %}
         {% endif %}
     </value>
+    {% elseif field_typeclass == 'Tag' %}
+        {% include 'ODRAdminBundle:XMLExport:datatype_tag_wrapper.xml.twig' with {
+            'datafield': datafield,
+        } %}
     {% endif %}
 
 {{ tag_end|raw }}

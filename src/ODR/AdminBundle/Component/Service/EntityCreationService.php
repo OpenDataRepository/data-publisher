@@ -1329,7 +1329,11 @@ class EntityCreationService
                 $storage_entity->setDataRecordFields($drf);
                 $storage_entity->setFieldType($fieldtype);
 
-                $storage_entity->setValue($insert_value);
+                if ($typeclass !== 'DatetimeValue')
+                    $storage_entity->setValue($insert_value);
+                else
+                    $storage_entity->setValue( new \DateTime($insert_value) );
+
                 if ($typeclass === 'DecimalValue')
                     $storage_entity->setOriginalValue($insert_value);
 

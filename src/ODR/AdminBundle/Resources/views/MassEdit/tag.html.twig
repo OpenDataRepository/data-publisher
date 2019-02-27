@@ -12,7 +12,7 @@
     <label id="Label_{{ tag.id }}" for="Input_{{ tag.id }}" class="ODRTagLabel pure-u-1">
         <span class="ODRTristateCheckbox">
             <i class="fa"></i>
-            <input type="hidden" rel="{{ tag.id }}" value="" {% if has_children %}class="ODRSearchParentTag"{% endif %} />
+            <input type="hidden" name="{{ datafield.id }}" rel="{{ tag.id }}" value="" {% if has_children %}class="ODRSearchParentTag"{% endif %} />
         </span>
         {{ tag.tagMeta.tagName }}
     </label>
@@ -20,7 +20,7 @@
 {% if has_children %}
     <ul class="ODRTagGroup">
         {% for child_tag_id, child_tag in tag.children %}
-            {% include 'ODROpenRepositorySearchBundle:Default:tag.html.twig' with {
+            {% include 'ODRAdminBundle:MassEdit:tag.html.twig' with {
                 'tag': child_tag,
             } %}
         {% endfor %}

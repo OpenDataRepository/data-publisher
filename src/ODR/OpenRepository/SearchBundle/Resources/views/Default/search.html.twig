@@ -475,6 +475,10 @@
                 // Grab data about the tag being clicked
                 var tag_item = $(this).parent().parent();
 
+                // If any item is clicked, it'll set all children to selected/unselected...so
+                //  immediately remove the partial class
+                $(this).children('i').first().removeClass('partial');
+
                 if ( $(this).children('i').first().hasClass('fa-check') ) {
                     // Currently selected, change this tag and all its children to deselected
                     $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {

@@ -12,6 +12,8 @@
 
 namespace ODR\AdminBundle\Component\Service;
 
+// Entities
+use ODR\AdminBundle\Entity\DataFields;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -139,6 +141,78 @@ class TagHelperService
         }
 
         return $tag_hierarchy;
+    }
+
+
+    /**
+     * Takes the given array of tag selections and returns an array that is guaranteed to have only
+     * leaf tags in it...non-leaf tags pass their desired selection value down to their children. In
+     * the case that both an ancestor tag and any of its descendants are defined in the given array,
+     * the value defined for the descendant has priority.
+     *
+     * As an example, assume there's a tag structure of  Country => State/Provice => City.
+     * If the given array defined a value of 1 for a Country and a value of 0 for a City within that
+     * Country, then that City would still have a value of 0, while every other City would have a
+     * value of 1.
+     *
+     * This theory works on both single datafield and template datafield searches.
+     *
+     * @param DataFields $datafield
+     * @param array $selections
+     * @param bool $use_tag_uuids If true, organize by tag_uuids instead of tag_ids
+     *
+     * @return array
+     */
+    public function expandTagSelections($datafield, $selections, $use_tag_uuids = false)
+    {
+        // Load the tag hierarchy for this datatype
+        $datatype = $datafield->getDataType();
+        $grandparent_datatype = $datatype->getGrandparent();
+        $tag_hierarchy = self::getTagHierarchy($grandparent_datatype->getId(), $use_tag_uuids);
+
+        // A datafield may not necessarily have a tag hierarchy...
+        $tag_tree = array();
+        if ( isset($tag_hierarchy[$datatype->getId()])
+            && isset($tag_hierarchy[$datatype->getId()][$datafield->getId()])
+        ) {
+            $tag_tree = $tag_hierarchy[$datatype->getId()][$datafield->getId()];
+        }
+
+        // It's easier for people to understand that values explictly defined for lower-level tags
+        //  take precedence over values defined for higher-level tags...therefore, it's easiest to
+        //  insert new entries into the tag selection array
+        $selections_to_process = $selections;
+        while ( !empty($selections_to_process) ) {
+            $tmp = $selections_to_process;
+            $selections_to_process = array();
+
+            // For each of the tags that were added last iteration...
+            foreach ($tmp as $t_id => $val) {
+                // ...if the tag was not leaf-level...
+                if ( isset($tag_tree[$t_id]) ) {
+                    // ...then for each of its child tags...
+                    foreach ($tag_tree[$t_id] as $child_tag_id => $num) {
+                        // ...insert a value into the selections array if it doesn't already have one
+                        if ( !isset($selections[$child_tag_id]) ) {
+                            $selections[$child_tag_id] = $val;
+
+                            // ...and processs the child tag in the next iteration
+                            $selections_to_process[$child_tag_id] = $val;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Copy the values for just the leaf tags into another array, and return it
+        // Because $tag_tree isn't stacked, this will filter out top-level and mid-level tags
+        $leaf_selections = array();
+        foreach ($selections as $t_id => $val) {
+            if ( !isset($tag_tree[$t_id]) )
+                $leaf_selections[$t_id] = $val;
+        }
+
+        return $leaf_selections;
     }
 
 

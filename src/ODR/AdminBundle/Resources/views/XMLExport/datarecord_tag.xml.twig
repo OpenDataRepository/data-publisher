@@ -1,0 +1,53 @@
+{% set tag_meta = tag.tagMeta %}
+
+{# Store whether this tag has any child tags #}
+{% set has_children = false %}
+{% if tag.children is defined and tag.children is not empty %}
+    {% set has_children = true %}
+{% endif %}
+
+{# Store whether this tag is selected #}
+{% set is_selected = 0 %}
+{% if tag_selections[ tag.id ] is defined %}
+    {% set is_selected = tag_selections[ tag.id ].selected %}
+{% endif %}
+
+{# Store whether any children of this tag are selected #}
+{% set child_is_selected = 0 %}
+{% if child_tag_selections[ tag.id ] is defined %}
+    {% set child_is_selected = 1 %}
+{% endif %}
+
+{% if is_selected == 1 or child_is_selected == 1 %}
+
+    {% set tag_start = '' %}
+    {% set tag_end = '' %}
+    {% if version == 'v1' %}
+        {% set tag_start = '<tag_' ~ tag.id ~ '><name>' ~ tag_meta.tagName|xml ~'</name>' %}
+        {% set tag_end = '</tag_' ~ tag.id ~ '>' %}
+    {% elseif version == 'v2' %}
+        {% set tag_start = '<' ~ tag_meta.xml_tagName ~ '>' %}
+        {% set tag_end = '</' ~ tag_meta.xml_tagName ~ '>' %}
+    {% endif %}
+
+    {{ tag_start|raw }}
+        <id>{{ tag.id }}</id>
+    {% if not has_children %}
+        <selected>1</selected>
+    {% endif %}
+        <template_tag_uuid>{{ tag.tagUuid }}</template_tag_uuid>
+        <updated_at>{{ tag_meta.updated|date('Y-m-d H:i:s') }}</updated_at>    {# TODO - should this be controlled by using_metadata? #}
+    {% if has_children %}
+        <children>
+        {% for child_tag_id, child_tag in tag.children %}
+            {% include 'ODRAdminBundle:XMLExport:datarecord_tag.xml.twig' with {
+                'tag_selections': tag_selections,
+                'child_tag_selections': child_tag_selections,
+                'tag': child_tag,
+            } %}
+        {% endfor %}
+        </children>
+    {% endif %}
+    {{ tag_end|raw }}
+
+{% endif %}
