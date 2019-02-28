@@ -238,8 +238,8 @@ class CloneTemplateService
         // ----------------------------------------
         if ( is_null($datatype->getMetadataFor()) ) {
             // This is not a metadata datatype...
-            if ($datatype->getUniqueId() !== $datatype->getTemplateGroup())
-                throw new ODRBadRequestException('Child/linked datatypes should not be directly checked for differences...check their grandparent datatypes instead');
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Child datatypes should not be directly checked for differences...check their grandparent datatypes instead');
         }
         else {
             // This is a metadata datatype...require it to be top-level
@@ -251,7 +251,7 @@ class CloneTemplateService
 
 
         // At the moment, only new datafields, new child/linked datatypes, and fieldtype changes
-        //  are considered"noteworthy"...TODO - is there more stuff that should be?
+        //  are considered "noteworthy"...TODO - is there more stuff that should be?
 
 
         // ----------------------------------------

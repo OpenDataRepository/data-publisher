@@ -1103,6 +1103,9 @@ class DisplaytemplateController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
+            if ($datatype->getId() !== $datatype->getGrandparent()->getId())
+                throw new ODRBadRequestException('Directly modifying the layout of child databases is not permitted.');
+
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
