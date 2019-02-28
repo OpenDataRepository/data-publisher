@@ -3010,7 +3010,7 @@ class DisplaytemplateController extends ODRCustomController
      *
      * @return Response
      */
-    public function datafieldpropertiesAction($datafield_id, $theme_element_id = 0, Request $request)
+    public function datafieldpropertiesAction($datafield_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -3048,7 +3048,8 @@ class DisplaytemplateController extends ODRCustomController
             // TODO Add Check if TED Exists and if datafield is related to it
 
             // Ensure the datatype has a master theme...
-            $theme_service->getDatatypeMasterTheme($datatype->getId(), $theme_element_id);
+            if($datatype)
+                $theme_service->getDatatypeMasterTheme($datatype->getId());
 
 
             // --------------------
@@ -3110,8 +3111,6 @@ class DisplaytemplateController extends ODRCustomController
 
                 $query = $em->createQuery($str)->setParameters( array('datafield' => $datafield) );
                 $results = $query->getResult();
-
-//print print_r($results, true);
 
                 foreach ($results as $result) {
                     if ( $result[1] > 1 ) {
