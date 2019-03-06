@@ -1,6 +1,9 @@
 {% spaceless %}
 
-{% set tag_selections = drf.tagSelection %}
+{% set tag_selections = [] %}
+{% if drf.tagSelection is defined %}
+    {% set tag_selections = drf.tagSelection %}
+{% endif %}
 
 <div class="ODRTagWrapper_edit">
     <ul class="ODRTagGroup">

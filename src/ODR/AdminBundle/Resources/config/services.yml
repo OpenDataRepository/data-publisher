@@ -41,13 +41,6 @@ services:
     odr.markdown.parser:
         class: ODR\AdminBundle\Component\Service\ODRMarkdownParserService
 
-    odr.custom_controller_service:
-        class: ODR\OpenRepository\AdminBundle\Controller\ODRCustomController
-        arguments: ['@doctrine.orm.entity_manager']
-
-    odr_search_controller:
-        class: ODR\OpenRepository\SearchBundle\Controller\DefaultController
-
 
     # Services for improved data retrieval model
     odr.cache_service:

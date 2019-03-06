@@ -582,10 +582,6 @@ class DefaultController extends Controller
             }
             $new_search_key = $search_key_service->encodeSearchKey($search_params);
 
-            /** @var ODRCustomController $odrcc */
-            $odrcc = $this->get('odr_custom_controller', $request);
-            $odrcc->setContainer($this->container);
-
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
             // use whatever default theme this datatype has

@@ -3865,3 +3865,45 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     /* makes debugging easier */
     /*background-color: #ffbbbb;*/
 }
+
+#csvexport_form td {
+    padding: 2px 5px;
+}
+#csvexport_form .ODRDelimiterField {
+    text-align: center;
+    font-weight: bold;
+}
+.ODRUnselectedDatafield {
+    background-color: #ff0000;
+    opacity: 0.4;
+}
+.ODRSelectedDatafield {
+    background-color: #00ff00;
+    opacity: 0.4;
+}
+
+
+#ODRGroupListHeader {
+    margin-left: 20px;
+    margin-bottom: 10px;
+}
+.ODRDatatypePermissionIcons {
+    position: relative;
+    top: -5px;
+    float: right;
+}
+.fa-ban {
+    color: #e9322d;
+}
+.fa-stack-1x {
+    color: #000000;
+}
+.ODRBlockedDatafield {
+    background-color: #000000;
+    opacity: 0.3;
+}
+.ODRVisibleDatafield {
+    background-color: #00ffff;
+    opacity: 0.2;
+}
+/* .ODREditableDatafield {} */
