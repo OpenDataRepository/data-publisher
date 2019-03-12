@@ -117,33 +117,37 @@ class CloneMasterDatatypeService
     /**
      * @var DataType[]
      */
-    private $associated_datatypes;
+    private $associated_datatypes = array();
 
     /**
      * @var DataType[]
      */
-    private $created_datatypes;
+    private $created_datatypes = array();
 
     /**
      * @var Group[]
      */
-    private $created_groups;
-
+    private $created_groups = array();
 
     /**
      * @var DataType[]
      */
-    private $dt_mapping;
+    private $dt_mapping = array();
 
     /**
      * @var DataFields[]
      */
-    private $df_mapping;
+    private $df_mapping = array();
 
     /**
      * @var DataType[]
      */
-    private $existing_datatypes;
+    private $existing_datatypes = array();
+
+    /**
+     * @var Theme[]
+     */
+    private $source_themes = array();
 
 
     /**
@@ -406,7 +410,15 @@ class CloneMasterDatatypeService
             // ----------------------------------------
             // Clone all themes for this master template...
             $this->logger->info('----------------------------------------');
-            self::cloneTheme($this->master_datatype);
+            // self::cloneTheme($this->master_datatype);
+            $this
+                ->clone_master_template_theme_service
+                ->cloneTheme(
+                    $this->user,
+                    $this->dt_mapping,
+                    $this->df_mapping,
+                    $this->associated_datatypes
+                );
 
 
             // ----------------------------------------
@@ -700,140 +712,6 @@ class CloneMasterDatatypeService
         self::cloneRenderPluginSettings($parent_datatype->getRenderPlugin(), $new_datatype);
     }
 
-
-    /**
-     *
-     * After the Datatype, Datafield, Radio Option, and any RenderPlugin settings are cloned, the
-     * Theme stuff from the master template needs to be cloned too...
-     *
-     */
-    private function cloneTheme()
-    {
-        // Need to store each theme that got created...
-        /** @var Theme[] $results */
-        $query = $this->em->createQuery(
-            'SELECT t
-            FROM ODRAdminBundle:Theme AS t
-            WHERE t.dataType IN (:datatype_ids) AND t = t.parentTheme
-            AND t.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $this->associated_datatypes) );
-        // )->setParameters( array('datatype_ids' => [$master_datatype->getId()]) );
-        $results = $query->getResult();
-
-        foreach ($results as $t) {
-            // TODO If we don't flush the theme, we can reassign datatypes before committing
-            $new_theme = $this->
-            clone_master_template_theme_service->
-            cloneSourceTheme(
-                $this->user,
-                $t,
-                $t->getThemeType(),
-                $this->dt_mapping,
-                $this->df_mapping,
-                true
-            );
-
-            $new_parent_themes[] = $new_theme;
-        }
-
-        /** @var Theme[] $new_parent_themes */
-        foreach($new_parent_themes as $t) {
-            /** @var Theme $t */
-            // Go through theme and fix datatype ids to new datatype ids
-            // These should all be same parent?
-            self::correctThemeData($t, $t, $t->getSourceTheme());
-            // Persist after correction
-            self::persistObject($t, true);
-        }
-
-        // Flush to commit theme fixes...
-        $this->em->flush();
-
-    }
-
-    private function correctThemeData(Theme $theme, Theme $parent_theme, Theme $source_theme) {
-        $this->logger->info('Theme analysis... ');
-        $this->logger->info('Theme type: ' . $theme->getThemeType());
-        $this->logger->info('Theme ID: ' . $theme->getId());
-        $this->logger->info('Theme Source: ' . $theme->getSourceTheme()->getId());
-        $this->logger->info('Theme Name: ' . $theme->getThemeMeta()->getTemplateName());
-        $this->logger->info('Theme Datatype: ' . $theme->getDataType()->getId());
-
-        // Correct the Datatype ID if needed
-        /*
-        $corrected_dt = $this->dt_mapping[$theme->getDataType()->getId()];
-        $this->dt_mapping[$corrected_dt->getId()] = $corrected_dt;
-        $theme->setDataType($corrected_dt);
-        $this->logger->info('        Theme Corrected Datatype ID: ' . $corrected_dt->getId());
-        */
-
-
-        // Set source and parent
-        $theme->setParentTheme($parent_theme);
-        /*
-        $theme->setSourceTheme($source_theme);    // TODO - newly cloned master themes need to be set as their own source
-        */
-
-        /** @var ThemeElement[] $te_array */
-        $te_array = $theme->getThemeElements();
-        foreach($te_array as $te) {
-            /** @var ThemeElement $te */
-            self::correctThemeElement($theme, $parent_theme, $te);
-        }
-        // Save changes to object
-        // self::persistObject($theme, true);
-        // $this->logger->info('Persisting Theme Changes ID: ' . $theme->getId());
-    }
-
-    private function correctThemeElement(Theme $theme, Theme $parent_theme, ThemeElement $te) {
-        /** @var ThemeElement $te */
-        $this->logger->info('    Theme Element ID: ' . $te->getId());
-        $this->logger->info('    Theme Element Meta ID: ' . $te->getThemeElementMeta()->getId());
-
-//        /** @var ThemeDataField[] $tdf_array */
-//        $tdf_array = $te->getThemeDataFields();
-//        foreach($tdf_array as $tdf) {
-//            /** @var ThemeDataField $tdf */
-//            self::correctThemeDataField($tdf);
-//        }
-
-
-        /** @var ThemeDataType[] $tdt_array */
-        $tdt_array = $te->getThemeDataType();
-        foreach($tdt_array as $tdt) {
-            // NOTE Parent theme is actually grandparent theme.
-            // Using $theme results in a tree structure as opposed to the
-            // flat grandparent theme structure.
-            /** @var ThemeDataType $tdt */
-            self::correctThemeDataType($parent_theme, $tdt);
-        }
-
-    }
-
-    private function correctThemeDataField(ThemeDataField $tdf) {
-        $this->logger->info('        Theme Data Field ID: ' . $tdf->getId());
-        $this->logger->info('        Theme Data Field -> Field ID: ' . $tdf->getDataField()->getId());
-
-        $corrected_df = $this->df_mapping[$tdf->getDataField()->getId()];
-        $this->df_mapping[$corrected_df->getId()] = $corrected_df;
-        $tdf->setDataField($corrected_df);
-        $this->logger->info('        Theme Data Field -> Corrected Field ID: ' . $corrected_df->getId());
-    }
-
-    private function correctThemeDataType(Theme $parent_theme, ThemeDataType $tdt) {
-        // May need to fix theme
-        $this->logger->info('        Theme Data Type ID: ' . $tdt->getId());
-        $this->logger->info('        Theme Data Type DT ID: ' . $tdt->getDataType()->getId());
-
-        /*
-        $corrected_dt = $this->dt_mapping[$tdt->getDataType()->getId()];
-        $this->dt_mapping[$corrected_dt->getId()] = $corrected_dt;
-        $tdt->setDataType($corrected_dt);
-        $this->logger->info('        Theme Data Type Corrected DT ID: ' . $corrected_dt->getId());
-        */
-
-        self::correctThemeData($tdt->getChildTheme(), $parent_theme, $tdt->getChildTheme()->getSourceTheme());
-    }
 
     /**
      * Once the theme stuff from the master template and its children are fully cloned, the

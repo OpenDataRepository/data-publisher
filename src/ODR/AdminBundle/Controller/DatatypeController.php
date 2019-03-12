@@ -803,9 +803,10 @@ class DatatypeController extends ODRCustomController
             // TODO - won't display templates unless they have a metadata datatype...intentional?
             // TODO - Yes.  This is intentional.  All new databases must have rudimentary metadata going forward.
             // TODO - The "generic" database master template will be updated to include a name/person default metadata template.
-            // Master Templates must have Database Properties/metadata
+            // Master Templates must have Dataset Properties/metadata
             $query = $em->createQuery(
 /*
+                // TODO - disabled until users can create metadata for datatypes/templates without any
                'SELECT dt, dtm, md, dt_cb, dt_ub
                 FROM ODRAdminBundle:DataType AS dt
                 LEFT JOIN dt.dataTypeMeta AS dtm
@@ -908,7 +909,7 @@ class DatatypeController extends ODRCustomController
             // Grab a list of top top-level datatypes
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
 
-            // Master Templates must have Database Properties/metadata
+            // Master Templates must have Dataset Properties/metadata
             $query = $em->createQuery(
                'SELECT dt, dtm, md, dt_cb, dt_ub
                 FROM ODRAdminBundle:DataType AS dt
@@ -1217,14 +1218,14 @@ class DatatypeController extends ODRCustomController
                 // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name since they're already from the form
                 $datatype_meta_data = new DataTypeMeta();
                 $datatype_meta_data->setDataType($datatype);
-                $datatype_meta_data->setShortName('New Database');
-                $datatype_meta_data->setLongName('New Database');
+                $datatype_meta_data->setShortName('New Dataset');
+                $datatype_meta_data->setLongName('New Dataset');
 
                 /** @var RenderPlugin $default_render_plugin */
                 $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
                 $datatype_meta_data->setRenderPlugin($default_render_plugin);
 
-                // Default search slug to Database ID
+                // Default search slug to Dataset ID
                 $datatype_meta_data->setSearchSlug($datatype->getUniqueId());
                 $datatype_meta_data->setXmlShortName('');
 
@@ -1475,7 +1476,7 @@ class DatatypeController extends ODRCustomController
                     if ($submitted_data->getDescription() == null)
                         $submitted_data->setDescription('');
 
-                    // Default search slug to Database ID
+                    // Default search slug to Dataset ID
                     $submitted_data->setSearchSlug($datatype->getId());
                     $submitted_data->setXmlShortName('');
 

@@ -20,9 +20,9 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 // Symfony Form classes
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
-use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 //
 use Doctrine\ORM\EntityRepository;
 
@@ -46,7 +46,7 @@ class UpdateDataTypeForm extends AbstractType
 
         $builder->add(
             'short_name',
-            TextType::class,
+            HiddenType::class,
             array(
                 'required' => true,
                 'label' => 'Short Name',
@@ -58,7 +58,7 @@ class UpdateDataTypeForm extends AbstractType
             TextType::class,
             array(
                 'required' => true,
-                'label' => 'Long Name',
+                'label' => 'Dataset Name',
             )
         );
 

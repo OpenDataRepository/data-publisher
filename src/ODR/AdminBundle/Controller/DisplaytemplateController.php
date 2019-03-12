@@ -1120,14 +1120,18 @@ class DisplaytemplateController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
+
+            if ($datatype->getId() !== $datatype->getGrandparent()->getId())
+                throw new ODRBadRequestException('Directly modifying the layout of child databases is not permitted.');
+
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -2719,6 +2723,7 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
 
+
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
@@ -2909,13 +2914,6 @@ class DisplaytemplateController extends ODRCustomController
                         'longName' => $submitted_data->getLongName(),
                         'description' => $submitted_data->getDescription(),
 
-                        // These properties are changed through other routes at the moment
-//                        'publicDate' => $submitted_data->getPublicDate(),
-//                        'searchNotesLower' => $submitted_data->getSearchNotesLower(),
-//                        'searchNotesUpper' => $submitted_data->getSearchNotesUpper()
-
-                        // This property isn't accessible right now
-//                        'xml_shortName' => $submitted_data->getXmlShortName(),
                     );
 
                     // These datafields are permitted to be null
@@ -2932,7 +2930,6 @@ class DisplaytemplateController extends ODRCustomController
                     if ($datatype->getIsMasterType() > 0)
                         $properties['master_revision'] = $datatype->getMasterRevision() + 1;
 
-                    $emm_service->updateDatatypeMeta($user, $datatype, $properties);
 
                     // Master Template Data Types must increment parent master template
                     // revision when changed.
@@ -2940,11 +2937,12 @@ class DisplaytemplateController extends ODRCustomController
                         // TODO Need to update datatype revision for grandparent
                     }
 
+                    $emm_service->updateDatatypeMeta($user, $datatype, $properties);
+
                     // Update cached version of datatype
                     $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
                     // Don't need to update cached versions of datarecords or themes
-
 
                     // ----------------------------------------
                     // If the sort datafield changed, then several cache entries need to be rebuilt
@@ -2952,7 +2950,7 @@ class DisplaytemplateController extends ODRCustomController
                         $dti_service->resetDatatypeSortOrder($datatype->getId());
 
                     // Cached search results don't need to be cleared here...none of them care about
-                    //  any of the properties being changed here
+                    // any of the properties being changed here
                 }
                 else {
                     // Form validation failed
@@ -3038,11 +3036,31 @@ class DisplaytemplateController extends ODRCustomController
                     $can_view_permissions = true;
 
 
+
+                // Hide name and description for datatypes that have associated metadata
+                $show_name = true;
+                $show_description = true;
+                if($datatype->getMetadataDatatype() && $datatype->getMetadataDatatype()->getId()) {
+                    // TODO and metadata has field with internal_reference_name = datatype_name
+                    /** @var DataFields[] $fields */
+                    $fields = $datatype->getMetadataDatatype()->getDataFields();
+                    foreach($fields as $field) {
+                        if($field->getInternalReferenceName() == 'datatype_name') {
+                            $show_name = false;
+                        }
+                        else if($field->getInternalReferenceName() == 'datatype_description') {
+                            $show_description = false;
+                        }
+                    }
+                }
+
                 // Return the slideout html
                 $templating = $this->get('templating');
                 $return['d'] = $templating->render(
                     'ODRAdminBundle:Displaytemplate:datatype_properties_form.html.twig',
                     array(
+                        'show_name' => $show_name,
+                        'show_description' => $show_description,
                         'datatype' => $datatype,
                         'datatype_form' => $datatype_form->createView(),
                         'site_baseurl' => $site_baseurl,
@@ -3077,6 +3095,7 @@ class DisplaytemplateController extends ODRCustomController
      * Loads/saves an ODR DataFields properties Form.
      *
      * @param integer $datafield_id The database id of the DataField being modified.
+     * @param integer $theme_element_id
      * @param Request $request
      *
      * @return Response
@@ -3125,8 +3144,11 @@ class DisplaytemplateController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
+            // TODO Add Check if TED Exists and if datafield is related to it
+
             // Ensure the datatype has a master theme...
-            $theme_service->getDatatypeMasterTheme($datatype->getId());
+            if($datatype)
+                $theme_service->getDatatypeMasterTheme($datatype->getId());
 
 
             // --------------------
@@ -3170,7 +3192,6 @@ class DisplaytemplateController extends ODRCustomController
             $typeclass = $datafield->getFieldType()->getTypeClass();
             if ($typeclass === 'File' || $typeclass === 'Image')
                 $has_multiple_uploads = self::hasMultipleUploads($em, $user, $datafield);
-
 
             // Determine which fieldtypes the datafield is allowed to have
             $allowed_fieldtypes = self::getAllowedFieldtypes($em, $datafield);
@@ -3318,13 +3339,6 @@ class DisplaytemplateController extends ODRCustomController
                 if ( $current_datafield_meta->getIsUnique() != $submitted_data->getIsUnique() )
                     $force_slideout_reload = true;
 
-                // If the datafield is in use by a Table theme, then don't let it have multiple uploads
-//                if ($used_by_table_theme && $submitted_data->getAllowMultipleUploads() == true)
-//                    $datafield_form->addError( new FormError("This Datafield is being used by a Table theme...it can't be set to allow multiple uploads") );
-
-//$datafield_form->addError( new FormError("Do not save") );
-
-
                 if ($datafield_form->isValid()) {
                     // No errors in form
 
@@ -3410,6 +3424,7 @@ class DisplaytemplateController extends ODRCustomController
                         'tags_allow_non_admin_edit' => $submitted_data->getTagsAllowNonAdminEdit(),
                         'searchable' => $submitted_data->getSearchable(),
                         'publicDate' => $submitted_data->getPublicDate(),
+                        'internal_reference_name' => $submitted_data->getInternalReferenceName(),
                     );
                     $emm_service->updateDatafieldMeta($user, $datafield, $properties);
                     $em->refresh($datafield);
@@ -3456,23 +3471,6 @@ class DisplaytemplateController extends ODRCustomController
                 $em->refresh($datafield);
                 $em->refresh($datafield->getDataFieldMeta());
 
-                // ----------------------------------------
-                // TODO - delete this?
-                // Get relevant theme_datafield entry for this datatype's master theme and create the associated form
-/*
-                $query = $em->createQuery(
-                   'SELECT tdf
-                    FROM ODRAdminBundle:ThemeElement AS te
-                    JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
-                    WHERE te.theme = :theme_id AND tdf.dataField = :datafield
-                    AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL'
-                )->setParameters( array('theme_id' => $theme->getId(), 'datafield' => $datafield->getId()) );
-                $result = $query->getResult();
-                /** @var ThemeDataField $theme_datafield
-                $theme_datafield = $result[0];
-                $theme_datafield_form = $this->createForm(UpdateThemeDatafieldForm::class, $theme_datafield);
-*/
-
                 // Create the form for the datafield entry
                 $datafield_meta = $datafield->getDataFieldMeta();
                 $datafield_form = $this->createForm(
@@ -3490,12 +3488,6 @@ class DisplaytemplateController extends ODRCustomController
                 $prevent_fieldtype_change = $ret['prevent_change'];
                 $prevent_fieldtype_change_message = $ret['prevent_change_message'];
 
-                // Prevention of datafield deletion happens inside design_fieldarea.html.twig
-//                $ret = self::canDeleteDatafield($em, $datafield);
-//                $prevent_datafield_deletion = $ret['prevent_deletion'];
-//                $prevent_datafield_deletion_message = $ret['prevent_deletion_message'];
-
-
                 // Render the html for the form
                 $templating = $this->get('templating');
                 $return['d'] = array(
@@ -3506,15 +3498,11 @@ class DisplaytemplateController extends ODRCustomController
                             'has_multiple_uploads' => $has_multiple_uploads,
                             'prevent_fieldtype_change' => $prevent_fieldtype_change,
                             'prevent_fieldtype_change_message' => $prevent_fieldtype_change_message,
-//                            'prevent_datafield_deletion' => $prevent_datafield_deletion,
-//                            'prevent_datafield_deletion_message' => $prevent_datafield_deletion_message,
 
                             'used_by_table_theme' => $used_by_table_theme,
 
                             'datafield' => $datafield,
                             'datafield_form' => $datafield_form->createView(),
-//                            'theme_datafield' => $theme_datafield,
-//                            'theme_datafield_form' => $theme_datafield_form->createView(),
                         )
                     )
                 );

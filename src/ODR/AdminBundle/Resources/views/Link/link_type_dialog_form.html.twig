@@ -23,7 +23,11 @@
         <fieldset style="margin-top: 5px;">
             <div class="pure-control-group">
                 <label for="selected_datatype">
-                    <strong>DataType Name:</strong>
+                    {% if local_datatype.isMasterType %}
+                        <strong>Template Name:</strong>
+                    {% else %}
+                        <strong>DataType Name:</strong>
+                    {% endif %}
                 </label>
                 <select name="selected_datatype" id="selected_datatype">
                     <option value=""></option>
@@ -38,6 +42,18 @@
                 </select>
             </div>
         </fieldset>
+        <div>
+            ** Description
+        </div>
+        <div>
+            ** Link to example?
+        </div>
+        <div>
+            ** Image?
+        </div>
+        <div>
+            ** Add an unlink button - weird to choose empty space to unlink
+        </div>
     </form>
 
     <script>
@@ -62,10 +78,17 @@
                     $("#ODRLinkDatatypeFormSubmit").removeAttr('disabled');
 
                 // Change button text if selecting the "empty" option
+                {% if local_datatype.isMasterType %}
                 if ( $(this).val() == '' && current_remote_datatype != '' )
-                    $("#ODRLinkDatatypeFormSubmit").html('Unlink Current Database');
+                    $("#ODRLinkDatatypeFormSubmit").html('Unlink Current Template');
                 else
-                    $("#ODRLinkDatatypeFormSubmit").html('Link Database');
+                    $("#ODRLinkDatatypeFormSubmit").html('Link Template');
+                {% else %}
+                if ( $(this).val() == '' && current_remote_datatype != '' )
+                    $("#ODRLinkDatatypeFormSubmit").html('Unlink Current Dataset');
+                else
+                    $("#ODRLinkDatatypeFormSubmit").html('Link Dataset');
+                {% endif %}
             });
         });
     </script>

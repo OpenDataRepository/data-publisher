@@ -1520,6 +1520,8 @@ pre .support.value  {
         padding: 0px;
     }
     .ODRTristateCheckbox > .fa-ban {
+        margin-top: -1px;
+        margin-left: 1.5px;
         color: red;
     }
     .ODRTristateCheckbox > .fa-check {
@@ -1547,8 +1549,15 @@ pre .support.value  {
 
     .ODRSelectAll,.ODRDeselectAll,.ODRClearAll {
         cursor: pointer;
-        font-size: 90%;
+        /* font-size: 90%; */
     }
+
+    .ODRSelectAllOption {
+        display: inline;
+        margin-left: 6px;
+    }
+
+
 
 /* END Search Template Customizations */
 footer {
@@ -2461,7 +2470,34 @@ form .row {
 }
 
 #pagination_header {
+    position: sticky;
+    position: -webkit-sticky;
+    position: -moz-sticky;
+    position: -ms-sticky;
+    position: -o-sticky;
+    top: 0;
+    z-index: 990;
+    background: white;
     margin-bottom: 3px;
+    padding-bottom: 8px;
+    text-align: center;
+    -webkit-box-shadow: 0 8px 6px -6px rgba(0,0,0,0.1);
+    -moz-box-shadow: 0 8px 6px -6px rgba(0,0,0,0.1);
+    box-shadow: 0 8px 6px -6px rgba(0,0,0,0.1);
+}
+
+#pagination_header button {
+    min-width: 3em;
+}
+
+#pagination_header input {
+    font-size: 1.1em;
+    font-weight: bold;
+    text-align: center;
+    padding: 0.3em;
+}
+.ODRResultsNumRecords {
+    padding-left: 12px;
 }
 
 #ODRPageSelect {
@@ -2512,7 +2548,7 @@ form .row {
     -moz-box-sizing:border-box;
     -webkit-box-sizing:border-box; 
     padding: 0.3em;
-    border: 2px solid rgba(185, 186, 246, 0.25); 
+    /* border: 2px solid rgba(185, 186, 246, 0.25);  */
     border-radius: 4px;
 }
 .ODRContentWrapper > .ODRThemeElement > .ODRInnerBox,
@@ -3727,8 +3763,9 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 
-#ODRSearchBoxWrapper {
-    padding-top: 8px;
+.ODRSearchBoxWrapper {
+    padding-top: 8px !important;
+    padding-bottom: 10px !important;
 }
 
 #ODRReturnToSearchResults {
@@ -3779,6 +3816,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     text-align: left;
     color: #2b2e38;
 }
+
 
 .ODRPluginErrorDiv {
     margin: 0.5em;
@@ -3925,4 +3963,49 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     overflow-y: scroll;
     overflow-x: scroll;
     white-space: nowrap;
+}
+
+.ODRSearchToggle {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    cursor: pointer;
+    color: #999999;
+}
+
+.ODRSearchVisible {
+    max-height: 96vh;
+    overflow: auto;
+    position: sticky;
+    position: -webkit-sticky;
+    position: -moz-sticky;
+    position: -ms-sticky;
+    position: -o-sticky;
+    top: 0;
+}
+.ODRSearchHidden {
+    position: absolute;
+    top: 48px;
+    right: 96vw;
+}
+.ODRSearchHidden > .ODRThemeElement {
+    position: sticky !important;
+    top: 48px;
+}
+.ODRSearchResultsWide {
+    width: 100% !important;
+    -webkit-transition: width 0.3s; /* Safari */
+    transition: width 0.3s;
+}
+@media only screen and (max-width : 740px) {
+    .ODRSearchVisible {
+        position: relative;
+    }
+    .ODRSearchHidden {
+        position: relative !important;
+        right: 0;
+    }
+    .ODRSearchToggle {
+        display: none;
+    }
 }

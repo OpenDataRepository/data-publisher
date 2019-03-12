@@ -20,7 +20,7 @@
         {% for datafield in datatype['dataFields'] %}
             {% set searchable = datafield['dataFieldMeta']['searchable'] %}
             {% if searchable == 1 or searchable == 2 %}
-                <div class="pure-u-1-3">{{ datafield['dataFieldMeta']['fieldName'] }}</div>
+                <div class="pure-u-1">&nbsp;&nbsp;&nbsp;{{ datafield['dataFieldMeta']['fieldName'] }}</div>
             {% endif %}
         {% endfor %}
     {% endif %}
@@ -44,7 +44,7 @@
             {% for datafield in child_datatype['dataFields']  %}
                 {% set searchable = datafield['dataFieldMeta']['searchable'] %}
                     {% if searchable == 1 or searchable == 2 %}
-                        <div class="pure-u-1-3">{{ datafield['dataFieldMeta']['fieldName'] }}</div>
+                        <div class="pure-u-1">&nbsp;&nbsp;&nbsp;{{ datafield['dataFieldMeta']['fieldName'] }}</div>
                     {% endif %}
             {% endfor %}
         {% endif %}

@@ -547,6 +547,7 @@ class ThemeInfoService
      * Returns the given datatype's "master" theme.
      *
      * @param integer $datatype_id
+     * @param integer $theme_element_id
      *
      * @return Theme
      */
@@ -554,12 +555,12 @@ class ThemeInfoService
     {
         // Query the database to get this datatype's master theme
         $query = $this->em->createQuery(
-           'SELECT t
-            FROM ODRAdminBundle:Theme AS t
-            JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
-            WHERE t.dataType = :datatype_id AND t.themeType = :theme_type
-            AND t = t.sourceTheme
-            AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
+            'SELECT t
+        FROM ODRAdminBundle:Theme AS t
+        JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
+        WHERE t.dataType = :datatype_id AND t.themeType = :theme_type
+        AND t = t.sourceTheme
+        AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
         )->setParameters(
             array(
                 'datatype_id' => $datatype_id,

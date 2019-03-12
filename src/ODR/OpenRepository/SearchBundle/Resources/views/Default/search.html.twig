@@ -19,9 +19,13 @@
         {% include 'ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig' %}
     </div>
 
-    <div class="pure-u-1 pure-u-md-1-3 ODRContentWrapper">
+    <div class="pure-u-1 pure-u-sm-1-3 pure-u-md-1-3 pure-u-xl-1-4 ODRContentWrapper ODRSearchVisible">
         <div class="ODRThemeElement">
             <div class="ODRInnerBox">
+                <span class="ODRSearchToggle">
+                    <i class="fa fa-lg fa-arrow-circle-left"></i>
+                    <i class="fa fa-lg fa-arrow-circle-right hidden"></i>
+                </span>
                 {% if intent == 'searching' %}
                     {% include 'ODROpenRepositorySearchBundle:Default:searchpage_markdown.html.twig' with {
                         'datatype': target_datatype,
@@ -30,7 +34,7 @@
                     } %}
                 {% endif %}
 
-                <form id="search_form" class="pure-form pure-u-sm-1-2 pure-u-md-7-8">
+                <form id="search_form" class="pure-form pure-u-23-24 pure-form-stacked">
                     <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}"/>
                     <input type="hidden" id="selected_theme_id" value="{{ preferred_theme_id }}"/>
 
@@ -41,9 +45,9 @@
                                     Search</a>
                             </div>
                             <div class="pure-u-1">
-                                <button class="pure-button pure-button" type="button" onclick="doReset();">Reset
+                                <button class="pure-button pure-button ODRResetButton" type="button" onclick="doReset();">Reset
                                 </button>
-                                <button class="pure-button pure-button-primary" type="submit">Search</button>
+                                <button class="pure-button pure-button-primary ODRSearchButton" type="submit">Search</button>
                             </div>
                         </div>
                     </fieldset>
@@ -51,19 +55,19 @@
                     <fieldset class="ODRSearchBoxWrapper">
                         <div class="pure-u-1">
                             <label for="textbox_general"
-                                   class="pure-u-1 pure-u-sm-1 pure-u-md-1-1 pure-u-lg-1-1 pure-u-xl-1-2">
+                                   class="pure-u-1 ODRPrimarySearchLabel">
                                 Search for:
                                 <i class="fa fa-lg fa-question-circle Pointer ODRSearchHelp" style="padding-left:5px;"
                                    title="Search Help"></i>
                                 <i class="fa fa-lg fa-info-circle Pointer ODRGeneralSearchList"
-                                   style="padding-left:5px;" title="List of Datafields that will be searched"></i>
+                                   style="padding-left:5px;" title="Fields searched when using general search:"></i>
                                 {% if is_datatype_admin %}
                                     <i class="fa fa-lg fa-edit Pointer ODREditSearchNotes" style="padding-left:5px;"
                                        title="Edit the search page notes."></i>
                                 {% endif %}
                             </label>
                             <input id="textbox_general"
-                                   class="pure-u-1 pure-u-sm-1 pure-u-md-1-1 pure-u-lg-1-1 pure-u-xl-1-2" type="text" name="gen"
+                                   class="pure-u-1" type="text" name="gen"
                                    {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %} {% if not can_use_general_search %}disabled="disabled" title="This datatype has no searchable datafields"{% endif %} />
                             <input type="hidden" id="search_type" value="basic"/>
                         </div>
@@ -193,8 +197,8 @@
                                 Search</a>
                         </div>
                         <div class="pure-u-1">
-                            <button class="pure-button pure-button" type="button" onclick="doReset();">Reset</button>
-                            <button class="pure-button pure-button-primary" type="submit">Search</button>
+                            <button class="pure-button pure-button ODRResetButton" type="button" onclick="doReset();">Reset</button>
+                            <button class="pure-button pure-button-primary ODRSearchButton" type="submit">Search</button>
                         </div>
                     </fieldset>
                 </form>
@@ -210,8 +214,9 @@
         </div>
     </div>
 
-    <div class="pure-u-1 pure-u-md-2-3" id="ODRSearchContent">
-        <img id="odr_bg" class="pure-img"/>
+    <!-- TODO Figure out better way to do odr_bg -->
+    <!-- <img id="odr_bg" class="pure-img"/> -->
+    <div class="pure-u-1 pure-u-sm-2-3 pure-u-md-2-3 pure-u-xl-3-4" id="ODRSearchContent">
     </div>
 
     <script>
@@ -226,12 +231,16 @@
                 doSearch();
             });
 
+            doSearch();
+
+            {#
             {% if search_string is defined and search_string != '' %}
             if (window.location.hash.length === 0) {
                 // No need to set up rest of form, just do an immediate search
                 doSearch();
             }
             {% endif %}
+            #}
 
             {% if is_datatype_admin %}
 
@@ -439,6 +448,10 @@
                 var icon = $(this).children('i').first();
                 var input = $(this).children('input').first();
                 var radio_option_id = $(input).attr('rel');
+
+                if($(this).parent().hasClass("ODRSelectAllOption")) {
+                    return;
+                }
 
                 if ($(icon).hasClass('fa-check')) {
                     // Currently selected, change to deselected
@@ -711,6 +724,8 @@
 
                 var data = $(this).attr('id').split(/_/);
                 var datafield_id = data[1];
+                var datafield = $("#datafield_" + datafield_id);
+                datafield.val('')
 
                 var str = '';
                 var first_selection = true;
@@ -734,7 +749,7 @@
                 });
 
                 if (has_selections)
-                    $("#datafield_" + datafield_id).val(str);
+                    datafield.val(str);
             });
 
             // Same for tag datafields
@@ -790,9 +805,7 @@
             // Request search results
             var url = '{{ path('odr_search_results') }}';
 
-            $("#loading-overlay").fadeIn('fast');
-            $("#loading").html('<span>Searching...</span>');
-            $("#loading").fadeIn('fast');
+            showSearchOverlay();
 
             // TODO - need to communicate which theme to use...
 
@@ -823,8 +836,9 @@
                     url = url.substr(0, url.length - 2);
                     url += $("#selected_theme_id").val() + '/' + data.d.search_key + '/1';
 
-                    // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
-                    UpdateURL(url);
+                    // Just reset the hash.  Hashchange event ignores this for main page
+                    window.location.hash = url;
+                    loadSearchContent(url)
 
                     {% elseif intent == "linking" %}
                     var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
@@ -838,6 +852,7 @@
                         dataType: 'json',
                         success: function (data, textStatus, jqXHR) {
                             $(".search_content").html(data.d.html);
+                            hideSearchOverlay();
                         }
                     });
                     {% endif %}
@@ -847,9 +862,6 @@
                     // doReset();
                 },
                 complete: function (jqXHR, textStatus) {
-                    $("#loading-overlay").fadeOut('fast');
-                    $("#loading").html('<span>Loading...</span>');
-                    $("#loading").fadeOut('fast');
 
                     // Get the xdebugToken from response headers
                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
@@ -869,9 +881,45 @@
 
     <script>
 
+        var search_content = "";
+
         $(function() {
             setupBackgroundImage();
+
+
+            // Check if search content needs to be loaded
+            if(search_content !== window.location.hash.substr(1)) {
+                //showOverlay();
+                // loadSearchContent(window.location.hash.substr(1));
+            }
+
+            // TODO Parser to set search options based on hash string
+
+            $(".ODRSearchToggle").unbind('click').click(function() {
+                searchToggle();
+            })
         });
+
+
+
+        function searchToggle() {
+            var search = $(".ODRContentWrapper");
+            var searchToggle = $(".ODRSearchToggle");
+            if(search.hasClass("ODRSearchVisible")) {
+                search.removeClass("ODRSearchVisible").addClass("ODRSearchHidden");
+                searchToggle.find(".fa-arrow-circle-left").addClass('hidden');
+                searchToggle.find(".fa-arrow-circle-right").removeClass('hidden');
+                $("#ODRSearchContent").addClass("ODRSearchResultsWide");
+            }
+            else {
+                search.removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
+                searchToggle.find(".fa-arrow-circle-right").addClass('hidden');
+                searchToggle.find(".fa-arrow-circle-left").removeClass('hidden');
+                $("#ODRSearchContent").removeClass("ODRSearchResultsWide");
+            }
+        }
+
+
 
         function setupBackgroundImage() {
             {% if background_image_id != null %}

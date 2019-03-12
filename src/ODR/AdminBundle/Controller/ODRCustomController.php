@@ -307,27 +307,6 @@ class ODRCustomController extends Controller
         }
         else if ( $theme->getThemeType() != 'table' ) {
             // -----------------------------------
-            // Build the pagination header from the correct list of datarecords
-            $pagination_values = $odr_tab_service->getPaginationHeaderValues($odr_tab_id, $offset, $original_datarecord_list);
-
-            // Build the html required for the pagination header
-            $pagination_html = '';
-            if ( !is_null($pagination_values) ) {
-                $pagination_html = $templating->render(
-                    'ODRAdminBundle:Default:pagination_header.html.twig',
-                    array(
-                        'path_str' => $path_str,
-
-                        'num_pages' => $pagination_values['num_pages'],
-                        'num_datarecords' => $pagination_values['num_datarecords'],
-                        'offset' => $pagination_values['offset'],
-                        'page_length' => $pagination_values['page_length'],
-                    )
-                );
-            }
-
-
-            // ----------------------------------------
             // Grab the cached versions of all of the datarecords, and store them all at the same level in a single array
             $include_links = true;
             $related_datarecord_array = array();
@@ -358,6 +337,34 @@ class ODRCustomController extends Controller
                     $datarecord_array[$dr_id] = $dri_service->stackDatarecordArray($related_datarecord_array, $dr_id);
             }
 
+            // Build the html required for the pagination header
+            $pagination_values = $odr_tab_service->getPaginationHeaderValues($odr_tab_id, $offset, $original_datarecord_list);
+
+            $pagination_html = '';
+            if ( !is_null($pagination_values) ) {
+                $pagination_html = $templating->render(
+                    'ODRAdminBundle:Default:pagination_header.html.twig',
+                    array(
+                        'path_str' => $path_str,
+
+                        'num_pages' => $pagination_values['num_pages'],
+                        'num_datarecords' => $pagination_values['num_datarecords'],
+                        'offset' => $pagination_values['offset'],
+                        'page_length' => $pagination_values['page_length'],
+                        'user_permissions' => $datatype_permissions,
+                        'datatype' => $datatype,
+                        'theme' => $theme,
+                        'intent' => $intent,
+                        'search_key' => $search_key,
+                        'user' => $user,
+                        'has_datarecords' => $has_datarecords,
+                        'has_search_restriction' => $has_search_restriction,
+                        'editable_only' => $only_display_editable_datarecords,
+                        'can_edit_datatype' => $can_edit_datatype,
+                        'use_jupyterhub' => $use_jupyterhub,
+                    )
+                );
+            }
 
             // -----------------------------------
             // Finally, render the list

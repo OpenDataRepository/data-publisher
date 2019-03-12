@@ -30,21 +30,8 @@
         {{ pagination_html | raw }}
     {% endif %}
 
-        {# Page/View Options #}
-        {% set page_type = 'search_results' %}
-        {% if intent == 'linking' %}
-            {% set page_type = 'linking' %}
-        {% endif %}
 
-        {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
-            'datatype': datatype,
-            'theme': theme,
-            'page_type': page_type,
-            'search_key': search_key,
 
-            'has_search_restriction': has_search_restriction,
-            'editable_only': editable_only,
-        } %}
 
     {% if has_datarecords %}
         {% include 'ODRAdminBundle:ShortResults:shortresults_ajax.html.twig' with {
@@ -76,30 +63,6 @@
 
 </div><!-- End of .ODRFormWrap -->
 
-{% if intent == 'searching' and user_role == 'ROLE_ADMIN' and has_datarecords %}
-<div class="ODRExportButtons Cursor">
-    <div style="float:left;">
-        {% if can_edit_datatype or is_datatype_admin %}
-            <button id="ODRMassEdit" class="pure-button" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
-        {% endif %}
-        <button id="ODRCSVExport" class="pure-button" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>
-    </div>
-
-    {% if use_jupyterhub %}
-    <div style="float:right;">
-        <span id="jupyterhub_app_list" style="padding-right: 10px;"></span>
-
-        <form target="_blank" action="{{ path('odr_jupyterhub_export') }}" method="post" style="display: inline;">
-            <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />
-            <input type="hidden" name="search_key" value="{{ search_key }}" />
-            <input type="hidden" name="app_id" id="jupyterhub_app_id" />
-
-            <button id="ODRRunApp" type="submit" class="pure-button">Run this Jupyterhub app on these search results</button>
-        </form>
-    </div>
-    {% endif %}
-</div>
-{% endif %}
 
 <script>
     $(function() {

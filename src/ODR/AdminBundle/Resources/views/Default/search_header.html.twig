@@ -88,7 +88,7 @@
         var offset = "{{ offset }}";
 
         // Ensure offset exists
-        if ( offset === '' || offset === '0' || offset === 0 )
+        if ( offset === '' || offset === '0' || offset == 0 )
             offset = Math.floor( ({{ search_result_current }}-1) / {{ page_length }} ) + 1;
 
         var url = '{{ path('odr_search_render', { 'search_theme_id': search_theme_id, 'search_key': search_key } ) }}';
@@ -97,6 +97,7 @@
 
         // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
         UpdateURL(url);
+
     }
 
     function changeResult(direction) {
@@ -110,8 +111,6 @@
         // Ensure offset exists
         if ( offset == '' )
             offset = Math.floor( (current-1) / page_length ) + 1;
-
-//alert( 'offset: ' + offset + ' page_length: ' + page_length + ' current: ' + current + ' count: ' + count );
 
         if (direction == 'prev') {
             data_record_id = "{{ prev_datarecord }}";
