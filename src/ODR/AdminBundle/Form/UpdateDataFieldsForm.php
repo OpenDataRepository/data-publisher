@@ -201,7 +201,6 @@ class UpdateDataFieldsForm extends AbstractType
             )
         );
 
-
         $builder->add(
             'children_per_row',
             ChoiceType::class,
@@ -223,6 +222,22 @@ class UpdateDataFieldsForm extends AbstractType
             )
         );
 
+        $builder->add(
+            'tags_allow_multiple_levels',
+            CheckboxType::class,
+            array(
+                'label'  => 'Allow parent/child relationships',
+                'required' => false
+            )
+        );
+        $builder->add(
+            'tags_allow_non_admin_edit',
+            CheckboxType::class,
+            array(
+                'label'  => 'Non-admins can add/move/delete tags',
+                'required' => false
+            )
+        );
     }
 
 

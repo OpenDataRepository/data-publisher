@@ -762,11 +762,17 @@ odr_create_tag:
     requirements:
         datafield_id: \d+
 
+odr_validate_tag_list:
+    path:  /design/tags/validate_list/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Tags:validatetaglist }
+    requirements:
+        datafield_id: \d+
 odr_import_tag_list:
-    path:  /design/tags/import_list/{datafield_id}
+    path:  /design/tags/import_list/{datafield_id}/{token}
     defaults: { _controller: ODRAdminBundle:Tags:importtaglist }
     requirements:
         datafield_id: \d+
+        token: '|[a-zA-Z0-9\-\_]{15}'
 
 odr_delete_tag:
     path:  /design/tags/delete/{tag_id}

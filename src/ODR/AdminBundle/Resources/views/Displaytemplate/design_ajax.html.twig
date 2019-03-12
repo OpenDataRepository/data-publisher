@@ -2824,6 +2824,13 @@
         if (SaveRadioOptionNameInterval[radio_option_id] != undefined)
             SaveRadioOptionNameInterval[radio_option_id] = window.clearInterval(SaveRadioOptionNameInterval[radio_option_id]);
 
+        // Silently ignore attempts to save blank radio options
+        // Placing this after window.clearInterval() to avoid pointless double save + double reload
+        var option_name = $("#radio_option_" + radio_option_id + "_name").val().trim();
+        if (option_name === '')
+            return;
+
+
         var url = '{{ path('odr_design_save_radio_option_name', { 'radio_option_id': 0 }) }}';
         url = url.substring(0,(url.length - 1));
         url += radio_option_id;

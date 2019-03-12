@@ -207,7 +207,7 @@ function initPage() {
         updateWarnings();
     });
 
-    $(".ODRDelimiterField").unbind('keyup').keyup(function(event) {
+    $(".ODRDelimiterField").unbind('keyup paste').on('keyup paste', function() {
         updateWarnings();
     });
 

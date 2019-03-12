@@ -1764,6 +1764,9 @@ class DisplaytemplateController extends ODRCustomController
 
             if ( !isset($post['option_name']) )
                 throw new ODRBadRequestException();
+            $option_name = trim( $post['option_name'] );
+            if ($option_name === '')
+                throw new ODRBadRequestException("Radio Option Names can't be blank");
 
 
             /** @var RadioOptions $radio_option */
@@ -2291,6 +2294,8 @@ class DisplaytemplateController extends ODRCustomController
                 }
             }
 
+
+            // ----------------------------------------
             // Now that all the radio options are created...
             // Master Template Data Fields must increment Master Revision on all change requests.
             if ( $datafield->getIsMasterField() ) {

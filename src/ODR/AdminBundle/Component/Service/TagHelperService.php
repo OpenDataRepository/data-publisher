@@ -302,17 +302,21 @@ class TagHelperService
      * Does not make any changes to the database.
      *
      * @param $stacked_tag_array @see self::stackTagArray()
+     * @param bool $sort_by_name if true, sort by tag name...if false, sort by display order
      */
-    public function orderStackedTagArray(&$stacked_tag_array)
+    public function orderStackedTagArray(&$stacked_tag_array, $sort_by_name = false)
     {
         // Order all the child tags first
         foreach ($stacked_tag_array as $tag_id => $tag) {
             if ( isset($tag['children']) && !empty($tag['children']) )
-                $stacked_tag_array[$tag_id]['children'] = self::orderStackedTagArray_worker($tag['children']);
+                $stacked_tag_array[$tag_id]['children'] = self::orderStackedTagArray_worker($tag['children'], $sort_by_name);
         }
 
         // Now that all child tags are ordered, order the top-level tags
-        uasort($stacked_tag_array, "self::tagSort");
+        if ($sort_by_name)
+            uasort($stacked_tag_array, "self::tagSort_name");
+        else
+            uasort($stacked_tag_array, "self::tagSort_displayOrder");
     }
 
 
@@ -320,20 +324,39 @@ class TagHelperService
      * Does the recursive part of sorting tags by displayOrder.
      *
      * @param array $tag_array
+     * @param bool $sort_by_name if true, sort by tag name...if false, sort by display order
      *
      * @return array
      */
-    private function orderStackedTagArray_worker(&$tag_array)
+    private function orderStackedTagArray_worker(&$tag_array, $sort_by_name = false)
     {
         // Order all the children of this tag first
         foreach ($tag_array as $tag_id => $tag) {
             if ( isset($tag['children']) && !empty($tag['children']) )
-                $tag_array[$tag_id]['children'] = self::orderStackedTagArray_worker($tag['children']);
+                $tag_array[$tag_id]['children'] = self::orderStackedTagArray_worker($tag['children'], $sort_by_name);
         }
 
         // Now that all children of this "tag group" are ordered, order the "tag group" itself
-        uasort($tag_array, "self::tagSort");
+        if ($sort_by_name)
+            uasort($tag_array, "self::tagSort_name");
+        else
+            uasort($tag_array, "self::tagSort_displayOrder");
+
         return $tag_array;
+    }
+
+
+    /**
+     * Custom function to sort tags by name.
+     *
+     * @param array $a
+     * @param array $b
+     *
+     * @return int
+     */
+    private function tagSort_name($a, $b)
+    {
+        return strcmp($a['tagMeta']['tagName'], $b['tagMeta']['tagName']);
     }
 
 
@@ -345,7 +368,7 @@ class TagHelperService
      *
      * @return int
      */
-    private function tagSort($a, $b)
+    private function tagSort_displayOrder($a, $b)
     {
         $a_displayOrder = intval($a['tagMeta']['displayOrder']);
         $b_displayOrder = intval($b['tagMeta']['displayOrder']);
@@ -361,6 +384,8 @@ class TagHelperService
 
 
     /**
+     * TODO - this currently isn't used...
+     *
      * Generates a CSRF token for every datafield/tag pair in the provided arrays.  Use ONLY on the
      * design pages, DatarecordInfoService::generateCSRFTokens() should be used for the edit pages.
      *

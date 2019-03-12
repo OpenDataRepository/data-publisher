@@ -1366,15 +1366,18 @@ class EntityCreationService
      *                              and return the existing Tag with the given $datafield and
      *                              $tag_name first
      * @param string $tag_name
+     * @param bool $delay_uuid If true, don't automatically create a uuid for this tag...the caller
+     *                         will need to take care of it.  Only really needs to be true during
+     *                         mass tag imports.
      *
      * @return Tags
      */
-    public function createTag($user, $datafield, $force_create, $tag_name)
+    public function createTag($user, $datafield, $force_create, $tag_name, $delay_uuid = false)
     {
         $tag = null;
         if ($force_create) {
             // We're being forced to create a new tag...
-            $tag = self::createTagEntity($user, $datafield, $tag_name);
+            $tag = self::createTagEntity($user, $datafield, $tag_name, $delay_uuid);
         }
         else {
             // Otherwise, see if a tag with this name for this datafield already exists
@@ -1408,7 +1411,7 @@ class EntityCreationService
             }
             else {
                 // Got the lock, create the tag entry
-                $tag = self::createTagEntity($user, $datafield, $tag_name);
+                $tag = self::createTagEntity($user, $datafield, $tag_name, $delay_uuid);
 
                 $this->em->persist($tag);
                 $this->em->flush();
@@ -1429,18 +1432,21 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataFields $datafield
      * @param string $tag_name
+     * @param bool $delay_uuid If true, don't automatically create a uuid for this tag...the caller
+     *                         will need to take care of it
      *
      * @return Tags
      */
-    private function createTagEntity($user, $datafield, $tag_name)
+    private function createTagEntity($user, $datafield, $tag_name, $delay_uuid)
     {
         /** @var Tags $tag */
         $tag = new Tags();
         $tag->setDataField($datafield);
         $tag->setTagName($tag_name);     // exists to prevent potential concurrency issues, see below
 
-        // All new fields require a tag UUID
-        $tag->setTagUuid( $this->uuid_service->generateTagUniqueId() );
+        if (!$delay_uuid)
+            $tag->setTagUuid( $this->uuid_service->generateTagUniqueId() );
+
         $tag->setCreatedBy($user);
         $tag->setCreated(new \DateTime());
 
@@ -1471,6 +1477,9 @@ class EntityCreationService
      * Create a tag link from $ancestor_tag to $descendant_tag.
      *
      * This function doesn't permit delaying flushes, because it's impossible to lock properly.
+     * TODO - this idea of locking at the entity level only partially solves the problem...
+     * TODO - ...it technically prevents duplicates, but it's completely incompatible with delaying flushes
+     * TODO - also, this function basically requires both parent and child tag to be flushed before it'll work...
      *
      * @param ODRUser $user
      * @param Tags $parent_tag

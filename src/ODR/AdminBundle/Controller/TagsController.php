@@ -25,9 +25,11 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
+use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Exceptions
@@ -35,8 +37,8 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Symfony
+use Doctrine\DBAL\Connection as DBALConnection;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -112,13 +114,15 @@ class TagsController extends ODRCustomController
             // This also reduces the chances that jQuery Sortable will mess something up
             $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId());
 
+            $df_array = array();
             $stacked_tag_list = array();
             foreach ($datatype_array as $dt_id => $dt) {
                 foreach ($dt['dataFields'] as $df_id => $df) {
                     if ($df_id === $datafield->getId() ){
-                        $datafield = $df;
+                        $df_array = $df;
                         if ( isset($df['tags']) )
                             $stacked_tag_list = $df['tags'];
+                        break;
                     }
                 }
             }
@@ -127,9 +131,9 @@ class TagsController extends ODRCustomController
             $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
-                    'ODRAdminBundle:Tags:tag_wrapper.html.twig',
+                    'ODRAdminBundle:Tags:tag_design_wrapper.html.twig',
                     array(
-                        'datafield' => $datafield,
+                        'datafield' => $df_array,
                         'stacked_tags' => $stacked_tag_list,
                     )
                 )
@@ -308,7 +312,7 @@ class TagsController extends ODRCustomController
      *
      * @return Response
      */
-    public function importtaglistAction($datafield_id, Request $request)
+    public function validatetaglistAction($datafield_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -316,9 +320,6 @@ class TagsController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // TODO - figure out whether tag design is its own page or not first
-            throw new ODRNotImplementedException();
-
             // Ensure required options exist
             $post = $request->request->all();
             if ( !isset($post['tag_list']) )
@@ -330,16 +331,10 @@ class TagsController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
-            /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            /** @var TagHelperService $th_service */
+            $th_service = $this->container->get('odr.tag_helper_service');
 
 
             /** @var DataFields $datafield */
@@ -377,36 +372,355 @@ class TagsController extends ODRCustomController
             if ( !is_null($datafield->getMasterDataField()) )
                 throw new ODRBadRequestException();
 
+            // Makes no sense to run this if the user didn't provide any tags...
+            if ( trim($post['tag_list']) === 0 )
+                throw new ODRBadRequestException();
+            // Also, require a delimiter to be set if this field allows parent/child relationships
+            if ( $datafield->getTagsAllowMultipleLevels() && !isset($post['tag_hierarchy_delimiter']) )
+                throw new ODRBadRequestException();
+
 
             // ----------------------------------------
-            $tag_list = array();
+            // Verify that the tag data passed in is reasonable
+            $errors = array();
+            $posted_tags = array();
+
+            $lines = array();
             if ( strlen($post['tag_list']) > 0 )
-                $tag_list = preg_split("/\n/", $post['tag_list']);
+                $lines = explode("\n", $post['tag_list']);
 
-            // Parse and process tags
-            $processed_tags = array();
-            foreach ($tag_list as $tag_name) {
-                // Remove whitespace
-                $tag_name = trim($tag_name);
-
-                // ensure length > 0
-                if ( strlen($tag_name) < 1 )
+            $line_num = 0;
+            foreach ($lines as $line) {
+                // Skip over blank lines
+                $line_num++;
+                $line = trim($line);
+                if ($line === '')
                     continue;
 
-                if ( !in_array($tag_name, $processed_tags) ) {
-                    // Create a new Tag
-                    $force_create = true;
-                    $ec_service->createTag(
-                        $user,
-                        $datafield,
-                        $force_create,
-                        $tag_name
-                    );
+                $new_tags = explode($post['tag_hierarchy_delimiter'], $line);
+                foreach ($new_tags as $num => $tag) {
+                    // TODO - other errors?
+                    $tag = trim($tag);
+                    if ($tag === '') {
+                        $errors[] = array(
+                            'line_num' => $line_num,
+                            'message' => 'Blank tag at level '.($num+1),
+                            'line' => $line,
+                        );
+                    }
+                    else {
+                        $new_tags[$num] = $tag;
+                    }
 
-                    array_push($processed_tags, $tag_name);
+                    // Store the trimmed tags for the next step
+                    $posted_tags[$line_num] = $new_tags;
                 }
             }
 
+
+            // ----------------------------------------
+            // Only proceed with rendering the new tag list if there were no errors...
+            $templating = $this->get('templating');
+            if ( count($errors) === 0 ) {
+                // ...going to need the datafield array entry for later
+                $dt_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+                $df_array = $dt_array[$datatype->getId()]['dataFields'][$datafield->getId()];
+
+                // Convert any existing tags into a slightly different format
+                $stacked_tag_array = self::convertTagsForListImport($df_array['tags']);
+
+                // Splice this tag into the stacked array of existing tags
+                foreach ($posted_tags as $num => $new_tags)
+                    $stacked_tag_array = self::insertTagsForListImport($stacked_tag_array, $new_tags);
+
+                // Ensure the tags are sorted by name
+                $th_service->orderStackedTagArray($stacked_tag_array, true);
+
+
+                // Going to store the potential import data in the user's session...
+                $session = $request->getSession();
+                $tag_import_lists = array();
+                if ( $session->has('tag_import_lists') )
+                    $tag_import_lists = $session->get('tag_import_lists');
+
+                /** @var ODRTabHelperService $tab_helper_service */
+                $tab_helper_service = $this->container->get('odr.tab_helper_service');
+                $token = $tab_helper_service->createTabId();
+                $tag_import_lists[$token] = $posted_tags;
+
+                $session->set('tag_import_lists', $tag_import_lists);
+
+
+                // Render and return the given tag list as HTML so it can be verified
+                $return['d'] = array(
+                    'html' => $templating->render(
+                        'ODRAdminBundle:Tags:tag_import_validate.html.twig',
+                        array(
+                            'stacked_tags' => $stacked_tag_array,
+
+                            'datafield_id' => $datafield->getId(),
+                            'token' => $token,
+                        )
+                    )
+                );
+
+            }
+            else {
+                // ...otherwise, render a quick little error dialogue
+                $return['r'] = 1;
+                $return['d'] = array(
+                    'html' => $templating->render(
+                        'ODRAdminBundle:Tags:tag_import_errors.html.twig',
+                        array(
+                            'errors' => $errors,
+                        )
+                    )
+                );
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x33fed4b7;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Takes an existing stacked tag array from a cached_datatype_array entry, and converts it into
+     * a stacked array where the tags are organized by tag names instead of tag ids.
+     *
+     * Only saves the minimal set of entries required to render the tag list later on.
+     *
+     * @param array $stacked_tags
+     *
+     * @return array
+     */
+    private function convertTagsForListImport($stacked_tags)
+    {
+        $stacked_tag_array = array();
+        foreach ($stacked_tags as $tag_id => $tag_entry) {
+            $tag = array(
+                'id' => $tag_id,
+                'tagMeta' => array(
+                    'tagName' => $tag_entry['tagMeta']['tagName'],
+                ),
+                'tagUuid' => $tag_entry['tagUuid'],
+            );
+
+            if ( isset($tag_entry['children']) )
+                $tag['children'] = self::convertTagsForListImport($tag_entry['children']);
+
+            // Acceptable to store tags by name here, since none of its siblings *should* have the
+            //  exact same name...
+            $stacked_tag_array[ $tag_entry['tagName'] ] = $tag;
+        }
+
+        return $stacked_tag_array;
+    }
+
+
+    /**
+     * Splices an array of tags the user has provided into the existing tags for a datafield.
+     *
+     * @param array $existing_tag_array @see self::convertTagsForListImport()
+     * @param array $new_tags
+     *
+     * @return array
+     */
+    private function insertTagsForListImport($existing_tag_array, $new_tags)
+    {
+        $tag_name = $new_tags[0];
+        if ( !isset($existing_tag_array[$tag_name]) ) {
+            // A tag with this name doesn't exist at this level yet
+
+            // Twig needs an ID, but don't really care what it is...not going to interact with it
+            $uuid = UniqueUtility::uniqueIdReal();
+
+            // Acceptable to store tags by name here, since none of its siblings *should* have the
+            //  exact same name...
+            $existing_tag_array[$tag_name] = array(
+                'id' => $uuid,
+                'tagMeta' => array(
+                    'tagName' => $tag_name
+                ),
+//                'tagUuid' => $uuid,    // Don't need this just for rendering
+            );
+        }
+
+        // If there are more children/grandchildren to the tag to add...
+        if ( count($new_tags) > 1 ) {
+            // ...get any children the existing tag already has
+            $existing_child_tags = array();
+            if ( isset($existing_tag_array[$tag_name]['children']) )
+                $existing_child_tags = $existing_tag_array[$tag_name]['children'];
+
+            // This level has been processed, move on to its children
+            $new_tags = array_slice($new_tags, 1);
+            $existing_tag_array[$tag_name]['children'] =
+                self::insertTagsForListImport($existing_child_tags, $new_tags);
+        }
+
+        return $existing_tag_array;
+    }
+
+
+    /**
+     * Turns a given POST request into a pile of new tag commits
+     *
+     * @param int $datafield_id
+     * @param string $token
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function importtaglistAction($datafield_id, $token, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
+
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+            $grandparent_datatype_id = $datatype->getGrandparent()->getId();
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Tag stuff doesn't necessarily require datatype admin to modify...
+            if ( $datafield->getTagsAllowNonAdminEdit() ) {
+                // ...but they need to at least have edit permissions for the datafield
+                if ( !$pm_service->canEditDatafield($user, $datafield) )
+                    throw new ODRForbiddenException();
+            }
+            else {
+                // ...but if not configured for that, then the user does need to be an admin
+                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                    throw new ODRForbiddenException();
+            }
+            // --------------------
+
+            // This should only work on a Tag field
+            if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
+                throw new ODRBadRequestException();
+            // This should not work on a datafield that is derived from a master template
+            if ( !is_null($datafield->getMasterDataField()) )
+                throw new ODRBadRequestException();
+
+
+            // Require this token to be set in the user's session
+            $session = $request->getSession();
+            if ( !$session->has('tag_import_lists') )
+                throw new ODRBadRequestException('Tag import attempted without previous session');
+            $tag_import_lists = $session->get('tag_import_lists');
+            if ( !isset($tag_import_lists[$token]) )
+                throw new ODRBadRequestException('Tag import attempted with invalid session');
+
+
+            // ----------------------------------------
+            // Extract the previously posted tag list out of the user's session
+            $posted_tags = $tag_import_lists[$token];
+
+            // Remove the tag list from the user's session
+            unset( $tag_import_lists[$token] );
+            $session->set('tag_import_lists', $tag_import_lists);
+
+
+            // Going to need the hydrated versions of all tags for this datafield in order to
+            //  properly create TagTree entries...
+            $query = $em->createQuery(
+               'SELECT t
+                FROM ODRAdminBundle:Tags AS t
+                WHERE t.dataField = :datafield_id
+                AND t.deletedAt IS NULL'
+            )->setParameters( array('datafield_id' => $datafield->getId()) );
+            $results = $query->getResult();
+
+            /** @var Tags[] $results */
+            $hydrated_tag_array = array();
+            foreach ($results as $tag) {
+                // Have to store by tag uuid because tag names aren't guaranteed to be unique
+                //  across the entire tree
+                $hydrated_tag_array[ $tag->getTagUuid() ] = $tag;
+            }
+            /** @var Tags[] $hydrated_tag_array */
+
+
+            // ...and a list of all tag uuids to prevent duplicates during the creation of all
+            //  these new tags...
+            $query = $em->createQuery(
+               'SELECT t.tagUuid
+                FROM ODRAdminBundle:Tags AS t
+                WHERE t.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+            $all_tag_uuids = array();
+            foreach ($results as $tag)
+                $all_tag_uuids[ $tag['tagUuid'] ] = 1;
+
+
+            // ----------------------------------------
+            // Going to need a stacked array version of the tags to combine with the posted data
+            $dt_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+            $df_array = $dt_array[$datatype->getId()]['dataFields'][$datafield->getId()];
+            $stacked_tag_array = self::convertTagsForListImport($df_array['tags']);
+
+            // Splice each of the posted tag trees into the existing stacked tag structure
+            // Flushing is delayed until the updateDatafieldMeta() call
+            foreach ($posted_tags as $num => $new_tags) {
+                $stacked_tag_array = self::createTagsForListImport(
+                    $em,         // Needed to persist new tag uuids and tag tree entries
+                    $ec_service, // Needed to create new tags
+                    $user,       // Needed to create new tags
+                    $datafield,  // Needed to create new tags
+                    $hydrated_tag_array,
+                    $all_tag_uuids,
+                    $stacked_tag_array,
+                    $new_tags,
+                    null    // This initial call is for top-level tags...they don't have a parent
+                );
+            }
+
+
+            // ----------------------------------------
             // Now that all the tags are created...
             // Master Template Data Fields must increment Master Revision on all change requests.
             if ( $datafield->getIsMasterField() ) {
@@ -417,6 +731,9 @@ class TagsController extends ODRCustomController
             // createTag() does not automatically flush when $force_create == true
             $em->flush();
 
+            // Wipe the cached tag tree arrays
+            $cache_service->delete('cached_tag_tree_'.$grandparent_datatype_id);
+            $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype_id);
 
             // If the datafield is sorting its tags by name, then all of its tags need a re-sort
             if ($datafield->getRadioOptionNameSort() == true)
@@ -430,7 +747,7 @@ class TagsController extends ODRCustomController
             $search_cache_service->onDatafieldModify($datafield);
         }
         catch (\Exception $e) {
-            $source = 0x33fed4b7;
+            $source = 0x75de8980;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -440,6 +757,97 @@ class TagsController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Takes a tag
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param EntityCreationService $ec_service
+     * @param ODRUser $user
+     * @param DataFields $datafield
+     * @param Tags[] $hydrated_tag_array A flat array of all tags for this datafield, organized by
+     *                                   their uuids
+     * @param array $all_tag_uuids
+     * @param array $stacked_tag_array @see self::convertTagsForListImport()
+     * @param array $posted_tags
+     * @param Tags|null $parent_tag
+     *
+     * @return array
+     */
+    private function createTagsForListImport($em, $ec_service, $user, $datafield, &$hydrated_tag_array, &$all_tag_uuids, &$stacked_tag_array, $posted_tags, $parent_tag)
+    {
+        $current_tag = null;
+        $tag_name = $posted_tags[0];
+        if ( isset($stacked_tag_array[$tag_name]) ) {
+            // This tag exists already
+            $tag_uuid = $stacked_tag_array[$tag_name]['tagUuid'];
+            $current_tag = $hydrated_tag_array[$tag_uuid];
+        }
+        else {
+            // A tag with this name doesn't exist at this level yet
+            $delay_uuid = true;
+            $current_tag = $ec_service->createTag($user, $datafield, true, $tag_name, $delay_uuid);
+
+            // Generate a new uuid for this tag...
+            $new_tag_uuid = UniqueUtility::uniqueIdReal();
+            while ( isset($all_tag_uuids[$new_tag_uuid]) )
+                $new_tag_uuid = UniqueUtility::uniqueIdReal();
+            $current_tag->setTagUuid($new_tag_uuid);
+            $em->persist($current_tag);
+
+            // Need to store the new stuff for later reference...
+            $hydrated_tag_array[$new_tag_uuid] = $current_tag;
+            $all_tag_uuids[$new_tag_uuid] = 1;
+
+            $stacked_tag_array[$tag_name] = array(
+                'id' => $new_tag_uuid,    // Don't really care what the ID is...only used for rendering
+                'tagMeta' => array(
+                    'tagName' => $tag_name
+                ),
+                'tagUuid' => $new_tag_uuid,
+            );
+
+
+            // If the parent tag isn't null, then a new TagTree entry also needs to be created
+            if ( !is_null($parent_tag) ) {
+                // TODO - ...createTagTree() needs a flush before, or the lock file doesn't have all the info it needs to lock properly
+//                $ec_service->createTagTree($user, $parent_tag, $new_tag);
+
+                $tag_tree = new TagTree();
+                $tag_tree->setParent($parent_tag);
+                $tag_tree->setChild($current_tag);
+
+                $tag_tree->setCreatedBy($user);
+
+                $em->persist($tag_tree);
+            }
+        }
+
+        // If there are more children/grandchildren to the tag to add...
+        if ( count($posted_tags) > 1 ) {
+            // ...get any children the existing tag already has
+            $existing_child_tags = array();
+            if ( isset($stacked_tag_array[$tag_name]['children']) )
+                $existing_child_tags = $stacked_tag_array[$tag_name]['children'];
+
+            // This level has been processed, move on to its children
+            $new_tags = array_slice($posted_tags, 1);
+            $stacked_tag_array[$tag_name]['children'] = self::createTagsForListImport(
+                $em,         // Needed to persist new tag uuids and tag tree entries
+                $ec_service, // Needed to create new tags
+                $user,       // Needed to create new tags
+                $datafield,  // Needed to create new tags
+                $hydrated_tag_array,
+                $all_tag_uuids,
+                $existing_child_tags,
+                $new_tags,
+                $current_tag
+            );
+        }
+
+        return $stacked_tag_array;
     }
 
 
@@ -457,6 +865,8 @@ class TagsController extends ODRCustomController
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
+
+        $conn = null;
 
         try {
             // Grab necessary objects
@@ -479,6 +889,7 @@ class TagsController extends ODRCustomController
 
 
             /** @var Tags $tag */
+            $tag_id = intval($tag_id);
             $tag = $em->getRepository('ODRAdminBundle:Tags')->find($tag_id);
             if ($tag == null)
                 throw new ODRNotFoundException('Tag');
@@ -523,42 +934,106 @@ class TagsController extends ODRCustomController
                 throw new ODRBadRequestException();
 
 
-            // TODO - figure out how to handle this
+            // ----------------------------------------
+            // May need to traverse the tag tree hierarchy to properly delete this tag...
             $tag_hierarchy = $th_service->getTagHierarchy($grandparent_datatype->getId());
             if ( isset($tag_hierarchy[$datatype->getId()])
                 && isset($tag_hierarchy[$datatype->getId()][$datafield->getId()])
             ) {
-                $tag_tree = $tag_hierarchy[$datatype->getId()][$datafield->getId()];
-                 if ( isset($tag_tree[$tag->getId()]) )
-                     throw new ODRNotImplementedException('Unsure how to handle deletion of tags with children');
+                $tag_hierarchy = $tag_hierarchy[$datatype->getId()][$datafield->getId()];
+            }
+
+            // Use the tag hierarchy to locate all children of the tag being deleted
+            $tags_to_delete = array($tag_id);
+
+            $tags_to_process = array($tag_id);
+            while ( !empty($tags_to_process) ) {
+                // While there's still tags to be processed...
+                $tmp = $tags_to_process;
+                $tags_to_process = array();
+
+                foreach ($tmp as $num => $t_id) {
+                    // ...if this tag has children...
+                    if ( isset($tag_hierarchy[$t_id]) ) {
+                        foreach ($tag_hierarchy[$t_id] as $child_tag_id => $val) {
+                            // ...they're going to be deleted as well
+                            $tags_to_delete[] = $child_tag_id;
+                            // ...and need to be checked for child tags of their own
+                            $tags_to_process[] = $child_tag_id;
+                        }
+                    }
+                }
             }
 
 
-            // ----------------------------------------
-            // Delete all tag selection entities attached to the tag
+            // Run a query to get all of the tag tree entries that are going to need deletion
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:TagSelection AS ts
-                SET ts.deletedAt = :now
-                WHERE ts.tag = :tag_id AND ts.deletedAt IS NULL'
+               'SELECT tt.id
+                FROM ODRAdminBundle:TagTree AS tt
+                WHERE (tt.parent IN (:parent_tags) OR tt.child IN (:child_tags) )
+                AND tt.deletedAt IS NULL'
             )->setParameters(
                 array(
-                    'now' => new \DateTime(),
-                    'tag_id' => $tag->getId()
+                    'parent_tags' => $tags_to_delete,
+                    'child_tags' => $tags_to_delete,
                 )
             );
-            $updated = $query->execute();
+            $results = $query->getArrayResult();
+
+            $tag_trees_to_delete = array();
+            foreach ($results as $num => $tt)
+                $tag_trees_to_delete[] = $tt['id'];
 
 
-            // Save who deleted this tag
-            $tag->setDeletedBy($user);
-            $em->persist($tag);
-            $em->flush($tag);
+            // Do the same to get all of the tag selection entries that need deletion
+            $query = $em->createQuery(
+               'SELECT ts.id
+                FROM ODRAdminBundle:TagSelection AS ts
+                WHERE ts.tag IN (:tag_list) AND ts.deletedAt IS NULL'
+            )->setParameters( array('tag_list' => $tags_to_delete) );
+            $results = $query->getArrayResult();
 
-            // Delete the tag and its current associated metadata entry
-            $tag_meta = $tag->getTagMeta();
-            $em->remove($tag);
-            $em->remove($tag_meta);
-            $em->flush();
+            $tag_selections_to_delete = array();
+            foreach ($results as $num => $ts)
+                $tag_selections_to_delete[] = $ts['id'];
+
+
+            // ----------------------------------------
+            // Wrap this mass deletion inside a mysql transaction
+            $conn = $em->getConnection();
+            $conn->beginTransaction();
+
+            // Delete all Tag and TagMeta entries
+            $query_str =
+               'UPDATE odr_tags AS t, odr_tag_meta AS tm
+                SET t.deletedAt = NOW(), tm.deletedAt = NOW(),
+                    t.deletedBy = '.$user->getId().'
+                WHERE tm.tag_id = t.id AND t.id IN (?)
+                AND t.deletedAt IS NULL AND tm.deletedAt IS NULL';
+            $parameters = array(1 => $tags_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+            // Delete the tag tree entries
+            $query_str =
+               'UPDATE odr_tag_tree AS tt
+                SET tt.deletedAt = NOW(), tt.deletedBy = '.$user->getId().'
+                WHERE tt.id IN (?)';
+            $parameters = array(1 => $tag_trees_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+            // Delete the tag selection entries
+            $query_str =
+               'UPDATE odr_tag_selection AS ts
+                SET ts.deletedAt = NOW()
+                WHERE ts.id IN (?)';
+            $parameters = array(1 => $tag_selections_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+            // No error encountered, commit changes
+            $conn->commit();
 
 
             // ----------------------------------------
@@ -589,6 +1064,10 @@ class TagsController extends ODRCustomController
 
         }
         catch (\Exception $e) {
+            // Abort a transaction if one is active
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollBack();
+
             $source = 0x0f39547e;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
@@ -912,6 +1391,9 @@ class TagsController extends ODRCustomController
             $post = $request->request->all();
             if ( !isset($post['tag_name']) )
                 throw new ODRBadRequestException();
+            $option_name = trim( $post['tag_name'] );
+            if ($option_name === '')
+                throw new ODRBadRequestException("Tag Names can't be blank");
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */

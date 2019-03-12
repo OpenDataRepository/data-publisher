@@ -3869,7 +3869,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 #csvexport_form td {
     padding: 2px 5px;
 }
-#csvexport_form .ODRDelimiterField {
+.ODRDelimiterField {
     text-align: center;
     font-weight: bold;
 }
@@ -3907,3 +3907,22 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     opacity: 0.2;
 }
 /* .ODREditableDatafield {} */
+
+#ODRTagForm {
+    max-height: 750px;
+    overflow-y: scroll;
+}
+.ODRTagImport_wrapper {
+    padding-left: 20px;
+    text-align: left;
+}
+.ODRTagImport_header {
+    padding-top: 50px;
+    text-align: center;
+}
+.ODRTagImport_content {
+    height: 500px;
+    overflow-y: scroll;
+    overflow-x: scroll;
+    white-space: nowrap;
+}

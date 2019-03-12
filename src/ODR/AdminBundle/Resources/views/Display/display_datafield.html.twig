@@ -205,9 +205,10 @@
             {% if datafield.tags is defined %}
                 {% include 'ODRAdminBundle:Display:tag_wrapper.html.twig' with {
                     'datafield': datafield,
+                    'stacked_tags': datafield.tags,
 
                     'drf': datarecordfield,
-                    'stacked_tags': datafield.tags,
+                    'unique_id': unique_id,
                 } %}
             {% endif %}
         </fieldset>
