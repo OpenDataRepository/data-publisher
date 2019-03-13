@@ -1511,7 +1511,7 @@ pre .support.value  {
         margin: 0.5em 0;
     }
     .ODRTagSearchDiv {
-        max-height: 300px;
+        max-height: 200px;
         overflow-y: auto;
         overflow-x: hidden;
     }
@@ -3851,6 +3851,19 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 .ODRTagWrapper_view .ODRTagGroup {
     padding-left: 15px;
 }
+.ODRTagWrapper_search li {
+    list-style-type: none;
+}
+.ODRTagWrapper_search .ODRTagGroup {
+    padding-left: 15px;
+    margin-top: 0px;
+}
+.ODRTagWrapper_import li {
+    list-style-type: none;
+}
+.ODRTagWrapper_import .ODRTagGroup {
+    padding-left: 15px;
+}
 
 .ODRTagWrapper_edit {
     /*max-height: 200px;*/
@@ -3864,6 +3877,12 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 .ODRTagWrapper_view .ODRTagLabel {
+    cursor: default;
+}
+.ODRTagWrapper_search .ODRTagLabel {
+    cursor: default;
+}
+.ODRTagWrapper_import .ODRTagLabel {
     cursor: default;
 }
 .ODRTagWrapper_edit .ODRTagLabel {
@@ -4008,4 +4027,11 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     .ODRSearchToggle {
         display: none;
     }
+}
+
+.ODRShortResults_empty {
+    text-align: center;
+    padding-top: 50px;
+    font-size: 1.2em;
+    font-weight: bold;
 }

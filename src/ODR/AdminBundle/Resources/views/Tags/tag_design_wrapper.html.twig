@@ -55,7 +55,7 @@
                 </fieldset>
             </form>
         </div>
-        <div class="pure-u-1-2 ODRTagWrapper_view">
+        <div class="pure-u-1-2 ODRTagWrapper_import">
         </div>
     </div>
 </div>
@@ -157,7 +157,7 @@
                 $("#ODRTagListForm").find('textarea').each(function() {
                     $(this).val('');
                 });
-                $(".ODRTagWrapper_view").html('');
+                $(".ODRTagWrapper_import").html('');
 
                 $(".ODRTagCreationMode").html("Import tags");
                 $(".ODRAddTag").html("Create single tag");
@@ -202,7 +202,7 @@
         });
 
         $("#tag_list").unbind('keyup paste').on('keyup paste', function() {
-            $(".ODRTagWrapper_view").html('');
+            $(".ODRTagWrapper_import").html('');
         });
 
         FindDuplicateTagNames();
@@ -328,7 +328,7 @@
             data: form_data,
             success: function(data) {
                 //
-                $(".ODRTagWrapper_view").html(data.d.html);
+                $(".ODRTagWrapper_import").html(data.d.html);
                 setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
             },
             error: function(jqXHR, textStatus, errorThrown) {

@@ -3345,7 +3345,7 @@ class DisplaytemplateController extends ODRCustomController
                     // ----------------------------------------
                     // Easier to deal with change of fieldtype and how it relates to searchable here
                     switch ($submitted_data->getFieldType()->getTypeClass()) {
-//                        case 'DecimalValue':
+                        case 'DecimalValue':
                         case 'IntegerValue':
                         case 'LongText':
                         case 'LongVarchar':
@@ -3356,7 +3356,6 @@ class DisplaytemplateController extends ODRCustomController
                             // All of the above fields can have any value for searchable
                             break;
 
-                        case 'DecimalValue':
                         case 'Image':
                         case 'File':
                         case 'Boolean':

@@ -69,7 +69,7 @@
             </span>
 
         {% elseif field_typeclass == "Tag" %}
-            <span class="pure-u-2-3 ODRTagSearchDiv" id="Input_{{ datafield.id }}" rel="{{ datatype_id }}">
+            <span class="pure-u-1 ODRTagSearchDiv ODRSearchScrollbox" id="Input_{{ datafield.id }}" rel="{{ datatype_id }}">
                 {% if datafield['tags'] is defined %}
                     <input type="hidden" id="datafield_{{ datafield.id }}" name="{{ datafield.id }}" value="" />
 

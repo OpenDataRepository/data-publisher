@@ -231,16 +231,16 @@
                 doSearch();
             });
 
-            doSearch();
 
-            {#
-            {% if search_string is defined and search_string != '' %}
+            // If user is on the base search page for a datatype...
             if (window.location.hash.length === 0) {
-                // No need to set up rest of form, just do an immediate search
+                // ...then immediately trigger a search with "default" criteria
                 doSearch();
+
+                // Don't immediately return...the search controls need initialization
+                // return;
             }
-            {% endif %}
-            #}
+
 
             {% if is_datatype_admin %}
 
@@ -721,11 +721,12 @@
         function doSearch() {
             // Values for Radio datafields need to be manually set
             $(".ODRRadioSearchDiv").each(function () {
-
                 var data = $(this).attr('id').split(/_/);
                 var datafield_id = data[1];
+
+                // Reset the input's value since this is rebuilding the search value from scratch
                 var datafield = $("#datafield_" + datafield_id);
-                datafield.val('')
+                datafield.val('');
 
                 var str = '';
                 var first_selection = true;
@@ -754,9 +755,12 @@
 
             // Same for tag datafields
             $(".ODRTagSearchDiv").each(function () {
-
                 var data = $(this).attr('id').split(/_/);
                 var datafield_id = data[1];
+
+                // Reset the input's value since this is rebuilding the search value from scratch
+                var datafield = $("#datafield_" + datafield_id);
+                datafield.val('');
 
                 var str = '';
                 var first_selection = true;
@@ -780,7 +784,7 @@
                 });
 
                 if (has_selections)
-                    $("#datafield_" + datafield_id).val(str);
+                    $(datafield).val(str);
             });
 
             // Ensure the two parts of the search criteria for a file/image match
@@ -815,7 +819,7 @@
                 dataType: 'json',
                 data: $("#search_form").serialize(),
                 success: function (data, textStatus, jqXHR) {
-                    {% if intent == "searching" %}
+                {% if intent == "searching" %}
                     // Overwrite any currently existing tab id, since a new search was performed
                     if (window.sessionStorage.getItem('odr_tab_id')) {
                         // Tell the server to stop storing data for the old tab
@@ -836,11 +840,11 @@
                     url = url.substr(0, url.length - 2);
                     url += $("#selected_theme_id").val() + '/' + data.d.search_key + '/1';
 
-                    // Just reset the hash.  Hashchange event ignores this for main page
-                    window.location.hash = url;
-                    loadSearchContent(url)
+                    // UpdateURL() will end up forcing a hashchange event one way or another, causing
+                    //  the event handler in common_js.html.twig to then call loadSearchContent()
+                    UpdateURL(url);
 
-                    {% elseif intent == "linking" %}
+                {% elseif intent == "linking" %}
                     var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
                     url = url.substr(0, url.length - 10);
                     url += data.d.search_key + '/1/linking';
@@ -855,7 +859,7 @@
                             hideSearchOverlay();
                         }
                     });
-                    {% endif %}
+                {% endif %}
                 },
                 error: function (jqXHR, textStatus, errorThrown) {
                     // TODO - should everything get reset on an error?

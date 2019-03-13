@@ -4,10 +4,8 @@
     {# jquery3 modified how the 'load' event was handled, and firefox wouldn't trigger this reliably #}
     $(window).on('load', function() {
         // Skip this process for the search page
-        if(
-            window.location.hash !== ""
-            && (
-                window.location.hash.substr(1).match(/\/search/)
+        if (window.location.hash !== ""
+            && (window.location.hash.substr(1).match(/\/search/)
                 || window.location.hash.substr(1).match(/\/app_dev.php\/search/)
                 || window.location.hash.substr(1).match(/\/view/)
                 || window.location.hash.substr(1).match(/\/app_dev.php\/view/)
@@ -15,7 +13,7 @@
                 || window.location.hash.substr(1).match(/\/app_dev.php\/edit/)
             )
         ) {
-            loadSearchContent(window.location.hash.substr(1))
+            loadSearchContent( window.location.hash.substr(1) );
             return;
         }
         else if ( window.location.hash !== '') {
@@ -50,20 +48,19 @@
         // Custom AJAX history stuff
         $(window).off("hashchange");
         $(window).on("hashchange", function(event) {
-            // Needed?
+            // Needed, unfortunately...
             event.preventDefault();
 
             // Grab the URL from the browser and reload it
             // Skip this process for the search page
-            if(
-                window.location.hash.substr(1).match(/\/search/)
+            if (window.location.hash.substr(1).match(/\/search/)
                 || window.location.hash.substr(1).match(/\/app_dev.php\/search/)
                 || window.location.hash.substr(1).match(/\/view/)
                 || window.location.hash.substr(1).match(/\/app_dev.php\/view/)
                 || window.location.hash.substr(1).match(/\/edit/)
                 || window.location.hash.substr(1).match(/\/app_dev.php\/edit/)
-                ) {
-                loadSearchContent(window.location.hash.substr(1))
+            ) {
+                loadSearchContent( window.location.hash.substr(1) );
                 return;
             }
 
@@ -273,7 +270,17 @@
             url: url,
             dataType: 'json',
             success: function (data) {
-                $('#ODRSearchContent').html(data.d.html);
+                if ( data.r === 2 ) {
+                    // redirect to single record
+                    xhr = null;
+                    UpdateURL( data.d.url );
+                }
+                else {
+                    // show search results
+                    xhr = null;
+                    $('#ODRSearchContent').html(data.d.html);
+                }
+
                 hideSearchOverlay();
             }
         });
