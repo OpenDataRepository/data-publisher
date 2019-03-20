@@ -1627,8 +1627,9 @@ class EditController extends ODRCustomController
             }
 
             // This should only work on a Radio field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
-                throw new ODRBadRequestException();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio')
+                throw new ODRBadRequestException('Unable to select/deselect a radio option for a '.$typeclass.' field');
 
 
             // --------------------
@@ -2182,7 +2183,7 @@ class EditController extends ODRCustomController
                 throw new ODRNotFoundException('Datarecord');
 
             if ($datarecord->getDataType()->getId() !== $datatype->getId())
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('The given datarecord does not belong to the given datatype');
 
 
             /** @var Datarecord $source_datarecord */
@@ -2742,7 +2743,7 @@ class EditController extends ODRCustomController
 
                 // ...require it to match the datatype being rendered
                 if ($search_theme->getDataType()->getId() !== $datatype->getId())
-                    throw new ODRBadRequestException();
+                    throw new ODRBadRequestException('The given search theme does not belong to the given datatype');
             }
 
 

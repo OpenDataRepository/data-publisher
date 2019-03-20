@@ -193,6 +193,9 @@ class SearchCacheService
         }
 
         // Delete all cached search entries for all tags in these datatypes
+        $this->cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
+        $this->cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
+
         $query = $this->em->createQuery(
            'SELECT t.id AS t_id, t.tagUuid AS t_uuid
             FROM ODRAdminBundle:Tags AS t

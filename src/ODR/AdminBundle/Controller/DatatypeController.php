@@ -23,13 +23,12 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\RenderPlugin;
-use ODR\OpenRepository\UserBundle\Entity\User;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Forms
 use ODR\AdminBundle\Form\UpdateDatatypePropertiesForm;
 use ODR\AdminBundle\Form\CreateDatatypeForm;
@@ -77,7 +76,7 @@ class DatatypeController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Create new DataType form
@@ -209,7 +208,7 @@ class DatatypeController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // ----------------------------------------
@@ -442,7 +441,7 @@ class DatatypeController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // ----------------------------------------
@@ -585,7 +584,7 @@ class DatatypeController extends ODRCustomController
 
             // --------------------
             // Grab user privileges to determine what they can do
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
             // --------------------
@@ -787,7 +786,7 @@ class DatatypeController extends ODRCustomController
 
             // --------------------
             // Grab user privileges to determine what they can do
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
@@ -893,7 +892,7 @@ class DatatypeController extends ODRCustomController
 
             // --------------------
             // Grab user privileges to determine what they can do
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
@@ -922,6 +921,7 @@ class DatatypeController extends ODRCustomController
             )->setParameters( array('datatypes' => $top_level_datatypes) );
             $master_templates = $query->getArrayResult();
 
+            // TODO - modify this so that you can create a metadata entry that isn't based on a template
 
             // Render and return the html
             $templating = $this->get('templating');
@@ -981,7 +981,7 @@ class DatatypeController extends ODRCustomController
 
 
             // Grab user privileges to determine what they can do
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             if ( !$user->hasRole('ROLE_ADMIN') )
@@ -1095,7 +1095,7 @@ class DatatypeController extends ODRCustomController
 
             // --------------------
             // Grab user privileges to determine what they can do
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Check if user is datatype admin
@@ -1139,24 +1139,19 @@ class DatatypeController extends ODRCustomController
         try {
             // TODO - modify ODRAdminBundle:Datatype:create_type_choose_template.html.twig so a "blank" metadata datatype can be created?
             // TODO - currently, any creation of a metadata datatype *MUST* come from a template...
-            throw new ODRNotImplementedException('DatatypeController::direct_add_datatype() > CloneDatatypeCommand.php is not hooked up?');
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service */
-//            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var UUIDService $uuid_service */
             $uuid_service = $this->container->get('odr.uuid_service');
 
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
-            /** @var User $admin */
+            /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // A master datatype is required
@@ -1172,7 +1167,7 @@ class DatatypeController extends ODRCustomController
             $datatype = null;
             $unique_id = null;
             $clone_and_link = false;
-            if($datatype_id > 0) {
+            if ($datatype_id > 0) {
                 /** @var DataType $datatype */
                 $datatype = $repo_datatype->find($datatype_id);
                 $master_metadata = $master_datatype->getMetadataDatatype();
@@ -1181,75 +1176,19 @@ class DatatypeController extends ODRCustomController
                 $clone_and_link = true;
             }
             else {
-                // TODO - convert to use EntityCreationService?
-                // Create a new Datatype entity
-                $datatype = new DataType();
-                $datatype->setRevision(0);
+                // Create a new datatype
+                $datatype = $ec_service->createDatatype($admin, 'New Dataset', true);    // delay flush to change a few properties
 
-                $unique_id = $uuid_service->generateDatatypeUniqueId();
-                $datatype->setUniqueId($unique_id);
-                $datatype->setTemplateGroup($unique_id);
-
-                // Create the datatype unique id and check to ensure uniqueness
-
-                // Top-level datatypes exist in one of two states...in the "initial" state, they
-                //  shouldn't be viewed by users because they're lacking themes and permissions
-                // Once they have those, then they should be put into the "operational" state
-                $datatype->setSetupStep(DataType::STATE_INITIAL);
-
-                // Is this a Master Type?
-                $datatype->setIsMasterType(false);
+                // This datatype is derived from a master datatype
                 $datatype->setMasterDataType($master_datatype);
-
-                $datatype->setCreatedBy($admin);
-                $datatype->setUpdatedBy($admin);
-
-                // Save all changes made
-                $em->persist($datatype);
-                $em->flush();
-                $em->refresh($datatype);
-
-                // Top level datatypes are their own parent/grandparent
-                $datatype->setParent($datatype);
-                $datatype->setGrandparent($datatype);
                 $em->persist($datatype);
 
+                // Also need to change the search slug from the default value
+                $datatype_meta = $datatype->getDataTypeMeta();
+                $datatype_meta->setSearchSlug( $datatype->getUniqueId() );
+                $em->persist($datatype_meta);
 
-                // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name since they're already from the form
-                $datatype_meta_data = new DataTypeMeta();
-                $datatype_meta_data->setDataType($datatype);
-                $datatype_meta_data->setShortName('New Dataset');
-                $datatype_meta_data->setLongName('New Dataset');
-
-                /** @var RenderPlugin $default_render_plugin */
-                $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
-                $datatype_meta_data->setRenderPlugin($default_render_plugin);
-
-                // Default search slug to Dataset ID
-                $datatype_meta_data->setSearchSlug($datatype->getUniqueId());
-                $datatype_meta_data->setXmlShortName('');
-
-                // Master Template Metadata
-                // Once a child database is completely created from the master template, the creation process will update the revisions appropriately.
-                $datatype_meta_data->setMasterRevision(0);
-                $datatype_meta_data->setMasterPublishedRevision(0);
-                $datatype_meta_data->setTrackingMasterRevision(0);
-
-                $datatype_meta_data->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
-
-                $datatype_meta_data->setExternalIdField(null);
-                $datatype_meta_data->setNameField(null);
-                $datatype_meta_data->setSortField(null);
-                $datatype_meta_data->setBackgroundImageField(null);
-
-                $datatype_meta_data->setCreatedBy($admin);
-                $datatype_meta_data->setUpdatedBy($admin);
-                $em->persist($datatype_meta_data);
-
-                // Ensure the "in-memory" version of the new datatype knows about its meta entry
-                $datatype->addDataTypeMetum($datatype_meta_data);
                 $em->flush();
-
 
                 array_push($datatypes_to_process, $datatype);
 
@@ -1324,17 +1263,16 @@ class DatatypeController extends ODRCustomController
                 // Insert the new job into the queue
                 $priority = 1024;   // should be roughly default priority
                 $params = array(
-                        "user_id" => $admin->getId(),
-                        "datatype_id" => $datatype->getId(),
-                        "template_group" => $unique_id,
-                        "redis_prefix" => $redis_prefix,    // debug purposes only
-                        "api_key" => $api_key,
+                    "user_id" => $admin->getId(),
+                    "datatype_id" => $datatype->getId(),
+                    "template_group" => $unique_id,
+                    "redis_prefix" => $redis_prefix,    // debug purposes only
+                    "api_key" => $api_key,
                 );
 
                 $params["clone_and_link"] = false;
-                if($clone_and_link) {
+                if ($clone_and_link)
                     $params["clone_and_link"] = true;
-                }
 
                 $payload = json_encode($params);
 
@@ -1347,7 +1285,14 @@ class DatatypeController extends ODRCustomController
 
 
             // Forward to database properties page.
-            $url = $this->generateUrl('odr_datatype_properties', array('datatype_id' => $datatype->getId(), 'wizard' => 1), false);
+            $url = $this->generateUrl(
+                'odr_datatype_properties',
+                array(
+                    'datatype_id' => $datatype->getId(),
+                    'wizard' => 1
+                ),
+                false
+            );
             $redirect = $this->redirect($url);
 
             return $redirect;
@@ -1390,7 +1335,7 @@ class DatatypeController extends ODRCustomController
 
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
-            /** @var User $admin */
+            /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Create new DataType form

@@ -29,10 +29,9 @@ use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\RenderPluginOptions;
+use ODR\AdminBundle\Entity\Tags;
+use ODR\AdminBundle\Entity\TagTree;
 use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\UserGroup;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -674,7 +673,7 @@ class CloneMasterDatatypeService
                 $this->logger->debug('CloneDatatypeService: -- meta entry cloned');
             }
 
-            // Need to process Radio Options....
+            // Need to process Radio Options...
             /** @var RadioOptions[] $parent_ro_array */
             $parent_ro_array = $parent_df->getRadioOptions();
             if ( count($parent_ro_array) > 0 ) {
@@ -696,9 +695,74 @@ class CloneMasterDatatypeService
                     $new_ro->addRadioOptionMetum($new_ro_meta);
                     self::persistObject($new_ro_meta, true);
 
-                    $this->logger->debug('CloneDatatypeService: -- cloned radio option '.$parent_ro->getId().' "'.$new_ro->getOptionName().'" and its meta entry');
+                    $this->logger->debug('CloneDatatypeService: -- cloned radio option '.$parent_ro->getRadioOptionUuid().' "'.$new_ro->getOptionName().'" and its meta entry');
                 }
             }
+
+            // Need to process Tags...
+            /** @var Tags[] $new_tag_entities */
+            $new_tag_entities = array();
+
+            /** @var Tags[] $parent_tag_array */
+            $parent_tag_array = $parent_df->getTags();
+            if ( count($parent_tag_array) > 0 ) {
+                foreach ($parent_tag_array as $parent_tag) {
+                    // Clone all the tags for this datafield
+                    $new_tag = clone $parent_tag;
+                    $new_tag->setDataField($new_df);
+
+                    // Ensure the "in-memory" version of $new_df knows about its new tag
+                    $new_df->addTag($new_tag);
+                    self::persistObject($new_tag, true);
+
+                    // Also clone the tag's meta entry
+                    $parent_tag_meta = $parent_tag->getTagMeta();
+                    $new_tag_meta = clone $parent_tag_meta;
+                    $new_tag_meta->setTag($new_tag);
+
+                    // Ensure the "in-memory" version of $new_tag knows about its meta entry
+                    $new_tag->addTagMetum($new_tag_meta);
+                    self::persistObject($new_tag_meta, true);
+
+                    $this->logger->debug('CloneDatatypeService: -- cloned tag '.$parent_tag->getTagUuid().' "'.$new_tag->getTagName().'" and its meta entry');
+
+                    // Since this is solely for creation, it's not strictly necessary to clone the
+                    //  tag tree entities...the
+                    $new_tag_entities[ $parent_tag->getId() ] = $new_tag;
+                }
+            }
+
+            // Run a query to get all tag tree entities for this datafield...
+            $query = $this->em->createQuery(
+               'SELECT parent.id AS parent_tag_id, child.id AS child_tag_id
+                FROM ODRAdminBundle:TagTree AS tt
+                JOIN ODRAdminBundle:Tags AS parent WITH tt.parent = parent
+                JOIN ODRAdminBundle:Tags AS child WITH tt.child = child
+                WHERE parent.dataField = :df_id OR child.dataField = :df_id
+                AND parent.deletedAt IS NULL AND child.deletedAt IS NULL AND tt.deletedAt IS NULL'
+            )->setParameters( array('df_id' => $parent_df->getId()) );
+            $results = $query->getArrayResult();
+
+            // ...for each tag tree entry found...
+            foreach ($results as $result) {
+                // ...locate the newly created derived tag corresponding to the parent/child ids
+                //  from the template datatype
+                $parent_tag_id = $result['parent_tag_id'];
+                $child_tag_id = $result['child_tag_id'];
+
+                $derived_parent_tag = $new_tag_entities[$parent_tag_id];
+                $derived_child_tag = $new_tag_entities[$child_tag_id];
+
+                // Create and persist a new tag tree entry between those newly created tags
+                $tt = new TagTree();
+                $tt->setParent($derived_parent_tag);
+                $tt->setChild($derived_child_tag);
+
+                self::persistObject($tt, true);
+
+                $this->logger->debug('CloneDatatypeService: -- created tag tree between parent tag '.$derived_parent_tag->getTagUuid().' "'.$derived_parent_tag->getTagName().'" and child tag '.$derived_child_tag->getTagUuid().' "'.$derived_child_tag->getTagName().'"');
+            }
+
 
             // Persist the DataType metadata changes (after field remapping fixes)
             self::persistObject($new_meta, true);

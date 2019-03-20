@@ -60,6 +60,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Symfony\Component\Form\FormError;
@@ -131,7 +132,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to delete a derived datafield');
 
 
             // --------------------
@@ -333,6 +334,8 @@ class DisplaytemplateController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
+        $conn = null;
+
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -346,6 +349,8 @@ class DisplaytemplateController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
 
 
             /** @var RadioOptions $radio_option */
@@ -367,13 +372,6 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRNotFoundException('Grandparent Datatype');
             $grandparent_datatype_id = $grandparent_datatype->getId();
 
-            // This should only work on a Radio field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
-                throw new ODRBadRequestException();
-            // This should not work on a datafield that is derived from a master template
-            if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
-
 
             // --------------------
             // Determine user privileges
@@ -386,7 +384,25 @@ class DisplaytemplateController extends ODRCustomController
             // --------------------
 
 
+            // This should only work on a Radio field
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio')
+                throw new ODRBadRequestException('Unable to delete a radio option from a '.$typeclass.' field');
+            // This should not work on a datafield that is derived from a master template
+            if ( !is_null($datafield->getMasterDataField()) )
+                throw new ODRBadRequestException('Not allowed to delete a radio option from a derived datafield');
+
+
+            // As nice as it would be to delete any/all radio options derived from a template option
+            //  here, the template synchronization needs to tell the user what will be changed, or
+            //  changes get made without the user's knowledge/consent...which is bad.
+
+
             // ----------------------------------------
+            // Wrap this in a transaction
+            $conn = $em->getConnection();
+            $conn->beginTransaction();
+
             // Delete all radio selection entities attached to the radio option
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:RadioSelection AS rs
@@ -401,16 +417,34 @@ class DisplaytemplateController extends ODRCustomController
             $updated = $query->execute();
 
 
-            // Save who deleted this radio option
-            $radio_option->setDeletedBy($user);
-            $em->persist($radio_option);
-            $em->flush($radio_option);
+            // Delete the radio option and its meta entry
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:RadioOptionsMeta AS rom
+                SET rom.deletedAt = :now
+                WHERE rom.radioOption = :radio_option_id AND rom.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'radio_option_id' => $radio_option_id
+                )
+            );
+            $updated = $query->execute();
 
-            // Delete the radio option and its current associated metadata entry
-            $radio_option_meta = $radio_option->getRadioOptionMeta();
-            $em->remove($radio_option);
-            $em->remove($radio_option_meta);
-            $em->flush();
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:RadioOptions AS ro
+                SET ro.deletedBy = :user, ro.deletedAt = :now
+                WHERE ro = :radio_option_id AND ro.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'user' => $user->getId(),
+                    'now' => new \DateTime(),
+                    'radio_option_id' => $radio_option_id
+                )
+            );
+            $updated = $query->execute();
+
+            // No errors, commit transaction
+            $conn->commit();
 
 
             // ----------------------------------------
@@ -418,15 +452,8 @@ class DisplaytemplateController extends ODRCustomController
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Wipe cached data for all the datatype's datarecords
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                WHERE dr.dataType = :datatype_id'
-            )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
-            $results = $query->getArrayResult();
-
-            foreach ($results as $result) {
-                $dr_id = $result['dr_id'];
+            $dr_list = $search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
+            foreach ($dr_list as $dr_id => $parent_dr_id) {
                 $cache_service->delete('cached_datarecord_'.$dr_id);
                 $cache_service->delete('cached_table_data_'.$dr_id);
             }
@@ -436,6 +463,10 @@ class DisplaytemplateController extends ODRCustomController
 
         }
         catch (\Exception $e) {
+            // Rollback if error encountered
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollBack();
+
             $source = 0x00b86c51;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
@@ -490,11 +521,12 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // This should only work on a Radio field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
-                throw new ODRBadRequestException();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio')
+                throw new ODRBadRequestException('Unable to set a default radio option on a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to set a default radio option on a derived field');
 
 
             // --------------------
@@ -1561,7 +1593,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($old_datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to clone a derived field');
 
 
             // ----------------------------------------
@@ -1686,8 +1718,14 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // This should only work on a Radio field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
-                throw new ODRBadRequestException();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio')
+                throw new ODRBadRequestException('Unable to load radio options for a '.$typeclass.' field');
+
+            // Since re-ordering radio options is permissible, this controller action needs to be
+            //  permitted as well
+//            if ( !is_null($datafield->getMasterDataField()) )
+//                throw new ODRBadRequestException('Not allowed to load radio options for a derived field');
 
 
             // --------------------
@@ -1787,11 +1825,12 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // This should only work on a Radio field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
-                throw new ODRBadRequestException();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio')
+                throw new ODRBadRequestException('Unable to change the name of a radio option for a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to change the name of a radio option for a derived field');
 
 
             // --------------------
@@ -1898,11 +1937,14 @@ class DisplaytemplateController extends ODRCustomController
             $theme_service->getDatatypeMasterTheme($datatype->getId());
 
             // This should only work on a Radio field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
-                throw new ODRBadRequestException();
-            // This should not work on a datafield that is derived from a master template
-            if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio')
+                throw new ODRBadRequestException('Unable to modify order of radio options for a '.$typeclass.' field');
+
+            // Re-ordering radio options in a derived datafield is permissible...doing so doesn't
+            //  fundamentally change content
+//            if ( !is_null($datafield->getMasterDataField()) )
+//                throw new ODRBadRequestException('Not allowed to modify order of radio options for a derived field');
 
 
             // --------------------
@@ -1954,7 +1996,7 @@ class DisplaytemplateController extends ODRCustomController
                 foreach ($post as $index => $radio_option_id) {
                     $ro_id = intval($radio_option_id);
                     if ( !isset($radio_option_list[$ro_id]) )
-                        throw new ODRBadRequestException();
+                        throw new ODRBadRequestException('Invalid radio option specified');
 
                     $ro = $radio_option_list[$ro_id];
                     if ( $ro->getDisplayOrder() !== $index ) {
@@ -2037,11 +2079,12 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // This should only work on a Radio field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
-                throw new ODRBadRequestException();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio')
+                throw new ODRBadRequestException('Unable to add a radio option to a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to add a radio option to a derived field');
 
 
             // --------------------
@@ -2153,11 +2196,12 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // This should only work on a Radio field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
-                throw new ODRBadRequestException();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio')
+                throw new ODRBadRequestException('Unable to import radio options to a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to import radio options to a derived field');
 
 
             // --------------------
@@ -2249,11 +2293,12 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // This should only work on a Radio field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Radio')
-                throw new ODRBadRequestException();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio')
+                throw new ODRBadRequestException('Unable to import radio options to a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to import radio options to a derived field');
 
 
             // --------------------
@@ -3554,14 +3599,6 @@ class DisplaytemplateController extends ODRCustomController
             );
         }
 
-        // Prevent a datafield's fieldtype from changing if it's derived from a template
-        if ( !is_null($datafield->getMasterDataField()) ) {
-            $ret = array(
-                'prevent_change' => true,
-                'prevent_change_message' => "The Fieldtype can't be changed because the Datafield is derived from a Master Template.",
-            );
-        }
-
         // TODO - not technically true...but still needs to be restricted to some subset of fieldtypes
         // Also prevent a fieldtype change if the datafield is marked as unique
         if ($datafield->getIsUnique() == true) {
@@ -3579,6 +3616,27 @@ class DisplaytemplateController extends ODRCustomController
             $ret = array(
                 'prevent_change' => true,
                 'prevent_change_message' => "The Fieldtype can't be changed because the Datafield is being used as the Datatype's sort Datafield.",
+            );
+        }
+
+        // Prevent a datafield's fieldtype from changing if it's derived from a template
+        if ( !is_null($datafield->getMasterDataField()) ) {
+            $ret = array(
+                'prevent_change' => true,
+                'prevent_change_message' => "The Fieldtype can't be changed because the Datafield is derived from a Master Template.",
+            );
+        }
+
+        // TODO - remove the need for this
+        $derived_datafields = $em->getRepository('ODRAdminBundle:DataFields')->findBy(
+            array(
+                'masterDataField' => $datafield->getId()
+            )
+        );
+        if ( !empty($derived_datafields) ) {
+            $ret = array(
+                'prevent_change' => true,
+                'prevent_change_message' => "The Fieldtype can't be changed because template synchronization can't migrate fieldtypes yet..."
             );
         }
 
@@ -3762,14 +3820,6 @@ class DisplaytemplateController extends ODRCustomController
             );
         }
 
-        // TODO - also prevent if !is_null( $datatype->getMasterDataType() )?
-        if (  !is_null($datafield->getMasterDataField()) ) {
-            return array(
-                'prevent_deletion' => true,
-                'prevent_deletion_message' => "This datafield is currently required by the Datatype's master template...unable to delete",
-            );
-        }
-
         if ( $datatype->getRenderPlugin()->getPluginClassName() !== 'odr_plugins.base.default' ) {
             // Datafield is part of a Datatype using a render plugin...check to see if the Datafield is actually in use for the render plugin
             $query = $em->createQuery(
@@ -3788,6 +3838,27 @@ class DisplaytemplateController extends ODRCustomController
                     'prevent_deletion_message' => 'This Datafield is currently required by the "'.$datatype->getRenderPlugin()->getPluginName().'" for this Datatype...unable to delete',
                 );
             }
+        }
+
+        // TODO - also prevent if !is_null( $datatype->getMasterDataType() )?
+        if (  !is_null($datafield->getMasterDataField()) ) {
+            return array(
+                'prevent_deletion' => true,
+                'prevent_deletion_message' => "This datafield is currently required by the Datatype's master template...unable to delete",
+            );
+        }
+
+        // TODO - remove the need for this
+        $derived_datafields = $em->getRepository('ODRAdminBundle:DataFields')->findBy(
+            array(
+                'masterDataField' => $datafield->getId()
+            )
+        );
+        if ( !empty($derived_datafields) ) {
+            $ret = array(
+                'prevent_deletion' => true,
+                'prevent_deletion_message' => "This datafield can't be deleted because template synchronization can't handle it yet..."
+            );
         }
 
         return $ret;
@@ -4647,12 +4718,12 @@ if ($debug)
 
             // Don't start the synchronization process if it's pointless to do so
             if ( !$clone_template_service->canSyncWithTemplate($datatype, $user) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('The derived datatype is already synchronized');
 
             // If $sync_metadata is true, then this action needs to have been called on a metadata
             //  datatype...
             if ( $sync_metadata && is_null($datatype->getMetadataFor()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Unable to sync metadata for a datatype that does not have metadata');
 
 
             // ----------------------------------------
@@ -4757,7 +4828,7 @@ if ($debug)
             // If $sync_metadata is true, then this action needs to have been called on a metadata
             //  datatype...
             if ( $sync_metadata && is_null($datatype->getMetadataFor()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Unable to sync metadata for a datatype that does not have metadata');
 
 
             // Ensure the in-memory version of the datatype is up to date

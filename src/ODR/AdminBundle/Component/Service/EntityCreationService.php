@@ -430,6 +430,7 @@ class EntityCreationService
         $datatype->setSetupStep(DataType::STATE_INITIAL);
         $datatype->setRevision(0);
         $datatype->setIsMasterType(false);
+        $datatype->setMasterDataType(null);
 
         // TODO - what is this supposed to be used for?
         $datatype->setDatatypeType(null);

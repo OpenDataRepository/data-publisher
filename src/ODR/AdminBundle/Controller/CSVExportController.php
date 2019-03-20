@@ -111,7 +111,7 @@ class CSVExportController extends ODRCustomController
 
                 // ...require it to match the datatype being rendered
                 if ($search_theme->getDataType()->getId() !== $datatype->getId())
-                    throw new ODRBadRequestException();
+                    throw new ODRBadRequestException('Search theme does not belong to given datatype');
             }
 
 
@@ -1048,8 +1048,14 @@ class CSVExportController extends ODRCustomController
 //print_r($post);  exit();
 
 
-            if ( !isset($post['tracked_job_id']) || !isset($post['final_filename']) || !isset($post['random_keys']) || !isset($post['user_id']) || !isset($post['api_key']) )
+            if ( !isset($post['tracked_job_id'])
+                || !isset($post['final_filename'])
+                || !isset($post['random_keys'])
+                || !isset($post['user_id'])
+                || !isset($post['api_key'])
+            ) {
                 throw new ODRBadRequestException();
+            }
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);

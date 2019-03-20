@@ -518,8 +518,9 @@ class DatatypeInfoService
                     $tag_list[$tag_id]['tagMeta'] = $t['tagMeta'][0];
                 }
                 if ( count($tag_list) == 0 ) {
-                    // No tags, get rid of entry to reduce twig confusion
-                    unset( $df['tags'] );
+                    // No tags, ensure blank arrays exist
+                    $df['tags'] = array();
+                    $df['tagTree'] = array();
                 }
                 else {
                     // Tags exist, attempt to locate any tag hierarchy data

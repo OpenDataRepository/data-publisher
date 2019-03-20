@@ -101,11 +101,21 @@ class TagsController extends ODRCustomController
             // --------------------
 
             // This should only work on a Tag field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
-                throw new ODRBadRequestException();
-            // This should not work on a datafield that is derived from a master template
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Tag')
+                throw new ODRBadRequestException('Unable to load tags from a '.$typeclass.' field');
+
+            // Since re-ordering tags is fine, this controller action needs to work as well
+            // TODO - technically, only re-ordering tags within their "subgroup" is fine
+            // TODO - unfortunately, preventing parentage changing via the js is quite difficult...
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to load tags for a derived field');
+
+            // Do need to store whether this is derived or not so the tag modal doesn't permit
+            //  users to do stuff they shouldn't
+            $is_derived_field = false;
+            if ( !is_null($datafield->getMasterDataField()) )
+                $is_derived_field = true;
 
 
             // ----------------------------------------
@@ -135,6 +145,8 @@ class TagsController extends ODRCustomController
                     array(
                         'datafield' => $df_array,
                         'stacked_tags' => $stacked_tag_list,
+
+                        'is_derived_field' => $is_derived_field,
                     )
                 )
             );
@@ -218,11 +230,12 @@ class TagsController extends ODRCustomController
             // --------------------
 
             // This should only work on a Tag field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
-                throw new ODRBadRequestException();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Tag')
+                throw new ODRBadRequestException('Unable to create a new tag for a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to create a new tag for a derived field');
 
 
             // ----------------------------------------
@@ -366,18 +379,19 @@ class TagsController extends ODRCustomController
             // --------------------
 
             // This should only work on a Tag field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
-                throw new ODRBadRequestException();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Tag')
+                throw new ODRBadRequestException('Unable to import tags into a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to import tags into a derived field');
 
             // Makes no sense to run this if the user didn't provide any tags...
             if ( trim($post['tag_list']) === 0 )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Empty tag list');
             // Also, require a delimiter to be set if this field allows parent/child relationships
             if ( $datafield->getTagsAllowMultipleLevels() && !isset($post['tag_hierarchy_delimiter']) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Missing tag hierarchy delimiter');
 
 
             // ----------------------------------------
@@ -638,11 +652,12 @@ class TagsController extends ODRCustomController
             // --------------------
 
             // This should only work on a Tag field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
-                throw new ODRBadRequestException();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Tag')
+                throw new ODRBadRequestException('Unable to import tags into a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to import tags into a derived field');
 
 
             // Require this token to be set in the user's session
@@ -927,11 +942,17 @@ class TagsController extends ODRCustomController
             // --------------------
 
             // This should only work on a Tag field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
-                throw new ODRBadRequestException();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Tag')
+                throw new ODRBadRequestException('Unable to delete tags from a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to delete tags from a derived field');
+
+
+            // As nice as it would be to delete any/all tags derived from a template tag here, the
+            //  template synchronization needs to tell the user what will be changed, or changes
+            //  get made without the user's knowledge/consent....which is bad.
 
 
             // ----------------------------------------
@@ -1045,6 +1066,9 @@ class TagsController extends ODRCustomController
                 // This is a master template datatype...cross-template searches use this entry
                 //  in the same way a search on a single datatype uses 'cached_tag_tree_<dt_id>"
                 $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
+
+                // Template datatypes also have this
+                $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
             }
             else {
                 // This is not a master template datatype, so it will only have this cache entry
@@ -1052,8 +1076,10 @@ class TagsController extends ODRCustomController
 
                 // Wipe cached data for all the datatype's datarecords
                 $dr_list = $search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
-                foreach ($dr_list as $dr_id => $parent_dr_id)
+                foreach ($dr_list as $dr_id => $parent_dr_id) {
                     $cache_service->delete('cached_datarecord_'.$dr_id);
+                    // Tags can't be in table themes, so don't need to delete those cache entries
+                }
 
                 // Doesn't make sense to delete the "cached_table_data_<dr_id>" entry...tag data
                 //  isn't displayed in table themes
@@ -1129,11 +1155,20 @@ class TagsController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // This should only work on a Tag field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
-                throw new ODRBadRequestException();
-            // This should not work on a datafield that is derived from a master template
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Tag')
+                throw new ODRBadRequestException('Unable to move tags within a '.$typeclass.' field');
+
+            // Re-ordering tags in a derived datafield is fine...
+            // TODO - technically, only re-ordering tags within their "subgroup" is fine
+            // TODO - unfortunately, preventing parentage changing via the js is quite difficult...
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to move tags within a derived field');
+
+            // ...but changing parents of tags is not, because that fundamentally changes meaning
+            $is_derived_field = false;
+            if ( !is_null($datafield->getMasterDataField()) )
+                $is_derived_field = true;
 
 
             // ----------------------------------------
@@ -1156,11 +1191,11 @@ class TagsController extends ODRCustomController
             // Require $child_tag_id to be a non-zero numerical value
             $pattern = '/^\d+$/';
             if ( preg_match($pattern, $child_tag_id) === false )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Non-numeric tag id given');
 
             $child_tag_id = intval($child_tag_id);
             if ($child_tag_id === 0)
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Invalid tag id given');
 
             /** @var Tags $child_tag */
             $child_tag = $em->getRepository('ODRAdminBundle:Tags')->find($child_tag_id);
@@ -1169,7 +1204,7 @@ class TagsController extends ODRCustomController
 
             // Also require $child_tag to belong to the given datafield
             if ($child_tag->getDataField()->getId() !== $datafield->getId())
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Tag does not belong to field');
 
 
             // $parent_tag_id should not exist if the datafield only permits a "flat" tag list
@@ -1180,11 +1215,11 @@ class TagsController extends ODRCustomController
             // If $parent_tag_id exists, also require it to be non-zero
             if ($parent_tag_id !== '') {
                 if ( preg_match($pattern, $parent_tag_id) === false )
-                    throw new ODRBadRequestException();
+                    throw new ODRBadRequestException('Non-numeric tag id');
 
                 $parent_tag_id = intval($parent_tag_id);
                 if ($parent_tag_id === 0)
-                    throw new ODRBadRequestException();
+                    throw new ODRBadRequestException('Invalid tag id');
 
                 /** @var Tags $parent_tag */
                 $parent_tag = $em->getRepository('ODRAdminBundle:Tags')->find($parent_tag_id);
@@ -1193,7 +1228,7 @@ class TagsController extends ODRCustomController
 
                 // Also require $parent_tag to belong to the given datafield
                 if ($parent_tag->getDataField()->getId() !== $datafield->getId())
-                    throw new ODRBadRequestException();
+                    throw new ODRBadRequestException('Tag does not belong to given datafield');
             }
 
 
@@ -1236,7 +1271,7 @@ class TagsController extends ODRCustomController
             // Verify that each tag in $tag_ordering belongs to the datafield
             foreach ($tag_ordering as $display_order => $tag_id) {
                 if ( !isset($tag_list[$tag_id]) )
-                    throw new ODRBadRequestException();
+                    throw new ODRBadRequestException('Tag does not belong to the given datafield');
             }
 
 
@@ -1335,6 +1370,9 @@ class TagsController extends ODRCustomController
                     // This is a master template datatype...cross-template searches use this entry
                     //  in the same way a search on a single datatype uses 'cached_tag_tree_<dt_id>"
                     $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
+
+                    // Template datatypes also have this
+                    $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
                 }
                 else {
                     // This is not a master template datatype, so it will only have this cache entry
@@ -1442,11 +1480,12 @@ class TagsController extends ODRCustomController
             // --------------------
 
             // This should only work on a Tag field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
-                throw new ODRBadRequestException();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Tag')
+                throw new ODRBadRequestException('Unable to rename a tag for a '.$typeclass.' field');
             // This should not work on a datafield that is derived from a master template
             if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to rename a tag for a derived field');
 
 
             // Update the tag's name
@@ -1531,9 +1570,9 @@ class TagsController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             if ( $tag->getDataField()->getId() !== $datafield->getId() )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Tag does not belong to the given datafield');
             if ( $datarecord->getDataType()->getId() !== $datatype->getId() )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Datarecord does not belong to the given datatype');
 
             // TODO - Doesn't make sense for a master template to do this
             // TODO - ...same for most of the rest of the Edit page stuff?
@@ -1560,11 +1599,9 @@ class TagsController extends ODRCustomController
             // --------------------
 
             // This should only work on a Tag field
-            if ($datafield->getFieldType()->getTypeClass() !== 'Tag')
-                throw new ODRBadRequestException();
-            // This should not work on a datafield that is derived from a master template
-            if ( !is_null($datafield->getMasterDataField()) )
-                throw new ODRBadRequestException();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Tag')
+                throw new ODRBadRequestException('Unable to select/deselect a tag for a '.$typeclass.' field');
 
 
             // ----------------------------------------
@@ -1580,7 +1617,7 @@ class TagsController extends ODRCustomController
             $results = $query->getArrayResult();
 
             if ( !empty($results) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Not allowed to select/deselect a non-leaf tag');
 
 
             // ----------------------------------------
