@@ -221,6 +221,8 @@ class DefaultController extends Controller
             // ----------------------------------------
             // Grab a random background image if one exists and the user is allowed to see it
             $background_image_id = null;
+/* TODO - current search page doesn't have a good place to put a background image...
+
             if ( !is_null($target_datatype) && !is_null($target_datatype->getBackgroundImageField()) ) {
 
                 // Determine whether the user is allowed to view the background image datafield
@@ -261,6 +263,7 @@ class DefaultController extends Controller
                     }
                 }
             }
+*/
 
 
             // ----------------------------------------

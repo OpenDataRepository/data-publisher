@@ -511,7 +511,14 @@ class CloneTemplateService
                     $template_datafields = $template_array[$t_dt_id]['dataFields'];
 
                     if ( !isset($template_datafields[$master_df_id]) ) {
-                        // TODO - field deleted out of template datatype
+                        // This datafield got deleted out of the template datatype...create a "fake"
+                        //  entry so that syncDatatype() can figure out it needs to delete the
+                        //  relevant derived datafield
+                        $template_array[$t_dt_id]['dataFields'][$master_df_id] = array(
+                            'id' => $master_df_id,
+                            'masterDataField' => null,
+                            'deleted' => true,
+                        );
                     }
                     else {
                         // Field exists
@@ -934,13 +941,13 @@ class CloneTemplateService
         $conn->commit();
 
         $this->logger->info('CloneTemplateService: datatype '.$datatype->getId().' "'.$datatype->getShortName().'" is now synchronized with its master datatype '.$master_datatype->getId().' "'.$master_datatype->getShortName().'"');
-        $this->logger->info('----------------------------------------');
 
         // Wipe all potentially relevant cache entries
         $this->cache_service->delete('top_level_datatypes');
         $this->cache_service->delete('top_level_themes');
         $this->cache_service->delete('cached_datatree_array');
 
+        $modified_top_level_datatypes = array();
         foreach ($this->derived_datatypes as $dt) {
             $this->cache_service->delete('cached_datatype_'.$dt->getId());
             $this->cache_service->delete('associated_datatypes_for_'.$dt->getId());
@@ -950,11 +957,53 @@ class CloneTemplateService
 
             // Don't remember whether $this->derived_datatypes contains linked datatypes or not...
             //  ...do it this way to be safe
-            if ( $dt->getGrandparent()->getId() === $dt->getId() )
+            if ( $dt->getGrandparent()->getId() === $dt->getId() ) {
                 $this->search_cache_service->onDatatypeImport($dt);
+                $modified_top_level_datatypes[] = $dt->getId();
+            }
         }
 
-        // TODO - ...any other cache entries that need cleared?  the list above feels incomplete...
+        // Need to also delete the permissions related cache entries...technically they've already
+        //  been deleted because of calling createGroupsForDatatype() and createGroupsForDatafield()
+        //  during creation of those entities, but the background sync status checker will likely
+        //  have rebuilt the relevant cache entries (and has done so repeatedly during testing)...
+
+        // Locate all users and groups that have been modified by this
+        $query = $this->em->createQuery(
+           'SELECT g.id AS group_id, u.id AS user_id
+            FROM ODRAdminBundle:Group AS g
+            LEFT JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
+            LEFT JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+            WHERE g.dataType IN (:datatype_ids)
+            AND g.deletedAt IS NULL AND ug.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'datatype_ids' => $modified_top_level_datatypes
+            )
+        );
+        $results = $query->getArrayResult();
+
+        $affected_groups = array();
+        $affected_users = array();
+        foreach ($results as $result) {
+            $group_id = $result['group_id'];
+            $user_id = $result['user_id'];
+
+            if ( !is_null($group_id) )
+                $affected_groups[$group_id] = 1;
+            if ( !is_null($user_id) )
+                $affected_users[$user_id] = 1;
+        }
+
+        // Delete all of the cached entries for the affected entities
+        foreach ($affected_groups as $group_id => $num)
+            $this->cache_service->delete('group_'.$group_id.'_permissions');
+        foreach ($affected_users as $user_id => $num)
+            $this->cache_service->delete('user_'.$user_id.'_permissions');
+
+
+        $this->logger->debug('CloneTemplateService: all relevant cache entries have been deleted');
+        $this->logger->info('----------------------------------------');
 
 
         // TODO - this checker construct needs a database entry, but i'm pretty sure this isn't the intended use
@@ -1375,18 +1424,29 @@ class CloneTemplateService
             foreach ($diff_array['dataFields'] as $df_id => $df) {
                 // Locate an existing datafield in the derived datatype that has $master_df as its
                 //  masterDatafield, if possible
-                $master_df = $this->template_datafields[$df_id];
-                $master_dt = $master_df->getDataType();
                 $derived_df = null;
-
                 foreach ($this->derived_datafields as $d_df) {
-                    if ( $d_df->getMasterDataField()->getId() === $master_df->getId() ) {
+                    if ( $d_df->getMasterDataField()->getId() === $df_id ) {
                         $derived_df = $d_df;
                         break;
                     }
                 }
 
-                // If that datafield does not exist, create it
+                if ( !isset($this->template_datafields[$df_id]) ) {
+                    // This datafield got deleted out of the template datatype
+                    // TODO - move into an entity deletion service or something?
+                    self::deleteDatafield($derived_df, $user);
+
+                    $this->logger->debug('CloneTemplateService:'.$indent_text.' -- deleted datafield '.$df_id.' "'.$derived_df->getFieldName().'" (derived_dt: '.$derived_datatype->getId().')');
+
+                    // Skip the rest of this loop and move on to the next datafield
+                    continue;
+                }
+
+                $master_df = $this->template_datafields[$df_id];
+                $master_dt = $master_df->getDataType();
+
+                // If the derived datafield does not exist, clone it from the master template
                 if ( is_null($derived_df) ) {
                     $new_df = clone $master_df;
                     $new_df->setMasterDataField($master_df);
@@ -1578,7 +1638,6 @@ class CloneTemplateService
                     }
                 }
 
-
                 // Create or delete tag tree entries so the derived datatype matches the template
                 //  datatype
                 if ( isset($df['tagTree']) ) {
@@ -1628,8 +1687,6 @@ class CloneTemplateService
                 }
             }
 
-            // Flush all the new/modified datafield/etc entities at once
-            $derived_df = null;
 
             // If datafields got created, then they need to be attached to the datatype's theme...
             if ( count($created_datafields) > 0 ) {
@@ -1664,6 +1721,7 @@ class CloneTemplateService
                             $this->logger->debug('CloneTemplateService:'.$indent_text.' -- cloned theme_element for derived datatype '.$derived_datatype->getId().' "'.$derived_datatype->getShortName().'"');
 
                             // Now clone each datafield in the theme element...
+                            $derived_df = null;
                             foreach ($tdf_list as $num => $tdf) {
                                 /** @var ThemeDataField $tdf */
                                 // Locate the new datafield
@@ -1884,6 +1942,97 @@ class CloneTemplateService
 
         // Do a final flush
         $this->em->flush();
+    }
+
+
+    /**
+     * Split out from self::syncDatatype() to make it slightly simpler to read...
+     * TODO - move into an entity deletion service?
+     *
+     * @param DataFields $derived_df
+     * @param ODRUser $user
+     */
+    private function deleteDatafield($derived_df, $user)
+    {
+        // Going to need this in a bit
+        $derived_dt = $derived_df->getDataType();
+
+        // Mark the datafield and its meta entry as deleted
+        $derived_df_meta = $derived_df->getDataFieldMeta();
+        $derived_df->setDeletedAt(new \DateTime());
+        $derived_df->setDeletedBy($user);
+        $this->em->persist($derived_df);
+
+        $derived_df_meta->setDeletedAt(new \DateTime());
+        $this->em->persist($derived_df_meta);
+
+
+        // Need to delete all theme datafield entries that reference this datafield...
+        $query = $this->em->createQuery(
+           'UPDATE ODRAdminBundle:ThemeDataField AS tdf
+            SET tdf.deletedAt = :now, tdf.deletedBy = :deleted_by
+            WHERE tdf.dataField = :datafield AND tdf.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'now' => new \DateTime(),
+                'deleted_by' => $user->getId(),
+                'datafield' => $derived_df->getId()
+            )
+        );
+        $rows = $query->execute();
+
+        // ...and datafield permission entries
+        $query = $this->em->createQuery(
+           'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
+            SET gdfp.deletedAt = :now
+            WHERE gdfp.dataField = :datafield AND gdfp.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'now' => new \DateTime(),
+                'datafield' => $derived_df->getId()
+            )
+        );
+        $rows = $query->execute();
+
+        // If this datafield was an external_id/name/sort/background_image datafield, then its
+        //  datatype needs an update so it doesn't inadvertently point to a deleted datafield...
+        $properties = array(
+            'externalIdField' => $derived_dt->getExternalIdField(),
+            'nameField' => $derived_dt->getNameField(),
+            'sortField' => $derived_dt->getSortField(),
+            'backgroundImageField' => $derived_dt->getBackgroundImageField(),
+        );
+
+        // Ensure that the datatype doesn't continue to think this datafield is its external id field
+        if ( !is_null($properties['externalIdField']) && $properties['externalIdField']->getId() === $derived_df->getId() )
+            $properties['externalIdField'] = null;
+        else
+            unset( $properties['externalIdField'] );
+
+        // Ensure that the datatype doesn't continue to think this datafield is its name field
+        if ( !is_null($properties['nameField']) && $properties['nameField']->getId() === $derived_df->getId() )
+            $properties['nameField'] = null;
+        else
+            unset( $properties['nameField'] );
+
+        // Ensure that the datatype doesn't continue to think this datafield is its sort field
+        if ( !is_null($properties['sortField']) && $properties['sortField']->getId() === $derived_df->getId() ) {
+            $properties['sortField'] = null;
+
+            // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
+            $this->dti_service->resetDatatypeSortOrder($derived_dt->getId());
+        }
+        else
+            unset( $properties['sortField'] );
+
+        // Ensure that the datatype doesn't continue to think this datafield is its background image field
+        if ( !is_null($properties['backgroundImageField']) && $properties['backgroundImageField']->getId() === $derived_df->getId() )
+            $properties['backgroundImageField'] = null;
+        else
+            unset( $properties['backgroundImageField'] );
+
+        // Delay saving any changes to the datatype
+        $this->emm_service->updateDatatypeMeta($user, $derived_dt, $properties, true);
     }
 
 

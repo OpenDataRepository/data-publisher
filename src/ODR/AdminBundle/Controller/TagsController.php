@@ -113,9 +113,9 @@ class TagsController extends ODRCustomController
 
             // Do need to store whether this is derived or not so the tag modal doesn't permit
             //  users to do stuff they shouldn't
-            $is_derived_field = false;
-            if ( !is_null($datafield->getMasterDataField()) )
-                $is_derived_field = true;
+//            $is_derived_field = false;
+//            if ( !is_null($datafield->getMasterDataField()) )
+//                $is_derived_field = true;
 
 
             // ----------------------------------------
@@ -146,7 +146,7 @@ class TagsController extends ODRCustomController
                         'datafield' => $df_array,
                         'stacked_tags' => $stacked_tag_list,
 
-                        'is_derived_field' => $is_derived_field,
+//                        'is_derived_field' => $is_derived_field,
                     )
                 )
             );
@@ -1166,9 +1166,9 @@ class TagsController extends ODRCustomController
                 throw new ODRBadRequestException('Not allowed to move tags within a derived field');
 
             // ...but changing parents of tags is not, because that fundamentally changes meaning
-            $is_derived_field = false;
-            if ( !is_null($datafield->getMasterDataField()) )
-                $is_derived_field = true;
+//            $is_derived_field = false;
+//            if ( !is_null($datafield->getMasterDataField()) )
+//                $is_derived_field = true;
 
 
             // ----------------------------------------

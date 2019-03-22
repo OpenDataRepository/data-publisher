@@ -8,15 +8,12 @@
 {% endif %}
     
 <li class="ODRTagItem" rel="{{ tag.id }}">
-    {% if is_derived_field == false %}
     <span class="ODRDeleteTag" rel="{{ tag.id }}"><i class="fa fa-trash Pointer"></i></span>
-    {% endif %}
 
     {% if datafield_meta.radio_option_name_sort == false %}
     <span class="ODRTagAnchor"><i class="fa fa-arrows Pointer"></i></span>
     {% endif %}
 
-    {% if is_derived_field == false %}
     <input id="ODRTag_{{ tag.id }}_name"
            class="ODRTagLabel"
            type="text"
@@ -28,9 +25,6 @@
     />
 
     <span class="ODRInputError">&nbsp;&nbsp;<i class="fa fa-warning"></i><span>Duplicate Tag name</span></span>
-    {% else %}
-    <span id="ODRTag_{{ tag.id }}_name" class="ODRTagLabel">{{ tag.tagMeta.tagName }}</span>
-    {% endif %}
 
     {% if tag.children is defined and tag.children|length > 0 %}
     <ul class="ODRTagGroup">

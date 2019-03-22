@@ -3,12 +3,10 @@
 {% set datafield_meta = datafield.dataFieldMeta %}
 
 <div id="odr_tag_design_modal">
-    {% if is_derived_field == false %}
     <div class="ODRThemeElement">
         <button class="ODRAddTag pure-button pure-button-primary">Create single tag</button>
         <button class="ODRTagCreationMode pure-button">Import tags</button>
     </div>
-    {% endif %}
 
     <div id="odr_tag_design" class="ODRTagWrapper_design pure-form">
         {# this form is for tag displayOrder and setting parent/child relationships #}
@@ -20,8 +18,6 @@
                 {% include 'ODRAdminBundle:Tags:tag_wrapper.html.twig' with {
                     'datafield' : datafield,
                     'stacked_tags': stacked_tags,
-
-                    'is_derived_field': is_derived_field,
                 } %}
             </form>
         </div>

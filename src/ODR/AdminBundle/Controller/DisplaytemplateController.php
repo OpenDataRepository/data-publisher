@@ -103,6 +103,8 @@ class DisplaytemplateController extends ODRCustomController
             $theme_service = $this->container->get('odr.theme_info_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
 
 
             /** @var DataFields $datafield */
@@ -277,17 +279,11 @@ class DisplaytemplateController extends ODRCustomController
             // ----------------------------------------
             // Ensure that the cached tag hierarchy doesn't reference this datafield
             $cache_service->delete('cached_tag_tree_'.$grandparent_datatype_id);
+            $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype_id);
 
             // Wipe cached data for all the datatype's datarecords
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                WHERE dr.dataType = :datatype_id'
-            )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
-            $results = $query->getArrayResult();
-
-            foreach ($results as $result) {
-                $dr_id = $result['dr_id'];
+            $dr_list = $search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
+            foreach ($dr_list as $dr_id => $parent_dr_id) {
                 $cache_service->delete('cached_datarecord_'.$dr_id);
                 $cache_service->delete('cached_table_data_'.$dr_id);
             }
@@ -3845,19 +3841,6 @@ class DisplaytemplateController extends ODRCustomController
             return array(
                 'prevent_deletion' => true,
                 'prevent_deletion_message' => "This datafield is currently required by the Datatype's master template...unable to delete",
-            );
-        }
-
-        // TODO - remove the need for this
-        $derived_datafields = $em->getRepository('ODRAdminBundle:DataFields')->findBy(
-            array(
-                'masterDataField' => $datafield->getId()
-            )
-        );
-        if ( !empty($derived_datafields) ) {
-            $ret = array(
-                'prevent_deletion' => true,
-                'prevent_deletion_message' => "This datafield can't be deleted because template synchronization can't handle it yet..."
             );
         }
 

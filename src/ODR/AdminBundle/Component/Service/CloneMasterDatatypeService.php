@@ -726,8 +726,9 @@ class CloneMasterDatatypeService
 
                     $this->logger->debug('CloneDatatypeService: -- cloned tag '.$parent_tag->getTagUuid().' "'.$new_tag->getTagName().'" and its meta entry');
 
-                    // Since this is solely for creation, it's not strictly necessary to clone the
-                    //  tag tree entities...the
+                    // It's easier to create new tag tree entries using the newly created tags than
+                    //  it is to locate/clone/modify each of the relevant tag tree entries in the
+                    //  master template
                     $new_tag_entities[ $parent_tag->getId() ] = $new_tag;
                 }
             }

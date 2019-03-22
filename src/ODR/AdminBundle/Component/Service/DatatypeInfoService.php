@@ -393,6 +393,52 @@ class DatatypeInfoService
 
 
         // ----------------------------------------
+        // Assume there's two datafields, a "master" df and another df "derived" from the master,
+        //  then delete the "master" datafield.  After that, reload the derived datafield $df...
+
+        // Full hydration will result in  is_null($df->getMasterDatafield()) === false, because
+        //  doctrine returns some sort of proxy object for the deleted master datafield
+        // However, array hydration in the same situation will say  $df['masterDataField'] === null,
+        //  which has a different meaning...so this subquery is required to make array hydration
+        //  have the same behavior as full hydration
+
+        // This is primarily needed so template synchronization can be guaranteed to match a derived
+        //  datafield with its master datafield
+        $query = $this->em->createQuery(
+           'SELECT
+                partial dt.{id}, partial df.{id}, partial mdf.{id}
+
+                FROM ODRAdminBundle:DataType AS dt
+                LEFT JOIN dt.dataFields AS df
+                LEFT JOIN df.masterDataField AS mdf
+
+                WHERE dt.grandparent = :grandparent_datatype_id
+                AND dt.deletedAt IS NULL AND df.deletedAt IS NULL'
+        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+
+        // Need to disable the softdeleteable filter so doctrine pulls the id for deleted master
+        //  datafield entries
+        $this->em->getFilters()->disable('softdeleteable');
+        $df_data = $query->getArrayResult();
+        $this->em->getFilters()->enable('softdeleteable');
+
+        $derived_df_data = array();
+        foreach ($df_data as $dt_num => $dt) {
+            foreach ($dt['dataFields'] as $df_num => $df) {
+                $df_id = $df['id'];
+                $mdf_data = null;
+                if ( isset($df['masterDataField']) && !is_null($df['masterDataField']) ) {
+                    $mdf_data = array(
+                        'id' => $df['masterDataField']['id']
+                    );
+                }
+
+                $derived_df_data[$df_id] = $mdf_data;
+            }
+        }
+
+
+        // ----------------------------------------
         // Get all non-layout data for the requested datatype
         $query = $this->em->createQuery(
            'SELECT
@@ -407,7 +453,6 @@ class DatatypeInfoService
                 dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
 
                 df, dfm, ft,
-                partial mdf.{id},
                 partial df_cb.{id, username, email, firstName, lastName},
 
                 ro, rom, t, tm,
@@ -434,8 +479,6 @@ class DatatypeInfoService
             LEFT JOIN dt_rpm.dataField AS dt_rpm_df
 
             LEFT JOIN dt.dataFields AS df
-            LEFT JOIN df.masterDataField AS mdf
-
             LEFT JOIN df.dataFieldMeta AS dfm
             LEFT JOIN df.createdBy AS df_cb
             LEFT JOIN dfm.fieldType AS ft
@@ -493,6 +536,7 @@ class DatatypeInfoService
             $new_datafield_array = array();
             foreach ($dt['dataFields'] as $df_num => $df) {
                 $df_id = $df['id'];
+                $typeclass = $df['dataFieldMeta'][0]['fieldType']['typeClass'];
 
                 // Flatten datafield_meta and masterDatafield of each datafield
                 $dfm = $df['dataFieldMeta'][0];
@@ -500,6 +544,9 @@ class DatatypeInfoService
 
                 // Scrub irrelevant data from the datafield's createdBy property
                 $df['createdBy'] = UserUtility::cleanUserData( $df['createdBy'] );
+
+                // Attach the id of this datafield's masterDatafield if it exists
+                $df['masterDataField'] = $derived_df_data[$df_id];
 
                 // Flatten radio options if they exist
                 // They're ordered by displayOrder, so preserve $ro_num
@@ -517,7 +564,10 @@ class DatatypeInfoService
                     $tag_list[$tag_id] = $t;
                     $tag_list[$tag_id]['tagMeta'] = $t['tagMeta'][0];
                 }
-                if ( count($tag_list) == 0 ) {
+                if ($typeclass !== 'Tag') {
+                    unset( $df['tags'] );
+                }
+                else if ( count($tag_list) == 0 ) {
                     // No tags, ensure blank arrays exist
                     $df['tags'] = array();
                     $df['tagTree'] = array();
