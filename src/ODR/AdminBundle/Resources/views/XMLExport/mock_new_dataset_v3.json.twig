@@ -1,0 +1,128 @@
+{
+    "internal_id": {{ 1|mock_internal_id }},
+    "external_id": "",
+    "record_name": {{ 1|mock_internal_id }},
+    "template_uuid": "2ea627b",
+    "database_uuid": "{{ database_uuid }}",
+    "search_slug": "{{ database_uuid }}",
+    "_record_metadata": {
+        "_create_date": "{{ 1|date_now }}",
+        "_create_auth": "{{ database_author }}",
+        "_create_uuid": "{{ user_email }}",
+        "_public_date": "{{ 1|date_now }}"
+    },
+    "fields": [
+        {
+            "field_name": "Dataset Name",
+            "field_uuid": "{{ 1|unique_id }}",
+            "template_field_uuid": "08088a9",
+            "updated_at": "{{ 1|date_now }}",
+            "id": {{ 1|mock_internal_id }},
+            "value": "{{ database_name }}"
+        },
+        {
+            "field_name": "Dataset Description",
+            "field_uuid": "{{ 1|unique_id }}",
+            "template_field_uuid": "435844b",
+            "updated_at": "{{ 1|date_now }}",
+            "id": {{ 1|mock_internal_id }},
+            "value": ""
+        },
+        {
+            "field_name": "Dataset Location",
+            "field_uuid": "{{ 1|unique_id }}",
+            "template_field_uuid": "a4b7180",
+            "updated_at": "{{ 1|date_now }}",
+            "id": {{ 1|mock_internal_id }},
+            "value": "http://zeta.odr.io/{{ database_uuid }}"
+        },
+        {
+            "field_name": "Funding Sources",
+            "field_uuid": "{{ 1|unique_id }}",
+            "template_field_uuid": "3efc620",
+            "updated_at": "{{ 1|date_now }}",
+            "id": {{ 1|mock_internal_id }},
+            "value": [
+                {
+                    "name": "US &gt; Government &gt; NASA &gt; Directed &gt; SERA",
+                    "template_radio_option_uuid": "57864a5",
+                    "updated_at": "{{ 1|date_now }}",
+                    "id": {{ 1|mock_internal_id }},
+                    "selected": "1"
+                }
+            ]
+        },
+        {
+            "field_name": "Missions/Projects",
+            "field_uuid": "{{ 1|unique_id }}",
+            "template_field_uuid": "3653d7f",
+            "updated_at": "{{ 1|date_now }}",
+            "id": {{ 1|mock_internal_id }},
+            "value": []
+        },
+        {
+            "field_name": "NASA Astrobiology Program Research Theme",
+            "field_uuid": "{{ 1|unique_id }}",
+            "template_field_uuid": "979523a",
+            "updated_at": "{{ 1|date_now }}",
+            "id": {{ 1|mock_internal_id }},
+            "value": []
+        },
+        {
+            "field_name": "Astrobiology Field Location",
+            "field_uuid": "{{ 1|unique_id }}",
+            "template_field_uuid": "2c5f861",
+            "updated_at": "{{ 1|date_now }}",
+            "id": {{ 1|mock_internal_id }},
+            "value": []
+        },
+        {
+            "field_name": "Astrobiology Disciplines",
+            "field_uuid": "{{ 1|unique_id }}",
+            "template_field_uuid": "cfc0199",
+            "updated_at": "{{ 1|date_now }}",
+            "id": {{ 1|mock_internal_id }},
+            "value": []
+        },
+        {
+            "field_name": "Astrobiology Keywords",
+            "field_uuid": "{{ 1|unique_id }}",
+            "template_field_uuid": "72d4cf2",
+            "updated_at": "{{ 1|date_now }}",
+            "id": {{ 1|mock_internal_id }},
+            "value": []
+        }
+    ],
+    "records": [
+        {
+            "database_name": "Lead Investigators",
+            "internal_id": {{ 1|mock_internal_id }},
+            "external_id": "",
+            "record_name": {{ 1|mock_internal_id }},
+            "template_uuid": "2ee61a4",
+            "database_uuid": "{{ 1|unique_id }}",
+            "_record_metadata": {
+                "_create_date": "{{ 1|date_now }}",
+                "_create_auth": "{{ database_author }}",
+                "_public_date": "{{ 1|date_now }}"
+            },
+            "fields": [],
+            "records": []
+        },
+        {
+            "ddatabase_name": "Point of Contact",
+            "internal_id": {{ 1|mock_internal_id }},
+            "external_id": "",
+            "record_name": {{ 1|mock_internal_id }},
+            "template_uuid": "ebd7760",
+            "database_uuid": "{{ 1|unique_id }}",
+            "_record_metadata": {
+                "_create_date": "{{ 1|date_now }}",
+                "_create_auth": "{{ database_author }}",
+                "_public_date": "{{ 1|date_now }}"
+            },
+            "fields": [],
+            "records": []
+        }
+    ]
+}

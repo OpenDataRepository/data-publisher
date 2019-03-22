@@ -2,7 +2,11 @@
 {% set theme = theme_array[target_theme_id] %}
 
 {# describe datafields first #}
+{% if version != 'v3' %}
 "fields": {
+{% else %}
+"fields": [
+{% endif %}
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataFields is defined %}
 
@@ -30,10 +34,32 @@
         {% endfor %}
     {% endif %}
 {% endfor %}
-},  {# end of datafields #}
+
+
+
+{% if version != 'v3' %}
+},
+{% else %}
+],
+{% endif %}
+
+
+
+
+
+
+
+{# describe child datarecords second #}
+{% if version != 'v3' %}
+"child_databases": {
+{% else %}
+"related_databases": [
+{% endif %}
+
+
+
 
 {# describe child datatypes next #}
-"child_databases": {
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
 
@@ -53,7 +79,24 @@
 
                     {# using macro on purpose #}
                     {% import "ODRAdminBundle:XMLExport:datatype_childtype.json.twig" as mychildform %}
-                    {% set content = mychildform.input(child_datatype, child_theme, child_datatype_id, child_theme_id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
+
+                    {% set show_records = 1 %}
+                    {% if version != 'v3' %}
+                    {% set show_records = 0 %}
+                    {% endif %}
+
+                    {% set content = mychildform.input(
+                        child_datatype,
+                        child_theme,
+                        child_datatype_id,
+                        child_theme_id,
+                        is_top_level,
+                        theme_datatype.is_link,
+                        using_metadata,
+                        baseurl,
+                        version,
+                        show_records
+                    ) %}
 
                     {% if "{" in content|trim %}
                         {{ content }}
@@ -64,10 +107,26 @@
         {% endfor %}
     {% endif %}
 {% endfor %}
-},  {# end of child_datatypes #}
+
+
+
+
+
+
+
+
+{% if version != 'v3' %}
+},
+"linked_databases": {
+{% endif %}
+
+
+
+
+
+
 
 {# describe linked datatypes last #}
-"linked_databases": {
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
 
@@ -87,7 +146,24 @@
 
                     {# using macro on purpose #}
                     {% import "ODRAdminBundle:XMLExport:datatype_childtype.json.twig" as mychildform %}
-                    {% set content = mychildform.input(child_datatype, child_theme, child_datatype_id, child_theme_id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
+
+                    {% set show_records = 1 %}
+                    {% if version != 'v3' %}
+                    {% set show_records = 0 %}
+                    {% endif %}
+
+                    {% set content = mychildform.input(
+                        child_datatype,
+                        child_theme,
+                        child_datatype_id,
+                        child_theme_id,
+                        is_top_level,
+                        theme_datatype.is_link,
+                        using_metadata,
+                        baseurl,
+                        version,
+                        show_records
+                    ) %}
 
                     {% if "{" in content|trim %}
                         {{ content }}
@@ -98,4 +174,12 @@
         {% endfor %}
     {% endif %}
 {% endfor %}
-}   {# end of linked_datatypes #}
+
+
+
+
+{% if version != 'v3' %}
+},
+{% else %}
+]
+{% endif %}

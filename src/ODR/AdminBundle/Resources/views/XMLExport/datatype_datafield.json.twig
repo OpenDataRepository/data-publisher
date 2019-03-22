@@ -2,19 +2,21 @@
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
-{% if version == 'v1' %}
+{% if version == 'v3' %}
+    {
+{% elseif version == 'v1' %}
     "field_{{ datafield.id }}": {
-        "field_name": {{ datafield_meta.fieldName|json_encode|raw }},    {# lack of surrounding quotation marks necessary #}
 {% elseif version == 'v2' %}
     "{{ datafield_meta.xml_fieldName }}": {
 {% endif %}
 
-        "id": {{ datafield.id }},
-        "description": {{ datafield_meta.description|json_encode|raw }},    {# lack of surrounding quotation marks necessary #}
+
+        "internal_id": {{ datafield.id }},
+        "name": {{ datafield_meta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
+        "description": {{ datafield_meta.description|json_encode|raw }},
         "fieldtype": "{{ field_typename }}",
-        "field_uuid": "{{ datafield.fieldUuid }}",
-        "template_field_uuid": "{{ datafield.templateFieldUuid }}",
-        "updated_at": "{{ datafield_meta.updated|date('Y-m-d H:i:s') }}",    {# TODO - should this be controlled by using_metadata? #}
+        "template_field_uuid": {{ datafield.fieldUuid|json_encode|raw }},
+        "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
 
     {% if datafield_meta.renderPlugin.id != 1 %}
         "render_plugin": {{ datafield_meta.renderPlugin.pluginName|json_encode|raw }},
@@ -38,31 +40,41 @@
 
     {% if field_typeclass == 'Radio' %}
         {% if datafield.radioOptions is defined %}
-        "value": [
+        {% if version == 'v3' %}
+        "radio_options": [
+        {% else %}
+        "radio_options": {
+        {% endif %}
             {% for radio_option in datafield.radioOptions %}
+
                 {% set radio_option_meta = radio_option.radioOptionMeta %}
 
-            {# each radio option is its own JSON object...required because "value" is an array #}
-            {
+                {% if version == 'v3' %}
+                    {
+                        "name": "{{ radio_option_meta.optionName }}",
+                        "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
+                        "updated_at": "{{ radio_option.radioOptionMeta.created|date('Y-m-d H:i:s') }}",
+                    },   {# end of radio option #}
+                {% elseif version == 'v1' or version == 'v3' %}
+                    "radio_option_{{ radio_option.id }}": {
+                        "name": "{{ radio_option_meta.optionName }}",
+                        "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
+                        "updated_at": "{{ radio_option.radioOptionMeta.created|date('Y-m-d H:i:s') }}",
+                    },   {# end of radio option #}
+                {% elseif version == 'v2' %}
+                    "{{ radio_option.radioOptionMeta.optionName }}": {
+                        "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
+                        "updated_at": "{{ radio_option.radioOptionMeta.created|date('Y-m-d H:i:s') }}",
+                    },   {# end of radio option #}
+                {% endif %}
 
-            {% if version == 'v1' %}
-                "radio_option_{{ radio_option.id }}": {
-                "name": "{{ radio_option_meta.optionName }}",
-            {% elseif version == 'v2' %}
-                "{{ radio_option.radioOptionMeta.optionName }}": {
-            {% endif %}
-
-                    "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
-                    "updated_at": "{{ radio_option_meta.updated|date('Y-m-d H:i:s') }}"    {# TODO - should this be controlled by using_metadata? #}
-
-                }   {# end of radio option #}
-
-            {# each radio option is its own JSON object #}
-            },
 
             {% endfor %}
-        ]    {# end of radio options #}
-
+        {% if version == 'v3' %}
+            ]
+        {% else %}
+            }
+        {% endif %}
         {% endif %}
     {% endif %}
 

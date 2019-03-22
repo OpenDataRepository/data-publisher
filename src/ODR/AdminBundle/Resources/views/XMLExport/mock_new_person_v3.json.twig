@@ -1,0 +1,658 @@
+    {
+        "internal_id": {{ internal_id }},
+        "external_id": "",
+        "record_name": {{ internal_id }},
+        "template_uuid": "2ea627b",
+        "database_uuid": {{ database_uuid }},
+        "_record_metadata": {
+            "_create_date": "{{ 1|date_now }}",
+            "_create_auth": "{{ database_author }}",
+            "_public_date": "{{ 1|date_now }}"
+        },
+        "fields": [
+            {
+                "field_name": "Dataset Name",
+                "field_uuid": "{{ 1|unique_id }}",
+                "template_field_uuid": "08088a9",
+                "updated_at": "{{ 1|date_now }}",
+                "id": {{ 1|mock_internal_id }},
+                "value": "{{ database_name }}"
+            },
+            {
+                "field_name": "Dataset Description",
+                "field_uuid": "{{ 1|unique_id }}",
+                "template_field_uuid": "435844b",
+                "updated_at": "{{ 1|date_now }}",
+                "id": {{ 1|mock_internal_id }},
+                "value": ""
+            },
+            {
+                "field_name": "Dataset Location",
+                "field_uuid": "{{ 1|unique_id }}",
+                "template_field_uuid": "a4b7180",
+                "updated_at": "{{ 1|date_now }}",
+                "id": {{ 1|mock_internal_id }},
+                "value": "http://zeta.odr.io/{{ database_uuid }}"
+            },
+            {
+                "field_name": "Funding Sources",
+                "field_uuid": "{{ 1|unique_id }}",
+                "template_field_uuid": "3efc620",
+                "updated_at": "{{ 1|date_now }}",
+                "id": {{ 1|mock_internal_id }},
+                "value": [
+                    {
+                        "name": "US &gt; Government &gt; NASA &gt; Directed &gt; SERA",
+                        "template_radio_option_uuid": "57864a5",
+                        "updated_at": "{{ 1|date_now }}",
+                        "id": {{ 1|mock_internal_id }},
+                        "selected": "1"
+                    }
+                ]
+            },
+            {
+                "field_name": "Missions/Projects",
+                "field_uuid": "{{ 1|unique_id }}",
+                "template_field_uuid": "3653d7f",
+                "updated_at": "{{ 1|date_now }}",
+                "id": {{ 1|mock_internal_id }},
+                "value": []
+            },
+            {
+                "field_name": "NASA Astrobiology Program Research Theme",
+                "field_uuid": "{{ 1|unique_id }}",
+                "template_field_uuid": "979523a",
+                "updated_at": "{{ 1|date_now }}",
+                "id": {{ 1|mock_internal_id }},
+                "value": [
+                    {
+                        "name": "Coevolution of Life and the Physical Environment",
+                        "template_radio_option_uuid": "9b34345",
+                        "updated_at": "{{ 1|date_now }}",
+                        "id": {{ 1|mock_internal_id }},
+                        "selected": "1"
+                    }
+                ]
+            },
+            {
+                "field_name": "Astrobiology Field Location",
+                "field_uuid": "{{ 1|unique_id }}",
+                "template_field_uuid": "2c5f861",
+                "updated_at": "{{ 1|date_now }}",
+                "id": {{ 1|mock_internal_id }},
+                "value": []
+            },
+            {
+                "field_name": "Astrobiology Disciplines",
+                "field_uuid": "{{ 1|unique_id }}",
+                "template_field_uuid": "cfc0199",
+                "updated_at": "{{ 1|date_now }}",
+                "id": {{ 1|mock_internal_id }},
+                "value": [
+                    {
+                        "name": "geochemistry",
+                        "template_radio_option_uuid": "0730d71",
+                        "updated_at": "{{ 1|date_now }}",
+                        "id": {{ 1|mock_internal_id }},
+                        "selected": "1"
+                    },
+                    {
+                        "name": "geology",
+                        "template_radio_option_uuid": "b379a90",
+                        "updated_at": "{{ 1|date_now }}",
+                        "id": {{ 1|mock_internal_id }},
+                        "selected": "1"
+                    }
+                ]
+            },
+            {
+                "field_name": "Astrobiology Keywords",
+                "field_uuid": "{{ 1|unique_id }}",
+                "template_field_uuid": "72d4cf2",
+                "updated_at": "{{ 1|date_now }}",
+                "id": {{ 1|mock_internal_id }},
+                "value": [
+                    {
+                        "name": "chemical &gt; isotopes - stable",
+                        "template_radio_option_uuid": "b2b4d3f",
+                        "updated_at": "{{ 1|date_now }}",
+                        "id": {{ 1|mock_internal_id }},
+                        "selected": "1"
+                    },
+                    {
+                        "name": "chemical &gt; isotopes &gt; carbon isotopes",
+                        "template_radio_option_uuid": "f0de170",
+                        "updated_at": "{{ 1|date_now }}",
+                        "id": {{ 1|mock_internal_id }},
+                        "selected": "1"
+                    },
+                    {
+                        "name": "geological &gt; minerals &gt; carbonates",
+                        "template_radio_option_uuid": "608735c",
+                        "updated_at": "{{ 1|date_now }}",
+                        "id": {{ 1|mock_internal_id }},
+                        "selected": "1"
+                    }
+                ]
+            }
+        ],
+        "records": [
+            {
+                "database_name": "Lead Investigators",
+                "database_uuid": "{{ 1|unique_id }}",
+                "template_uuid": "2ee61a4",
+                "records": [
+                    {
+                        "internal_id": 160771,
+                        "external_id": "",
+                        "record_name": 160771,
+                        "template_uuid": "2ee61a4",
+                        "database_uuid": "{{ 1|unique_id }}",
+                        "_record_metadata": {
+                            "_create_date": "{{ 1|date_now }}",
+                            "_create_auth": "{{ database_author }}",
+                            "_public_date": "{{ 1|date_now }}"
+                        },
+                        "fields": [],
+                        "records": [
+                            {
+                                "database_name": "Person",
+                                "database_uuid": "{{ 1|unique_id }}",
+                                "template_uuid": "ce17e42",
+                                "records": [
+                                    {
+                                        "internal_id": 160768,
+                                        "external_id": "thomas.f.bristow@nasa.gov",
+                                        "record_name": "Bristow",
+                                        "template_uuid": "ce17e42",
+                                        "database_uuid": "{{ 1|unique_id }}",
+                                        "_record_metadata": {
+                                            "_create_date": "{{ 1|date_now }}",
+                                            "_create_auth": "{{ database_author }}",
+                                            "_public_date": "{{ 1|date_now }}"
+                                        },
+                                        "fields": [
+                                            {
+                                                "field_name": "First Name",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "0143860",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": "Thomas"
+                                            },
+                                            {
+                                                "field_name": "Last Name",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "4d9ea52",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": "Bristow"
+                                            },
+                                            {
+                                                "field_name": "Contact Email",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "e3dcbc9",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": "thomas.f.bristow@nasa.gov"
+                                            },
+                                            {
+                                                "field_name": "Person Website",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "9ba0f2f",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": ""
+                                            },
+                                            {
+                                                "field_name": "ORCID Identifier",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "2877316",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": "0000-0001-7169-5565"
+                                            }
+                                        ],
+                                        "records": [
+                                            {
+                                                "database_name": "Postal Address",
+                                                "database_uuid": "{{ 1|unique_id }}",
+                                                "template_uuid": "95f9363",
+                                                "records": [
+                                                    {
+                                                        "internal_id": 160751,
+                                                        "external_id": "3",
+                                                        "record_name": 160751,
+                                                        "template_uuid": "95f9363",
+                                                        "database_uuid": "{{ 1|unique_id }}",
+                                                        "_record_metadata": {
+                                                            "_create_date": "{{ 1|date_now }}",
+                                                            "_create_auth": "{{ database_author }}",
+                                                            "_public_date": "{{ 1|date_now }}"
+                                                        },
+                                                        "fields": [
+                                                            {
+                                                                "field_name": "Address ID#",
+                                                                "field_uuid": "{{ 1|unique_id }}",
+                                                                "template_field_uuid": "a0c83b5",
+                                                                "updated_at": "{{ 1|date_now }}",
+                                                                "id": {{ 1|mock_internal_id }},
+                                                                "value": "3"
+                                                            },
+                                                            {
+                                                                "field_name": "Address 1",
+                                                                "field_uuid": "{{ 1|unique_id }}",
+                                                                "template_field_uuid": "ed4f42c",
+                                                                "updated_at": "{{ 1|date_now }}",
+                                                                "id": {{ 1|mock_internal_id }},
+                                                                "value": "NASA Ames Research Center"
+                                                            },
+                                                            {
+                                                                "field_name": "Address 2",
+                                                                "field_uuid": "{{ 1|unique_id }}",
+                                                                "template_field_uuid": "2d1d105",
+                                                                "updated_at": "{{ 1|date_now }}",
+                                                                "id": {{ 1|mock_internal_id }},
+                                                                "value": "Mail-Stop 239-4"
+                                                            },
+                                                            {
+                                                                "field_name": "City",
+                                                                "field_uuid": "{{ 1|unique_id }}",
+                                                                "template_field_uuid": "3503e92",
+                                                                "updated_at": "{{ 1|date_now }}",
+                                                                "id": {{ 1|mock_internal_id }},
+                                                                "value": "Moffett Field"
+                                                            },
+                                                            {
+                                                                "field_name": "State/Province (Only USA and Canada)",
+                                                                "field_uuid": "{{ 1|unique_id }}",
+                                                                "template_field_uuid": "062df8b",
+                                                                "updated_at": "{{ 1|date_now }}",
+                                                                "id": {{ 1|mock_internal_id }},
+                                                                "value": [
+                                                                    {
+                                                                        "name": "California",
+                                                                        "template_radio_option_uuid": "96f65a3",
+                                                                        "updated_at": "{{ 1|date_now }}",
+                                                                        "id": {{ 1|mock_internal_id }},
+                                                                        "selected": "1"
+                                                                    }
+                                                                ]
+                                                            },
+                                                            {
+                                                                "field_name": "Postal Code",
+                                                                "field_uuid": "{{ 1|unique_id }}",
+                                                                "template_field_uuid": "79590b6",
+                                                                "updated_at": "{{ 1|date_now }}",
+                                                                "id": {{ 1|mock_internal_id }},
+                                                                "value": "94035-0001"
+                                                            },
+                                                            {
+                                                                "field_name": "Country",
+                                                                "field_uuid": "{{ 1|unique_id }}",
+                                                                "template_field_uuid": "c7d1a2e",
+                                                                "updated_at": "{{ 1|date_now }}",
+                                                                "id": {{ 1|mock_internal_id }},
+                                                                "value": [
+                                                                    {
+                                                                        "name": "United States of America (USA)",
+                                                                        "template_radio_option_uuid": "48f278b",
+                                                                        "updated_at": "{{ 1|date_now }}",
+                                                                        "id": {{ 1|mock_internal_id }},
+                                                                        "selected": "1"
+                                                                    }
+                                                                ]
+                                                            }
+                                                        ],
+                                                        "records": []
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "database_name": "Point of Contact",
+                "database_uuid": "{{ 1|unique_id }}",
+                "template_uuid": "ebd7760",
+                "records": [
+                    {
+                        "internal_id": 160774,
+                        "external_id": "",
+                        "record_name": 160774,
+                        "template_uuid": "ebd7760",
+                        "database_uuid": "{{ 1|unique_id }}",
+                        "_record_metadata": {
+                            "_create_date": "{{ 1|date_now }}",
+                            "_create_auth": "{{ database_author }}",
+                            "_public_date": "{{ 1|date_now }}"
+                        },
+                        "fields": [],
+                        "records": [
+                            {
+                                "database_name": "Person",
+                                "database_uuid": "{{ 1|unique_id }}",
+                                "template_uuid": "ce17e42",
+                                "records": [
+                                    {
+                                        "internal_id": 160761,
+                                        "external_id": "barbara.lafuentevalverde@nasa.gov",
+                                        "record_name": "Lafuente",
+                                        "template_uuid": "ce17e42",
+                                        "database_uuid": "{{ 1|unique_id }}",
+                                        "_record_metadata": {
+                                            "_create_date": "{{ 1|date_now }}",
+                                            "_create_auth": "{{ database_author }}",
+                                            "_public_date": "{{ 1|date_now }}"
+                                        },
+                                        "fields": [
+                                            {
+                                                "field_name": "First Name",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "0143860",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": "Barbara"
+                                            },
+                                            {
+                                                "field_name": "Last Name",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "4d9ea52",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": "Lafuente"
+                                            },
+                                            {
+                                                "field_name": "Contact Email",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "e3dcbc9",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": "barbara.lafuentevalverde@nasa.gov"
+                                            },
+                                            {
+                                                "field_name": "Person Website",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "9ba0f2f",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": ""
+                                            },
+                                            {
+                                                "field_name": "ORCID Identifier",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "2877316",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": "0000-0002-2947-001X"
+                                            }
+                                        ],
+                                        "records": [
+                                            {
+                                                "database_name": "Postal Address",
+                                                "database_uuid": "{{ 1|unique_id }}",
+                                                "template_uuid": "95f9363",
+                                                "records": [
+                                                    {
+                                                        "internal_id": 160751,
+                                                        "external_id": "3",
+                                                        "record_name": 160751,
+                                                        "template_uuid": "95f9363",
+                                                        "database_uuid": "{{ 1|unique_id }}",
+                                                        "_record_metadata": {
+                                                            "_create_date": "{{ 1|date_now }}",
+                                                            "_create_auth": "{{ database_author }}",
+                                                            "_public_date": "{{ 1|date_now }}"
+                                                        },
+                                                        "fields": [
+                                                            {
+                                                                "field_name": "Address ID#",
+                                                                "field_uuid": "{{ 1|unique_id }}",
+                                                                "template_field_uuid": "a0c83b5",
+                                                                "updated_at": "{{ 1|date_now }}",
+                                                                "id": {{ 1|mock_internal_id }},
+                                                                "value": "3"
+                                                            },
+                                                            {
+                                                                "field_name": "Address 1",
+                                                                "field_uuid": "{{ 1|unique_id }}",
+                                                                "template_field_uuid": "ed4f42c",
+                                                                "updated_at": "{{ 1|date_now }}",
+                                                                "id": {{ 1|mock_internal_id }},
+                                                                "value": "NASA Ames Research Center"
+                                                            },
+                                                            {
+                                                                "field_name": "Address 2",
+                                                                "field_uuid": "{{ 1|unique_id }}",
+                                                                "template_field_uuid": "2d1d105",
+                                                                "updated_at": "{{ 1|date_now }}",
+                                                                "id": {{ 1|mock_internal_id }},
+                                                                "value": "Mail-Stop 239-4"
+                                                            },
+                                                            {
+                                                                "field_name": "City",
+                                                                "field_uuid": "{{ 1|unique_id }}",
+                                                                "template_field_uuid": "3503e92",
+                                                                "updated_at": "{{ 1|date_now }}",
+                                                                "id": {{ 1|mock_internal_id }},
+                                                                "value": "Moffett Field"
+                                                            },
+                                                            {
+                                                                "field_name": "State/Province (Only USA and Canada)",
+                                                                "field_uuid": "{{ 1|unique_id }}",
+                                                                "template_field_uuid": "062df8b",
+                                                                "updated_at": "{{ 1|date_now }}",
+                                                                "id": {{ 1|mock_internal_id }},
+                                                                "value": [
+                                                                    {
+                                                                        "name": "California",
+                                                                        "template_radio_option_uuid": "96f65a3",
+                                                                        "updated_at": "{{ 1|date_now }}",
+                                                                        "id": {{ 1|mock_internal_id }}0,
+                                                                        "selected": "1"
+                                                                    }
+                                                                ]
+                                                            },
+                                                            {
+                                                                "field_name": "Postal Code",
+                                                                "field_uuid": "{{ 1|unique_id }}",
+                                                                "template_field_uuid": "79590b6",
+                                                                "updated_at": "{{ 1|date_now }}",
+                                                                "id": {{ 1|mock_internal_id }},
+                                                                "value": "94035-0001"
+                                                            },
+                                                            {
+                                                                "field_name": "Country",
+                                                                "field_uuid": "{{ 1|unique_id }}",
+                                                                "template_field_uuid": "c7d1a2e",
+                                                                "updated_at": "{{ 1|date_now }}",
+                                                                "id": {{ 1|mock_internal_id }},
+                                                                "value": [
+                                                                    {
+                                                                        "name": "United States of America (USA)",
+                                                                        "template_radio_option_uuid": "48f278b",
+                                                                        "updated_at": "{{ 1|date_now }}",
+                                                                        "id": {{ 1|mock_internal_id }}5,
+                                                                        "selected": "1"
+                                                                    }
+                                                                ]
+                                                            }
+                                                        ],
+                                                        "records": []
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "database_name": "Institution",
+                "database_uuid": "{{ 1|unique_id }}",
+                "template_uuid": "870a2f7",
+                "records": [
+                    {
+                        "internal_id": 160769,
+                        "external_id": "SSX",
+                        "record_name": "NASA Ames Research Center",
+                        "template_uuid": "870a2f7",
+                        "database_uuid": "{{ 1|unique_id }}",
+                        "_record_metadata": {
+                            "_create_date": "{{ 1|date_now }}",
+                            "_create_auth": "{{ database_author }}",
+                            "_public_date": "{{ 1|date_now }}"
+                        },
+                        "fields": [
+                            {
+                                "field_name": "Institution ID",
+                                "field_uuid": "{{ 1|unique_id }}",
+                                "template_field_uuid": "ec0706f",
+                                "updated_at": "{{ 1|date_now }}",
+                                "id": {{ 1|mock_internal_id }},
+                                "value": "SSX"
+                            },
+                            {
+                                "field_name": "Institution name",
+                                "field_uuid": "{{ 1|unique_id }}",
+                                "template_field_uuid": "1df6df8",
+                                "updated_at": "{{ 1|date_now }}",
+                                "id": {{ 1|mock_internal_id }},
+                                "value": "NASA Ames Research Center"
+                            },
+                            {
+                                "field_name": "Sub unit name",
+                                "field_uuid": "{{ 1|unique_id }}",
+                                "template_field_uuid": "0b8a9f3",
+                                "updated_at": "{{ 1|date_now }}",
+                                "id": {{ 1|mock_internal_id }},
+                                "value": "Exobiology Branch (SSX)"
+                            },
+                            {
+                                "field_name": "Sub unit website URL",
+                                "field_uuid": "{{ 1|unique_id }}",
+                                "template_field_uuid": "6712650",
+                                "updated_at": "{{ 1|date_now }}",
+                                "id": {{ 1|mock_internal_id }},
+                                "value": "https://www.nasa.gov/content/exobiology-branch-code-ssx"
+                            },
+                            {
+                                "field_name": "GRID Identifier (e.g.  grid.419075.e)",
+                                "field_uuid": "{{ 1|unique_id }}",
+                                "template_field_uuid": "c83b5ff",
+                                "updated_at": "{{ 1|date_now }}",
+                                "id": {{ 1|mock_internal_id }},
+                                "value": "grid.419075.e"
+                            }
+                        ],
+                        "records": [
+                            {
+                                "database_name": "Postal Address",
+                                "database_uuid": "{{ 1|unique_id }}",
+                                "template_uuid": "95f9363",
+                                "records": [
+                                    {
+                                        "internal_id": 160751,
+                                        "external_id": "3",
+                                        "record_name": 160751,
+                                        "template_uuid": "95f9363",
+                                        "database_uuid": "{{ 1|unique_id }}",
+                                        "_record_metadata": {
+                                            "_create_date": "{{ 1|date_now }}",
+                                            "_create_auth": "{{ database_author }}",
+                                            "_public_date": "{{ 1|date_now }}"
+                                        },
+                                        "fields": [
+                                            {
+                                                "field_name": "Address ID#",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "a0c83b5",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": "3"
+                                            },
+                                            {
+                                                "field_name": "Address 1",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "ed4f42c",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": "NASA Ames Research Center"
+                                            },
+                                            {
+                                                "field_name": "Address 2",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "2d1d105",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": "Mail-Stop 239-4"
+                                            },
+                                            {
+                                                "field_name": "City",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "3503e92",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": "Moffett Field"
+                                            },
+                                            {
+                                                "field_name": "State/Province (Only USA and Canada)",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "062df8b",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": [
+                                                    {
+                                                        "name": "California",
+                                                        "template_radio_option_uuid": "96f65a3",
+                                                        "updated_at": "{{ 1|date_now }}",
+                                                        "id": {{ 1|mock_internal_id }},
+                                                        "selected": "1"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "field_name": "Postal Code",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "79590b6",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": "94035-0001"
+                                            },
+                                            {
+                                                "field_name": "Country",
+                                                "field_uuid": "{{ 1|unique_id }}",
+                                                "template_field_uuid": "c7d1a2e",
+                                                "updated_at": "{{ 1|date_now }}",
+                                                "id": {{ 1|mock_internal_id }},
+                                                "value": [
+                                                    {
+                                                        "name": "United States of America (USA)",
+                                                        "template_radio_option_uuid": "48f278b",
+                                                        "updated_at": "{{ 1|date_now }}",
+                                                        "id": {{ 1|mock_internal_id }},
+                                                        "selected": "1"
+                                                    }
+                                                ]
+                                            }
+                                        ],
+                                        "records": []
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ],
+        "score": 6,
+        "search_slug": "{{ database_uuid }}"
+    }
