@@ -142,8 +142,10 @@ class SortService
         $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
         if ($datatype == null)
             throw new ODRNotFoundException('Datatype', false, $exception_code);
-        if ($datatype->getIsMasterType())
-            throw new ODRBadRequestException('getSortedDatarecordList() called on a master template', $exception_code);
+
+        // Templates shouldn't need to call this, but it doesn't break anything if they do
+//        if ($datatype->getIsMasterType())
+//            throw new ODRBadRequestException('getSortedDatarecordList() called on a master template', $exception_code);
 
         // Attempt to grab the sorted list of datarecords for this datatype from the cache
         $datarecord_list = $this->cache_service->get('datatype_'.$datatype_id.'_record_order');
@@ -208,8 +210,10 @@ class SortService
         $datafield = $this->em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
         if ($datafield == null)
             throw new ODRNotFoundException('Datafield', false, $exception_code);
-        if ($datafield->getIsMasterField())
-            throw new ODRBadRequestException('sortDatarecordsByDatafield() called with master datafield', $exception_code);
+
+        // Templates shouldn't need to call this, but it doesn't break anything if they do
+//        if ($datafield->getIsMasterField())
+//            throw new ODRBadRequestException('sortDatarecordsByDatafield() called with master datafield', $exception_code);
 
         $datatype = $datafield->getDataType();
         if ( !is_null($datatype->getDeletedAt()) )
@@ -425,6 +429,8 @@ class SortService
         );
         if ($template_datafield == null)
             throw new ODRNotFoundException('Datafield', false, $exception_code);
+
+        // Regular datafields should not call this...it makes no sense if they do
         if (!$template_datafield->getIsMasterField())
             throw new ODRBadRequestException('sortDatarecordsByTemplateDatafield() called with regular datafield', $exception_code);
 

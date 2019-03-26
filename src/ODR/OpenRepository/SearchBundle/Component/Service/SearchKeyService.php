@@ -913,7 +913,6 @@ class SearchKeyService
                         }
                     }
                     else if ( isset($search_df['selected_tags']) ) {
-                        // TODO - test this
                         // Tags
                         if ($typeclass !== 'Tag')
                             throw new ODRBadRequestException('Invalid search key: "selected_tags" defined for a "'.$typeclass.'" datafield, expected a Tag datafield', $exception_code);
@@ -1155,7 +1154,6 @@ class SearchKeyService
                         );
                     }
                     else if ( isset($df['selected_tags']) ) {
-                        // TODO - test this
                         // This is a tag datafield
                         $selections = array();
                         foreach ($df['selected_tags'] as $num => $tag) {

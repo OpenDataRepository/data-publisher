@@ -393,18 +393,17 @@ class SearchAPIService
                         $results = $this->search_service->searchRadioTemplateDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
                     }
                     else if ($typeclass === 'Tag' && $facet === 'general') {
-                        // TODO - test this
                         // General search only provides a string, and only wants selected tags
                         $results = $this->search_service->searchForSelectedTemplateTags($entity, $search_term['value']);
 
                         if ($api_hijack) {
+                            // TODO - test this
                             // For API purposes, sometimes the search needs to abort early
                             // Apply the datatype/datafield/datarecord permissions now
                             return self::getfieldstatsFilter($results, $searchable_datafields, $flattened_list);
                         }
                     }
                     else if ($typeclass === 'Tag' && $facet !== 'general') {
-                        // TODO - test this
                         // The more specific version of searching a tag datafield provides an array of selected/deselected options
                         $results = $this->search_service->searchTagTemplateDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
                     }

@@ -403,12 +403,13 @@ class DatatypeInfoService
         //  have the same behavior as full hydration
 
         // This is primarily needed so template synchronization can be guaranteed to match a derived
-        //  datafield with its master datafield
+        //  datafield with its master datafield...same deal with master datatypes
         $query = $this->em->createQuery(
            'SELECT
-                partial dt.{id}, partial df.{id}, partial mdf.{id}
+                partial dt.{id}, partial mdt.{id, unique_id}, partial df.{id}, partial mdf.{id}
 
                 FROM ODRAdminBundle:DataType AS dt
+                LEFT JOIN dt.masterDataType AS mdt
                 LEFT JOIN dt.dataFields AS df
                 LEFT JOIN df.masterDataField AS mdf
 
@@ -419,11 +420,24 @@ class DatatypeInfoService
         // Need to disable the softdeleteable filter so doctrine pulls the id for deleted master
         //  datafield entries
         $this->em->getFilters()->disable('softdeleteable');
-        $df_data = $query->getArrayResult();
+        $master_data = $query->getArrayResult();
         $this->em->getFilters()->enable('softdeleteable');
 
+        $derived_dt_data = array();
         $derived_df_data = array();
-        foreach ($df_data as $dt_num => $dt) {
+        foreach ($master_data as $dt_num => $dt) {
+            // Store the potentially deleted master datatype
+            $dt_id = $dt['id'];
+            $mdt_data = null;
+            if ( isset($dt['masterDataType']) && !is_null($dt['masterDataType']) ) {
+                $mdt_data = array(
+                    'id' => $dt['masterDataType']['id'],
+                    'unique_id' => $dt['masterDataType']['unique_id']
+                );
+            }
+            $derived_dt_data[$dt_id] = $mdt_data;
+
+            // Store the potentially deleted master datafield
             foreach ($dt['dataFields'] as $df_num => $df) {
                 $df_id = $df['id'];
                 $mdf_data = null;
@@ -444,7 +458,6 @@ class DatatypeInfoService
            'SELECT
                 dt, dtm,
                 partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id}, partial dt_bif.{id},
-                partial mdt.{id, unique_id}, 
                 partial md.{id, unique_id},
                 partial mf.{id, unique_id},
                 partial dt_cb.{id, username, email, firstName, lastName},
@@ -459,7 +472,6 @@ class DatatypeInfoService
                 df_rp, df_rpi, df_rpo, df_rpm
 
             FROM ODRAdminBundle:DataType AS dt
-            LEFT JOIN dt.masterDataType AS mdt
             LEFT JOIN dt.createdBy AS dt_cb
             LEFT JOIN dt.updatedBy AS dt_ub
             LEFT JOIN dt.metadata_datatype AS md
@@ -524,7 +536,7 @@ class DatatypeInfoService
                 $dtm = $dt['dataTypeMeta'][0];
             }
             $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
-            $datatype_data[$dt_num]['masterDataType'] = $dt['masterDataType'];
+            $datatype_data[$dt_num]['masterDataType'] = $derived_dt_data[$dt_id];
 
             // Scrub irrelevant data from the datatype's createdBy and updatedBy properties
             $datatype_data[$dt_num]['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );

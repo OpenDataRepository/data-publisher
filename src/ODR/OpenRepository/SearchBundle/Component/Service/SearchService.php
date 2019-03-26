@@ -500,8 +500,6 @@ class SearchService
      */
     public function searchTagTemplateDatafield($template_datafield, $selections, $merge_using_OR = true)
     {
-        // TODO - test this
-
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
         $typeclass = $template_datafield->getFieldType()->getTypeClass();
@@ -510,9 +508,11 @@ class SearchService
         if ( !$template_datafield->getIsMasterField() )
             throw new ODRBadRequestException('searchTagTemplateDatafield() called on a non-master datafield', 0x9bdd0ba3);
 
-        // Also don't continue if no selection specified
-        if ( count($selections) == 0 )
-            throw new ODRBadRequestException('searchTagTemplateDatafield() called with empty selections array', 0x9bdd0ba3);
+        // Can't throw an error here...when a cross-template general search is run, it's possible
+        //  that none of the tags match the general search string, which results in a empty array of
+        //  selections passed to this function...
+//        if ( count($selections) == 0 )
+//            throw new ODRBadRequestException('searchTagTemplateDatafield() called with empty selections array', 0x9bdd0ba3);
 
 
         // ----------------------------------------
@@ -524,7 +524,15 @@ class SearchService
 
         // Otherwise, probably going to need to run searches again...
         $end_result = null;
-        $datarecord_list = null;
+        $datarecord_list = self::getCachedTemplateDatarecordList($template_datafield->getDataType()->getUniqueId());
+
+        if ( count($leaf_selections) === 0 ) {
+            // ...if no selections got passed into this function, then we need to create and return
+            //  a result where nothing matched.  This works regardless of the reason behind the
+            //  "no selections" being a general search that didn't match anything, or a search on
+            //  a specific field not specifying any tags to search.
+            return $this->search_query_service->searchEmptyTagTemplateDatafield($datarecord_list, $template_datafield->getId());
+        }
 
         foreach ($leaf_selections as $tag_uuid => $value) {
             // Attempt to find the cached result for this tag...
@@ -534,10 +542,6 @@ class SearchService
 
             // If it doesn't exist...
             if ( !isset($result[$value]) ) {
-                // ...then ensure we have the list of datarecords for this tag's datatype
-                if ( is_null($datarecord_list) )
-                    $datarecord_list = self::getCachedTemplateDatarecordList($template_datafield->getDataType()->getUniqueId());
-
                 // ...run the search again
                 $result = $this->search_query_service->searchTagTemplateDatafield(
                     $datarecord_list,
@@ -748,8 +752,6 @@ class SearchService
      */
     public function searchForSelectedTemplateTags($template_datafield, $value)
     {
-        // TODO - test this
-
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
         $typeclass = $template_datafield->getFieldType()->getTypeClass();
@@ -765,16 +767,14 @@ class SearchService
         if ( !$cached_searches )
             $cached_searches = array();
 
-        // TODO - cross-template search is currently locked to "any" tag...need to allow searches on tag names
-//        $value = 'any';
-//        if ( isset($cached_searches[$value]) )
-//            return $cached_searches[$value];
+        if ( isset($cached_searches[$value]) )
+            return $cached_searches[$value];
 
 
         // ----------------------------------------
         // Otherwise, going to need to run the search again...
         $matching_tags = $this->search_query_service->searchForTagNames(
-            $template_datafield->getId(),    // TODO - will this screw up the results?
+            $template_datafield->getId(),
             $value
         );
 

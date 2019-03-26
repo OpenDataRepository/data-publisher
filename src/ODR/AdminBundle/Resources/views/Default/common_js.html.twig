@@ -7,12 +7,13 @@
         if (window.location.hash !== ""
             && (window.location.hash.substr(1).match(/\/search/)
                 || window.location.hash.substr(1).match(/\/app_dev.php\/search/)
-                || window.location.hash.substr(1).match(/\/view/)
-                || window.location.hash.substr(1).match(/\/app_dev.php\/view/)
-                || window.location.hash.substr(1).match(/\/edit/)
-                || window.location.hash.substr(1).match(/\/app_dev.php\/edit/)
+                || window.location.hash.substr(1).match(/\/view\//)
+                || window.location.hash.substr(1).match(/\/app_dev.php\/view\//)
+                || window.location.hash.substr(1).match(/\/edit\//)
+                || window.location.hash.substr(1).match(/\/app_dev.php\/edit\//)
             )
         ) {
+            // console.log( 'window.onload: loadSearchContent("' + window.location.hash.substr(1) + '")' );
             loadSearchContent( window.location.hash.substr(1) );
             return;
         }
@@ -20,10 +21,12 @@
             // window.location.hash doesn't preserve url encoding...
             var tmp = window.location.href.split('#');
             var url = tmp[1];
+            // console.log( 'window.onload: LoadContentFullAjax("' + url + '")' );
             LoadContentFullAjax( url );
         }
 {% if logged_in == true %}
         else {
+            // console.log( 'window.onload: LoadContentFullAjax("<<dashboard>>")' );
             LoadContentFullAjax('{{ path('odr_dashboard') }}');
         }
 {% endif %}
@@ -55,11 +58,12 @@
             // Skip this process for the search page
             if (window.location.hash.substr(1).match(/\/search/)
                 || window.location.hash.substr(1).match(/\/app_dev.php\/search/)
-                || window.location.hash.substr(1).match(/\/view/)
-                || window.location.hash.substr(1).match(/\/app_dev.php\/view/)
-                || window.location.hash.substr(1).match(/\/edit/)
-                || window.location.hash.substr(1).match(/\/app_dev.php\/edit/)
+                || window.location.hash.substr(1).match(/\/view\//)
+                || window.location.hash.substr(1).match(/\/app_dev.php\/view\//)
+                || window.location.hash.substr(1).match(/\/edit\//)
+                || window.location.hash.substr(1).match(/\/app_dev.php\/edit\//)
             ) {
+                // console.log( 'window.hashchange: loadSearchContent("' + window.location.hash.substr(1) + '")' );
                 loadSearchContent( window.location.hash.substr(1) );
                 return;
             }
@@ -76,11 +80,13 @@
                 url = new_url[1];
                 if ( url !== undefined ) {
                     // Load the URL as usual
+                    // console.log( 'window.hashchange: LoadContentFullAjax("' + url + '")' );
                     LoadContentFullAjax( url );
                 }
                 else {
                     // Attempt to move back/forward to the homepage...just refresh
                     {#location.replace("{{ path('odr_admin_homepage') }}");#}
+                    // console.log( 'window.hashchange: location.replace("' + new_url[0] + '")' );
                     location.replace( new_url[0] );
                 }
             }
@@ -89,10 +95,12 @@
                 url = window.location.hash.substr(1);
                 if ( url !== '' ) {
                     // Load the URL as usual
+                    // console.log( 'window.hashchange (event undefined): LoadContentFullAjax("' + url + '")' );
                     LoadContentFullAjax( url );
                 }
                 else {
                     // Attempt to move back/forward to the homepage...just refresh
+                    // console.log( 'window.hashchange (event undefined): location.replace("<<dashboard>>")' );
                     location.replace("{{ path('odr_admin_homepage') }}");
                 }
             }
@@ -124,6 +132,7 @@
             url = url.replace('#', '');
 
             // Update the URL and hash
+            // console.log( 'a.address: UpdateUrl("' + url + '")' );
             UpdateURL(url);
         });
 
@@ -183,10 +192,12 @@
         var current_hash = window.location.hash.substr(1);
         if ( current_hash !== url ) {
             // Just change the hash to the desired link
+            // console.log( 'UpdateUrl("' + url + '")' );
             window.location.hash = url;
         }
         else {
             // Force a hashchange event because we want the AJAX to fire again
+            // console.log( 'UpdateUrl(): forced hashchange' );
             $(window).hashchange();
         }
     }
@@ -209,6 +220,8 @@
         var faded_opacity = 0.15;
         if (!use_fade)
             faded_opacity = 1;
+
+        // console.log( 'LoadContentFullAjax("' + url + '")' );
 
         // Disable scroll handlers
         $(window).off('scroll');

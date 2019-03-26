@@ -197,7 +197,9 @@
 
     {% elseif field_typename == "Tags" %}
     <fieldset>
-        <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1{% if is_datatype_admin %} Pointer{% endif %}">
+            <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+        </label>
         {% if datafield.tags is defined %}
             {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
                 'stacked_tags': datafield.tags,

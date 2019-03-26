@@ -356,46 +356,58 @@ class DatatypeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $use_search_slug = false;
-            /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(array('unique_id' => $datatype_unique_id));
-            if ($datatype == null) {
-                // Attempt find by slug
-                /** @var DataTypeMeta $datatype_meta */
-                $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')
-                    ->findOneBy(array('searchSlug' => $datatype_unique_id));
-
-                $use_search_slug = true;
-                $datatype = $datatype_meta->getDataType();
-
-                if($datatype->getTemplateGroup() == null) {
-                    // Not a valid database for dashboard access.
-                    throw new ODRNotFoundException('Datatype');
-                }
-            }
-
-            if ($datatype == null)
-                throw new ODRNotFoundException('Datatype');
-
-            /** @var DataType $landing_datatype */
-            $landing_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(array('unique_id' => $datatype->getTemplateGroup()));
-
-            if($use_search_slug) {
-                $url_prefix = $this->generateUrl('odr_search', array(
-                    'search_slug' => $landing_datatype->getDataTypeMeta()->getSearchSlug(),
-                    'search_string' => ''
-                ), false);
+            if ( $datatype_unique_id === 'admin' ) {
+                $return['d'] = $this->generateUrl('odr_admin_homepage');
             }
             else {
-                $url_prefix = $this->generateUrl('odr_search', array(
-                    'search_slug' => $landing_datatype->getUniqueId(),
-                    'search_string' => ''
+                $use_search_slug = false;
+
+                /** @var DataType $datatype */
+                $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                    array('unique_id' => $datatype_unique_id)
+                );
+                if ($datatype == null) {
+                    // Attempt find by slug
+                    /** @var DataTypeMeta $datatype_meta */
+                    $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')
+                        ->findOneBy(array('searchSlug' => $datatype_unique_id));
+
+                    $use_search_slug = true;
+                    $datatype = $datatype_meta->getDataType();
+
+                    if ($datatype->getTemplateGroup() == null) {
+                        // Not a valid database for dashboard access.
+                        throw new ODRNotFoundException('Datatype');
+                    }
+                }
+
+                if ($datatype == null)
+                    throw new ODRNotFoundException('Datatype');
+
+                /** @var DataType $landing_datatype */
+                $landing_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                    array('unique_id' => $datatype->getTemplateGroup())
+                );
+
+                if ($use_search_slug) {
+                    $url_prefix = $this->generateUrl('odr_search', array(
+                        'search_slug' => $landing_datatype->getDataTypeMeta()->getSearchSlug(),
+                        'search_string' => ''
+                    ), false);
+                }
+                else {
+                    $url_prefix = $this->generateUrl('odr_search', array(
+                        'search_slug' => $landing_datatype->getUniqueId(),
+                        'search_string' => ''
+                    ), false);
+                }
+
+                $url = $this->generateUrl('odr_datatype_landing', array(
+                    'datatype_id' => $landing_datatype->getId()
                 ), false);
+
+                $return['d'] = $url_prefix."#".$url;
             }
-
-            $url = $this->generateUrl('odr_datatype_landing', array('datatype_id' => $landing_datatype->getId()), false);
-
-            $return['d'] = $url_prefix . "#" . $url;
         }
         catch (\Exception $e) {
             $source = 0x22b8dae6;
@@ -799,13 +811,8 @@ class DatatypeController extends ODRCustomController
             // Grab a list of top top-level datatypes
             $top_level_datatypes = $dti_service->getTopLevelDatatypes();
 
-            // TODO - won't display templates unless they have a metadata datatype...intentional?
-            // TODO - Yes.  This is intentional.  All new databases must have rudimentary metadata going forward.
-            // TODO - The "generic" database master template will be updated to include a name/person default metadata template.
             // Master Templates must have Dataset Properties/metadata
             $query = $em->createQuery(
-/*
-                // TODO - disabled until users can create metadata for datatypes/templates without any
                'SELECT dt, dtm, md, dt_cb, dt_ub
                 FROM ODRAdminBundle:DataType AS dt
                 LEFT JOIN dt.dataTypeMeta AS dtm
@@ -814,14 +821,6 @@ class DatatypeController extends ODRCustomController
                 LEFT JOIN dt.updatedBy AS dt_ub
                 WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
                 AND md.id IS NOT NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-*/
-               'SELECT dt, dtm, dt_cb, dt_ub
-                FROM ODRAdminBundle:DataType AS dt
-                LEFT JOIN dt.dataTypeMeta AS dtm
-                LEFT JOIN dt.createdBy AS dt_cb
-                LEFT JOIN dt.updatedBy AS dt_ub
-                WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
             )->setParameters(array('datatypes' => $top_level_datatypes));
             $master_templates = $query->getArrayResult();
 
@@ -1210,7 +1209,7 @@ class DatatypeController extends ODRCustomController
                 $metadata_datatype->setParent($metadata_datatype);
                 $metadata_datatype->setMasterDataType($master_metadata);
                 // Set template group to that of datatype
-                $metadata_datatype->setTemplateGroup($unique_id);
+                $metadata_datatype->setTemplateGroup($datatype->getTemplateGroup());
                 // Clone has wrong state - set to initial
                 $metadata_datatype->setSetupStep(DataType::STATE_INITIAL);
 
@@ -1265,7 +1264,8 @@ class DatatypeController extends ODRCustomController
                 $params = array(
                     "user_id" => $admin->getId(),
                     "datatype_id" => $datatype->getId(),
-                    "template_group" => $unique_id,
+//                    "template_group" => $unique_id,
+                    "template_group" => $datatype->getTemplateGroup(),
                     "redis_prefix" => $redis_prefix,    // debug purposes only
                     "api_key" => $api_key,
                 );
@@ -1668,6 +1668,109 @@ class DatatypeController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x6151265b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Creates a new blank metadata datatype for the requested datatype
+     *
+     * @param int $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function createblankmetaAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CacheService $cache_service*/
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            if ( !is_null($datatype->getMetadataDatatype()) )
+                throw new ODRBadRequestException('This database already has a metadata datatype');
+
+
+            // Don't need to verify permissions, firewall won't let this action be called unless user is admin
+            /** @var ODRUser $admin */
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Create a new metadata datatype
+            $new_metadata_datatype = $ec_service->createDatatype($admin, $datatype->getShortName()." Properties", true);    // don't flush immediately...
+            $new_metadata_datatype->setTemplateGroup($datatype->getTemplateGroup());
+            $new_metadata_datatype->setIsMasterType($datatype->getIsMasterType());
+            $new_metadata_datatype->setMetadataFor($datatype);
+            $em->persist($new_metadata_datatype);
+
+            // Create a default master theme for the new metadata datatype
+            $master_theme = $ec_service->createTheme($admin, $new_metadata_datatype, true);    // Don't flush immediately...
+
+            $master_theme_meta = $master_theme->getThemeMeta();
+            $master_theme_meta->setIsDefault(true);
+            $master_theme_meta->setShared(true);
+            $em->persist($master_theme_meta);
+
+            // Need to flush so createGroupsForDatatype() works
+            $em->flush();
+
+            // Delete the cached version of the datatree array and the list of top-level datatypes
+            $cache_service->delete('cached_datatree_array');
+            $cache_service->delete('top_level_datatypes');
+            $cache_service->delete('top_level_themes');
+
+            // Create the groups for the new datatype here so the datatype can be viewed
+            $ec_service->createGroupsForDatatype($admin, $new_metadata_datatype);
+
+            // Ensure the user who created this datatype becomes a member of the new
+            //  datatype's "is_datatype_admin" group
+            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') ) {
+                /** @var Group $admin_group */
+                $admin_group = $em->getRepository('ODRAdminBundle:Group')->findOneBy(
+                    array(
+                        'dataType' => $datatype->getId(),
+                        'purpose' => 'admin'
+                    )
+                );
+                $ec_service->createUserGroup($admin, $admin_group, $admin);
+
+                // Delete cached version of this user's permissions
+                $cache_service->delete('user_'.$admin->getId().'_permissions');
+            }
+
+
+            // Ensure the datatype/template points to the new metadata datatype
+            $datatype->setMetadataDatatype($new_metadata_datatype);
+            $em->persist($datatype);
+            $new_metadata_datatype->setSetupStep(DataType::STATE_OPERATIONAL);
+            $em->persist($new_metadata_datatype);
+
+            $em->flush();
+        }
+        catch (\Exception $e) {
+            $source = 0x40a08257;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else

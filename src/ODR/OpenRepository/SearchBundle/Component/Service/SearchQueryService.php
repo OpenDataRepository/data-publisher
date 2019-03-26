@@ -370,8 +370,6 @@ class SearchQueryService
      */
     public function searchTagTemplateDatafield($all_datarecord_ids, $tag_uuid)
     {
-        // TODO - test this
-
         // ----------------------------------------
         // Get all datarecords of this datatype involving this tag
         $query =
@@ -442,6 +440,62 @@ class SearchQueryService
         return array(
             '0' => $unselected_datarecords,
             '1' => $selected_datarecords
+        );
+    }
+
+
+    /**
+     * SearchService::searchTagTemplateDatafield() needs to be able to return data when it gets
+     * passed an empty selections array (see comments in that function).  However, the lack of a
+     * tag uuid means SearchQueryService::searchTagTemplateDatafield() won't work...so this function
+     * ends up collecting the data to return a similar array where everything is "unselected".
+     *
+     * @param array $all_datarecord_ids
+     * @param int $template_field_id
+     *
+     * @return array
+     */
+    public function searchEmptyTagTemplateDatafield($all_datarecord_ids, $template_field_id)
+    {
+        // ----------------------------------------
+        // Get all datafields that have the given template field as their master datafield
+        $query =
+           'SELECT dt.id AS dt_id, df.id AS df_id
+            FROM odr_data_type AS mdt
+            JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
+            JOIN odr_data_fields AS df ON df.data_type_id = dt.id
+            WHERE df.master_datafield_id = :mdf_id
+            AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL';
+
+        // Execute the native SQL query
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($query, array('mdf_id' => $template_field_id));
+
+        $unselected_datarecords = array();
+        foreach ($results as $result) {
+            $dt_id = $result['dt_id'];
+            $df_id = $result['df_id'];
+
+            // Datatype/datafield ids should always exist in the array...
+            if ( !isset($unselected_datarecords[$dt_id]) )
+                $unselected_datarecords[$dt_id] = array();
+            if ( !isset($unselected_datarecords[$dt_id][$df_id]) )
+                $unselected_datarecords[$dt_id][$df_id] = $all_datarecord_ids[$dt_id];
+        }
+
+        // Filter out empty entries from the array
+        foreach ($unselected_datarecords as $dt_id => $df_list) {
+            foreach ($df_list as $df_id => $dr_list) {
+                if (empty($dr_list))
+                    unset($unselected_datarecords[$dt_id][$df_id]);
+            }
+            if (empty($unselected_datarecords[$dt_id]))
+                unset($unselected_datarecords[$dt_id]);
+        }
+
+        return array(
+            '0' => $unselected_datarecords,
+            '1' => array()
         );
     }
 
