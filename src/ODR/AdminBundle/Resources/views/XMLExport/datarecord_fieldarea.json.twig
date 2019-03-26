@@ -105,7 +105,12 @@
                             {
                                 "database_name": {{ child_datatype[child_datatype_id].dataTypeMeta.shortName|json_encode|raw }},
                                 "database_uuid": {{ child_datatype[child_datatype_id].unique_id|json_encode|raw }},
-                                "template_uuid": {{ child_datatype[child_datatype_id].masterDataType.unique_id|json_encode|raw }},
+
+                                {% if child_datatype[child_datatype_id].masterDataType %}
+                                    "template_uuid": {{ child_datatype[child_datatype_id].masterDataType.unique_id|json_encode|raw }},
+                                {% else  %}
+                                    "template_uuid": "",
+                                {% endif %}
                                 {{ content }}
                             },
                         {% elseif version == 'v3' %}

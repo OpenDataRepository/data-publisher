@@ -10,7 +10,8 @@
     using_metadata,
     baseurl,
     version,
-    show_records) %}
+    show_records
+    ) %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
@@ -30,7 +31,11 @@
             "external_id": {{ datarecord.externalIdField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
             "record_name": {{ datarecord.nameField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
             "record_uuid": "{{ datarecord.unique_id }}",
-            "template_uuid": "{{ datatype.masterDataType.unique_id }}",
+            {% if datatype.masterDataType %}
+                "template_uuid": "{{ datatype.masterDataType.unique_id }}",
+            {% else %}
+                "template_uuid": "",
+            {% endif %}
         {% if using_metadata == true %}
             {# display metadata and datafields for top-level and child datarecords #}
             "_record_metadata": {

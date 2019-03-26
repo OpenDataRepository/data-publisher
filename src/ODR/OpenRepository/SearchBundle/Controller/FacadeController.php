@@ -286,6 +286,7 @@ class FacadeController extends Controller
             if ($limit === 0)
                 $limit = 999999999;
 
+            // TODO - Is this necessary?
             if ($offset >= 1000000000)
                 throw new ODRBadRequestException('Offset must be less than a billion');
             if ($limit >= 1000000000)
@@ -298,6 +299,7 @@ class FacadeController extends Controller
             $datarecord_list = $search_results['grandparent_datarecord_list'];
 
             // Apply limit/offset to the results
+            // TODO Querying with limit and offset would be much faster most likely
             $datarecord_list = array_slice($datarecord_list, $offset, $limit);
 
             // Render the resulting list of datarecords into a single chunk of export data
