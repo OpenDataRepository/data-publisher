@@ -242,12 +242,11 @@ class SearchAPIService
      *
      * @param string $search_key
      * @param array $user_permissions
-     * @param bool $api_hijack If true, run a single search and abort before merging facets together
      * @param bool $search_as_super_admin If true, bypass all permissions checking
      *
      * @return array
      */
-    public function performTemplateSearch($search_key, $user_permissions, $api_hijack = false, $search_as_super_admin = false)
+    public function performTemplateSearch($search_key, $user_permissions, $search_as_super_admin = false)
     {
         // ----------------------------------------
         // Unlike regular searching, this function doesn't need to filter the search key with the
@@ -300,8 +299,15 @@ class SearchAPIService
         //  are merged together into the final array
         $affected_datafields = array();
         foreach ($criteria as $dt_uuid => $dt_criteria) {
-            foreach ($dt_criteria['search_terms'] as $df_uuid => $df_criteria)
-                $affected_datafields[$df_uuid] = 1;
+            // Datafields being searched via general search can't be marked as "-1" (needs to match)
+            //  to begin with...doing so will typically cause child datatypes that are also searched
+            //  to "not match", and therefore exclude their parents from the search results.
+            // The final merge still works when the datarecords with the affected datafields start
+            //  out with a value of "0" (doesn't matter)
+            if ( $dt_criteria['merge_type'] === 'AND' ) {
+                foreach ($dt_criteria['search_terms'] as $df_uuid => $df_criteria)
+                    $affected_datafields[$df_uuid] = 1;
+            }
         }
         $affected_datafields = array_keys($affected_datafields);
 
@@ -380,30 +386,35 @@ class SearchAPIService
                     }
                     else if ($typeclass === 'Radio' && $facet === 'general') {
                         // General search only provides a string, and only wants selected radio options
-                        $results = $this->search_service->searchForSelectedRadioTemplateOptions($entity, $search_term['value']);
-
-                        if ($api_hijack) {
-                            // For API purposes, sometimes the search needs to abort early
-                            // Apply the datatype/datafield/datarecord permissions now
-                            return self::getfieldstatsFilter($results, $searchable_datafields, $flattened_list);
-                        }
+                        $results = $this->search_service->searchForSelectedTemplateRadioOptions($entity, $search_term['value']);
                     }
-                    else if ($typeclass === 'Radio' && $facet !== 'general') {
+                    else if ($typeclass === 'Radio' && $facet === 'field_stats') {
+                        // The fieldstats controller action is only interested in which radio options
+                        //  are selected and how many datarecords they're selected in...
+                        $results = $this->search_service->searchTemplateRadioOptionFieldStats($entity);
+
+                        // Apply the permissions filter and return without executing the rest of
+                        //  the search routine
+                        return self::getfieldstatsFilter($results['records'], $results['labels'], $searchable_datafields, $flattened_list);
+                    }
+                    else if ($typeclass === 'Radio') {
                         // The more specific version of searching a radio datafield provides an array of selected/deselected options
                         $results = $this->search_service->searchRadioTemplateDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
                     }
                     else if ($typeclass === 'Tag' && $facet === 'general') {
                         // General search only provides a string, and only wants selected tags
                         $results = $this->search_service->searchForSelectedTemplateTags($entity, $search_term['value']);
-
-                        if ($api_hijack) {
-                            // TODO - test this
-                            // For API purposes, sometimes the search needs to abort early
-                            // Apply the datatype/datafield/datarecord permissions now
-                            return self::getfieldstatsFilter($results, $searchable_datafields, $flattened_list);
-                        }
                     }
-                    else if ($typeclass === 'Tag' && $facet !== 'general') {
+                    else if ($typeclass === 'Tag' && $facet === 'field_stats') {
+                        // The fieldstats controller action is only interested in which tags are
+                        //  selected and how many datarecords they're selected in...
+                        $results = $this->search_service->searchTemplateTagFieldStats($entity);
+
+                        // Apply the permissions filter and return without executing the rest of
+                        //  the search routine
+                        return self::getfieldstatsFilter($results['records'], $results['labels'], $searchable_datafields, $flattened_list);
+                    }
+                    else if ($typeclass === 'Tag') {
                         // The more specific version of searching a tag datafield provides an array of selected/deselected options
                         $results = $this->search_service->searchTagTemplateDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
                     }
@@ -551,25 +562,20 @@ class SearchAPIService
 
 
     /**
-     * TODO - implement this with regards to tags
-     * APIController::getfieldstatsAction() wants to return a count of how many datarecords have
-     * a specific radio option selected across all instances of a template datafield.
+     * APIController::getfieldstatsAction() needs to return a count of how many datarecords have
+     * a specific radio option or tag selected across all instances of a template datafield.  This
+     * function filters the raw search results by the user's permissions before the controller
+     * action gets it.
      *
-     * SearchService::searchForSelectedRadioTemplateOptions() returns the info required to compile
-     * that data, but the result needs to be filtered by the user's permissions before the controller
-     * action can use it.
-     *
-     * @param array $result @see SearchService::searchForSelectedRadioTemplateOptions()
+     * @param array $records
+     * @parm array labels
      * @param array $searchable_datafields @see self::getSearchableDatafieldsForUser()
      * @param array $flattened_list @see self::getSearchArrays()
      *
      * @return array
      */
-    private function getfieldstatsFilter($result, $searchable_datafields, $flattened_list)
+    private function getfieldstatsFilter($records, $labels, $searchable_datafields, $flattened_list)
     {
-        $labels = $result['labels'];
-        $records = $result['records'];
-
         foreach ($records as $dt_id => $df_list) {
             // Filter out datatypes the user can't see...
             if ( !isset($searchable_datafields[$dt_id]) ) {
@@ -1088,9 +1094,11 @@ class SearchAPIService
      * The first array contains <datarecord_id> => <num> pairs, where num is one of four values...
      *  - num == -2 -- this datarecord is excluded because the user can't view it
      *  - num == -1 -- this datarecord is currently excluded...it must match the search being run
-     *  - num ==  0 -- this datarecord is not being searched on
-     *  - num ==  1 -- set in performSearch(), indicates this datarecord matches the search being
-     *  run This array is used so performSearch() doesn't have to deal with recursion while
+     *  - num ==  0 -- this datarecord is not being searched on, or part of a general search
+     *  - num ==  1 -- set in performSearch(), indicates this datarecord matches the search being run
+     * For more detailed explanation, @see self::mergeSearchArrays_worker()
+     *
+     * This "flattened" array is used so performSearch() doesn't have to deal with recursion while
      *  collating search results.
      *
      * The second array is an "inflated" version of all datarecords that could potentially match

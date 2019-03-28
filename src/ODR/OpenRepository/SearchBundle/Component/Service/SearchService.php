@@ -643,15 +643,15 @@ class SearchService
      *
      * @return array
      */
-    public function searchForSelectedRadioTemplateOptions($template_datafield, $value)
+    public function searchForSelectedTemplateRadioOptions($template_datafield, $value)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
         $typeclass = $template_datafield->getFieldType()->getTypeClass();
         if ( $typeclass !== 'Radio' )
-            throw new ODRBadRequestException('searchForSelectedRadioTemplateOptions() called with '.$typeclass.' datafield', 0x4f2a33f4);
+            throw new ODRBadRequestException('searchForSelectedTemplateRadioOptions() called with '.$typeclass.' datafield', 0x4f2a33f4);
         if ( !$template_datafield->getIsMasterField() )
-            throw new ODRBadRequestException('searchForSelectedRadioTemplateOptions() called with non-master datafield', 0x4f2a33f4);
+            throw new ODRBadRequestException('searchForSelectedTemplateRadioOptions() called with non-master datafield', 0x4f2a33f4);
 
 
         // ----------------------------------------
@@ -660,8 +660,6 @@ class SearchService
         if ( !$cached_searches )
             $cached_searches = array();
 
-        // TODO - cross-template search is currently locked to "any" radio option...need to allow searches on radio option names
-        $value = 'any';
         if ( isset($cached_searches[$value]) )
             return $cached_searches[$value];
 
@@ -773,6 +771,7 @@ class SearchService
 
         // ----------------------------------------
         // Otherwise, going to need to run the search again...
+        // Can't just directly search for selected tag names, since it could match non-leaf tags
         $matching_tags = $this->search_query_service->searchForTagNames(
             $template_datafield->getId(),
             $value
@@ -782,6 +781,7 @@ class SearchService
         $selections = array();
         foreach ($matching_tags as $tag_id => $tag_data) {
             $tag_uuid = $tag_data['tag_uuid'];
+
             $selections[$tag_uuid] = 1;
         }
 
@@ -796,6 +796,96 @@ class SearchService
         $this->cache_service->set('cached_search_template_df_'.$template_datafield->getFieldUuid(), $cached_searches);
 
         // ...then return it
+        return $result;
+    }
+
+
+    /**
+     * Searches the specified tag template datafield for any selected radio options, and returns an
+     * array of which datarecords have which selected radio options.
+     *
+     * @param DataFields $template_datafield
+     * @param string $value
+     *
+     * @return array
+     */
+    public function searchTemplateRadioOptionFieldStats($template_datafield)
+    {
+        // ----------------------------------------
+        // Don't continue if called on the wrong type of datafield
+        $typeclass = $template_datafield->getFieldType()->getTypeClass();
+        if ( $typeclass !== 'Radio' )
+            throw new ODRBadRequestException('searchTemplateRadioOptionFieldStats() called with '.$typeclass.' datafield', 0xac84634b);
+        if ( !$template_datafield->getIsMasterField() )
+            throw new ODRBadRequestException('searchTemplateRadioOptionFieldStats() called with non-master datafield', 0xac84634b);
+
+
+        // ----------------------------------------
+        // See if this search result is already cached...
+        $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid().'_fieldstats');
+        if ( !$cached_searches )
+            $cached_searches = array();
+
+        $value = 'all';    // Easier to understand with this value in here
+        if ( isset($cached_searches[$value]) )
+            return $cached_searches[$value];
+
+        // Otherwise, run the query again
+        $result = $this->search_query_service->getRadioOptionTemplateFieldstats(
+            $template_datafield->getDataType()->getUniqueId(),
+            $template_datafield->getFieldUuid()
+        );
+
+        // Recache the search result...
+        $end_result[$value] = $result;
+        $this->cache_service->set('cached_search_template_df_'.$template_datafield->getFieldUuid().'_fieldstats', $end_result);
+
+        // ...and return it
+        return $result;
+    }
+
+
+    /**
+     * Searches the specified tag template datafield for any selected tags, and returns an array of
+     * which datarecords have which selected tags.
+     *
+     * @param DataFields $template_datafield
+     * @param string $value
+     *
+     * @return array
+     */
+    public function searchTemplateTagFieldStats($template_datafield)
+    {
+        // ----------------------------------------
+        // Don't continue if called on the wrong type of datafield
+        $typeclass = $template_datafield->getFieldType()->getTypeClass();
+        if ( $typeclass !== 'Tag' )
+            throw new ODRBadRequestException('searchTemplateTagFieldStats() called with '.$typeclass.' datafield', 0xac84634b);
+        if ( !$template_datafield->getIsMasterField() )
+            throw new ODRBadRequestException('searchTemplateTagFieldStats() called with non-master datafield', 0xac84634b);
+
+
+        // ----------------------------------------
+        // See if this search result is already cached...
+        $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid().'_fieldstats');
+        if ( !$cached_searches )
+            $cached_searches = array();
+
+        $value = 'all';    // Easier to understand with this value in here
+        if ( isset($cached_searches[$value]) )
+            return $cached_searches[$value];
+
+        // Otherwise, run the query again
+        $result = $this->search_query_service->getTagTemplateFieldstats(
+            $template_datafield->getDataType()->getUniqueId(),
+            $template_datafield->getFieldUuid()
+        );
+
+        // Recache the search result...
+        $end_result[$value] = $result;
+        $this->cache_service->set('cached_search_template_df_'.$template_datafield->getFieldUuid().'_fieldstats', $end_result);
+
+        // ...and return it
         return $result;
     }
 

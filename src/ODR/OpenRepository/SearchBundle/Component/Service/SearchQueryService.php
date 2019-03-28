@@ -445,62 +445,6 @@ class SearchQueryService
 
 
     /**
-     * SearchService::searchTagTemplateDatafield() needs to be able to return data when it gets
-     * passed an empty selections array (see comments in that function).  However, the lack of a
-     * tag uuid means SearchQueryService::searchTagTemplateDatafield() won't work...so this function
-     * ends up collecting the data to return a similar array where everything is "unselected".
-     *
-     * @param array $all_datarecord_ids
-     * @param int $template_field_id
-     *
-     * @return array
-     */
-    public function searchEmptyTagTemplateDatafield($all_datarecord_ids, $template_field_id)
-    {
-        // ----------------------------------------
-        // Get all datafields that have the given template field as their master datafield
-        $query =
-           'SELECT dt.id AS dt_id, df.id AS df_id
-            FROM odr_data_type AS mdt
-            JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
-            JOIN odr_data_fields AS df ON df.data_type_id = dt.id
-            WHERE df.master_datafield_id = :mdf_id
-            AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL';
-
-        // Execute the native SQL query
-        $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, array('mdf_id' => $template_field_id));
-
-        $unselected_datarecords = array();
-        foreach ($results as $result) {
-            $dt_id = $result['dt_id'];
-            $df_id = $result['df_id'];
-
-            // Datatype/datafield ids should always exist in the array...
-            if ( !isset($unselected_datarecords[$dt_id]) )
-                $unselected_datarecords[$dt_id] = array();
-            if ( !isset($unselected_datarecords[$dt_id][$df_id]) )
-                $unselected_datarecords[$dt_id][$df_id] = $all_datarecord_ids[$dt_id];
-        }
-
-        // Filter out empty entries from the array
-        foreach ($unselected_datarecords as $dt_id => $df_list) {
-            foreach ($df_list as $df_id => $dr_list) {
-                if (empty($dr_list))
-                    unset($unselected_datarecords[$dt_id][$df_id]);
-            }
-            if (empty($unselected_datarecords[$dt_id]))
-                unset($unselected_datarecords[$dt_id]);
-        }
-
-        return array(
-            '0' => $unselected_datarecords,
-            '1' => array()
-        );
-    }
-
-
-    /**
      * Searches for all datarecord ids where the given datafield has a selected radio option matching
      * the given value.  Primarily useful for a "general" search.
      *
@@ -566,47 +510,47 @@ class SearchQueryService
      */
     public function searchForSelectedTemplateRadioOptions($master_template_uuid, $master_datafield_uuid, $value)
     {
+        // ----------------------------------------
+        // Convert the given value into an array of parameters
+        $is_filename = false;
+        // Tag name column in db can not be null
+        $can_be_null = false;
+        $search_params = self::parseField($value, $is_filename, $can_be_null);
+        $search_params['params']['template_dt_id'] = $master_template_uuid;
+        $search_params['params']['template_df_id'] = $master_datafield_uuid;
+
+        // The search_param string has "e.value", but needs to have "rom.option_name" instead
+        $search_params['str'] = str_replace('e.value', 'rom.option_name', $search_params['str']);
+
         $query =
            'SELECT
-                dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id,
-                ro.radio_option_uuid, ro.option_name
+                dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id
 
             FROM odr_data_type AS mdt
             JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
             JOIN odr_data_fields AS df ON df.data_type_id = dt.id
             JOIN odr_radio_options AS ro ON ro.data_fields_id = df.id
+            JOIN odr_radio_options_meta AS rom ON rom.radio_option_id = ro.id
             JOIN odr_radio_selection AS rs ON rs.radio_option_id = ro.id
             JOIN odr_data_record_fields AS drf ON rs.data_record_fields_id = drf.id
             JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
             WHERE mdt.unique_id = :template_dt_id AND df.template_field_uuid = :template_df_id
-            AND rs.selected = 1
+            AND ('.$search_params['str'].') AND rs.selected = 1
             AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
-            AND ro.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL
-            AND dr.deletedAt IS NULL';
+            AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL
+            AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL';
 
-        // TODO - search is currently locked to "any" radio option...need to allow searches on radio option names
-        $params = array(
-            'template_dt_id' => $master_template_uuid,
-            'template_df_id' => $master_datafield_uuid
-        );
 
          // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $params);
+        $results = $conn->fetchAll($query, $search_params['params']);
 
-         // Turn the result into useful arrays...
-        $labels = array();
+        // Convert the results into an array of datarecord ids
         $datarecords = array();
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $df_id = $result['df_id'];
             $dr_id = $result['dr_id'];
-            $ro_uuid = $result['radio_option_uuid'];
-            $option_name = $result['option_name'];
-
-            // To save a bit of space, store the labels separately
-            if ( !isset($labels[$ro_uuid]) )
-                $labels[$ro_uuid] = $option_name;
 
             // Create an array structure so the matching datarecords can be filtered based on user
             //  datatype/datafield permissions later
@@ -617,13 +561,10 @@ class SearchQueryService
             if ( !isset($datarecords[$dt_id][$df_id][$dr_id]) )
                 $datarecords[$dt_id][$df_id][$dr_id] = array();
 
-            $datarecords[$dt_id][$df_id][$dr_id][] = $ro_uuid;
+            $datarecords[$dt_id][$df_id][$dr_id] = 1;
         }
 
-        return array(
-            'labels' => $labels,
-            'records' => $datarecords,
-        );
+        return $datarecords;
     }
 
 
@@ -677,6 +618,206 @@ class SearchQueryService
         }
 
         return $tags;
+    }
+
+
+    /**
+     * SearchService::searchTagTemplateDatafield() needs to be able to return data when it gets
+     * passed an empty selections array (see comments in that function).  However, the lack of a
+     * tag uuid means SearchQueryService::searchTagTemplateDatafield() won't work...so this function
+     * ends up collecting the data to return a similar array where everything is "unselected".
+     *
+     * @param array $all_datarecord_ids
+     * @param int $template_field_id
+     *
+     * @return array
+     */
+    public function searchEmptyTagTemplateDatafield($all_datarecord_ids, $template_field_id)
+    {
+        // ----------------------------------------
+        // Get all datafields that have the given template field as their master datafield
+        $query =
+           'SELECT dt.id AS dt_id, df.id AS df_id
+            FROM odr_data_type AS mdt
+            JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
+            JOIN odr_data_fields AS df ON df.data_type_id = dt.id
+            WHERE df.master_datafield_id = :mdf_id
+            AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL';
+
+        // Execute the native SQL query
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($query, array('mdf_id' => $template_field_id));
+
+        $unselected_datarecords = array();
+        foreach ($results as $result) {
+            $dt_id = $result['dt_id'];
+            $df_id = $result['df_id'];
+
+            // Datatype/datafield ids should always exist in the array...
+            if ( !isset($unselected_datarecords[$dt_id]) )
+                $unselected_datarecords[$dt_id] = array();
+            if ( !isset($unselected_datarecords[$dt_id][$df_id]) )
+                $unselected_datarecords[$dt_id][$df_id] = $all_datarecord_ids[$dt_id];
+        }
+
+        // Filter out empty entries from the array
+        foreach ($unselected_datarecords as $dt_id => $df_list) {
+            foreach ($df_list as $df_id => $dr_list) {
+                if ( empty($dr_list) )
+                    unset( $unselected_datarecords[$dt_id][$df_id]) ;
+            }
+            if ( empty($unselected_datarecords[$dt_id]) )
+                unset( $unselected_datarecords[$dt_id] );
+        }
+
+        return array(
+            '0' => $unselected_datarecords,
+            '1' => array()
+        );
+    }
+
+
+    /**
+     * Rather than attempt to make searchForSelectedTemplateRadioOptions() also work for the API
+     * fieldstats request, it makes more sense to have a completely separate query to pull the data
+     * for a radio option template datafield.
+     *
+     * @param int $master_template_uuid
+     * @param int $master_datafield_uuid
+     *
+     * @return array
+     */
+    public function getRadioOptionTemplateFieldstats($master_template_uuid, $master_datafield_uuid)
+    {
+        $query =
+           'SELECT
+                dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id,
+                ro.radio_option_uuid, ro.option_name
+
+            FROM odr_data_type AS mdt
+            JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
+            JOIN odr_data_fields AS df ON df.data_type_id = dt.id
+            JOIN odr_radio_options AS ro ON ro.data_fields_id = df.id
+            JOIN odr_radio_selection AS rs ON rs.radio_option_id = ro.id
+            JOIN odr_data_record_fields AS drf ON rs.data_record_fields_id = drf.id
+            JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
+            WHERE mdt.unique_id = :template_dt_id AND df.template_field_uuid = :template_df_id
+            AND rs.selected = 1
+            AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
+            AND ro.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND dr.deletedAt IS NULL';
+
+        $params = array(
+            'template_dt_id' => $master_template_uuid,
+            'template_df_id' => $master_datafield_uuid
+        );
+
+        // Execute the native SQL query
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($query, $params);
+
+        // Turn the result into useful arrays...
+        $labels = array();
+        $datarecords = array();
+        foreach ($results as $result) {
+            $dt_id = $result['dt_id'];
+            $df_id = $result['df_id'];
+            $dr_id = $result['dr_id'];
+            $ro_uuid = $result['radio_option_uuid'];
+            $option_name = $result['option_name'];
+
+            // To save a bit of space, store the labels separately
+            if ( !isset($labels[$ro_uuid]) )
+                $labels[$ro_uuid] = $option_name;
+
+            // Create an array structure so the matching datarecords can be filtered based on user
+            //  datatype/datafield permissions later
+            if ( !isset($datarecords[$dt_id]) )
+                $datarecords[$dt_id] = array();
+            if ( !isset($datarecords[$dt_id][$df_id]) )
+                $datarecords[$dt_id][$df_id] = array();
+            if ( !isset($datarecords[$dt_id][$df_id][$dr_id]) )
+                $datarecords[$dt_id][$df_id][$dr_id] = array();
+
+            $datarecords[$dt_id][$df_id][$dr_id][] = $ro_uuid;
+        }
+
+        return array(
+            'labels' => $labels,
+            'records' => $datarecords,
+        );
+    }
+
+
+    /**
+     * Rather than attempt to make the searchForTagNames() and searchTagTemplateDatafield() functions
+     * in the SearchService attempt to do this, it makes more sense to have a completely separate
+     * query to get field_stats for a tag template datafield.
+     *
+     * @param int $master_template_uuid
+     * @param int $master_datafield_uuid
+     *
+     * @return array
+     */
+    public function getTagTemplateFieldstats($master_template_uuid, $master_datafield_uuid)
+    {
+        $query =
+           'SELECT
+                dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id,
+                t.tag_uuid, t.tag_name
+
+            FROM odr_data_type AS mdt
+            JOIN odr_data_type AS dt ON dt.master_datatype_id = mdt.id
+            JOIN odr_data_fields AS df ON df.data_type_id = dt.id
+            JOIN odr_tags AS t ON t.data_fields_id = df.id
+            JOIN odr_tag_selection AS ts ON ts.tag_id = t.id
+            JOIN odr_data_record_fields AS drf ON ts.data_record_fields_id = drf.id
+            JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
+            WHERE mdt.unique_id = :template_dt_id AND df.template_field_uuid = :template_df_id
+            AND ts.selected = 1
+            AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
+            AND t.deletedAt IS NULL AND ts.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND dr.deletedAt IS NULL';
+
+        $params = array(
+            'template_dt_id' => $master_template_uuid,
+            'template_df_id' => $master_datafield_uuid
+        );
+
+        // Execute the native SQL query
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($query, $params);
+
+        // Turn the result into useful arrays...
+        $labels = array();
+        $datarecords = array();
+        foreach ($results as $result) {
+            $dt_id = $result['dt_id'];
+            $df_id = $result['df_id'];
+            $dr_id = $result['dr_id'];
+            $tag_uuid = $result['tag_uuid'];
+            $tag_name = $result['tag_name'];
+
+            // To save a bit of space, store the labels separately
+            if ( !isset($labels[$tag_uuid]) )
+                $labels[$tag_uuid] = $tag_name;
+
+            // Create an array structure so the matching datarecords can be filtered based on user
+            //  datatype/datafield permissions later
+            if ( !isset($datarecords[$dt_id]) )
+                $datarecords[$dt_id] = array();
+            if ( !isset($datarecords[$dt_id][$df_id]) )
+                $datarecords[$dt_id][$df_id] = array();
+            if ( !isset($datarecords[$dt_id][$df_id][$dr_id]) )
+                $datarecords[$dt_id][$df_id][$dr_id] = array();
+
+            $datarecords[$dt_id][$df_id][$dr_id][] = $tag_uuid;
+        }
+
+        return array(
+            'labels' => $labels,
+            'records' => $datarecords,
+        );
     }
 
 

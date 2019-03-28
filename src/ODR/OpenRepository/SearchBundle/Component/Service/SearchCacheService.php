@@ -166,6 +166,7 @@ class SearchCacheService
                 if ( !is_null($template_df_uuid) ) {
                     $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid);
                     $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid.'_ordering');
+                    $this->cache_service->delete('cached_search_template_df_'.$template_df_uuid.'_fieldstats');
                 }
             }
         }
@@ -282,6 +283,7 @@ class SearchCacheService
             $master_df_uuid = $datafield->getMasterDataField()->getFieldUuid();
             $this->cache_service->delete('cached_search_template_df_'.$master_df_uuid);
             $this->cache_service->delete('cached_search_template_df_'.$master_df_uuid.'_ordering');
+            $this->cache_service->delete('cached_search_template_df_'.$master_df_uuid.'_fieldstats');
         }
 
         // If the datafield is a radio options datafield, then any change should also delete all of

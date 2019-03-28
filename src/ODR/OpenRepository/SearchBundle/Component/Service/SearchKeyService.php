@@ -730,12 +730,19 @@ class SearchKeyService
             }
         }
 
-        // Save the list of datatypes being searched on, not including the ones to be merged by OR
+        // Save the list of datatypes being searched on, not including the ones to be merged_by_OR
+        // All datarecords belonging to datatypes contained in $affected_datatypes will be initially
+        //  marked as -1 (does not match), and therefore must m
         $affected_datatypes = array();
         foreach ($criteria as $key => $facet) {
             if ($key === 'search_type')
                 continue;
 
+            // Datafields being searched via general search can't be marked as "-1" (needs to match)
+            //  to begin with...doing so will typically cause child datatypes that are also searched
+            //  to "not match", and therefore exclude their parents from the search results.
+            // The final merge still works when the datarecords with the affected datafields start
+            //  out with a value of "0" (doesn't matter)
             if ($facet['merge_type'] === 'AND') {
                 foreach ($facet['search_terms'] as $key => $params) {
                     $dt_id = $params['datatype_id'];
@@ -1038,12 +1045,13 @@ class SearchKeyService
             else if ($key === 'field_stats') {
                 // Used by APIController::getfieldstatsAction()...create an abbreviated version of
                 //  a general search entry so SearchAPIService::performTemplateSearch() searches
-                //  for selected radio options of the given field, but doesn't search anything else
-                $criteria['general'] = array(
+                //  for selected radio options or tags of the given field, but doesn't search for
+                //  anything else
+                $criteria['field_stats'] = array(
                     'merge_type' => 'OR',
                     'search_terms' => array(
                         $value => array(
-                            'value' => 'any',
+//                            'value' => '!""',    // Don't need an explicit value right now...
                             'entity_type' => 'datafield',
                             'entity_id' => $value,
                             'datatype_id' => $template_uuid
@@ -1119,6 +1127,9 @@ class SearchKeyService
             }
             else if ($key === 'fields') {
                 // Only define this facet if something is going to be put into it...
+                if ( count($search_params['fields']) === 0 )
+                    continue;
+
                 if ( !isset($criteria[$template_uuid]) ) {
                     $criteria[$template_uuid] = array(
                         'merge_type' => 'AND',    // TODO - combine_by_AND/combine_by_OR
