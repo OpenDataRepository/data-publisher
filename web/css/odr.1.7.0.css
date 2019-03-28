@@ -1510,6 +1510,11 @@ pre .support.value  {
     .ODRRadioLabel {
         margin: 0.5em 0;
     }
+    .ODRTagSearchDiv {
+        max-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
 
     .fa {
         padding: 0px;
@@ -1522,8 +1527,8 @@ pre .support.value  {
     .ODRTristateCheckbox > .fa-check {
         color: green;
     }
-    .ODRTristateCheckbox > .fa-check.partial {
-        color: grey;
+    .ODRTristateCheckbox > .partial {
+        color: grey !important;
     }
     .ODRTristateCheckbox {
         cursor: pointer;
@@ -3811,6 +3816,174 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     text-align: left;
     color: #2b2e38;
 }
+
+
+.ODRPluginErrorDiv {
+    margin: 0.5em;
+}
+
+
+#ODRTagPositionForm {
+    display: none;
+}
+
+.ODRTagWrapper_design {
+    text-align: left;
+    color: #555;
+}
+.ODRTagWrapper_design li {
+    list-style-type: none;
+}
+.ODRTagWrapper_design .ODRTagGroup {
+    padding-left: 30px;
+}
+.ODRTagGroupContainer {
+    padding-left: 0px;
+}
+
+.ODRTagWrapper_view {
+    /*max-height: 200px;*/
+    /*overflow-y: scroll;*/
+}
+.ODRTagWrapper_view li {
+    list-style-type: none;
+}
+.ODRTagWrapper_view .ODRTagGroup {
+    padding-left: 15px;
+}
+.ODRTagWrapper_search li {
+    list-style-type: none;
+}
+.ODRTagWrapper_search .ODRTagGroup {
+    padding-left: 15px;
+    margin-top: 0px;
+}
+.ODRTagWrapper_import li {
+    list-style-type: none;
+}
+.ODRTagWrapper_import .ODRTagGroup {
+    padding-left: 15px;
+}
+
+.ODRTagWrapper_edit {
+    /*max-height: 200px;*/
+    /*overflow-y: scroll;*/
+}
+.ODRTagWrapper_edit li {
+    list-style-type: none;
+}
+.ODRTagWrapper_edit .ODRTagGroup {
+    padding-left: 15px;
+}
+
+.ODRTagWrapper_view .ODRTagLabel {
+    cursor: default;
+}
+.ODRTagWrapper_search .ODRTagLabel {
+    cursor: default;
+}
+.ODRTagWrapper_import .ODRTagLabel {
+    cursor: default;
+}
+.ODRTagWrapper_edit .ODRTagLabel {
+    cursor: default;
+}
+.ODRTagSpacer {
+    width: 20px;
+    display: inline-block;
+}
+.ODRTagAnchor, .ODRTagDelete {
+    min-width: 22px;
+    display: inline-block;
+}
+
+.ODRTagItem {
+    border: 1px solid transparent;
+    border-radius: 5px;
+}
+.ODRNeighorTag {
+    border: 1px solid #1c81d0 !important;
+    border-radius: 5px;
+}
+.ODRTagHighlight {
+    margin-left: 10px;
+    background-color: #ffffcc;
+
+    border: 2px solid transparent;
+    border-radius: 5px;
+}
+.ODRTagGroupPlaceholder {
+    display: block; /* sortable plugin jumps all over the place without this */
+}
+.ODRPlaceholderTag {
+    display: block; /* sortable plugin jumps all over the place without this */
+    height: 8px; /* originally was 7px */
+
+    /* makes debugging easier */
+    /*background-color: #ffbbbb;*/
+}
+
+#csvexport_form td {
+    padding: 2px 5px;
+}
+.ODRDelimiterField {
+    text-align: center;
+    font-weight: bold;
+}
+.ODRUnselectedDatafield {
+    background-color: #ff0000;
+    opacity: 0.4;
+}
+.ODRSelectedDatafield {
+    background-color: #00ff00;
+    opacity: 0.4;
+}
+
+
+#ODRGroupListHeader {
+    margin-left: 20px;
+    margin-bottom: 10px;
+}
+.ODRDatatypePermissionIcons {
+    position: relative;
+    top: -5px;
+    float: right;
+}
+.fa-ban {
+    color: #e9322d;
+}
+.fa-stack-1x {
+    color: #000000;
+}
+.ODRBlockedDatafield {
+    background-color: #000000;
+    opacity: 0.3;
+}
+.ODRVisibleDatafield {
+    background-color: #00ffff;
+    opacity: 0.2;
+}
+/* .ODREditableDatafield {} */
+
+#ODRTagForm {
+    max-height: 750px;
+    overflow-y: scroll;
+}
+.ODRTagImport_wrapper {
+    padding-left: 20px;
+    text-align: left;
+}
+.ODRTagImport_header {
+    padding-top: 50px;
+    text-align: center;
+}
+.ODRTagImport_content {
+    height: 500px;
+    overflow-y: scroll;
+    overflow-x: scroll;
+    white-space: nowrap;
+}
+
 .ODRSearchToggle {
     position: absolute;
     top: 12px;
@@ -3854,4 +4027,11 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     .ODRSearchToggle {
         display: none;
     }
+}
+
+.ODRShortResults_empty {
+    text-align: center;
+    padding-top: 50px;
+    font-size: 1.2em;
+    font-weight: bold;
 }

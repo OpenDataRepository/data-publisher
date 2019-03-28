@@ -202,6 +202,7 @@ class SearchKeyService
                     continue;
 
                 // TODO - eventually need multi-datafield sorting
+                // TODO - eventually need sort by created/modified date
                 if ( count($value) > 1 )
                     throw new ODRNotImplementedException('Unable to sort by multiple fields at the moment', $exception_code);
 
@@ -264,6 +265,43 @@ class SearchKeyService
                         // ...and ensure it's a valid radio option for the given datafield
                         if ( !isset($available_radio_options[$ro_id]) )
                             throw new ODRBadRequestException('Invalid search key: invalid radio option '.$ro_id, $exception_code);
+                    }
+                }
+                else if ($typeclass === 'Tag') {
+                    // Since the datafield was found in $searchable_datafields, it's guaranteed to
+                    //  also be in $datatype_array...
+                    $stacked_tags = $datatype_array[$dt_id]['dataFields'][$df_id]['tags'];
+                    $tag_tree = $datatype_array[$dt_id]['dataFields'][$df_id]['tagTree'];
+
+                    // Only need tag ids to verify that the requested tag belongs to the given
+                    //  datafield...so can kinda cheat and build up a list from these arrays
+                    $available_tags = array();
+
+                    // This loop gets all top-level tags...
+                    foreach ($stacked_tags as $tag_id => $tag)
+                        $available_tags[$tag_id] = 1;
+
+                    // ...and need to add both children and parent ids incase the parent is a
+                    //  mid-level tag of some sort
+                    foreach ($tag_tree as $parent_tag_id => $children) {
+                        foreach ($children as $child_tag_id => $tmp) {
+                            $available_tags[$child_tag_id] = 1;
+                            $available_tags[$parent_tag_id] = 1;
+                        }
+                    }
+
+
+                    // Convert the given string into an array of tag ids...
+                    $tags = explode(',', $search_params[$df_id]);
+                    foreach ($tags as $num => $t_id) {
+                        if ( $t_id{0} === '-' )
+                            $t_id = intval(substr($t_id, 1));
+                        else
+                            $t_id = intval($t_id);
+
+                        // ...and ensure it's a valid tag for the given datafield
+                        if ( !isset($available_tags[$t_id]) )
+                            throw new ODRBadRequestException('Invalid search key: invalid tag '.$t_id, $exception_code);
                     }
                 }
 
@@ -452,7 +490,7 @@ class SearchKeyService
                                 case 'DatetimeValue':
                                 case 'File':
                                 case 'Image':
-                                    // A general search doesn't make sense for Files/Images
+                                    // A general search doesn't make sense for Files/Images/Datetime fields
                                     continue;
 
                                 case 'IntegerValue':
@@ -462,6 +500,7 @@ class SearchKeyService
                                 case 'LongVarchar':
                                 case 'LongText':
                                 case 'Radio':
+                                case 'Tag':
                                     // A general search makes sense for each of these
                                     $criteria['general']['search_terms'][$df_id] = array(
                                         'value' => $value,
@@ -519,30 +558,27 @@ class SearchKeyService
                         'datatype_id' => $dt_id,
                     );
                 }
-                else if ($typeclass === 'Radio') {
-                    // Radio selections are stored by id, separated by commas
-                    $radio_options = explode(',', $value);
+                else if ($typeclass === 'Radio' || $typeclass === 'Tag') {
+                    // Radio selections and Tags are stored by id, separated by commas
+                    $items = explode(',', $value);
 
-                    $search_unselected = 0;
                     $selections = array();
-                    foreach ($radio_options as $num => $ro) {
-                        // Searches for unselected radio options are preceded by a dash
-                        $str = 1;
-                        if ( $ro{0} === '-' ) {
-                            $str = 0;
-                            $ro = substr($ro, 1);
-                            $search_unselected++;
+                    foreach ($items as $num => $item) {
+                        // Searches for unselected radio options or tags are preceded by a dash
+                        if ( $item{0} === '-' ) {
+                            $item = substr($item, 1);
+                            $selections[$item] = 0;
                         }
-
-                        $selections[$ro] = $str;
+                        else {
+                            $selections[$item] = 1;
+                        };
                     }
 
-                    // TODO - figure out a way to work with human intuition on this
-                    // Default to combining results by OR, unless all radio options being searched
-                    //  by the user are unselected...searching for !a || !b || !c makes no sense
+                    // Whether to combine the selected options/tags by AND or OR...unselected
+                    //  options/tags are always combined by AND
+                    // TODO - let users change this
                     $combine_by_or = true;
-                    if ( count($radio_options) === $search_unselected )
-                        $combine_by_or = false;
+
 
                     // Create an entry in the criteria array for this datafield...there won't be any
                     //  duplicate entries
@@ -694,12 +730,19 @@ class SearchKeyService
             }
         }
 
-        // Save the list of datatypes being searched on, not including the ones to be merged by OR
+        // Save the list of datatypes being searched on, not including the ones to be merged_by_OR
+        // All datarecords belonging to datatypes contained in $affected_datatypes will be initially
+        //  marked as -1 (does not match), and therefore must m
         $affected_datatypes = array();
         foreach ($criteria as $key => $facet) {
             if ($key === 'search_type')
                 continue;
 
+            // Datafields being searched via general search can't be marked as "-1" (needs to match)
+            //  to begin with...doing so will typically cause child datatypes that are also searched
+            //  to "not match", and therefore exclude their parents from the search results.
+            // The final merge still works when the datarecords with the affected datafields start
+            //  out with a value of "0" (doesn't matter)
             if ($facet['merge_type'] === 'AND') {
                 foreach ($facet['search_terms'] as $key => $params) {
                     $dt_id = $params['datatype_id'];
@@ -767,6 +810,7 @@ class SearchKeyService
                     continue;
 
                 // TODO - eventually need multi-datafield sorting
+                // TODO - eventually need sort by created/modified date
                 if ( count($value) > 1 )
                     throw new ODRNotImplementedException('Unable to sort by multiple fields at the moment', $exception_code);
 
@@ -875,6 +919,29 @@ class SearchKeyService
                                 throw new ODRBadRequestException('Invalid search key: radio option "'.$option_uuid.'" does not belong to datafield '.$field_uuid, $exception_code);
                         }
                     }
+                    else if ( isset($search_df['selected_tags']) ) {
+                        // Tags
+                        if ($typeclass !== 'Tag')
+                            throw new ODRBadRequestException('Invalid search key: "selected_tags" defined for a "'.$typeclass.'" datafield, expected a Tag datafield', $exception_code);
+
+                        $search_tags = array();
+                        foreach ($search_df['selected_tags'] as $num => $option) {
+                            if ( !isset($option['template_tag_uuid']) )
+                                throw new ODRBadRequestException('Invalid search key: missing key "template_tag_uuid" for datafield '.$field_uuid, $exception_code);
+
+                            // Store the tags being search on in a more convenient format...
+                            $search_tags[ $option['template_tag_uuid'] ] = false;
+                        }
+
+                        // Verify all the tags being searched on belong to the datafield
+                        $stacked_tags = $datatype_array[$dt_id]['dataFields'][$df_id]['tags'];
+                        self::findTagUuid($stacked_tags, $search_tags);
+
+                        foreach ($search_tags as $tag_uuid => $found) {
+                            if (!$found)
+                                throw new ODRBadRequestException('Invalid search key: tag "'.$tag_uuid.'" does not belong to datafield '.$field_uuid, $exception_code);
+                        }
+                    }
                     else if ( isset($search_df['before']) ) {
                         if ($typeclass !== 'DatetimeValue')
                             throw new ODRBadRequestException('Invalid search key: "before" defined for a "'.$typeclass.'" datafield, expected a Datetime datafield', $exception_code);
@@ -919,6 +986,39 @@ class SearchKeyService
 
 
     /**
+     * Attempts to find all the tag uuids from $search_tags inside $stacked_tags...if it does exist,
+     * then that tag's value in $search_tags is set to true.
+     *
+     * @param array $stacked_tags
+     * @param array $search_tags
+     */
+    private function findTagUuid($stacked_tags, &$search_tags)
+    {
+        // Optimistically assume users are going to have higher-level tags in here, so do a
+        //  breadth-first search instead of a depth-first search
+        $tags_to_process = $stacked_tags;
+        while ( !empty($tags_to_process) ) {
+            $tmp = $tags_to_process;
+            $tags_to_process = array();
+
+            foreach ($tmp as $tag_id => $tag) {
+                $tag_uuid = $tag['tagUuid'];
+                if ( isset( $search_tags[$tag_uuid]) ) {
+                    // Mark the tag as found
+                    $search_tags[$tag_uuid] = true;
+                }
+
+                if ( isset($tag['children']) ) {
+                    // Tag has children, get those processed next iteration
+                    foreach ($tag['children'] as $child_tag_id => $child_tag)
+                        $tags_to_process[$child_tag_id] = $child_tag;
+                }
+            }
+        }
+    }
+
+
+    /**
      * Converts a search key for templates into a format usable by performTemplateSearch()
      *
      * @param string $search_key
@@ -945,12 +1045,13 @@ class SearchKeyService
             else if ($key === 'field_stats') {
                 // Used by APIController::getfieldstatsAction()...create an abbreviated version of
                 //  a general search entry so SearchAPIService::performTemplateSearch() searches
-                //  for selected radio options of the given field, but doesn't search anything else
-                $criteria['general'] = array(
+                //  for selected radio options or tags of the given field, but doesn't search for
+                //  anything else
+                $criteria['field_stats'] = array(
                     'merge_type' => 'OR',
                     'search_terms' => array(
                         $value => array(
-                            'value' => 'any',
+//                            'value' => '!""',    // Don't need an explicit value right now...
                             'entity_type' => 'datafield',
                             'entity_id' => $value,
                             'datatype_id' => $template_uuid
@@ -1000,7 +1101,7 @@ class SearchKeyService
                                 case 'DatetimeValue':
                                 case 'File':
                                 case 'Image':
-                                    // A general search doesn't make sense for Files/Images
+                                    // A general search doesn't make sense for Files/Images/Datetime fields
                                     continue;
 
                                 case 'IntegerValue':
@@ -1010,6 +1111,7 @@ class SearchKeyService
                                 case 'LongVarchar':
                                 case 'LongText':
                                 case 'Radio':
+                                case 'Tag':
                                     // A general search makes sense for each of these
                                     $criteria['general']['search_terms'][$df_uuid] = array(
                                         'value' => $value,
@@ -1025,6 +1127,9 @@ class SearchKeyService
             }
             else if ($key === 'fields') {
                 // Only define this facet if something is going to be put into it...
+                if ( count($search_params['fields']) === 0 )
+                    continue;
+
                 if ( !isset($criteria[$template_uuid]) ) {
                     $criteria[$template_uuid] = array(
                         'merge_type' => 'AND',    // TODO - combine_by_AND/combine_by_OR
@@ -1032,7 +1137,6 @@ class SearchKeyService
                     );
                 }
 
-                // TODO -
                 foreach ($value as $num => $df) {
                     $field_uuid = $df['template_field_uuid'];
 
@@ -1044,12 +1148,40 @@ class SearchKeyService
 
                             // TODO - search for unselected radio options
                             $selections[$ro_uuid] = 1;
-
-                            // TODO - combine_by_AND/combine_by_OR
                         }
 
+                        // Whether to combine the selected options by AND or OR...unselected
+                        //  options are always combined by AND
+                        // TODO - let users change this
+                        $combine_by_or = true;
+
+
                         $criteria[$template_uuid]['search_terms'][$field_uuid] = array(
-                            'combine_by_OR' => true,    // TODO - needs more robust setting
+                            'combine_by_OR' => $combine_by_or,
+                            'selections' => $selections,
+                            'entity_type' => 'datafield',
+                            'entity_id' => $field_uuid,
+                            'datatype_id' => $template_uuid,
+                        );
+                    }
+                    else if ( isset($df['selected_tags']) ) {
+                        // This is a tag datafield
+                        $selections = array();
+                        foreach ($df['selected_tags'] as $num => $tag) {
+                            $tag_uuid = $tag['template_tag_uuid'];
+
+                            // TODO - search for unselected tags?
+                            $selections[$tag_uuid] = 1;
+                        }
+
+                        // Whether to combine the selected tags by AND or OR...unselected tags are
+                        //  always combined by AND
+                        // TODO - let users change this
+                        $combine_by_or = true;
+
+
+                        $criteria[$template_uuid]['search_terms'][$field_uuid] = array(
+                            'combine_by_OR' => $combine_by_or,
                             'selections' => $selections,
                             'entity_type' => 'datafield',
                             'entity_id' => $field_uuid,

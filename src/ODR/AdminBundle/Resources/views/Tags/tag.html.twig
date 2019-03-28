@@ -1,0 +1,51 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+
+{% set has_children = false %}
+{% if tag.children is defined and tag.children is not empty %}
+    {% set has_children = true %}
+{% endif %}
+    
+<li class="ODRTagItem" rel="{{ tag.id }}">
+    <span class="ODRDeleteTag" rel="{{ tag.id }}"><i class="fa fa-trash Pointer"></i></span>
+
+    {% if datafield_meta.radio_option_name_sort == false %}
+    <span class="ODRTagAnchor"><i class="fa fa-arrows Pointer"></i></span>
+    {% endif %}
+
+    <input id="ODRTag_{{ tag.id }}_name"
+           class="ODRTagLabel"
+           type="text"
+           name="tag_name"
+           value="{{ tag.tagMeta.tagName }}"
+           data-old-value="{{ tag.tagMeta.tagName }}"
+           size="100"
+           maxlength="255"
+    />
+
+    <span class="ODRInputError">&nbsp;&nbsp;<i class="fa fa-warning"></i><span>Duplicate Tag name</span></span>
+
+    {% if tag.children is defined and tag.children|length > 0 %}
+    <ul class="ODRTagGroup">
+        <li class="ODRTagItem ODRPlaceholderTag"></li>
+
+        {% for child_tag_id, child_tag in tag.children %}
+            {% include 'ODRAdminBundle:Tags:tag.html.twig' with {
+                'datafield': datafield,
+                'tag': child_tag,
+            } %}
+        {% endfor %}
+
+        {#<li class="ODRTagItem ODRPlaceholderTag"></li>#}
+    </ul>
+    {% else %}
+        {% if datafield_meta.tags_allow_multiple_levels == true %}
+        <ul class="ODRTagGroup ODRTagGroupPlaceholder">
+            <li class="ODRTagItem ODRPlaceholderTag"></li>
+        </ul>
+        {% endif %}
+    {% endif %}
+</li>
+
+{% endspaceless %}

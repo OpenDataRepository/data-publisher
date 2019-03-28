@@ -46,7 +46,10 @@ use ODR\AdminBundle\Component\Service\CloneTemplateService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -103,6 +106,11 @@ class WorkerController extends ODRCustomController
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException('Invalid Form');
@@ -170,7 +178,8 @@ class WorkerController extends ODRCustomController
                         if ($radio_selection->getSelected() == 1) {
                             // Ensure this RadioSelection is unselected
                             $properties = array('selected' => 0);
-                            parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
+//                            parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
+                            $emm_service->updateRadioSelection($user, $radio_selection, $properties);    // TODO - test this
 
                             $ret .= '>> Deselected Radio Option '.$ro_id.' ('.$option_name.')'."\n";
                         }
@@ -245,8 +254,10 @@ class WorkerController extends ODRCustomController
                         $ret .= 'set dest_entity to "'.$value.'"'."\n";
                     $em->remove($src_entity);
 
-                    $new_obj = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                    parent::ODR_copyStorageEntity($em, $user, $new_obj, array('value' => $value));
+//                    $new_obj = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                    $new_obj = $ec_service->createStorageEntity($user, $datarecord, $datafield);    // TODO - test this
+//                    parent::ODR_copyStorageEntity($em, $user, $new_obj, array('value' => $value));    // TODO - why was this separate?
+                    $emm_service->updateStorageEntity($user, $new_obj, array('value' => $value));    // TODO - test this
                 }
                 else {
                     $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";
@@ -1636,6 +1647,8 @@ $ret .= '  Set current to '.$count."\n";
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var UUIDService $uuid_service */
+            $uuid_service = $this->container->get('odr.uuid_service');
 
             if ($uuid_type === 'datatype') {
                 // Need all datatypes, as well as a list of which ones are top-level...
@@ -1663,7 +1676,7 @@ $ret .= '  Set current to '.$count."\n";
 
                         // If the top-level datatype does not have a unique_id, create one
                         if (is_null($dt->getUniqueId()) || $dt->getUniqueId() === '') {
-                            $unique_id = $dti_service->generateDatatypeUniqueId();
+                            $unique_id = $uuid_service->generateDatatypeUniqueId();
 
                             $dt->setUniqueId($unique_id);
                             $dt->setTemplateGroup($unique_id);
@@ -1692,7 +1705,7 @@ $ret .= '  Set current to '.$count."\n";
 
                         // If the child datatype does not have a unique_id, create one
                         if (is_null($dt->getUniqueId()) || $dt->getUniqueId() === '') {
-                            $unique_id = $dti_service->generateDatatypeUniqueId();
+                            $unique_id = $uuid_service->generateDatatypeUniqueId();
                             $dt->setUniqueId($unique_id);
 
                             print 'set child datatype '.$dt->getId().' "'.$dt->getShortName().'" to have unique_id "'.$unique_id.'"'."\n";
@@ -1915,4 +1928,53 @@ $ret .= '  Set current to '.$count."\n";
         return $response;
     }
 
+
+    public function asdfAction(Request $request)
+    {
+        try {
+/*
+            $array = array(
+                "fields" => array(
+//                    0 => array(
+//                        "field_name" => "Astrobiology Disciplines",
+//                        "selected_options" => array(
+//                            0 => array(
+//                                "name" => "geochemistry",
+//                                "template_radio_option_uuid" => "0730d71",
+//                            )
+//                        ),
+//                        "template_field_uuid" => "cfc0199",
+//                    )
+                    0 => array(
+//                        "field_name" => "Dataset Name",
+                        "value" => "c",
+                        "template_field_uuid" => "08088a9"
+//                        "template_field_uuid" => "a4b7180"
+                    )
+                ),
+                "general" => "",
+                "sort_by" => array(
+//                    0 => array(
+//                        "dir" => "asc",
+//                        "template_field_uuid" => "08088a9",
+//                    )
+                ),
+//                "template_name" => "AHED Core 1.0 Properties",
+                "template_uuid" => "2ea627b",
+            );
+
+            $json = json_encode($array);
+//            exit( '<pre>'.print_r($json, true).'</pre>' );
+            $base64 = base64_encode($json);
+            exit( '<pre>'.print_r($base64, true).'</pre>' );
+*/
+        }
+        catch (\Exception $e) {
+            $source = 0xd895a5e6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
 }

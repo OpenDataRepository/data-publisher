@@ -249,15 +249,22 @@
                 if (redirect) {
                     closeODRRemodal();
 {% if page_type == 'display' or page_type == 'edit' or page_type == 'linking' %}
-                    {# Don't change the URL when viewing a single datarecord #}
-                    reloadPage();
+                    // If viewing a single datarecord, reload the search content...the correct theme
+                    //  will be pulled from the user's session
+                    var url = window.location.hash.substr(1);
+                    loadSearchContent(url);
 {% else %}
-                    {# Need to extract the offset, then redirect to a URL with the desired theme id #}
+                    // Need to extract the offset, then redirect to a URL with the desired theme id
                     var hash = window.location.hash;
                     var offset = hash.substr(hash.lastIndexOf('/') + 1);
                     if ( isNaN(offset) )
                         offset = '1';
 
+                    // Ensure the search sidebar doesn't revert back to the previous theme if the
+                    //  Search button is clicked
+                    $("#selected_theme_id").val(theme_id);
+
+                    // Reload the search results list with the newly selected theme
                     var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': 0 }) }}';
                     url = url.substr(0, url.length-4);
                     url += theme_id + '/' + '{{ search_key }}' + '/' + offset;

@@ -68,6 +68,17 @@
                 {% endif %}
             </span>
 
+        {% elseif field_typeclass == "Tag" %}
+            <span class="pure-u-1 ODRTagSearchDiv ODRSearchScrollbox" id="Input_{{ datafield.id }}" rel="{{ datatype_id }}">
+                {% if datafield['tags'] is defined %}
+                    <input type="hidden" id="datafield_{{ datafield.id }}" name="{{ datafield.id }}" value="" />
+
+                    {% include 'ODROpenRepositorySearchBundle:Default:tag_wrapper.html.twig' with {
+                        'stacked_tags': datafield['tags'],
+                    } %}
+                {% endif %}
+            </span>
+
         {% else %}
             <input type="text" class="ODRInput pure-u-1" id="datafield_{{ datafield.id }}" name="{{ datafield.id }}" rel="{{ datatype_id }}"/>
         {% endif %}

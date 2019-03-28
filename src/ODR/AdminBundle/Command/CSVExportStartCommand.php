@@ -65,8 +65,12 @@ $output->writeln($data->url);
                 $parameters = array(
                     'tracked_job_id' => $data->tracked_job_id,
                     'user_id' => $data->user_id,
+
                     'delimiter' => $data->delimiter,
-                    'secondary_delimiter' => $data->secondary_delimiter,
+                    'radio_delimiter' => $data->radio_delimiter,
+                    'tag_delimiter' => $data->tag_delimiter,
+                    'tag_hierarchy_delimiter' => $data->tag_hierarchy_delimiter,
+
                     'datarecord_id' => $data->datarecord_id,
                     'datatype_id' => $data->datatype_id,
                     'datafields' => $data->datafields,

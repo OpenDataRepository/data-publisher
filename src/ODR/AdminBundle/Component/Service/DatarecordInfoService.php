@@ -19,7 +19,6 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 // Utility
-use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
@@ -38,6 +37,11 @@ class DatarecordInfoService
     private $cache_service;
 
     /**
+     * @var TagHelperService
+     */
+    private $th_service;
+
+    /**
      * @var CsrfTokenManager
      */
     private $token_manager;
@@ -53,17 +57,20 @@ class DatarecordInfoService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param TagHelperService $tagHelperService
      * @param CsrfTokenManager $token_manager
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        TagHelperService $tagHelperService,
         CsrfTokenManager $token_manager,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->th_service = $tagHelperService;
         $this->token_manager = $token_manager;
         $this->logger = $logger;
     }
@@ -210,13 +217,14 @@ class DatarecordInfoService
                partial dr_cb.{id, username, email, firstName, lastName},
                partial dr_ub.{id, username, email, firstName, lastName},
 
-               dt, partial mdt.{id, unique_id}, dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
+               dt, partial gp_dt.{id}, partial mdt.{id, unique_id},
+               dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
 
                drf, partial df.{id}, partial dfm.{id}, partial ft.{id, typeClass},
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
                e_i, e_im, e_ip, e_ipm, e_is, partial e_ip_cb.{id, username, email, firstName, lastName},
 
-               e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv, rs, ro,
+               e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv, rs, ro, ts, t,
 
                partial e_b_ub.{id, username, email, firstName, lastName},
                partial e_iv_ub.{id, username, email, firstName, lastName},
@@ -227,6 +235,7 @@ class DatarecordInfoService
                partial e_svc_ub.{id, username, email, firstName, lastName},
                partial e_dtv_ub.{id, username, email, firstName, lastName},
                partial rs_ub.{id, username, email, firstName, lastName},
+               partial ts_ub.{id, username, email, firstName, lastName},
 
                partial cdr.{id}, partial cdr_dt.{id},
                ldt, partial ldr.{id}, partial ldr_dt.{id}
@@ -239,6 +248,7 @@ class DatarecordInfoService
             LEFT JOIN dr.grandparent AS gp_dr
 
             LEFT JOIN dr.dataType AS dt
+            LEFT JOIN dt.grandparent AS gp_dt
             LEFT JOIN dt.dataTypeMeta AS dtm
             LEFT JOIN dt.masterDataType AS mdt
             LEFT JOIN dtm.externalIdField AS dt_eif
@@ -276,6 +286,9 @@ class DatarecordInfoService
             LEFT JOIN drf.radioSelection AS rs
             LEFT JOIN rs.updatedBy AS rs_ub
             LEFT JOIN rs.radioOption AS ro
+            LEFT JOIN drf.tagSelection AS ts
+            LEFT JOIN ts.updatedBy AS ts_ub
+            LEFT JOIN ts.tag AS t
 
             LEFT JOIN drf.dataField AS df
             LEFT JOIN df.dataFieldMeta AS dfm
@@ -303,8 +316,15 @@ class DatarecordInfoService
         //  memory that php needs to allocate to store a cached datarecord entry...it adds up.
         $drf_keys_to_keep = array(
             'id', 'created',
-            'file', 'image'     // keeping these for now because multiple pieces of code assume they exist
+            'file', 'image',       // keeping these for now because multiple pieces of code assume they exist
+            'child_tagSelections', // this property will only be created if 'tagSelection' exists
         );
+
+        // If this datarecord has tag datafields, then a list of "child tag selections" needs to be
+        //  stored with the cached data...Display mode can't follow "display_unselected_radio_options"
+        //  otherwise
+        $tag_hierarchy = null;
+
 
         // The entity -> entity_metadata relationships have to be one -> many from a database
         //  perspective, even though there's only supposed to be a single non-deleted entity_metadata
@@ -322,6 +342,7 @@ class DatarecordInfoService
             $name_datafield = null;
             $sort_datafield = null;
 
+            $dt_id = $dr['dataType']['id'];
             if ( isset($dr['dataType']['dataTypeMeta'][0]['externalIdField']['id']) )
                 $external_id_field = $dr['dataType']['dataTypeMeta'][0]['externalIdField']['id'];
             if ( isset($dr['dataType']['dataTypeMeta'][0]['nameField']['id']) )
@@ -329,12 +350,22 @@ class DatarecordInfoService
             if ( isset($dr['dataType']['dataTypeMeta'][0]['sortField']['id']) )
                 $sort_datafield = $dr['dataType']['dataTypeMeta'][0]['sortField']['id'];
 
+            // Also going to store the values for these datafields, once they're found
             $datarecord_data[$dr_num]['externalIdField_value'] = '';
             $datarecord_data[$dr_num]['nameField_value'] = '';
             $datarecord_data[$dr_num]['sortField_value'] = '';
 
+            // Only want to load the tag hierarchy for this grandparent datatype once
+            if ( is_null($tag_hierarchy) ) {
+                $gp_dt_id = $datarecord_data[$dr_num]['dataType']['grandparent']['id'];
+                $tag_hierarchy = $this->th_service->getTagHierarchy($gp_dt_id);
+            }
+
             // Don't want to store the datatype's meta entry
             unset( $datarecord_data[$dr_num]['dataType']['dataTypeMeta'] );
+            // Don't care about the datatype's grandparent either
+            unset( $datarecord_data[$dr_num]['dataType']['grandparent'] );
+
 
             // Need to store a list of child/linked datarecords by their respective datatype ids
             $child_datarecords = array();
@@ -362,6 +393,7 @@ class DatarecordInfoService
             $datarecord_data[$dr_num]['children'] = $child_datarecords;
             unset( $datarecord_data[$dr_num]['linkedDatarecords'] );
 
+
             // Flatten datafield_meta of each datarecordfield, and organize by datafield id instead
             //  of some random number
             $new_drf_array = array();
@@ -372,6 +404,8 @@ class DatarecordInfoService
                 $expected_fieldtype = lcfirst($expected_fieldtype);
                 if ($expected_fieldtype == 'radio')
                     $expected_fieldtype = 'radioSelection';
+                else if ($expected_fieldtype == 'tag')
+                    $expected_fieldtype = 'tagSelection';
 
                 $df_id = $drf['dataField']['id'];
                 unset( $drf['dataField'] );
@@ -455,6 +489,16 @@ class DatarecordInfoService
                 }
                 $drf['radioSelection'] = $new_rs_array;
 
+                // Organize tag selections by tag id
+                $new_ts_array = array();
+                foreach ($drf['tagSelection'] as $ts_num => $ts) {
+                    $ts['updatedBy'] = UserUtility::cleanUserData( $ts['updatedBy'] );
+
+                    $t_id = $ts['tag']['id'];
+                    $new_ts_array[$t_id] = $ts;
+                }
+                $drf['tagSelection'] = $new_ts_array;
+
                 // Delete everything that isn't strictly needed in this $drf array
                 foreach ($drf as $k => $v) {
                     if ( in_array($k, $drf_keys_to_keep) || $k == $expected_fieldtype )
@@ -462,6 +506,49 @@ class DatarecordInfoService
 
                     // otherwise, delete it
                     unset( $drf[$k] );
+                }
+
+                // If tag selections exist for this drf entry...
+                if ( isset($drf['tagSelection']) ) {
+                    // ...then a list of which non-leaf tags have selected child/grandchild/etc tags
+                    //  needs to be created and stored
+                    $tag_tree = array();
+                    $inversed_tag_tree = array();
+                    if ( isset($tag_hierarchy[$dt_id]) && isset($tag_hierarchy[$dt_id][$df_id]) ) {
+                        $tag_tree = $tag_hierarchy[$dt_id][$df_id];
+
+                        // Building the list of which tags have selected child tags is easier if
+                        //  the tag tree is inverted first
+                        foreach ($tag_tree as $parent_tag_id => $children) {
+                            foreach ($children as $child_tag_id => $tmp)
+                                $inversed_tag_tree[$child_tag_id] = $parent_tag_id;
+                        }
+                    }
+
+                    // For each tag that is selected...
+                    $selections = array();
+                    foreach ($drf['tagSelection'] as $t_id => $ts) {
+                        if ( isset($tag_tree[$t_id]) ) {
+                            // ...if it's a tag with children, it shouldn't have a tagSelection entry
+                            unset( $drf['tagSelection'][$t_id] );
+                        }
+                        else if ( $ts['selected'] === 1 ) {
+                            // ...otherwise, it's a tag without children and is selected...
+                            $current_tag_id = $t_id;
+                            // ...then for every ancestor of this tag...
+                            while ( isset($inversed_tag_tree[$current_tag_id]) ) {
+                                // ...store that they have a descendant tag that is selected
+                                $parent_tag_id = $inversed_tag_tree[$current_tag_id];
+                                $selections[$parent_tag_id] = '';
+
+                                // ...continue looking for parent tags
+                                $current_tag_id = $parent_tag_id;
+                            }
+                        }
+                    }
+
+                    // Store the array of which tags
+                    $drf['child_tagSelections'] = $selections;
                 }
 
                 // Store the resulting $drf array by its datafield id
@@ -472,7 +559,7 @@ class DatarecordInfoService
             $datarecord_data[$dr_num]['dataRecordFields'] = $new_drf_array;
         }
 
-        // Organize by datarecord id...it's intetionally left flat
+        // Organize by datarecord id...permissions filtering doesn't work if the array isn't flat
         $formatted_datarecord_data = array();
         foreach ($datarecord_data as $num => $dr_data) {
             $dr_id = $dr_data['id'];
@@ -633,36 +720,5 @@ class DatarecordInfoService
         }
 
         return $token_list;
-    }
-
-
-    /**
-     * Generates and returns a unique_id string that doesn't collide with any other datarecord's
-     * "unique_id" property.
-     *
-     * @return string
-     * @throws \Exception
-     */
-    public function generateDatarecordUniqueId()
-    {
-        // Need to get all current ids in use in order to determine uniqueness of a new id...
-        $query = $this->em->createQuery(
-           'SELECT dr.unique_id
-            FROM ODRAdminBundle:DataRecord AS dr
-            WHERE dr.deletedAt IS NULL and dr.unique_id IS NOT NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $existing_ids = array();
-        foreach ($results as $num => $result)
-            $existing_ids[ $result['unique_id'] ] = 1;
-
-
-        // Keep generating ids until we come across one that's not in use
-        $unique_id = UniqueUtility::uniqueIdReal();
-        while ( isset($existing_ids[$unique_id]) )
-            $unique_id = UniqueUtility::uniqueIdReal();
-
-        return $unique_id;
     }
 }

@@ -1,0 +1,16 @@
+{% spaceless %}
+
+<div class="ODRTagImport_wrapper">
+    <div class="ODRTagImport_header">
+        <span class="ODRInputError"><i class="fa fa-warning"></i><span>Errors found in tag list</span></span>
+    </div>
+    <div class="ODRTagImportError_content">
+    {% for num, error in errors %}
+        <div class="ODRTagImportError">
+            Line {{ error.line_num }}: {{ error.message }} in&nbsp;&nbsp;"{{ error.line }}".
+        </div>
+    {% endfor %}
+    </div>
+</div>
+
+{% endspaceless %}

@@ -36,6 +36,8 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
@@ -1249,6 +1251,10 @@ class PluginsController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
@@ -1389,18 +1395,21 @@ class PluginsController extends ODRCustomController
 
             $theme_element = null;
             foreach ($plugin_fieldtypes as $rpf_id => $ft_id) {
-                // Since new datafields are being created, instruct ajax success handler in plugin_settings_dialog.html.twig to call ReloadChild() afterwards
+                // Since new datafields are being created, instruct ajax success handler in
+                //  plugin_settings_dialog.html.twig to call ReloadChild() afterwards
                 $reload_datatype = true;
 
                 // Create a single new ThemeElement to store the new datafields in, if necessary
-                if ( is_null($theme_element) ) {
-                    $data = parent::ODR_addThemeElement($em, $user, $theme);
-                    $theme_element = $data['theme_element'];
-                }
+                if ( is_null($theme_element) )
+                    $theme_element = $ec_service->createThemeElement($user, $theme, true);
 
                 // Load information for the new datafield
                 /** @var RenderPlugin $default_render_plugin */
-                $default_render_plugin = $repo_render_plugin->findOneBy( array('pluginClassName' => 'odr_plugins.base.default') );
+                $default_render_plugin = $repo_render_plugin->findOneBy(
+                    array(
+                        'pluginClassName' => 'odr_plugins.base.default'
+                    )
+                );
 
                 /** @var FieldType $fieldtype */
                 $fieldtype = $repo_fieldtype->find($ft_id);
@@ -1412,19 +1421,16 @@ class PluginsController extends ODRCustomController
 
 
                 // Create the Datafield and set basic properties from the render plugin settings
-                $objects = parent::ODR_addDataField($em, $user, $associated_datatype, $fieldtype, $default_render_plugin);
-                /** @var DataFields $datafield */
-                $datafield = $objects['datafield'];
-                /** @var DataFieldsMeta $datafield_meta */
-                $datafield_meta = $objects['datafield_meta'];
+                $datafield = $ec_service->createDatafield($user, $associated_datatype, $fieldtype, $default_render_plugin, true);    // Don't flush immediately...
 
+                $datafield_meta = $datafield->getDataFieldMeta();
                 $datafield_meta->setFieldName( $rpf->getFieldName() );
                 $datafield_meta->setDescription( $rpf->getDescription() );
                 $em->persist($datafield_meta);
 
 
                 // Attach the new datafield to the previously created theme_element
-                parent::ODR_addThemeDataField($em, $user, $datafield, $theme_element);
+                $ec_service->createThemeDatafield($user, $theme_element, $datafield);    // need to flush here so $datafield->getID() works later
 
                 // Now that the datafield exists, update the plugin map
                 $em->refresh($datafield);
@@ -1450,13 +1456,13 @@ class PluginsController extends ODRCustomController
                 $properties = array(
                     'renderPlugin' => $render_plugin->getId()
                 );
-                parent::ODR_copyDatatypeMeta($em, $user, $target_datatype, $properties);
+                $emm_service->updateDatatypeMeta($user, $target_datatype, $properties);
             }
             else if ($changing_datafield_plugin) {
                 $properties = array(
                     'renderPlugin' => $render_plugin->getId()
                 );
-                parent::ODR_copyDatafieldMeta($em, $user, $target_datafield, $properties);
+                $emm_service->updateDatafieldMeta($user, $target_datafield, $properties);
             }
 
 
@@ -1489,14 +1495,19 @@ class PluginsController extends ODRCustomController
             if ($render_plugin->getPluginClassName() !== 'odr_plugins.base.default') {
                 // If not using the default RenderPlugin, create a RenderPluginInstance if needed
                 if ( is_null($render_plugin_instance) )
-                    $render_plugin_instance = parent::ODR_addRenderPluginInstance($em, $user, $render_plugin, $target_datatype, $target_datafield);
+                    $render_plugin_instance = $ec_service->createRenderPluginInstance($user, $render_plugin, $target_datatype, $target_datafield);    // need to flush here
                 /** @var RenderPluginInstance $render_plugin_instance */
 
                 // Save the field mapping
                 foreach ($plugin_map as $rpf_id => $df_id) {
                     // Attempt to locate the mapping for this render plugin field field in this instance
                     /** @var RenderPluginMap $render_plugin_map */
-                    $render_plugin_map = $repo_render_plugin_map->findOneBy( array('renderPluginInstance' => $render_plugin_instance->getId(), 'renderPluginFields' => $rpf_id) );
+                    $render_plugin_map = $repo_render_plugin_map->findOneBy(
+                        array(
+                            'renderPluginInstance' => $render_plugin_instance->getId(),
+                            'renderPluginFields' => $rpf_id
+                        )
+                    );
 
 
                     // If the render plugin map entity doesn't exist, create it
@@ -1509,7 +1520,7 @@ class PluginsController extends ODRCustomController
                         /** @var DataFields $df */
                         $df = $repo_datafield->find($df_id);
 
-                        parent::ODR_addRenderPluginMap($em, $user, $render_plugin_instance, $render_plugin_field, $associated_datatype, $df);
+                        $ec_service->createRenderPluginMap($user, $render_plugin_instance, $render_plugin_field, $associated_datatype, $df, true);    // don't need to flush...
                         $plugin_settings_changed = true;
                     }
                     else {
@@ -1517,7 +1528,7 @@ class PluginsController extends ODRCustomController
                         $properties = array(
                             'dataField' => $df_id
                         );
-                        $changes_made = parent::ODR_copyRenderPluginMap($em, $user, $render_plugin_map, $properties);
+                        $changes_made = $emm_service->updateRenderPluginMap($user, $render_plugin_map, $properties, true);    // don't need to flush...
 
                         if ($changes_made)
                             $plugin_settings_changed = true;
@@ -1528,11 +1539,16 @@ class PluginsController extends ODRCustomController
                 foreach ($plugin_options as $option_name => $option_value) {
                     // Attempt to locate this particular render plugin option in this instance
                     /** @var RenderPluginOptions $render_plugin_option */
-                    $render_plugin_option = $repo_render_plugin_options->findOneBy( array('renderPluginInstance' => $render_plugin_instance->getId(), 'optionName' => $option_name) );
+                    $render_plugin_option = $repo_render_plugin_options->findOneBy(
+                        array(
+                            'renderPluginInstance' => $render_plugin_instance->getId(),
+                            'optionName' => $option_name
+                        )
+                    );
 
                     // If the render plugin option entity doesn't exist, create it
                     if ( is_null($render_plugin_option) ) {
-                        parent::ODR_addRenderPluginOption($em, $user, $render_plugin_instance, $option_name, $option_value);
+                        $ec_service->createRenderPluginOption($user, $render_plugin_instance, $option_name, $option_name, true);    // don't need to flush...
                         $plugin_settings_changed = true;
                     }
                     else {
@@ -1540,12 +1556,15 @@ class PluginsController extends ODRCustomController
                         $properties = array(
                             'optionValue' => $option_value
                         );
-                        $changes_made = parent::ODR_copyRenderPluginOption($em, $user, $render_plugin_option, $properties);
+                        $changes_made = $emm_service->updateRenderPluginOption($user, $render_plugin_option, $properties, true);    // don't need to flush...
 
                         if ($changes_made)
                             $plugin_settings_changed = true;
                     }
                 }
+
+                // Should be able to flush here
+                $em->flush();
 
                 if ($plugin_settings_changed) {
                     $plugin_classname = $render_plugin_instance->getRenderPlugin()->getPluginClassName();
@@ -1562,14 +1581,14 @@ class PluginsController extends ODRCustomController
                 // Master Template Data Types must increment Master Revision on all change requests.
                 if ($target_datatype->getIsMasterType()) {
                     $dtm_properties['master_revision'] = $target_datatype->getMasterRevision() + 1;
-                    parent::ODR_copyDatatypeMeta($em, $user, $target_datatype, $dtm_properties);
+                    $emm_service->updateDatatypeMeta($user, $target_datatype, $properties);
                 }
             }
             else {
                 // Master Template Data Types must increment Master Revision on all change requests.
                 if ($target_datafield->getIsMasterField()) {
                     $dfm_properties['master_revision'] = $target_datafield->getMasterRevision() + 1;
-                    parent::ODR_copyDatafieldMeta($em, $user, $target_datafield, $dfm_properties);
+                    $emm_service->updateDatafieldMeta($user, $target_datafield, $properties);
                 }
             }
 

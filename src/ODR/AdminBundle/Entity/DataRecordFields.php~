@@ -95,6 +95,11 @@ class DataRecordFields
     private $radioSelection;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $tagSelection;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
@@ -125,6 +130,7 @@ class DataRecordFields
         $this->image = new \Doctrine\Common\Collections\ArrayCollection();
         $this->file = new \Doctrine\Common\Collections\ArrayCollection();
         $this->radioSelection = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->tagSelection = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -565,6 +571,40 @@ class DataRecordFields
     }
 
     /**
+     * Add tagSelection
+     *
+     * @param \ODR\AdminBundle\Entity\TagSelection $tagSelection
+     *
+     * @return DataRecordFields
+     */
+    public function addTagSelection(\ODR\AdminBundle\Entity\TagSelection $tagSelection)
+    {
+        $this->tagSelection[] = $tagSelection;
+
+        return $this;
+    }
+
+    /**
+     * Remove tagSelection
+     *
+     * @param \ODR\AdminBundle\Entity\TagSelection $tagSelection
+     */
+    public function removeTagSelection(\ODR\AdminBundle\Entity\TagSelection $tagSelection)
+    {
+        $this->tagSelection->removeElement($tagSelection);
+    }
+
+    /**
+     * Get tagSelection
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getTagSelection()
+    {
+        return $this->tagSelection;
+    }
+
+    /**
      * Set createdBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
@@ -670,6 +710,9 @@ class DataRecordFields
                 break;
             case 'Radio':
 //                $my_obj = $this->getRadio();
+                $my_obj = array();
+                break;
+            case 'Tag':
                 $my_obj = array();
                 break;
             case 'ShortVarchar':

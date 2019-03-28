@@ -1,0 +1,76 @@
+ODR\AdminBundle\Entity\TagSelection:
+    type: entity
+    table: odr_tag_selection
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        selected:
+            type: integer
+            unsigned: false
+            nullable: false
+            default: 0
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+
+    manyToOne:
+        tag:
+            targetEntity: Tags
+            cascade: {  }
+            mappedBy: null
+            inversedBy: tagSelections
+            joinColumns:
+                tag_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        dataRecordFields:
+            targetEntity: DataRecordFields
+            cascade: {  }
+            inversedBy: tagSelection
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }

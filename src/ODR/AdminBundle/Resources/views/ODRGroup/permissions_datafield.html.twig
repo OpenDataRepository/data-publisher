@@ -67,7 +67,7 @@
                             </div>
                             <div>
                                 <i class="fa fa-calendar"></i>&nbsp;
-                                Uploaded 1900-01-01 by John Q. Public
+                                Uploaded Unknown Date by Unknown
                             </div>
                             <div>
                                 <i class="fa fa-file-o"></i>&nbsp;
@@ -145,6 +145,16 @@
             {% endfor %}
         {% endif %}
         </select>
+    </fieldset>
+
+    {% elseif field_typename == "Tags" %}
+    <fieldset>
+        <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        {% if datafield.tags is defined %}
+            {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
+                'stacked_tags': datafield.tags,
+            } %}
+        {% endif %}
     </fieldset>
 
     {% elseif field_typename == "DateTime" %}

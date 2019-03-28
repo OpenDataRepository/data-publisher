@@ -24,7 +24,6 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 // Utility
-use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 
 
@@ -42,6 +41,11 @@ class DatatypeInfoService
     private $cache_service;
 
     /**
+     * @var TagHelperService
+     */
+    private $th_service;
+
+    /**
      * @var string
      */
     private $odr_web_dir;
@@ -57,17 +61,20 @@ class DatatypeInfoService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param TagHelperService $tagHelperService
      * @param string $odr_web_dir
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        TagHelperService $tagHelperService,
         $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->th_service = $tagHelperService;
         $this->odr_web_dir = $odr_web_dir;
         $this->logger = $logger;
     }
@@ -376,25 +383,81 @@ class DatatypeInfoService
      */
     private function buildDatatypeData($grandparent_datatype_id)
     {
-/*
-        $timing = true;
-        $timing = false;
-
-        $t0 = $t1 = $t2 = null;
-        if ($timing)
-            $t0 = microtime(true);
-*/
         // This function is only called when the cache entry doesn't exist
 
         // Going to need the datatree array to rebuild this
         $datatree_array = self::getDatatreeArray();
 
+        // Going to need any tag hierarchy data for this datatype
+        $tag_hierarchy = $this->th_service->getTagHierarchy($grandparent_datatype_id);
+
+
+        // ----------------------------------------
+        // Assume there's two datafields, a "master" df and another df "derived" from the master,
+        //  then delete the "master" datafield.  After that, reload the derived datafield $df...
+
+        // Full hydration will result in  is_null($df->getMasterDatafield()) === false, because
+        //  doctrine returns some sort of proxy object for the deleted master datafield
+        // However, array hydration in the same situation will say  $df['masterDataField'] === null,
+        //  which has a different meaning...so this subquery is required to make array hydration
+        //  have the same behavior as full hydration
+
+        // This is primarily needed so template synchronization can be guaranteed to match a derived
+        //  datafield with its master datafield...same deal with master datatypes
+        $query = $this->em->createQuery(
+           'SELECT
+                partial dt.{id}, partial mdt.{id, unique_id}, partial df.{id}, partial mdf.{id}
+
+                FROM ODRAdminBundle:DataType AS dt
+                LEFT JOIN dt.masterDataType AS mdt
+                LEFT JOIN dt.dataFields AS df
+                LEFT JOIN df.masterDataField AS mdf
+
+                WHERE dt.grandparent = :grandparent_datatype_id
+                AND dt.deletedAt IS NULL AND df.deletedAt IS NULL'
+        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+
+        // Need to disable the softdeleteable filter so doctrine pulls the id for deleted master
+        //  datafield entries
+        $this->em->getFilters()->disable('softdeleteable');
+        $master_data = $query->getArrayResult();
+        $this->em->getFilters()->enable('softdeleteable');
+
+        $derived_dt_data = array();
+        $derived_df_data = array();
+        foreach ($master_data as $dt_num => $dt) {
+            // Store the potentially deleted master datatype
+            $dt_id = $dt['id'];
+            $mdt_data = null;
+            if ( isset($dt['masterDataType']) && !is_null($dt['masterDataType']) ) {
+                $mdt_data = array(
+                    'id' => $dt['masterDataType']['id'],
+                    'unique_id' => $dt['masterDataType']['unique_id']
+                );
+            }
+            $derived_dt_data[$dt_id] = $mdt_data;
+
+            // Store the potentially deleted master datafield
+            foreach ($dt['dataFields'] as $df_num => $df) {
+                $df_id = $df['id'];
+                $mdf_data = null;
+                if ( isset($df['masterDataField']) && !is_null($df['masterDataField']) ) {
+                    $mdf_data = array(
+                        'id' => $df['masterDataField']['id']
+                    );
+                }
+
+                $derived_df_data[$df_id] = $mdf_data;
+            }
+        }
+
+
+        // ----------------------------------------
         // Get all non-layout data for the requested datatype
         $query = $this->em->createQuery(
            'SELECT
                 dt, dtm,
                 partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id}, partial dt_bif.{id},
-                partial mdt.{id, unique_id}, 
                 partial md.{id, unique_id},
                 partial mf.{id, unique_id},
                 partial dt_cb.{id, username, email, firstName, lastName},
@@ -403,14 +466,12 @@ class DatatypeInfoService
                 dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
 
                 df, dfm, ft,
-                partial mdf.{id},
                 partial df_cb.{id, username, email, firstName, lastName},
 
-                ro, rom,
+                ro, rom, t, tm,
                 df_rp, df_rpi, df_rpo, df_rpm
 
             FROM ODRAdminBundle:DataType AS dt
-            LEFT JOIN dt.masterDataType AS mdt
             LEFT JOIN dt.createdBy AS dt_cb
             LEFT JOIN dt.updatedBy AS dt_ub
             LEFT JOIN dt.metadata_datatype AS md
@@ -430,14 +491,15 @@ class DatatypeInfoService
             LEFT JOIN dt_rpm.dataField AS dt_rpm_df
 
             LEFT JOIN dt.dataFields AS df
-            LEFT JOIN df.masterDataField AS mdf
-
             LEFT JOIN df.dataFieldMeta AS dfm
             LEFT JOIN df.createdBy AS df_cb
             LEFT JOIN dfm.fieldType AS ft
 
             LEFT JOIN df.radioOptions AS ro
             LEFT JOIN ro.radioOptionMeta AS rom
+
+            LEFT JOIN df.tags AS t
+            LEFT JOIN t.tagMeta AS tm
 
             LEFT JOIN dfm.renderPlugin AS df_rp
             LEFT JOIN df_rp.renderPluginInstance AS df_rpi WITH (df_rpi.dataField = df)
@@ -457,13 +519,7 @@ class DatatypeInfoService
         $datatype_data = $query->getArrayResult();
 
         // TODO - if $datatype_data is empty, then $grandparent_datatype_id was deleted...should this return something special in that case?
-/*
-        if ($timing) {
-            $t1 = microtime(true);
-            $diff = $t1 - $t0;
-            print 'buildDatatypeData('.$datatype_id.')'."\n".'query execution in: '.$diff."\n";
-        }
-*/
+
         // The entity -> entity_metadata relationships have to be one -> many from a database
         // perspective, even though there's only supposed to be a single non-deleted entity_metadata
         // object for each entity.  Therefore, the preceding query generates an array that needs
@@ -480,7 +536,7 @@ class DatatypeInfoService
                 $dtm = $dt['dataTypeMeta'][0];
             }
             $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
-            $datatype_data[$dt_num]['masterDataType'] = $dt['masterDataType'];
+            $datatype_data[$dt_num]['masterDataType'] = $derived_dt_data[$dt_id];
 
             // Scrub irrelevant data from the datatype's createdBy and updatedBy properties
             $datatype_data[$dt_num]['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );
@@ -492,6 +548,7 @@ class DatatypeInfoService
             $new_datafield_array = array();
             foreach ($dt['dataFields'] as $df_num => $df) {
                 $df_id = $df['id'];
+                $typeclass = $df['dataFieldMeta'][0]['fieldType']['typeClass'];
 
                 // Flatten datafield_meta and masterDatafield of each datafield
                 $dfm = $df['dataFieldMeta'][0];
@@ -499,6 +556,9 @@ class DatatypeInfoService
 
                 // Scrub irrelevant data from the datafield's createdBy property
                 $df['createdBy'] = UserUtility::cleanUserData( $df['createdBy'] );
+
+                // Attach the id of this datafield's masterDatafield if it exists
+                $df['masterDataField'] = $derived_df_data[$df_id];
 
                 // Flatten radio options if they exist
                 // They're ordered by displayOrder, so preserve $ro_num
@@ -509,6 +569,36 @@ class DatatypeInfoService
                 if ( count($df['radioOptions']) == 0 )
                     unset( $df['radioOptions'] );
 
+                // Flatten tags if they exist
+                $tag_list = array();
+                foreach ($df['tags'] as $t_num => $t) {
+                    $tag_id = $t['id'];
+                    $tag_list[$tag_id] = $t;
+                    $tag_list[$tag_id]['tagMeta'] = $t['tagMeta'][0];
+                }
+                if ($typeclass !== 'Tag') {
+                    unset( $df['tags'] );
+                }
+                else if ( count($tag_list) == 0 ) {
+                    // No tags, ensure blank arrays exist
+                    $df['tags'] = array();
+                    $df['tagTree'] = array();
+                }
+                else {
+                    // Tags exist, attempt to locate any tag hierarchy data
+                    $tag_tree = array();
+                    if ( isset($tag_hierarchy[$dt_id]) && isset($tag_hierarchy[$dt_id][$df_id]) )
+                        $tag_tree = $tag_hierarchy[$dt_id][$df_id];
+
+                    // Stack/order the tags before saving them in the array
+                    $tag_list = $this->th_service->stackTagArray($tag_list, $tag_tree);
+                    $this->th_service->orderStackedTagArray($tag_list);
+
+                    // Also save the tag hierarchy in here for convenience
+                    $df['tags'] = $tag_list;
+                    $df['tagTree'] = $tag_tree;
+                }
+
                 $new_datafield_array[$df_id] = $df;
             }
 
@@ -518,7 +608,8 @@ class DatatypeInfoService
 
             // ----------------------------------------
             // Build up a list of child/linked datatypes and their basic information
-            // I don't think the 'is_link' and 'multiple_allowed' properties are used, but meh
+            // I think the 'is_link' property is used during rendering, but I'm not sure about the
+            //  'multiple_allowed' property
             $descendants = array();
             foreach ($datatree_array['descendant_of'] as $child_dt_id => $parent_dt_id) {
                 if ($parent_dt_id == $dt_id)
@@ -538,7 +629,7 @@ class DatatypeInfoService
         }
 
 
-        // Organize by datatype id
+        // Organize by datatype id...permissions filtering doesn't work if the array isn't flat
         $formatted_datatype_data = array();
         foreach ($datatype_data as $num => $dt_data) {
             $dt_id = $dt_data['id'];
@@ -546,14 +637,8 @@ class DatatypeInfoService
             $formatted_datatype_data[$dt_id] = $dt_data;
         }
 
-/*
-        if ($timing) {
-            $t1 = microtime(true);
-            $diff = $t2 - $t1;
-            print 'buildDatatypeData('.$datatype_id.')'."\n".'array formatted in: '.$diff."\n";
-        }
-*/
 
+        // ----------------------------------------
         // Save the formatted datarecord data back in the cache, and return it
         $this->cache_service->set('cached_datatype_'.$grandparent_datatype_id, $formatted_datatype_data);
         return $formatted_datatype_data;
@@ -665,99 +750,5 @@ class DatatypeInfoService
                 unlink($graph_filepath.'/'.$filename);
             }
         }
-    }
-
-
-    /**
-     * Generates and returns a unique_id string that doesn't collide with any other datatype's
-     * "unique_id" property.  Shouldn't be used for the datatype's "template_group" property, as
-     * those should be based off of the grandparent datatype's "unique_id".
-     *
-     * @return string
-     * @throws \Exception
-     */
-    public function generateDatatypeUniqueId()
-    {
-        // Need to get all current ids in use in order to determine uniqueness of a new id...
-        $query = $this->em->createQuery(
-           'SELECT dt.unique_id
-            FROM ODRAdminBundle:DataType AS dt
-            WHERE dt.deletedAt IS NULL and dt.unique_id IS NOT NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $existing_ids = array();
-        foreach ($results as $num => $result)
-            $existing_ids[ $result['unique_id'] ] = 1;
-
-
-        // Keep generating ids until we come across one that's not in use
-        $unique_id = UniqueUtility::uniqueIdReal();
-        while ( isset($existing_ids[$unique_id]) )
-            $unique_id = UniqueUtility::uniqueIdReal();
-
-        return $unique_id;
-    }
-
-
-    /**
-     * Generates and returns a unique_id string that doesn't collide with any other datafield's
-     * "unique_id" property.
-     *
-     * @return string
-     * @throws \Exception
-     */
-    public function generateDataFieldUniqueId()
-    {
-        // Need to get all current ids in use in order to determine uniqueness of a new id...
-        $query = $this->em->createQuery(
-           'SELECT df.fieldUuid
-            FROM ODRAdminBundle:DataFields AS df
-            WHERE df.deletedAt IS NULL and df.fieldUuid IS NOT NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $existing_ids = array();
-        foreach ($results as $num => $result)
-            $existing_ids[ $result['fieldUuid'] ] = 1;
-
-
-        // Keep generating ids until we come across one that's not in use
-        $unique_id = UniqueUtility::uniqueIdReal();
-        while ( isset($existing_ids[$unique_id]) )
-            $unique_id = UniqueUtility::uniqueIdReal();
-
-        return $unique_id;
-    }
-
-
-    /**
-     * Generates and returns a unique_id string that doesn't collide with any other radio option's
-     * "unique_id" property.
-     *
-     * @return string
-     * @throws \Exception
-     */
-    public function generateRadioOptionUniqueId()
-    {
-        // Need to get all current ids in use in order to determine uniqueness of a new id...
-        $query = $this->em->createQuery(
-           'SELECT ro.radioOptionUuid
-            FROM ODRAdminBundle:RadioOptions AS ro
-            WHERE ro.deletedAt IS NULL and ro.radioOptionUuid IS NOT NULL'
-        );
-        $results = $query->getArrayResult();
-
-        $existing_ids = array();
-        foreach ($results as $num => $result)
-            $existing_ids[ $result['radioOptionUuid'] ] = 1;
-
-
-        // Keep generating ids until we come across one that's not in use
-        $unique_id = UniqueUtility::uniqueIdReal();
-        while ( isset($existing_ids[$unique_id]) )
-            $unique_id = UniqueUtility::uniqueIdReal();
-
-        return $unique_id;
     }
 }

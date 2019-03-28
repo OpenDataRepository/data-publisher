@@ -31,6 +31,7 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Services
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -130,6 +131,8 @@ class FlowController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -330,7 +333,7 @@ class FlowController extends ODRCustomController
                 }
                 else if ($datarecord_id != 0 && $datafield_id != 0) {
                     // Upload meant for a file/image datafield...finish moving the uploaded file and store it properly
-                    $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
+                    $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
                     parent::finishUpload($em, $destination_folder, $original_filename, $user_id, $drf->getId());
 
                     // Mark this datarecord as updated

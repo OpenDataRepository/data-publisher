@@ -154,6 +154,9 @@
     <div id="markdown_help_dialog_wrapper">
         {% include 'ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig' %}
     </div>
+    <div id="tag_edit_dialog_wrapper">
+        {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper_dialog.html.twig' %}
+    </div>
 
 {#  TODO - get this working again...
     <div id="deleted_fields_dialog_wrapper">
@@ -1888,7 +1891,6 @@
         });
     }
 
-
     var datafield_properties_xhr = null;
     var save_datafield_xhr = null;
     var SaveDatafieldPropertyInterval = [];
@@ -2076,7 +2078,7 @@
     }
 
     function InitDatafieldPropertiesForm() {
-        // Setup Radio Options.
+        // Setup Radio Options
         SetupRadioOptions();
         var tdf = $("#ThemeDesignForm");
         var tdf_odpf = $("#ThemeDesignForm .ODRDatafieldPropertiesForm");
@@ -2085,6 +2087,11 @@
         $(".ODRMarkdownHelp").unbind('click').click(function() {
             {# defined in ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig #}
             openMarkdownHelpDialog();
+        });
+        $(".ODRTagsEdit").unbind('click').click(function() {
+            {# defined in ODRAdminBundle:Displaytemplate:tag_wrapper_dialog.html.twig #}
+            var datafield_id = $(this).attr('rel');
+            openTagEditDialog(datafield_id);
         });
 
         tdf.find(".ODRDeleteField").each(function() {
@@ -2877,6 +2884,13 @@
     function SaveRadioOptionName(datafield_id, radio_option_id) {
         if (SaveRadioOptionNameInterval[radio_option_id] !== undefined)
             SaveRadioOptionNameInterval[radio_option_id] = window.clearInterval(SaveRadioOptionNameInterval[radio_option_id]);
+
+        // Silently ignore attempts to save blank radio options
+        // Placing this after window.clearInterval() to avoid pointless double save + double reload
+        var option_name = $("#radio_option_" + radio_option_id + "_name").val().trim();
+        if (option_name === '')
+            return;
+
 
         var url = '{{ path('odr_design_save_radio_option_name', { 'radio_option_id': 0 }) }}';
         url = url.substring(0,(url.length - 1));

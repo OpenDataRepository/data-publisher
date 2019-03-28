@@ -57,6 +57,11 @@
 <div id="download_files_dialog_wrapper">
     {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
 </div>
+<div id="tag_edit_dialog_wrapper">
+    {% include 'ODRAdminBundle:Edit:tag_wrapper_dialog.html.twig' with {
+        'datarecord': datarecord
+    } %}
+</div>
 {% endspaceless %}
 
 <script>
@@ -82,6 +87,7 @@ $(function() {
     setupAccordions();
     setupAccordionHighlights();
 
+
     // --------------------
     initPage();
     $(".MenuDesignArea").remove();
@@ -99,6 +105,16 @@ $(function() {
 
 var SaveTimeout = 700;
 function initPage() {
+
+    // Attach click handlers to tags
+    setupTagTree();
+
+    $(".ODRTagsEdit").unbind('click').click(function() {
+        {# defined in ODRAdminBundle:Edit:tag_wrapper_dialog.html.twig #}
+        var datafield_id = $(this).attr('rel');
+        openTagEditDialog(datafield_id);
+    });
+
 
     $(".ODRFileDownloadProgress").hide();
 
@@ -1108,7 +1124,48 @@ function initPage() {
         });
     });
 
-    {# NOTE - there is no .MultipleSelectGroup...it's handled exactly the same as .MultipleRadioGroup #}
+    {# NOTE - the lack of .MultipleSelectGroup is intentional...it's handled exactly the same as .MultipleRadioGroup #}
+
+    {# Tag selections work on the same theory that a MultipleRadioGroup does #}
+    $(".ODRTagEdit").unbind('click').click(function() {
+
+        // Grab relevant entity ids
+        var id_data = $(this).attr('id').split(/_/);
+        var datarecord_id = id_data[1];
+        var datafield_id = id_data[2];
+        var tag_id = id_data[3];
+
+        var url  = '{{ path('odr_tag_selection', {'datarecord_id': 0, 'datafield_id': 0, 'tag_id': 0} ) }}';
+        url = url.substring(0,(url.length - 5));
+        url += datarecord_id + '/' + datafield_id + '/' + tag_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                // Don't need to do anything on success
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Just reload the datafield on error, since can't restore the old value
+                ReloadDatafield(datarecord_id, datafield_id);
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    });
 
     var starting_datafield = null;
     $(".ODRSortableImage").sortable({
@@ -1521,7 +1578,7 @@ function ReloadDatafield(datarecord_id, datafield_id) {
     var datafield_div = $("#Field_" + datarecord_id + "_" + datafield_id);
     var theme_id = $(datafield_div).attr('rel');
 
-    var url = '{{ path('odr_record_reload_datafield', { 'datarecord_id': 0, 'datafield_id': 0 }) }}';
+    var url = '{{ path('odr_record_reload_datafield', { 'source_datarecord_id': initial_datarecord_id, 'datarecord_id': 0, 'datafield_id': 0 }) }}';
     url = url.substring(0, (url.length - 3));
     url += datarecord_id + '/' + datafield_id;
 

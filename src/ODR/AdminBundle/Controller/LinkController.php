@@ -35,9 +35,12 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Service\UUIDService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -473,8 +476,8 @@ class LinkController extends ODRCustomController
                 // Don't allow the local datatype to link to this remote datatype if it would cause
                 //  recursion...for instance, if datatype_a is linked to datatype_b, don't allow
                 //  datatype_b to link to datatype_a.
-                // Also don't allow situatiosn like datatype_a => datatype_b,
-                //  datatype_b => datatype_c, and datatype_c => datatype_a, etc
+                // Also don't allow situations like datatype_a => datatype_b, datatype_b => datatype_c,
+                //  and datatype_c => datatype_a, etc
                 if ( self::willDatatypeLinkRecurse($current_datatree_array, $local_datatype->getId(), $dt_id) )
                     continue;
 
@@ -586,8 +589,8 @@ class LinkController extends ODRCustomController
             // Get Datatype & Template group (if set)
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var UUIDService $uuid_service */
+            $uuid_service = $this->container->get('odr.uuid_service');
 
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             /** @var DataType $local_datatype */
@@ -606,7 +609,7 @@ class LinkController extends ODRCustomController
             $datatype = new DataType();
             $datatype->setRevision(0);
 
-            $unique_id = $dti_service->generateDatatypeUniqueId();
+            $unique_id = $uuid_service->generateDatatypeUniqueId();
             $datatype->setUniqueId($unique_id);
             if($local_datatype->getTemplateGroup() !== null) {
                 $datatype->setTemplateGroup($local_datatype->getTemplateGroup());
@@ -858,6 +861,10 @@ class LinkController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
@@ -1000,10 +1007,8 @@ class LinkController extends ODRCustomController
 
                 // ----------------------------------------
                 // Delete the cached version of the datatree array because a link between datatypes got deleted
-                $current_datatree_array_1 = $dti_service->getDatatreeArray();
                 $cache_service->delete('cached_datatree_array');
                 $cache_service->delete('associated_datatypes_for_' . $local_datatype->getGrandparent()->getId());
-                $current_datatree_array_2 = $dti_service->getDatatreeArray();
 
                 // Mark the ancestor datatype as has having been updated
                 $dti_service->updateDatatypeCacheEntry($local_datatype, $user);
@@ -1023,7 +1028,7 @@ class LinkController extends ODRCustomController
 
                 $is_link = true;
                 $multiple_allowed = true;
-                parent::ODR_addDatatree($em, $user, $local_datatype, $remote_datatype, $is_link, $multiple_allowed);
+                $ec_service->createDatatree($user, $local_datatype, $remote_datatype, $is_link, $multiple_allowed);
 
                 // Locate the master theme for the remote datatype
                 $source_theme = $theme_service->getDatatypeMasterTheme($remote_datatype->getId());
@@ -1036,7 +1041,7 @@ class LinkController extends ODRCustomController
                 $properties = array(
                     'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
                 );
-                parent::ODR_copyThemeMeta($em, $user, $theme, $properties);
+                $emm_service->updateThemeMeta($user, $theme, $properties);
 
 
                 // ----------------------------------------
@@ -1382,7 +1387,7 @@ class LinkController extends ODRCustomController
         if ( !is_null($datatree) ) {
 
             $query = $em->createQuery(
-                'UPDATE ODRAdminBundle:DataTreeMeta AS dtm
+               'UPDATE ODRAdminBundle:DataTreeMeta AS dtm
                 SET dtm.deletedAt = :now
                 WHERE dtm.id IN (:dtm_id) AND dtm.deletedAt IS NULL'
             )->setParameters(
@@ -1394,7 +1399,7 @@ class LinkController extends ODRCustomController
             $query->execute();
 
             $query = $em->createQuery(
-                'UPDATE ODRAdminBundle:DataTree AS dt
+               'UPDATE ODRAdminBundle:DataTree AS dt
                 SET dt.deletedAt = :now, dt.deletedBy = :user_id
                 WHERE dt.id = (:dt_id) AND dt.deletedAt IS NULL'
             )->setParameters(
@@ -1850,6 +1855,8 @@ class LinkController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -2029,8 +2036,13 @@ class LinkController extends ODRCustomController
                 }
 
                 // Ensure there is a link between the two datarecords
-                // This function will also take care of marking as updated and cache clearing
-                parent::ODR_linkDataRecords($em, $user, $ancestor_datarecord, $descendant_datarecord);
+                $ec_service->createDatarecordLink($user, $ancestor_datarecord, $descendant_datarecord);
+
+
+                // Force a rebuild of the cached entry for the ancestor datarecord
+                $dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
+                // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
+                $cache_service->delete('associated_datarecords_for_'.$ancestor_datarecord->getGrandparent()->getId());
             }
 
             $em->flush();

@@ -125,6 +125,18 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             default: false
             column: radio_option_display_unselected
 
+        tags_allow_multiple_levels:
+            type: boolean
+            nullable: false
+            default: false
+            column: tags_allow_multiple_levels
+
+        tags_allow_non_admin_edit:
+            type: boolean
+            nullable: false
+            default: false
+            column: tags_allow_non_admin_edit
+
         searchable:
             type: integer
             unsigned: false

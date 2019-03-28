@@ -46,33 +46,6 @@
 
 {% endspaceless %}
 
-<style>
-    .fa {
-        padding: 0px;
-    }
-    .ODRTristateCheckbox > .fa-ban {
-        color: red;
-    }
-    .ODRTristateCheckbox > .fa-check {
-        color: green;
-    }
-    .ODRTristateCheckbox {
-        cursor: pointer;
-        border: 2px solid #666;
-        border-radius: 5px;
-        height: 1.5em;
-        width: 1.5em;
-        display: inline-block;
-    }
-    .ODRTristateCheckbox > .fa {
-        line-height: 1.25em;
-        margin-left: 0.25em;
-    }
-    .ODRTristateCheckbox:hover, .ODRTristateCheckbox:active, .ODRTristateCheckbox:focus {
-        background: #9cd4d4;
-    }
-</style>
-
 <script>
 
 $(function() {
@@ -84,7 +57,7 @@ $(function() {
         window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
     // Tristate checkbox
-    $(".ODRTristateCheckbox").unbind('click').click(function() {
+    $(".ODRRadioLabel > .ODRTristateCheckbox").unbind('click').click(function() {
         // Grab data about the option being clicked
         var icon = $(this).children('i').first();
         var input = $(this).children('input').first();
@@ -118,7 +91,88 @@ $(function() {
             $(input).val(1);
         }
     });
+
+    // tag Tristate checkbox
+    $(".ODRTagLabel > .ODRTristateCheckbox").unbind('click').click(function () {
+        // Grab data about the tag being clicked
+        var tag_item = $(this).parent().parent();
+
+        // If any item is clicked, it'll set all children to selected/unselected...so immediately
+        //  remove the partial class
+        $(this).children('i').first().removeClass('partial');
+
+        if ( $(this).children('i').first().hasClass('fa-check') ) {
+            // Currently selected, change this tag and all its children to deselected
+            $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                // Don't change title attribute of a non-leaf tag
+                if ( !$(element).hasClass('ODRSearchParentTag') )
+                    $(element).attr('title', 'Search for Datarecords where this tag is unselected');
+
+                $(element).children('i').first().removeClass('fa-check').addClass('fa-ban');
+                $(element).children('input').first().val(0);
+            });
+        }
+        else if ( $(this).children('i').first().hasClass('fa-ban') ) {
+            // Currently deselected, change this tag and all its children to blank
+            $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                $(element).removeAttr('title');
+
+                $(element).children('i').first().removeClass('fa-ban');
+                $(element).children('input').first().val('');
+            });
+        }
+        else {
+            // Currently blank, change this tag and all its children to selected
+            $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                // Don't change title attribute of a non-leaf tag
+                if ( !$(element).hasClass('ODRSearchParentTag') )
+                    $(element).attr('title', 'Search for Datarecords where this tag is selected');
+
+                $(element).children('i').first().addClass('fa-check');
+                $(element).children('input').first().val(1);
+            });
+        }
+
+        applyToTagParents( $(tag_item) );
+    });
 });
+
+function applyToTagParents(source_element) {
+    var parent_tag = $(source_element).parent().parent().not('div');
+    if ( $(parent_tag).length === 0)
+        return;
+
+    // $(parent_tag) should be a <li class="ODRTagItem"> element
+    var parent_checkbox_icon = $(parent_tag).children('label').children('.ODRTristateCheckbox').first().children('i');
+
+    var selected_count = $(parent_tag).children('ul').find('.fa-check').length;
+    var unselected_count = $(parent_tag).children('ul').find('.fa-ban').length;
+    var total_count = $(parent_tag).children('ul').find('.fa').length;
+
+    if (selected_count === 0 && unselected_count === 0) {
+        // No children selected, so this one should be unselected too
+        $(parent_checkbox_icon).removeClass('fa-check fa-ban partial');
+    }
+    else if (selected_count === total_count) {
+        // All children selected, so this one should be selected too
+        $(parent_checkbox_icon).removeClass('fa-ban partial').addClass('fa-check');
+    }
+    else if (unselected_count === total_count) {
+        // All children selected, so this one should be selected too
+        $(parent_checkbox_icon).removeClass('fa-check partial').addClass('fa-ban');
+    }
+    else if (selected_count > 0) {
+        // Some children selected, so this one should be partially selected
+        $(parent_checkbox_icon).removeClass('fa-ban').addClass('fa-check partial');
+    }
+    else if (unselected_count > 0) {
+        // No children are selected, but at least one child is unselected...so this one
+        //  should be partially unselected
+        $(parent_checkbox_icon).removeClass('fa-check').addClass('fa-ban partial');
+    }
+
+    applyToTagParents( $(parent_tag) );
+}
 
 
 function initPage() {
@@ -186,7 +240,7 @@ function doMassUpdate() {
         // Save any value currently in this field
         var val = $(this).val();
         if (val == '-1' || val == '1') {
-            var element = $("<input>", {id: "PublicStatus_" + datatype_id, class: "massedit_form_input", type: "hidden", value: val, name: "public_status[" + datatype_id + "]"});
+            var element = $("<input>", {"id": "PublicStatus_" + datatype_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "public_status[" + datatype_id + "]"});
             $("#massedit_form").append(element);
         }
     });
@@ -204,7 +258,7 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val();
         if (val !== '' && val !== '-1') {
-            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
@@ -222,7 +276,7 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val();
         if (val !== '' && val !== '0') {
-            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
@@ -240,30 +294,31 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val();
         if (val !== '' && val !== '0') {
-            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: 1, name: "datafields[" + datafield_id + "][" + val + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": 1, "name": "datafields[" + datafield_id + "][" + val + "]"});
             $("#massedit_form").append(element);
         }
     });
 
-
-    // TODO - Multiple Radio/Select
+    // Multiple Radio/Select and Tags
     $(".ODRTristateCheckbox > input").each(function() {
         // Grab the ID of the field
         var datafield_id = $(this).attr('name');
-        var radio_option_id = $(this).attr('rel');
+        var item_id = $(this).attr('rel');
+
+        if ( $(this).is(':disabled') || $(this).hasClass('ODRSearchParentTag') )
+            return;
 
         // Remove any value for this datafield currently stored in the form
-        if ( $("#Value_" + datafield_id + "_" + radio_option_id) !== null )
-            $("#Value_" + datafield_id + "_" + radio_option_id).remove();
+        if ( $("#Value_" + datafield_id + "_" + item_id) !== null )
+            $("#Value_" + datafield_id + "_" + item_id).remove();
 
         // Save any value currently in this datafield
         var val = $(this).val().trim();
         if (val !== '') {
-            var element = $("<input>", {id: "Value_" + datafield_id + "_" + radio_option_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "][" + radio_option_id + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id + "_" + item_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "][" + item_id + "]"});
             $("#massedit_form").append(element);
         }
     });
-
 
     // Single Radio
     $(".ODRSingleRadio").each(function() {
@@ -280,7 +335,7 @@ function doMassUpdate() {
 
                 var radio_option_id = $(this).attr('rel');
                 if ( radio_option_id != 0 ) {
-                    var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: 1, name: "datafields[" + datafield_id + "][" + radio_option_id + "]"});
+                    var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": 1, "name": "datafields[" + datafield_id + "][" + radio_option_id + "]"});
                     $("#massedit_form").append(element);
                 }
             }
@@ -301,14 +356,13 @@ function doMassUpdate() {
         var clear_all = $(this).parent().parent().find('input.ODRDatePicker_clearAll').prop('checked');
         var val = $(this).val().trim();
         if (val !== '') {
-            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         } else if (clear_all == true) {
-            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: '', name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": '', "name": "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
-
 
     // Paragraph fields
     $(".ODRParagraphField").each(function() {
@@ -323,11 +377,10 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val().trim();
         if (val !== '') {
-            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
-
 
     // Everything else
     $(".ODRField").each(function() {
@@ -342,7 +395,7 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val().trim();
         if (val !== '') {
-            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
@@ -359,9 +412,9 @@ function doMassUpdate() {
     var data = $("#massedit_form").serialize();
     var url = $("#massedit_form").attr('action');
 
-//    console.log( $("#massedit_form") );
-//alert(url);
-//return;
+   // console.log( $("#massedit_form") );
+// alert(url);
+// return;
 
     $.ajax({
         type: 'POST',
