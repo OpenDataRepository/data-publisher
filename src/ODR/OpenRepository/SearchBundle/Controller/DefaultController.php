@@ -21,6 +21,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Controllers/Classes
 use ODR\AdminBundle\Controller\ODRCustomController;
 // Entites
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\Theme;
@@ -981,6 +982,85 @@ class DefaultController extends Controller
         }
         catch (\Exception $e) {
             $source = 0xc49e75eb;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Re-renders and returns the HTML to search a datafield in the search slideout.
+     *
+     * @param int $datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function reloadsearchdatafieldAction($datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ( $datatype->getDeletedAt() !== null )
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+            if ( !$pm_service->canViewDatafield($user, $datafield) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Don't continue if the datafield is "not searchable" or "general search only"
+            $searchable = $datafield->getSearchable();
+            if ($searchable === 0 || $searchable === 1)
+                throw new ODRBadRequestException('Datafield is not searchable');
+
+
+            // Need the datafield's array entry in order to re-render it
+            $datatype_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
+            $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
+
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig',
+                    array(
+                        'datatype_id' => $datatype->getId(),
+                        'datafield' => $df_array,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x9d85646e;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else

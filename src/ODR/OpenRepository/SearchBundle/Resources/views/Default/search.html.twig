@@ -96,10 +96,12 @@
                             {% for datafield in datatype['dataFields'] %}
                                 {% set searchable = datafield['dataFieldMeta']['searchable'] %}
                                 {% if searchable == 2 or searchable == 3 %}
+                                    <div class="ODRAdvSearch_datafield pure-u-1">
                                     {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
                                         'datatype_id': datatype['id'],
                                         'datafield': datafield
                                     } %}
+                                    </div>
                                 {% endif %}
                             {% endfor %}
 
@@ -135,10 +137,12 @@
                                     {% for datafield in child_datatype['dataFields'] %}
                                         {% set searchable = datafield['dataFieldMeta']['searchable'] %}
                                         {% if searchable == 2 or searchable == 3 %}
+                                            <div class="ODRAdvSearch_datafield pure-u-1">
                                             {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
                                                 'datatype_id': child_datatype['id'],
                                                 'datafield': datafield
                                             } %}
+                                            </div>
                                         {% endif %}
                                     {% endfor %}
 
@@ -177,10 +181,12 @@
                                     {% for datafield in linked_datatype['dataFields'] %}
                                         {% set searchable = datafield['dataFieldMeta']['searchable'] %}
                                         {% if searchable == 2 or searchable == 3 %}
+                                            <div class="ODRAdvSearch_datafield pure-u-1">
                                             {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
                                                 'datatype_id': linked_datatype['id'],
                                                 'datafield': datafield
                                             } %}
+                                            </div>
                                         {% endif %}
                                     {% endfor %}
 

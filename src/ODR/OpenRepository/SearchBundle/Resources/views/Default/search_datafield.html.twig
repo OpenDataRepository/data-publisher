@@ -5,7 +5,7 @@
     {% set field_typename = datafield['dataFieldMeta']['fieldType']['typeName'] %}
     {% set field_typeclass = datafield['dataFieldMeta']['fieldType']['typeClass'] %}
 
-    <div class="ODRAdvSearch_datafield pure-u-1">
+    {#<div class="ODRAdvSearch_datafield pure-u-1">#}
         <span class="pure-u-1">
             <label for="datafield_{{ datafield.id }}" class="pure-u-1" title="{{ description }}">{{ fieldname }}:
             {% if field_typeclass == "Radio"%}
@@ -82,6 +82,6 @@
         {% else %}
             <input type="text" class="ODRInput pure-u-1" id="datafield_{{ datafield.id }}" name="{{ datafield.id }}" rel="{{ datatype_id }}"/>
         {% endif %}
-    </div>
+    {#</div>#}
 
 {% endspaceless %}
