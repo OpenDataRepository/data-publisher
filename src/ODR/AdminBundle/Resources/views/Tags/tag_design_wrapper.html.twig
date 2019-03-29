@@ -184,8 +184,9 @@
             var tag_data = $(this).attr('id').split(/_/);
             var tag_id = tag_data[1];
 
-            SaveTagPropertyInterval[tag_id] = window.clearInterval(SaveTagPropertyInterval[tag_id]);
-            SaveTagPropertyInterval[tag_id] = window.setInterval("SaveTagProperty(" + tag_id + ")", SaveTimeout);
+            // Only want to execute the save function once
+            clearTimeout(SaveTagPropertyInterval[tag_id]);
+            SaveTagPropertyInterval[tag_id] = setTimeout("SaveTagProperty(" + tag_id + ")", SaveTimeout);
 
             save_tag_xhr = true;
 
@@ -243,8 +244,8 @@
     var save_tag_xhr = null;
     var SaveTagPropertyInterval = [];
     function SaveTagProperty(tag_id) {
-        if (SaveTagPropertyInterval[tag_id] != undefined)
-            SaveTagPropertyInterval[tag_id] = window.clearInterval(SaveTagPropertyInterval[tag_id]);
+        // Clear the save timeout for this specific tag
+        clearTimeout(SaveTagPropertyInterval[tag_id]);
 
         // Placing this after window.clearInterval() to avoid pointless double save + double reload
         var tag_name = $("#ODRTag_" + tag_id + "_name").val().trim();

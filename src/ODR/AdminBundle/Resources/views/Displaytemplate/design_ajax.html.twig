@@ -2796,8 +2796,9 @@
                         $("#Option_" + radio_option_id).text(option_name);  // single/multiple select
                 }
 
-                SaveRadioOptionNameInterval[radio_option_id] = window.clearInterval(SaveRadioOptionNameInterval[radio_option_id]);
-                SaveRadioOptionNameInterval[radio_option_id] = window.setInterval("SaveRadioOptionName(" + datafield_id + "," + radio_option_id + ")", SaveTimeout);
+                // Only want to execute the save function once
+                clearTimeout( SaveRadioOptionNameInterval[radio_option_id] );
+                SaveRadioOptionNameInterval[radio_option_id] = setTimeout("SaveRadioOptionName(" + datafield_id + "," + radio_option_id + ")", SaveTimeout);
             });
         });
 
@@ -2882,8 +2883,8 @@
 
     var SaveRadioOptionNameInterval = [];
     function SaveRadioOptionName(datafield_id, radio_option_id) {
-        if (SaveRadioOptionNameInterval[radio_option_id] !== undefined)
-            SaveRadioOptionNameInterval[radio_option_id] = window.clearInterval(SaveRadioOptionNameInterval[radio_option_id]);
+        // Clear the save timeout for this specific radio option
+        clearTimeout(SaveRadioOptionNameInterval[radio_option_id]);
 
         // Silently ignore attempts to save blank radio options
         // Placing this after window.clearInterval() to avoid pointless double save + double reload

@@ -321,8 +321,8 @@
 
     var SaveGroupPropertyInterval = [];
     function SaveGroupProperties(datatype_id, group_id, reload_group_list) {
-        if(SaveGroupPropertyInterval[group_id] != undefined)
-            SaveGroupPropertyInterval[group_id] = window.clearInterval(SaveGroupPropertyInterval[group_id]);
+        // Clear the save timeout for this specific group
+        clearTimeout(SaveGroupPropertyInterval[group_id]);
 
         var url = '{{ path('odr_group_properties', { 'group_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
@@ -392,8 +392,9 @@
             // Save changes
             if( $(this).is(":checkbox") ) {
                 $(this).unbind('change').change(function() {
-                    SaveGroupPropertyInterval[group_id] = window.clearInterval(SaveGroupPropertyInterval[group_id]);
-                    SaveGroupPropertyInterval[group_id] = window.setInterval("SaveGroupProperties(" + datatype_id + "," + group_id + ", true)", SaveTimeout);
+                    // Only want to execute the save function once
+                    clearTimeout(SaveGroupPropertyInterval[group_id]);
+                    SaveGroupPropertyInterval[group_id] = setTimeout("SaveGroupProperties(" + datatype_id + "," + group_id + ", true)", SaveTimeout);
                 });
             }
             else {
@@ -406,8 +407,9 @@
                         $(".ODRGroup_" + group_id + "_name").html(text);
                     }
 
-                    SaveGroupPropertyInterval[group_id] = window.clearInterval(SaveGroupPropertyInterval[group_id]);
-                    SaveGroupPropertyInterval[group_id] = window.setInterval("SaveGroupProperties(" + datatype_id + "," + group_id + ", false)", SaveTimeout);
+                    // Only want to execute the save function once
+                    clearTimeout(SaveGroupPropertyInterval[group_id]);
+                    SaveGroupPropertyInterval[group_id] = setTimeout("SaveGroupProperties(" + datatype_id + "," + group_id + ", false)", SaveTimeout);
                 });
             }
         });

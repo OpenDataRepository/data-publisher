@@ -335,17 +335,17 @@
 
 {% if field_typename == "Boolean" %}
     <script>
-        window.{{ field_typeclass }}Interval_{{ unique_id }} = null;
+        var {{ field_typeclass }}Interval_{{ unique_id }} = null;
         $("#EditForm_{{ unique_id }}").find("input[name='{{ input_name }}']").unbind('change').change(function() {
-            window.{{ field_typeclass }}Interval_{{ unique_id }} = window.clearInterval( window.{{ field_typeclass }}Interval_{{ unique_id }} );
-            window.{{ field_typeclass }}Interval_{{ unique_id }} = window.setInterval( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
+            clearTimeout( {{ field_typeclass }}Interval_{{ unique_id }} );
+            {{ field_typeclass }}Interval_{{ unique_id }} = setTimeout( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
         });
 
         $("#EditForm_{{ unique_id }}").validate({
             submitHandler: function(form) {
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
-                    window.{{ field_typeclass }}Interval_{{ unique_id }}
+                    {{ field_typeclass }}Interval_{{ unique_id }}
                 )
             }
         });
@@ -360,10 +360,10 @@
     or field_typename == "Medium Text"
     or field_typename == "Short Text" %}
     <script>
-        window.{{ field_typeclass }}Interval_{{ unique_id }} = null;
+        var {{ field_typeclass }}Interval_{{ unique_id }} = null;
         $("#EditForm_{{ unique_id }}").find("{% if field_typename == 'Paragraph Text' %}textarea{% else %}input{% endif %}[name='{{ input_name }}']").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
-            window.{{ field_typeclass }}Interval_{{ unique_id }} = window.clearInterval( window.{{ field_typeclass }}Interval_{{ unique_id }} );
-            window.{{ field_typeclass }}Interval_{{ unique_id }} = window.setInterval( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
+            clearTimeout( {{ field_typeclass }}Interval_{{ unique_id }} );
+            {{ field_typeclass }}Interval_{{ unique_id }} = setTimeout( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
         });
 
         $("#EditForm_{{ unique_id }}").validate({
@@ -394,8 +394,9 @@
             submitHandler: function(form) {
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
-                    window.{{ field_typeclass }}Interval_{{ unique_id }}
-                )
+                    {{ field_typeclass }}Interval_{{ unique_id }}
+                );
+
                 // Need to check if this is a datatype properties value
                 var field_reference = jQuery('#Input_{{ unique_id }}').children(':first-child').attr('rel');
                 switch(field_reference) {

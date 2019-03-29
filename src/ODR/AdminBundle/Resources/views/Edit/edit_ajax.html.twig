@@ -103,7 +103,7 @@ $(function() {
 });
 
 
-var SaveTimeout = 700;
+var SaveTimeout = 1000;
 function initPage() {
 
     // Attach click handlers to tags
@@ -1450,9 +1450,8 @@ function AddLinkedRecord(ancestor_datatype_id, descendant_datatype_id, local_dat
 }
 
 function SaveRecordData(form_id, interval) {
-    // Clear the save interval for this specific datafield...interval itself is defined by the variable "SaveTimeout" in this file
-    if(interval != "") 
-        interval = window.clearInterval(interval);
+    // Clear the save timeout for this specific datafield
+    clearTimeout(interval);
 
     // Determine datarecord/datafield id in case of error
     var pieces = form_id.split('_');
@@ -1461,11 +1460,10 @@ function SaveRecordData(form_id, interval) {
 
     // If form is in "autocomplete" - do nothing
     // Only check DataFields that are part of this FieldArea and one level deep
-    var autocomplete = $(form_id)
-        .find('.ui-autocomplete-input');
+    var autocomplete = $(form_id).find('.ui-autocomplete-input');
 
-    if(autocomplete.length > 0) {
-        console.log('autocomplete active.')
+    if (autocomplete.length > 0) {
+        console.log('autocomplete active.');
         return;
     }
 
@@ -1473,8 +1471,8 @@ function SaveRecordData(form_id, interval) {
     var post_data = $(form_id).serialize();
     var url = $(form_id).attr('action');
 
-    console.log('Save Form: ', form_id)
-    $(form_id).find('.ODRSaveIndicator').fadeIn('50')
+    console.log('Save Form: ', form_id);
+    $(form_id).find('.ODRSaveIndicator').fadeIn('50');
 
     $.ajax({
         type: 'POST',
