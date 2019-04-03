@@ -1,6 +1,8 @@
 {% spaceless %}
 
 {% set datafield_meta = datafield.dataFieldMeta %}
+{% set allow_multiple_levels = datafield_meta.tags_allow_multiple_levels %}
+{% set sort_by_name = datafield_meta.radio_option_name_sort %}
 
 <div id="odr_tag_design_modal">
     <div class="ODRThemeElement">
@@ -11,6 +13,17 @@
     <div id="odr_tag_design" class="ODRTagWrapper_design pure-form">
         {# this form is for tag displayOrder and setting parent/child relationships #}
         <form id="ODRTagPositionForm" rel="{{ datafield.id }}"></form>
+
+        {% if allow_multiple_levels == false and sort_by_name == true %}
+            {# Don't display help message if only a single level of tags is permitted, and they're sorted by name #}
+        {% else %}
+        <div class="ODRThemeElement">
+            <div id="ODRTagMoveHelpDiv">
+                To move a tag, click on the <i class="fa fa-arrows Cursor"></i> icon, then press the arrow keys to change the position of the selected tag.
+                <br>To save, either close the dialog box or click somewhere else within it.  Press the escape key to close without saving. {% if sort_by_name == true %}After saving, the system will automatically update the tags to be in alphabetical order.{% endif %}
+            </div>
+        </div>
+        {% endif %}
 
         <div class="ODRThemeElement">
             {# this form is for renaming tags #}
@@ -26,8 +39,8 @@
     <div id="odr_tag_import" class="pure-form">
         <div class="pure-u-1-2 ODRTagWrapper_design">
             <form id="ODRTagListForm" class="pure-form" rel="{{ datafield.id }}" style="padding-left: 20px;">
-                <input type="hidden" id="datafield_{{ datafield.id }}_name_sort" value="{% if datafield_meta.radio_option_name_sort == true %}1{% else %}0{% endif %}" />
-                {% if datafield_meta.tags_allow_multiple_levels == true %}
+                <input type="hidden" id="datafield_{{ datafield.id }}_name_sort" value="{% if sort_by_name == true %}1{% else %}0{% endif %}" />
+                {% if allow_multiple_levels == true %}
                 <fieldset style="margin-bottom: 10px;">
                     <label for="tag_hierarchy_delimiter" class="ODRFieldLabel">
                         Tag Hierarchy delimiter:&nbsp;
@@ -71,72 +84,57 @@
         $("#odr_tag_import").hide();
         $(".ODRInputError").hide();
 
-        // Ensure an old sortable instance doesn't exist
-        // if ( $(".ODRTagGroup").sortable("instance") !== undefined )
-        //     $(".ODRTagGroup").sortable("destroy");
-        $(".ODRTagGroup").each(function() {
-            if ( $(this).sortable("instance") !== undefined )
-                $(this).sortable("destroy");
+{# inverse of allow_multiple_levels == false and sort_by_name == true #}
+{% if allow_multiple_levels == true or sort_by_name == false %}
+        {# Going to need tag movement in some capacity #}
+        $("#odr_tag_design_modal").unbind('click').click(function() {
+            clearTagHighlights();
         });
 
-        var sortable_config = {
-            handle: ".ODRTagAnchor",
-            items: "> .ODRTagItem",
+        // This needs to be before the other keyup handlers...
+        $("#ODRRemodal").unbind('keyup').keyup(function(event) {
+            // If not re-ordering tags, continue as usual
+            if ( !reordering_tags )
+                return;
 
-            start: function (event, ui) {
-                // Attach the position assist css to the tag before the one that just got selected
-                //  for dragging
-                $(ui.item).prev().addClass("ODRNeighorTag");
+        {% if allow_multiple_levels == true %}
+            // Ignore all key presses other than arrow keys
+            if ( event.which < 37 || event.which > 40)
+                return;
+        {% else %}
+            // Changing depth in the tree makes no sense, so only respond to the up/down arrow keys
+            if ( event.which !== 38 && event.which !== 40 )
+                return;
+        {% endif %}
 
-                // The placeholder is inserted immediately after the item selected for dragging,
-                //  so attach the position assist css to the tag after the placeholder
-                $(ui.item).next().next().addClass("ODRNeighorTag");
-            },
-            change: function (event, ui) {
-                // This event fires when the tag's position changes in the list...remove the previous
-                //  position assist css
-                $(".ODRNeighorTag").each(function(index, element) {
-                    $(element).removeClass("ODRNeighorTag");
-                });
+            // Locate the highlighted tag
+            var tag_item = $(".ODRTagHighlight");
+            handleTagMovement( $(tag_item), event.which );
+        });
 
-                // If the tag is dragged back around the original spot, then the sortable helper
-                //  will get picked up by next()/prev()...but stepping over another item will target
-                //  the correct HTML element
-                var prev = $(ui.placeholder).prev();
-                if ( $(prev).hasClass("ui-sortable-helper") )
-                    prev = $(ui.placeholder).prev().prev();
+        $(".ODRTagAnchor").unbind('click').click(function(event) {
+            // Don't want #odr_tag_design_modal click event to fire
+            event.stopPropagation();
+            clearTagHighlights();
+            reordering_tags = true;
 
-                var next = $(ui.placeholder).next();
-                if ( $(next).hasClass("ui-sortable-helper") )
-                    next = $(ui.placeholder).next().next();
+            var tag_parent = $(this).parent().parent();
+            $(tag_parent).addClass('ODRTagHighlight');
 
-                // Attach the position assist css to the intended element
-                $(prev).addClass("ODRNeighorTag");
-                $(next).addClass("ODRNeighorTag");
-            },
-            stop: function (event, ui) {
-                // Remove the attribute crap that sortable attached
-                $(ui.item).removeAttr('style');
+            // When not sorting by name, the highlighted tag's neighbors are its siblings
+            // e.g. adjacent to the highlighted tag with the same parent
+            if ($(tag_parent).prev().length > 0)
+                $(tag_parent).prev().children('.ODRTagUnit').addClass('ODRNeighborTag');
+            if ($(tag_parent).next().length > 0)
+                $(tag_parent).next().children('.ODRTagUnit').addClass('ODRNeighborTag');
+        });
+{% endif %}
 
-                // Get rid of any remaining position assist stuff
-                $(".ODRNeighorTag").each(function(index, element) {
-                    $(element).removeClass("ODRNeighorTag");
-                });
+        $(".ODRAddTag").unbind('click').click(function(event) {
+            // Don't want #odr_tag_design_modal click event to fire
+            event.stopPropagation();
+            clearTagHighlights();
 
-                {% if datafield.dataFieldMeta.tags_allow_multiple_levels == true %}
-                {# Don't delete/create child tag placeholders if restricted to a single level #}
-                tagSortableCleanup( $(ui.item), sortable_config );
-                {% endif %}
-
-                MoveTag( $(ui.item) );
-            },
-
-            placeholder: "ODRTagHighlight",
-            connectWith: ".ODRTagGroup"
-        };
-        $(".ODRTagGroup").sortable(sortable_config);
-
-        $(".ODRAddTag").unbind('click').click(function() {
             if ( $("#odr_tag_import").is(':visible') ) {
                 ValidateTags({{ datafield.id }});
             }
@@ -145,9 +143,13 @@
             }
         });
 
-        $(".ODRTagCreationMode").unbind('click').click(function() {
+        $(".ODRTagCreationMode").unbind('click').click(function(event) {
             if ( $(this).hasClass('pure-button-disabled') )
                 return;
+
+            // Don't want #odr_tag_design_modal click event to fire
+            event.stopPropagation();
+            clearTagHighlights();
 
             if ( $("#odr_tag_import").is(':visible') ) {
                 $("#odr_tag_design").show();
@@ -175,9 +177,19 @@
             }
         });
 
-        $(".ODRDeleteTag").unbind('click').click(function() {
+        $(".ODRDeleteTag").unbind('click').click(function(event) {
+            // Don't want #odr_tag_design_modal click event to fire
+            event.stopPropagation();
+            clearTagHighlights();
+
             var tag_id = $(this).attr('rel');
             DeleteTag(tag_id);
+        });
+
+        $(".ODRTagLabel").click(function(event) {
+            // Don't want #odr_tag_design_modal click event to fire
+            event.stopPropagation();
+            clearTagHighlights();
         });
 
         $(".ODRTagLabel").unbind('keyup paste').on('keyup paste', function() {
@@ -207,15 +219,133 @@
         });
 
         FindDuplicateTagNames();
-
-        // $(".ODRTagCreationMode").trigger('click');
     });
+
+{# inverse of allow_multiple_levels == false and sort_by_name == true #}
+{% if allow_multiple_levels == true or sort_by_name == false %}
+    var reordering_tags = false;
+    function clearTagHighlights() {
+        reordering_tags = false;
+        $(".ODRTagHighlight").each(function() {
+            $(this).removeClass('ODRTagHighlight');
+            SaveTagPosition( $(this) );
+        });
+        $(".ODRNeighborTag").each(function() {
+            $(this).removeClass('ODRNeighborTag');
+        });
+    }
+
+    function ensureTagVisibility(element) {
+        var pageTop = $('#ODRTagForm').offset().top;
+        var pageBottom = pageTop + $('#ODRTagForm').height();
+        var elementTop = $(element).offset().top;
+        var elementBottom = elementTop + $(element).height();
+
+        if ( (elementTop > pageBottom) || (elementBottom < pageTop) ) {
+            $("#ODRTagForm").scrollTo(
+                $(element),      // target
+                250,             // duration
+                {margin: 'true'} // options...get scrollTo() to consider margin when scrolling
+            );
+        }
+    }
+
+    function handleTagMovement(tag_item, which) {
+        var parent_tag_group = $(tag_item).parent();
+        var prev_tag = $(tag_item).prev();
+        var next_tag = $(tag_item).next();
+
+        if (which === 37) {    // left arrow
+            if ( $(parent_tag_group).hasClass('ODRTopLevelTagGroup') ) {
+                // If already a top-level tag, do nothing
+                return;
+            }
+            else {
+                // Otherwise, move this tag and its children to be after its parent tag
+                $(tag_item).insertAfter( $(parent_tag_group).parent() );
+
+                // If the original parent tag group no longer has any children, get rid of it
+                if ( $(parent_tag_group).children().length === 0 )
+                    $(parent_tag_group).remove();
+            }
+        }
+        else if (which === 38) {    // up arrow
+            if ( $(prev_tag).length === 0 && $(parent_tag_group).hasClass('ODRTopLevelTagGroup') ) {
+                // If already at top of the list, do nothing
+                return;
+            }
+            else {
+                // Otherwise, move the highlighted tag to be after the next tag
+                $(tag_item).insertBefore( $(prev_tag) );
+            }
+        }
+        else if (which === 39) {    // right arrow
+            if ( $(prev_tag).length === 0 && $(next_tag).length === 0 ) {
+                // If no neighbor tags, do nothing
+                return;
+            }
+            else if ( $(prev_tag).length > 0 ) {
+                // Preferentially make this a child of the previous tag if possible
+                if ( $(prev_tag).children('ul.ODRTagGroup').length === 0 ) {
+                    // Previous tag has no children, make an empty container
+                    var new_parent_group = $( $.parseHTML('<ul class="ODRTagGroup"></ul>') );
+                    $(new_parent_group).appendTo( $(prev_tag) );
+
+                    // Move the highlighted tag into the previous tag's children
+                    $(tag_item).appendTo( $(new_parent_group) );
+                }
+                else {
+                    // Move the highlighted tag into the previous tag's children
+                    var new_parent_group = $(prev_tag).children('ul.ODRTagGroup').first();
+                    $(tag_item).appendTo( $(new_parent_group) );
+                }
+            }
+            // else {
+            //     // Otherwise, make it a child of the next tag
+            //     if ( $(next_tag).children('ul.ODRTagGroup').length === 0 ) {
+            //         // Previous tag has no children, make an empty container
+            //         var new_parent_group = $( $.parseHTML('<ul class="ODRTagGroup"></ul>') );
+            //         $(new_parent_group).appendTo( $(next_tag) );
+            //
+            //         // Move the highlighted tag into the previous tag's children
+            //         $(tag_item).appendTo( $(new_parent_group) );
+            //     }
+            //     else {
+            //         // Move the highlighted tag into the previous tag's children
+            //         var new_parent_group = $(next_tag).children('ul.ODRTagGroup').first();
+            //         $(tag_item).appendTo( $(new_parent_group) );
+            //     }
+            // }
+        }
+        else if (which === 40) {    // down arrow
+            if ( $(next_tag).length === 0 && $(parent_tag_group).hasClass('ODRTopLevelTagGroup') ) {
+                // If already at bottom of the list, do nothing
+                return;
+            }
+            else {
+                // Otherwise, move the highlighted tag to be before the previous tag
+                $(tag_item).insertAfter( $(next_tag) );
+            }
+        }
+
+        // Update the neighbor tag indicators
+        $(".ODRNeighborTag").each(function() {
+            $(this).removeClass('ODRNeighborTag');
+        });
+        if ( $(tag_item).prev().length > 0 )
+            $(tag_item).prev().children('.ODRTagUnit').addClass('ODRNeighborTag');
+        if ( $(tag_item).next().length > 0 )
+            $(tag_item).next().children('.ODRTagUnit').addClass('ODRNeighborTag');
+
+        ensureTagVisibility( $(tag_item) );
+    }
+{% endif %}
 
     function FindDuplicateTagNames() {
         $(".ODRInputError").hide();
         var has_duplicates = false;
 
-        $("#odr_tag_design_modal").find(".ODRTagGroup").not('.ODRTagGroupPlaceholder').each(function() {
+        $("#odr_tag_design_modal").find(".ODRTagGroup").each(function() {
             var tag_names = {};
 
             $(this).children('.ODRTagItem').children('.ODRTagLabel').each(function(index, elem) {
@@ -270,6 +400,7 @@
         // return;
 
         var post_data = $("#ODRTagForm").find("#ODRTag_" + tag_id + "_name").serialize();    // only want one tag
+
         $.ajax({
             type: 'POST',
             url: url,
@@ -435,79 +566,25 @@
         });
     }
 
-    function tagSortableCleanup(item, sortable_config) {
-        var placeholder_text = '<ul class="ODRTagGroup ODRTagGroupPlaceholder"><li class="ODRTagItem ODRPlaceholderTag"></li></ul>';
-
-        // If this tag is the first child of another tag...
-        if ( $(item).parent().hasClass('ODRTagGroupPlaceholder') ) {
-            // ...then the new parent tag no longer needs a fake child tag div
-            $(item).parent().removeClass('ODRTagGroupPlaceholder');
-            // ...or a fake child tag
-            $(item).parent().children(".ODRTagItem.ODRPlaceholderTag").remove();
-        }
-
-        // Also, remove empty ul.ODRTagGroup elements
-        $(".ODRTagGroup").each(function(index, element) {
-            if ( $(element).children().length === 0 )
-                $(element).remove();
-        });
-
-        $(".ODRTagItem").each(function(index, element) {
-            // Ignore placeholder tags
-            if ( $(element).hasClass('ODRPlaceholderTag') )
-                return;
-
-            // Debug...
-            // var tag_label = $(element).children(".ODRTagLabel").first().html();
-            // var parent_tag_label = $(element).parent().parent().children(".ODRTagLabel").first().html();
-
-            var children = null;
-            var placeholder = null;
-            $(element).children("ul.ODRTagGroup").each(function(index, child_element) {
-                if ( $(child_element).hasClass("ODRTagGroupPlaceholder") )
-                    placeholder = $(child_element);
-                else
-                    children = $(child_element);
-            });
-
-            if ( children != null && placeholder != null ) {
-                // Has children and placeholder, get rid of placeholder
-                $(placeholder).remove();
-
-                // Doesn't seem to be needed, but leaving around just in case
-            }
-            else if ( children != null && placeholder == null ) {
-                // Has children but no placeholder...already correct
-            }
-            else if ( children == null && placeholder != null ) {
-                // Has no children and a placeholder...already correct
-            }
-            else if ( children == null && placeholder == null ) {
-                // Has no children and no placeholder...add the placeholder
-                $(element).append(placeholder_text);
-
-                // Immediately attach the sortable event to the new placeholder
-                $(element).children(".ODRTagGroup").sortable(sortable_config);
-
-                //  Using $(".ODRTagGroup").sortable("destroy"); here will throw an error...apparently,
-                //   jqueryUI does not check for and ignore instances where the selector finds items
-                //   without a sortable configuration
-            }
-        });
-    }
-
-    function MoveTag(item) {
+    function SaveTagPosition(item) {
 
         // Remove any pre-existing input elements added by this function
         $(".ODRTagPositionForm_input").remove();
 
         // Get a list of tags on "this level" that the tag got moved to
         var parent = $(item).parent();
-        $(parent).children(".ODRTagItem").not(".ODRPlaceholderTag").each(function(index, element) {
+    {% if sort_by_name == false %}
+        {# Only enumerate the tag order if the tags aren't being sorted by name #}
+        $(parent).children(".ODRTagItem").each(function(index, element) {
             var tag_id = $(element).attr('rel');
             var form_element = $("<input>", {"class": "ODRTagPositionForm_input", "type": "hidden", "value": tag_id, "name": "tag_ordering[" + index + "]"});
             $("#ODRTagPositionForm").append(form_element);
         });
+    {% else %}
+        {# When the tags are being sorted by name, just append an empty form element#}
+        var form_element = $("<input>", {"class": "ODRTagPositionForm_input", "type": "hidden", "value": '', "name": "tag_ordering"});
+        $("#ODRTagPositionForm").append(form_element);
+    {% endif %}
 
 
         // Get the (new) parent of the tag that just got moved
@@ -532,13 +609,20 @@
         // return;
 
         var post_data = $("#ODRTagPositionForm").serialize();
+        // $("#ODRTagPositionForm").children('input').each(function() {
+        //     console.log( $(this).get(0) );
+        // });
+        // console.log('returning without saving...');
+        // return;
+
         $.ajax({
             type: 'POST',
             url: url,
             dataType: "json",
             data: post_data,
             success: function(data) {
-                notifySaved();
+                if ( data.d.changes_made === true)
+                    notifySaved();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Forcibly reload on error

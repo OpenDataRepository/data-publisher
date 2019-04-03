@@ -3898,30 +3898,24 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 .ODRTagItem {
-    border: 1px solid transparent;
-    border-radius: 5px;
+    /*border: 1px solid transparent;*/
+    /*border-radius: 5px;*/
+    margin: 5px;
 }
-.ODRNeighorTag {
+.ODRNeighborTag {
     border: 1px solid #1c81d0 !important;
     border-radius: 5px;
 }
 .ODRTagHighlight {
-    margin-left: 10px;
-    background-color: #ffffcc;
+    -webkit-box-shadow: /*inset*/ 0 0 0 6px rgba(54, 187, 114, 0.40);
+    -moz-box-shadow: /*inset*/ 0 0 0 6px rgba(54, 187, 114, 0.40);
+    box-shadow: /*inset*/ 0 0 0 6px rgba(54, 187, 114, 0.40);
+    border-radius: 3px;
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}
 
-    border: 2px solid transparent;
-    border-radius: 5px;
-}
-.ODRTagGroupPlaceholder {
-    display: block; /* sortable plugin jumps all over the place without this */
-}
-.ODRPlaceholderTag {
-    display: block; /* sortable plugin jumps all over the place without this */
-    height: 8px; /* originally was 7px */
-
-    /* makes debugging easier */
-    /*background-color: #ffbbbb;*/
-}
 
 #csvexport_form td {
     padding: 2px 5px;
@@ -3966,7 +3960,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 /* .ODREditableDatafield {} */
 
 #ODRTagForm {
-    max-height: 750px;
+    /*max-height: 700px;*/
     overflow-y: scroll;
 }
 .ODRTagImport_wrapper {
@@ -3982,6 +3976,12 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     overflow-y: scroll;
     overflow-x: scroll;
     white-space: nowrap;
+}
+
+#ODRTagMoveHelpDiv {
+    margin-left: 25px;
+    /*vertical-align: middle;*/
+    padding-top: 10px;
 }
 
 .ODRSearchToggle {

@@ -1183,6 +1183,9 @@ class TagsController extends ODRCustomController
             }
 
             $tag_ordering = $post['tag_ordering'];
+            if ( trim($tag_ordering) === '' )
+                $tag_ordering = array();
+
             $child_tag_id = $post['child_tag_id'];
             $parent_tag_id = $post['parent_tag_id'];
 
@@ -1291,28 +1294,35 @@ class TagsController extends ODRCustomController
             /** @var TagTree $tag_tree */
             $tag_tree = $result[0];
 
+            $tag_hierarchy_changed = null;
             $delete_old_entry = false;
             $create_new_entry = false;
             // Determine whether the database entry's listed parent tag matches the one in the post
             if ( is_null($tag_tree) && is_null($parent_tag) ) {
                 // The tag was top-level before, and still is...do nothing
+                $tag_hierarchy_changed = false;
             }
             else if ( is_null($tag_tree) && !is_null($parent_tag) ) {
                 // The tag is no longer top-level...
                 $create_new_entry = true;
+                $tag_hierarchy_changed = true;
             }
             else if ( !is_null($tag_tree) && is_null($parent_tag) ) {
                 // The tag is once again top-level...
                 $delete_old_entry = true;
+                $tag_hierarchy_changed = true;
             }
             else if ( !is_null($tag_tree) && !is_null($parent_tag) ) {
                 if ( $tag_tree->getParent()->getId() !== $parent_tag->getId() ) {
                     // The tag was moved to a different parent...
                     $delete_old_entry = true;
                     $create_new_entry = true;
+
+                    $tag_hierarchy_changed = true;
                 }
                 else {
                     // Otherwise, the tag is still under the same parent...do nothing
+                    $tag_hierarchy_changed = false;
                 }
             }
 
@@ -1334,13 +1344,14 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // If the datafield is set to automatically sort by tag name...
+            $tag_sort_order_changed = null;
             if ( $datafield->getRadioOptionNameSort() ) {
                 // ...then ignore whatever is in $tag_ordering and resort the entire tag list
-                $sort_service->sortTagsByName($user, $datafield);
+                $tag_sort_order_changed = $sort_service->sortTagsByName($user, $datafield);
             }
             else {
                 // Otherwise, modify each Tag to have the newly defined order
-                $changes_made = false;
+                $tag_sort_order_changed = false;
                 foreach ($tag_ordering as $display_order => $tag_id) {
                     $tag = $tag_list[$tag_id];
                     if ($tag->getDisplayOrder() !== $display_order) {
@@ -1348,53 +1359,60 @@ class TagsController extends ODRCustomController
                             'displayOrder' => $display_order
                         );
                         $emm_service->updateTagMeta($user, $tag, $properties, true);    // don't flush immediately...
-                        $changes_made = true;
+                        $tag_sort_order_changed = true;
                     }
                 }
 
-                if ($changes_made)
+                if ($tag_sort_order_changed)
                     $em->flush();
             }
 
 
             // ----------------------------------------
-            // Update cached version of datatype
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
+            if ($tag_hierarchy_changed || $tag_sort_order_changed) {
+                // Update cached version of datatype
+                $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
-            // Don't need to update cached versions of datarecords or search results unless tag
-            //  parentage got changed...
-            if ($create_new_entry || $delete_old_entry) {
-                // Delete the separately cached tag tree for this datatype's grandparent
-                $grandparent_datatype = $datatype->getGrandparent();
-                if ( $grandparent_datatype->getIsMasterType() ) {
-                    // This is a master template datatype...cross-template searches use this entry
-                    //  in the same way a search on a single datatype uses 'cached_tag_tree_<dt_id>"
-                    $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
+                // Don't need to update cached versions of datarecords or search results unless tag
+                //  parentage got changed...
+                if ($create_new_entry || $delete_old_entry) {
+                    // Delete the separately cached tag tree for this datatype's grandparent
+                    $grandparent_datatype = $datatype->getGrandparent();
+                    if ($grandparent_datatype->getIsMasterType()) {
+                        // This is a master template datatype...cross-template searches use this entry
+                        //  in the same way a search on a single datatype uses 'cached_tag_tree_<dt_id>"
+                        $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
 
-                    // Template datatypes also have this
-                    $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
+                        // Template datatypes also have this
+                        $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
+                    }
+                    else {
+                        // This is not a master template datatype, so it will only have this cache entry
+                        $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
+
+                        // All of the cached datarecord entries of this datatype have a 'child_tagSelections'
+                        //  entry somewhere in them because otherwise Display mode can't handle the
+                        //  "display_unselected_radio_options" config option...this entry depended on
+                        //  the "cached_tag_tree_<dt_id>" entry that just got deleted, so all of the
+                        //  cached datarecord entries for this datatype also need to get deleted...
+                        $dr_list = $search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
+                        foreach ($dr_list as $dr_id => $parent_dr_id)
+                            $cache_service->delete('cached_datarecord_'.$dr_id);
+
+                        // Doesn't make sense to delete the "cached_table_data_<dr_id>" entry...tag data
+                        //  isn't displayed in table themes
+                    }
+
+                    // Also need to clear a whole pile of cached data specifically required for searching
+                    $search_cache_service->onDatafieldModify($datafield);
                 }
-                else {
-                    // This is not a master template datatype, so it will only have this cache entry
-                    $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
-
-                    // All of the cached datarecord entries of this datatype have a 'child_tagSelections'
-                    //  entry somewhere in them because otherwise Display mode can't handle the
-                    //  "display_unselected_radio_options" config option...this entry depended on
-                    //  the "cached_tag_tree_<dt_id>" entry that just got deleted, so all of the
-                    //  cached datarecord entries for this datatype also need to get deleted...
-                    $dr_list = $search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
-                    foreach ($dr_list as $dr_id => $parent_dr_id)
-                        $cache_service->delete('cached_datarecord_'.$dr_id);
-
-                    // Doesn't make sense to delete the "cached_table_data_<dr_id>" entry...tag data
-                    //  isn't displayed in table themes
-                }
-
-                // Also need to clear a whole pile of cached data specifically required for searching
-                $search_cache_service->onDatafieldModify($datafield);
             }
 
+            // Inform the javascript whether any changes were made
+            $changes_made = $tag_hierarchy_changed || $tag_sort_order_changed;
+            $return['d'] = array(
+                'changes_made' => $changes_made
+            );
         }
         catch (\Exception $e) {
             $source = 0xec51b8f8;

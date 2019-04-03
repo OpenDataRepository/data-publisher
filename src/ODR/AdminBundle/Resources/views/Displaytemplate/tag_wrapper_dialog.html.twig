@@ -25,6 +25,10 @@
 
         // Attach an event handler to the close button
         $("#ODRTagEdit_close").unbind('click').click(function() {
+            {# defined in ODRAdminBundle:Tags:tag_design_wrapper.html.twig #}
+            // Force a save of the currently highlighted tag's position, if applicable
+            clearTagHighlights();
+
             closeODRRemodal();
             {# defined in ODRAdminBundle:DisplayTemplate:design_ajax.html.twig #}
             ReloadDatafield(datafield_id);
@@ -53,7 +57,18 @@
                     $("#ODRTagEditDialogWrapper").show();
 
                     // Resize ODRFileDownloadModal to take up full height
-                    resetRemodalInnerHeight();
+                    var expected_height = resetRemodalInnerHeight();
+
+                    // Get the maximum size of the remodal content area, minus some padding
+                    var max_height = expected_height - 50;
+
+                    // Subtract the height of the create/import tags buttons div
+                    max_height = max_height - $("#odr_tag_design_modal").children('.ODRThemeElement').first().height();
+                    // Subtract the height of the close button div
+                    max_height = max_height - $(".ODRRemodalButtons").first().height();
+
+                    // Set the max height of the tag form so it doesn't have a vertical scroll bar
+                    $("#ODRTagForm").css('max-height', max_height);
                 });
             },
             error: function(jqXHR, textStatus, errorThrown) {

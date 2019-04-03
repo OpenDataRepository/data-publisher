@@ -356,7 +356,7 @@ class TagHelperService
      */
     private function tagSort_name($a, $b)
     {
-        return strcmp($a['tagMeta']['tagName'], $b['tagMeta']['tagName']);
+        return strnatcasecmp($a['tagMeta']['tagName'], $b['tagMeta']['tagName']);
     }
 
 

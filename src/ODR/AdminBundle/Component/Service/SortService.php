@@ -691,12 +691,14 @@ class SortService
      *
      * @param ODRUser $user
      * @param DataFields $datafield
+     *
+     * @return bool true if the sort order changed, false otherwise
      */
     public function sortTagsByName($user, $datafield)
     {
         // Don't do anything if this datafield isn't sorting its tags by name
         if ( !$datafield->getRadioOptionNameSort() )
-            return;
+            return false;
 
         // Need to create a lookup of tags incase any property needs changed later...
         $query = $this->em->createQuery(
@@ -748,7 +750,7 @@ class SortService
         // Each "group" of tags can then be sorted individually
         foreach ($tag_groups as $parent_tag_id => $tag_group) {
             $tmp = $tag_group;
-            asort($tmp);
+            uasort($tmp, "self::tagSort_name");
             $tag_groups[$parent_tag_id] = $tmp;
         }
 
@@ -775,5 +777,22 @@ class SortService
         // Flush now that all changes have been made
         if ($changes_made)
             $this->em->flush();
+
+        // Return whether any changes were made
+        return $changes_made;
+    }
+
+
+    /**
+     * Custom function to sort tags by name.
+     *
+     * @param string $a
+     * @param string $b
+     *
+     * @return int
+     */
+    private function tagSort_name($a, $b)
+    {
+        return strnatcasecmp($a, $b);
     }
 }
