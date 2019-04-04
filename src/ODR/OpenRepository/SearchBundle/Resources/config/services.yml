@@ -59,3 +59,4 @@ services:
             router: "@router"
             templating: "@templating"
             logger: "@logger"
+

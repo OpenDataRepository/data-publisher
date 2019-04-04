@@ -143,6 +143,16 @@ services:
             token_manager: "@security.csrf.token_manager"
             logger: "@logger"
 
+    odr.datatype_create_service:
+        class: ODR\AdminBundle\Component\Service\DatatypeCreateService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            cache_service: "@odr.cache_service"
+            clone_master_datatype_service: "@odr.clone_master_datatype_service"
+            datatype_info_service: "@odr.datatype_info_service"
+            odr_web_dir: "%odr_web_directory%"
+            logger: "@logger"
+
     odr.datatype_info_service:
         class: ODR\AdminBundle\Component\Service\DatatypeInfoService
         arguments:

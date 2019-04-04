@@ -104,7 +104,7 @@ class DatarecordExportService
      *
      * @return string
      */
-    public function getData($version, $datarecord_ids, $format, $using_metadata, $user, $baseurl)
+    public function getData($version, $datarecord_ids, $format, $using_metadata, $user, $baseurl, $show_records = 1)
     {
         // ----------------------------------------
         // Since these datarecords could belong to multiple datatypes, it's faster to get ids
@@ -226,10 +226,12 @@ class DatarecordExportService
                 'using_metadata' => $using_metadata,
                 'baseurl' => $baseurl,
                 'version' => $version,
+                'show_records' => $show_records
             )
         );
 
         // If returning as json, reformat the data because twig can't correctly format this type of data
+        // TODO - twig should have nothing to do with formatting JSON data.
         if ($format == 'json')
             $str = self::reformatJson($str);
 

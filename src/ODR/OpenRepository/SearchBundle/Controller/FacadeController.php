@@ -26,9 +26,12 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\DatarecordExportService;
+use ODR\AdminBundle\Component\Service\DatatypeCreateService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
+// use FOS\UserBundle\Model\UserManagerInterface;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -90,6 +93,8 @@ class FacadeController extends Controller
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
+
+
 
 
     /**
