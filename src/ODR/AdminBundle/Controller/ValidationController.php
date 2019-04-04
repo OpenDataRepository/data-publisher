@@ -1564,7 +1564,8 @@ class ValidationController extends ODRCustomController
 
 
     /**
-     * TODO -
+     * Some entities currently don't check for or delete other entities that relate to them...
+     * Therefore, they need to be removed so self::findorphanedentitiesAction() doesn't report them.
      *
      * @param $query_targets
      *
@@ -1572,8 +1573,6 @@ class ValidationController extends ODRCustomController
      */
     private function removeAcceptableEntries($query_targets)
     {
-        // Some entities currently don't check for or delete other entities that relate to them...
-        // Therefore, they shouldn't be reported
         $storage_entities = array(
             'Boolean',
             'DatetimeValue',
@@ -1729,7 +1728,8 @@ class ValidationController extends ODRCustomController
 
 
     /**
-     * TODO
+     * Finds and reports datatypes that don't have a master theme...most likely going to be caused
+     * by a critical error during their creation...
      *
      * @param Request $request
      *
@@ -1931,7 +1931,8 @@ class ValidationController extends ODRCustomController
 
 
     /**
-     * TODO -
+     * Ensures that all themes with the same "parent theme" are all eventually accessible via the
+     * child_theme_id property of theme_datatype entries within the "parent theme".
      *
      * @param Request $request
      *

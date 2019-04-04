@@ -69,7 +69,7 @@ class SearchCacheService
     }
 
 
-    // TODO - no real need to clear search cache entries on datatype create?  None of the cache entries would exist beforehand...
+    // Don't need an onDatatypeCreate() function...none of the relevant cache entries exist
 
     // Don't need an onDatatypeModify() function...at the moment, none of the properties of a
     //  datatype, other than public status, have any effect on the results of a search

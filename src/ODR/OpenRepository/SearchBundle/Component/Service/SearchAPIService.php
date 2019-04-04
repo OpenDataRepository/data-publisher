@@ -419,6 +419,7 @@ class SearchAPIService
                         $results = $this->search_service->searchTagTemplateDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
                     }
                     else if ($typeclass === 'File' || $typeclass === 'Image') {
+                        // TODO - implement searching based on public status of file/image?
                         // Searches on Files/Images are effectively interchangable
                         $results = $this->search_service->searchFileOrImageTemplateDatafield($entity, $search_term['filename'], $search_term['has_files']);
                     }
@@ -715,6 +716,7 @@ class SearchAPIService
                         $dr_list = $this->search_service->searchTagDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
                     }
                     else if ($typeclass === 'File' || $typeclass === 'Image') {
+                        // TODO - implement searching based on public status of file/image?
                         // Searches on Files/Images are effectively interchangable
                         $dr_list = $this->search_service->searchFileOrImageDatafield($entity, $search_term['filename'], $search_term['has_files']);
                     }

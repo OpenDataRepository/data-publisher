@@ -1489,7 +1489,6 @@ class DisplaytemplateController extends ODRCustomController
 
     /**
      * Clones the properties of an existing Datafield entity into a new one.
-     * TODO - move into its own service like dataype/theme cloning?
      *
      * @param integer $theme_element_id The database id of the ThemeElement containing the Datafield
      * @param integer $datafield_id     The database id of the DataField to clone
@@ -1580,8 +1579,8 @@ class DisplaytemplateController extends ODRCustomController
             if ($old_datafield->getFieldType()->getTypeClass() == 'Tag')
                 throw new ODRBadRequestException('Unable to clone a Tag Datafield.');
 
-            // Datafields being used by render plugins shouldn't be cloned...
             // TODO - allow cloning of datafields using render plugins
+            // Datafields being used by render plugins shouldn't be cloned...
             /** @var RenderPluginMap $rpm */
             $rpm = $em->getRepository('ODRAdminBundle:RenderPluginMap')->findOneBy( array('dataField' => $old_datafield->getId()) );
             if ($rpm != null)
@@ -3234,6 +3233,11 @@ class DisplaytemplateController extends ODRCustomController
             if ($typeclass === 'File' || $typeclass === 'Image')
                 $has_multiple_uploads = self::hasMultipleUploads($em, $user, $datafield);
 
+            // Check to see whether the "allow multiple levels" checkbox for tag control needs to be disabled
+            $has_multiple_levels = 0;
+            if ($typeclass === 'Tag')
+                $has_multiple_levels = self::hasMultipleLevels($em, $user, $datafield);
+
             // Determine which fieldtypes the datafield is allowed to have
             $allowed_fieldtypes = self::getAllowedFieldtypes($em, $datafield);
 
@@ -3362,6 +3366,14 @@ class DisplaytemplateController extends ODRCustomController
                     $migrate_data = false;
                     $force_slideout_reload = false;
                 }
+
+                // If the file/image field has multiple uploads, ensure that option remains checked
+                if ( $has_multiple_uploads )
+                    $submitted_data->setAllowMultipleUploads(true);
+
+                // If the tag field has multiple levels, ensure that option remains checked
+                if ( $has_multiple_levels )
+                    $submitted_data->setTagsAllowMultipleLevels(true);
 
 
                 // ----------------------------------------
@@ -3536,6 +3548,7 @@ class DisplaytemplateController extends ODRCustomController
                         'ODRAdminBundle:Displaytemplate:datafield_properties_form.html.twig',
                         array(
                             'has_multiple_uploads' => $has_multiple_uploads,
+                            'has_multiple_levels' => $has_multiple_levels,
                             'prevent_fieldtype_change' => $prevent_fieldtype_change,
                             'prevent_fieldtype_change_message' => $prevent_fieldtype_change_message,
 
@@ -3641,8 +3654,7 @@ class DisplaytemplateController extends ODRCustomController
 
 
     /**
-     * Helper function to determine whether a datafield is allowed to have multiple files/images
-     * uploaded or not.
+     * Helper function to determine whether a datafield has multiple files/images uploaded or not.
      *
      * TODO - move into a datafield info service?
      *
@@ -3650,7 +3662,7 @@ class DisplaytemplateController extends ODRCustomController
      * @param ODRUser $user
      * @param DataFields $datafield
      *
-     * @return int 0 if multiple uploads are not allowed, 1 if they are
+     * @return int 1 if a file/image field has multiple uploads already, 0 otherwise
      */
     private function hasMultipleUploads($em, $user, $datafield)
     {
@@ -3695,6 +3707,60 @@ class DisplaytemplateController extends ODRCustomController
         }
 
         return $has_multiple_uploads;
+    }
+
+
+    /**
+     * Helper function to determine whether a datafield's tag structure has multiple levels or not.
+     *
+     * TODO - move into a datafield info service?
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param ODRUser $user
+     * @param DataFields $datafield
+     *
+     * @return int 1 if a tag field has multiple levels already, 0 otherwise
+     */
+    private function hasMultipleLevels($em, $user, $datafield)
+    {
+        /** @var EntityMetaModifyService $emm_service */
+        $emm_service = $this->container->get('odr.entity_meta_modify_service');
+
+        // Should only be run on a tag datafield
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+        if ($typeclass !== 'Tag')
+            return 0;
+
+        $has_multiple_levels = 0;
+
+        // Determine whether there are any tag tree entries for the given datafield
+        $query = $em->createQuery(
+           'SELECT COUNT(tt.id) AS tag_tree_count
+            FROM ODRAdminBundle:DataFields AS df
+            JOIN ODRAdminBundle:Tags AS t WITH t.dataField = df
+            JOIN ODRAdminBundle:TagTree AS tt WITH tt.parent = t
+            WHERE df.id = :datafield_id
+            AND df.deletedAt IS NULL AND t.deletedAt IS NULL AND tt.deletedAt IS NULL'
+        )->setParameters( array('datafield_id' => $datafield->getId()) );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result) {
+            if ( intval($result['tag_tree_count']) > 0 ) {
+                if ( $datafield->getTagsAllowMultipleLevels() == 0 ) {
+                    // This datafield somehow has multiple levels of tags while being set to only
+                    //  allow a single level...fix that
+                    $properties = array(
+                        'tags_allow_multiple_levels' => true,
+                    );
+                    $emm_service->updateDatafieldMeta($user, $datafield, $properties);
+                }
+
+                $has_multiple_levels = 1;
+                break;
+            }
+        }
+
+        return $has_multiple_levels;
     }
 
 
@@ -4026,7 +4092,7 @@ class DisplaytemplateController extends ODRCustomController
 
 
     /**
-     * @todo re-implement this
+     * TODO - re-implement this
      * Undeletes a deleted DataField.
      *
      * @param Request $request

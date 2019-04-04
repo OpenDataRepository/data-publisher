@@ -1592,10 +1592,10 @@ class TagsController extends ODRCustomController
             if ( $datarecord->getDataType()->getId() !== $datatype->getId() )
                 throw new ODRBadRequestException('Datarecord does not belong to the given datatype');
 
-            // TODO - Doesn't make sense for a master template to do this
+            // Doesn't make sense for a master template to do this
             // TODO - ...same for most of the rest of the Edit page stuff?
-//            if ( $datatype->getIsMasterType() )
-//                throw new ODRBadRequestException();
+            if ( $datatype->getIsMasterType() )
+                throw new ODRBadRequestException();
 
 
             // --------------------
