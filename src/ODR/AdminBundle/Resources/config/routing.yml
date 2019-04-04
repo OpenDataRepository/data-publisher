@@ -17,11 +17,11 @@ odr_dashboard:
 # ODRUser Controller
 # public routes to let users modify their own profile
 odr_self_profile_edit:
-    path:  /profile/edit
+    path:  /profile_edit
     defaults: { _controller: ODRAdminBundle:ODRUser:selfeditprofile }
 
 odr_self_profile_save:
-    path:  /profile/save
+    path:  /profile_save
     defaults: { _controller: ODRAdminBundle:ODRUser:selfsaveprofile }
     methods: [ POST ]
 
@@ -55,7 +55,7 @@ odr_admin_save_password:
     methods: [ POST ]
 
 odr_profile_edit:
-    path:  /admin/user/edit/{user_id}
+    path:  /admin/user/profile_edit/{user_id}
     defaults: { _controller: ODRAdminBundle:ODRUser:editprofile }
     requirements:
         user_id:  \d+
@@ -314,6 +314,12 @@ odr_add_types:
     path:  /admin/type/add
     defaults: { _controller: ODRAdminBundle:Datatype:add }
     methods: [ POST ]
+
+odr_add_blank_metadata_datatype:
+    path:  /admin/type/addblankmetadata/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Datatype:createblankmeta }
+    requirements:
+        datatype_id: \d+
 
 #-----------------------------------------
 
@@ -648,9 +654,10 @@ odr_record_reload_child:
         child_datatype_id: \d+
         parent_datarecord_id: \d+
 odr_record_reload_datafield:
-    path: /edit/datafieldreload/{datarecord_id}/{datafield_id}
+    path: /edit/datafieldreload/{source_datarecord_id}/{datarecord_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Edit:reloaddatafield }
     requirements:
+        source_datarecord_id: \d+
         datarecord_id: \d+
         datafield_id: \d+
 odr_record_reload_file_datafield:
@@ -745,6 +752,62 @@ odr_record_get_field_history:
     requirements:
         datarecord_id:  \d+
         datafield_id:  \d+
+
+#-----------------------------------------
+
+#-----------------------------------------
+# Tags Controller
+odr_get_tag_modal:
+    path:  /design/tags/modal/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Tags:loadtagmodal }
+    requirements:
+        datafield_id: \d+
+
+odr_create_tag:
+    path:  /design/tags/create/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Tags:createtag }
+    requirements:
+        datafield_id: \d+
+
+odr_validate_tag_list:
+    path:  /design/tags/validate_list/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Tags:validatetaglist }
+    requirements:
+        datafield_id: \d+
+odr_import_tag_list:
+    path:  /design/tags/import_list/{datafield_id}/{token}
+    defaults: { _controller: ODRAdminBundle:Tags:importtaglist }
+    requirements:
+        datafield_id: \d+
+        token: '|[a-zA-Z0-9\-\_]{15}'
+
+odr_delete_tag:
+    path:  /design/tags/delete/{tag_id}
+    defaults: { _controller: ODRAdminBundle:Tags:deletetag }
+    requirements:
+        tag_id: \d+
+
+odr_move_tag:
+    path:  /design/tags/move/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Tags:movetag }
+    methods: [ POST ]
+    requirements:
+        datafield_id: \d+
+
+odr_rename_tag:
+    path:  /design/tags/rename/{tag_id}
+    defaults: { _controller: ODRAdminBundle:Tags:renametag }
+    methods: [ POST ]
+    requirements:
+        tag_id: \d+
+
+odr_tag_selection:
+    path:  /design/tags/selection/{datarecord_id}/{datafield_id}/{tag_id}
+    defaults: { _controller: ODRAdminBundle:Tags:tagselection }
+    requirements:
+        datarecord_id: \d+
+        datafield_id: \d+
+        tag_id: \d+
 
 #-----------------------------------------
 

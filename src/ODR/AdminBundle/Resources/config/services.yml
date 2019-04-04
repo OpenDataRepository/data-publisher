@@ -41,13 +41,6 @@ services:
     odr.markdown.parser:
         class: ODR\AdminBundle\Component\Service\ODRMarkdownParserService
 
-    odr.custom_controller_service:
-        class: ODR\OpenRepository\AdminBundle\Controller\ODRCustomController
-        arguments: ['@doctrine.orm.entity_manager']
-
-    odr_search_controller:
-        class: ODR\OpenRepository\SearchBundle\Controller\DefaultController
-
 
     # Services for improved data retrieval model
     odr.cache_service:
@@ -77,6 +70,7 @@ services:
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
+            entity_meta_modify_service: "@odr.entity_meta_modify_service"
             search_service: "@odr.search_service"
             logger: "@logger"
 
@@ -88,8 +82,9 @@ services:
             cache_service: "@odr.cache_service"
             clone_master_template_theme_service: "@odr.clone_master_template_theme_service"
             datatype_info_service: "@odr.datatype_info_service"
-            permissions_service: "@odr.permissions_management_service"
+            entity_creation_service: "@odr.entity_creation_service"
             theme_info_service: "@odr.theme_info_service"
+            uuid_service: "@odr.uuid_service"
             user_manager: "@fos_user.user_manager"
             logger: "@monolog.logger.clone_datatype"
 
@@ -108,11 +103,13 @@ services:
             entity_manager: "@doctrine.orm.entity_manager"
             entity_meta_modify_service: "@odr.entity_meta_modify_service"
             cache_service: "@odr.cache_service"
+            search_cache_service: "@odr.search_cache_service"
             clone_theme_service: "@odr.clone_theme_service"
             datatype_info_service: "@odr.datatype_info_service"
             entity_creation_service: "@odr.entity_creation_service"
             permissions_service: "@odr.permissions_management_service"
             theme_service: "@odr.theme_info_service"
+            uuid_service: "@odr.uuid_service"
             logger: "@monolog.logger.clone_template"
 
     odr.clone_master_template_theme_service:
@@ -140,6 +137,7 @@ services:
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
+            tag_helper_service: "@odr.tag_helper_service"
             token_manager: "@security.csrf.token_manager"
             logger: "@logger"
 
@@ -158,6 +156,7 @@ services:
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
             cache_service: "@odr.cache_service"
+            tag_helper_service: "@odr.tag_helper_service"
             odr_web_dir: "%odr_web_directory%"
             logger: "@logger"
 
@@ -168,6 +167,15 @@ services:
             cache_service: "@odr.cache_service"
             datatype_info_service: "@odr.datatype_info_service"
             session: "@session"
+            logger: "@logger"
+
+
+    odr.tag_helper_service:
+        class: ODR\AdminBundle\Component\Service\TagHelperService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            cache_service: "@odr.cache_service"
+            token_manager: "@security.csrf.token_manager"
             logger: "@logger"
 
     odr.table_theme_helper_service:
@@ -187,8 +195,8 @@ services:
         class: ODR\AdminBundle\Component\Service\EntityCreationService
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
-            datarecord_info_service: "@odr.datarecord_info_service"
-            datatype_info_service: "@odr.datatype_info_service"
+            cache_service: "@odr.cache_service"
+            uuid_service: "@odr.uuid_service"
             logger: "@logger"
 
     odr.entity_meta_modify_service:
@@ -240,6 +248,13 @@ services:
         arguments:
             entity_manager: "@doctrine.orm.entity_manager"
             datatype_info_service: "@odr.datatype_info_service"
+            logger: "@logger"
+
+
+    odr.uuid_service:
+        class: ODR\AdminBundle\Component\Service\UUIDService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
             logger: "@logger"
 
 

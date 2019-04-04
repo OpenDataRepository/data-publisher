@@ -88,7 +88,7 @@
                                 {% else %}
                                     <a id="ODRDatarecordList_{{ datatype.id }}_add_metadata"
                                        class="Pointer"
-                                       onclick="return false"   {# TODO - no way to create a metadata datatype? #}
+                                       onclick="addBlankMetadata({{ datatype.id }});"
                                     ><i class="fa fa-lg fa-plus-circle"></i>&nbsp;Create</a>
                                 {% endif %}
                             </td>
@@ -247,6 +247,40 @@
                 });
             }
         }
+
+        function addBlankMetadata(datatype_id) {
+            var url = '{{ path('odr_add_blank_metadata_datatype', { 'datatype_id': 0 }) }}';
+            url = url.substring(0, (url.length - 1));
+            url += datatype_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function (data, textStatus, jqXHR) {
+                    // Just reload the page
+                    window.location.reload();
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function (jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        }
+
         {#
             function deleteDataType(datatype_id) {
                 var datatype_name = $("#ODRDatatypeList_" + datatype_id + "_name").html();

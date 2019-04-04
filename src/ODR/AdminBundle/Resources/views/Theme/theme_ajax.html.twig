@@ -197,24 +197,27 @@
             });
 
             $("#ThemePropertiesForm input:text").unbind('keyup').keyup(function() {
-                window.clearInterval(interval);
-                interval = window.setInterval(
+                // Only want to execute this save once
+                clearTimeout(theme_properties_change);
+                theme_properties_change = setTimeout(
                     "saveThemeMeta()",
-                    3000
+                    1500
                 );
             });
             $("#ThemePropertiesForm textarea").unbind('keyup').keyup(function() {
-                window.clearInterval(interval);
-                interval = window.setInterval(
+                // Only want to execute this save once
+                clearTimeout(theme_properties_change);
+                theme_properties_change = setTimeout(
                     "saveThemeMeta()",
-                    3000
+                    1500
                 );
             });
             $("#ThemePropertiesForm input:checkbox").unbind('change').change(function() {
-                window.clearInterval(interval);
-                interval = window.setInterval(
+                // Only want to execute this save once
+                clearTimeout(theme_properties_change);
+                theme_properties_change = setTimeout(
                     "saveThemeMeta()",
-                    1000
+                    1500
                 );
             });
 
@@ -823,10 +826,10 @@
         }
 
 
-        var interval = "";
+        var theme_properties_change = null;
         function saveThemeMeta() {
-            // Clear the save interval for this specific datafield...interval itself is defined by the variable "SaveTimeout" in this file
-            window.clearInterval(interval);
+            // Clear the save timeout for this action
+            window.clearInterval(theme_properties_change);
 
             var prop_form = $("#ThemePropertiesForm");
             jQuery.ajax({

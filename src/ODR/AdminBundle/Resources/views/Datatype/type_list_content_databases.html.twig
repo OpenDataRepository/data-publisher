@@ -292,7 +292,7 @@
                     success: function (data, textStatus, jqXHR) {
                         // Delete the proper row from the page...
                         var row = $( '#RowDataType_' + datatype_id );
-                        row.fadeOut('slow', () => {
+                        row.fadeOut('slow', function() {
                             row.remove();
                         });
                     },

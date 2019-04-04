@@ -116,10 +116,12 @@ class DatetimeValue
      */
     public function getStringValue()
     {
-        $date = $this->value;
-        $value = $date->format('Y-m-d');
-        if ($value == '9999-12-31')
-            $value = '';
+        $value = '';
+        if ( !is_null($this->value) && $this->value !== '' ) {
+            $value = $this->value->format('Y-m-d');
+            if ($value === '9999-12-31')
+                $value = '';
+        }
 
         return $value;
     }

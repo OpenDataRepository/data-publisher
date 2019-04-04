@@ -1621,8 +1621,13 @@ class APIController extends ODRCustomController
             if ($template_datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
-            if ($template_datafield->getFieldType()->getTypeClass() !== 'Radio')
-                throw new ODRBadRequestException('Datafield is not a Radio fieldtype');
+            $typeclass = $template_datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio' && $typeclass !== 'Tag')
+                throw new ODRBadRequestException('Getting field stats only makes sense for Radio or Tag fields');
+
+            $item_label = 'template_radio_option_uuid';
+            if ($typeclass === 'Tag')
+                $item_label = 'template_tag_uuid';
 
 
             // ----------------------------------------
@@ -1653,11 +1658,7 @@ class APIController extends ODRCustomController
             // Don't need to validate the search key...don't want people to be able to run this
             //  type of search without going through this action anyways
 
-            $result = $search_api_service->performTemplateSearch(
-                $search_key,
-                $user_permissions,
-                true    // Only run as much of the search routine as needed for this API action
-            );
+            $result = $search_api_service->performTemplateSearch($search_key, $user_permissions);
 
             $labels = $result['labels'];
             $records = $result['records'];
@@ -1666,17 +1667,17 @@ class APIController extends ODRCustomController
             $data = array();
             foreach ($records as $dt_id => $df_list) {
                 foreach ($df_list as $df_id => $dr_list) {
-                    foreach ($dr_list as $dr_id => $ro_list) {
-                        foreach ($ro_list as $num => $ro_uuid) {
-                            $option_name = $labels[$ro_uuid];
-                            if ( !isset($data[$option_name]) ) {
-                                $data[$option_name] = array(
+                    foreach ($dr_list as $dr_id => $item_list) {
+                        foreach ($item_list as $num => $item_uuid) {
+                            $item_name = $labels[$item_uuid];
+                            if ( !isset($data[$item_name]) ) {
+                                $data[$item_name] = array(
                                     'count' => 0,
-                                    'template_radio_option_uuid' => $ro_uuid
+                                    $item_label => $item_uuid
                                 );
                             }
 
-                            $data[$option_name]['count']++;
+                            $data[$item_name]['count']++;
                         }
                     }
                 }

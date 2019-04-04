@@ -96,10 +96,12 @@
                             {% for datafield in datatype['dataFields'] %}
                                 {% set searchable = datafield['dataFieldMeta']['searchable'] %}
                                 {% if searchable == 2 or searchable == 3 %}
+                                    <div class="ODRAdvSearch_datafield pure-u-1">
                                     {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
                                         'datatype_id': datatype['id'],
                                         'datafield': datafield
                                     } %}
+                                    </div>
                                 {% endif %}
                             {% endfor %}
 
@@ -135,10 +137,12 @@
                                     {% for datafield in child_datatype['dataFields'] %}
                                         {% set searchable = datafield['dataFieldMeta']['searchable'] %}
                                         {% if searchable == 2 or searchable == 3 %}
+                                            <div class="ODRAdvSearch_datafield pure-u-1">
                                             {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
                                                 'datatype_id': child_datatype['id'],
                                                 'datafield': datafield
                                             } %}
+                                            </div>
                                         {% endif %}
                                     {% endfor %}
 
@@ -177,10 +181,12 @@
                                     {% for datafield in linked_datatype['dataFields'] %}
                                         {% set searchable = datafield['dataFieldMeta']['searchable'] %}
                                         {% if searchable == 2 or searchable == 3 %}
+                                            <div class="ODRAdvSearch_datafield pure-u-1">
                                             {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
                                                 'datatype_id': linked_datatype['id'],
                                                 'datafield': datafield
                                             } %}
+                                            </div>
                                         {% endif %}
                                     {% endfor %}
 
@@ -231,16 +237,16 @@
                 doSearch();
             });
 
-            doSearch();
 
-            {#
-            {% if search_string is defined and search_string != '' %}
+            // If user is on the base search page for a datatype...
             if (window.location.hash.length === 0) {
-                // No need to set up rest of form, just do an immediate search
+                // ...then immediately trigger a search with "default" criteria
                 doSearch();
+
+                // Don't immediately return...the search controls need initialization
+                // return;
             }
-            {% endif %}
-            #}
+
 
             {% if is_datatype_admin %}
 
@@ -398,6 +404,22 @@
                             $(this).parent().slideUp(200);
                     });
 
+                    // Tag fields also need special treatment...
+                    $(content_div).find('.ODRTagSearchDiv').each(function () {
+                        // Search for a selection made in this radio field
+                        var selected = false;
+                        $(this).find('i').each(function () {
+                            if ($(this).hasClass('fa-check') || $(this).hasClass('fa-ban')) {
+                                selected = true;
+                                return false;
+                            }
+                        });
+
+                        // If nothing selected, hide this datafield
+                        if (!selected)
+                            $(this).parent().slideUp(200);
+                    });
+
                     $(this).find('i').removeClass('fa-caret-up').addClass('fa-caret-down');
                 }
             });
@@ -426,8 +448,8 @@
                     $("#datafield_" + datafield_id + "_fn").val('');
             });
 
-            // Tristate checkbox
-            $(".ODRTristateCheckbox").unbind('click').click(function () {
+            // radio Tristate checkbox
+            $(".ODRRadioLabel > .ODRTristateCheckbox").unbind('click').click(function () {
                 // Grab data about the option being clicked
                 var icon = $(this).children('i').first();
                 var input = $(this).children('input').first();
@@ -466,6 +488,56 @@
                     $(input).val(radio_option_id);
                 }
             });
+
+            // tag Tristate checkbox
+            $(".ODRTagLabel > .ODRTristateCheckbox").unbind('click').click(function () {
+                // Grab data about the tag being clicked
+                var tag_item = $(this).parent().parent();
+
+                // If any item is clicked, it'll set all children to selected/unselected...so
+                //  immediately remove the partial class
+                $(this).children('i').first().removeClass('partial');
+
+                if ( $(this).children('i').first().hasClass('fa-check') ) {
+                    // Currently selected, change this tag and all its children to deselected
+                    $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                        // Don't change title attribute of a non-leaf tag
+                        if ( !$(element).hasClass('ODRSearchParentTag') )
+                            $(element).attr('title', 'Search for Datarecords where this tag is unselected');
+
+                        $(element).children('i').first().removeClass('fa-check').addClass('fa-ban');
+
+                        var tag_id = $(element).children('input').first().attr('rel');
+                        $(element).children('input').first().val('-' + tag_id);
+                    });
+                }
+                else if ( $(this).children('i').first().hasClass('fa-ban') ) {
+                    // Currently deselected, change this tag and all its children to blank
+                    $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                        $(element).removeAttr('title');
+                        $(element).children('i').first().removeClass('fa-ban');
+
+                        var tag_id = $(element).children('input').first().attr('rel');
+                        $(element).children('input').first().val('');
+                    });
+                }
+                else {
+                    // Currently blank, change this tag and all its children to selected
+                    $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                        // Don't change title attribute of a non-leaf tag
+                        if ( !$(element).hasClass('ODRSearchParentTag') )
+                            $(element).attr('title', 'Search for Datarecords where this tag is selected');
+
+                        $(element).children('i').first().addClass('fa-check');
+
+                        var tag_id = $(element).children('input').first().attr('rel');
+                        $(element).children('input').first().val(tag_id);
+                    });
+                }
+
+                applyToTagParents( $(tag_item) );
+            });
+
 
             // Shortcut to select all options of a Multiple Radio/Select datafield
             $(".ODRSelectAll").unbind('click').click(function () {
@@ -562,6 +634,43 @@
             });
         });
 
+        function applyToTagParents(source_element) {
+            var parent_tag = $(source_element).parent().parent().not('div');
+            if ( $(parent_tag).length === 0)
+                return;
+
+            // $(parent_tag) should be a <li class="ODRTagItem"> element
+            var parent_checkbox_icon = $(parent_tag).children('label').children('.ODRTristateCheckbox').first().children('i');
+
+            var selected_count = $(parent_tag).children('ul').find('.fa-check').length;
+            var unselected_count = $(parent_tag).children('ul').find('.fa-ban').length;
+            var total_count = $(parent_tag).children('ul').find('.fa').length;
+
+            if (selected_count === 0 && unselected_count === 0) {
+                // No children selected, so this one should be unselected too
+                $(parent_checkbox_icon).removeClass('fa-check fa-ban partial');
+            }
+            else if (selected_count === total_count) {
+                // All children selected, so this one should be selected too
+                $(parent_checkbox_icon).removeClass('fa-ban partial').addClass('fa-check');
+            }
+            else if (unselected_count === total_count) {
+                // All children selected, so this one should be selected too
+                $(parent_checkbox_icon).removeClass('fa-check partial').addClass('fa-ban');
+            }
+            else if (selected_count > 0) {
+                // Some children selected, so this one should be partially selected
+                $(parent_checkbox_icon).removeClass('fa-ban').addClass('fa-check partial');
+            }
+            else if (unselected_count > 0) {
+                // No children are selected, but at least one child is unselected...so this one
+                //  should be partially unselected
+                $(parent_checkbox_icon).removeClass('fa-check').addClass('fa-ban partial');
+            }
+
+            applyToTagParents( $(parent_tag) );
+        }
+
         function changeSearch() {
             if ($("#search_type").val() === 'basic') {
                 // Show all advanced search datafields
@@ -590,9 +699,9 @@
         }
 
         function doReset() {
-            // radio fields
+            // radio and tag fields
             $(".ODRTristateCheckbox").removeAttr('title');
-            $(".ODRTristateCheckbox > .fa").removeClass('fa-check').removeClass('fa-ban');
+            $(".ODRTristateCheckbox > .fa").removeClass('fa-check fa-ban partial');
             $(".ODRTristateCheckbox > input").val('');
 
             // general field
@@ -616,14 +725,14 @@
         }
 
         function doSearch() {
-
             // Values for Radio datafields need to be manually set
             $(".ODRRadioSearchDiv").each(function () {
-
                 var data = $(this).attr('id').split(/_/);
                 var datafield_id = data[1];
+
+                // Reset the input's value since this is rebuilding the search value from scratch
                 var datafield = $("#datafield_" + datafield_id);
-                datafield.val('')
+                datafield.val('');
 
                 var str = '';
                 var first_selection = true;
@@ -648,6 +757,40 @@
 
                 if (has_selections)
                     datafield.val(str);
+            });
+
+            // Same for tag datafields
+            $(".ODRTagSearchDiv").each(function () {
+                var data = $(this).attr('id').split(/_/);
+                var datafield_id = data[1];
+
+                // Reset the input's value since this is rebuilding the search value from scratch
+                var datafield = $("#datafield_" + datafield_id);
+                datafield.val('');
+
+                var str = '';
+                var first_selection = true;
+                var has_selections = false;
+
+                $(this).find('input').not('.ODRSearchParentTag').each(function () {
+                    // Grab the tag
+                    var value = $(this).val().trim();
+                    if (value == '')
+                        return;
+
+                    has_selections = true;
+
+                    if (!first_selection) {
+                        str += ',' + value;
+                    }
+                    else {
+                        first_selection = false;
+                        str += value;
+                    }
+                });
+
+                if (has_selections)
+                    $(datafield).val(str);
             });
 
             // Ensure the two parts of the search criteria for a file/image match
@@ -682,7 +825,7 @@
                 dataType: 'json',
                 data: $("#search_form").serialize(),
                 success: function (data, textStatus, jqXHR) {
-                    {% if intent == "searching" %}
+                {% if intent == "searching" %}
                     // Overwrite any currently existing tab id, since a new search was performed
                     if (window.sessionStorage.getItem('odr_tab_id')) {
                         // Tell the server to stop storing data for the old tab
@@ -703,11 +846,11 @@
                     url = url.substr(0, url.length - 2);
                     url += $("#selected_theme_id").val() + '/' + data.d.search_key + '/1';
 
-                    // Just reset the hash.  Hashchange event ignores this for main page
-                    window.location.hash = url;
-                    loadSearchContent(url)
+                    // UpdateURL() will end up forcing a hashchange event one way or another, causing
+                    //  the event handler in common_js.html.twig to then call loadSearchContent()
+                    UpdateURL(url);
 
-                    {% elseif intent == "linking" %}
+                {% elseif intent == "linking" %}
                     var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
                     url = url.substr(0, url.length - 10);
                     url += data.d.search_key + '/1/linking';
@@ -722,10 +865,11 @@
                             hideSearchOverlay();
                         }
                     });
-                    {% endif %}
+                {% endif %}
                 },
                 error: function (jqXHR, textStatus, errorThrown) {
-                    // Don't need to do anything specific on an error
+                    // TODO - should everything get reset on an error?
+                    // doReset();
                 },
                 complete: function (jqXHR, textStatus) {
 

@@ -255,8 +255,8 @@ class ODRRenderService
      *
      * @param ODRUser $user
      * @param DataRecord $datarecord
-     * @param string $search_key
-     * @param string $search_theme_id
+     * @param string|null $search_key
+     * @param string|null $search_theme_id
      * @param Theme|null $theme
      *
      * @return string
@@ -612,7 +612,7 @@ class ODRRenderService
                 $properties = array(
                     'sourceSyncVersion' => $source_theme_version
                 );
-                $this->emm_service->updateThemeMeta($user, $t, $properties, true);    // don't flush immediately, if possible...
+                $this->emm_service->updateThemeMeta($user, $t, $properties, true);    // don't flush immediately...
                 $need_flush = true;
             }
         }
@@ -970,17 +970,15 @@ class ODRRenderService
      * Renders and returns the HTML for a single datafield on the edit page.
      *
      * @param ODRUser $user
-     * @param DataType $source_datatype
-     * @param ThemeElement $theme_element
-     * @param DataFields $datafield
-     * @param DataRecord $datarecord
+     * @param DataType $source_datatype The Datatype of the top-level Datarecord the edit page is currently displaying
+     * @param ThemeElement $theme_element The id of the ThemeElement being re-rendered
+     * @param DataFields $datafield The id of the Datafield inside $datarecord_id being re-rendered
+     * @param DataRecord $datarecord The id of the Datarecord being re-rendered
      *
      * @return string
      */
     public function reloadEditDatafield($user, $source_datatype, $theme_element, $datafield, $datarecord)
     {
-        throw new ODRNotImplementedException();
-
         if ($datafield->getDataType()->getId() !== $datarecord->getDataType()->getId())
             throw new ODRBadRequestException();
 
@@ -992,7 +990,7 @@ class ODRRenderService
         // It doesn't make sense to synchronize the entire theme when just the datafield is getting
         //  reloaded TODO - correct?
 
-        $template_name = 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig';
+        $template_name = 'ODRAdminBundle:Edit:edit_datafield.html.twig';
         return self::reloadDatafield($user, $template_name, $extra_parameters, $source_datatype, $theme_element, $datafield, $datarecord);
     }
 
@@ -1053,18 +1051,38 @@ class ODRRenderService
         $parameters = array();
         if ( isset($extra_parameters['token_list']) ) {
             // This is a datafield reload for the edit page...need to locate array entries for
-            //  the datatype, datarecord, and datafield...also need to figure out whether this is
-            //  for a linked datarecord or not
-            /*
-                {% include 'ODRAdminBundle:Edit:edit_datafield.html.twig' with {
-                    'datatype': datatype,
-                    'datarecord': datarecord,
-                    'datafield': datafield,
-                    'is_link': is_link,
-                    'force_image_reload' : false,
-                    'token_list': token_list,
-                } %}
-            */
+            //  the datatype, datarecord, and datafield...
+
+            // Need to locate the array entry for the datatype...
+            $target_datatype = $datatype_array[$initial_datatype_id];
+
+            // ...and the datarecord...
+            $target_datarecord = $datarecord_array[$initial_datarecord_id];
+
+            // ...and the datafield
+            $target_datafield = $target_datatype['dataFields'][$datafield_id];
+
+            // Also need to figure out whether this is for a linked datarecord or not
+            $is_link = false;
+            if ( $source_datatype->getId() !== $datarecord->getDataType()->getGrandparent()->getId() )
+                $is_link = true;
+
+            // Tag datafields need to know whether the user is a datatype admin or not
+            $is_datatype_admin = 0;
+            if ( $this->pm_service->isDatatypeAdmin($user, $source_datatype) )
+                $is_datatype_admin = 1;
+
+
+            // The 'token_list' and 'force_image_reload' parameters will be merged into this shortly
+            $parameters = array(
+                'datatype' => $target_datatype,
+                'datarecord' => $target_datarecord,
+                'datafield' => $target_datafield,
+
+                'is_link' => $is_link,
+                'force_image_reload' => false,
+                'is_datatype_admin' => $is_datatype_admin,
+            );
         }
         else {
             // This is a datafield reload for the master layout design page...need to locate the

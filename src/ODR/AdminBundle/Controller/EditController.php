@@ -33,6 +33,7 @@ use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\OpenRepository\GraphBundle\Plugins\GraphPluginInterface;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -58,6 +59,7 @@ use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -147,8 +149,7 @@ class EditController extends ODRCustomController
             }
 
             // Create a new top-level datarecord
-            $delay_flush = true;
-            $datarecord = $entity_create_service->createDatarecord($user, $datatype, $delay_flush);
+            $datarecord = $entity_create_service->createDatarecord($user, $datatype, true);    // don't flush immediately...
 
             // Datarecord is ready, remove provisioned flag
             $datarecord->setProvisioned(false);
@@ -254,8 +255,7 @@ class EditController extends ODRCustomController
                 throw new ODRBadRequestException('EditController::addchildrecordAction() called for top-level datatype');
 
             // Create a new top-level datarecord...
-            $delay_flush = true;
-            $datarecord = $entity_create_service->createDatarecord($user, $datatype, $delay_flush);
+            $datarecord = $entity_create_service->createDatarecord($user, $datatype, true);    // don't flush immediately...
 
             // Set parent/grandparent properties so this becomes a child datarecord
             $datarecord->setGrandparent($grandparent_datarecord);
@@ -723,6 +723,8 @@ class EditController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -769,7 +771,7 @@ class EditController extends ODRCustomController
                 $public_date = new \DateTime('2200-01-01 00:00:00');
 
                 $properties = array('publicDate' => $public_date);
-                parent::ODR_copyFileMeta($em, $user, $file, $properties);
+                $emm_service->updateFileMeta($user, $file, $properties);
 
                 // Delete the decrypted version of the file, if it exists
                 $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
@@ -784,10 +786,11 @@ class EditController extends ODRCustomController
                 $public_date = new \DateTime();
 
                 $properties = array('publicDate' => $public_date);
-                parent::ODR_copyFileMeta($em, $user, $file, $properties);
+                $emm_service->updateFileMeta($user, $file, $properties);
+
 
                 // ----------------------------------------
-                // Generate the url for cURL to use
+                // Need to decrypt the file...generate the url for cURL to use
                 $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
 
                 $pheanstalk = $this->get('pheanstalk');
@@ -886,9 +889,10 @@ class EditController extends ODRCustomController
             $crypto_service = $this->container->get('odr.crypto_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-
 
 
             // Grab the necessary entities
@@ -938,7 +942,7 @@ class EditController extends ODRCustomController
                 $public_date = new \DateTime('2200-01-01 00:00:00');
 
                 $properties = array('publicDate' => $public_date );
-                parent::ODR_copyImageMeta($em, $user, $image, $properties);
+                $emm_service->updateImageMeta($user, $image, $properties);
 
                 // Delete the decrypted version of the image and all of its children, if any of them exist
                 foreach ($all_images as $img) {
@@ -955,7 +959,7 @@ class EditController extends ODRCustomController
                 $public_date = new \DateTime();
 
                 $properties = array('publicDate' => $public_date);
-                parent::ODR_copyImageMeta($em, $user, $image, $properties);
+                $emm_service->updateImageMeta($user, $image, $properties);
 
                 // Immediately decrypt the image and all of its children...don't need to specify
                 //  a filename because the images are guaranteed to be public
@@ -1137,6 +1141,8 @@ class EditController extends ODRCustomController
             $crypto_service = $this->container->get('odr.crypto_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1306,7 +1312,7 @@ class EditController extends ODRCustomController
                     'publicDate' => $old_image_meta->getPublicDate(),
                     'display_order' => $old_image_meta->getDisplayorder()
                 );
-                parent::ODR_copyImageMeta($em, $user, $new_image, $properties);
+                $emm_service->updateImageMeta($user, $new_image, $properties);
 
 
                 // Ensure no decrypted version of the original image exists on the server
@@ -1367,6 +1373,8 @@ class EditController extends ODRCustomController
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1402,7 +1410,8 @@ class EditController extends ODRCustomController
             // --------------------
 
 
-            // Ensure that the provided image ids are all from the same datarecordfield, and that all images from that datarecordfield are listed in the post
+            // Ensure that the provided image ids are all from the same datarecordfield, and that
+            //  all images from that datarecordfield are listed in the post
             $query = $em->createQuery(
                'SELECT e
                 FROM ODRAdminBundle:Image AS e
@@ -1429,15 +1438,19 @@ class EditController extends ODRCustomController
 
 
             // Update the image order based on the post request if required
+            $changes_made = false;
             foreach ($post as $index => $image_id) {
                 $image = $all_images[$image_id];
 
                 if ( $image->getDisplayorder() != $index ) {
-//print 'set "'.$image->getOriginalFilename().'" to index '.$index."\n";
                     $properties = array('display_order' => $index);
-                    parent::ODR_copyImageMeta($em, $user, $image, $properties);
+                    $emm_service->updateImageMeta($user, $image, $properties, true);    // don't flush immediately...
+                    $changes_made = true;
                 }
             }
+
+            if ($changes_made)
+                $em->flush();
 
 
             // Mark the image's datarecord as updated
@@ -1479,6 +1492,8 @@ class EditController extends ODRCustomController
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
@@ -1514,14 +1529,14 @@ class EditController extends ODRCustomController
                 $public_date = new \DateTime('2200-01-01 00:00:00');
 
                 $properties = array('publicDate' => $public_date);
-                parent::ODR_copyDatarecordMeta($em, $user, $datarecord, $properties);
+                $emm_service->updateDatarecordMeta($user, $datarecord, $properties);
             }
             else {
                 // Make the datarecord non-public
                 $public_date = new \DateTime();
 
                 $properties = array('publicDate' => $public_date);
-                parent::ODR_copyDatarecordMeta($em, $user, $datarecord, $properties);
+                $emm_service->updateDatarecordMeta($user, $datarecord, $properties);
             }
 
 
@@ -1578,6 +1593,10 @@ class EditController extends ODRCustomController
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
@@ -1607,6 +1626,11 @@ class EditController extends ODRCustomController
                     throw new ODRNotFoundException('RadioOption');
             }
 
+            // This should only work on a Radio field
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio')
+                throw new ODRBadRequestException('Unable to select/deselect a radio option for a '.$typeclass.' field');
+
 
             // --------------------
             // Determine user privileges
@@ -1620,7 +1644,7 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Locate the existing datarecordfield entry, or create one if it doesn't exist
-            $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
+            $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
 
             // Course of action differs based on whether multiple selections are allowed
             $typename = $datafield->getFieldType()->getTypeName();
@@ -1628,31 +1652,35 @@ class EditController extends ODRCustomController
             // A RadioOption id of 0 has no effect on a Multiple Radio/Select datafield
             if ( $radio_option_id != 0 && ($typename == 'Multiple Radio' || $typename == 'Multiple Select') ) {
                 // Don't care about selected status of other RadioSelection entities...
-                $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf);
+                $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
 
                 // Default to a value of 'selected' if an older RadioSelection entity does not exist
                 $new_value = 1;
                 if ($radio_selection !== null) {
-                    // An older version does exist...determine what the new value should be
+                    // An older version does exist...toggle the existing value for the new value
                     if ($radio_selection->getSelected() == 1)
                         $new_value = 0;
                 }
 
                 // Update the RadioSelection entity to match $new_value
                 $properties = array('selected' => $new_value);
-                parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
+                $emm_service->updateRadioSelection($user, $radio_selection, $properties);
             }
             else if ($typename == 'Single Radio' || $typename == 'Single Select') {
                 // Probably need to change selected status of at least one other RadioSelection entity...
                 /** @var RadioSelection[] $radio_selections */
-                $radio_selections = $repo_radio_selection->findBy( array('dataRecordFields' => $drf->getId()) );
+                $radio_selections = $repo_radio_selection->findBy(
+                    array(
+                        'dataRecordFields' => $drf->getId()
+                    )
+                );
 
                 foreach ($radio_selections as $rs) {
                     if ( $radio_option_id != $rs->getRadioOption()->getId() ) {
                         if ($rs->getSelected() == 1) {
                             // Deselect all RadioOptions that are selected and are not the one the user wants to be selected
                             $properties = array('selected' => 0);
-                            parent::ODR_copyRadioSelection($em, $user, $rs, $properties);
+                            $emm_service->updateRadioSelection($user, $rs, $properties, true);    // should only be one, technically...
                         }
                     }
                 }
@@ -1660,16 +1688,19 @@ class EditController extends ODRCustomController
                 // If the user selected something other than "<no option selected>"...
                 if ($radio_option_id != 0) {
                     // ...locate the RadioSelection entity the user wanted to set to selected
-                    $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf);
+                    $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
 
                     // ...ensure it's selected
                     $properties = array('selected' => 1);
-                    parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
+                    $emm_service->updateRadioSelection($user, $radio_selection, $properties, true);    // flushing doesn't help...
                 }
+
+                // Flush now that all the changes have been made
+                $em->flush();
             }
             else {
                 // No point doing anything if not a radio fieldtype
-                throw new ODRBadRequestException('RecordController::radioselectionAction() called on Datafield that is not a Radio FieldType');
+                throw new ODRBadRequestException('EditController::radioselectionAction() called on Datafield that is not a Radio FieldType');
             }
 
 
@@ -1698,7 +1729,7 @@ class EditController extends ODRCustomController
     /**
      * Parses a $_POST request to update the contents of a datafield.
      * File and Image uploads are handled by @see FlowController
-     * Changes to RadioSelections are handled by RecordController::radioselectionAction()
+     * Changes to RadioSelections are handled by EditController::radioselectionAction()
      *
      * @param integer $datarecord_id  The datarecord of the storage entity being modified
      * @param integer $datafield_id   The datafield of the storage entity being modified
@@ -1723,6 +1754,10 @@ class EditController extends ODRCustomController
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
@@ -1796,17 +1831,14 @@ class EditController extends ODRCustomController
                     break;
 
                 default:
-                    // Radio fieldtypes aren't supposed to be updated here ever
+                    // Radio and Tag fieldtypes aren't supposed to be updated here ever
                     // Files/Images might be permissible in the future
-                    throw new ODRBadRequestException('RecordController::updateAction() called for a Datafield using the '.$typeclass.' Radio FieldType');
+                    throw new ODRBadRequestException('EditController::updateAction() called for a Datafield using the '.$typeclass.' FieldType');
                     break;
             }
 
-            // Ensure the associated storage entity exists
-            /** @var Boolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
-            $storage_entity = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()));
-            if ($storage_entity == null)
-                $storage_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+            // Load the existing storage entity if it exists, or create a new one if it doesn't
+            $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
             $old_value = $storage_entity->getValue();
 
 
@@ -1851,7 +1883,7 @@ class EditController extends ODRCustomController
 
 
                         // Save the value
-                        parent::ODR_copyStorageEntity($em, $user, $storage_entity, array('value' => $new_value));
+                        $emm_service->updateStorageEntity($user, $storage_entity, array('value' => $new_value));
 
 
                         // TODO Create mirror function for datatypes that have metadata
@@ -2109,13 +2141,14 @@ class EditController extends ODRCustomController
     /**
      * Given a datarecord and datafield, re-render and return the html for that datafield.
      *
-     * @param integer $datafield_id  The database id of the DataField inside the DataRecord to re-render.
-     * @param integer $datarecord_id The database id of the DataRecord to re-render
+     * @param integer $source_datarecord_id The id of the top-level Datarecord the edit page is currently displaying
+     * @param integer $datarecord_id The id of the Datarecord being re-rendered
+     * @param integer $datafield_id  The id of the Datafield inside $datarecord_id to re-render
      * @param Request $request
      *
      * @return Response
      */
-    public function reloaddatafieldAction($datafield_id, $datarecord_id, Request $request)
+    public function reloaddatafieldAction($source_datarecord_id, $datarecord_id, $datafield_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2123,16 +2156,17 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Don't actually need these for a datafield reload, but the parameters are expected
-            $search_theme_id = '';
-            $search_key = '';
-
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $ti_service */
+            $ti_service = $this->container->get('odr.theme_info_service');
+
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -2149,7 +2183,14 @@ class EditController extends ODRCustomController
                 throw new ODRNotFoundException('Datarecord');
 
             if ($datarecord->getDataType()->getId() !== $datatype->getId())
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('The given datarecord does not belong to the given datatype');
+
+
+            /** @var Datarecord $source_datarecord */
+            $source_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($source_datarecord_id);
+            if ($source_datarecord == null)
+                throw new ODRNotFoundException('Source Datarecord');
+
 
             // --------------------
             // Determine user privileges
@@ -2161,8 +2202,33 @@ class EditController extends ODRCustomController
             // --------------------
 
 
+            // Need to locate the theme element being reloaded...
+            $master_theme = $ti_service->getDatatypeMasterTheme($datatype->getId());
+            $query = $em->createQuery(
+               'SELECT te
+                FROM ODRAdminBundle:Theme AS t
+                JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
+                JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
+                WHERE t.id = :theme_id AND tdf.dataField = :datafield_id
+                AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'theme_id' => $master_theme->getId(),
+                    'datafield_id' => $datafield->getId()
+                )
+            );
+            $result = $query->getResult();
+            /** @var ThemeElement $theme_element */
+            $theme_element = $result[0];
+
             $return['d'] = array(
-                'html' => self::GetDisplayData($search_theme_id, $search_key, $datarecord_id, 'datafield', $datafield_id, $request),
+                'html' => $odr_render_service->reloadEditDatafield(
+                    $user,
+                    $source_datarecord->getDataType(),
+                    $theme_element,
+                    $datafield,
+                    $datarecord
+                )
             );
         }
         catch (\Exception $e) {
@@ -2204,8 +2270,6 @@ class EditController extends ODRCustomController
         $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
 
-        /** @var CloneThemeService $clone_theme_service */
-        $clone_theme_service = $this->container->get('odr.clone_theme_service');
         /** @var DatatypeInfoService $dti_service */
         $dti_service = $this->container->get('odr.datatype_info_service');
         /** @var DatarecordInfoService $dri_service */
@@ -2485,6 +2549,7 @@ class EditController extends ODRCustomController
                     'datarecord' => $datarecord,
                     'datafield' => $datafield,
 
+                    'is_link' => $is_link,
                     'force_image_reload' => true,
 
                     'token_list' => $token_list,
@@ -2678,7 +2743,7 @@ class EditController extends ODRCustomController
 
                 // ...require it to match the datatype being rendered
                 if ($search_theme->getDataType()->getId() !== $datatype->getId())
-                    throw new ODRBadRequestException();
+                    throw new ODRBadRequestException('The given search theme does not belong to the given datatype');
             }
 
 

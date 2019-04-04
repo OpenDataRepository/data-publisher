@@ -1588,6 +1588,7 @@ class ValidationController extends ODRCustomController
 
             'DataRecordFields',
             'RadioOptions',
+            'Tags',
             'ImageSizes',
         );
         print "The process of deleting datafields/datarecords currently ignores these entities...\n";

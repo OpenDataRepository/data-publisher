@@ -1,0 +1,14 @@
+{% spaceless %}
+
+<ul class="ODRTagGroupContainer"><li class="">
+    <ul class="ODRTagGroup ODRTopLevelTagGroup">
+        {% for tag_id, tag in stacked_tags %}
+            {% include 'ODRAdminBundle:Tags:tag.html.twig' with {
+                'datafield' : datafield,
+                'tag': tag,
+            } %}
+        {% endfor %}
+    </ul>
+</li></ul>
+
+{% endspaceless %}

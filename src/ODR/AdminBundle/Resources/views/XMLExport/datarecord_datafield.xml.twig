@@ -5,6 +5,7 @@
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
+{% set datarecordfield = '' %}
 {% set valuefield = '' %}
 {% set valuefield_value = '' %}
 {% if datarecord.dataRecordFields[ datafield.id ] is defined %}
@@ -155,6 +156,12 @@
         {% endfor %}
         </value>
     {% endif %}
+
+{% elseif field_typename == "Tags" %}
+    {% include 'ODRAdminBundle:XMLExport:datarecord_tag_wrapper.xml.twig' with {
+        'datafield': datafield,
+        'drf': datarecordfield,
+    } %}
 
 {% elseif field_typename == "Boolean" %}
     <selected>{% if valuefield_value == 1 %}1{% else %}0{% endif %}</selected>

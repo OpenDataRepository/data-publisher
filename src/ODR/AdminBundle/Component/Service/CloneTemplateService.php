@@ -17,12 +17,16 @@ namespace ODR\AdminBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\RadioOptions;
+use ODR\AdminBundle\Entity\Tags;
+use ODR\AdminBundle\Entity\TagTree;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+// Services
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -46,6 +50,11 @@ class CloneTemplateService
      * @var CacheService
      */
     private $cache_service;
+
+    /**
+     * @var SearchCacheService
+     */
+    private $search_cache_service;
 
     /**
      * @var CloneThemeService
@@ -73,6 +82,11 @@ class CloneTemplateService
     private $ti_service;
 
     /**
+     * @var UUIDService
+     */
+    private $uuid_service;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -93,6 +107,11 @@ class CloneTemplateService
     private $template_radio_options;
 
     /**
+     * @var Tags[]
+     */
+    private $template_tags;
+
+    /**
      * @var DataType[]
      */
     private $derived_datatypes;
@@ -108,6 +127,16 @@ class CloneTemplateService
     private $derived_radio_options;
 
     /**
+     * @var Tags[]
+     */
+    private $derived_tags;
+
+    /**
+     * @var TagTree[]
+     */
+    private $derived_tag_trees;
+
+    /**
      * @var DataType[]
      */
     private $modified_linked_datatypes;
@@ -118,41 +147,52 @@ class CloneTemplateService
      *
      * @param EntityManager $entity_manager
      * @param EntityMetaModifyService $entityMetaModifyService
-     * @param CacheService $cache_service
+     * @param CacheService $cacheService
+     * @param SearchCacheService $searchCacheService
      * @param CloneThemeService $cloneThemeService
      * @param DatatypeInfoService $datatypeInfoService
      * @param EntityCreationService $entityCreationService
      * @param PermissionsManagementService $pm_service
      * @param ThemeInfoService $themeInfoService
+     * @param UUIDService $UUIDService
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         EntityMetaModifyService $entityMetaModifyService,
-        CacheService $cache_service,
+        CacheService $cacheService,
+        SearchCacheService $searchCacheService,
         CloneThemeService $cloneThemeService,
         DatatypeInfoService $datatypeInfoService,
         EntityCreationService $entityCreationService,
         PermissionsManagementService $pm_service,
         ThemeInfoService $themeInfoService,
+        UUIDService $UUIDService,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->emm_service = $entityMetaModifyService;
-        $this->cache_service = $cache_service;
+        $this->cache_service = $cacheService;
+        $this->search_cache_service = $searchCacheService;
         $this->ct_service = $cloneThemeService;
         $this->dti_service = $datatypeInfoService;
         $this->ec_service = $entityCreationService;
         $this->pm_service = $pm_service;
         $this->ti_service = $themeInfoService;
+        $this->uuid_service = $UUIDService;
         $this->logger = $logger;
 
         $this->template_datatypes = array();
         $this->template_datafields = array();
         $this->template_radio_options = array();
+        $this->template_tags = array();
+
         $this->derived_datatypes = array();
         $this->derived_datafields = array();
         $this->derived_radio_options = array();
+        $this->derived_tags = array();
+        $this->derived_tag_trees = array();
+
         $this->modified_linked_datatypes = array();
     }
 
@@ -312,7 +352,6 @@ class CloneTemplateService
             'dataFields' => 1,
             'descendants' => 1,
 
-            // TODO - utilize $copy_theme_structure ?
             'copy_theme_structure' => 1,
         );
 
@@ -365,6 +404,8 @@ class CloneTemplateService
             'masterDataField' => 1,
             'fieldType' => 1,
             'radioOptions' => 1,
+            'tags' => 1,
+            'tagTree' => 1,
         );
 
         foreach ($datafields as $df_id => $df) {
@@ -384,9 +425,55 @@ class CloneTemplateService
                     $new_ro_list[ $ro['radioOptionUuid'] ] = $ro['optionName'];
                 $datafields[$df_id]['radioOptions'] = $new_ro_list;
             }
+
+            // If tag tree entries exist, they need to be flattened and stored by tagUuid instead
+            //  of by tag ID...since they're stacked, this needs to be done recursively
+            if ( isset($df['tags']) ) {
+                $new_tag_list = array();
+                $new_tag_tree = array();
+                self::cleanTagArray($df['tags'], $new_tag_list, $new_tag_tree, null);
+
+                $datafields[$df_id]['tags'] = $new_tag_list;
+                $datafields[$df_id]['tagTree'] = $new_tag_tree;
+            }
         }
 
         return $datafields;
+    }
+
+
+    /**
+     * Because tags are stored in stacked format, recursive shennanigans are needed to flatten them...
+     *
+     * @param array $tag_array
+     * @param array $new_tag_list
+     * @param array $new_tag_tree
+     * @param string $parent_tag_uuid
+     */
+    private function cleanTagArray($tag_array, &$new_tag_list, &$new_tag_tree, $parent_tag_uuid)
+    {
+        foreach ($tag_array as $tag_id => $tag) {
+            $tag_uuid = $tag['tagUuid'];
+            $tag_name = $tag['tagName'];
+            $display_order = $tag['tagMeta']['displayOrder'];
+
+            // Flatten the tag array and store by uuid...
+            $new_tag_list[$tag_uuid] = array(
+                'tagName' => $tag_name,
+                'displayOrder' => $display_order,
+            );
+
+            // Also convert the tag tree from parent_id => array of child_ids to store uuids instead
+            if ( !is_null($parent_tag_uuid) ) {
+                if ( !isset($new_tag_tree[$parent_tag_uuid]) )
+                    $new_tag_tree[$parent_tag_uuid] = array();
+                $new_tag_tree[$parent_tag_uuid][$tag_uuid] = '';
+            }
+
+            // If this tag has children, continue to flatten them
+            if ( isset($tag['children']) )
+                self::cleanTagArray($tag['children'], $new_tag_list, $new_tag_tree, $tag_uuid);
+        }
     }
 
 
@@ -424,7 +511,14 @@ class CloneTemplateService
                     $template_datafields = $template_array[$t_dt_id]['dataFields'];
 
                     if ( !isset($template_datafields[$master_df_id]) ) {
-                        // TODO - field deleted out of template datatype
+                        // This datafield got deleted out of the template datatype...create a "fake"
+                        //  entry so that syncDatatype() can figure out it needs to delete the
+                        //  relevant derived datafield
+                        $template_array[$t_dt_id]['dataFields'][$master_df_id] = array(
+                            'id' => $master_df_id,
+                            'masterDataField' => null,
+                            'deleted' => true,
+                        );
                     }
                     else {
                         // Field exists
@@ -436,17 +530,61 @@ class CloneTemplateService
 //                            $change_made = true;
                         }
 
+                        // Need to check radio options...
                         if ( isset($template_datafields[$master_df_id]['radioOptions']) ) {
-                            // Check radio options separately...
                             $template_options = $template_datafields[$master_df_id]['radioOptions'];
                             $derived_options = $derived_datafields[$df_id]['radioOptions'];
-                            $new_radio_options = self::removeMatchingRadioOptions($template_options, $derived_options);
+                            $radio_option_changelists = self::buildRadioOptionsChangelist($template_options, $derived_options);
 
-                            if ( count($new_radio_options) > 0 ) {
+                            if ( count($radio_option_changelists) > 0 ) {
                                 $change_made = true;
-                                $template_array[$t_dt_id]['dataFields'][$master_df_id]['radioOptions'] = $new_radio_options;
+                                $template_array[$t_dt_id]['dataFields'][$master_df_id]['radioOptions'] = $radio_option_changelists;
+                            }
+//                            else {
+//                                $template_array[$t_dt_id]['dataFields'][$master_df_id]['radioOptions'] = array();
+//                            }
+                        }
+
+                        // Need to check tags...
+                        if ( isset($template_datafields[$master_df_id]['tags']) ) {
+                            $template_tags = $template_datafields[$master_df_id]['tags'];
+                            $derived_tags = $derived_datafields[$df_id]['tags'];
+                            $tags_changelist = self::buildTagsChangelist($template_tags, $derived_tags);
+
+                            if ( count($tags_changelist) > 0 ) {
+                                $change_made = true;
+                                if ( isset($tags_changelist['created']) ) {
+                                    $template_array[$t_dt_id]['dataFields'][$master_df_id]['tags']['created'] = $tags_changelist['created'];
+                                    $template_array[$t_dt_id]['dataFields'][$master_df_id]['tags']['updated'] = $tags_changelist['updated'];
+                                    $template_array[$t_dt_id]['dataFields'][$master_df_id]['tags']['deleted'] = $tags_changelist['deleted'];
+                                }
+                            }
+                            else {
+                                // Can't leave these lying around
+                                $template_array[$t_dt_id]['dataFields'][$master_df_id]['tags'] = array(
+                                    'created' => array(),
+                                    'updated' => array(),
+                                    'deleted' => array(),
+                                );
                             }
                         }
+
+                        // Need to check tag hierarchy...
+                        if ( isset($template_datafields[$master_df_id]['tagTree']) ) {
+                            $template_tag_hierarchy = $template_datafields[$master_df_id]['tagTree'];
+                            $derived_tag_hierarchy = $derived_datafields[$df_id]['tagTree'];
+                            $tag_tree_changelist = self::buildTagTreeChangelist($template_tag_hierarchy, $derived_tag_hierarchy);
+
+                            if ( count($tag_tree_changelist) > 0 ) {
+                                $change_made = true;
+                                $template_array[$t_dt_id]['dataFields'][$master_df_id]['tagTree'] = $tag_tree_changelist;
+                            }
+                            else {
+                                // Can't leave these lying around
+                                $template_array[$t_dt_id]['dataFields'][$master_df_id]['tagTree'] = array();
+                            }
+                        }
+
 
                         if ( !$change_made ) {
                             // If there's no difference between this field in the derived datatype
@@ -474,6 +612,7 @@ class CloneTemplateService
 
                 if ( !isset($template_array[$t_dt_id]['descendants'][$child_master_id]) ) {
                     // TODO - childtype deleted out of template datatype
+                    // TODO - linked datatype removed from template datatype
                 }
                 else {
                     // Recursively determine if any changes were made to these child datatypes
@@ -524,27 +663,158 @@ class CloneTemplateService
 
 
     /**
-     * For logisitical simplicity, it's easier to split this out from
-     * self::removeMatchingEntries()...
+     * For logisitical simplicity, it's easier to split this out from self::removeMatchingEntries()...
      *
      * @param array $template_options
      * @param array $derived_options
      *
      * @return array
      */
-    private function removeMatchingRadioOptions($template_options, $derived_options)
+    private function buildRadioOptionsChangelist($template_options, $derived_options)
     {
-        // For every radio option listed in the template datatype...
+        $changelist = array(
+            'created' => array(),
+            'updated' => array(),
+            'deleted' => array(),
+        );
+
+        // Check every radio option listed in the template datatype...
         foreach ($template_options as $ro_uuid => $option_name) {
-            // ...if the derived datatype has a radio option with the same uuid and label...
-            if ( isset($derived_options[$ro_uuid]) && $derived_options[$ro_uuid] === $option_name ) {
-                // ...then the derived dataype's radio option doesn't need to be synchronized
-                unset( $template_options[$ro_uuid] );
+            if ( !isset($derived_options[$ro_uuid]) ) {
+                // The derived datatype does not have this radio option
+                $changelist['created'][$ro_uuid] = $option_name;
+            }
+            else if ( $derived_options[$ro_uuid] !== $option_name ) {
+                // The radio option in the derived datatype has a different name
+                $changelist['updated'][$ro_uuid] = $option_name;
             }
         }
 
-        // Return the pruned array
-        return $template_options;
+        // Check every radio option listed in the derived datatype...
+        foreach ($derived_options as $ro_uuid => $option_name) {
+            if ( !isset($template_options[$ro_uuid]) ) {
+                // Derived datatypes can't create their own radio options, so an entry in the derived
+                //  datatype but not in the template datatype indicates a deleted radio option
+                $changelist['deleted'][$ro_uuid] = $option_name;
+            }
+        }
+
+        // If there were any changes made, return them
+        if ( !empty($changelist['created']) || !empty($changelist['updated']) || !empty($changelist['deleted']) )
+            return $changelist;
+        else
+            return array();
+    }
+
+
+    /**
+     * For logisitical simplicity, it's easier to split this out from self::removeMatchingEntries()...
+     *
+     * @param array $template_tags
+     * @param array $derived_tags
+     *
+     * @return array
+     */
+    private function buildTagsChangelist($template_tags, $derived_tags)
+    {
+        $changelist = array(
+            'created' => array(),
+            'updated' => array(),
+            'deleted' => array(),
+        );
+
+        // Check every tag listed in the template datatype...
+        foreach ($template_tags as $tag_uuid => $tag_data) {
+            // Need to check tag name and display order...
+            $template_tag_name = $tag_data['tagName'];
+            $template_display_order = $tag_data['displayOrder'];
+
+            if ( !isset($derived_tags[$tag_uuid]) ) {
+                // The derived datatype does not have this tag
+                $changelist['created'][$tag_uuid] = $tag_data;
+            }
+            else {
+                $derived_tag_name = $derived_tags[$tag_uuid]['tagName'];
+                $derived_display_order = $derived_tags[$tag_uuid]['displayOrder'];
+
+                // If the template tag's name/displayOrder does not match the name/displayOrder for
+                //  the derived tag...
+                if ( $template_tag_name !== $derived_tag_name
+                    || $template_display_order !== $derived_display_order
+                ) {
+                    // ...then the derived tag is going to need updated
+                    $changelist['updated'][$tag_uuid] = $tag_data;
+                }
+            }
+        }
+
+        // Derived datatypes can't create their own tags, so an entry in the derived datatype that
+        //  isn't in the template datatype indicates the template deleted a tag
+        foreach ($derived_tags as $tag_uuid => $tag_data) {
+            if ( !isset($template_tags[$tag_uuid]) )
+                $changelist['deleted'][$tag_uuid] = $tag_data;
+
+            // Don't need check for name/displayOrder updates here
+        }
+
+        // If there were any changes made, return them
+        if ( !empty($changelist['created']) || !empty($changelist['updated']) || !empty($changelist['deleted']) )
+            return $changelist;
+        else
+            return array();
+    }
+
+
+    /**
+     * For logisitical simplicity, it's easier to split this out from self::removeMatchingEntries()...
+     *
+     * @param array $template_tag_hierarchy
+     * @param array $derived_tag_hierarchy
+     *
+     * @return array
+     */
+    private function buildTagTreeChangelist($template_tag_hierarchy, $derived_tag_hierarchy)
+    {
+        $changelist = array(
+            'created' => array(),
+            'deleted' => array(),
+        );
+
+        // For every tag tree entry listed in the template datatype...
+        foreach ($template_tag_hierarchy as $parent_tag_uuid => $child_tags) {
+            foreach ($child_tags as $child_tag_uuid => $str) {
+                // ...if the derived datatype does not have an identical entry...
+                if ( !isset($derived_tag_hierarchy[$parent_tag_uuid])
+                    || !isset($derived_tag_hierarchy[$parent_tag_uuid][$child_tag_uuid])
+                ) {
+                    // ...then the derived datatype needs a new tag tree entry
+                    if ( !isset($changelist['created'][$parent_tag_uuid]) )
+                        $changelist['created'][$parent_tag_uuid] = array();
+                    $changelist['created'][$parent_tag_uuid][$child_tag_uuid] = '';
+                }
+            }
+        }
+
+        // For every tag tree entry listed in the derived datatype...
+        foreach ($derived_tag_hierarchy as $parent_tag_uuid => $child_tags) {
+            foreach ($child_tags as $child_tag_uuid => $str) {
+                // ...if the template datatype does not have an identical entry...
+                if ( !isset($template_tag_hierarchy[$parent_tag_uuid])
+                    || !isset($template_tag_hierarchy[$parent_tag_uuid][$child_tag_uuid])
+                ) {
+                    // ...then the derived datatype needs to delete a tag tree entry
+                    if ( !isset($changelist['deleted'][$parent_tag_uuid]) )
+                        $changelist['deleted'][$parent_tag_uuid] = array();
+                    $changelist['deleted'][$parent_tag_uuid][$child_tag_uuid] = '';
+                }
+            }
+        }
+
+        // If there were any changes made, return them
+        if ( !empty($changelist['created']) || !empty($changelist['deleted']) )
+            return $changelist;
+        else
+            return array();
     }
 
 
@@ -584,189 +854,75 @@ class CloneTemplateService
         $this->logger->info('----------------------------------------');
         $this->logger->info('CloneTemplateService: attempting to sync datatype '.$datatype->getId().' "'.$datatype->getShortName().'" with its master datatype '.$master_datatype->getId().' "'.$master_datatype->getShortName().'"...');
 
-
-        // ----------------------------------------
-        // Need to get a list of all top-level datatypes associated with the master template
-        $associated_datatypes = $this->cache_service->get('associated_datatypes_for_'.$master_datatype->getId());
-        if ($associated_datatypes == false) {
-            $associated_datatypes = $this->dti_service->getAssociatedDatatypes( array($master_datatype->getId()) );
-
-            // Save the list of associated datatypes back into the cache
-            $this->cache_service->set('associated_datatypes_for_'.$master_datatype->getId(), $associated_datatypes);
-        }
-
         // Traverse the diff array to locate the template's datatypes/datafields/radio options
         //  that need to be hydrated
         self::locateEntriesToHydrate($diff);
+
+
+        // ----------------------------------------
+        // Need to get a list of all top-level datatypes associated with the master template
+        $template_grandparents = $this->cache_service->get('associated_datatypes_for_'.$master_datatype->getId());
+        if ($template_grandparents == false) {
+            $template_grandparents = $this->dti_service->getAssociatedDatatypes( array($master_datatype->getId()) );
+
+            // Save the list of associated datatypes back into the cache
+            $this->cache_service->set('associated_datatypes_for_'.$master_datatype->getId(), $template_grandparents);
+        }
+
         // Convert the arrays of datatype/datafield/radio option ids into a format for querying
         $query_datatypes = array_keys($this->template_datatypes);
         $query_datafields = array_keys($this->template_datafields);
         $query_radio_options = array_keys($this->template_radio_options);
+        $query_tags = array_keys($this->template_tags);
 
 
-        // For convenience, pre-load and hydrate all relevant datatypes across the master template
-        $query = $this->em->createQuery(
-           'SELECT dt
-            FROM ODRAdminBundle:DataType AS dt
-            WHERE dt.grandparent IN (:grandparent_ids) AND dt.id IN (:datatype_ids)
-            AND dt.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'grandparent_ids' => $associated_datatypes,
-                'datatype_ids' => $query_datatypes,
-            )
-        );
-        $results = $query->getResult();
+        // For convenience, pre-load and hydrate all relevant datatypes, datafields, radio options,
+        //  and tags across the master template
+        $type = 'template';
+        $this->template_datatypes = self::hydrateDatatypes($template_grandparents, $query_datatypes, $type);
+        $this->template_datafields = self::hydrateDatafields($template_grandparents, $query_datafields, $type);
+        $this->template_radio_options = self::hydrateRadioOptions($template_grandparents, $query_radio_options, $type);
+        $this->template_tags = self::hydrateTags($template_grandparents, $query_tags, $type);
 
-        /** @var DataType $dt */
-        $logging_contents = array();
-        $this->template_datatypes = array();
-        foreach ($results as $dt) {
-            $this->template_datatypes[$dt->getId()] = $dt;
-            $logging_contents[$dt->getId()] = $dt->getShortName();
-        }
-        $this->logger->debug('CloneTemplateService: -- modified template_datatypes: '.print_r($logging_contents, true));
-
-
-        // Do the same for all relevant datafields across the master template
-        $query = $this->em->createQuery(
-           'SELECT df
-            FROM ODRAdminBundle:DataType AS dt
-            JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-            WHERE dt.grandparent IN (:grandparent_ids) AND df.id IN (:datafield_ids)
-            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'grandparent_ids' => $associated_datatypes,
-                'datafield_ids' => $query_datafields,
-            )
-        );
-        $results = $query->getResult();
-
-        /** @var DataFields $df */
-        $logging_contents = array();
-        $this->template_datafields = array();
-        foreach ($results as $df) {
-            $this->template_datafields[$df->getId()] = $df;
-            $logging_contents[$df->getId()] = $df->getFieldName();
-        }
-        $this->logger->debug('CloneTemplateService: -- modified template_datafields: '.print_r($logging_contents, true));
-
-
-        // Do the same for all relevant radio options across the master template
-        $query = $this->em->createQuery(
-           'SELECT ro
-            FROM ODRAdminBundle:DataType AS dt
-            JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-            JOIN ODRAdminBundle:RadioOptions AS ro WITH ro.dataField = df
-            WHERE dt.grandparent IN (:grandparent_ids) AND ro.radioOptionUuid IN (:ro_uuids)
-            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND ro.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'grandparent_ids' => $associated_datatypes,
-                'ro_uuids' => $query_radio_options,
-            )
-        );
-        $results = $query->getResult();
-
-        /** @var RadioOptions $ro */
-        $logging_contents = array();
-        $this->template_radio_options = array();
-        foreach ($results as $ro) {
-            $this->template_radio_options[$ro->getRadioOptionUuid()] = $ro;
-            $logging_contents[$ro->getRadioOptionUuid()] = $ro->getOptionName();
-        }
-        $this->logger->debug('CloneTemplateService: -- modified template_radio_options: '.print_r($logging_contents, true));
+        // Don't need to hydrate template-side tagTree entries...any of these type of entries that
+        //  need to get created can be done with just tag ids
 
 
         // ----------------------------------------
         // Also need to get a list of all top-level datatypes associated with the derived datatype
-        $associated_datatypes = $this->cache_service->get('associated_datatypes_for_'.$datatype->getId());
-        if ($associated_datatypes == false) {
-            $associated_datatypes = $this->dti_service->getAssociatedDatatypes( array($datatype->getId()) );
+        $derived_grandparents = $this->cache_service->get('associated_datatypes_for_'.$datatype->getId());
+        if ($derived_grandparents == false) {
+            $derived_grandparents = $this->dti_service->getAssociatedDatatypes( array($datatype->getId()) );
 
             // Save the list of associated datatypes back into the cache
-            $this->cache_service->set('associated_datatypes_for_'.$datatype->getId(), $associated_datatypes);
+            $this->cache_service->set('associated_datatypes_for_'.$datatype->getId(), $derived_grandparents);
         }
 
 
-        // For convenience, pre-load and hydrate all datatypes across the derived datatype
-        // Ignore the ones that don't have a masterDatatype, they'll never be updated with this
-        $query = $this->em->createQuery(
-           'SELECT dt
-            FROM ODRAdminBundle:DataType AS dt
-            WHERE dt.grandparent IN (:grandparent_ids) AND dt.masterDataType IN (:master_datatypes)
-            AND dt.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'grandparent_ids' => $associated_datatypes,
-                'master_datatypes' => $query_datatypes,
-            )
-        );
-        $results = $query->getResult();
-
-        /** @var DataType $dt */
-        $logging_contents = array();
-        foreach ($results as $dt) {
-            $this->derived_datatypes[$dt->getId()] = $dt;
-            $logging_contents[$dt->getId()] = $dt->getShortName();
-        }
-        $this->logger->debug('CloneTemplateService: -- modified derived_datatypes: '.print_r($logging_contents, true));
+        // Convert the arrays of datatype/datafield/radio option ids into a format for querying
+        $query_datatypes = array_keys($this->derived_datatypes);
+        $query_datafields = array_keys($this->derived_datafields);
+        $query_radio_options = array_keys($this->derived_radio_options);
+        $query_tags = array_keys($this->derived_tags);
 
 
-        // Do the same for all datafields across the derived datatype
-        // Ignore the ones that don't have a masterDatafield, they'll never be updated with this
-        $query = $this->em->createQuery(
-           'SELECT df
-            FROM ODRAdminBundle:DataType AS dt
-            JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-            WHERE dt.grandparent IN (:grandparent_ids) AND df.masterDataField IN (:master_datafields)
-            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'grandparent_ids' => $associated_datatypes,
-                'master_datafields' => $query_datafields,
-            )
-        );
-        $results = $query->getResult();
-
-        /** @var DataFields $df */
-        $logging_contents = array();
-        foreach ($results as $df) {
-            $this->derived_datafields[$df->getId()] = $df;
-            $logging_contents[$df->getId()] = $df->getFieldName();
-        }
-        $this->logger->debug('CloneTemplateService: -- modified derived_datafields: '.print_r($logging_contents, true));
-
-
-        // Also need to locate all existing radio options that are going to be updated
-        $query = $this->em->createQuery(
-           'SELECT ro
-            FROM ODRAdminBundle:DataType AS dt
-            JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-            JOIN ODRAdminBundle:RadioOptions AS ro WITH ro.dataField = df
-            WHERE dt.grandparent IN (:grandparent_ids) AND ro.radioOptionUuid IN (:ro_uuids)
-            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND ro.deletedAt IS NULL'
-        )->setParameters(
-            array(
-                'grandparent_ids' => $associated_datatypes,
-                'ro_uuids' => $query_radio_options,
-            )
-        );
-        $results = $query->getResult();
-
-        /** @var RadioOptions $ro */
-        $logging_contents = array();
-        $this->derived_radio_options = array();
-        foreach ($results as $ro) {
-            $this->derived_radio_options[$ro->getRadioOptionUuid()] = $ro;
-            $logging_contents[$ro->getRadioOptionUuid()] = $ro->getOptionName();
-        }
-        $this->logger->debug('CloneTemplateService: -- modified derived_radio_options: '.print_r($logging_contents, true));
+        // For convenience, pre-load and hydrate all relevant datatypes, datafields, radio options,
+        //  and tags across the derived datatypes
+        $type = 'derived';
+        $this->derived_datatypes = self::hydrateDatatypes($derived_grandparents, $query_datatypes, $type);
+        $this->derived_datafields = self::hydrateDatafields($derived_grandparents, $query_datafields, $type);
+        $this->derived_radio_options = self::hydrateRadioOptions($derived_grandparents, $query_radio_options, $type);
+        $this->derived_tags = self::hydrateTags($derived_grandparents, $query_tags, $type);
+        $this->derived_tag_trees = self::hydrateTagTrees($derived_grandparents, $this->derived_tag_trees);
 
 
         // ----------------------------------------
-        //
+        // Because of deletion of radio options, tags, and (eventually) datafields, wrap this in a
+        //  transaction
+        $conn = $this->em->getConnection();
+        $conn->beginTransaction();
+
+        // Synchronize the derived datatype with its source
         self::syncDatatype($datatype, $user, $diff[$master_datatype->getId()], 0);
 
         // If a linked theme got modified, then the updates only went to its master theme...
@@ -782,21 +938,73 @@ class CloneTemplateService
 
         // ----------------------------------------
         // Done with the synchronization
+        $conn->commit();
+
         $this->logger->info('CloneTemplateService: datatype '.$datatype->getId().' "'.$datatype->getShortName().'" is now synchronized with its master datatype '.$master_datatype->getId().' "'.$master_datatype->getShortName().'"');
-        $this->logger->info('----------------------------------------');
 
         // Wipe all potentially relevant cache entries
         $this->cache_service->delete('top_level_datatypes');
         $this->cache_service->delete('top_level_themes');
         $this->cache_service->delete('cached_datatree_array');
 
+        $modified_top_level_datatypes = array();
         foreach ($this->derived_datatypes as $dt) {
             $this->cache_service->delete('cached_datatype_'.$dt->getId());
             $this->cache_service->delete('associated_datatypes_for_'.$dt->getId());
 
             $master_theme = $this->ti_service->getDatatypeMasterTheme($dt->getId());
             $this->cache_service->delete('cached_theme_'.$master_theme->getId());
+
+            // Don't remember whether $this->derived_datatypes contains linked datatypes or not...
+            //  ...do it this way to be safe
+            if ( $dt->getGrandparent()->getId() === $dt->getId() ) {
+                $this->search_cache_service->onDatatypeImport($dt);
+                $modified_top_level_datatypes[] = $dt->getId();
+            }
         }
+
+        // Need to also delete the permissions related cache entries...technically they've already
+        //  been deleted because of calling createGroupsForDatatype() and createGroupsForDatafield()
+        //  during creation of those entities, but the background sync status checker will likely
+        //  have rebuilt the relevant cache entries (and has done so repeatedly during testing)...
+
+        // Locate all users and groups that have been modified by this
+        $query = $this->em->createQuery(
+           'SELECT g.id AS group_id, u.id AS user_id
+            FROM ODRAdminBundle:Group AS g
+            LEFT JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
+            LEFT JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+            WHERE g.dataType IN (:datatype_ids)
+            AND g.deletedAt IS NULL AND ug.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'datatype_ids' => $modified_top_level_datatypes
+            )
+        );
+        $results = $query->getArrayResult();
+
+        $affected_groups = array();
+        $affected_users = array();
+        foreach ($results as $result) {
+            $group_id = $result['group_id'];
+            $user_id = $result['user_id'];
+
+            if ( !is_null($group_id) )
+                $affected_groups[$group_id] = 1;
+            if ( !is_null($user_id) )
+                $affected_users[$user_id] = 1;
+        }
+
+        // Delete all of the cached entries for the affected entities
+        foreach ($affected_groups as $group_id => $num)
+            $this->cache_service->delete('group_'.$group_id.'_permissions');
+        foreach ($affected_users as $user_id => $num)
+            $this->cache_service->delete('user_'.$user_id.'_permissions');
+
+
+        $this->logger->debug('CloneTemplateService: all relevant cache entries have been deleted');
+        $this->logger->info('----------------------------------------');
+
 
         // TODO - this checker construct needs a database entry, but i'm pretty sure this isn't the intended use
         $datatype->setDatatypeType(null);
@@ -820,16 +1028,93 @@ class CloneTemplateService
             // This datatype either has properties that changed, or needs to be created in the
             //  derived datatype
             $this->template_datatypes[$dt_id] = 1;
+            // Might as well hydrate the derived datatype too
+            $this->derived_datatypes[$dt_id] = 1;
 
             if ( isset($dt['dataFields']) ) {
                 foreach ($dt['dataFields'] as $df_id => $df) {
                     // This datafield also is either new or had properties that changed
                     $this->template_datafields[$df_id] = 1;
+                    // Might as well hydrate the derived datafield too
+                    $this->derived_datafields[$df_id] = 1;
 
                     if ( isset($df['radioOptions']) ) {
-                        foreach ($df['radioOptions'] as $ro_uuid => $ro_name) {
-                            // Same for this radio option...
-                            $this->template_radio_options[$ro_uuid] = 1;
+                        if ( isset($df['radioOptions']['created']) ) {
+                            // Datafield exists in both derived and template datatypes...
+
+                            // Radio options to be created will be cloned from template entity
+                            foreach ($df['radioOptions']['created'] as $ro_uuid => $option_name)
+                                $this->template_radio_options[$ro_uuid] = 1;
+                            // Radio options to be renamed require the derived entity...the name is in the diff
+                            foreach ($df['radioOptions']['updated'] as $ro_uuid => $option_name)
+                                $this->derived_radio_options[$ro_uuid] = 1;
+                            // Radio options to be deleted require the derived entity
+                            foreach ($df['radioOptions']['deleted'] as $ro_uuid => $option_name)
+                                $this->derived_radio_options[$ro_uuid] = 1;
+                        }
+                        else {
+                            // Datafield only exists in template datatype...all listed radio options
+                            //  are going to be cloned from template entity
+                            foreach ($df['radioOptions'] as $ro_uuid => $ro_name)
+                                $this->template_radio_options[$ro_uuid] = 1;
+                        }
+                    }
+
+                    if ( isset($df['tags']) ) {
+                        if ( isset($df['tags']['created']) ) {
+                            // Datafield exists in both derived and template datatypes...
+
+                            // Tags to be created will be cloned from template entity
+                            foreach ($df['tags']['created'] as $tag_uuid => $tag_data)
+                                $this->template_tags[$tag_uuid] = 1;
+                            // Tags to be renamed require the derived entity...the name is in the diff
+                            foreach ($df['tags']['updated'] as $tag_uuid => $tag_data)
+                                $this->derived_tags[$tag_uuid] = 1;
+                            // Tags to be deleted require the derived entity
+                            foreach ($df['tags']['deleted'] as $tag_uuid => $tag_data)
+                                $this->derived_tags[$tag_uuid] = 1;
+                        }
+                        else if ( isset($df['tags']) ) {
+                            // Datafield only exists in template datatype...all listed tags are
+                            //  going to be cloend from template entity
+                            foreach ($df['tags'] as $tag_uuid => $tag_data)
+                                $this->template_tags[$tag_uuid] = 1;
+                        }
+                    }
+
+                    if ( isset($df['tagTree']) ) {
+                        if ( isset($df['tagTree']['created']) ) {
+                            // All tag tree entries being created require both parent/child tags
+                            //  to be hydrated
+                            foreach ($df['tagTree']['created'] as $parent_tag_id => $child_tags) {
+                                $this->derived_tags[$parent_tag_id] = 1;
+
+                                foreach ($child_tags as $child_tag_id => $str)
+                                    $this->derived_tags[$child_tag_id] = 1;
+                            }
+
+                            // Need the tag ids for the tag tree entries getting deleted, but don't
+                            //  have access to them at this point...get them hydrated for later
+                            foreach ($df['tagTree']['deleted'] as $parent_tag_id => $child_tags) {
+                                $this->derived_tags[$parent_tag_id] = 1;
+
+                                foreach ($child_tags as $child_tag_id => $str) {
+                                    $this->derived_tags[$child_tag_id] = 1;
+
+                                    $key = $parent_tag_id.'|'.$child_tag_id;
+                                    $this->derived_tag_trees[$key] = 1;
+                                }
+                            }
+                        }
+                        else {
+                            // Datafield only exists in template datatype...all tag tree entries in
+                            //  here are being created, so both parent/child tags need to be hydrated
+                            foreach ($df['tagTree'] as $parent_tag_id => $child_tags) {
+                                $this->derived_tags[$parent_tag_id] = 1;
+
+                                foreach ($child_tags as $child_tag_id => $str)
+                                    $this->derived_tags[$child_tag_id] = 1;
+                            }
                         }
                     }
                 }
@@ -842,6 +1127,266 @@ class CloneTemplateService
                 }
             }
         }
+    }
+
+
+    /**
+     * Hydrates a collection of datatypes identified by their id, so the synchronization process
+     * can clone them (from a template), or make changes to them (in a derived datatype).
+     *
+     * @param int[] $grandparent_ids
+     * @param int[] $query_datatypes
+     * @param string $type 'template' or 'derived'
+     *
+     * @return array
+     */
+    private function hydrateDatatypes($grandparent_ids, $query_datatypes, $type)
+    {
+        $hydrated_datatypes = array();
+
+        $query_str =
+           'SELECT dt
+            FROM ODRAdminBundle:DataType AS dt
+            WHERE dt.grandparent IN (:grandparent_ids) AND dt.id IN (:datatype_ids)
+            AND dt.deletedAt IS NULL';
+
+        if ($type == 'derived') {
+            // Ignore the ones that don't have a masterDatatype, they'll never be updated with this
+            $query_str =
+               'SELECT dt
+                FROM ODRAdminBundle:DataType AS dt
+                WHERE dt.grandparent IN (:grandparent_ids) AND dt.masterDataType IN (:datatype_ids)
+                AND dt.deletedAt IS NULL';
+        }
+
+        $query = $this->em->createQuery($query_str)->setParameters(
+            array(
+                'grandparent_ids' => $grandparent_ids,
+                'datatype_ids' => $query_datatypes,
+            )
+        );
+        $results = $query->getResult();
+
+        /** @var DataType $dt */
+        $logging_contents = array();
+        foreach ($results as $dt) {
+            $hydrated_datatypes[$dt->getId()] = $dt;
+            $logging_contents[$dt->getId()] = $dt->getShortName();
+        }
+        $this->logger->debug('CloneTemplateService: -- modified '.$type.'_datatypes: '.print_r($logging_contents, true));
+
+        return $hydrated_datatypes;
+    }
+
+
+    /**
+     * Hydrates a collection of datafields identified by their id, so the synchronization process
+     * can clone them (from a template), or make changes to them (in a derived datatype).
+     *
+     * @param int[] $grandparent_ids
+     * @param int[] $query_datafields
+     * @param string $type 'template' or 'derived'
+     *
+     * @return array
+     */
+    private function hydrateDatafields($grandparent_ids, $query_datafields, $type)
+    {
+        $hydrated_datafields = array();
+
+        $query_str =
+           'SELECT df
+            FROM ODRAdminBundle:DataType AS dt
+            JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+            WHERE dt.grandparent IN (:grandparent_ids) AND df.id IN (:datafield_ids)
+            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL';
+
+        if ($type == 'derived') {
+            $query_str =
+               'SELECT df
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+                WHERE dt.grandparent IN (:grandparent_ids) AND df.masterDataField IN (:datafield_ids)
+                AND dt.deletedAt IS NULL AND df.deletedAt IS NULL';
+        }
+
+        $query = $this->em->createQuery($query_str)->setParameters(
+            array(
+                'grandparent_ids' => $grandparent_ids,
+                'datafield_ids' => $query_datafields,
+            )
+        );
+        $results = $query->getResult();
+
+        /** @var DataFields $df */
+        $logging_contents = array();
+        foreach ($results as $df) {
+            $hydrated_datafields[$df->getId()] = $df;
+            $logging_contents[$df->getId()] = $df->getFieldName();
+        }
+        $this->logger->debug('CloneTemplateService: -- modified '.$type.'_datafields: '.print_r($logging_contents, true));
+
+        return $hydrated_datafields;
+    }
+
+
+    /**
+     * Hydrates a collection of radio options identified by their uuid, so the synchronization
+     * process can clone them (from a template), or make changes to them (in a derived datatype).
+     *
+     * @param int[] $grandparent_ids
+     * @param string[] $query_radio_options
+     * @param string $type 'template' or 'derived'
+     *
+     * @return array
+     */
+    private function hydrateRadioOptions($grandparent_ids, $query_radio_options, $type)
+    {
+        $hydrated_radio_options = array();
+
+        $query_str =
+           'SELECT ro
+            FROM ODRAdminBundle:DataType AS dt
+            JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+            JOIN ODRAdminBundle:RadioOptions AS ro WITH ro.dataField = df
+            WHERE dt.grandparent IN (:grandparent_ids) AND ro.radioOptionUuid IN (:ro_uuids)
+            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND ro.deletedAt IS NULL';
+
+        if ($type == 'derived') {
+            $query_str =
+               'SELECT ro
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+                JOIN ODRAdminBundle:RadioOptions AS ro WITH ro.dataField = df
+                WHERE dt.grandparent IN (:grandparent_ids) AND ro.radioOptionUuid IN (:ro_uuids)
+                AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND ro.deletedAt IS NULL';
+        }
+
+        $query = $this->em->createQuery($query_str)->setParameters(
+            array(
+                'grandparent_ids' => $grandparent_ids,
+                'ro_uuids' => $query_radio_options,
+            )
+        );
+        $results = $query->getResult();
+
+        /** @var RadioOptions $ro */
+        $logging_contents = array();
+        foreach ($results as $ro) {
+            $hydrated_radio_options[$ro->getRadioOptionUuid()] = $ro;
+            $logging_contents[$ro->getRadioOptionUuid()] = $ro->getOptionName();
+        }
+        $this->logger->debug('CloneTemplateService: -- modified '.$type.'_radio_options: '.print_r($logging_contents, true));
+
+        return $hydrated_radio_options;
+    }
+
+
+    /**
+     * Hydrates a collection of tags identified by their uuid, so the synchronization process can
+     * clone them (from a template), or make changes to them (in a derived datatype).
+     *
+     * @param int[] $grandparent_ids
+     * @param string[] $query_tags
+     * @param string $type 'template' or 'derived'
+     *
+     * @return array
+     */
+    private function hydrateTags($grandparent_ids, $query_tags, $type)
+    {
+        $hydrated_tags = array();
+
+        $query_str =
+           'SELECT t
+            FROM ODRAdminBundle:DataType AS dt
+            JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+            JOIN ODRAdminBundle:Tags AS t WITH t.dataField = df
+            WHERE dt.grandparent IN (:grandparent_ids) AND t.tagUuid IN (:tag_uuids)
+            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND t.deletedAt IS NULL';
+
+        if ($type == 'derived') {
+            $query_str =
+               'SELECT t
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+                JOIN ODRAdminBundle:Tags AS t WITH t.dataField = df
+                WHERE dt.grandparent IN (:grandparent_ids) AND t.tagUuid IN (:tag_uuids)
+                AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND t.deletedAt IS NULL';
+        }
+
+        $query = $this->em->createQuery($query_str)->setParameters(
+            array(
+                'grandparent_ids' => $grandparent_ids,
+                'tag_uuids' => $query_tags,
+            )
+        );
+        $results = $query->getResult();
+
+        /** @var Tags $t */
+        $logging_contents = array();
+        foreach ($results as $t) {
+            $hydrated_tags[$t->getTagUuid()] = $t;
+            $logging_contents[$t->getTagUuid()] = $t->getTagName();
+        }
+        $this->logger->debug('CloneTemplateService: -- modified '.$type.'_tags: '.print_r($logging_contents, true));
+
+        return $hydrated_tags;
+    }
+
+
+    /**
+     * Hydrates tag tree entries in the derived datafield that are marked for deletion
+     *
+     * @param array $grandparent_ids
+     * @param array $tag_trees
+     *
+     * @return array
+     */
+    private function hydrateTagTrees($grandparent_ids, $tag_trees)
+    {
+        $hydrated_tag_trees = array();
+
+        $pieces = array();
+        $params = array('grandparent_ids' => $grandparent_ids);
+
+        $count = 0;
+        foreach ($tag_trees as $key => $num) {
+            $tag_uuids = explode('|', $key);
+            $pieces[] = '(parent.tagUuid = :parent_uuid_'.$count.' AND child.tagUuid = :child_uuid_'.$count.')';
+
+            $params['parent_uuid_'.$count] = $tag_uuids[0];
+            $params['child_uuid_'.$count] = $tag_uuids[1];
+
+            $count++;
+        }
+
+        // If no tag tree entries were listed in the diff, then don't attempt to hydrate anything
+        if  ( !empty($pieces) ) {
+            $pieces = implode(' OR ', $pieces);
+
+            $query = $this->em->createQuery(
+               'SELECT tt
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+                JOIN ODRAdminBundle:Tags AS parent WITH parent.dataField = df
+                JOIN ODRAdminBundle:TagTree AS tt WITH tt.parent = parent
+                JOIN ODRAdminBundle:Tags AS child WITH tt.child = child
+                WHERE dt.grandparent IN (:grandparent_ids) AND
+                '.$pieces.'
+                AND parent.deletedAt IS NULL AND tt.deletedAt IS NULL AND child.deletedAt IS NULL'
+            )->setParameters($params);
+            $results = $query->getResult();
+
+            /** @var TagTree $tt */
+            foreach ($results as $tt) {
+                $parent_tag_uuid = $tt->getParent()->getTagUuid();
+                $child_tag_uuid = $tt->getChild()->getTagUuid();
+
+                $key = $parent_tag_uuid.'|'.$child_tag_uuid;
+                $hydrated_tag_trees[$key] = $tt;
+            }
+        }
+
+        return $hydrated_tag_trees;
     }
 
 
@@ -879,23 +1424,34 @@ class CloneTemplateService
             foreach ($diff_array['dataFields'] as $df_id => $df) {
                 // Locate an existing datafield in the derived datatype that has $master_df as its
                 //  masterDatafield, if possible
-                $master_df = $this->template_datafields[$df_id];
-                $master_dt = $master_df->getDataType();
                 $derived_df = null;
-
                 foreach ($this->derived_datafields as $d_df) {
-                    if ( $d_df->getMasterDataField()->getId() === $master_df->getId() ) {
+                    if ( $d_df->getMasterDataField()->getId() === $df_id ) {
                         $derived_df = $d_df;
                         break;
                     }
                 }
 
-                // If that datafield does not exist, create it
+                if ( !isset($this->template_datafields[$df_id]) ) {
+                    // This datafield got deleted out of the template datatype
+                    // TODO - move into an entity deletion service or something?
+                    self::deleteDatafield($derived_df, $user);
+
+                    $this->logger->debug('CloneTemplateService:'.$indent_text.' -- deleted datafield '.$df_id.' "'.$derived_df->getFieldName().'" (derived_dt: '.$derived_datatype->getId().')');
+
+                    // Skip the rest of this loop and move on to the next datafield
+                    continue;
+                }
+
+                $master_df = $this->template_datafields[$df_id];
+                $master_dt = $master_df->getDataType();
+
+                // If the derived datafield does not exist, clone it from the master template
                 if ( is_null($derived_df) ) {
                     $new_df = clone $master_df;
                     $new_df->setMasterDataField($master_df);
                     $new_df->setTemplateFieldUuid($master_df->getFieldUuid());
-                    $new_df->setFieldUuid($this->dti_service->generateDataFieldUniqueId());
+                    $new_df->setFieldUuid($this->uuid_service->generateDatafieldUniqueId());
                     $new_df->setIsMasterField(false);
                     $new_df->setDataType($derived_datatype);
 
@@ -927,46 +1483,210 @@ class CloneTemplateService
 //                    $this->logger->debug('CloneTemplateService:'.$indent_text.' -- datafield "'.$derived_df->getFieldName().'" (dt '.$derived_datatype->getId().') has the fieldtype "'.$derived_df_typeclass.'", while the master datafield '.$master_df->getId().' (dt_id '.$master_dt->getId().') has the fieldtype "'.$master_df_typeclass.'"');
                 }
 
-                // Create any missing radio options, or update the name of existing ones
+                // Create/rename/delete radio options as needed so the derived datatype is in sync
+                //  with its template
                 if ( isset($df['radioOptions']) ) {
-                    foreach ($df['radioOptions'] as $ro_uuid => $option_name) {
+                    if ( !isset($df['radioOptions']['created']) ) {
+                        // If this array entry doesn't exist, then this is a new datafield...all
+                        //  radio options are therefore meant to be created
+                        $ro_list = $df['radioOptions'];
+                        $df['radioOptions'] = array(
+                            'created' => $ro_list,
+                            'updated' => array(),
+                            'deleted' => array(),
+                        );
+                    }
+
+                    foreach ($df['radioOptions']['created'] as $ro_uuid => $option_name) {
+                        // The derived datatype doesn't have this radio option...clone it
                         $master_ro = $this->template_radio_options[$ro_uuid];
+                        $new_ro = clone $master_ro;
+                        $new_ro->setDataField($derived_df);
 
-                        $derived_ro = null;
-                        if ( isset($this->derived_radio_options[$ro_uuid]) )
-                            $derived_ro = $this->derived_radio_options[$ro_uuid];
+                        // Don't flush this immediately...
+                        $derived_df->addRadioOption($new_ro);
+                        self::persistObject($new_ro, $user, true);
 
-                        if ( is_null($derived_ro) ) {
-                            // If the radio option does not exist, clone it
-                            $new_ro = clone $master_ro;
-                            $new_ro->setDataField($derived_df);
+                        $new_ro_meta = clone $master_ro->getRadioOptionMeta();
+                        $new_ro_meta->setRadioOption($new_ro);
 
-                            // Don't flush this immediately...
-                            $derived_df->addRadioOption($new_ro);
-                            self::persistObject($new_ro, $user, true);
+                        // Don't flush this immediately
+                        $new_ro->addRadioOptionMetum($new_ro_meta);
+                        self::persistObject($new_ro_meta, $user, true);
 
-                            $new_ro_meta = clone $master_ro->getRadioOptionMeta();
-                            $new_ro_meta->setRadioOption($new_ro);
+                        $this->logger->debug('CloneTemplateService:'.$indent_text.' -- cloned new radio option "'.$new_ro->getOptionName().'" (derived_df: '.$derived_df->getId().') (derived_dt: '.$derived_datatype->getId().') from master radio option '.$master_ro->getId().' (master_df: '.$master_df->getId().') (master_dt: '.$master_dt->getId().')');
+                    }
 
-                            // Don't flush this immediately
-                            $new_ro->addRadioOptionMetum($new_ro_meta);
-                            self::persistObject($new_ro_meta, $user, true);
+                    foreach ($df['radioOptions']['updated'] as $ro_uuid => $option_name) {
+                        // The derived datatype has this radio option, and it needs renaming
+                        $derived_ro = $this->derived_radio_options[$ro_uuid];
+                        $properties['optionName'] = $option_name;
 
-                            $this->logger->debug('CloneTemplateService:'.$indent_text.' -- cloned new radio option "'.$new_ro->getOptionName().'" (df '.$derived_df->getId().') (dt '.$derived_datatype->getId().') from master radio option '.$master_ro->getId().' (df_id '.$master_df->getId().') (dt_id '.$master_dt->getId().')');
+                        $this->emm_service->updateRadioOptionsMeta($user, $derived_ro, $properties, true);    // Don't want to immediately flush these changes
+
+                        $this->logger->debug('CloneTemplateService:'.$indent_text.' -- renamed radio option '.$ro_uuid.' to "'.$option_name.'" (derived_df: '.$derived_df->getId().') (derived_dt: '.$derived_datatype->getId().')');
+                    }
+
+                    foreach ($df['radioOptions']['deleted'] as $ro_uuid => $option_name) {
+                        // The derived datatype has this radio option, but it needs to be deleted
+                        $derived_ro = $this->derived_radio_options[$ro_uuid];
+
+                        $derived_ro_meta = $derived_ro->getRadioOptionMeta();
+                        $derived_ro_meta->setDeletedAt(new \DateTime());
+                        $this->em->persist($derived_ro_meta);
+
+                        $derived_ro->setDeletedBy($user);
+                        $derived_ro->setDeletedAt(new \DateTime());
+                        $this->em->persist($derived_ro);
+
+                        // Delete all radio selections for this radio option
+                        $query = $this->em->createQuery(
+                           'UPDATE ODRAdminBundle:RadioSelection AS rs
+                            SET rs.deletedAt = :now
+                            WHERE rs.radioOption = :radio_option_id AND rs.deletedAt IS NULL'
+                        )->setParameters(
+                            array(
+                                'now' => new \DateTime(),
+                                'radio_option_id' => $derived_ro->getId(),
+                            )
+                        );
+                        $rows = $query->execute();
+
+                        $this->logger->debug('CloneTemplateService:'.$indent_text.' -- deleted radio option '.$ro_uuid.' "'.$option_name.'" (derived_df: '.$derived_df->getId().') (derived_dt: '.$derived_datatype->getId().')');
+                    }
+                }
+
+                // Create any missing tags, update the names of existing tags, or delete tags that
+                //  no longer exist
+                if ( isset($df['tags']) ) {
+                    if ( !isset($df['tags']['created']) ) {
+                        // If this array entry doesn't exist, then this is a new datafield...all
+                        //  tags are therefore meant to be created
+                        $tag_list = $df['tags'];
+                        $df['tags'] = array(
+                            'created' => $tag_list,
+                            'updated' => array(),
+                            'deleted' => array(),
+                        );
+                    }
+
+                    foreach ($df['tags']['created'] as $tag_uuid => $tag_data) {
+                        // The derived datatype doesn't have this tag...clone it
+                        $master_tag = $this->template_tags[$tag_uuid];
+                        $new_tag = clone $master_tag;
+                        $new_tag->setDataField($derived_df);
+
+                        // Don't flush this immediately...
+                        $derived_df->addTag($new_tag);
+                        self::persistObject($new_tag, $user, true);
+
+                        $new_tag_meta = clone $master_tag->getTagMeta();
+                        $new_tag_meta->setTag($new_tag);
+
+                        // Don't flush this immediately
+                        $new_tag->addTagMetum($new_tag_meta);
+                        self::persistObject($new_tag_meta, $user, true);
+
+                        $this->logger->debug('CloneTemplateService:'.$indent_text.' -- cloned new tag "'.$new_tag->getTagName().'" (derived_df: '.$derived_df->getId().') (derived_dt: '.$derived_datatype->getId().') from master tag '.$master_tag->getId().' (master_df: '.$master_df->getId().') (master_dt: '.$master_dt->getId().')');
+
+                        // Store the newly created tag incase it needs a tag tree entry
+                        $this->derived_tags[$tag_uuid] = $new_tag;
+                    }
+
+                    foreach ($df['tags']['updated'] as $tag_uuid => $tag_data) {
+                        // The derived datatype has this tag, and it needs renaming
+                        $derived_tag = $this->derived_tags[$tag_uuid];
+
+                        $properties = array(
+                            'tagName' => $tag_data['tagName'],
+                            'displayOrder' => $tag_data['displayOrder'],
+                        );
+                        $this->emm_service->updateTagMeta($user, $derived_tag, $properties, true);    // Don't want to immediately flush these changes
+
+                        $this->logger->debug('CloneTemplateService:'.$indent_text.' -- updated tag '.$tag_uuid.' to "'.$tag_data['tagName'].'", displayOrder '.$tag_data['displayOrder'].' (derived_df: '.$derived_df->getId().') (derived_dt: '.$derived_datatype->getId().')');
+                    }
+
+                    foreach ($df['tags']['deleted'] as $tag_uuid => $tag_data) {
+                        // The derived datatype has this tag, but it needs to be deleted
+                        $derived_tag = $this->derived_tags[$tag_uuid];
+
+                        // Don't need to worry about locating the children of this derived tag...
+                        //  ...they will already be in this array of deleted tags
+
+                        $derived_tag_meta = $derived_tag->getTagMeta();
+                        $derived_tag_meta->setDeletedAt(new \DateTime());
+                        $this->em->persist($derived_tag_meta);
+
+                        $derived_tag->setDeletedBy($user);
+                        $derived_tag->setDeletedAt(new \DateTime());
+                        $this->em->persist($derived_tag);
+
+                        // Delete all tag selections for this tag
+                        $query = $this->em->createQuery(
+                           'UPDATE ODRAdminBundle:TagSelection AS ts
+                            SET ts.deletedAt = :now
+                            WHERE ts.tag = :tag_id AND ts.deletedAt IS NULL'
+                        )->setParameters(
+                            array(
+                                'now' => new \DateTime(),
+                                'tag_id' => $derived_tag->getId(),
+                            )
+                        );
+                        $rows = $query->execute();
+
+                        $this->logger->debug('CloneTemplateService:'.$indent_text.' -- deleted tag '.$tag_uuid.' "'.$tag_data['tagName'].'" (derived_df: '.$derived_df->getId().') (derived_dt: '.$derived_datatype->getId().')');
+                    }
+                }
+
+                // Create or delete tag tree entries so the derived datatype matches the template
+                //  datatype
+                if ( isset($df['tagTree']) ) {
+                    if ( !isset($df['tagTree']['created']) ) {
+                        // If this array entry doesn't exist, then this is a new datafield...all
+                        //  tag tree entries are therefore meant to be created
+                        $tag_tree_list = $df['tagTree'];
+                        $df['tagTree'] = array(
+                            'created' => $tag_tree_list,
+                            'deleted' => array(),
+                        );
+                    }
+
+                    foreach ($df['tagTree']['created'] as $parent_tag_uuid => $child_tags) {
+                        // The derived datatype needs a tag tree entry
+                        foreach ($child_tags as $child_tag_uuid => $str) {
+                            // Even if these parent/child tags didn't exist prior to the sync request,
+                            //  they will now
+                            $parent_tag = $this->derived_tags[$parent_tag_uuid];
+                            $child_tag = $this->derived_tags[$child_tag_uuid];
+
+                            $tag_tree = new TagTree();
+                            $tag_tree->setParent($parent_tag);
+                            $tag_tree->setChild($child_tag);
+
+                            self::persistObject($tag_tree, $user, true);
+
+                            $this->logger->debug('CloneTemplateService:'.$indent_text.' -- created tag tree between parent tag '.$parent_tag_uuid.' "'.$parent_tag->getTagName().'" and child tag '.$child_tag_uuid.' "'.$child_tag->getTagName().'"');
                         }
-                        else {
-                            // Otherwise, this is a name update
-                            $properties['optionName'] = $option_name;
-                            $this->emm_service->updateRadioOptionsMeta($user, $derived_ro, $properties, true);    // Don't want to immediately flush these changes
+                    }
 
-                            $this->logger->debug('CloneTemplateService:'.$indent_text.' -- renamed radio option '.$derived_ro->getRadioOptionUuid().' to "'.$option_name.'" (df '.$derived_df->getId().') (dt '.$derived_datatype->getId().')');
+                    foreach ($df['tagTree']['deleted'] as $parent_tag_uuid => $child_tags) {
+                        foreach ($child_tags as $child_tag_uuid => $str) {
+                            $key = $parent_tag_uuid.'|'.$child_tag_uuid;
+                            $tag_tree = $this->derived_tag_trees[$key];
+
+                            $tag_tree->setDeletedAt(new \DateTime());
+                            $tag_tree->setDeletedBy($user);
+
+                            $this->em->persist($tag_tree);
+
+                            $parent_tag = $this->derived_tags[$parent_tag_uuid];
+                            $child_tag = $this->derived_tags[$child_tag_uuid];
+                            $this->logger->debug('CloneTemplateService:'.$indent_text.' -- deleted tag tree between parent tag '.$parent_tag_uuid.' "'.$parent_tag->getTagName().'" and child tag '.$child_tag_uuid.' "'.$child_tag->getTagName().'"');
                         }
                     }
                 }
             }
 
-            // Flush all the new/modified datafield/etc entities at once
-            $derived_df = null;
 
             // If datafields got created, then they need to be attached to the datatype's theme...
             if ( count($created_datafields) > 0 ) {
@@ -1001,6 +1721,7 @@ class CloneTemplateService
                             $this->logger->debug('CloneTemplateService:'.$indent_text.' -- cloned theme_element for derived datatype '.$derived_datatype->getId().' "'.$derived_datatype->getShortName().'"');
 
                             // Now clone each datafield in the theme element...
+                            $derived_df = null;
                             foreach ($tdf_list as $num => $tdf) {
                                 /** @var ThemeDataField $tdf */
                                 // Locate the new datafield
@@ -1047,7 +1768,7 @@ class CloneTemplateService
                         }
 
                         // Create a new ThemeDataField entry for this new datafield...
-                        $this->ec_service->createThemeDataField($user, $new_te, $new_df, true);    // don't flush immediately...
+                        $this->ec_service->createThemeDatafield($user, $new_te, $new_df, true);    // don't flush immediately...
                         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- created new theme_datafield entry for datafield '.$new_df->getId().' "'.$new_df->getFieldName().'"');
                     }
 
@@ -1057,15 +1778,15 @@ class CloneTemplateService
             }
         }
 
-        // Need to flush here so the newly created datafields get their correct IDs prior to the
-        //  creation of the GroupDatafield entries
-        $this->em->flush();
-
         // Create the permission entries for each of the new datafields...
         foreach ($created_datafields as $master_df_id => $new_df) {
-            $this->pm_service->createGroupsForDatafield($user, $new_df);
+            $this->ec_service->createGroupsForDatafield($user, $new_df, true);
             $this->logger->debug('CloneTemplateService:'.$indent_text.' -- created GroupDatafieldPermission entries for datafield '.$new_df->getId().' "'.$new_df->getFieldName().'" (master df '.$master_df_id.')');
         }
+
+        // Can flush here now that the newly created datafields and their GroupDatafield entries
+        // have been created
+        $this->em->flush();
 
 
         // ----------------------------------------
@@ -1167,7 +1888,7 @@ class CloneTemplateService
                 else {
                     // This is a linked datatype...if a "primary" version was just created by
                     //  self::createLinkedDatatype(), then it already has the required theme,
-                    //  theme element, and themeDatatype entries and self::linkToExistingDatatype()
+                    //  theme element, and themeDatatype entries...self::linkToExistingDatatype()
                     //  should not be run.
                     $query = $this->em->createQuery(
                        'SELECT tdt
@@ -1221,6 +1942,97 @@ class CloneTemplateService
 
         // Do a final flush
         $this->em->flush();
+    }
+
+
+    /**
+     * Split out from self::syncDatatype() to make it slightly simpler to read...
+     * TODO - move into an entity deletion service?
+     *
+     * @param DataFields $derived_df
+     * @param ODRUser $user
+     */
+    private function deleteDatafield($derived_df, $user)
+    {
+        // Going to need this in a bit
+        $derived_dt = $derived_df->getDataType();
+
+        // Mark the datafield and its meta entry as deleted
+        $derived_df_meta = $derived_df->getDataFieldMeta();
+        $derived_df->setDeletedAt(new \DateTime());
+        $derived_df->setDeletedBy($user);
+        $this->em->persist($derived_df);
+
+        $derived_df_meta->setDeletedAt(new \DateTime());
+        $this->em->persist($derived_df_meta);
+
+
+        // Need to delete all theme datafield entries that reference this datafield...
+        $query = $this->em->createQuery(
+           'UPDATE ODRAdminBundle:ThemeDataField AS tdf
+            SET tdf.deletedAt = :now, tdf.deletedBy = :deleted_by
+            WHERE tdf.dataField = :datafield AND tdf.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'now' => new \DateTime(),
+                'deleted_by' => $user->getId(),
+                'datafield' => $derived_df->getId()
+            )
+        );
+        $rows = $query->execute();
+
+        // ...and datafield permission entries
+        $query = $this->em->createQuery(
+           'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
+            SET gdfp.deletedAt = :now
+            WHERE gdfp.dataField = :datafield AND gdfp.deletedAt IS NULL'
+        )->setParameters(
+            array(
+                'now' => new \DateTime(),
+                'datafield' => $derived_df->getId()
+            )
+        );
+        $rows = $query->execute();
+
+        // If this datafield was an external_id/name/sort/background_image datafield, then its
+        //  datatype needs an update so it doesn't inadvertently point to a deleted datafield...
+        $properties = array(
+            'externalIdField' => $derived_dt->getExternalIdField(),
+            'nameField' => $derived_dt->getNameField(),
+            'sortField' => $derived_dt->getSortField(),
+            'backgroundImageField' => $derived_dt->getBackgroundImageField(),
+        );
+
+        // Ensure that the datatype doesn't continue to think this datafield is its external id field
+        if ( !is_null($properties['externalIdField']) && $properties['externalIdField']->getId() === $derived_df->getId() )
+            $properties['externalIdField'] = null;
+        else
+            unset( $properties['externalIdField'] );
+
+        // Ensure that the datatype doesn't continue to think this datafield is its name field
+        if ( !is_null($properties['nameField']) && $properties['nameField']->getId() === $derived_df->getId() )
+            $properties['nameField'] = null;
+        else
+            unset( $properties['nameField'] );
+
+        // Ensure that the datatype doesn't continue to think this datafield is its sort field
+        if ( !is_null($properties['sortField']) && $properties['sortField']->getId() === $derived_df->getId() ) {
+            $properties['sortField'] = null;
+
+            // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
+            $this->dti_service->resetDatatypeSortOrder($derived_dt->getId());
+        }
+        else
+            unset( $properties['sortField'] );
+
+        // Ensure that the datatype doesn't continue to think this datafield is its background image field
+        if ( !is_null($properties['backgroundImageField']) && $properties['backgroundImageField']->getId() === $derived_df->getId() )
+            $properties['backgroundImageField'] = null;
+        else
+            unset( $properties['backgroundImageField'] );
+
+        // Delay saving any changes to the datatype
+        $this->emm_service->updateDatatypeMeta($user, $derived_dt, $properties, true);
     }
 
 
@@ -1289,11 +2101,8 @@ class CloneTemplateService
         $this->ec_service->createThemeDatatype($user, $theme_element, $child_datatype, $child_theme, true);
         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- created theme_datatype entry for child datatype '.$child_datatype->getId());
 
-        // Should be able to flush here prior to group creation
-        $this->em->flush();
-
         // ...and finally need to create groups for the new child Datatype
-        $this->pm_service->createGroupsForDatatype($user, $child_datatype);
+        $this->ec_service->createGroupsForDatatype($user, $child_datatype);
         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- copied groups for child datatype '.$child_datatype->getId());
 
 
@@ -1327,7 +2136,7 @@ class CloneTemplateService
         $linked_datatype = $this->ec_service->createDatatype(
             $user,
             $master_datatype->getShortName(),
-            true
+            true    // don't flush immediately...
         );
 
         $linked_datatype->setTemplateGroup($parent_datatype->getTemplateGroup());
@@ -1377,11 +2186,8 @@ class CloneTemplateService
         $this->ec_service->createThemeDatatype($user, $theme_element, $linked_datatype, $linked_theme_copy, true);
         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- created theme_datatype entry for linked datatype '.$linked_datatype->getId());
 
-        // Should be able to flush here prior to group creation
-        $this->em->flush();
-
         // ...and finally need to create groups for the new linked Datatype
-        $this->pm_service->createGroupsForDatatype($user, $linked_datatype);
+        $this->ec_service->createGroupsForDatatype($user, $linked_datatype);
         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- created groups for linked datatype '.$linked_datatype->getId());
 
 

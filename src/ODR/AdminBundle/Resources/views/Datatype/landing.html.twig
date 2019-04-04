@@ -267,7 +267,15 @@
                         url = url.substring(0, (url.length - 1));
                         url += datarecord_id;
 
+                        // Adding a new record from here makes changes both before and after the
+                        //  hash...this'll attempt to load the edit page and fail the first time,
+                        //  requiring the reload() call to actually
                         window.location = url;
+                        window.location.reload();
+
+                        // UpdateURL(url) just changes stuff after the hash creating a bad URL
+                        // LoadContentFullAjax(url) and $(window).hashchange() don't work
+                        // loadSearchContent(url) and window.location.assign(url) don't do anything
                     },
                     error: function (jqXHR, textStatus, errorThrown) {
                         // Don't need to do anything specific on an error
