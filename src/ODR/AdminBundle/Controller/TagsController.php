@@ -1183,7 +1183,7 @@ class TagsController extends ODRCustomController
             }
 
             $tag_ordering = $post['tag_ordering'];
-            if ( trim($tag_ordering) === '' )
+            if ( !is_array($tag_ordering) )
                 $tag_ordering = array();
 
             $child_tag_id = $post['child_tag_id'];

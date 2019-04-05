@@ -111,37 +111,7 @@
             var tag_item = $(".ODRTagHighlight");
             handleTagMovement( $(tag_item), event.which );
         });
-
-        $(".ODRTagAnchor").unbind('click').click(function(event) {
-            // Don't want #odr_tag_design_modal click event to fire
-            event.stopPropagation();
-            clearTagHighlights();
-            reordering_tags = true;
-
-            var tag_parent = $(this).parent().parent();
-            $(tag_parent).addClass('ODRTagHighlight');
-
-            // When not sorting by name, the highlighted tag's neighbors are its siblings
-            // e.g. adjacent to the highlighted tag with the same parent
-            if ($(tag_parent).prev().length > 0)
-                $(tag_parent).prev().children('.ODRTagUnit').addClass('ODRNeighborTag');
-            if ($(tag_parent).next().length > 0)
-                $(tag_parent).next().children('.ODRTagUnit').addClass('ODRNeighborTag');
-        });
 {% endif %}
-
-        $(".ODRAddTag").unbind('click').click(function(event) {
-            // Don't want #odr_tag_design_modal click event to fire
-            event.stopPropagation();
-            clearTagHighlights();
-
-            if ( $("#odr_tag_import").is(':visible') ) {
-                ValidateTags({{ datafield.id }});
-            }
-            else {
-                AddTag({{ datafield.id }});
-            }
-        });
 
         $(".ODRTagCreationMode").unbind('click').click(function(event) {
             if ( $(this).hasClass('pure-button-disabled') )
@@ -177,6 +147,55 @@
             }
         });
 
+        $(".ODRDelimiterField").unbind('keyup paste').on('keyup paste', function() {
+            var tag_hierarchy_delimiter_value = $("#tag_hierarchy_delimiter").val().trim();
+
+            if ( tag_hierarchy_delimiter_value === '' )
+                $(".ODRTagHierarchyWarnWrapper").show();
+            else
+                $(".ODRTagHierarchyWarnWrapper").hide();
+        });
+
+        $("#tag_list").unbind('keyup paste').on('keyup paste', function() {
+            $(".ODRTagWrapper_import").html('');
+        });
+
+        FindDuplicateTagNames();
+
+        initTags();
+    });
+
+    function initTags() {
+        $(".ODRTagAnchor").unbind('click').click(function(event) {
+            // Don't want #odr_tag_design_modal click event to fire
+            event.stopPropagation();
+            clearTagHighlights();
+            reordering_tags = true;
+
+            var tag_parent = $(this).parent().parent();
+            $(tag_parent).addClass('ODRTagHighlight');
+
+            // When not sorting by name, the highlighted tag's neighbors are its siblings
+            // e.g. adjacent to the highlighted tag with the same parent
+            if ($(tag_parent).prev().length > 0)
+                $(tag_parent).prev().children('.ODRTagUnit').addClass('ODRNeighborTag');
+            if ($(tag_parent).next().length > 0)
+                $(tag_parent).next().children('.ODRTagUnit').addClass('ODRNeighborTag');
+        });
+
+        $(".ODRAddTag").unbind('click').click(function(event) {
+            // Don't want #odr_tag_design_modal click event to fire
+            event.stopPropagation();
+            clearTagHighlights();
+
+            if ( $("#odr_tag_import").is(':visible') ) {
+                ValidateTags({{ datafield.id }});
+            }
+            else {
+                AddTag({{ datafield.id }});
+            }
+        });
+
         $(".ODRDeleteTag").unbind('click').click(function(event) {
             // Don't want #odr_tag_design_modal click event to fire
             event.stopPropagation();
@@ -204,22 +223,7 @@
 
             FindDuplicateTagNames();
         });
-
-        $(".ODRDelimiterField").unbind('keyup paste').on('keyup paste', function() {
-            var tag_hierarchy_delimiter_value = $("#tag_hierarchy_delimiter").val().trim();
-
-            if ( tag_hierarchy_delimiter_value === '' )
-                $(".ODRTagHierarchyWarnWrapper").show();
-            else
-                $(".ODRTagHierarchyWarnWrapper").hide();
-        });
-
-        $("#tag_list").unbind('keyup paste').on('keyup paste', function() {
-            $(".ODRTagWrapper_import").html('');
-        });
-
-        FindDuplicateTagNames();
-    });
+    }
 
 {# inverse of allow_multiple_levels == false and sort_by_name == true #}
 {% if allow_multiple_levels == true or sort_by_name == false %}
@@ -348,7 +352,7 @@
         $("#odr_tag_design_modal").find(".ODRTagGroup").each(function() {
             var tag_names = {};
 
-            $(this).children('.ODRTagItem').children('.ODRTagLabel').each(function(index, elem) {
+            $(this).children('.ODRTagItem').children('.ODRTagUnit').children('.ODRTagLabel').each(function(index, elem) {
                 var name = $(elem).val();
                 if ( tag_names[name] === undefined  ) {
                     // New tag name for this sibling group
@@ -500,6 +504,10 @@
             success: function(data) {
                 //
                 $(".ODRTopLevelTagGroup").append(data.d.html);
+
+                // Ensure the new tags respond to events
+                initTags();
+                FindDuplicateTagNames();
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

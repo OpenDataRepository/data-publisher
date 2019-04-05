@@ -413,8 +413,7 @@ class DatatypeInfoService
                 LEFT JOIN dt.dataFields AS df
                 LEFT JOIN df.masterDataField AS mdf
 
-                WHERE dt.grandparent = :grandparent_datatype_id
-                AND dt.deletedAt IS NULL AND df.deletedAt IS NULL'
+                WHERE dt.grandparent = :grandparent_datatype_id'
         )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
 
         // Need to disable the softdeleteable filter so doctrine pulls the id for deleted master
