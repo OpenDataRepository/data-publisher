@@ -48,9 +48,9 @@ class DatatypeCreateService
     private $cdm_service;
 
     /**
-     * @var DatatypeInfoService
+     * @var UUIDService
      */
-    private $dti_service;
+    private $uuid_service;
 
     /**
      * @var string
@@ -70,22 +70,22 @@ class DatatypeCreateService
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
      * @param CloneMasterDatatypeService $cdm_service
-     * @param DatatypeInfoService $dti_service
+     * @param DatatypeInfoService $uuid_service
      * @param $odr_web_dir
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        CloneMasterDatatypeService $cdm_service,
-        DatatypeInfoService $dti_service,
+        CloneMasterDatatypeService $clone_master_datatype_service,
+        UUIDService $uuid_service,
         $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->cdm_service = $cdm_service;
-        $this->dti_service = $dti_service;
+        $this->cdm_service = $clone_master_datatype_service;
+        $this->uuid_service = $uuid_service;
         $this->odr_web_dir = $odr_web_dir;
         $this->logger = $logger;
     }
@@ -142,7 +142,7 @@ class DatatypeCreateService
                 $datatype = new DataType();
                 $datatype->setRevision(0);
 
-                $unique_id = $this->dti_service->generateDatatypeUniqueId();
+                $unique_id = $this->uuid_service->generateDatatypeUniqueId();
                 $datatype->setUniqueId($unique_id);
                 $datatype->setTemplateGroup($unique_id);
 
@@ -232,7 +232,7 @@ class DatatypeCreateService
                 $metadata_datatype->setSetupStep(DataType::STATE_INITIAL);
 
                 // Need to always set a unique id
-                $metadata_unique_id = $this->dti_service->generateDatatypeUniqueId();
+                $metadata_unique_id = $this->uuid_service->generateDatatypeUniqueId();
                 $metadata_datatype->setUniqueId($metadata_unique_id);
 
                 // Set new datatype meta

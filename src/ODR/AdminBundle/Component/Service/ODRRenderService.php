@@ -108,25 +108,25 @@ class ODRRenderService
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        DatarecordInfoService $dri_service,
-        DatatypeInfoService $dti_service,
-        PermissionsManagementService $pm_service,
-        ThemeInfoService $theme_service,
-        CloneThemeService $cloneThemeService,
-        CloneTemplateService $cloneTemplateService,
-        EntityMetaModifyService $emm_service,
+        DatarecordInfoService $datarecord_info_service,
+        DatatypeInfoService $datatype_info_service,
+        PermissionsManagementService $permissions_service,
+        ThemeInfoService $theme_info_service,
+        CloneThemeService $clone_theme_service,
+        CloneTemplateService $clone_template_service,
+        EntityMetaModifyService $entity_meta_modify_service,
         EngineInterface $templating,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dri_service = $dri_service;
-        $this->dti_service = $dti_service;
-        $this->pm_service = $pm_service;
-        $this->theme_service = $theme_service;
-        $this->clone_theme_service = $cloneThemeService;
-        $this->clone_template_service = $cloneTemplateService;
-        $this->emm_service = $emm_service;
+        $this->dri_service = $datarecord_info_service;
+        $this->dti_service = $datatype_info_service;
+        $this->pm_service = $permissions_service;
+        $this->theme_service = $theme_info_service;
+        $this->clone_theme_service = $clone_theme_service;
+        $this->clone_template_service = $clone_template_service;
+        $this->emm_service = $entity_meta_modify_service;
         $this->templating = $templating;
         $this->logger = $logger;
     }
@@ -191,7 +191,7 @@ class ODRRenderService
             && !is_null($datatype->getMetadataDatatype()->getMasterDataType())
         ) {
             $extra_parameters['sync_metadata_with_template'] =
-                $this->clone_template_service->canSyncWithTemplate($datatype->getMetadataDatatype(), $user);
+            $this->clone_template_service->canSyncWithTemplate($datatype->getMetadataDatatype(), $user);
         }
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);

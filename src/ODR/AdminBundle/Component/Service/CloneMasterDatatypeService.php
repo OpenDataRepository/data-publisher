@@ -167,9 +167,9 @@ class CloneMasterDatatypeService
         CacheService $cache_service,
         CloneMasterTemplateThemeService $clone_master_template_theme_service,
         DatatypeInfoService $datatype_info_service,
-        EntityCreationService $entityCreationService,
+        EntityCreationService $entity_creation_service,
         ThemeInfoService $theme_info_service,
-        UUIDService $UUIDService,
+        UUIDService $uuid_service,
         UserManagerInterface $user_manager,
         Logger $logger
     ) {
@@ -177,9 +177,9 @@ class CloneMasterDatatypeService
         $this->cache_service = $cache_service;
         $this->clone_master_template_theme_service = $clone_master_template_theme_service;
         $this->dti_service = $datatype_info_service;
-        $this->ec_service = $entityCreationService;
+        $this->ec_service = $entity_creation_service;
         $this->tif_service = $theme_info_service;
-        $this->uuid_service = $UUIDService;
+        $this->uuid_service = $uuid_service;
         $this->user_manager = $user_manager;
         $this->logger = $logger;
     }

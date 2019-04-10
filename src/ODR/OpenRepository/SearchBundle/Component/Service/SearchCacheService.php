@@ -57,14 +57,14 @@ class SearchCacheService
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $entityManager,
-        CacheService $cacheService,
-        SearchService $searchService,
+        EntityManager $entity_manager,
+        CacheService $cache_service,
+        SearchService $search_service,
         Logger $logger
     ) {
-        $this->em = $entityManager;
-        $this->cache_service = $cacheService;
-        $this->search_service = $searchService;
+        $this->em = $entity_manager;
+        $this->cache_service = $cache_service;
+        $this->search_service = $search_service;
         $this->logger = $logger;
     }
 

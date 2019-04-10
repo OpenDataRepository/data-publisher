@@ -76,15 +76,15 @@ class PermissionsManagementService
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        DatatypeInfoService $datatypeInfoService,
-        SearchAPIService $searchAPIService,
+        DatatypeInfoService $datatype_info_service,
+        SearchAPIService $search_api_service,
         UserManagerInterface $user_manager,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $datatypeInfoService;
-        $this->search_api_service = $searchAPIService;
+        $this->dti_service = $datatype_info_service;
+        $this->search_api_service = $search_api_service;
         $this->user_manager = $user_manager;
         $this->logger = $logger;
     }

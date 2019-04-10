@@ -89,13 +89,13 @@ class ThemeInfoService
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        DatatypeInfoService $dti_service,
+        DatatypeInfoService $datatype_info_service,
         Session $session,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $dti_service;
+        $this->dti_service = $datatype_info_service;
         $this->session = $session;
         $this->logger = $logger;
     }

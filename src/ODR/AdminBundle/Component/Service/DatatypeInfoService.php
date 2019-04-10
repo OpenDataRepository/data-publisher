@@ -68,13 +68,13 @@ class DatatypeInfoService
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        TagHelperService $tagHelperService,
+        TagHelperService $tag_helper_service,
         $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->th_service = $tagHelperService;
+        $this->th_service = $tag_helper_service;
         $this->odr_web_dir = $odr_web_dir;
         $this->logger = $logger;
     }
@@ -413,9 +413,9 @@ class DatatypeInfoService
                 LEFT JOIN dt.dataFields AS df
                 LEFT JOIN df.masterDataField AS mdf
 
-                WHERE dt.grandparent = :grandparent_datatype_id
-                AND dt.deletedAt IS NULL AND df.deletedAt IS NULL'
+                WHERE dt.grandparent = :grandparent_datatype_id'
         )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        // AND dt.deletedAt IS NULL AND df.deletedAt IS NULL'
 
         // Need to disable the softdeleteable filter so doctrine pulls the id for deleted master
         //  datafield entries

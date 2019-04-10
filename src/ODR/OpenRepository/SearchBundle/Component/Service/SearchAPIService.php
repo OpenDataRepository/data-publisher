@@ -66,7 +66,7 @@ class SearchAPIService
     /**
      * SearchAPIService constructor.
      *
-     * @param EntityManager $entityManager
+     * @param EntityManager $entity_manager
      * @param DatatypeInfoService $datatypeInfoService
      * @param SearchService $searchService
      * @param SearchCacheService $searchCacheService
@@ -75,20 +75,20 @@ class SearchAPIService
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $entityManager,
-        DatatypeInfoService $datatypeInfoService,
-        SearchService $searchService,
-        SearchCacheService $searchCacheService,
-        SearchKeyService $searchKeyService,
-        SortService $sortService,
+        EntityManager $entity_manager,
+        DatatypeInfoService $datatype_info_service,
+        SearchService $search_service,
+        SearchCacheService $search_cache_service,
+        SearchKeyService $search_key_service,
+        SortService $sort_service,
         Logger $logger
     ) {
-        $this->em = $entityManager;
-        $this->dti_service = $datatypeInfoService;
-        $this->search_service = $searchService;
-        $this->search_cache_service = $searchCacheService;
-        $this->search_key_service = $searchKeyService;
-        $this->sort_service = $sortService;
+        $this->em = $entity_manager;
+        $this->dti_service = $datatype_info_service;
+        $this->search_service = $search_service;
+        $this->search_cache_service = $search_cache_service;
+        $this->search_key_service = $search_key_service;
+        $this->sort_service = $sort_service;
         $this->logger = $logger;
     }
 

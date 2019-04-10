@@ -1,3 +1,7 @@
+api_login_check:
+    path: /api/login_check
+    methods: [POST]
+
 # ----------------------------------------
 # Internal routing configuration to handle ESI
 #_internal:

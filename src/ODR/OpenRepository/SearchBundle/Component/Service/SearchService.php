@@ -77,18 +77,18 @@ class SearchService
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $entityManager,
-        CacheService $cacheService,
-        DatatypeInfoService $datatypeInfoService,
-        TagHelperService $tagHelperService,
-        SearchQueryService $searchQueryService,
+        EntityManager $entity_manager,
+        CacheService $cache_service,
+        DatatypeInfoService $datatype_info_service,
+        TagHelperService $tag_helper_service,
+        SearchQueryService $search_query_service,
         Logger $logger
     ) {
-        $this->em = $entityManager;
-        $this->cache_service = $cacheService;
-        $this->dti_service = $datatypeInfoService;
-        $this->th_service = $tagHelperService;
-        $this->search_query_service = $searchQueryService;
+        $this->em = $entity_manager;
+        $this->cache_service = $cache_service;
+        $this->dti_service = $datatype_info_service;
+        $this->th_service = $tag_helper_service;
+        $this->search_query_service = $search_query_service;
         $this->logger = $logger;
     }
 

@@ -71,16 +71,16 @@ class SortService
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $entityManager,
-        CacheService $cacheService,
-        EntityMetaModifyService $entityMetaModifyService,
-        SearchService $searchService,
+        EntityManager $entity_manager,
+        CacheService $cache_service,
+        EntityMetaModifyService $entity_meta_modify_service,
+        SearchService $search_service,
         Logger $logger
     ) {
-        $this->em = $entityManager;
-        $this->cache_service = $cacheService;
-        $this->emm_service = $entityMetaModifyService;
-        $this->search_service = $searchService;
+        $this->em = $entity_manager;
+        $this->cache_service = $cache_service;
+        $this->emm_service = $entity_meta_modify_service;
+        $this->search_service = $search_service;
         $this->logger = $logger;
     }
 

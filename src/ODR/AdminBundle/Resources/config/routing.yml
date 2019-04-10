@@ -1488,7 +1488,7 @@ odr_api_get_field_stats:
     defaults: { _controller: ODRAdminBundle:API:getfieldstats, _format: json }
     methods: [ GET ]
     requirements:
-        version: 'v1'
+        version: 'v\d+'
         template_uuid: '^[a-z0-9]{7}$'
         template_field_uuid: '^[a-z0-9]{7}$'
         format: '|xml|json'
@@ -1560,14 +1560,15 @@ odr_search_api_template_get:
         version: 'v\d+'
 #        template_uuid: '[a-z0-9]+'
 
-odr_search_api_get_field_stats_by_uuid:
-    path: /api/{version}/search/field/stats/{template_uuid}/{template_field_uuid}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:search_field_stats, version: 'v1', _format: 'json'}
-    methods: [ GET ]
-    requirements:
-        version: 'v\d+'
-        template_uuid: '[a-z0-9]+'
-        template_field_uuid: '[a-z0-9]+'
+
+#odr_search_api_get_field_stats_by_uuid:
+#    path: /api/{version}/search/field/stats/{template_uuid}/{template_field_uuid}
+#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:search_field_stats, version: 'v1', _format: 'json'}
+#    methods: [ GET ]
+#    requirements:
+#        version: 'v\d+'
+#        template_uuid: '[a-z0-9]+'
+#        template_field_uuid: '[a-z0-9]+'
 
 odr_search_api_get_field_by_uuid:
     path: /api/{version}/search/field/{template_field_uuid}
@@ -1676,7 +1677,7 @@ odr_api_user_check:
 
 odr_api_token:
     path: /api/{version}/token
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:token, _format: 'json', version: 'v3'}
+    defaults: { _controller: ODRAdminBundle:API:token, _format: 'json', version: 'v3'}
     methods: [ POST ]
     requirements:
         version: 'v\d+'

@@ -64,13 +64,13 @@ class DatarecordInfoService
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        TagHelperService $tagHelperService,
+        TagHelperService $tag_helper_service,
         CsrfTokenManager $token_manager,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->th_service = $tagHelperService;
+        $this->th_service = $tag_helper_service;
         $this->token_manager = $token_manager;
         $this->logger = $logger;
     }

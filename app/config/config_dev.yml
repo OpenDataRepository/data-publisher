@@ -46,5 +46,5 @@ monolog:
             type:  firephp
             level: info
 
-assetic:
-    use_controller: true
+#assetic:
+#    use_controller: true

@@ -1565,28 +1565,61 @@ class APIController extends ODRCustomController
         }
     }
 
+    /**
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function tokenAction(Request $request)
+    {
+
+
+        $api_key = $_POST['api_key'];
+        $api_secret = $_POST['api_secret'];
+        $user_manager = $this->container->get('fos_user.user_manager');
+        /** @var FOSUser $user */
+        $user = $user_manager->findUserBy(array('email' => $api_key));
+
+        if (!$user) {
+            throw $this->createNotFoundException();
+        }
+        $isValid = $this->get('security.password_encoder')
+            ->isPasswordValid($user, $api_secret);
+
+        if (!$isValid) {
+            throw new BadCredentialsException();
+        }
+        $token = $this->get('lexik_jwt_authentication.encoder')
+            ->encode([
+                'username' => $user->getUsername(),
+                'exp' => time() + 3600 // 1 hour expiration
+            ]);
+        return new JsonResponse(['token' => 'AAAlA -- ' . $token]);
+    }
+
 
     /**
      * Returns a list of radio options in the given template field, and a count of how many
      * datarecords from datatypes derived from the given template have those options selected.
      *
-     * @param string $version
-     * @param string $template_uuid
-     * @param string $template_field_uuid
+     * @param $version
+     * @param $template_uuid
+     * @param $template_field_uuid
      * @param Request $request
-     *
-     * @return Response
      */
-    public function getfieldstatsAction($version, $template_uuid, $template_field_uuid, Request $request)
-    {
+    public function getfieldstatsAction(
+        $version,
+        $template_uuid,
+        $template_field_uuid,
+        Request $request
+    ) {
         try {
             // ----------------------------------------
+
             // Default to returning the data straight to the browser...
             $download_response = false;
             if ($request->query->has('download') && $request->query->get('download') == 'file')
                 // ...but return the data as a download on request
                 $download_response = true;
-
 
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1599,7 +1632,6 @@ class APIController extends ODRCustomController
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
 
-
             /** @var DataType $template_datatype */
             $template_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
                 array(
@@ -1609,7 +1641,6 @@ class APIController extends ODRCustomController
             );
             if ($template_datatype == null)
                 throw new ODRNotFoundException('Datatype');
-
 
             /** @var DataFields $template_datafield */
             $template_datafield = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
@@ -1629,10 +1660,10 @@ class APIController extends ODRCustomController
             if ($typeclass === 'Tag')
                 $item_label = 'template_tag_uuid';
 
-
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
+            $token = $this->container->get('security.token_storage')->getToken();   // <-- will return 'anon.' when nobody is logged in
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 

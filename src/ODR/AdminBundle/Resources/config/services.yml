@@ -34,7 +34,7 @@ services:
     odr.twig.plug_extension:
         class: ODR\AdminBundle\Twig\PlugExtension
         arguments:
-            container: "@service_container"
+            $container: "@service_container"
         tags:
             - { name: twig.extension }
 
@@ -46,217 +46,212 @@ services:
     odr.cache_service:
         class: ODR\AdminBundle\Component\Service\CacheService
         arguments:
-            cache_service: "@snc_redis.default"
-            cache_prefix: "%memcached_key_prefix%"
+            $cache_service: "@snc_redis.default"
+            $cache_prefix: "%memcached_key_prefix%"
 
     odr.crypto_service:
         class: ODR\AdminBundle\Component\Service\CryptoService
         arguments:
-            cache_service: "@odr.cache_service"
-            crypto_adapter: "@dterranova_crypto.crypto_adapter"
-            crypto_dir: "%dterranova_crypto.temp_folder%"
-            odr_web_dir: "%odr_web_directory%"
-            entity_manager: "@doctrine.orm.entity_manager"
-            logger: "@logger"
+            $cache_service: "@odr.cache_service"
+            $crypto_adapter: "@dterranova_crypto.crypto_adapter"
+            $crypto_dir: "%dterranova_crypto.temp_folder%"
+            $odr_web_dir: "%odr_web_directory%"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $logger: "@logger"
 
     odr.tab_helper_service:
         class: ODR\AdminBundle\Component\Service\ODRTabHelperService
         arguments:
-            request_stack: "@request_stack"
-            token_generator: "@fos_user.util.token_generator"
+            $request_stack: "@request_stack"
+            $token_generator: "@fos_user.util.token_generator"
 
     odr.sort_service:
         class: ODR\AdminBundle\Component\Service\SortService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            cache_service: "@odr.cache_service"
-            entity_meta_modify_service: "@odr.entity_meta_modify_service"
-            search_service: "@odr.search_service"
-            logger: "@logger"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
+            $search_service: "@odr.search_service"
+            $logger: "@logger"
 
 
     odr.clone_master_datatype_service:
         class: ODR\AdminBundle\Component\Service\CloneMasterDatatypeService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            cache_service: "@odr.cache_service"
-            clone_master_template_theme_service: "@odr.clone_master_template_theme_service"
-            datatype_info_service: "@odr.datatype_info_service"
-            entity_creation_service: "@odr.entity_creation_service"
-            theme_info_service: "@odr.theme_info_service"
-            uuid_service: "@odr.uuid_service"
-            user_manager: "@fos_user.user_manager"
-            logger: "@monolog.logger.clone_datatype"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $clone_master_template_theme_service: "@odr.clone_master_template_theme_service"
+            $datatype_info_service: "@odr.datatype_info_service"
+            $entity_creation_service: "@odr.entity_creation_service"
+            $theme_info_service: "@odr.theme_info_service"
+            $uuid_service: "@odr.uuid_service"
+            $user_manager: "@fos_user.user_manager"
+            $logger: "@monolog.logger.clone_datatype"
 
     odr.clone_theme_service:
         class: ODR\AdminBundle\Component\Service\CloneThemeService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            cache_service: "@odr.cache_service"
-            permissions_service: "@odr.permissions_management_service"
-            theme_service: "@odr.theme_info_service"
-            logger: "@monolog.logger.clone_theme"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $permissions_service: "@odr.permissions_management_service"
+            $theme_service: "@odr.theme_info_service"
+            $logger: "@monolog.logger.clone_theme"
 
     odr.clone_template_service:
         class: ODR\AdminBundle\Component\Service\CloneTemplateService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            entity_meta_modify_service: "@odr.entity_meta_modify_service"
-            cache_service: "@odr.cache_service"
-            search_cache_service: "@odr.search_cache_service"
-            clone_theme_service: "@odr.clone_theme_service"
-            datatype_info_service: "@odr.datatype_info_service"
-            entity_creation_service: "@odr.entity_creation_service"
-            permissions_service: "@odr.permissions_management_service"
-            theme_service: "@odr.theme_info_service"
-            uuid_service: "@odr.uuid_service"
-            logger: "@monolog.logger.clone_template"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
+            $cache_service: "@odr.cache_service"
+            $search_cache_service: "@odr.search_cache_service"
+            $clone_theme_service: "@odr.clone_theme_service"
+            $datatype_info_service: "@odr.datatype_info_service"
+            $entity_creation_service: "@odr.entity_creation_service"
+            $permissions_service: "@odr.permissions_management_service"
+            $theme_info_service: "@odr.theme_info_service"
+            $uuid_service: "@odr.uuid_service"
+            $logger: "@monolog.logger.clone_template"
 
     odr.clone_master_template_theme_service:
         class: ODR\AdminBundle\Component\Service\CloneMasterTemplateThemeService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            cache_service: "@odr.cache_service"
-            permissions_service: "@odr.permissions_management_service"
-            theme_service: "@odr.theme_info_service"
-            logger: "@monolog.logger.clone_theme"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $permissions_service: "@odr.permissions_management_service"
+            $theme_info_service: "@odr.theme_info_service"
+            $logger: "@monolog.logger.clone_theme"
 
     odr.permissions_management_service:
         class: ODR\AdminBundle\Component\Service\PermissionsManagementService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            cache_service: "@odr.cache_service"
-            datatype_info_service: "@odr.datatype_info_service"
-            search_api_service: "@odr.search_api_service"
-            user_manager: "@fos_user.user_manager"
-            logger: "@logger"
-
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $datatype_info_service: "@odr.datatype_info_service"
+            $search_api_service: "@odr.search_api_service"
+            $user_manager: "@fos_user.user_manager"
+            $logger: "@logger"
 
     odr.datarecord_info_service:
         class: ODR\AdminBundle\Component\Service\DatarecordInfoService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            cache_service: "@odr.cache_service"
-            tag_helper_service: "@odr.tag_helper_service"
-            token_manager: "@security.csrf.token_manager"
-            logger: "@logger"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $tag_helper_service: "@odr.tag_helper_service"
+            $token_manager: "@security.csrf.token_manager"
+            $logger: "@logger"
 
     odr.datatype_create_service:
         class: ODR\AdminBundle\Component\Service\DatatypeCreateService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            cache_service: "@odr.cache_service"
-            clone_master_datatype_service: "@odr.clone_master_datatype_service"
-            datatype_info_service: "@odr.datatype_info_service"
-            odr_web_dir: "%odr_web_directory%"
-            logger: "@logger"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $clone_master_datatype_service: "@odr.clone_master_datatype_service"
+            $uuid_service: "@odr.uuid_service"
+            $odr_web_dir: "%odr_web_directory%"
+            $logger: "@logger"
 
     odr.datatype_info_service:
         class: ODR\AdminBundle\Component\Service\DatatypeInfoService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            cache_service: "@odr.cache_service"
-            tag_helper_service: "@odr.tag_helper_service"
-            odr_web_dir: "%odr_web_directory%"
-            logger: "@logger"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $tag_helper_service: "@odr.tag_helper_service"
+            $odr_web_dir: "%odr_web_directory%"
+            $logger: "@logger"
 
     odr.theme_info_service:
         class: ODR\AdminBundle\Component\Service\ThemeInfoService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            cache_service: "@odr.cache_service"
-            datatype_info_service: "@odr.datatype_info_service"
-            session: "@session"
-            logger: "@logger"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $datatype_info_service: "@odr.datatype_info_service"
+            $session: "@session"
+            $logger: "@logger"
 
 
     odr.tag_helper_service:
         class: ODR\AdminBundle\Component\Service\TagHelperService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            cache_service: "@odr.cache_service"
-            token_manager: "@security.csrf.token_manager"
-            logger: "@logger"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $token_manager: "@security.csrf.token_manager"
+            $logger: "@logger"
 
     odr.table_theme_helper_service:
         class: ODR\AdminBundle\Component\Service\TableThemeHelperService
         arguments:
-            container: "@service_container"    # needed in order to execute arbitrary render plugins
-            cache_service: "@odr.cache_service"
-            datarecord_info_service: "@odr.datarecord_info_service"
-            datatype_info_service: "@odr.datatype_info_service"
-            permissions_service: "@odr.permissions_management_service"
-            theme_service: "@odr.theme_info_service"
-            router: "@router"
-            logger: "@logger"
+            $container: "@service_container"    # needed in order to execute arbitrary render plugins
+            $cache_service: "@odr.cache_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
+            $datatype_info_service: "@odr.datatype_info_service"
+            $permissions_service: "@odr.permissions_management_service"
+            $theme_info_service: "@odr.theme_info_service"
+            $router: "@router"
+            $logger: "@logger"
 
 
     odr.entity_creation_service:
         class: ODR\AdminBundle\Component\Service\EntityCreationService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            cache_service: "@odr.cache_service"
-            uuid_service: "@odr.uuid_service"
-            logger: "@logger"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $uuid_service: "@odr.uuid_service"
+            $logger: "@logger"
 
     odr.entity_meta_modify_service:
         class: ODR\AdminBundle\Component\Service\EntityMetaModifyService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            logger: "@logger"
-
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $logger: "@logger"
 
     odr.render_service:
         class: ODR\AdminBundle\Component\Service\ODRRenderService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            cache_service: "@odr.cache_service"
-            datarecord_info_service: "@odr.datarecord_info_service"
-            datatype_info_service: "@odr.datatype_info_service"
-            permissions_service: "@odr.permissions_management_service"
-            theme_service: "@odr.theme_info_service"
-            clone_theme_service: "@odr.clone_theme_service"
-            clone_template_service: "@odr.clone_template_service"
-            entity_meta_modify_service: "@odr.entity_meta_modify_service"
-            templating: "@templating"
-            logger: "@logger"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
+            $datatype_info_service: "@odr.datatype_info_service"
+            $permissions_service: "@odr.permissions_management_service"
+            $theme_info_service: "@odr.theme_info_service"
+            $clone_theme_service: "@odr.clone_theme_service"
+            $clone_template_service: "@odr.clone_template_service"
+            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
+            $templating: "@templating"
+            $logger: "@logger"
 
     odr.datarecord_export_service:
         class: ODR\AdminBundle\Component\Service\DatarecordExportService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            datarecord_info_service: "@odr.datarecord_info_service"
-            datatype_info_service: "@odr.datatype_info_service"
-            permissions_service: "@odr.permissions_management_service"
-            theme_service: "@odr.theme_info_service"
-            templating: "@templating"
-            logger: "@logger"
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $datarecord_info_service: "@odr.datarecord_info_service"
+            $datatype_info_service: "@odr.datatype_info_service"
+            $permissions_service: "@odr.permissions_management_service"
+            $theme_info_service: "@odr.theme_info_service"
+            $templating: "@templating"
+            $logger: "@logger"
 
     odr.datatype_export_service:
         class: ODR\AdminBundle\Component\Service\DatatypeExportService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            datatype_info_service: "@odr.datatype_info_service"
-            permissions_service: "@odr.permissions_management_service"
-            theme_service: "@odr.theme_info_service"
-            templating: "@templating"
-            logger: "@logger"
-
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $datatype_info_service: "@odr.datatype_info_service"
+            $permissions_service: "@odr.permissions_management_service"
+            $theme_info_service: "@odr.theme_info_service"
+            $templating: "@templating"
+            $logger: "@logger"
 
     odr.tracked_job_service:
         class: ODR\AdminBundle\Component\Service\TrackedJobService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            datatype_info_service: "@odr.datatype_info_service"
-            logger: "@logger"
-
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $datatype_info_service: "@odr.datatype_info_service"
+            $logger: "@logger"
 
     odr.uuid_service:
         class: ODR\AdminBundle\Component\Service\UUIDService
         arguments:
-            entity_manager: "@doctrine.orm.entity_manager"
-            logger: "@logger"
-
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $logger: "@logger"
 
     # Defines a number of reusable classes to use inside Symfony forms
     odr.type.datafield_type:
@@ -264,11 +259,13 @@ services:
         arguments: ['@doctrine.orm.entity_manager']
         tags:
             - { name: form.type }
+
     odr.type.theme_element_type:
         class: ODR\AdminBundle\Form\Type\ThemeElementType
         arguments: ['@doctrine.orm.entity_manager']
         tags:
             - { name: form.type }
+
     odr.type.datatype_type:
         class: ODR\AdminBundle\Form\Type\DatatypeType
         arguments: ['@doctrine.orm.entity_manager']

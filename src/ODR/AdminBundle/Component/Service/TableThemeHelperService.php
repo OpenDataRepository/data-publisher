@@ -90,19 +90,19 @@ class TableThemeHelperService
     public function __construct(
         ContainerInterface $container,
         CacheService $cache_service,
-        DatarecordInfoService $dri_service,
-        DatatypeInfoService $dti_service,
-        PermissionsManagementService $pm_service,
-        ThemeInfoService $theme_service,
+        DatarecordInfoService $datarecord_info_service,
+        DatatypeInfoService $datatype_info_service,
+        PermissionsManagementService $permissions_service,
+        ThemeInfoService $theme_info_service,
         Router $router,
         Logger $logger
     ) {
         $this->container = $container;
         $this->cache_service = $cache_service;
-        $this->dri_service = $dri_service;
-        $this->dti_service = $dti_service;
-        $this->pm_service = $pm_service;
-        $this->theme_service = $theme_service;
+        $this->dri_service = $datarecord_info_service;
+        $this->dti_service = $datatype_info_service;
+        $this->pm_service = $permissions_service;
+        $this->theme_service = $theme_info_service;
         $this->router = $router;
         $this->logger = $logger;
 

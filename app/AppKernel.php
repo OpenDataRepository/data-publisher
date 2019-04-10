@@ -12,13 +12,14 @@ class AppKernel extends Kernel
     {
         $bundles = array(
             new Sensio\Bundle\FrameworkExtraBundle\SensioFrameworkExtraBundle(),
-            new Symfony\Bundle\AsseticBundle\AsseticBundle(),
+            // new Symfony\Bundle\AsseticBundle\AsseticBundle(),
             new Symfony\Bundle\FrameworkBundle\FrameworkBundle(),
             new Symfony\Bundle\MonologBundle\MonologBundle(),
             new Symfony\Bundle\SecurityBundle\SecurityBundle(),
             new Symfony\Bundle\SwiftmailerBundle\SwiftmailerBundle(),
             new Symfony\Bundle\TwigBundle\TwigBundle(),
 
+	        new Http\HttplugBundle\HttplugBundle(),
             new Doctrine\Bundle\DoctrineBundle\DoctrineBundle(),
             new drymek\PheanstalkBundle\drymekPheanstalkBundle(),
             new dterranova\Bundle\CryptoBundle\dterranovaCryptoBundle(),
@@ -31,6 +32,8 @@ class AppKernel extends Kernel
             new JMS\AopBundle\JMSAopBundle(),
             new JMS\DiExtraBundle\JMSDiExtraBundle($this),
             new JMS\SecurityExtraBundle\JMSSecurityExtraBundle(),
+
+            new Lexik\Bundle\JWTAuthenticationBundle\LexikJWTAuthenticationBundle(),
 
             new ODR\AdminBundle\ODRAdminBundle(),
             new ODR\OpenRepository\ApiBundle\ODROpenRepositoryApiBundle(),

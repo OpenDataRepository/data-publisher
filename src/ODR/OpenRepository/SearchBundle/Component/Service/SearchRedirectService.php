@@ -54,18 +54,18 @@ class SearchRedirectService
      *
      * @param ODRTabHelperService $tabHelperService
      * @param Router $router
-     * @param EngineInterface $engine
+     * @param EngineInterface $templating
      * @param Logger $logger
      */
     public function __construct(
-        ODRTabHelperService $tabHelperService,
+        ODRTabHelperService $tab_helper_service,
         Router $router,
-        EngineInterface $engine,
+        EngineInterface $templating,
         Logger $logger
     ) {
-        $this->tab_helper_service = $tabHelperService;
+        $this->tab_helper_service = $tab_helper_service;
         $this->router = $router;
-        $this->templating = $engine;
+        $this->templating = $templating;
         $this->logger = $logger;
     }
 

@@ -53,12 +53,12 @@ class SearchKeyService
      * @param Logger $logger
      */
     public function __construct(
-        DatatypeInfoService $datatypeInfoService,
-        SearchService $searchService,
+        DatatypeInfoService $datatype_info_service,
+        SearchService $search_service,
         Logger $logger
     ) {
-        $this->dti_service = $datatypeInfoService;
-        $this->search_service = $searchService;
+        $this->dti_service = $datatype_info_service;
+        $this->search_service = $search_service;
         $this->logger = $logger;
     }
 

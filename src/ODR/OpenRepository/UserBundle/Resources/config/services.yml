@@ -6,7 +6,7 @@ services:
     odr.tracked_path_service:
         class: ODR\OpenRepository\UserBundle\Component\Service\TrackedPathService
         arguments:
-            request_stack: "@request_stack"
+            $request_stack: "@request_stack"
 
 
     # override of change password form
@@ -18,11 +18,11 @@ services:
     # event listeners
     odr_user.password_resetting:
         class: ODR\OpenRepository\UserBundle\EventListener\PasswordResettingListener
-        arguments: [@router, site_baseurl]
+        arguments: ["@router", site_baseurl]
         tags:
             - { name: kernel.event_subscriber }
     odr_user.change_password:
         class: ODR\OpenRepository\UserBundle\EventListener\ChangePasswordListener
-        arguments: [@router, site_baseurl]
+        arguments: ["@router", site_baseurl]
         tags:
             - { name: kernel.event_subscriber }
