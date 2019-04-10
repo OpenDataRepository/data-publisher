@@ -234,7 +234,7 @@ class UpdateDataFieldsForm extends AbstractType
             'tags_allow_multiple_levels',
             CheckboxType::class,
             array(
-                'label'  => 'Allow parent/child relationships',
+                'label'  => 'Allow multiple levels of tags',
                 'required' => false
             )
         );

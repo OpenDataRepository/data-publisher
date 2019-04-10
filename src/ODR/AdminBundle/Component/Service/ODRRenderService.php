@@ -959,7 +959,7 @@ class ODRRenderService
         );
 
         // It doesn't make sense to synchronize the entire theme when just the datafield is getting
-        //  reloaded TODO - correct?
+        //  reloaded
 
         $template_name = 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig';
         return self::reloadDatafield($user, $template_name, $extra_parameters, $source_datatype, $theme_element, $datafield);
@@ -988,7 +988,7 @@ class ODRRenderService
         );
 
         // It doesn't make sense to synchronize the entire theme when just the datafield is getting
-        //  reloaded TODO - correct?
+        //  reloaded
 
         $template_name = 'ODRAdminBundle:Edit:edit_datafield.html.twig';
         return self::reloadDatafield($user, $template_name, $extra_parameters, $source_datatype, $theme_element, $datafield, $datarecord);

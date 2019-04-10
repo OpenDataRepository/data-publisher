@@ -87,7 +87,7 @@ class TagHelperService
         if (!$use_tag_uuids)
             $tag_hierarchy = $this->cache_service->get('cached_tag_tree_'.$grandparent_datatype_id);
         else
-            $tag_hierarchy = $this->cache_service->get('cached_template_tag_tree_'.$grandparent_datatype_id);    // TODO - test this
+            $tag_hierarchy = $this->cache_service->get('cached_template_tag_tree_'.$grandparent_datatype_id);
 
         if ($tag_hierarchy == false) {
             // ...but rebuild if it doesn't exist

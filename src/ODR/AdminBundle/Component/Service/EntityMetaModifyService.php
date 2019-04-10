@@ -7,8 +7,7 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * TODO -
- *
+ * Contains the functions to update each the meta entities for all of the database entities.
  */
 
 namespace ODR\AdminBundle\Component\Service;
@@ -1490,7 +1489,6 @@ class EntityMetaModifyService
 
 
     /**
-     * TODO - test this
      * Compares the given properties array against the given Tag's meta entry, and either updates
      * the existing TagMeta entry or clones a new one if needed.
      *
@@ -1596,7 +1594,6 @@ class EntityMetaModifyService
 
 
     /**
-     * TODO - test this
      * Modifies a given tag selection entity by copying the old value into a new storage entity,
      * then deleting the old entity.
      *

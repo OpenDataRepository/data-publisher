@@ -217,10 +217,24 @@
             {% else %}
             <div class="ODRCheckboxProperty">
                 {{ form_errors(datafield_form.tags_allow_multiple_levels) }}
-                {{ form_widget(datafield_form.tags_allow_multiple_levels, { 'attr': {'class': 'ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
-                <label for="{{ datafield_form.tags_allow_multiple_levels.vars.id }}">
-                    {{ datafield_form.tags_allow_multiple_levels.vars.label }}
-                </label>
+
+                <span
+                {% if has_multiple_levels == 1 %}
+                    title="This option can't be changed because the tag structure already has multiple levels"
+                {% endif %}
+                >
+
+                {% if has_multiple_levels == 1 %}
+                    {{ form_widget(datafield_form.tags_allow_multiple_levels, { 'attr': {'class': 'ODRFloatingCheckbox', 'disabled': 'disabled', 'style': 'width:auto'} }) }}
+                {% else %}
+                    {{ form_widget(datafield_form.tags_allow_multiple_levels, { 'attr': {'class': 'ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
+                {% endif %}
+
+                    <label for="{{ datafield_form.tags_allow_multiple_levels.vars.id }}">
+                        {{ datafield_form.tags_allow_multiple_levels.vars.label }}
+                    </label>
+
+                </span>
             </div>
             <div class="ODRCheckboxProperty">
                 {{ form_errors(datafield_form.tags_allow_non_admin_edit) }}
@@ -260,9 +274,10 @@
                 {{ datafield_form.allow_multiple_uploads.vars.label }}
             </label>
             <span
-                {% if has_multiple_uploads == 1 %}
-                    title="This option can't be changed because at least one Datarecord already has multiple {{ typename }}s uploaded to this Datafield"
-                {% endif %}>
+            {% if has_multiple_uploads == 1 %}
+                title="This option can't be changed because at least one Datarecord already has multiple {{ typename }}s uploaded to this Datafield"
+            {% endif %}
+            >
 
             {{ form_errors(datafield_form.allow_multiple_uploads) }}
             {% if has_multiple_uploads == 1 %}

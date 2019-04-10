@@ -1095,7 +1095,7 @@ class ODRCustomController extends Controller
 
     /**
      * Locates and returns a datarecord based on its external id
-     * @todo - move to datarecord info service?
+     * TODO - move to datarecord info service?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $datafield_id
@@ -1132,7 +1132,7 @@ class ODRCustomController extends Controller
 
     /**
      * Locates and returns a child datarecord based on its external id and its parent's external id
-     * @todo - move to datarecord info service?
+     * TODO - move to datarecord info service?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $child_datafield_id
@@ -1181,7 +1181,7 @@ class ODRCustomController extends Controller
     /**
      * Locates and returns a single child datarecord based on its parent's external id...this assumes
      * that only a single child datarecord is allowed in this child datatype
-     * @todo - move to datarecord info service?
+     * TODO - move to datarecord info service?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $child_datatype_id

@@ -849,6 +849,7 @@ class EditController extends ODRCustomController
             $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
             // TODO - execute graph plugin?  currently not needed because the graph plugin auto-decrypts files it needs to render a graph...
+            // TODO - implement searching based on public status of file/image?
         }
         catch (\Exception $e) {
             $source = 0x5201b0cd;
@@ -980,7 +981,7 @@ class EditController extends ODRCustomController
             // Mark this image's datarecord as updated
             $dri_service->updateDatarecordCacheEntry($datarecord, $user);
 
-            // TODO - cached search results
+            // TODO - implement searching based on public status of file/image?
         }
         catch (\Exception $e) {
             $source = 0xf051d2f4;
@@ -1186,7 +1187,6 @@ class EditController extends ODRCustomController
             $interval = $create_date->diff($current_date);
 
             // TODO - duration in which image can be rotated without creating new entry?
-            // TODO - change to use parent::createNewMetaEntry() ?
             // Replace existing image if it has existed on the server for less than 30 minutes
             $replace_existing = false;
             if ($interval->days == 0 && $interval->h == 0 && $interval->i <= 30)
@@ -1983,7 +1983,7 @@ class EditController extends ODRCustomController
 
     /**
      * Returns whether the provided value would violate uniqueness constraints for the given datafield.
-     * TODO - does this make more sense in a searching service?
+     * TODO - convert to use searching service?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param Datafields $datafield

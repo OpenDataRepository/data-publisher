@@ -371,12 +371,6 @@ odr_clone_theme:
     requirements:
         theme_id:  \d+
 
-#odr_sync_source_theme:
-#    path:  /design/sync_view/{theme_id}
-#    defaults: { _controller: ODRAdminBundle:Theme:synctheme }
-#    requirements:
-#        theme_id:  \d+
-
 odr_theme_reload_theme_element:
     path: /design/theme/themeelementreload/{source_datatype_id}/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Theme:reloadthemeelement }
