@@ -1,5 +1,5 @@
 api_login_check:
-    path: /api/login_check
+    path: /api/v3/token
     methods: [POST]
 
 # ----------------------------------------
