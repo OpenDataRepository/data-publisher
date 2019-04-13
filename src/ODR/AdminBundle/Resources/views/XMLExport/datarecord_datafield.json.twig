@@ -59,7 +59,7 @@
         "field_name": {{ datafield_meta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
         "field_uuid": {{ datafield.fieldUuid|json_encode|raw }},
         "template_field_uuid": {{ datafield.templateFieldUuid|json_encode|raw }},
-        "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
+        "updated_at": "{{ datarecordfield.created|date('Y-m-d H:i:s') }}",
 {% else %}
     "{{ datafield_meta.xml_fieldName }}": {
         "field_uuid": {{ datafield.fieldUuid|json_encode|raw }},

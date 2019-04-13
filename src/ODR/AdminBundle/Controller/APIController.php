@@ -1973,7 +1973,7 @@ class APIController extends ODRCustomController
                         $record = $dataset['records'][$j];
                         if(!isset($record['record_uuid'])) {
                             // New records don't have UUIDs and need to be added
-                            $record_found = true;
+                            $record_found = false;
                         }
                         else if (
                             $record['template_uuid'] == $o_record['template_uuid']
