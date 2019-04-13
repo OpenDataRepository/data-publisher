@@ -14,7 +14,11 @@ namespace ODR\AdminBundle\Controller;
 
 use FOS\UserBundle\Command\ActivateUserCommand;
 use HWI\Bundle\OAuthBundle\Tests\Fixtures\FOSUser;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\DataRecordMeta;
+use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LongText;
@@ -982,7 +986,7 @@ class APIController extends ODRCustomController
             /** @var DataRecord $data_record */
             $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
                 array(
-                    'id' => $dataset['internal_id']
+                    'unique_id' => $dataset['record_uuid']
                 )
             );
 
@@ -990,15 +994,17 @@ class APIController extends ODRCustomController
             if (isset($dataset['fields'])) {
                 for ($i = 0; $i < count($dataset['fields']); $i++) {
                     $field = $dataset['fields'][$i];
-                    if (is_array($field['value'])) {
 
-                        // Determine field type
-                        /** @var DataFields $data_field */
-                        $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
-                            array(
-                                'fieldUuid' => $field['field_uuid']
-                            )
-                        );
+                    // Determine field type
+                    /** @var DataFields $data_field */
+                    $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
+                        array(
+                            'templateFieldUuid' => $field['template_field_uuid'],
+                            'dataType' => $data_record->getDataType()->getId()
+                        )
+                    );
+
+                    if (is_array($field['value'])) {
 
                         switch ($data_field->getFieldType()->getId()) {
                             case '18':
@@ -1055,7 +1061,7 @@ class APIController extends ODRCustomController
                                 );
 
                                 // Delete deleted tags
-                                foreach($deleted_tags as $tag_uuid) {
+                                foreach ($deleted_tags as $tag_uuid) {
                                     /** @var Tags $tag */
                                     $tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
                                         array(
@@ -1071,7 +1077,7 @@ class APIController extends ODRCustomController
                                         )
                                     );
 
-                                    if($tag_selection) {
+                                    if ($tag_selection) {
                                         $em->remove($tag_selection);
                                         $changed = true;
                                     }
@@ -1151,7 +1157,7 @@ class APIController extends ODRCustomController
                                     }
                                 }
 
-                                if(count($new_options) > 1) {
+                                if (count($new_options) > 1) {
                                     throw new \Exception('Invalid option count: Field ' . $data_field['field_uuid']);
                                 }
 
@@ -1177,7 +1183,7 @@ class APIController extends ODRCustomController
                                 );
 
                                 // Delete deleted options
-                                foreach($deleted_options as $option_uuid) {
+                                foreach ($deleted_options as $option_uuid) {
                                     /** @var RadioOptions $option */
                                     $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
                                         array(
@@ -1193,7 +1199,7 @@ class APIController extends ODRCustomController
                                         )
                                     );
 
-                                    if($option_selection) {
+                                    if ($option_selection) {
                                         $em->remove($option_selection);
                                         $changed = true;
                                     }
@@ -1299,7 +1305,7 @@ class APIController extends ODRCustomController
                                 );
 
                                 // Delete deleted options
-                                foreach($deleted_options as $option_uuid) {
+                                foreach ($deleted_options as $option_uuid) {
                                     /** @var RadioOptions $option */
                                     $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
                                         array(
@@ -1315,7 +1321,7 @@ class APIController extends ODRCustomController
                                         )
                                     );
 
-                                    if($option_selection) {
+                                    if ($option_selection) {
                                         $em->remove($option_selection);
                                         $changed = true;
                                     }
@@ -1420,7 +1426,7 @@ class APIController extends ODRCustomController
                                 );
 
                                 // Delete deleted options
-                                foreach($deleted_options as $option_uuid) {
+                                foreach ($deleted_options as $option_uuid) {
                                     /** @var RadioOptions $option */
                                     $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
                                         array(
@@ -1436,7 +1442,7 @@ class APIController extends ODRCustomController
                                         )
                                     );
 
-                                    if($option_selection) {
+                                    if ($option_selection) {
                                         $em->remove($option_selection);
                                         $changed = true;
                                     }
@@ -1541,7 +1547,7 @@ class APIController extends ODRCustomController
                                 );
 
                                 // Delete deleted options
-                                foreach($deleted_options as $option_uuid) {
+                                foreach ($deleted_options as $option_uuid) {
                                     /** @var RadioOptions $option */
                                     $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
                                         array(
@@ -1557,7 +1563,7 @@ class APIController extends ODRCustomController
                                         )
                                     );
 
-                                    if($option_selection) {
+                                    if ($option_selection) {
                                         $em->remove($option_selection);
                                         $changed = true;
                                     }
@@ -1634,7 +1640,7 @@ class APIController extends ODRCustomController
                                     }
                                 }
 
-                                if(count($new_options) > 1) {
+                                if (count($new_options) > 1) {
                                     throw new \Exception('Invalid option count: Field ' . $data_field['field_uuid']);
                                 }
 
@@ -1660,7 +1666,7 @@ class APIController extends ODRCustomController
                                 );
 
                                 // Delete deleted options
-                                foreach($deleted_options as $option_uuid) {
+                                foreach ($deleted_options as $option_uuid) {
                                     /** @var RadioOptions $option */
                                     $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
                                         array(
@@ -1676,7 +1682,7 @@ class APIController extends ODRCustomController
                                         )
                                     );
 
-                                    if($option_selection) {
+                                    if ($option_selection) {
                                         $em->remove($option_selection);
                                         $changed = true;
                                     }
@@ -1723,227 +1729,275 @@ class APIController extends ODRCustomController
                                 break;
 
                         }
-                    } else if ($orig_dataset) {
-                        foreach ($orig_dataset['fields'] as $o_field) {
-                            if (!is_array($o_field['value'])
-                                && (
-                                    $o_field['template_field_uuid'] == $field['template_field_uuid']
-                                    || $o_field['field_uuid'] == $field['field_uuid']
-                                )
-                                && $o_field['value'] !== $field['value']
-                            ) {
-                                // Update value to new value (delete and enter new data)
-                                /** @var DataRecordFields $drf */
-                                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                                    array(
-                                        'dataRecord' => $dataset['internal_id'],
-                                        'dataField' => $field['id']
+                    } else {
+                        $drf = false;
+                        $field_changes = true;
+                        if ($orig_dataset) {
+                            foreach ($orig_dataset['fields'] as $o_field) {
+                                // If we find a matching field....
+                                if (!is_array($o_field['value'])
+                                    && (
+                                        $o_field['template_field_uuid'] == $field['template_field_uuid']
+                                        || $o_field['field_uuid'] == $field['field_uuid']
                                     )
-                                );
-
-                                /** @var DataFields $data_field */
-                                $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
-                                    array(
-                                        'id' => $field['id']
-                                    )
-                                );
-
-                                $existing_field = null;
-                                if (!$drf) {
-                                    // If drf entry doesn't exist, create new
-                                    $drf = new DataRecordFields();
-                                    $drf->setCreatedBy($user);
-                                    $drf->setCreated(new \DateTime());
-                                    $drf->setDataField($data_field);
-                                    $drf->setDataRecord($data_record);
-                                    $em->persist($drf);
-                                } else {
-                                    switch ($data_field->getFieldType()->getId()) {
-                                        case '4':
-                                            $existing_field = $em->getRepository('ODRAdminBundle:IntegerValue')
-                                                ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                            break;
-                                        case '5':
-                                            $existing_field = $em->getRepository('ODRAdminBundle:LongText')
-                                                ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                            break;
-                                        case '6':
-                                            $existing_field = $em->getRepository('ODRAdminBundle:LongVarchar')
-                                                ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                            break;
-                                        case '7':
-                                            $existing_field = $em->getRepository('ODRAdminBundle:MediumVarchar')
-                                                ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                            break;
-                                        case '9':
-                                            $existing_field = $em->getRepository('ODRAdminBundle:ShortVarchar')
-                                                ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                            break;
-                                        case '16':
-                                            $existing_field = $em->getRepository('ODRAdminBundle:DecimalValue')
-                                                ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                            break;
+                                ) {
+                                    if ($o_field['value'] !== $field['value']) {
+                                        // Update value to new value (delete and enter new data)
+                                        /** @var DataRecordFields $drf */
+                                        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
+                                            array(
+                                                'dataRecord' => $dataset['internal_id'],
+                                                'dataField' => $data_field->getId()
+                                            )
+                                        );
+                                    } else {
+                                        // No changes necessary - field values match
+                                        $field_changes = false;
                                     }
-
-                                }
-
-                                switch ($data_field->getFieldType()->getId()) {
-                                    case '4':
-                                        /** @var IntegerValue $new_field */
-                                        $new_field = new IntegerValue();
-                                        if ($existing_field) {
-                                            // clone and update?
-                                            $new_field = clone $existing_field;
-                                        } else {
-                                            $new_field->setDataField($data_field);
-                                            $new_field->setDataRecord($data_record);
-                                            $new_field->setDataRecordFields($drf);
-                                            $new_field->setFieldType($data_field->getFieldType());
-                                        }
-
-                                        $new_field->setCreatedBy($user);
-                                        $new_field->setUpdatedBy($user);
-                                        $new_field->setCreated(new \DateTime());
-                                        $new_field->setUpdated(new \DateTime());
-                                        $new_field->setValue($field['value']);
-
-                                        $em->persist($new_field);
-                                        if ($existing_field) {
-                                            $em->remove($existing_field);
-                                        }
-                                        $changed = true;
-                                        break;
-                                    case '5':
-                                        /** @var LongText $new_field */
-                                        $new_field = new LongText();
-                                        if ($existing_field) {
-                                            // clone and update?
-                                            $new_field = clone $existing_field;
-                                        } else {
-                                            $new_field->setDataField($data_field);
-                                            $new_field->setDataRecord($data_record);
-                                            $new_field->setDataRecordFields($drf);
-                                            $new_field->setFieldType($data_field->getFieldType());
-                                        }
-
-                                        $new_field->setCreatedBy($user);
-                                        $new_field->setUpdatedBy($user);
-                                        $new_field->setCreated(new \DateTime());
-                                        $new_field->setUpdated(new \DateTime());
-                                        $new_field->setValue($field['value']);
-
-                                        $em->persist($new_field);
-                                        if ($existing_field) {
-                                            $em->remove($existing_field);
-                                        }
-                                        $changed = true;
-                                        break;
-
-                                    case '6':
-                                        /** @var LongVarchar $new_field */
-                                        $new_field = new LongVarchar();
-                                        if ($existing_field) {
-                                            // clone and update?
-                                            $new_field = clone $existing_field;
-                                        } else {
-                                            $new_field->setDataField($data_field);
-                                            $new_field->setDataRecord($data_record);
-                                            $new_field->setDataRecordFields($drf);
-                                            $new_field->setFieldType($data_field->getFieldType());
-                                        }
-
-                                        $new_field->setCreatedBy($user);
-                                        $new_field->setUpdatedBy($user);
-                                        $new_field->setCreated(new \DateTime());
-                                        $new_field->setUpdated(new \DateTime());
-                                        $new_field->setValue($field['value']);
-
-                                        $em->persist($new_field);
-                                        if ($existing_field) {
-                                            $em->remove($existing_field);
-                                        }
-                                        $changed = true;
-                                        break;
-                                    case '7':
-                                        /** @var MediumVarchar $new_field */
-                                        $new_field = new MediumVarchar();
-                                        if ($existing_field) {
-                                            // clone and update?
-                                            $new_field = clone $existing_field;
-                                        } else {
-                                            $new_field->setDataField($data_field);
-                                            $new_field->setDataRecord($data_record);
-                                            $new_field->setDataRecordFields($drf);
-                                            $new_field->setFieldType($data_field->getFieldType());
-                                        }
-
-                                        $new_field->setCreatedBy($user);
-                                        $new_field->setUpdatedBy($user);
-                                        $new_field->setCreated(new \DateTime());
-                                        $new_field->setUpdated(new \DateTime());
-                                        $new_field->setValue($field['value']);
-
-                                        $em->persist($new_field);
-                                        if ($existing_field) {
-                                            $em->remove($existing_field);
-                                        }
-                                        $changed = true;
-                                        break;
-                                    case '9':
-                                        /** @var ShortVarchar $new_field */
-                                        $new_field = new ShortVarchar();
-                                        if ($existing_field) {
-                                            // clone and update?
-                                            $new_field = clone $existing_field;
-                                        } else {
-                                            $new_field->setDataField($data_field);
-                                            $new_field->setDataRecord($data_record);
-                                            $new_field->setDataRecordFields($drf);
-                                            $new_field->setFieldType($data_field->getFieldType());
-                                        }
-
-                                        $new_field->setCreatedBy($user);
-                                        $new_field->setUpdatedBy($user);
-                                        $new_field->setCreated(new \DateTime());
-                                        $new_field->setUpdated(new \DateTime());
-                                        $new_field->setValue($field['value']);
-
-                                        $em->persist($new_field);
-                                        if ($existing_field) {
-                                            $em->remove($existing_field);
-                                        }
-                                        $changed = true;
-                                        break;
-                                    case '16':
-                                        /** @var DecimalValue $new_field */
-                                        $new_field = new DecimalValue();
-                                        if ($existing_field) {
-                                            // clone and update?
-                                            $new_field = clone $existing_field;
-                                        } else {
-                                            $new_field->setDataField($data_field);
-                                            $new_field->setDataRecord($data_record);
-                                            $new_field->setDataRecordFields($drf);
-                                            $new_field->setFieldType($data_field->getFieldType());
-                                        }
-
-                                        $new_field->setCreatedBy($user);
-                                        $new_field->setUpdatedBy($user);
-                                        $new_field->setCreated(new \DateTime());
-                                        $new_field->setUpdated(new \DateTime());
-                                        $new_field->setValue($field['value']);
-
-                                        $em->persist($new_field);
-                                        if ($existing_field) {
-                                            $em->remove($existing_field);
-                                        }
-                                        $changed = true;
-                                        break;
-                                    default:
-                                        break;
                                 }
                             }
                         }
+                        if ($field_changes) {
+                            // Changes are required or a field needs to be added.
+
+                            $existing_field = null;
+                            if (!$drf) {
+                                // If drf entry doesn't exist, create new
+                                $drf = new DataRecordFields();
+                                $drf->setCreatedBy($user);
+                                $drf->setCreated(new \DateTime());
+                                $drf->setDataField($data_field);
+                                $drf->setDataRecord($data_record);
+                                $em->persist($drf);
+                            } else {
+                                switch ($data_field->getFieldType()->getId()) {
+                                    case '4':
+                                        $existing_field = $em->getRepository('ODRAdminBundle:IntegerValue')
+                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
+                                        break;
+                                    case '5':
+                                        $existing_field = $em->getRepository('ODRAdminBundle:LongText')
+                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
+                                        break;
+                                    case '6':
+                                        $existing_field = $em->getRepository('ODRAdminBundle:LongVarchar')
+                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
+                                        break;
+                                    case '7':
+                                        $existing_field = $em->getRepository('ODRAdminBundle:MediumVarchar')
+                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
+                                        break;
+                                    case '9':
+                                        $existing_field = $em->getRepository('ODRAdminBundle:ShortVarchar')
+                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
+                                        break;
+                                    case '16':
+                                        $existing_field = $em->getRepository('ODRAdminBundle:DecimalValue')
+                                            ->findOneBy(array('dataRecordFields' => $drf->getId()));
+                                        break;
+                                }
+
+                            }
+
+                            switch ($data_field->getFieldType()->getId()) {
+                                case '4':
+                                    /** @var IntegerValue $new_field */
+                                    $new_field = new IntegerValue();
+                                    if ($existing_field) {
+                                        // clone and update?
+                                        $new_field = clone $existing_field;
+                                    } else {
+                                        $new_field->setDataField($data_field);
+                                        $new_field->setDataRecord($data_record);
+                                        $new_field->setDataRecordFields($drf);
+                                        $new_field->setFieldType($data_field->getFieldType());
+                                    }
+
+                                    $new_field->setCreatedBy($user);
+                                    $new_field->setUpdatedBy($user);
+                                    $new_field->setCreated(new \DateTime());
+                                    $new_field->setUpdated(new \DateTime());
+                                    $new_field->setValue($field['value']);
+
+                                    $em->persist($new_field);
+                                    if ($existing_field) {
+                                        $em->remove($existing_field);
+                                    }
+                                    $changed = true;
+                                    break;
+                                case '5':
+                                    /** @var LongText $new_field */
+                                    $new_field = new LongText();
+                                    if ($existing_field) {
+                                        // clone and update?
+                                        $new_field = clone $existing_field;
+                                    } else {
+                                        $new_field->setDataField($data_field);
+                                        $new_field->setDataRecord($data_record);
+                                        $new_field->setDataRecordFields($drf);
+                                        $new_field->setFieldType($data_field->getFieldType());
+                                    }
+
+                                    $new_field->setCreatedBy($user);
+                                    $new_field->setUpdatedBy($user);
+                                    $new_field->setCreated(new \DateTime());
+                                    $new_field->setUpdated(new \DateTime());
+                                    $new_field->setValue($field['value']);
+
+                                    $em->persist($new_field);
+                                    if ($existing_field) {
+                                        $em->remove($existing_field);
+                                    }
+                                    $changed = true;
+                                    break;
+
+                                case '6':
+                                    /** @var LongVarchar $new_field */
+                                    $new_field = new LongVarchar();
+                                    if ($existing_field) {
+                                        // clone and update?
+                                        $new_field = clone $existing_field;
+                                    } else {
+                                        $new_field->setDataField($data_field);
+                                        $new_field->setDataRecord($data_record);
+                                        $new_field->setDataRecordFields($drf);
+                                        $new_field->setFieldType($data_field->getFieldType());
+                                    }
+
+                                    $new_field->setCreatedBy($user);
+                                    $new_field->setUpdatedBy($user);
+                                    $new_field->setCreated(new \DateTime());
+                                    $new_field->setUpdated(new \DateTime());
+                                    $new_field->setValue($field['value']);
+
+                                    $em->persist($new_field);
+                                    if ($existing_field) {
+                                        $em->remove($existing_field);
+                                    }
+                                    $changed = true;
+                                    break;
+                                case '7':
+                                    /** @var MediumVarchar $new_field */
+                                    $new_field = new MediumVarchar();
+                                    if ($existing_field) {
+                                        // clone and update?
+                                        $new_field = clone $existing_field;
+                                    } else {
+                                        $new_field->setDataField($data_field);
+                                        $new_field->setDataRecord($data_record);
+                                        $new_field->setDataRecordFields($drf);
+                                        $new_field->setFieldType($data_field->getFieldType());
+                                    }
+
+                                    $new_field->setCreatedBy($user);
+                                    $new_field->setUpdatedBy($user);
+                                    $new_field->setCreated(new \DateTime());
+                                    $new_field->setUpdated(new \DateTime());
+                                    $new_field->setValue($field['value']);
+
+                                    $em->persist($new_field);
+                                    if ($existing_field) {
+                                        $em->remove($existing_field);
+                                    }
+                                    $changed = true;
+                                    break;
+                                case '9':
+                                    /** @var ShortVarchar $new_field */
+                                    $new_field = new ShortVarchar();
+                                    if ($existing_field) {
+                                        // clone and update?
+                                        $new_field = clone $existing_field;
+                                    } else {
+                                        $new_field->setDataField($data_field);
+                                        $new_field->setDataRecord($data_record);
+                                        $new_field->setDataRecordFields($drf);
+                                        $new_field->setFieldType($data_field->getFieldType());
+                                    }
+
+                                    $new_field->setCreatedBy($user);
+                                    $new_field->setUpdatedBy($user);
+                                    $new_field->setCreated(new \DateTime());
+                                    $new_field->setUpdated(new \DateTime());
+                                    $new_field->setValue($field['value']);
+
+                                    $em->persist($new_field);
+                                    if ($existing_field) {
+                                        $em->remove($existing_field);
+                                    }
+                                    $changed = true;
+                                    break;
+                                case '16':
+                                    /** @var DecimalValue $new_field */
+                                    $new_field = new DecimalValue();
+                                    if ($existing_field) {
+                                        // clone and update?
+                                        $new_field = clone $existing_field;
+                                    } else {
+                                        $new_field->setDataField($data_field);
+                                        $new_field->setDataRecord($data_record);
+                                        $new_field->setDataRecordFields($drf);
+                                        $new_field->setFieldType($data_field->getFieldType());
+                                    }
+
+                                    $new_field->setCreatedBy($user);
+                                    $new_field->setUpdatedBy($user);
+                                    $new_field->setCreated(new \DateTime());
+                                    $new_field->setUpdated(new \DateTime());
+                                    $new_field->setValue($field['value']);
+
+                                    $em->persist($new_field);
+                                    if ($existing_field) {
+                                        $em->remove($existing_field);
+                                    }
+                                    $changed = true;
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                    }
+                }
+            }
+
+
+
+            // Remove deleted records
+            if ($orig_dataset && isset($orig_dataset['records'])) {
+                // Check if old record exists and delete if necessary...
+                for ($i = 0; $i < count($orig_dataset['records']); $i++) {
+                    $o_record = $orig_dataset['records'][$i];
+
+                    $record_found = false;
+                    // Check if record_uuid and template_uuid match - if so we're differencing
+                    for ($j = 0; $j < count($dataset['records']); $j++) {
+                        $record = $dataset['records'][$j];
+                        if(!isset($record['record_uuid'])) {
+                            // New records don't have UUIDs and need to be added
+                            $record_found = true;
+                        }
+                        else if (
+                            $record['template_uuid'] == $o_record['template_uuid']
+                            && $record['record_uuid'] == $o_record['record_uuid']
+                        ) {
+                            $record_found = true;
+                        }
+                    }
+
+                    if (!$record_found) {
+                        // Use delete record
+                        /** @var DataType $master_data_type */
+                        $del_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                            array(
+                                'unique_id' => $o_record['record_uuid']
+                            )
+                        );
+
+                        if($del_record) {
+                            $em->remove($del_record);
+                            $em->flush();
+                            $changed = true;
+                        }
+
                     }
                 }
             }
@@ -1955,14 +2009,119 @@ class APIController extends ODRCustomController
             if (isset($dataset['records'])) {
                 for ($i = 0; $i < count($dataset['records']); $i++) {
                     $record = $dataset['records'][$i];
+
+                    $record_found = false;
                     if ($orig_dataset && isset($orig_dataset['records'])) {
+                        // Check if record_uuid and template_uuid match - if so we're differencing
                         for ($j = 0; $j < count($orig_dataset['records']); $j++) {
                             $o_record = $orig_dataset['records'][$j];
-                            if ($record['template_uuid'] == $o_record->template_uuid) {
-                                $output = self::datasetDiff($record, $o_record, $user, $changed);
-                                $dataset['records'][$i] = $output;
+                            if (
+                                isset($record['record_uuid'])
+                                && (
+                                    $record['template_uuid'] == $o_record['template_uuid']
+                                    && $record['record_uuid'] == $o_record['record_uuid']
+                                )
+                            ) {
+                                $record_found = true;
+                                // Check for differences
+                                $dataset['records'][$i] = self::datasetDiff($record, $o_record, $user, $changed);
                             }
                         }
+                    }
+                    if(!$record_found) {
+                        // Use original data record to get datatype template group
+                        $template_group = $data_record->getDataType()->getTemplateGroup();
+
+                        // Find correct type in group by template_uuid
+                        /** @var DataType $master_data_type */
+                        $master_data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                            array(
+                                'unique_id' => $record['template_uuid']
+                            )
+                        );
+
+                        /** @var DataType $record_data_type */
+                        $record_data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                            array(
+                                'masterDataType' => $master_data_type->getId(),
+                                'template_group' => $template_group
+                            )
+                        );
+
+
+                        // Determine if datatype is a link
+                        $is_link = false;
+                        /** @var DataTree $datatree */
+                        $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                            array(
+                                'ancestor' => $data_record->getDataType()->getId(),
+                                'descendant' => $record_data_type->getId()
+                            )
+                        );
+                        if ($datatree == null)
+                            throw new ODRNotFoundException('Datatree');
+
+
+                        if($datatree->getIsLink()) {
+                            $is_link = true;
+                        }
+
+
+
+                        /** @var UUIDService $uuid_service */
+                        $uuid_service = $this->container->get('odr.uuid_service');
+
+                        /** @var DataRecord $new_record */
+                        $new_record = new DataRecord();
+                        $new_record->setDataType($record_data_type);
+                        $new_record->setUpdated(new \DateTime());
+                        $new_record->setCreated(new \DateTime());
+                        $new_record->setCreatedBy($user);
+                        $new_record->setUpdatedBy($user);
+                        $new_record->setUniqueId($uuid_service->generateDatarecordUniqueId());
+                        $new_record->setProvisioned(0);
+
+                        if($is_link) {
+                            $new_record->setParent($new_record);
+                            $new_record->setGrandparent($new_record);
+                        }
+                        else {
+                            $new_record->setParent($data_record);
+                            $new_record->setGrandparent($data_record->getGrandparent());
+                        }
+
+                        /** @var DataRecordMeta $new_record_meta */
+                        $new_record_meta = new DataRecordMeta();
+                        $new_record_meta->setCreatedBy($user);
+                        $new_record_meta->setUpdatedBy($user);
+                        $new_record_meta->setUpdated(new \DateTime());
+                        $new_record_meta->setCreated(new \DateTime());
+                        $new_record_meta->setDataRecord($new_record);
+                        $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:01.0Z'));
+
+                        // Need to persist and flush
+                        $em->persist($new_record);
+                        $em->persist($new_record_meta);
+                        $em->flush();
+                        $em->refresh($new_record);
+
+                        if($is_link) {
+                            /** @var EntityCreationService $ec_service */
+                            $ec_service = $this->container->get('odr.entity_creation_service');
+                            $ec_service->createDatarecordLink($user, $data_record, $new_record);
+                        }
+
+                        // Mark Changed
+                        $changed = true;
+
+                        // Populate the UUID of the newly added record
+                        $record['record_uuid'] = $new_record->getUniqueId();
+                        $record['internal_id'] = $new_record->getId();
+
+                        // Difference with null
+                        $null_record = false;
+                        $dataset['records'][$i] = self::datasetDiff($record, $null_record, $user, $changed);
+
                     }
                 }
             }
@@ -2567,6 +2726,123 @@ class APIController extends ODRCustomController
         }
     }
 
+    /**
+     * Retrieve user info and list of created databases (that have metadata).
+     * Creates user if not exists.
+     *
+     * @param $version
+     * @param Request $request
+     */
+    public function userAction($version, Request $request) {
+
+
+        try {
+
+            $user_email = $_POST['user_email'];
+            $first_name = $_POST['first_name'];
+            $last_name = $_POST['last_name'];
+
+            $user_manager = $this->container->get('fos_user.user_manager');
+
+            /** @var FOSUser $user */
+            $user = $user_manager->findUserBy(array('email' => $user_email));
+            if (is_null($user)) {
+                // Create a new user with this email & set a random password
+
+                $user = $user_manager->createUser();
+                $user->setUsername($user_email);
+                $user->setEmail($user_email);
+                $user->setPlainPassword(random_bytes(8));
+                $user->setRoles(array('ROLE_ADMIN'));
+                $user_manager->updateUser($user);
+
+                // TODO - how to input first and last name
+
+
+            }
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype */
+            /*
+            $datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll(
+                array(
+                    'createdBy' => $user,
+                    'is_master_type' => 0,
+                    'metadata_for_id'
+                )
+            );
+            */
+
+            $query = $em->createQuery(
+                'SELECT
+                       dt.id AS database_id,
+                       dt.unique_id AS database_uuid,
+                       dr.id AS record_id,
+                       dr.unique_id AS record_uuid
+                    FROM ODRAdminBundle:DataType AS dt
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                    WHERE dt.setup_step IN (:setup_steps)
+                    AND dt.createdBy = :user
+                    AND dt.is_master_type = :is_master_type 
+                    AND dt.metadata_for IS NOT NULL
+                    AND dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'user' => $user,
+                    'setup_steps' => DataType::STATE_VIEWABLE,
+                    'is_master_type' => 0
+                )
+            );
+            $results = $query->getArrayResult();
+
+            $metadata_records = array();
+            foreach($results as $record) {
+                try {
+                    $data = self::getRecordData(
+                        $version,
+                        $record['record_uuid'],
+                        $request->getRequestFormat(),
+                        1, // Need to figure out how this is set
+                        $user
+                    );
+
+                    if($data) {
+                        array_push($metadata_records, json_decode($data));
+                    }
+                }
+                catch (\Exception $e) {
+                    // Ignoring errors building data
+                    // TODO need to determine cause of data errors
+                }
+
+            }
+
+            $output_array = array();
+            $output_array['user_email'] = $user->getEmail();
+            $output_array['datasets'] = $metadata_records;
+
+
+            // Set up a response to send the datatype back
+            /** @var Response $response */
+            $response = new Response();
+            $response->headers->set('Content-Type', 'application/json');
+            $response->setContent(json_encode($output_array));
+
+            return $response;
+
+        } catch (\Exception $e) {
+            // Returning an error...do it in json
+            $request->setRequestFormat('json');
+
+            $source = 0x8a8b2309;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
 
     /**
      * Assuming the user has permissions to do so, creates a Symfony StreamedResponse for an image download

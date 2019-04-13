@@ -63,9 +63,7 @@
             'version': version,
         } %}
 
-        }
-                {# properly deal with comma here #}
-
+        }{% if not loop.last %},{% endif %}
 
 {% endfor %}
 

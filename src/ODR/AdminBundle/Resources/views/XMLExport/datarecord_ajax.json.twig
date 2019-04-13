@@ -31,30 +31,31 @@
 {
 {% endif %}
     {% for initial_datarecord_id in sorted_datarecord_ids %}
-    {% set data = lookup_array[initial_datarecord_id] %}
+        {% set data = lookup_array[initial_datarecord_id] %}
 
-    {% set initial_datatype_id = data['datatype'] %}
-    {% set initial_theme_id = data['theme'] %}
+        {% set initial_datatype_id = data['datatype'] %}
+        {% set initial_theme_id = data['theme'] %}
 
-    {% set datarecord_array_subset = datarecord_array[initial_datarecord_id] %}
-    {% set datatype_array_subset = datatype_array[initial_datatype_id] %}
-    {% set theme_array_subset = theme_array[initial_theme_id] %}
+        {% set datarecord_array_subset = datarecord_array[initial_datarecord_id] %}
+        {% set datatype_array_subset = datatype_array[initial_datatype_id] %}
+        {% set theme_array_subset = theme_array[initial_theme_id] %}
 
-    {{ mychildform.input(
-        datatype_array_subset,
-        datarecord_array_subset,
-        theme_array_subset,
-        initial_datatype_id,
-        initial_datarecord_id,
-        initial_theme_id,
-        is_top_level,
-        is_link,
-        using_metadata,
-        baseurl,
-        version,
-        show_records
-    ) }}
-    {# properly deal with comma here ??  #}
+        {{ mychildform.input(
+            datatype_array_subset,
+            datarecord_array_subset,
+            theme_array_subset,
+            initial_datatype_id,
+            initial_datarecord_id,
+            initial_theme_id,
+            is_top_level,
+            is_link,
+            using_metadata,
+            baseurl,
+            version,
+            show_records
+        ) }}
+        {# properly deal with comma here ??  #}
+        {# if !loop.last %},{% endif #}
     {% endfor %}
 {% if show_records == 1 %}
 }
