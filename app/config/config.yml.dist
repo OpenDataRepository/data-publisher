@@ -33,23 +33,10 @@ twig:
     #cache: false
     exception_controller: ODR.exception_controller:showAction
 
-# Knp Markdown Configuration
-knp_markdown:
-    parser:
-        service: odr.markdown.parser
-
-# Assetic Configuration
-assetic:
-    debug:          %kernel.debug%
-    use_controller: false
-    bundles:        [ ]
-    #java: /usr/bin/java
-    filters:
-        cssrewrite: ~
-        #closure:
-        #    jar: %kernel.root_dir%/Resources/java/compiler.jar
-        #yui_css:
-        #    jar: %kernel.root_dir%/Resources/java/yuicompressor-2.4.7.jar
+## Knp Markdown Configuration
+#knp_markdown:
+#    parser:
+#        service: odr.markdown.parser
 
 # Doctrine Configuration
 doctrine:
@@ -100,6 +87,12 @@ doctrine:
                 alias: Gedmo
                 prefix: Gedmo\Tree\Entity
                 dir: "%kernel.root_dir%/../vendor/gedmo/doctrine-extensions/lib/Gedmo/Tree/Entity"
+
+lexik_jwt_authentication:
+    secret_key:       '%kernel.root_dir%/config/jwt/private.pem' # required for token creation
+    public_key:       '%kernel.root_dir%/config/jwt/public.pem'  # required for token verification
+    pass_phrase:      'opendatarepository' # required for token creation, usage of an environment variable is recommended
+    token_ttl:        360000
 
 # Swiftmailer Configuration
 swiftmailer:
@@ -175,7 +168,10 @@ snc_redis:
             # TODO: https://github.com/snc/SncRedisBundle/pull/199/files
             #serialization: php
 
-drymek_pheanstalk: ~
+drymek_pheanstalk:
+    server:  127.0.0.1
+    port:    11300
+    timeout: 3
 
 services:
     ajax.listener:
