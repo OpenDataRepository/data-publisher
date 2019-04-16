@@ -30,9 +30,6 @@
         {{ pagination_html | raw }}
     {% endif %}
 
-
-
-
     {% if has_datarecords %}
         {% include 'ODRAdminBundle:ShortResults:shortresults_ajax.html.twig' with {
             'datatype_array': datatype_array,
@@ -51,13 +48,10 @@
 
         {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
 
-    {% elseif logged_in %}
-        {# TODO - better styling for this #}
-        No Datarecords found
-
     {% else %}
-        No Datarecords found...try logging in.
-
+        <div class="ODRShortResults_empty">
+            {% if logged_in %}No Datarecords found{% else %}No Datarecords found...try logging in.{% endif %}
+        </div>
     {% endif %}
     </div>
 
@@ -133,6 +127,9 @@
         setupAccordions();
 
         $(".ODRFileDownloadProgress").hide();
+
+        // Attach click handlers to tags
+        setupTagTree();
 
         $("a.ODRFileDownload").unbind('click').click(function(event) {
             // Grab necessary attributes

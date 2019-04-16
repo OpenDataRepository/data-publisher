@@ -75,6 +75,11 @@ class DataFields
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
+    private $tags;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
     private $dataFieldMeta;
 
     /**
@@ -395,6 +400,58 @@ class DataFields
                 return 1;
             else
                 // otherwise, sort by radio_option_id
+                return ($a->getId() < $b->getId()) ? -1 : 1;
+        });
+        return new ArrayCollection(iterator_to_array($iterator));
+    }
+
+    /**
+     * Add tag
+     *
+     * @param \ODR\AdminBundle\Entity\Tags $tag
+     *
+     * @return DataFields
+     */
+    public function addTag(\ODR\AdminBundle\Entity\Tags $tag)
+    {
+        $this->tags[] = $tag;
+
+        return $this;
+    }
+
+    /**
+     * Remove tag
+     *
+     * @param \ODR\AdminBundle\Entity\Tags $tag
+     */
+    public function removeTag(\ODR\AdminBundle\Entity\Tags $tag)
+    {
+        $this->tags->removeElement($tag);
+    }
+
+    /**
+     * Get tags
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getTags()
+    {
+//        return $this->tags;
+
+        // Adapted from http://stackoverflow.com/a/16707694
+        $iterator = $this->tags->getIterator();
+        $iterator->uasort(function ($a, $b) {
+            // Sort by display order first if possible
+            /** @var Tags $a */
+            /** @var Tags $b */
+            $a_display_order = $a->getDisplayOrder();
+            $b_display_order = $b->getDisplayOrder();
+            if ($a_display_order < $b_display_order)
+                return -1;
+            else if ($a_display_order > $b_display_order)
+                return 1;
+            else
+                // otherwise, sort by tag_id
                 return ($a->getId() < $b->getId()) ? -1 : 1;
         });
         return new ArrayCollection(iterator_to_array($iterator));
@@ -754,6 +811,26 @@ class DataFields
     public function getRadioOptionDisplayUnselected()
     {
         return $this->getDataFieldMeta()->getRadioOptionDisplayUnselected();
+    }
+
+    /**
+     * Get tagsAllowMultipleLevels
+     *
+     * @return boolean
+     */
+    public function getTagsAllowMultipleLevels()
+    {
+        return $this->getDataFieldMeta()->getTagsAllowMultipleLevels();
+    }
+
+    /**
+     * Get tagsAllowNonAdminEdit
+     *
+     * @return boolean
+     */
+    public function getTagsAllowNonAdminEdit()
+    {
+        return $this->getDataFieldMeta()->getTagsAllowNonAdminEdit();
     }
 
     /**

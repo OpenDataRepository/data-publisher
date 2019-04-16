@@ -15,6 +15,7 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\AdminBundle\Component\Service\EntityCreationService;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -36,6 +37,7 @@ use ODR\AdminBundle\Form\UpdateGroupForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
@@ -229,6 +231,8 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -254,9 +258,11 @@ class ODRGroupController extends ODRCustomController
 
 
             // Create a new group
-            $pm_service->createGroup($user, $datatype);
+            $ec_service->createGroup($user, $datatype);
 
-            // Don't need to delete any cached entries since this is a new non-default group...nobody will immediately have/need membership in it
+            // Don't need to delete any user's cached permissions entries since this is a new
+            //  non-default group...nobody immediately needs or has membership in it
+
             // permissions_wrapper.html.twig will reload the list of groups automatically
         }
         catch (\Exception $e) {
@@ -418,6 +424,8 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -469,7 +477,7 @@ class ODRGroupController extends ODRCustomController
                         'groupName' => $submitted_data->getGroupName(),
                         'groupDescription' => $submitted_data->getGroupDescription(),
                     );
-                    parent::ODR_copyGroupMeta($em, $user, $group, $properties);
+                    $emm_service->updateGroupMeta($user, $group, $properties);
 
                     // TODO - Delete cached versions of group/user permissions once datarecord_restriction is added
                 }
@@ -480,7 +488,7 @@ class ODRGroupController extends ODRCustomController
                 }
             }
             else {
-                // GET request...load the actual ThemeMeta entity
+                // GET request...load the actual GroupMeta entity
                 $group_meta = $group->getGroupMeta();
                 $group_form = $this->createForm(UpdateGroupForm::class, $group_meta);
 
@@ -884,6 +892,8 @@ class ODRGroupController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -931,45 +941,65 @@ class ODRGroupController extends ODRCustomController
             if ($value == 1) {
                 // If user is supposed to be added to a default group...
                 if ($group->getPurpose() !== '') {
-                    // ...remove them from all other default groups for this datatype since they should only ever be a member of a single group at a time
+                    // ...remove them from all other default groups for this datatype since users
+                    //  are only supposed to be a member of a single default group per datatype
                     $query = $em->createQuery(
-                       'SELECT ug.id AS ug_id
+                       'SELECT ug
                         FROM ODRAdminBundle:Group AS g
                         JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
                         WHERE ug.user = :user_id AND g.purpose != :purpose AND g.dataType = :datatype_id
                         AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
                     )->setParameters( array('user_id' => $user->getId(), 'purpose' => '', 'datatype_id' => $datatype->getId()) );
-                    $results = $query->getArrayResult();
+                    $results = $query->getResult();
 
-                    foreach ($results as $result) {
-                        $user_group_id = $result['ug_id'];
+                    // Only supposed to be in a single default group, but use foreach incase the
+                    //  database got messed up somehow...
+                    $changes_made = false;
+                    foreach ($results as $ug) {
+                        /** @var UserGroup $ug */
+                        $ug->setDeletedBy($admin_user);
+                        $ug->setDeletedAt(new \DateTime());
+                        $em->persist($ug);
+//                        $em->remove($ug);
+                        $em->detach($ug);
 
-                        /** @var UserGroup $user_group */
-                        $user_group = $repo_user_group->find($user_group_id);
-                        $user_group->setDeletedBy($admin_user);
-                        $em->persist($user_group);
-                        $em->remove($user_group);
+                        $changes_made = true;
                     }
 
-                    $em->flush();
+                    // Flush now that all the updates have been made
+                    if ($changes_made)
+                        $em->flush();
+
+                    // Can't just setDeletedBy() then remove()...doctrine only commits the remove()
+                    foreach ($results as $ug)
+                        $em->detach($ug);
                 }
 
                 // Add this user to the desired group
-                $pm_service->createUserGroup($user, $group, $admin_user);
+                $ec_service->createUserGroup($user, $group, $admin_user);
             }
             else {
                 // Otherwise, user is supposed to be removed from the indicated group
                 /** @var UserGroup $user_group */
-                $user_group = $repo_user_group->findOneBy( array('user' => $user->getId(), 'group' => $group->getId()) );
+                $user_group = $repo_user_group->findOneBy(
+                    array(
+                        'user' => $user->getId(),
+                        'group' => $group->getId()
+                    )
+                );
                 if ($user_group == null) {
                     /* user already doesn't belong to this group, do nothing */
                 }
                 else {
                     // Delete the UserGroup entity so the user is no longer linked to the group
                     $user_group->setDeletedBy($admin_user);
+                    $user_group->setDeletedAt(new \DateTime());
                     $em->persist($user_group);
-                    $em->remove($user_group);
+//                    $em->remove($user_group);
                     $em->flush();
+
+                    // Can't just setDeletedBy() then remove()...doctrine only commits the remove()
+                    $em->detach($user_group);
                 }
             }
 
@@ -1118,6 +1148,8 @@ class ODRGroupController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1148,6 +1180,7 @@ class ODRGroupController extends ODRCustomController
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            // TODO - why did a user have to have the admin role to do this?
             if ( !$admin_user->hasRole('ROLE_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -1171,12 +1204,12 @@ class ODRGroupController extends ODRCustomController
 
             if ($permission == 'dt_admin') {
                 if ($value == 1) {
-                    // Due to the INSERT INTO query for datafields later on, don't continue if the group already has the "is_datatype_admin" permission
+                    // Don't continue if the group already has the "is_datatype_admin" permission
                     if ( $gdtp->getIsDatatypeAdmin() )
-                        throw new ODRException('Already have the "is_datatype_admin" permission');
+                        throw new ODRBadRequestException('Already have the "is_datatype_admin" permission');
 
                     // ----------------------------------------
-                    // Set all datatypes affected by this group to have the "is_datatype_admin" permission
+                    // Ensure all datatypes affected by this group have all the permissions
                     $query = $em->createQuery(
                        'SELECT gdtp
                         FROM ODRAdminBundle:GroupDatatypePermissions AS gdtp
@@ -1190,62 +1223,38 @@ class ODRGroupController extends ODRCustomController
                         'can_view_datarecord' => 1,
                         'can_add_datarecord' => 1,
                         'can_delete_datarecord' => 1,
+                        'can_design_datatype' => 1,    // TODO - implement this permission
                         'is_datatype_admin' => 1,
                     );
 
                     foreach ($results as $gdtp)
-                        parent::ODR_copyGroupDatatypePermission($em, $admin_user, $gdtp, $properties);
+                        $emm_service->updateGroupDatatypePermission($admin_user, $gdtp, $properties, true);    // Don't flush immediately
 
 
                     // ----------------------------------------
                     // Ensure all datafields are set to can-view/can-edit to avoid edge-cases
                     $query = $em->createQuery(
-                       'SELECT gdfp.id AS gdfp_id, df.id AS df_id, df.deletedAt AS df_deletedAt
+                       'SELECT gdfp
                         FROM ODRAdminBundle:GroupDatafieldPermissions AS gdfp
                         JOIN ODRAdminBundle:DataFields AS df WITH gdfp.dataField = df
-                        WHERE gdfp.group = :group_id AND (gdfp.can_view_datafield = 0 OR gdfp.can_edit_datafield = 0)
+                        WHERE gdfp.group = :group_id
+                        AND (gdfp.can_view_datafield = 0 OR gdfp.can_edit_datafield = 0)
                         AND gdfp.deletedAt IS NULL AND df.deletedAt IS NULL'
                     )->setParameters( array('group_id' => $group->getId()) );
-                    $results = $query->getArrayResult();
+                    $results = $query->getResult();
 
-                    $permission_list = array();
-                    $datafield_list = array();
-                    foreach ($results as $result) {
-                        $permission_list[] = $result['gdfp_id'];
+                    $properties = array(
+                        'can_view_datafield' => 1,
+                        'can_edit_datafield' => 1,
+                    );
 
-                        $df_deletedAt = "NULL";
-                        if ( !is_null($result['df_deletedAt']) )
-                            $df_deletedAt = '"'.$df_deletedAt->format('Y-m-d H:i:s').'"';
-                        $datafield_list[ $result['df_id'] ] = $df_deletedAt;
-                    }
-
-                    // Delete the specified GroupDatafieldPermissions entities
-                    $query = $em->createQuery(
-                       'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
-                        SET gdfp.deletedAt = :now
-                        WHERE gdfp.id IN (:permission_list) AND gdfp.deletedAt IS NULL'
-                    )->setParameters( array('now' => new \DateTime(), 'permission_list' => $permission_list) );
-                    $rows = $query->execute();
-
-                    // Build a single INSERT INTO query to add GroupDatafieldPermissions entries for all datafields of this top-level datatype and its children
-                    $query_str = '
-                        INSERT INTO odr_group_datafield_permissions (
-                            group_id, data_field_id,
-                            can_view_datafield, can_edit_datafield,
-                            created, createdBy, updated, updatedBy, deletedAt
-                        )
-                        VALUES ';
-
-                    foreach ($datafield_list as $df_id => $df_deletedAt)
-                        $query_str .= '("'.$group->getId().'", "'.$df_id.'", "1", "1", NOW(), "'.$admin_user->getId().'", NOW(), "'.$admin_user->getId().'", '.$df_deletedAt.'),'."\n";
-
-                    // Get rid of the trailing comma and replace with a semicolon
-                    $query_str = substr($query_str, 0, -2).';';
-                    $conn = $em->getConnection();
-                    $rowsAffected = $conn->executeUpdate($query_str);
+                    foreach ($results as $gdfp)
+                        $emm_service->updateGroupDatafieldPermission($admin_user, $gdfp, $properties, true);    // Don't flush immediately...
+                    $em->flush();
                 }
                 else {
-                    // Set all datatypes affected by this group to not have the "is_datatype_admin" permission
+                    // Ensure all datatypes affected by this group do not have the
+                    //  "is_datatype_admin" permission
                     $query = $em->createQuery(
                        'SELECT gdtp
                         FROM ODRAdminBundle:GroupDatatypePermissions AS gdtp
@@ -1254,9 +1263,13 @@ class ODRGroupController extends ODRCustomController
                     )->setParameters( array('group_id' => $group->getId()) );
                     $results = $query->getResult();
 
-                    $properties['is_datatype_admin'] = 0;
+                    $properties = array(
+                        'can_design_datatype' => 0,    // TODO - implement this permission
+                        'is_datatype_admin' => 0,
+                    );
                     foreach ($results as $gdtp)
-                        parent::ODR_copyGroupDatatypePermission($em, $admin_user, $gdtp, $properties);
+                        $emm_service->updateGroupDatatypePermission($admin_user, $gdtp, $properties, true);    // Don't flush immediately...
+                    $em->flush();
                 }
             }
             else {
@@ -1278,12 +1291,14 @@ class ODRGroupController extends ODRCustomController
                 }
 
                 if ($permission != 'dt_view' && $value == 1) {
-                    // If any permission is selected, ensure the "can_view_datatype" permission is selected as well
+                    // If any permission is selected, ensure the "can_view_datatype" permission is
+                    //  selected as well
                     $properties['can_view_datatype'] = 1;
                 }
                 else if ($permission == 'dt_view' && $value == 0) {
-                    // If the "can_view_datatype" permission is deselected, ensure all other permissions are deselected as well
-                    // Don't need to worry about the 'is_datatype_admin' permission...if it's set to 1, then this line of code can't be reached
+                    // If the "can_view_datatype" permission is deselected, ensure all other
+                    //  permissions are deselected as well...if the 'is_datatype_admin' permission
+                    //  was set to 1, then this block of code can't be reached
                     $properties = array(
                         'can_view_datatype' => 0,
                         'can_view_datarecord' => 0,
@@ -1293,12 +1308,13 @@ class ODRGroupController extends ODRCustomController
                 }
 
                 // Update the database
-                parent::ODR_copyGroupDatatypePermission($em, $admin_user, $gdtp, $properties);
+                $emm_service->updateGroupDatatypePermission($admin_user, $gdtp, $properties);
             }
 
 
             // ----------------------------------------
-            // Load the list of users this will have been affected by this
+            // Now that the database is up to date, load the list of users that have had their
+            //  permissions affected by this change
             $query = $em->createQuery(
                'SELECT DISTINCT(u.id) AS user_id
                 FROM ODRAdminBundle:UserGroup AS ug
@@ -1316,8 +1332,9 @@ class ODRGroupController extends ODRCustomController
             // Could be quite a few changes to the cached group array...just delete it
             $cache_service->delete('group_'.$group_id.'_permissions');
 
-            // Clear cached version of permissions for all users of this group
-            // Not updating cached entry because it's a combination of all group permissions, and would take as much work to figure out what all to change as it would to just rebuild it
+            // Clear cached version of permissions for all users in this group
+            // Not updating the cache entry because it's a combination of all group permissions,
+            //  and figuring out what all to change is more work than just rebuilding it
             foreach ($user_list as $user_id)
                 $cache_service->delete('user_'.$user_id.'_permissions');
 
@@ -1359,6 +1376,8 @@ class ODRGroupController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1439,7 +1458,7 @@ class ODRGroupController extends ODRCustomController
 
                 /* no need to update the cache entry with this */
             }
-            parent::ODR_copyGroupDatafieldPermission($em, $admin_user, $gdfp, $properties);
+            $emm_service->updateGroupDatafieldPermission($admin_user, $gdfp, $properties);
 
 
             // ----------------------------------------
@@ -1468,7 +1487,8 @@ class ODRGroupController extends ODRCustomController
             }
 
             // Clear cached version of permissions for all users of this group
-            // Not updating cached entry because it's a combination of all group permissions, and would take as much work to figure out what all to change as it would to just rebuild it
+            // Not updating cached entry because it's a combination of all group permissions, and
+            //  is easier to just rebuild it
             foreach ($user_list as $user_id)
                 $cache_service->delete('user_'.$user_id.'_permissions');
 

@@ -11,8 +11,8 @@
     }
 
     datafield_properties[{{ datafield.id }}] = {};
-    datafield_properties[{{ datafield.id }}].render_plugin_id = {{ datafield.dataFieldMeta.renderPlugin.id }};
-    datafield_properties[{{ datafield.id }}].render_plugin_name = '{{ datafield.dataFieldMeta.renderPlugin.pluginName }}';
+    datafield_properties[{{ datafield.id }}].render_plugin_id = {{ datafield_meta.renderPlugin.id }};
+    datafield_properties[{{ datafield.id }}].render_plugin_name = '{{ datafield_meta.renderPlugin.pluginName }}';
     {% if typeclass != "Radio" %}
         datafield_properties[{{ datafield.id }}].can_copy = 1;
     {% else %}
@@ -193,6 +193,18 @@
             {% endfor %}
         {% endif %}
         </select>
+    </fieldset>
+
+    {% elseif field_typename == "Tags" %}
+    <fieldset>
+        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1{% if is_datatype_admin %} Pointer{% endif %}">
+            <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+        </label>
+        {% if datafield.tags is defined %}
+            {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
+                'stacked_tags': datafield.tags,
+            } %}
+        {% endif %}
     </fieldset>
 
     {% elseif field_typename == "DateTime" %}

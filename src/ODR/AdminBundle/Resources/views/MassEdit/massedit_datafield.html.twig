@@ -1,8 +1,9 @@
 {% spaceless %}
-    
-{% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
 
-{% if datafield.dataFieldMeta.is_unique == 1 %}
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+
+{% if datafield_meta.is_unique == 1 %}
     <div id="Field_{{ datafield.id }}_overlay" class="ODROverlayDiv ODRReloadDiv"></div>
 {% endif %}
 
@@ -11,7 +12,7 @@
     {% if field_typename == "Boolean" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
         </span>
         <select id="SelectGroup_{{ datafield.id }}" class="ODRBoolean" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
             <option value="-1">&lt;No change&gt;</option>
@@ -22,7 +23,7 @@
 
     {% elseif field_typename == "File" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
         <div class="pure-u-1">
             <select id="SelectGroup_{{ datafield.id }}" class="ODRFile" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
                 <option value="-1">Make all Files non-public</option>
@@ -34,7 +35,7 @@
 
     {% elseif field_typename == "Image" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
         <div class="pure-u-1">
             <select id="SelectGroup_{{ datafield.id }}" class="ODRFile" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
                 <option value="-1">Make all Images non-public</option>
@@ -46,7 +47,7 @@
 
     {% elseif field_typename == "Paragraph Text" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
         <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
             <textarea class="ODRParagraphField pure-u-1" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}></textarea>
         </div>
@@ -54,47 +55,46 @@
 
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
         <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
             <input type="text" class="ODRField pure-u-1" name="" value="" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
         </div>
     </fieldset>
 
-    {#{% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}#}
     {% elseif field_typename == "Single Radio" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
         </span>
         <div class="ODRSingleRadio pure-u-1" rel="{{ datafield.id }}">
-            <label id="Label_0" for="Input_0" class="pure-u-1" style="margin: 0.5em 0;">
+            <div style="margin-left: 10px;">
+            <label id="Label_0" for="Input_0" class="pure-u-1">
                 <input id="Option_{{ datafield.id }}_0" type="radio" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" checked rel="0" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
                 &lt;No change&gt;
             </label>
 
-        {% if datafield.radioOptions is defined %}
-            {% for radio_option in datafield.radioOptions %}
-                <label id="Label_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
-
-                {% if field_typename == "Single Radio" %}
-                    <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
-                {% else %}
-                    <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
-                {% endif %}
-
+    {% if datafield.radioOptions is defined %}
+        {% for radio_option in datafield.radioOptions %}
+            <label id="Label_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield_meta.children_per_row }}" style="margin: 0.5em 0;">
+            {% if field_typename == "Single Radio" %}
+                <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
+            {% else %}
+                <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
+            {% endif %}
                 {{ radio_option.radioOptionMeta.optionName }}
-                </label>
-            {% endfor %}
-        {% endif %}
+            </label>
+        {% endfor %}
+    {% endif %}
+            </div>
         </div>
     </fieldset>
 
-    {#{% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}#}
     {% elseif field_typename == "Single Select" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
         </span>
+
         <select id="SelectGroup_{{ datafield.id }}" class="ODRSingleSelect" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
 
         {% if datafield.radioOptions is defined %}
@@ -112,11 +112,10 @@
     {% elseif field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}">
-                <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
-            </label>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
 
             {% if datafield.radioOptions is defined %}
+                <div style="margin-left: 10px;">
                 {% for radio_option in datafield.radioOptions %}
                     <label id="Label_{{ datafield.id }}_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="ODRRadioLabel pure-u-1">
                         <span class="ODRTristateCheckbox" rel="multiple">
@@ -126,13 +125,24 @@
                         {{ radio_option.radioOptionMeta.optionName }}
                     </label>
                 {% endfor %}
+                </div>
             {% endif %}
         </span>
     </fieldset>
 
+    {% elseif field_typename == "Tags" %}
+    <fieldset>
+        <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        {% if datafield.tags is defined %}
+            {% include 'ODRAdminBundle:MassEdit:tag_wrapper.html.twig' with {
+                'stacked_tags': datafield.tags,
+            } %}
+        {% endif %}
+    </fieldset>
+
     {% elseif field_typename == "DateTime" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
         <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
             <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
         </div>

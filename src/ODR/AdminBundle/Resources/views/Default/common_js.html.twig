@@ -1,13 +1,11 @@
-{% macro write(logged_in) %}
+	{% macro write(logged_in) %}
 <script>
     {# This is intentionally placed outside the $(function() {...} block #}
     {# jquery3 modified how the 'load' event was handled, and firefox wouldn't trigger this reliably #}
     $(window).on('load', function() {
         // Skip this process for the search page
-        if(
-            window.location.hash !== ""
-            && (
-                window.location.hash.substr(1).match(/\/search/)
+        if (window.location.hash !== ""
+            && (window.location.hash.substr(1).match(/\/search/)
                 || window.location.hash.substr(1).match(/\/app_dev.php\/search/)
                 || window.location.hash.substr(1).match(/\/view\//)
                 || window.location.hash.substr(1).match(/\/app_dev.php\/view\//)
@@ -15,17 +13,20 @@
                 || window.location.hash.substr(1).match(/\/app_dev.php\/edit\//)
             )
         ) {
-            loadSearchContent(window.location.hash.substr(1))
+            // console.log( 'window.onload: loadSearchContent("' + window.location.hash.substr(1) + '")' );
+            loadSearchContent( window.location.hash.substr(1) );
             return;
         }
         else if ( window.location.hash !== '') {
             // window.location.hash doesn't preserve url encoding...
             var tmp = window.location.href.split('#');
             var url = tmp[1];
+            // console.log( 'window.onload: LoadContentFullAjax("' + url + '")' );
             LoadContentFullAjax( url );
         }
 {% if logged_in == true %}
         else {
+            // console.log( 'window.onload: LoadContentFullAjax("<<dashboard>>")' );
             LoadContentFullAjax('{{ path('odr_dashboard') }}');
         }
 {% endif %}
@@ -50,13 +51,12 @@
         // Custom AJAX history stuff
         $(window).off("hashchange");
         $(window).on("hashchange", function(event) {
-            // Needed?
+            // Needed, unfortunately...
             event.preventDefault();
 
             // Grab the URL from the browser and reload it
             // Skip this process for the search page
-            if(
-                window.location.hash.substr(1).match(/\/search/)
+            if (window.location.hash.substr(1).match(/\/search/)
                 || window.location.hash.substr(1).match(/\/app_dev.php\/search/)
                 || window.location.hash.substr(1).match(/\/view\//)
                 || window.location.hash.substr(1).match(/\/app_dev.php\/view\//)
@@ -79,11 +79,13 @@
                 url = new_url[1];
                 if ( url !== undefined ) {
                     // Load the URL as usual
+                    // console.log( 'window.hashchange: LoadContentFullAjax("' + url + '")' );
                     LoadContentFullAjax( url );
                 }
                 else {
                     // Attempt to move back/forward to the homepage...just refresh
                     {#location.replace("{{ path('odr_admin_homepage') }}");#}
+                    // console.log( 'window.hashchange: location.replace("' + new_url[0] + '")' );
                     location.replace( new_url[0] );
                 }
             }
@@ -92,10 +94,12 @@
                 url = window.location.hash.substr(1);
                 if ( url !== '' ) {
                     // Load the URL as usual
+                    // console.log( 'window.hashchange (event undefined): LoadContentFullAjax("' + url + '")' );
                     LoadContentFullAjax( url );
                 }
                 else {
                     // Attempt to move back/forward to the homepage...just refresh
+                    // console.log( 'window.hashchange (event undefined): location.replace("<<dashboard>>")' );
                     location.replace("{{ path('odr_admin_homepage') }}");
                 }
             }
@@ -127,6 +131,7 @@
             url = url.replace('#', '');
 
             // Update the URL and hash
+            // console.log( 'a.address: UpdateUrl("' + url + '")' );
             UpdateURL(url);
         });
 
@@ -186,10 +191,12 @@
         var current_hash = window.location.hash.substr(1);
         if ( current_hash !== url ) {
             // Just change the hash to the desired link
+            // console.log( 'UpdateUrl("' + url + '")' );
             window.location.hash = url;
         }
         else {
             // Force a hashchange event because we want the AJAX to fire again
+            // console.log( 'UpdateUrl(): forced hashchange' );
             $(window).hashchange();
         }
     }
@@ -212,6 +219,8 @@
         var faded_opacity = 0.15;
         if (!use_fade)
             faded_opacity = 1;
+
+        // console.log( 'LoadContentFullAjax("' + url + '")' );
 
         // Disable scroll handlers
         $(window).off('scroll');
@@ -273,7 +282,17 @@
             url: url,
             dataType: 'json',
             success: function (data) {
-                $('#ODRSearchContent').html(data.d.html);
+                if ( data.r === 2 ) {
+                    // redirect to single record
+                    xhr = null;
+                    UpdateURL( data.d.url );
+                }
+                else {
+                    // show search results
+                    xhr = null;
+                    $('#ODRSearchContent').html(data.d.html);
+                }
+
                 hideSearchOverlay();
             }
         });
@@ -473,6 +492,21 @@
         });
     }
 
+    function setupTagTree() {
+        $(".ODRTagParent").unbind('click').click(function() {
+            if ( $(this).hasClass('ODRTagCollapsed') ) {
+                $(this).next().next().show();
+                $(this).children(".fa").first().removeClass("fa-caret-right").addClass("fa-caret-down");
+            }
+            else {
+                $(this).next().next().hide();
+                $(this).children(".fa").first().removeClass("fa-caret-down").addClass("fa-caret-right");
+            }
+
+            $(this).toggleClass('ODRTagCollapsed');
+        });
+    }
+
     function reloadPage() {
         // TODO - should check if URL has hash value...
         var url = window.location.hash.substr(1);
@@ -486,7 +520,7 @@
 
         // Get Scroll height of inner
         var content_height = modal_inner_content.prop('scrollHeight');
-//console.log('h1: ' + content_height);
+// console.log('h1: ' + content_height);
 
         var modal_height =  $(window).height()
             - modal.find(".ODRRemodalButtons").height()
@@ -494,15 +528,15 @@
 
         if ( $(window).width() >= 568 )
             modal_height -= 30;
-//console.log('mh0: ' + modal_height);
+// console.log('mh0: ' + modal_height);
 
         // Just show content if smaller than window height
         if (content_height < modal_height)
             modal_height = content_height;
-//console.log('mh1: ' + modal_height);
+// console.log('mh1: ' + modal_height);
 
         // Ensure it looks okay
-        modal_height += 20;
+        modal_height -= 20;
         if (modal_height < 100)
             modal_height = 100;
 
@@ -513,6 +547,8 @@
                 easing: "swing"
             }
         );
+
+        return modal_height;
     }
 
     {# This is apparently only used in ODROpenRepositoryGraphBundle:Base:Graph/graph.html.twig #}

@@ -1,10 +1,10 @@
 {% spaceless %}
 
 {% set datafield_meta = datafield.dataFieldMeta %}
-
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
+{% set datarecordfield = '' %}
 {% set valuefield = '' %}
 {% set valuefield_value = '' %}
 {% if datarecord.dataRecordFields[ datafield.id ] is defined %}
@@ -34,6 +34,8 @@
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typeclass == "Radio" %}
         {% set valuefield = datarecordfield.radioSelection %}
+    {% elseif field_typeclass == "Tag" %}
+        {% set valuefield = datarecordfield.tagSelection %}
     {% elseif field_typename == "Short Text" and datarecordfield.shortVarchar[0] is defined %}
         {% set valuefield = datarecordfield.shortVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
@@ -290,6 +292,25 @@
 
         </fieldset>
 
+    {% elseif field_typename == "Tags" %}
+        <fieldset>
+            <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">
+                {{ datafield_meta.fieldName }}
+                {% if datafield_meta.tags_allow_non_admin_edit or is_datatype_admin %}
+                <span class="ODRTagsEdit" rel="{{ datafield.id }}"><i class="Pointer fa fa-lg fa-cog" title="Edit Tags"></i></span>
+                {% endif %}
+            </label>
+
+            {% if datafield.tags is defined %}
+                {% include 'ODRAdminBundle:Edit:tag_wrapper.html.twig' with {
+                    'unique_id': unique_id,
+
+                    'drf': datarecordfield,
+                    'stacked_tags': datafield.tags,
+                } %}
+            {% endif %}
+        </fieldset>
+
     {% elseif field_typename == "DateTime" %}
         {% set new_id = 'DatetimeValueForm_value_' ~ datafield.id %}
         <fieldset>
@@ -314,17 +335,17 @@
 
 {% if field_typename == "Boolean" %}
     <script>
-        window.{{ field_typeclass }}Interval_{{ unique_id }} = null;
+        var {{ field_typeclass }}Interval_{{ unique_id }} = null;
         $("#EditForm_{{ unique_id }}").find("input[name='{{ input_name }}']").unbind('change').change(function() {
-            window.{{ field_typeclass }}Interval_{{ unique_id }} = window.clearInterval( window.{{ field_typeclass }}Interval_{{ unique_id }} );
-            window.{{ field_typeclass }}Interval_{{ unique_id }} = window.setInterval( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
+            clearTimeout( {{ field_typeclass }}Interval_{{ unique_id }} );
+            {{ field_typeclass }}Interval_{{ unique_id }} = setTimeout( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
         });
 
         $("#EditForm_{{ unique_id }}").validate({
             submitHandler: function(form) {
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
-                    window.{{ field_typeclass }}Interval_{{ unique_id }}
+                    {{ field_typeclass }}Interval_{{ unique_id }}
                 )
             }
         });
@@ -339,10 +360,10 @@
     or field_typename == "Medium Text"
     or field_typename == "Short Text" %}
     <script>
-        window.{{ field_typeclass }}Interval_{{ unique_id }} = null;
+        var {{ field_typeclass }}Interval_{{ unique_id }} = null;
         $("#EditForm_{{ unique_id }}").find("{% if field_typename == 'Paragraph Text' %}textarea{% else %}input{% endif %}[name='{{ input_name }}']").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
-            window.{{ field_typeclass }}Interval_{{ unique_id }} = window.clearInterval( window.{{ field_typeclass }}Interval_{{ unique_id }} );
-            window.{{ field_typeclass }}Interval_{{ unique_id }} = window.setInterval( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
+            clearTimeout( {{ field_typeclass }}Interval_{{ unique_id }} );
+            {{ field_typeclass }}Interval_{{ unique_id }} = setTimeout( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
         });
 
         $("#EditForm_{{ unique_id }}").validate({
@@ -373,8 +394,9 @@
             submitHandler: function(form) {
                 SaveRecordData(
                     '#EditForm_{{ unique_id }}',
-                    window.{{ field_typeclass }}Interval_{{ unique_id }}
-                )
+                    {{ field_typeclass }}Interval_{{ unique_id }}
+                );
+
                 // Need to check if this is a datatype properties value
                 var field_reference = jQuery('#Input_{{ unique_id }}').children(':first-child').attr('rel');
                 switch(field_reference) {

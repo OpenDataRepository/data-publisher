@@ -26,7 +26,7 @@ php app/console --env=dev odr_datatype:clone_and_link_datatype >> app/logs/clone
 
 export XDEBUG_CONFIG="idekey=phpstorm_xdebug"
 # php -dxdebug.remote_autostart=On app/console --env=dev odr_datatype:clone_and_link >> app/logs/clone_and_link_datatype.log 2>&1 &
-php -dxdebug.remote_autostart=On app/console --env=dev odr_datatype:clone_master >> app/logs/datatype_create.log 2>&1 &
+php -dxdebug.remote_autostart=On -dxdebug.remote_enable=1 -dxdebug.remote_mode=req -dxdebug.remote_port=9000 -dxdebug.remote_host=127.0.0.1 -dxdebug.remote_connect_back=0 app/console --env=dev odr_datatype:clone_master >> app/logs/datatype_create.log 2>&1 &
 
 #php -dxdebug.remote_autostart=On app/console --env=dev odr_crypto:worker  >> app/logs/crypto_worker.log 2>&1 &
 

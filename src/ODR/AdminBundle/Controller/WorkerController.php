@@ -20,6 +20,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
@@ -46,8 +47,12 @@ use ODR\AdminBundle\Component\Service\CloneTemplateService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -94,15 +99,18 @@ class WorkerController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
-            $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
+
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException('Invalid Form');
@@ -111,11 +119,11 @@ class WorkerController extends ODRCustomController
 
             // Grab necessary objects
             /** @var User $user */
-            $user = $repo_user->find( $user_id );
+            $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find( $user_id );
             /** @var DataRecord $datarecord */
-            $datarecord = $repo_datarecord->find( $datarecord_id );
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find( $datarecord_id );
             /** @var DataFields $datafield */
-            $datafield = $repo_datafield->find( $datafield_id );
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find( $datafield_id );
             $em->refresh($datafield);
 
             /** @var FieldType $old_fieldtype */
@@ -125,7 +133,7 @@ class WorkerController extends ODRCustomController
             $new_fieldtype = $repo_fieldtype->find( $new_fieldtype_id );
             $new_typeclass = $new_fieldtype->getTypeClass();
 
-            // Ensure datarecord/datafield pair exist
+            // Ensure datarecord/datafield pair exist...they should, but have to make sure...
             if ($datarecord == null)
                 throw new ODRException('Datarecord '.$datarecord_id.' is deleted');
             if ($datafield == null)
@@ -140,42 +148,58 @@ class WorkerController extends ODRCustomController
 
             // Need to handle radio options separately...
             if ( ($old_typename == 'Multiple Radio' || $old_typename == 'Multiple Select') && ($new_typename == 'Single Radio' || $new_typename == 'Single Select') ) {
-                // If migrating from multiple radio/select to single radio/select, and more than one radio option selected...then need to deselect all but one option
+                // If migrating from multiple radio/select to single radio/select, and more than one
+                // radio option is selected...then need to deselect all but one option
 
-                // Grab all selected radio options
+                // Migrating from a single radio/select to a multiple radio/select requires no work
+
+                // Load all selected radio options for this datarecord/datafield pair
                 $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id, rs.id AS rs_id, rs.selected AS selected, ro.id AS ro_id, rom.optionName AS option_name
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                    JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.dataRecordFields = drf
-                    JOIN ODRAdminBundle:RadioOptions AS ro WITH rs.radioOption = ro
-                    JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
-                    WHERE drf.dataRecord = :datarecord AND drf.dataField = :datafield AND rs.selected = 1
-                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL
+                   'SELECT drf, rs, ro, rom
+
+                    FROM ODRAdminBundle:DataRecordFields AS drf
+                    JOIN drf.radioSelection AS rs
+                    JOIN rs.radioOption AS ro
+                    JOIN ro.radioOptionMeta AS rom
+
+                    WHERE drf.dataRecord = :datarecord_id AND drf.dataField = :datafield_id AND rs.selected = 1
+                    AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL
+                    AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL
+
                     ORDER BY rom.displayOrder, ro.id'
-                )->setParameters( array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()) );
-                $results = $query->getArrayResult();
+                )->setParameters(
+                    array(
+                        'datarecord_id' => $datarecord->getId(),
+                        'datafield_id' => $datafield->getId(),
+                    )
+                );
+                $results = $query->getResult();
 
-                // If more than one radio option selected...
-                if ( count($results) > 1 ) {
-                    // ...deselect all but the first one in the list
-                    for ($i = 1; $i < count($results); $i++) {
-                        $rs_id = $results[$i]['rs_id'];
-                        $ro_id = $results[$i]['ro_id'];
-                        $option_name = $results[$i]['option_name'];
+                if ( !empty($results) ) {
+                    /** @var DataRecordFields $drf */
+                    $drf = $results[0];
 
-                        /** @var RadioSelection $radio_selection */
-                        $radio_selection = $repo_radio_selection->find($rs_id);
-
-                        if ($radio_selection->getSelected() == 1) {
-                            // Ensure this RadioSelection is unselected
-                            $properties = array('selected' => 0);
-                            parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
-
-                            $ret .= '>> Deselected Radio Option '.$ro_id.' ('.$option_name.')'."\n";
+                    $changes_made = false;
+                    $count = 0;
+                    foreach ($drf->getRadioSelection() as $rs) {
+                        /** @var RadioSelection $rs */
+                        // Leave the first one selected
+                        $count++;
+                        if ($count == 1) {
+//                            $ret .= '>> Skipping RadioOption '.$rs->getRadioOption()->getId().' ('.$rs->getRadioOption()->getOptionName().')'."\n";
+                            continue;
                         }
+
+                        // Otherwise, ensure this RadioSelection is unselected
+                        $properties = array('selected' => 0);
+                        $emm_service->updateRadioSelection($user, $rs, $properties, true);    // don't flush immediately...
+                        $changes_made = true;
+
+                        $ret .= '>> Deselected RadioOption '.$rs->getRadioOption()->getId().' ('.$rs->getRadioOption()->getOptionName().')'."\n";
                     }
-                    $em->flush();
+
+                    if ($changes_made)
+                        $em->flush();
                 }
             }
             else if ( $new_typeclass !== 'Radio' ) {
@@ -245,8 +269,11 @@ class WorkerController extends ODRCustomController
                         $ret .= 'set dest_entity to "'.$value.'"'."\n";
                     $em->remove($src_entity);
 
-                    $new_obj = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                    parent::ODR_copyStorageEntity($em, $user, $new_obj, array('value' => $value));
+
+                    // Create a new storage entity with the correct fieldtype...
+                    $new_obj = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                    // ...then update it to have the desired value
+                    $emm_service->updateStorageEntity($user, $new_obj, array('value' => $value));
                 }
                 else {
                     $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";
@@ -273,9 +300,8 @@ $ret .= '  Set current to '.$count."\n";
             // ----------------------------------------
             // Mark this datarecord as updated
             $dri_service->updateDatarecordCacheEntry($datarecord, $user);
-
-            // TODO - cached search results?
-
+            // Delete all relevant search cache entries
+            $search_cache_service->onDatafieldModify($datafield);
 
             $return['d'] = $ret;
         }
@@ -1636,6 +1662,8 @@ $ret .= '  Set current to '.$count."\n";
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var UUIDService $uuid_service */
+            $uuid_service = $this->container->get('odr.uuid_service');
 
             if ($uuid_type === 'datatype') {
                 // Need all datatypes, as well as a list of which ones are top-level...
@@ -1663,7 +1691,7 @@ $ret .= '  Set current to '.$count."\n";
 
                         // If the top-level datatype does not have a unique_id, create one
                         if (is_null($dt->getUniqueId()) || $dt->getUniqueId() === '') {
-                            $unique_id = $dti_service->generateDatatypeUniqueId();
+                            $unique_id = $uuid_service->generateDatatypeUniqueId();
 
                             $dt->setUniqueId($unique_id);
                             $dt->setTemplateGroup($unique_id);
@@ -1692,7 +1720,7 @@ $ret .= '  Set current to '.$count."\n";
 
                         // If the child datatype does not have a unique_id, create one
                         if (is_null($dt->getUniqueId()) || $dt->getUniqueId() === '') {
-                            $unique_id = $dti_service->generateDatatypeUniqueId();
+                            $unique_id = $uuid_service->generateDatatypeUniqueId();
                             $dt->setUniqueId($unique_id);
 
                             print 'set child datatype '.$dt->getId().' "'.$dt->getShortName().'" to have unique_id "'.$unique_id.'"'."\n";
@@ -1915,4 +1943,53 @@ $ret .= '  Set current to '.$count."\n";
         return $response;
     }
 
+
+    public function asdfAction(Request $request)
+    {
+        try {
+/*
+            $array = array(
+                "fields" => array(
+//                    0 => array(
+//                        "field_name" => "Astrobiology Disciplines",
+//                        "selected_options" => array(
+//                            0 => array(
+//                                "name" => "geochemistry",
+//                                "template_radio_option_uuid" => "0730d71",
+//                            )
+//                        ),
+//                        "template_field_uuid" => "cfc0199",
+//                    )
+                    0 => array(
+//                        "field_name" => "Dataset Name",
+                        "value" => "c",
+                        "template_field_uuid" => "08088a9"
+//                        "template_field_uuid" => "a4b7180"
+                    )
+                ),
+                "general" => "",
+                "sort_by" => array(
+//                    0 => array(
+//                        "dir" => "asc",
+//                        "template_field_uuid" => "08088a9",
+//                    )
+                ),
+//                "template_name" => "AHED Core 1.0 Properties",
+                "template_uuid" => "2ea627b",
+            );
+
+            $json = json_encode($array);
+//            exit( '<pre>'.print_r($json, true).'</pre>' );
+            $base64 = base64_encode($json);
+            exit( '<pre>'.print_r($base64, true).'</pre>' );
+*/
+        }
+        catch (\Exception $e) {
+            $source = 0xd895a5e6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
 }

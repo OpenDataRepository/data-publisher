@@ -78,7 +78,7 @@ class PlugExtension extends \Twig_Extension
             return $svc->execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options);
         }
         catch (\Exception $e) {
-            return 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage();
+            return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
         }
     }
 
@@ -119,7 +119,7 @@ class PlugExtension extends \Twig_Extension
             return $svc->execute($datafield, $datarecord, $render_plugin, $themeType);
         }
         catch (\Exception $e) {
-            return 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].' Datarecord '.$datarecord['id'].': '.$e->getMessage();
+            return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].' Datarecord '.$datarecord['id'].': '.$e->getMessage().'</div>';
         }
     }
 

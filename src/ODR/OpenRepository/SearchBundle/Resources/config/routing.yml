@@ -47,6 +47,12 @@ odr_default_search_render:
     requirements:
         datatype_id: \d+
 
+odr_reload_search_overlay_datafield:
+    path:  /search/reload/datafield/{datafield_id}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Default:reloadsearchdatafield }
+    requirements:
+        datafield_id:  \d+
+
 # ----------------------------------------
 
 # ----------------------------------------

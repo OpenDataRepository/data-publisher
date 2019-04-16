@@ -1,0 +1,21 @@
+{% set tag_selections = [] %}
+{% if drf.tagSelection is defined %}
+    {% set tag_selections = drf.tagSelection %}
+{% endif %}
+
+{% set child_tag_selections = [] %}
+{% if drf.child_tagSelections is defined %}
+    {% set child_tag_selections = drf.child_tagSelections %}
+{% endif %}
+
+<value>
+{% if datafield.tags is defined %}
+    {% for tag in datafield.tags %}
+        {% include 'ODRAdminBundle:XMLExport:datarecord_tag.xml.twig' with {
+            'tag_selections': tag_selections,
+            'child_tag_selections': child_tag_selections,
+            'tag': tag,
+        } %}
+    {% endfor %}
+{% endif %}
+</value>
