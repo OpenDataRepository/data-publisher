@@ -17,11 +17,11 @@ odr_dashboard:
 # ODRUser Controller
 # public routes to let users modify their own profile
 odr_self_profile_edit:
-    path:  /profile/edit
+    path:  /profile_edit
     defaults: { _controller: ODRAdminBundle:ODRUser:selfeditprofile }
 
 odr_self_profile_save:
-    path:  /profile/save
+    path:  /profile_save
     defaults: { _controller: ODRAdminBundle:ODRUser:selfsaveprofile }
     methods: [ POST ]
 
@@ -55,7 +55,7 @@ odr_admin_save_password:
     methods: [ POST ]
 
 odr_profile_edit:
-    path:  /admin/user/edit/{user_id}
+    path:  /admin/user/profile_edit/{user_id}
     defaults: { _controller: ODRAdminBundle:ODRUser:editprofile }
     requirements:
         user_id:  \d+
