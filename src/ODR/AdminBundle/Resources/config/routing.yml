@@ -1619,14 +1619,24 @@ odr_search_api_general_search_post:
         offset: \d+
         _format: '|json|xml'
 
-odr_api_get_dataset:
-    path: /api/{version}/dataset/{dataset_uuid}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getdataset, _format: 'json', version: 'v3'}
+
+odr_api_get_datset_single_no_format:
+    path:  /api/{version}/dataset/{dataset_uuid}
+    defaults: { _controller: ODRAdminBundle:API:getRecordByDatasetUUID, _format: json, version: 'v3' }
     methods: [ GET ]
     requirements:
-        dataset_uuid: '[a-z0-9]+'
         version: 'v\d+'
-        _format: '|json|xml'
+        dataset_uuid: '^[a-z0-9]{7}$'
+        format: 'json'
+
+odr_api_get_dataset_single:
+    path:  /api/{version}/dataset/{dataset_uuid}.{_format}
+    defaults: { _controller: ODRAdminBundle:API:getRecordByDatasetUUID, _format: json, version: 'v3' }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+        dataset_uuid: '^[a-z0-9]{7}$'
+        format: 'json'
 
 odr_api_create_dataset_from_template:
     path: /api/{version}/dataset

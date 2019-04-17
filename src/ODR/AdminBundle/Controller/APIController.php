@@ -799,6 +799,7 @@ class APIController extends ODRCustomController
 
             $user_email = $_POST['user_email'];
             $template_uuid = $_POST['template_uuid'];
+            $dataset_name = $_POST['dataset_name'];
 
             // Check if user exists & throw user not found error
             // Save which user started this creation process
@@ -863,6 +864,58 @@ class APIController extends ODRCustomController
                 // TODO Naming is a little weird here
                 $metadata_record->setProvisioned(false);
                 $em->flush();
+            }
+
+
+            // Set name field?
+            /** @var DataFields $name_field */
+            $name_field = $datatype->getNameField();
+            if($name_field) {
+                // We have a name field
+                /** @var DataRecordFields $drf */
+                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
+                    array(
+                        'dataRecord' => $metadata_record->getId(),
+                        'dataField' => $name_field->getId()
+                    )
+                );
+
+                if($drf) {
+                    /** @var LongText $new_field */
+                    $new_field = new LongText();
+                    switch($name_field->getFieldType()) {
+                        case '5':
+                            /** @var LongText $new_field */
+                            $new_field = new LongText();
+                            break;
+                        case '6':
+                            /** @var LongVarchar $new_field */
+                            $new_field = new LongVarchar();
+                            break;
+                        case '7':
+                            /** @var MediumVarchar $new_field */
+                            $new_field = new MediumVarchar();
+                            break;
+                        case '9':
+                            /** @var ShortVarchar $new_field */
+                            $new_field = new ShortVarchar();
+                            break;
+                    }
+
+                    $new_field->setDataField($name_field);
+                    $new_field->setDataRecord($metadata_record);
+                    $new_field->setDataRecordFields($drf);
+                    $new_field->setFieldType($name_field->getFieldType());
+
+                    $new_field->setCreatedBy($user);
+                    $new_field->setUpdatedBy($user);
+                    $new_field->setCreated(new \DateTime());
+                    $new_field->setUpdated(new \DateTime());
+                    $new_field->setValue($dataset_name);
+                    $em->persist($new_field);
+
+                    $em->flush();
+                }
             }
 
             $response = new Response('Created', 201);
@@ -1730,6 +1783,7 @@ class APIController extends ODRCustomController
 
                         }
                     } else {
+                        // Field is singular data field
                         $drf = false;
                         $field_changes = true;
                         if ($orig_dataset) {
@@ -1953,6 +2007,17 @@ class APIController extends ODRCustomController
                                     break;
                                 default:
                                     break;
+                            }
+
+
+                            // Check if field is "name" field for datatype
+                            if(
+                                $data_record->getDataType()->getNameField()->getId() == $data_field->getId()
+                                && $data_record->getDataType()->getMetadataFor() !== null
+                            ) {
+                                // This is the name field so update database name
+                                // TODO Update database name
+
                             }
                         }
                     }
@@ -2247,6 +2312,59 @@ class APIController extends ODRCustomController
 
     }
 
+    public function getRecordByDatasetUUIDAction($version, $dataset_uuid, Request $request)
+    {
+
+        try {
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            $user_manager = $this->container->get('fos_user.user_manager');
+            // TODO fix this to use API Credential
+            $user = $user_manager->findUserBy(array('email' => 'nate@opendatarepository.org'));
+            if (is_null($user))
+                throw new ODRNotFoundException('User');
+
+            // Find datatype for Dataset UUID
+            /** @var DataRecord $data_record */
+            $data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array(
+                    'unique_id' => $dataset_uuid
+                )
+            );
+
+            if(is_null($data_type))
+                throw new ODRNotFoundException('DataType');
+
+            // Find datarecord from dataset
+            /** @var DataRecord $data_record */
+            $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                array(
+                    'dataType' => $data_type->getId()
+                )
+            );
+
+            if(is_null($data_record))
+                throw new ODRNotFoundException('DataRecord');
+
+            return $this->getDatarecordExportAction(
+                $version,
+                $data_record->getUniqueId(),
+                $request,
+                $user
+            );
+
+
+        } catch (\Exception $e) {
+            $source = 0x722347a6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+    }
 
     /**
      * @param $version

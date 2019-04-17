@@ -56,6 +56,7 @@ class UUIDService
      */
     public function generateDatafieldUniqueId()
     {
+        /*
         // Need to get all current ids in use in order to determine uniqueness of a new id...
         $query = $this->em->createQuery(
            'SELECT df.fieldUuid
@@ -73,7 +74,9 @@ class UUIDService
         $unique_id = UniqueUtility::uniqueIdReal();
         while ( isset($existing_ids[$unique_id]) )
             $unique_id = UniqueUtility::uniqueIdReal();
+        */
 
+        $unique_id = UniqueUtility::uniqueIdReal();
         return $unique_id;
     }
 
@@ -86,6 +89,7 @@ class UUIDService
      */
     public function generateDatarecordUniqueId()
     {
+        /*
         // Need to get all current ids in use in order to determine uniqueness of a new id...
         $query = $this->em->createQuery(
            'SELECT dr.unique_id
@@ -103,7 +107,9 @@ class UUIDService
         $unique_id = UniqueUtility::uniqueIdReal();
         while ( isset($existing_ids[$unique_id]) )
             $unique_id = UniqueUtility::uniqueIdReal();
+        */
 
+        $unique_id = UniqueUtility::uniqueIdReal();
         return $unique_id;
     }
 
@@ -117,6 +123,7 @@ class UUIDService
      */
     public function generateDatatypeUniqueId()
     {
+        /*
         // Need to get all current ids in use in order to determine uniqueness of a new id...
         $query = $this->em->createQuery(
            'SELECT dt.unique_id
@@ -135,6 +142,9 @@ class UUIDService
         while ( isset($existing_ids[$unique_id]) )
             $unique_id = UniqueUtility::uniqueIdReal();
 
+        */
+
+        $unique_id = UniqueUtility::uniqueIdReal();
         return $unique_id;
     }
 
@@ -147,6 +157,7 @@ class UUIDService
      */
     public function generateRadioOptionUniqueId()
     {
+        /*
         // Need to get all current ids in use in order to determine uniqueness of a new id...
         $query = $this->em->createQuery(
            'SELECT ro.radioOptionUuid
@@ -164,7 +175,9 @@ class UUIDService
         $unique_id = UniqueUtility::uniqueIdReal();
         while ( isset($existing_ids[$unique_id]) )
             $unique_id = UniqueUtility::uniqueIdReal();
+        */
 
+        $unique_id = UniqueUtility::uniqueIdReal();
         return $unique_id;
     }
 
@@ -177,6 +190,7 @@ class UUIDService
      */
     public function generateTagUniqueId()
     {
+        /*
         // Need to get all current ids in use in order to determine uniqueness of a new id...
         $query = $this->em->createQuery(
            'SELECT t.tagUuid
@@ -194,7 +208,9 @@ class UUIDService
         $unique_id = UniqueUtility::uniqueIdReal();
         while ( isset($existing_ids[$unique_id]) )
             $unique_id = UniqueUtility::uniqueIdReal();
+        */
 
+        $unique_id = UniqueUtility::uniqueIdReal();
         return $unique_id;
     }
 
