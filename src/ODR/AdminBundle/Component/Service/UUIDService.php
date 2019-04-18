@@ -109,7 +109,7 @@ class UUIDService
             $unique_id = UniqueUtility::uniqueIdReal();
         */
 
-        $unique_id = UniqueUtility::uniqueIdReal();
+        $unique_id = UniqueUtility::uniqueIdReal(28);
         return $unique_id;
     }
 
@@ -177,7 +177,7 @@ class UUIDService
             $unique_id = UniqueUtility::uniqueIdReal();
         */
 
-        $unique_id = UniqueUtility::uniqueIdReal();
+        $unique_id = UniqueUtility::uniqueIdReal(28);
         return $unique_id;
     }
 
@@ -210,7 +210,7 @@ class UUIDService
             $unique_id = UniqueUtility::uniqueIdReal();
         */
 
-        $unique_id = UniqueUtility::uniqueIdReal();
+        $unique_id = UniqueUtility::uniqueIdReal(28);
         return $unique_id;
     }
 

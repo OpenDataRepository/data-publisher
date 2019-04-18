@@ -2011,6 +2011,7 @@ class APIController extends ODRCustomController
 
 
                             // Check if field is "name" field for datatype
+                            /*
                             if(
                                 $data_record->getDataType()->getNameField()->getId() == $data_field->getId()
                                 && $data_record->getDataType()->getMetadataFor() !== null
@@ -2019,6 +2020,7 @@ class APIController extends ODRCustomController
                                 // TODO Update database name
 
                             }
+                            */
                         }
                     }
                 }
@@ -2271,6 +2273,9 @@ class APIController extends ODRCustomController
                 // Generate internal ids or database uuids as needed
                 // TODO Incorporate actual user here for permissions
                 $changed = false;
+                if(!is_array($metadata_record) && $metadata_record !== "") {
+                    $metadata_record = json_decode($metadata_record, true);
+                }
                 $dataset = self::datasetDiff($dataset, $metadata_record, $user, $changed);
 
                 if ($changed) {
