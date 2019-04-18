@@ -190,7 +190,7 @@ services:
             - [ addServer, [ %session_memcached_host%, %session_memcached_port% ]]
     session.handler.memcached:
         class:     Symfony\Component\HttpFoundation\Session\Storage\Handler\MemcachedSessionHandler
-        arguments: [@session.memcached, { prefix: %session_memcached_prefix%, expiretime: %session_memcached_expire% }]
+        arguments: ["@session.memcached", { prefix: %session_memcached_prefix%, expiretime: %session_memcached_expire% }]
 
     ODR.exception_controller:
         class: ODR\AdminBundle\Controller\ODRExceptionController
@@ -201,4 +201,4 @@ services:
         # for the third argument, keys need to match the key of the resource owners in these various configuration files
         # the value for each needs to be the lowercase resource owner key, followed by "Id"
         # e.g.  arguments: [@doctrine.orm.entity_manager, @session, {GitHub: githubId, Google: googleId}]
-        arguments: [@doctrine.orm.entity_manager, @session, {}]
+        arguments: ["@doctrine.orm.entity_manager", "@session", {}]
