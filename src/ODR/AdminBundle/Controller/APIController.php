@@ -19,7 +19,10 @@ use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataRecordMeta;
 use ODR\AdminBundle\Entity\DataTree;
+use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\DecimalValue;
+use ODR\AdminBundle\Entity\FileMeta;
+use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\LongVarchar;
@@ -870,7 +873,7 @@ class APIController extends ODRCustomController
             // Set name field?
             /** @var DataFields $name_field */
             $name_field = $datatype->getNameField();
-            if($name_field) {
+            if ($name_field) {
                 // We have a name field
                 /** @var DataRecordFields $drf */
                 $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
@@ -880,10 +883,10 @@ class APIController extends ODRCustomController
                     )
                 );
 
-                if($drf) {
+                if ($drf) {
                     /** @var LongText $new_field */
                     $new_field = new LongText();
-                    switch($name_field->getFieldType()) {
+                    switch ($name_field->getFieldType()) {
                         case '5':
                             /** @var LongText $new_field */
                             $new_field = new LongText();
@@ -1043,7 +1046,6 @@ class APIController extends ODRCustomController
                 )
             );
 
-
             if (isset($dataset['fields'])) {
                 for ($i = 0; $i < count($dataset['fields']); $i++) {
                     $field = $dataset['fields'][$i];
@@ -1057,7 +1059,96 @@ class APIController extends ODRCustomController
                         )
                     );
 
-                    if (is_array($field['value'])) {
+                    // Deal with files and images here
+                    if(
+                        $data_field->getFieldType()->getId() == 1
+                        || $data_field->getFieldType()->getId() == 2
+                    ) {
+                        /** @var DataRecordFields $drf */
+                        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
+                            array(
+                                'dataRecord' => $dataset['internal_id'],
+                                'dataField' => $data_field->getId()
+                            )
+                        );
+
+                        $existing_field = null;
+                        if (!$drf) {
+                            // If drf entry doesn't exist, create new
+                            $drf = new DataRecordFields();
+                            $drf->setCreatedBy($user);
+                            $drf->setCreated(new \DateTime());
+                            $drf->setDataField($data_field);
+                            $drf->setDataRecord($data_record);
+                            $em->persist($drf);
+                        } else {
+                            switch ($data_field->getFieldType()->getId()) {
+                                case '2':
+                                    $existing_field = $em->getRepository('ODRAdminBundle:File')
+                                        ->findOneBy(array('dataRecordFields' => $drf->getId()));
+                                    break;
+                                case '3':
+                                    $existing_field = $em->getRepository('ODRAdminBundle:Image')
+                                        ->findOneBy(array('dataRecordFields' => $drf->getId()));
+                                    break;
+                            }
+                        }
+
+
+                        switch ($data_field->getFieldType()->getId()) {
+                            case '2': // File
+                                // Check for Allow Multiple
+                                // If single, delete existing
+                                if (!$data_field->getDataFieldMeta()->getAllowMultipleUploads()) {
+                                    // Find existing file entry and delete
+                                    $em->remove($existing_field);
+                                    $em->flush();
+                                }
+
+                                // Download file to temp folder
+
+                                // Use ODRCC to create image meta
+                                /*
+                                    parent::finishUpload(
+                                        $em,
+                                        $filepath,
+                                        $original_filename,
+                                        $user_id,
+                                        $drf->getId()
+                                    );
+                                */
+
+                                $changed = true;
+
+                                break;
+                            case '3': // Image
+                                // Check for Allow Multiple
+                                // If single, delete existing
+                                if (!$data_field->getDataFieldMeta()->getAllowMultipleUploads()) {
+                                    // Find existing file entry and delete
+                                    $em->remove($existing_field);
+                                    $em->flush();
+                                }
+
+                                // Download file to temp folder
+
+                                // Use ODRCC to create image meta
+                                /*
+                                    parent::finishUpload(
+                                        $em,
+                                        $filepath,
+                                        $original_filename,
+                                        $user_id,
+                                        $drf->getId()
+                                    );
+                                */
+
+                                $changed = true;
+
+                                break;
+                        }
+                    }
+                    else if (is_array($field['value'])) {
 
                         switch ($data_field->getFieldType()->getId()) {
                             case '18':
@@ -2027,7 +2118,6 @@ class APIController extends ODRCustomController
             }
 
 
-
             // Remove deleted records
             if ($orig_dataset && isset($orig_dataset['records'])) {
                 // Check if old record exists and delete if necessary...
@@ -2038,11 +2128,10 @@ class APIController extends ODRCustomController
                     // Check if record_uuid and template_uuid match - if so we're differencing
                     for ($j = 0; $j < count($dataset['records']); $j++) {
                         $record = $dataset['records'][$j];
-                        if(!isset($record['record_uuid'])) {
+                        if (!isset($record['record_uuid'])) {
                             // New records don't have UUIDs and need to be added
                             $record_found = false;
-                        }
-                        else if (
+                        } else if (
                             $record['template_uuid'] == $o_record['template_uuid']
                             && $record['record_uuid'] == $o_record['record_uuid']
                         ) {
@@ -2059,7 +2148,7 @@ class APIController extends ODRCustomController
                             )
                         );
 
-                        if($del_record) {
+                        if ($del_record) {
                             $em->remove($del_record);
                             $em->flush();
                             $changed = true;
@@ -2095,7 +2184,7 @@ class APIController extends ODRCustomController
                             }
                         }
                     }
-                    if(!$record_found) {
+                    if (!$record_found) {
                         // Use original data record to get datatype template group
                         $template_group = $data_record->getDataType()->getTemplateGroup();
 
@@ -2129,10 +2218,9 @@ class APIController extends ODRCustomController
                             throw new ODRNotFoundException('Datatree');
 
 
-                        if($datatree->getIsLink()) {
+                        if ($datatree->getIsLink()) {
                             $is_link = true;
                         }
-
 
 
                         /** @var UUIDService $uuid_service */
@@ -2148,11 +2236,10 @@ class APIController extends ODRCustomController
                         $new_record->setUniqueId($uuid_service->generateDatarecordUniqueId());
                         $new_record->setProvisioned(0);
 
-                        if($is_link) {
+                        if ($is_link) {
                             $new_record->setParent($new_record);
                             $new_record->setGrandparent($new_record);
-                        }
-                        else {
+                        } else {
                             $new_record->setParent($data_record);
                             $new_record->setGrandparent($data_record->getGrandparent());
                         }
@@ -2172,7 +2259,7 @@ class APIController extends ODRCustomController
                         $em->flush();
                         $em->refresh($new_record);
 
-                        if($is_link) {
+                        if ($is_link) {
                             /** @var EntityCreationService $ec_service */
                             $ec_service = $this->container->get('odr.entity_creation_service');
                             $ec_service->createDatarecordLink($user, $data_record, $new_record);
@@ -2196,7 +2283,10 @@ class APIController extends ODRCustomController
             if ($changed) {
                 // Mark this datarecord as updated
                 $em->flush();
-                $cache_service->get('cached_datarecord_' . $data_record->getId());
+                /** @var ODRUser $api_user */  // Anon when nobody is logged in.
+                $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
+                $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
+
                 $dri_service->updateDatarecordCacheEntry($data_record, $user);
             }
 
@@ -2236,10 +2326,10 @@ class APIController extends ODRCustomController
 
                 // Check API permission level (if SuperAPI - override user)
                 // API Super should be able to administer datatypes derived from certain templates
-                $user_manager = $this->container->get('fos_user.user_manager');
-                // TODO fix this to use API Credential
+                // $user_manager = $this->container->get('fos_user.user_manager');
+                // $admin = $user_manager->findUserBy(array('email' => ''));
                 /** @var FOSUser $admin */
-                $admin = $user_manager->findUserBy(array('email' => 'nate@opendatarepository.org'));
+                $admin = $this->container->get('security.token_storage')->getToken()->getUser();
                 if (is_null($admin))
                     throw new ODRNotFoundException('User');
 
@@ -2257,6 +2347,10 @@ class APIController extends ODRCustomController
                         $request->getRequestFormat(),
                         $admin
                     );
+
+                    if ($metadata_record) {
+                        $metadata_record = json_decode($metadata_record, true);
+                    }
                 } else {
                     // Check if dataset has public attribute
                     $metadata_record = json_decode($metadata_record, true);
@@ -2273,9 +2367,11 @@ class APIController extends ODRCustomController
                 // Generate internal ids or database uuids as needed
                 // TODO Incorporate actual user here for permissions
                 $changed = false;
-                if(!is_array($metadata_record) && $metadata_record !== "") {
+                /*
+                if (!is_array($metadata_record) && $metadata_record !== "") {
                     $metadata_record = json_decode($metadata_record, true);
                 }
+                */
                 $dataset = self::datasetDiff($dataset, $metadata_record, $user, $changed);
 
                 if ($changed) {
@@ -2325,9 +2421,12 @@ class APIController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $user_manager = $this->container->get('fos_user.user_manager');
-            // TODO fix this to use API Credential
-            $user = $user_manager->findUserBy(array('email' => 'nate@opendatarepository.org'));
+            // This is the API User - system admin
+            /** @var ODRUser $user */  // Anon when nobody is logged in.
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // $user_manager = $this->container->get('fos_user.user_manager');
+            // $user = $user_manager->findUserBy(array('email' => ''));
             if (is_null($user))
                 throw new ODRNotFoundException('User');
 
@@ -2339,7 +2438,7 @@ class APIController extends ODRCustomController
                 )
             );
 
-            if(is_null($data_type))
+            if (is_null($data_type))
                 throw new ODRNotFoundException('DataType');
 
             // Find datarecord from dataset
@@ -2350,7 +2449,7 @@ class APIController extends ODRCustomController
                 )
             );
 
-            if(is_null($data_record))
+            if (is_null($data_record))
                 throw new ODRNotFoundException('DataRecord');
 
             return $this->getDatarecordExportAction(
@@ -2363,6 +2462,410 @@ class APIController extends ODRCustomController
 
         } catch (\Exception $e) {
             $source = 0x722347a6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+    }
+
+    public function fileDeleteByUUIDAction($version, $file_uuid, Request $request) {
+        try {
+            // ----------------------------------------
+            // Load required objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->findOneBy(
+                array(
+                    'unique_id' => $file_uuid
+                )
+            );
+            if ($file == null)
+                throw new ODRNotFoundException('File');
+
+            $user_manager = $this->container->get('fos_user.user_manager');
+            // TODO fix this to use API Credential
+            $user = $user_manager->findUserBy(array('email' => $data['user_email']));
+            if (is_null($user))
+                throw new ODRNotFoundException('User');
+
+            $datafield = $file->getDataField();
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
+
+            $data_record = $file->getDataRecord();
+            if ($data_record->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
+
+            // TODO Is this needed?
+            $data_record = $data_record->getGrandparent();
+
+            // TODO Is this needed?
+            $datatype = $data_record->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Files that aren't done encrypting shouldn't be deleted
+            if ($file->getProvisioned() == true)
+                throw new ODRNotFoundException('File');
+
+            // Delete the file
+            $em->remove($file);
+            $em->flush();
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+
+            // Flush Caches
+            /** @var ODRUser $api_user */  // Anon when nobody is logged in.
+            $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
+
+            $dri_service->updateDatarecordCacheEntry($data_record, $user);
+
+            $response = new Response('Created', 201);
+            $url = $this->generateUrl('odr_api_get_datarecord_single', array(
+                'version' => $version,
+                'datarecord_uuid' => $data_record->getUniqueId()
+            ), false);
+            $response->headers->set('Location', $url);
+
+            return $this->redirect($url);
+
+        } catch (\Exception $e) {
+            $source = 0x8a83ef88;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    public function publishAction($version, Request $request) {
+
+        try {
+            // Get data from POST/Request
+            $data = $request->request->all();
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            $user_manager = $this->container->get('fos_user.user_manager');
+            // TODO fix this to use API Credential
+            $user = $user_manager->findUserBy(array('email' => $data['user_email']));
+            if (is_null($user))
+                throw new ODRNotFoundException('User');
+
+            // Find datatype for Dataset UUID
+            /** @var DataType $data_type */
+            $data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array(
+                    'unique_id' => $data['dataset_uuid']
+                )
+            );
+
+            if (is_null($data_type))
+                throw new ODRNotFoundException('DataType');
+
+            /** @var DataRecord $data_record */
+            $data_record = null;
+            if(isset($data['record_uuid'])) {
+                /** @var DataRecord $data_record */
+                $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                    array(
+                        'unique_id' => $data['record_uuid']
+                    )
+                );
+            }
+            else if (isset($data['dataset_uuid'])) {
+                /** @var DataRecord $data_record */
+                $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                    array(
+                        'dataType' => $data_type->getId()
+                    )
+                );
+            }
+
+            // Ensure Datatype is public
+            /** @var DataTypeMeta $data_type_meta */
+            $data_type_meta = $data_type->getDataTypeMeta();
+            if(isset($data['public_date'])) {
+                $data_type_meta->setPublicDate(new \DateTime($data['public_date']));
+            }
+            else {
+                $data_type_meta->setPublicDate(new \DateTime());
+            }
+
+            $data_type_meta->setUpdatedBy($user);
+
+            // Ensure record is public
+            /** @var DataRecordMeta $data_record_meta */
+            $data_record_meta = $data_record->getDataRecordMeta();
+            if(isset($data['public_date'])) {
+                $data_record_meta->setPublicDate(new \DateTime($data['public_date']));
+            }
+            else {
+                $data_record_meta->setPublicDate(new \DateTime());
+            }
+
+            $data_record_meta->setUpdatedBy($user);
+            $em->persist($data_record_meta);
+
+
+
+            $em->flush();
+
+
+            // Flush Caches
+            /** @var ODRUser $api_user */  // Anon when nobody is logged in.
+            $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
+
+            // Actual User
+            $dri_service->updateDatarecordCacheEntry($data_record, $user);
+
+            $response = new Response('Created', 201);
+            $url = $this->generateUrl('odr_api_get_datarecord_single', array(
+                'version' => $version,
+                'datarecord_uuid' => $data_record->getUniqueId()
+            ), false);
+            $response->headers->set('Location', $url);
+
+            return $this->redirect($url);
+
+        } catch (\Exception $e) {
+            $source = 0x722347a6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+    /**
+     * @param $version
+     * @param Request $request
+     * @return Response
+     */
+    public function addfileAction($version, Request $request)
+    {
+
+        try {
+
+            // Get data from POST/Request
+            $data = $request->request->all();
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            $user_manager = $this->container->get('fos_user.user_manager');
+            // TODO fix this to use API Credential
+            $user = $user_manager->findUserBy(array('email' => $data['user_email']));
+            if (is_null($user))
+                throw new ODRNotFoundException('User');
+
+            // Find datatype for Dataset UUID
+            /** @var DataType $data_type */
+            $data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array(
+                    'unique_id' => $data['dataset_uuid']
+                )
+            );
+
+            if (is_null($data_type))
+                throw new ODRNotFoundException('DataType');
+
+            /** @var DataRecord $data_record */
+            $data_record = null;
+            if(isset($data['record_uuid'])) {
+                /** @var DataRecord $data_record */
+                $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                    array(
+                        'unique_id' => $data['record_uuid']
+                    )
+                );
+            }
+            else if (isset($data['dataset_uuid'])) {
+                /** @var DataRecord $data_record */
+                $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                    array(
+                        'dataType' => $data_type->getId()
+                    )
+                );
+            }
+
+            if (is_null($data_record))
+                throw new ODRNotFoundException('DataRecord');
+
+            // Determine field type
+            /** @var DataFields $data_field */
+            $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
+                array(
+                    'templateFieldUuid' => $data['template_field_uuid'],
+                    'dataType' => $data_type->getId()
+                )
+            );
+
+            if (is_null($data_field))
+                throw new ODRNotFoundException('DataField');
+
+            $files_bag = $request->files->all();
+            if (count($files_bag) < 1)
+                throw new ODRNotFoundException('File');
+
+            /** @var \Symfony\Component\HttpFoundation\File\File $file */
+            foreach($files_bag as $file) {
+                // Deal with files and images here
+                if(
+                    $data_field->getFieldType()->getId() == 1
+                    || $data_field->getFieldType()->getId() == 2
+                ) {
+                    /** @var DataRecordFields $drf */
+                    $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
+                        array(
+                            'dataRecord' => $data_record->getId(),
+                            'dataField' => $data_field->getId()
+                        )
+                    );
+
+                    $existing_field = null;
+                    if (!$drf) {
+                        // If drf entry doesn't exist, create new
+                        $drf = new DataRecordFields();
+                        $drf->setCreatedBy($user);
+                        $drf->setCreated(new \DateTime());
+                        $drf->setDataField($data_field);
+                        $drf->setDataRecord($data_record);
+                        $em->persist($drf);
+                        $em->flush($drf);
+                    } else {
+                        switch ($data_field->getFieldType()->getId()) {
+                            case '2':
+                                $existing_field = $em->getRepository('ODRAdminBundle:File')
+                                    ->findOneBy(array('dataRecordFields' => $drf->getId()));
+                                break;
+                            case '3':
+                                $existing_field = $em->getRepository('ODRAdminBundle:Image')
+                                    ->findOneBy(array('dataRecordFields' => $drf->getId()));
+                                break;
+                        }
+                    }
+
+                    // Move file to web directory (really?)
+                    $tmp_filename = $file->getFileName();
+                    $original_filename = $file->getClientOriginalName();
+                    // Check whether file is uploaded completely and properly
+                    $path_prefix = $this->getParameter('odr_web_directory').'/';
+                    $destination_folder = 'uploads/files/chunks/user_'.$user->getId().'/completed';
+                    if ( !file_exists($path_prefix.$destination_folder) )
+                        mkdir( $path_prefix.$destination_folder );
+
+                    $tmp_file = $path_prefix.$destination_folder.'/'.$tmp_filename;
+                    $destination_file = $path_prefix.$destination_folder.'/'.$original_filename;
+
+                    // Download file to temp folder
+                    $file->move($destination_folder);
+
+                    // Rename file
+                    rename($tmp_file, $destination_file);
+
+
+                    switch ($data_field->getFieldType()->getId()) {
+                        case '2': // File
+                            // Check for Allow Multiple
+                            // If single, delete existing
+                            if ($existing_field && !$data_field->getDataFieldMeta()->getAllowMultipleUploads()) {
+                                // Find existing file entry and delete
+                                $em->remove($existing_field);
+                                $em->flush();
+                            }
+
+
+                            // Use ODRCC to create image meta
+                            $file_obj = parent::finishUpload(
+                                $em,
+                                $destination_folder,
+                                $original_filename,
+                                $user->getId(),
+                                $drf->getId()
+                            );
+
+                            // set file public status to match field public status
+                            /** @var FileMeta $file_meta */
+                            $file_meta = $file_obj->getFileMeta();
+                            $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());
+                            $em->persist($file_meta);
+
+                            break;
+                        case '3': // Image
+                            // Check for Allow Multiple
+                            // If single, delete existing
+                            if ($existing_field && !$data_field->getDataFieldMeta()->getAllowMultipleUploads()) {
+                                // Find existing file entry and delete
+                                $em->remove($existing_field);
+                                $em->flush();
+                            }
+
+                            // Download file to temp folder
+
+                            // Use ODRCC to create image meta
+                            $file_obj = parent::finishUpload(
+                                $em,
+                                $destination_folder,
+                                $original_filename,
+                                $user->getId(),
+                                $drf->getId()
+                            );
+
+                            /** @var ImageMeta $file_meta */
+                            $file_meta = $file_obj->getImageMeta();
+                            $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());
+                            $em->persist($file_meta);
+
+                            break;
+                    }
+                }
+            }
+
+
+            // Flush Caches
+            /** @var ODRUser $api_user */  // Anon when nobody is logged in.
+            $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
+
+            // Actual User
+            $dri_service->updateDatarecordCacheEntry($data_record, $user);
+
+            $response = new Response('Created', 201);
+            $url = $this->generateUrl('odr_api_get_datarecord_single', array(
+                'version' => $version,
+                'datarecord_uuid' => $data_record->getUniqueId()
+            ), false);
+            $response->headers->set('Location', $url);
+
+            return $this->redirect($url);
+
+        } catch (\Exception $e) {
+            $source = 0x8a83ef88;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
@@ -2384,9 +2887,10 @@ class APIController extends ODRCustomController
             // Check API permission level (if SuperAPI - override user)
             // API Super should be able to administer datatypes derived from certain templates
 
-            $user_manager = $this->container->get('fos_user.user_manager');
-            // TODO fix this to use API Credential
-            $user = $user_manager->findUserBy(array('email' => 'nate@opendatarepository.org'));
+            // $user_manager = $this->container->get('fos_user.user_manager');
+            // $user = $user_manager->findUserBy(array('email' => 'nate@opendatarepository.org'));
+
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if (is_null($user))
                 throw new ODRNotFoundException('User');
 
@@ -2626,7 +3130,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $token = $this->container->get('security.token_storage')->getToken();   // <-- will return 'anon.' when nobody is logged in
+            // $token = $this->container->get('security.token_storage')->getToken();   // <-- will return 'anon.' when nobody is logged in
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 
@@ -2719,6 +3223,112 @@ class APIController extends ODRCustomController
         }
     }
 
+    public function fileDownloadByUUIDAction($version, $file_uuid, Request $request)
+    {
+        try {
+            // ----------------------------------------
+            // Load required objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->findOneBy(
+                array(
+                    'unique_id' => $file_uuid
+                )
+            );
+            if ($file == null)
+                throw new ODRNotFoundException('File');
+
+            $datafield = $file->getDataField();
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
+            $datarecord = $file->getDataRecord();
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
+            $datarecord = $datarecord->getGrandparent();
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Files that aren't done encrypting shouldn't be downloaded
+            if ($file->getProvisioned() == true)
+                throw new ODRNotFoundException('File');
+
+
+            // ----------------------------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+
+            if (!$pm_service->canViewFile($user, $file))
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+
+            // Only allow this action for files smaller than 5Mb?
+            $filesize = $file->getFilesize() / 1024 / 1024;
+            if ($filesize > 50)
+                throw new ODRNotImplementedException('Currently not allowed to download files larger than 5Mb');
+
+
+            $filename = 'File_' . $file->getId() . '.' . $file->getExt();
+            if (!$file->isPublic())
+                $filename = md5($file->getOriginalChecksum() . '_' . $file->getId() . '_' . $user->getId()) . '.' . $file->getExt();
+
+            $local_filepath = realpath($this->getParameter('odr_web_directory') . '/' . $file->getUploadDir() . '/' . $filename);
+            if (!$local_filepath)
+                $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
+
+            $handle = fopen($local_filepath, 'r');
+            if ($handle === false)
+                throw new FileNotFoundException($local_filepath);
+
+
+            // Attach the original filename to the download
+            $display_filename = $file->getOriginalFileName();
+            if ($display_filename == null)
+                $display_filename = 'File_' . $file->getId() . '.' . $file->getExt();
+
+            // Set up a response to send the file back
+            $response = new StreamedResponse();
+            $response->setPrivate();
+            $response->headers->set('Content-Type', mime_content_type($local_filepath));
+            $response->headers->set('Content-Length', filesize($local_filepath));        // TODO - apparently this isn't sent?
+            $response->headers->set('Content-Disposition', 'attachment; filename="' . $display_filename . '";');
+
+            // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
+            $response->setCallback(function () use ($handle) {
+                while (!feof($handle)) {
+                    $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
+                    echo $buffer;
+                    flush();
+                }
+                fclose($handle);
+            });
+
+            // If file is non-public, delete the decrypted version off the server
+            if (!$file->isPublic())
+                unlink($local_filepath);
+
+            return $response;
+        } catch (\Exception $e) {
+            // Returning an error...do it in json
+            $request->setRequestFormat('json');
+
+            $source = 0xbbaafae5;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
 
     /**
      * Assuming the user has permissions to do so, creates a Symfony StreamedResponse for a file download
@@ -2741,7 +3351,6 @@ class APIController extends ODRCustomController
             $crypto_service = $this->container->get('odr.crypto_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-
 
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
@@ -2805,24 +3414,8 @@ class APIController extends ODRCustomController
             $response->headers->set('Content-Type', mime_content_type($local_filepath));
             $response->headers->set('Content-Length', filesize($local_filepath));        // TODO - apparently this isn't sent?
             $response->headers->set('Content-Disposition', 'attachment; filename="' . $display_filename . '";');
-            /*
-                        // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
-                        $response->headers->setCookie(
-                            new Cookie(
-                                'fileDownload', // name
-                                'true',         // value
-                                0,              // duration set to 'session'
-                                '/',            // default path
-                                null,           // default domain
-                                false,          // don't require HTTPS
-                                false           // allow cookie to be accessed outside HTTP protocol
-                            )
-                        );
-            */
-            //$response->sendHeaders();
 
             // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
-
             $response->setCallback(function () use ($handle) {
                 while (!feof($handle)) {
                     $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
@@ -2856,7 +3449,8 @@ class APIController extends ODRCustomController
      * @param $version
      * @param Request $request
      */
-    public function userAction($version, Request $request) {
+    public function userAction($version, Request $request)
+    {
 
 
         try {
@@ -2921,7 +3515,7 @@ class APIController extends ODRCustomController
             $results = $query->getArrayResult();
 
             $metadata_records = array();
-            foreach($results as $record) {
+            foreach ($results as $record) {
                 try {
                     $data = self::getRecordData(
                         $version,
@@ -2931,11 +3525,10 @@ class APIController extends ODRCustomController
                         $user
                     );
 
-                    if($data) {
+                    if ($data) {
                         array_push($metadata_records, json_decode($data));
                     }
-                }
-                catch (\Exception $e) {
+                } catch (\Exception $e) {
                     // Ignoring errors building data
                     // TODO need to determine cause of data errors
                 }

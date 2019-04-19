@@ -4,6 +4,9 @@ ODR\AdminBundle\Entity\File:
     gedmo:
         soft_deleteable:
             field_name: deletedAt
+    indexes:
+        uuid_index:
+            columns: [ unique_id ]
     fields:
         id:
             id: true
@@ -19,6 +22,7 @@ ODR\AdminBundle\Entity\File:
             fixed: false
             nullable: true
             column: ext
+
         localFileName:
             type: string
             length: 128
@@ -32,16 +36,25 @@ ODR\AdminBundle\Entity\File:
             length: 32
             fixed: false
             column: encrypt_key
+
         original_checksum:
             type: string
             nullable: true
             length: 32
             fixed: false
             column: checksum
+
         filesize:
             type: integer
             unsigned: true
             nullable: false
+
+        unique_id:
+            type: string
+            length: 32
+            nullable: true
+            default: ''
+            column: unique_id
 
         provisioned:
             type: boolean

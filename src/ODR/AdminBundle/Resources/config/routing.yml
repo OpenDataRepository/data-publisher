@@ -560,12 +560,14 @@ odr_design_get_radio_options:
     defaults: { _controller: ODRAdminBundle:Displaytemplate:getradiooptions }
     requirements:
         datafield_id: \d+
+
 odr_design_save_radio_option_name:
     path:  /design/displaytemplate/saveradiooptionname/{radio_option_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:radiooptionname }
     methods: [ POST ]
     requirements:
         radio_option_id: \d+
+
 odr_design_save_radio_option_order:
     path:  /design/displaytemplate/saveradiooptionorder/{datafield_id}/{alphabetical_sort}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:radiooptionorder }
@@ -573,27 +575,32 @@ odr_design_save_radio_option_order:
     requirements:
         datafield_id: \d+
         alphabetical_sort: 0|1
+
 odr_design_save_radio_option_list:
     path:  /design/displaytemplate/saveradiooptionlist/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:saveradiooptionlist }
     methods: [ POST ]
     requirements:
         datafield_id:  \d+
+
 odr_design_add_radio_option:
     path:  /design/displaytemplate/addradiooption/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:addradiooption }
     requirements:
         datafield_id:  \d+
+
 odr_design_add_radio_option_from_list:
     path:  /design/displaytemplate/addradiooptionfromlist/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:addradiooptionfromlist }
     requirements:
         datafield_id:  \d+
+
 odr_design_default_radio_option:
     path:  /design/displaytemplate/defaultradiooption/{radio_option_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:defaultradiooption }
     requirements:
         radio_option_id:  \d+
+
 odr_design_delete_radio_option:
     path:  /design/displaytemplate/deleteradiooption/{radio_option_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:deleteradiooption }
@@ -605,6 +612,7 @@ odr_design_public_datatype:
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypepublic }
     requirements:
         datatype_id:  \d+
+
 odr_design_public_datafield:
     path:  /design/displaytemplate/publicdatafield/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldpublic }
@@ -614,6 +622,7 @@ odr_design_public_datafield:
 odr_markdown_help_dialog:
     path:  /design/displaytemplate/markdownhelp
     defaults: { _controller: ODRAdminBundle:Displaytemplate:markdownhelp }
+
 odr_save_search_notes:
     path:  /design/displaytemplate/save_notes/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:savesearchnotes }
@@ -1440,7 +1449,7 @@ odr_api_get_datatype_single:
     methods: [ GET ]
     requirements:
         version: 'v\d+'
-        datatype_uuid: '^[a-z0-9]{7}$'
+        datatype_uuid: '^[a-z0-9]+$'
         _format: '|json|xml'
 
 odr_api_get_template_single:
@@ -1449,7 +1458,7 @@ odr_api_get_template_single:
     methods: [ GET ]
     requirements:
         version: 'v\d+'
-        datatype_uuid: '^[a-z0-9]{7}$'
+        datatype_uuid: '^[a-z0-9]+$'
         _format: '|json|xml'
 
 odr_api_datarecord_list:
@@ -1458,7 +1467,7 @@ odr_api_datarecord_list:
     methods: [ GET ]
     requirements:
         version: 'v1'
-        datatype_uuid: '^[a-z0-9]{7}$'
+        datatype_uuid: '^[a-z0-9]+$'
         limit: \d+
         offset: \d+
         _format: '|json|xml'
@@ -1469,7 +1478,7 @@ odr_api_template_datatype_list:
     methods: [ GET ]
     requirements:
         version: 'v1'
-        datatype_uuid: '^[a-z0-9]{7}$'
+        datatype_uuid: '^[a-z0-9]+$'
         limit: \d+
         offset: \d+
         _format: '|json|xml'
@@ -1480,7 +1489,7 @@ odr_api_get_datarecord_single_no_format:
     methods: [ GET ]
     requirements:
         version: 'v\d+'
-        datarecord_uuid: '^[a-z0-9]{7}$'
+        datarecord_uuid: '^[a-z0-9]+$'
         format: 'json'
 
 odr_api_get_datarecord_single:
@@ -1489,7 +1498,7 @@ odr_api_get_datarecord_single:
     methods: [ GET ]
     requirements:
         version: 'v\d+'
-        datarecord_uuid: '^[a-z0-9]{7}$'
+        datarecord_uuid: '^[a-z0-9]+$'
         format: '|xml|json'
 
 odr_api_get_field_stats:
@@ -1498,8 +1507,8 @@ odr_api_get_field_stats:
     methods: [ GET ]
     requirements:
         version: 'v\d+'
-        template_uuid: '^[a-z0-9]{7}$'
-        template_field_uuid: '^[a-z0-9]{7}$'
+        template_uuid: '^[a-z0-9]+$'
+        template_field_uuid: '^[a-z0-9]+$'
         format: '|xml|json'
 
 odr_api_download_file:
@@ -1620,13 +1629,21 @@ odr_search_api_general_search_post:
         _format: '|json|xml'
 
 
+odr_api_record_public:
+    path: /api/{version}/dataset/publish
+    defaults: { _controller: ODRAdminBundle:API:publish, _format: 'json', version: 'v3'}
+    methods: [ POST ]
+    requirements:
+        version: 'v\d+'
+        _format: '|json|xml'
+
 odr_api_get_datset_single_no_format:
     path:  /api/{version}/dataset/{dataset_uuid}
     defaults: { _controller: ODRAdminBundle:API:getRecordByDatasetUUID, _format: json, version: 'v3' }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
-        dataset_uuid: '^[a-z0-9]{7}$'
+        dataset_uuid: '^[a-z0-9]+$'
         format: 'json'
 
 odr_api_get_dataset_single:
@@ -1635,7 +1652,7 @@ odr_api_get_dataset_single:
     methods: [ GET ]
     requirements:
         version: 'v\d+'
-        dataset_uuid: '^[a-z0-9]{7}$'
+        dataset_uuid: '^[a-z0-9]+$'
         format: 'json'
 
 odr_api_create_dataset_from_template:
@@ -1654,18 +1671,29 @@ odr_api_update_dataset_metadata:
         version: 'v\d+'
         _format: '|json|xml'
 
-odr_api_dataset_add_file:
-    path: /api/{version}/file
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:addfile, _format: 'json', version: 'v3'}
-    methods: [ POST ]
+
+odr_api_dataset_delete_file:
+    path: /api/{version}/file/{file_uuid}
+    defaults: { _controller: ODRAdminBundle:API:fileDeleteByUUID, _format: 'json', version: 'v3'}
+    methods: [ DELETE ]
     requirements:
         version: 'v\d+'
+        file_uuid: '^[a-z0-9]+$'
         _format: '|json|xml'
 
-odr_api_dataset_update_file:
+odr_api_dataset_get_file:
+    path: /api/{version}/file/{file_uuid}
+    defaults: { _controller: ODRAdminBundle:API:fileDownloadByUUID, _format: 'json', version: 'v3'}
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+        file_uuid: '^[a-z0-9]+$'
+        _format: '|json|xml'
+
+odr_api_dataset_add_file:
     path: /api/{version}/file
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:updatefile, _format: 'json', version: 'v3'}
-    methods: [ PUT ]
+    defaults: { _controller: ODRAdminBundle:API:addfile, _format: 'json', version: 'v3'}
+    methods: [ POST ]
     requirements:
         version: 'v\d+'
         _format: '|json|xml'

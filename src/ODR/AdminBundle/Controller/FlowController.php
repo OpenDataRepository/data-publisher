@@ -199,13 +199,15 @@ class FlowController extends ODRCustomController
                     // ...ensure the datafield doesn't already have a file/image uploaded
                     if ($upload_type == 'file') {
                         $files = $em->getRepository('ODRAdminBundle:File')->findBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
-                        if ( count($files) > 0 )
-                            return self::flowAbort('This Datafield already has a file uploaded to it');
+                        if ( count($files) > 0 ) {
+                            // return self::flowAbort('This Datafield already has a file uploaded to it');
+                        }
                     }
                     else if ($upload_type == 'image') {
                         $images = $em->getRepository('ODRAdminBundle:Image')->findBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId(), 'original' => 1) );
-                        if ( count($images) > 0 )
-                            return self::flowAbort('This Datafield already has an image uploaded to it');
+                        if ( count($images) > 0 ){
+                           // return self::flowAbort('This Datafield already has an image uploaded to it');
+                        }
                     }
                 }
             }

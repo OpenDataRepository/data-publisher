@@ -76,6 +76,7 @@
             {% set file_meta = file.fileMeta %}
             {
                 "id": {{ file.id }},
+                "file_uuid": "{{ file.unique_id }}",
                 "original_name": "{% if file_meta.originalFileName != null %}{{ file_meta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}",
                 "href": "{{ baseurl ~ path('odr_file_download', {'file_id': file.id}) }}",
 
@@ -104,6 +105,7 @@
 
             {
                 "id": {{ oimage.id }},
+                "file_uuid": "{{ oimage.unique_id }}",
                 "original_name": "{% if image_filename != '' %}{{ image_filename|raw }}{% else %}Image_{{ oimage.id }}{% endif %}",
                 "href": "{{ baseurl ~ path('odr_image_download', {'image_id': oimage.id}) }}",
                 "caption": "{{ image_caption|raw }}",

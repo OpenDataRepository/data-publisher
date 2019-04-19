@@ -871,4 +871,33 @@ class Image
         else
             return $this->getParent()->getImageMeta()->getPublicDate();
     }
+    /**
+     * @var string|null
+     */
+    private $unique_id;
+
+
+    /**
+     * Set uniqueId.
+     *
+     * @param string|null $uniqueId
+     *
+     * @return Image
+     */
+    public function setUniqueId($uniqueId = null)
+    {
+        $this->unique_id = $uniqueId;
+
+        return $this;
+    }
+
+    /**
+     * Get uniqueId.
+     *
+     * @return string|null
+     */
+    public function getUniqueId()
+    {
+        return $this->unique_id;
+    }
 }

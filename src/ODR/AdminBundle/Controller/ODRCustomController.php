@@ -15,6 +15,7 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\AdminBundle\Component\Service\UUIDService;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -508,7 +509,7 @@ class ODRCustomController extends Controller
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $generator = $this->container->get('security.secure_random');
+            $generator = $this->container->get('security.util.secure_random');
             $crypto = $this->get("dterranova_crypto.crypto_adapter");
 
             $repo_filechecksum = $em->getRepository('ODRAdminBundle:FileChecksum');
@@ -840,6 +841,10 @@ class ODRCustomController extends Controller
         $my_obj->setDataRecord ($drf->getDataRecord() );
         $my_obj->setDataField( $drf->getDataField() );
         $my_obj->setFieldType( $drf->getDataField()->getFieldType() );
+
+        /** @var UUIDService $uuid_service */
+        $uuid_service = $this->container->get('odr.uuid_service');
+        $my_obj->setUniqueId($uuid_service->generateDatafieldUniqueId());
 
         $my_obj->setExt($extension);
         $my_obj->setLocalFileName('temp');
