@@ -36,6 +36,11 @@
             {% else %}
                 "template_uuid": "",
             {% endif %}
+        {% if datatype.metadata_for %}
+            "metadata_for_uuid": "{{ datatype.metadata_for.unique_id }}",
+        {% else %}
+            "metadata_for_uuid": "",
+        {% endif %}
         {% if using_metadata == true %}
             {# display metadata and datafields for top-level and child datarecords #}
             "_record_metadata": {

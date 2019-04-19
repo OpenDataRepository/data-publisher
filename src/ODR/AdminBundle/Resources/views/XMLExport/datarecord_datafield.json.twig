@@ -94,7 +94,7 @@
 
 {% elseif field_typename == "Image" %}
 
-        "images": [
+        "files": [
         {% for image in valuefield %}
             {% set oimage = image.parent %}
             {% set image_ext = oimage.ext %}
@@ -111,7 +111,7 @@
                 "caption": "{{ image_caption|raw }}",
 
                 {% if using_metadata == true %}
-                "_image_metadata": {
+                "_file_metadata": {
                     "_external_id": "{{ oimage_meta.external_id }}",
                     "_create_date": "{{ oimage.created|date('Y-m-d H:i:s') }}",
                     "_create_auth": "{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}",

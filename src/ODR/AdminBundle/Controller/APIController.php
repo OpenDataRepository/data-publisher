@@ -869,57 +869,80 @@ class APIController extends ODRCustomController
                 $em->flush();
             }
 
+            // Retrieve first (and only) record ...
+            if($datatype->getMetadataFor()) {
 
-            // Set name field?
-            /** @var DataFields $name_field */
-            $name_field = $datatype->getNameField();
-            if ($name_field) {
-                // We have a name field
-                /** @var DataRecordFields $drf */
-                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                    array(
-                        'dataRecord' => $metadata_record->getId(),
-                        'dataField' => $name_field->getId()
-                    )
-                );
+                /** @var DataRecord $metadata_record */
+                $actual_data_record = $em->getRepository('ODRAdminBundle:DataRecord')
+                    ->findOneBy(array('dataType' => $datatype->getMetadataFor()->getId()));
 
-                if ($drf) {
-                    /** @var LongText $new_field */
-                    $new_field = new LongText();
-                    switch ($name_field->getFieldType()) {
-                        case '5':
-                            /** @var LongText $new_field */
-                            $new_field = new LongText();
-                            break;
-                        case '6':
-                            /** @var LongVarchar $new_field */
-                            $new_field = new LongVarchar();
-                            break;
-                        case '7':
-                            /** @var MediumVarchar $new_field */
-                            $new_field = new MediumVarchar();
-                            break;
-                        case '9':
-                            /** @var ShortVarchar $new_field */
-                            $new_field = new ShortVarchar();
-                            break;
-                    }
+                if (!$actual_data_record) {
+                    // A metadata datarecord doesn't exist...create one
+                    /** @var EntityCreationService $entity_create_service */
+                    $entity_create_service = $this->container->get('odr.entity_creation_service');
 
-                    $new_field->setDataField($name_field);
-                    $new_field->setDataRecord($metadata_record);
-                    $new_field->setDataRecordFields($drf);
-                    $new_field->setFieldType($name_field->getFieldType());
+                    $delay_flush = true;
+                    $actual_data_record = $entity_create_service
+                        ->createDatarecord($user, $datatype->getMetadataFor(), $delay_flush);
 
-                    $new_field->setCreatedBy($user);
-                    $new_field->setUpdatedBy($user);
-                    $new_field->setCreated(new \DateTime());
-                    $new_field->setUpdated(new \DateTime());
-                    $new_field->setValue($dataset_name);
-                    $em->persist($new_field);
-
+                    // Datarecord is ready, remove provisioned flag
+                    // TODO Naming is a little weird here
+                    $actual_data_record->setProvisioned(false);
                     $em->flush();
                 }
+
             }
+//            // Set name field?
+//
+//            /** @var DataFields $name_field */
+//            $name_field = $datatype->getNameField();
+//            if ($name_field) {
+//                // We have a name field
+//                /** @var DataRecordFields $drf */
+//                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
+//                    array(
+//                        'dataRecord' => $metadata_record->getId(),
+//                        'dataField' => $name_field->getId()
+//                    )
+//                );
+//
+//                if ($drf) {
+//                    /** @var LongText $new_field */
+//                    $new_field = new LongText();
+//                    switch ($name_field->getFieldType()) {
+//                        case '5':
+//                            /** @var LongText $new_field */
+//                            $new_field = new LongText();
+//                            break;
+//                        case '6':
+//                            /** @var LongVarchar $new_field */
+//                            $new_field = new LongVarchar();
+//                            break;
+//                        case '7':
+//                            /** @var MediumVarchar $new_field */
+//                            $new_field = new MediumVarchar();
+//                            break;
+//                        case '9':
+//                            /** @var ShortVarchar $new_field */
+//                            $new_field = new ShortVarchar();
+//                            break;
+//                    }
+//
+//                    $new_field->setDataField($name_field);
+//                    $new_field->setDataRecord($metadata_record);
+//                    $new_field->setDataRecordFields($drf);
+//                    $new_field->setFieldType($name_field->getFieldType());
+//
+//                    $new_field->setCreatedBy($user);
+//                    $new_field->setUpdatedBy($user);
+//                    $new_field->setCreated(new \DateTime());
+//                    $new_field->setUpdated(new \DateTime());
+//                    $new_field->setValue($dataset_name);
+//                    $em->persist($new_field);
+//
+//                    $em->flush();
+//                }
+//            }
 
             $response = new Response('Created', 201);
             $url = $this->generateUrl('odr_api_get_datarecord_single', array(
@@ -2560,6 +2583,9 @@ class APIController extends ODRCustomController
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
@@ -2608,8 +2634,8 @@ class APIController extends ODRCustomController
             else {
                 $data_type_meta->setPublicDate(new \DateTime());
             }
-
             $data_type_meta->setUpdatedBy($user);
+            $em->persist($data_type_meta);
 
             // Ensure record is public
             /** @var DataRecordMeta $data_record_meta */
@@ -2625,6 +2651,41 @@ class APIController extends ODRCustomController
             $em->persist($data_record_meta);
 
 
+            $actual_data_record = "";
+            $actual_data_type = $data_type->getMetadataFor();
+            if($actual_data_type) {
+                /** @var DataTypeMeta $data_type_meta */
+                $actual_data_type_meta = $actual_data_type->getDataTypeMeta();
+                if(isset($data['public_date'])) {
+                    $actual_data_type_meta->setPublicDate(new \DateTime($data['public_date']));
+                }
+                else {
+                    $actual_data_type_meta->setPublicDate(new \DateTime());
+                }
+
+                $actual_data_type_meta->setUpdatedBy($user);
+                $em->persist($actual_data_type_meta);
+
+                /** @var DataRecord $actual_data_record */
+                $actual_data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                    array(
+                        'dataType' => $actual_data_type->getId()
+                    )
+                );
+
+                // Ensure record is public
+                /** @var DataRecordMeta $data_record_meta */
+                $actual_data_record_meta = $actual_data_record->getDataRecordMeta();
+                if(isset($data['public_date'])) {
+                    $actual_data_record_meta->setPublicDate(new \DateTime($data['public_date']));
+                }
+                else {
+                    $actual_data_record_meta->setPublicDate(new \DateTime());
+                }
+
+                $actual_data_record_meta->setUpdatedBy($user);
+                $em->persist($actual_data_record_meta);
+            }
 
             $em->flush();
 
@@ -2633,9 +2694,17 @@ class APIController extends ODRCustomController
             /** @var ODRUser $api_user */  // Anon when nobody is logged in.
             $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
             $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
-
             // Actual User
             $dri_service->updateDatarecordCacheEntry($data_record, $user);
+            $dti_service->updateDatatypeCacheEntry($data_type, $api_user);
+            $dti_service->updateDatatypeCacheEntry($data_type, $user);
+
+            if($actual_data_record != "") {
+                $dri_service->updateDatarecordCacheEntry($actual_data_record, $user);
+                $dri_service->updateDatarecordCacheEntry($actual_data_record, $api_user);
+                $dti_service->updateDatatypeCacheEntry($actual_data_type, $api_user);
+                $dti_service->updateDatatypeCacheEntry($actual_data_type, $user);
+            }
 
             $response = new Response('Created', 201);
             $url = $this->generateUrl('odr_api_get_datarecord_single', array(
