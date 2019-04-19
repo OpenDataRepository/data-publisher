@@ -35,6 +35,12 @@
         "render_plugin": {{ datatype_meta.renderPlugin.pluginName|json_encode|raw }},
     {% endif %}
 
+        {% if datatype.metadata_for %}
+        "metadata_for_uuid": "{{ datatype.metadata_for.unique_id }}",
+        {% else %}
+        "metadata_for_uuid": "",
+        {% endif %}
+
 {% if using_metadata == true %}
     "_database_metadata": {
         "_create_date": "{{ datatype.created|date('Y-m-d H:i:s') }}",
