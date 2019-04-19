@@ -1807,9 +1807,11 @@ class APIController extends ODRCustomController
                                     }
                                 }
 
+                                /*
                                 if (count($new_options) > 1) {
                                     throw new \Exception('Invalid option count: Field ' . $data_field['field_uuid']);
                                 }
+                                */
 
                                 // Check for deleted options
                                 foreach ($orig_selected_options as $o_option) {
