@@ -1087,91 +1087,91 @@ class APIController extends ODRCustomController
                         $data_field->getFieldType()->getId() == 1
                         || $data_field->getFieldType()->getId() == 2
                     ) {
-                        /** @var DataRecordFields $drf */
-                        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                            array(
-                                'dataRecord' => $dataset['internal_id'],
-                                'dataField' => $data_field->getId()
-                            )
-                        );
-
-                        $existing_field = null;
-                        if (!$drf) {
-                            // If drf entry doesn't exist, create new
-                            $drf = new DataRecordFields();
-                            $drf->setCreatedBy($user);
-                            $drf->setCreated(new \DateTime());
-                            $drf->setDataField($data_field);
-                            $drf->setDataRecord($data_record);
-                            $em->persist($drf);
-                        } else {
-                            switch ($data_field->getFieldType()->getId()) {
-                                case '2':
-                                    $existing_field = $em->getRepository('ODRAdminBundle:File')
-                                        ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                    break;
-                                case '3':
-                                    $existing_field = $em->getRepository('ODRAdminBundle:Image')
-                                        ->findOneBy(array('dataRecordFields' => $drf->getId()));
-                                    break;
-                            }
-                        }
-
-
-                        switch ($data_field->getFieldType()->getId()) {
-                            case '2': // File
-                                // Check for Allow Multiple
-                                // If single, delete existing
-                                if (!$data_field->getDataFieldMeta()->getAllowMultipleUploads()) {
-                                    // Find existing file entry and delete
-                                    $em->remove($existing_field);
-                                    $em->flush();
-                                }
-
-                                // Download file to temp folder
-
-                                // Use ODRCC to create image meta
-                                /*
-                                    parent::finishUpload(
-                                        $em,
-                                        $filepath,
-                                        $original_filename,
-                                        $user_id,
-                                        $drf->getId()
-                                    );
-                                */
-
-                                $changed = true;
-
-                                break;
-                            case '3': // Image
-                                // Check for Allow Multiple
-                                // If single, delete existing
-                                if (!$data_field->getDataFieldMeta()->getAllowMultipleUploads()) {
-                                    // Find existing file entry and delete
-                                    $em->remove($existing_field);
-                                    $em->flush();
-                                }
-
-                                // Download file to temp folder
-
-                                // Use ODRCC to create image meta
-                                /*
-                                    parent::finishUpload(
-                                        $em,
-                                        $filepath,
-                                        $original_filename,
-                                        $user_id,
-                                        $drf->getId()
-                                    );
-                                */
-
-                                $changed = true;
-
-                                break;
-                        }
+//                        /** @var DataRecordFields $drf */
+//                        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
+//                            array(
+//                                'dataRecord' => $dataset['internal_id'],
+//                                'dataField' => $data_field->getId()
+//                            )
+//                        );
+//
+//                        $existing_field = null;
+//                        if (!$drf) {
+//                            // If drf entry doesn't exist, create new
+//                            $drf = new DataRecordFields();
+//                            $drf->setCreatedBy($user);
+//                            $drf->setCreated(new \DateTime());
+//                            $drf->setDataField($data_field);
+//                            $drf->setDataRecord($data_record);
+//                            $em->persist($drf);
+//                        } else {
+//                            switch ($data_field->getFieldType()->getId()) {
+//                                case '2':
+//                                    $existing_field = $em->getRepository('ODRAdminBundle:File')
+//                                        ->findOneBy(array('dataRecordFields' => $drf->getId()));
+//                                    break;
+//                                case '3':
+//                                    $existing_field = $em->getRepository('ODRAdminBundle:Image')
+//                                        ->findOneBy(array('dataRecordFields' => $drf->getId()));
+//                                    break;
+//                            }
+//                        }
+//
+//
+//                        switch ($data_field->getFieldType()->getId()) {
+//                            case '2': // File
+//                                // Check for Allow Multiple
+//                                // If single, delete existing
+//                                if (!$data_field->getDataFieldMeta()->getAllowMultipleUploads()) {
+//                                    // Find existing file entry and delete
+//                                    $em->remove($existing_field);
+//                                    $em->flush();
+//                                }
+//
+//                                // Download file to temp folder
+//
+//                                // Use ODRCC to create image meta
+//                                /*
+//                                    parent::finishUpload(
+//                                        $em,
+//                                        $filepath,
+//                                        $original_filename,
+//                                        $user_id,
+//                                        $drf->getId()
+//                                    );
+//                                */
+//
+//                                $changed = true;
+//
+//                                break;
+//                            case '3': // Image
+//                                // Check for Allow Multiple
+//                                // If single, delete existing
+//                                if (!$data_field->getDataFieldMeta()->getAllowMultipleUploads()) {
+//                                    // Find existing file entry and delete
+//                                    $em->remove($existing_field);
+//                                    $em->flush();
+//                                }
+//
+//                                // Download file to temp folder
+//
+//                                // Use ODRCC to create image meta
+//                                /*
+//                                    parent::finishUpload(
+//                                        $em,
+//                                        $filepath,
+//                                        $original_filename,
+//                                        $user_id,
+//                                        $drf->getId()
+//                                    );
+//                                */
+//
+//                                $changed = true;
+//
+//                                break;
+//                        }
                     }
-                    else if (is_array($field['value'])) {
+                    else if (isset($field['value']) && is_array($field['value'])) {
 
                         switch ($data_field->getFieldType()->getId()) {
                             case '18':
@@ -1184,7 +1184,10 @@ class APIController extends ODRCustomController
                                 $orig_selected_tags = array();
                                 if ($orig_dataset) {
                                     foreach ($orig_dataset['fields'] as $o_field) {
-                                        if ($o_field['field_uuid'] == $field['field_uuid']) {
+                                        if (
+                                            isset($o_field['value']) &&
+                                            $o_field['field_uuid'] == $field['field_uuid']
+                                        ) {
                                             self::selectedTags($o_field['value'], $orig_selected_tags);
                                         }
                                     }
@@ -1302,7 +1305,10 @@ class APIController extends ODRCustomController
                                 $orig_selected_options = array();
                                 if ($orig_dataset) {
                                     foreach ($orig_dataset['fields'] as $o_field) {
-                                        if ($o_field['field_uuid'] == $field['field_uuid']) {
+                                        if (
+                                            isset($o_field['value']) &&
+                                            $o_field['field_uuid'] == $field['field_uuid']
+                                        ) {
                                             $orig_selected_options = $o_field['value'];
                                         }
                                     }
@@ -1422,7 +1428,10 @@ class APIController extends ODRCustomController
                                 $orig_selected_options = array();
                                 if ($orig_dataset) {
                                     foreach ($orig_dataset['fields'] as $o_field) {
-                                        if ($o_field['field_uuid'] == $field['field_uuid']) {
+                                        if (
+                                            isset($o_field['value']) &&
+                                            $o_field['field_uuid'] == $field['field_uuid']
+                                        ) {
                                             $orig_selected_options = $o_field['value'];
                                         }
                                     }
@@ -1543,7 +1552,10 @@ class APIController extends ODRCustomController
                                 $orig_selected_options = array();
                                 if ($orig_dataset) {
                                     foreach ($orig_dataset['fields'] as $o_field) {
-                                        if ($o_field['field_uuid'] == $field['field_uuid']) {
+                                        if (
+                                            isset($o_field['value']) &&
+                                            $o_field['field_uuid'] == $field['field_uuid']
+                                        ) {
                                             $orig_selected_options = $o_field['value'];
                                         }
                                     }
@@ -1664,7 +1676,10 @@ class APIController extends ODRCustomController
                                 $orig_selected_options = array();
                                 if ($orig_dataset) {
                                     foreach ($orig_dataset['fields'] as $o_field) {
-                                        if ($o_field['field_uuid'] == $field['field_uuid']) {
+                                        if (
+                                            isset($o_field['value']) &&
+                                            $o_field['field_uuid'] == $field['field_uuid']
+                                        ) {
                                             $orig_selected_options = $o_field['value'];
                                         }
                                     }
@@ -1785,7 +1800,10 @@ class APIController extends ODRCustomController
                                 $orig_selected_options = array();
                                 if ($orig_dataset) {
                                     foreach ($orig_dataset['fields'] as $o_field) {
-                                        if ($o_field['field_uuid'] == $field['field_uuid']) {
+                                        if (
+                                            isset($o_field['value']) &&
+                                            $o_field['field_uuid'] == $field['field_uuid']
+                                        ) {
                                             $orig_selected_options = $o_field['value'];
                                         }
                                     }
@@ -1898,14 +1916,14 @@ class APIController extends ODRCustomController
                                 break;
 
                         }
-                    } else {
+                    } else if (isset($field['value'])) {
                         // Field is singular data field
                         $drf = false;
                         $field_changes = true;
                         if ($orig_dataset) {
                             foreach ($orig_dataset['fields'] as $o_field) {
                                 // If we find a matching field....
-                                if (!is_array($o_field['value'])
+                                if (isset($o_field['value']) && !is_array($o_field['value'])
                                     && (
                                         $o_field['template_field_uuid'] == $field['template_field_uuid']
                                         || $o_field['field_uuid'] == $field['field_uuid']
