@@ -29,8 +29,12 @@
 {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
 {% if show_records == 1 %}
 {
-{% endif %}
-    {% for initial_datarecord_id in sorted_datarecord_ids %}
+    {% endif %}
+    {% if record_search is defined and record_search == true %}
+    {% set show_records = 0 %}
+    "records": [
+        {% endif  %}
+        {% for initial_datarecord_id in sorted_datarecord_ids %}
         {% set data = lookup_array[initial_datarecord_id] %}
 
         {% set initial_datatype_id = data['datatype'] %}
@@ -55,8 +59,14 @@
             show_records
         ) }}
         {# properly deal with comma here ??  #}
-        {# if !loop.last %},{% endif #}
-    {% endfor %}
+        {% if record_search is defined and record_search == true %}
+        ,
+        {% endif %}
+        {% endfor %}
+        {% if record_search is defined and record_search == true %}
+    ]
+}
+{% endif  %}
 {% if show_records == 1 %}
 }
 {% endif %}

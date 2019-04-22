@@ -104,7 +104,7 @@ class DatarecordExportService
      *
      * @return string
      */
-    public function getData($version, $datarecord_ids, $format, $using_metadata, $user, $baseurl, $show_records = 1)
+    public function getData($version, $datarecord_ids, $format, $using_metadata, $user, $baseurl, $show_records = 1, $record_search = false)
     {
         // ----------------------------------------
         // Since these datarecords could belong to multiple datatypes, it's faster to get ids
@@ -220,6 +220,7 @@ class DatarecordExportService
                 'datatype_array' => $stacked_datatype_array,
                 'datarecord_array' => $stacked_datarecord_array,
                 'theme_array' => $stacked_theme_array,
+                'record_search' => $record_search,
 
                 'lookup_array' => $lookup_array,
 
