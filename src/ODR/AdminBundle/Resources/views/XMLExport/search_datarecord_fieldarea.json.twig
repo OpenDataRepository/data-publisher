@@ -79,7 +79,7 @@
                     {% set is_top_level = 0 %}
 
                     {# using macro on purpose to get the template as a string #}
-                    {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+                    {% import "ODRAdminBundle:XMLExport:search_datarecord_childtype.json.twig" as mychildform %}
                     {% set show_records = 0 %}
                     {% if version != 'v3' %}
                         {% set show_records = 1 %}
