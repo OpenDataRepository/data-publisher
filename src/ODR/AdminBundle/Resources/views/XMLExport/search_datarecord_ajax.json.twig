@@ -3,7 +3,7 @@
 {% set is_link = 0 %}
 
 {
-    {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+    {% import "ODRAdminBundle:XMLExport:search_datarecord_childtype.json.twig" as mychildform %}
     {{ mychildform.input(
         datatype_array,
         datarecord_array,
@@ -26,7 +26,7 @@
 {# Twig doesn't have a decent spaceless tag for json #}
 {% set is_top_level = 1 %}
 {% set is_link = 0 %}
-{% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+{% import "ODRAdminBundle:XMLExport:search_datarecord_childtype.json.twig" as mychildform %}
 {% if show_records == 1 %}
 {
     {% endif %}

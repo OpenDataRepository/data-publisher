@@ -21,7 +21,7 @@
                     {% set datafield = datatype['dataFields'][datafield_id] %}
 
                     {% if datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
-                        {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
+                        {% include 'ODRAdminBundle:XMLExport:search_datarecord_datafield.json.twig' with {
                             'datarecord': datarecord,
                             'datafield': datafield,
 
