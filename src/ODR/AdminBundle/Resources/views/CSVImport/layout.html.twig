@@ -3,7 +3,7 @@
 {% set external_id_field = datatype.getexternalidfield %}
 
 {%  if not linked_importing %}
-<div class="csv_import_header pure-u-1">
+<div class="csvimport_header pure-u-1">
     <button type="button" class="pure-button" onclick="selectAllFields();">Select All</button>
     &nbsp;
     <button type="button" class="pure-button" onclick="deselectAllFields();">Deselect All</button>
@@ -35,7 +35,7 @@
         'file_encoding_converted': file_encoding_converted
     } %}
 
-    <table id="csv_import_table" class="pure-table pure-table-striped" style="font-size: 1.25em;">
+    <table id="csv_import_table" class="pure-table pure-table-striped">
         <thead>
         <tr id="header">
             <th>Column Name</th>
@@ -44,6 +44,7 @@
             <th>Map to datafield...</th>
             <th>Fieldtype...</th>
             <th>Secondary Delimiter...</th>
+            <th>Tag Hierarchy Delimiter...</th>
             <th></th>
         </tr>
         </thead>
@@ -55,24 +56,25 @@
 
                 <td>
                     <input type="checkbox" id="column_{{ column_id }}_unique" class="unique_checkbox" name="unique_columns[{{ column_id }}]" value="1" disabled rel="{{ column_id }}" />
-                    <span class="inline_warning" title="{% if parent_datatype == null %}The validation process will check for and warn of duplicate values in this column of the CSV file{% else %}TODO{% endif %}">
+                    <span class="csvimport_inline_warning" title="{% if parent_datatype == null %}The validation process will check for and warn of duplicate values in this column of the CSV file{% else %}TODO{% endif %}">
                         &nbsp;<i class="fa fa-lg fa-question-circle" style="cursor:help;"></i>
                     </span>
                 </td>
 
                 <td>
-                    <select id="column_{{ column_id }}" class="datafield_mapping" name="datafield_mapping[{{ column_id }}]" rel="{{ column_id }}" disabled>
+                    <select id="column_{{ column_id }}" class="datafield_mapping" name="datafield_mapping[{{ column_id }}]" rel="{{ column_id }}" {#disabled#}>
                         <option value="new">Create new datafield...</option>
-                        {% for datafield in datafields %}
-                            {% if datafield.fieldtype.id in allowed_fieldtypes|keys %}
-                                <option value="{{ datafield.id }}" rel="{{ datafield.fieldtype.id }}">{{ datafield.fieldname }}</option>
+                        {% for df_id, df in datafields %}
+                            {% set df_meta = df.dataFieldMeta %}
+                            {% if df_meta.fieldType.id in allowed_fieldtypes|keys %}
+                                <option value="{{ df_id }}" rel="{{ df_meta.fieldType.id }}">{{ df_meta.fieldName }}</option>
                             {% endif %}
                         {% endfor %}
                     </select>
                 </td>
 
                 <td>
-                    <select id="column_{{ column_id }}_fieldtype" class="fieldtype_mapping" name="fieldtype_mapping[{{ column_id }}]" rel="{{ column_id }}" disabled>
+                    <select id="column_{{ column_id }}_fieldtype" class="fieldtype_mapping" name="fieldtype_mapping[{{ column_id }}]" rel="{{ column_id }}" {#disabled#}>
                         {% for fieldtype in fieldtypes %}
                             <option value="{{ fieldtype.id }}">{{ fieldtype.typename }}</option>
                         {% endfor %}
@@ -80,15 +82,28 @@
                 </td>
 
                 <td>
-                    <select id="column_{{ column_id }}_delimiter" class="secondary_delimiter" name="column_delimiters[{{ column_id }}]" disabled>
-                        <option value="">Select a delimiter...</option>
-                        <option value="semicolon">{semicolon}</option>
-                        <option value="colon">{colon}</option>
-                        <option value="pipe">{pipe}</option>
+                    <select id="column_{{ column_id }}_select" class="secondary_delimiter" rel="{{ column_id }}" {#disabled#}>
+                        <option rel="">Select a delimiter...</option>
+                        <option rel="|">{pipe}</option>
+                        <option rel=":">{colon}</option>
+                        <option rel="">{other}</option>
                     </select>
+                    &nbsp;
+                    <input type="text" id="column_{{ column_id }}_delimiter" name="column_delimiters[{{ column_id }}]" class="ODRDelimiterField ODRCSVImportDelimiter" maxlength="3" size="4" />
                 </td>
 
-                <td id="column_{{ column_id }}_meta"></td>
+                <td>
+                    <select id="column_{{ column_id }}_hierarchy_select" class="hierarchy_delimiter" rel="{{ column_id }}" {#disabled#}>
+                        <option rel="">Select a delimiter...</option>
+                        {#<option rel="none">{N/A}</option>#} {# TODO - how to provide an "ignore this" option that doesn't also bypass this check when it's required? #}
+                        <option rel=">">{bracket}</option>
+                        <option rel="">{other}</option>
+                    </select>
+                    &nbsp;
+                    <input type="text" id="column_{{ column_id }}_hierarchy_delimiter" name="hierarchy_delimiters[{{ column_id }}]" class="ODRDelimiterField ODRCSVImportDelimiter" maxlength="3" size="4" />
+                </td>
+
+                <td id="column_{{ column_id }}_warning" class="odr_csvimport_warning"></td>
             </tr>
         {% endfor %}
         </tbody>
@@ -109,12 +124,10 @@
 </div>
 
 <style>
-    .csv_import_header {
-        margin: 10px 10px 10px 0px;
-    }
-    .inline_warning {
-        position: relative;
-        top: -3px;
+    .ODRCSVImportDelimiter {
+        background: white !important;
+        border: 2px solid blue !important;
+        border-radius: 5px !important;
     }
 </style>
 
@@ -124,6 +137,7 @@
     var allowed_fieldtypes = {};
     var unique_datafields = [];
     var unique_fieldtypes = [];
+    var multilevel_tag_datafields = [];
 
     $(function() {
 
@@ -132,39 +146,65 @@
 {% for ft_id,ft_typename in allowed_fieldtypes %}
         allowed_fieldtypes[{{ ft_id }}] = "{{ ft_typename }}";
 {% endfor %}
-{% for df in datafields %}{% if df.getisunique == 1 %}
+{% for df in datafields %}{% if df.dataFieldMeta.is_unique == 1 %}
         unique_datafields.push("{{ df.id }}");
 {% endif %}{% endfor %}
 {% for ft in fieldtypes %}{% if ft.getcanbeunique == 1 %}
         unique_fieldtypes.push("{{ ft.id }}");
 {% endif %}{% endfor %}
+{% for df_id, num in multilevel_tag_datafields %}
+        multilevel_tag_datafields.push({{ df_id }});
+{% endfor %}
 
-        $(".inline_warning").hide();
+        $(".csvimport_inline_warning").hide();
+
+        // Disable all the dropdowns and the secondary delimiter fields
+        $('select').each(function() {
+            $(this).prop('disabled', true);
+        });
+        $(".ODRDelimiterField").each(function() {
+            $(this).hide();
+            $(this).prop('disabled', true);
+        });
 
         $(".import_checkbox").unbind('change').change(function() {
             var column_id = $(this).attr('rel');
 
             if ( $(this).is(':checked') ) {
-                $("#column_" + column_id).removeAttr('disabled');
-                $("#column_" + column_id + "_unique").removeAttr('disabled');
+                $("#column_" + column_id).prop('disabled', false);
+                $("#column_" + column_id + "_unique").prop('disabled', false);
 
                 if ( $("#column_" + column_id).val() == "new" )
-                    $("#column_" + column_id + "_fieldtype").removeAttr('disabled');
+                    $("#column_" + column_id + "_fieldtype").prop('disabled', false);
 
                 // Warn about unique datafields
                 setUniqueWarnings(column_id, unique_datafields);
                 updateHeaderWarnings();
             }
             else {
-                $("#column_" + column_id).attr('disabled', 'disabled');
-
-                $("#column_" + column_id + "_unique").attr('disabled', 'disabled');
-                $("#column_" + column_id + "_unique").parent().find('.inline_warning').hide();
+                // Reset/disable the unique requirement column
+                $("#column_" + column_id + "_unique").prop('disabled', true);
+                $("#column_" + column_id + "_unique").parent().find('.csvimport_inline_warning').hide();
                 if ( $("#column_" + column_id + "_unique").is(':checked') )
                     $("#column_" + column_id + "_unique").prop('checked', false);
 
-                $("#column_" + column_id + "_fieldtype").attr('disabled', 'disabled');
-                $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
+                // Reset/disable the datafield mapping...
+                $("#column_" + column_id).children().first().prop('selected', true)
+                $("#column_" + column_id).prop('disabled', true);
+
+                // ...and the fieldtype mapping column
+                $("#column_" + column_id + "_fieldtype").children().first().prop('selected', true);
+                $("#column_" + column_id + "_fieldtype").prop('disabled', true);
+
+                // ...and the secondary delimiter column
+                $("#column_" + column_id + "_delimiter").prop('disabled', true);
+                $("#column_" + column_id + "_select").children().first().prop('selected', true);
+                $("#column_" + column_id + "_select").prop('disabled', true).trigger('change');
+
+                // ...and the hierarchy delimiter column
+                $("#column_" + column_id + "_hierarchy_delimiter").prop('disabled', true);
+                $("#column_" + column_id + "_hierarchy_select").children().first().prop('selected', true);
+                $("#column_" + column_id + "_hierarchy_select").prop('disabled', true).trigger('change');
 
                 // Warn about unique datafields
 //                setUniqueWarnings(column_id, unique_datafields);
@@ -187,55 +227,98 @@
 
         $(".datafield_mapping").unbind('change').change(function() {
             var column_id = $(this).attr('rel');
-
-            var fieldtype_id = $(this).children('option:selected').attr('rel');
-            $("#column_" + column_id + "_fieldtype").val( fieldtype_id );
+            var fieldtype_selector = $("#column_" + column_id + "_fieldtype");
 
             // Provide the option to select a fieldtype if the user wants a new datafield
-            if ( $(this).val() == "new" )
-                $("#column_" + column_id + "_fieldtype").removeAttr('disabled');
-            else
-                $("#column_" + column_id + "_fieldtype").attr('disabled', 'disabled');
-
-            // Need to select a delimiter for multiple radio/select fields, and for file/image fields
+            var df_id = $(this).val();
+            if (df_id === 'new') {
+                $(fieldtype_selector).prop('disabled', false);
+            }
+            else {
+                var fieldtype_id = $(this).children('option:selected').attr('rel');
+                $(fieldtype_selector).val( fieldtype_id );
+                $(fieldtype_selector).prop('disabled', true);
+            }
+{#
+            // Need to select a delimiter for all these fields
             var typename = allowed_fieldtypes[fieldtype_id];
-            if ( typename == 'File' || typename == 'Image' || typename == 'Multiple Radio' || typename == 'Multiple Select' )
-                $("#column_" + column_id + "_delimiter").removeAttr('disabled');
-            else
-                $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
+            setDelimiters(typename, column_id, df_id);
 
             // Warn about unique datafields
             setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
             updateHeaderWarnings();
             updateDatafieldMeta(column_id, allowed_fieldtypes);
+            updateDelimiterWarnings();
 
             if (block_changes)
                 preventImport();
+#}
+
+            $(fieldtype_selector).trigger('change');
         });
 
         $(".fieldtype_mapping").unbind('change').change(function() {
             var column_id = $(this).attr('rel');
 
             var fieldtype_id = $(this).val();
+            var df_id = $("#column_" + column_id).val();
 
             // Need to select a delimiter for multiple radio/select fields, and for file/image fields
             var typename = allowed_fieldtypes[fieldtype_id];
-            if ( typename == 'File' || typename == 'Image' || typename == 'Multiple Radio' || typename == 'Multiple Select' )
-                $("#column_" + column_id + "_delimiter").removeAttr('disabled');
-            else
-                $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
+            setDelimiters(typename, column_id, df_id);
 
             // Display some metadata about the selected fieldtype if needed
             setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
+            updateHeaderWarnings();
             updateDatafieldMeta(column_id, allowed_fieldtypes);
+            updateDelimiterWarnings();
 
             if (block_changes)
                 preventImport();
         });
 
-        $(".secondary_delimiter").unbind('change').click(function() {
-            if (block_changes)
+        $(".secondary_delimiter").unbind('change').change(function() {
+            if (block_changes) {
                 preventImport();
+                return false;
+            }
+
+            var column_id = $(this).attr('rel');
+            var delimiter_input = $("#column_" + column_id + "_delimiter");
+
+            var char = $(this).children(':selected').attr('rel');
+            $(delimiter_input).val(char);
+
+            if ( $(this).children(':selected').html() === '{other}' )
+                $(delimiter_input).show();
+            else
+                $(delimiter_input).hide();
+
+            updateDelimiterWarnings();
+        });
+
+        $(".hierarchy_delimiter").unbind('change').change(function() {
+            if (block_changes) {
+                preventImport();
+                return false;
+            }
+
+            var column_id = $(this).attr('rel');
+            var delimiter_input = $("#column_" + column_id + "_hierarchy_delimiter");
+
+            var char = $(this).children(':selected').attr('rel');
+            $(delimiter_input).val(char);
+
+            if ( $(this).children(':selected').html() === '{other}' )
+                $(delimiter_input).show();
+            else
+                $(delimiter_input).hide();
+
+            updateDelimiterWarnings();
+        });
+
+        $(".ODRCSVImportDelimiter").unbind('keyup paste').on('keyup paste', function() {
+            updateDelimiterWarnings();
         });
 
 
@@ -246,7 +329,7 @@
         $("#import_checkbox_{{ column_id }}").trigger('click');
         $("#column_{{ column_id }}").val("{{ target }}");
         {% if target != "new" %}
-        $("#column_{{ column_id }}_fieldtype").attr('disabled', 'disabled');    // don't want this fieldtype selector to be enabled
+        $("#column_{{ column_id }}_fieldtype").prop('disabled', true);    // don't want this fieldtype selector to be enabled
         {% endif %}
     {% endfor %}
 
@@ -255,9 +338,38 @@
         $("#column_{{ column_id }}_fieldtype").trigger('change');
     {% endfor %}
 
+        var target_found = false;
     {% for column_id, target in presets.column_delimiters %}
-//        $("#column_{{ column_id }}_delimiter").removeAttr('disabled');
-        $("#column_{{ column_id }}_delimiter").val("{{ target }}");
+        console.log( 'presets.column_delimiters[{{ column_id }}]: "{{ target|raw }}"' );
+
+        target_found = false;
+        $("#column_{{ column_id }}_select").children().each(function() {
+            if ( $(this).attr('rel') === "{{ target|raw }}") {
+                $(this).prop('selected', true);
+                target_found = true;
+                $("#column_{{ column_id }}_select").trigger('change');
+            }
+        });
+        if ( !target_found ) {
+            $("#column_{{ column_id }}_select").children().last().prop('selected', true);
+            $("#column_{{ column_id }}_delimiter").show().prop('disabled', false).val("{{ target|raw }}");
+        }
+    {% endfor %}
+    {% for column_id, target in presets.hierarchy_delimiters %}
+        console.log( 'presets.hierarchy_delimiters[{{ column_id }}]: "{{ target|raw }}"' );
+
+        target_found = false;
+        $("#column_{{ column_id }}_hierarchy_select").children().each(function() {
+            if ( $(this).attr('rel') === "{{ target|raw }}") {
+                $(this).prop('selected', true);
+                target_found = true;
+                $("#column_{{ column_id }}_hierarchy_select").trigger('change');
+            }
+        });
+        if ( !target_found ) {
+            $("#column_{{ column_id }}_hierarchy_select").children().last().prop('selected', true);
+            $("#column_{{ column_id }}_hierarchy_delimiter").show().prop('disabled', false).val("{{ target|raw }}");
+        }
     {% endfor %}
 
     {% for column_id, tmp in presets.unique_columns %}
@@ -273,6 +385,7 @@
 
         // Ensure header warnings are accurate
         updateHeaderWarnings();
+        updateDelimiterWarnings();
 
         block_changes = true;
 {% endif %} {# if presets != null #}
@@ -282,20 +395,117 @@
 
     function preventImport() {
         var change_block_str = 'You have changed something in the field layout...either re-validate the import, or reload the page to undo your changes';
-
-        $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
+        $("#import_button").removeAttr('onclick').prop('disabled', true).attr('title', change_block_str);
     }
 
 {% if not linked_importing %}
+    function setDelimiters(typename, column_id, df_id) {
+        var delimiter_select = $("#column_" + column_id + "_select");
+        var delimiter_field = $("#column_" + column_id + "_delimiter");
+        var hierarchy_select = $("#column_" + column_id + "_hierarchy_select");
+        var hierarchy_field = $("#column_" + column_id + "_hierarchy_delimiter");
+
+        if ( typename === 'Tags') {
+            // Tags need the secondary delimiters
+            $(delimiter_select).prop('disabled', false);
+            $(delimiter_field).prop('disabled', false);
+
+            if ( df_id === 'new' || multilevel_tag_datafields.indexOf(parseInt(df_id)) !== -1 ) {
+                // Only enable the hierarchy delimiter stuff if the tag field needs it
+                $(hierarchy_select).prop('disabled', false);
+                $(hierarchy_field).prop('disabled', false);
+            }
+            else {
+                // Otherwise, ensure it's disabled
+                $(hierarchy_select).prop('disabled', true);
+                $(hierarchy_select).children('option').first().prop('selected', true);
+                $(hierarchy_select).trigger('change');
+                $(hierarchy_field).prop('disabled', true);
+            }
+        }
+        else if ( typename === 'File' || typename === 'Image' || typename === 'Multiple Radio' || typename === 'Multiple Select' ) {
+            // These fieldtypes need the secondary delimiter
+            $(delimiter_select).prop('disabled', false);
+            $(delimiter_field).prop('disabled', false);
+
+            // ...but not the hierarchy delimiters
+            $(hierarchy_select).prop('disabled', true);
+            $(hierarchy_select).children('option').first().prop('selected', true);
+            $(hierarchy_select).trigger('change');
+            $(hierarchy_field).prop('disabled', true);
+        }
+        else {
+            // Every other fieldtype does not need either secondary or hierarchy delimiters
+            $(delimiter_select).prop('disabled', true);
+            $(delimiter_select).children('option').first().prop('selected', true);
+            $(delimiter_select).trigger('change');
+            $(delimiter_field).prop('disabled', true);
+
+            $(hierarchy_select).prop('disabled', true);
+            $(hierarchy_select).children('option').first().prop('selected', true);
+            $(hierarchy_select).trigger('change');
+            $(hierarchy_field).prop('disabled', true);
+        }
+    }
+
+    function updateDelimiterWarnings() {
+
+        var csv_delimiter = "{{ csv_delimiter }}";
+        $(".odr_csvimport_warning").each(function() {
+
+            var data = $(this).attr('id').split(/_/);
+            var secondary_delimiter_field = $("#column_" + data[1] + "_delimiter");
+            // If secondary delimiter is disabled, no sense doing anything
+            if ( $(secondary_delimiter_field).prop('disabled') === true ) {
+                $(this).html('');    // TODO - this field isn't getting disabled at the right times...
+                return;
+            }
+
+            var secondary_delimiter = $(secondary_delimiter_field).val().trim();
+            if (secondary_delimiter === '') {
+                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Delimiters can't be blank");
+                return;
+            }
+            else if ( secondary_delimiter.indexOf(csv_delimiter) !== -1) {
+                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Secondary delimiter can't contain the primary delimiter");
+                return;
+            }
+            else {
+                // No error here, continue if possible
+                $(this).html('');
+            }
+
+
+            // Similarly, if the hierarchy delimiter is disabled, don't continue
+            var hierarchy_delimiter_field = $("#column_" + data[1] + "_hierarchy_delimiter");
+            if ( $(hierarchy_delimiter_field).prop('disabled') === true )
+                return;
+
+            var hierarchy_delimiter = $(hierarchy_delimiter_field).val().trim();
+            if (hierarchy_delimiter === '')
+                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Delimiters can't be blank");
+            else if ( hierarchy_delimiter.indexOf(csv_delimiter) !== -1)
+                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Hierarchy delimiter can't contain the primary delimiter");
+            else if ( hierarchy_delimiter.indexOf(secondary_delimiter) !== -1
+                || secondary_delimiter.indexOf(hierarchy_delimiter) !== -1
+            ) {
+                $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Hierarchy delimiter can't contain the secondary delimiter");
+            }
+            else
+                $(this).html('');
+        });
+
+    }
+
     function updateDatafieldMeta(column_id, allowed_fieldtypes) {
 
         var datafield_id = $("#column_" + column_id).val();
         var fieldtype_id = $("#column_" + column_id + "_fieldtype").val();
-        var meta_column = "#column_" + column_id + "_meta";
+        var meta_column = "#column_" + column_id + "_warning";
 
         // Display some metadata about the selected fieldtype if needed
         var typename = allowed_fieldtypes[fieldtype_id];
-        if ( (typename == 'File' || typename == 'Image') && datafield_id != 'new') {
+        if ( (typename === 'File' || typename === 'Image') && datafield_id !== 'new') {
             $(meta_column).html('<span id="unlisted_' + column_id + '_note" class="Pointer"><input id="unlisted_' + column_id + '_checkbox" class="synch_checkbox" type="checkbox" name="synch_columns[' + column_id + ']" value="1" />&nbsp;Delete files/images not listed in CSV File</span>');
             $('#unlisted_' + column_id + '_note').attr('title', "The import process will always attempt to upload all files/images listed in the CSV file to this datafield, replacing the contents of any file/image that has already been uploaded.\nIf this option is checked, the import process will also delete any files/images in this datafield that are not listed in the CSV file.");
 
@@ -305,16 +515,16 @@
                 });
             }
         }
-        else if (typename == 'Paragraph Text')
+        else if (typename === 'Paragraph Text')
             $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;No character limit');
-        else if (typename == 'Long Text')
+        else if (typename === 'Long Text')
             $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;255 character limit');
-        else if (typename == 'Medium Text')
+        else if (typename === 'Medium Text')
             $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;64 character limit');
-        else if (typename == 'Short Text')
+        else if (typename === 'Short Text')
             $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;32 character limit');
         else
-            $("#column_" + column_id + "_meta").html('');
+            $(meta_column).html('');
     }
 
     function setUniqueWarnings(column_id, unique_datafields) {
@@ -345,36 +555,36 @@
             // Fieldtype is not allowed to be unique...ensure "require unique" is unchecked
             if (is_checked) {
                 $(unique_checkbox).prop('checked', false);
-                $(unique_checkbox).parent().find('.inline_warning').hide();
+                $(unique_checkbox).parent().find('.csvimport_inline_warning').hide();
             }
 
             // Disable checkbox so it can't be checked
-            $(unique_checkbox).attr('disabled', 'disabled');            
+            $(unique_checkbox).prop('disabled', true);
         }
         else if ( is_unique ) {
 //alert('is_unique...checked: ' + is_checked);
             // Datafield is marked as unique, ensure "require unique" is checked
             if (!is_checked) {
                 $(unique_checkbox).prop('checked', true);
-                $(unique_checkbox).parent().find('.inline_warning').removeAttr('style');
+                $(unique_checkbox).parent().find('.csvimport_inline_warning').removeAttr('style');
             }
 
             // Disable checkbox so it can't be unchecked
-            $(unique_checkbox).attr('disabled', 'disabled');
+            $(unique_checkbox).prop('disabled', true);
         }
         else {
 //alert('enabling field');
 
             if ( $(unique_checkbox).attr('disabled') == 'disabled' ) {
                 // checkbox was disabled...enable it
-                $(unique_checkbox).removeAttr('disabled');
+                $(unique_checkbox).prop('disabled', false);
             }
             else {
                 // checkbox was already enabled
                 if (is_checked)
-                    $(unique_checkbox).parent().find('.inline_warning').removeAttr('style');
+                    $(unique_checkbox).parent().find('.csvimport_inline_warning').removeAttr('style');
                 else
-                    $(unique_checkbox).parent().find('.inline_warning').hide();
+                    $(unique_checkbox).parent().find('.csvimport_inline_warning').hide();
             }
         }
 
@@ -387,8 +597,6 @@
             }
         });
     }
-
-
     function deselectAllFields() {
         $(".import_checkbox").each(function() {
             if ( $(this).is(':checked') ) {
@@ -396,6 +604,7 @@
             }
         });
     }
+
 {% endif %} {# if not linked_importing #}
 
     function validateImport() {
@@ -403,17 +612,17 @@
 {% if parent_datatype == null %}
     {# do nothing #}
 {% else %}
-        if ( $("#parent_external_id_column").val() == '' ) {
+        if ( $("#parent_external_id_column").val() === '' ) {
             alert('ERROR: One column of the CSV file must be mapped to the external ID for the {% if linked_importing %}local{% else %}parent{% endif %} Datatype "{{ parent_datatype.getshortname }}"');
             return;
         }
     {% if linked_importing %}
-        if ( $("#remote_external_id_column").val() == '' ) {
+        if ( $("#remote_external_id_column").val() === '' ) {
             alert('ERROR: One column of the CSV file must be mapped to the external ID for the remote Datatype "{{ datatype.getshortname }}"');
             return;
         }
 
-        if ( $("#parent_external_id_column").val() == $("#remote_external_id_column").val() ) {
+        if ( $("#parent_external_id_column").val() === $("#remote_external_id_column").val() ) {
             alert("ERROR: The external IDs for the local and remote datatypes can't both be mapped to the same column");
             return;
         }
@@ -427,7 +636,7 @@
             any_checked = true;
 
 {% if parent_datatype != null %}
-            if ( $("#parent_external_id_column").val() == $(this).attr('rel') ) {
+            if ( $("#parent_external_id_column").val() === $(this).attr('rel') ) {
                 alert( "ERROR: The column mapped to the parent Datatype's external ID can't also be mapped to a Datafield" );
                 block_import = true;
             }
@@ -442,7 +651,7 @@
 
         // Remove disabled attribute from any checked unique checkboxes so they're included in the post
         $(".unique_checkbox:checked").each(function() {
-            $(this).removeAttr('disabled');
+            $(this).prop('disabled', true);
         });
 
 
@@ -450,7 +659,7 @@
         var selections = [];
         $(".datafield_mapping:enabled").each(function() {
             var selection = $(this).val();
-            if (selection == 'new') {
+            if (selection === 'new') {
                 // Don't care about situations where a new datafield has to be created
 //                continue;
             }
@@ -466,12 +675,11 @@
             }
         });
 
-        // TODO - warn when secondary delimiter matches primary delimiter?
-        // Require all multiple select/radio fields to have a secondary delimiter
-        $(".secondary_delimiter:enabled").each(function() {
-            if ( $(this).val() == '' ) {
+        // Repeat any warning currently in the meta column about delimiters
+        $(".odr_csvimport_warning").each(function() {
+            if ( $(this).children('i.fa-warning').length > 0 ) {
                 block_import = true;
-                alert( 'ERROR: All Multiple Radio/Select, File, and Image DataFields MUST have a secondary delimiter selected' );
+                alert( 'ERROR: The delimiter columns MUST NOT have warnings' );
                 return false;
             }
         });
@@ -485,8 +693,10 @@
 
         if ( confirm("Are you sure you want to validate this import?") ) {
             var import_data = $("#csv_import_form").serialize();
-
             var url = '{{ path('odr_csv_import_start_validate') }}';
+
+            // console.log(import_data);
+            // return;
 
             $.ajax({
                 cache: false,

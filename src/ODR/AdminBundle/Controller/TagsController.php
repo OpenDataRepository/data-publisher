@@ -411,7 +411,10 @@ class TagsController extends ODRCustomController
                 if ($line === '')
                     continue;
 
-                $new_tags = explode($post['tag_hierarchy_delimiter'], $line);
+                $new_tags = array($line);
+                if ( $datafield->getTagsAllowMultipleLevels() )
+                    $new_tags = explode($post['tag_hierarchy_delimiter'], $line);
+
                 foreach ($new_tags as $num => $tag) {
                     // TODO - other errors?
                     $tag = trim($tag);
@@ -801,9 +804,11 @@ class TagsController extends ODRCustomController
             $current_tag = $hydrated_tag_array[$tag_uuid];
         }
         else {
-            // A tag with this name doesn't exist at this level yet
+            // Since a tag with this name doesn't exist at this level yet, it is safe to forcibly
+            //  create a tag here
+            $force_create = true;
             $delay_uuid = true;
-            $current_tag = $ec_service->createTag($user, $datafield, true, $tag_name, $delay_uuid);
+            $current_tag = $ec_service->createTag($user, $datafield, $force_create, $tag_name, $delay_uuid);
 
             // Generate a new uuid for this tag...
             $new_tag_uuid = UniqueUtility::uniqueIdReal();

@@ -67,6 +67,7 @@ $output->writeln($data->url);
                     'user_id' => $data->user_id,
 
                     'delimiter' => $data->delimiter,
+                    'file_image_delimiter' => $data->file_image_delimiter,
                     'radio_delimiter' => $data->radio_delimiter,
                     'tag_delimiter' => $data->tag_delimiter,
                     'tag_hierarchy_delimiter' => $data->tag_hierarchy_delimiter,

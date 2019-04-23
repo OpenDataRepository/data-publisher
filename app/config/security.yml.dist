@@ -121,7 +121,8 @@ security:
         - { path: ^/admin/user/change_password, role: ROLE_USER } # ability to change passwords, controller restricts further
 
         - { path: ^/admin/type/list/databases, role: ROLE_USER }  # can see page that provides links to manage datatypes
-        - { path: ^/edit, role: ROLE_USER }                       # Editing and CSV Import
+        - { path: ^/edit, role: ROLE_USER }                       # Editing
+        - { path: ^/csvimport, role: ROLE_USER }                  # CSV Import
         - { path: ^/jobs, role: ROLE_USER }                       # Active Jobs page
 
         - { path: ^/admin/type/list/templates, role: ROLE_ADMIN } # can see page that provides links to modify master templates

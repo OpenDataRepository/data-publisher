@@ -1056,34 +1056,33 @@ odr_sync_with_template_worker:
 #-----------------------------------------
 # CSVImport Controller
 odr_csv_import:
-    path: /edit/csv_import/{datatype_id}
+    path: /csvimport/{datatype_id}
     defaults: { _controller: ODRAdminBundle:CSVImport:import }
     requirements:
         datatype_id: \d+
 
 odr_csv_import_delimiter_changed:
-    path: /edit/csv_import/delimiter/{delimiter}
+    path: /csvimport/delimiter
     defaults: { _controller: ODRAdminBundle:CSVImport:delimiter }
-    requirements:
-        delimiter: 'tab|space|comma|semicolon|colon|pipe|'
+    methods: [ POST ]
 
 odr_csv_file_redownload:
-    path: /edit/csv_import/redownload
+    path: /csvimport/redownload
     defaults: { _controller: ODRAdminBundle:CSVImport:redownloadfile }
 
 odr_csv_refresh_filelist:
-    path: /edit/csv_import/filelist/refresh
+    path: /csvimport/filelist/refresh
     defaults: { _controller: ODRAdminBundle:CSVImport:refreshfilelist }
 odr_csv_delete_filelist:
-    path: /edit/csv_import/filelist/delete
+    path: /csvimport/filelist/delete
     defaults: { _controller: ODRAdminBundle:CSVImport:deletefilelist }
 
 odr_csv_cancel_import:
-    path: /edit/csv_import/cancel
+    path: /csvimport/cancel
     defaults: { _controller: ODRAdminBundle:CSVImport:cancel }
 
 odr_csv_import_layout:
-    path: /edit/csv_import/layout/{source_datatype_id}/{target_datatype_id}
+    path: /csvimport/layout/{source_datatype_id}/{target_datatype_id}
     defaults: { _controller: ODRAdminBundle:CSVImport:layout }
     requirements:
         source_datatype_id: \d+
@@ -1091,7 +1090,7 @@ odr_csv_import_layout:
 
 
 odr_csv_import_start_validate:
-    path: /edit/csv_import/start_validate
+    path: /csvimport/start_validate
     defaults: { _controller: ODRAdminBundle:CSVImport:startvalidate }
     methods: [ POST ]
 
@@ -1108,7 +1107,7 @@ odr_csv_import_validate_results:
 
 
 odr_csv_import_start_worker:
-    path: /edit/csv_import/start_worker/{job_id}
+    path: /csvimport/start_worker/{job_id}
     defaults: { _controller: ODRAdminBundle:CSVImport:startworker }
 #    requirements: { methods: POST }
     requirements:

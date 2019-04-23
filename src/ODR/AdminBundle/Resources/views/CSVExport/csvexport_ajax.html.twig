@@ -28,6 +28,23 @@
             <span class="ODRInputError ODRWarnWrapper"><i class="fa fa-warning"></i><span id="delimiter_warn"></span></span>
         </td>
     </tr>
+    <tr class="ODRFileImageDelimiter">
+        <td>File/Image delimiter: </td>
+        <td>
+            <select class="FileImageDelimiterSelect">
+                {#<option>Select a delimiter...</option>#}
+                <option rel="|">{pipe}</option>
+{#                <option rel=":">{colon}</option>#}
+{#                <option rel="">{other}</option>#}
+            </select>
+        </td>
+        <td>
+            <input type="text" name="file_image_delimiter" id="file_image_delimiter_field" class="ODRDelimiterField" maxlength="3" size="4" />
+        </td>
+        <td>
+            <span class="ODRInputError ODRFileImageWarnWrapper"><i class="fa fa-warning"></i><span id="file_image_delimiter_warn"></span></span>
+        </td>
+    </tr>
     <tr class="ODRRadioDelimiter">
         <td>Multiple Radio/Select delimiter: </td>
         <td>
@@ -150,6 +167,12 @@ function initPage() {
             $(this).attr('title', 'This datafield will be exported');
             $(this).removeClass('ODRUnselectedDatafield').addClass('ODRSelectedDatafield');
 
+            if ( $(this).hasClass('ODRExportFileImageField') ) {
+                $(".ODRFileImageDelimiter").show();
+
+                var option = $(".FileImageDelimiterSelect").children('option').first();
+                $("#file_image_delimiter_field").val( $(option).attr('rel') ).prop('disabled', false);
+            }
             if ( $(this).hasClass('ODRExportRadioField') ) {
                 $(".ODRRadioDelimiter").show();
 
@@ -175,6 +198,15 @@ function initPage() {
 
             // Don't want to disable secondary delimiter fields if another datafield being exported
             //  still needs them
+            if ( $(this).hasClass('ODRExportFileImageField') ) {
+                if ( $(".ODRExportFileImageField.ODRSelectedDatafield").length === 0) {
+                    $(".ODRFileImageDelimiter").hide();
+
+                    var option = $(".FileImageDelimiterSelect").children('option').first();
+                    $(option).prop('selected', true);
+                    $("#file_image_delimiter_field").val( $(option).attr('rel') ).hide().prop('disabled', true);
+                }
+            }
             if ( $(this).hasClass('ODRExportRadioField') ) {
                 if ( $(".ODRExportRadioField.ODRSelectedDatafield").length === 0) {
                     $(".ODRRadioDelimiter").hide();
@@ -212,17 +244,20 @@ function initPage() {
     });
 
     // Hide these until a field that needs them is selected
+    $(".ODRFileImageDelimiter").hide();
     $(".ODRRadioDelimiter").hide();
     $(".ODRTagDelimiter").hide();
     $(".ODRTagHierarchyDelimiter").hide();
 
     $("#delimiter_field").hide();
     $("#delimiter_field").val(',');
+    $("#file_image_delimiter_field").hide().prop('disabled', true);
     $("#radio_delimiter_field").hide().prop('disabled', true);
     $("#tag_delimiter_field").hide().prop('disabled', true);
     $("#tag_hierarchy_delimiter_field").hide().prop('disabled', true);
 
     $(".ODRWarnWrapper").hide();
+    $(".ODRFileImageWarnWrapper").hide();
     $(".ODRRadioWarnWrapper").hide();
     $(".ODRTagWarnWrapper").hide();
     $(".ODRTagHierarchyWarnWrapper").hide();
@@ -236,6 +271,17 @@ function initPage() {
             $("#delimiter_field").show();
         else
             $("#delimiter_field").hide();
+
+        updateWarnings();
+    });
+    $(".FileImageDelimiterSelect").unbind('change').change(function() {
+        var char = $(this).children(':selected').attr('rel');
+        $("#file_image_delimiter_field").val(char);
+
+        if (char === "")
+            $("#file_image_delimiter_field").show();
+        else
+            $("#file_image_delimiter_field").hide();
 
         updateWarnings();
     });
@@ -276,10 +322,14 @@ function initPage() {
 
 function updateWarnings() {
     $(".ODRWarnWrapper").hide();
+    $(".ODRFileImageWarnWrapper").hide();
     $(".ODRRadioWarnWrapper").hide();
     $(".ODRTagWarnWrapper").hide();
     $(".ODRTagHierarchyWarnWrapper").hide();
 
+    var needs_file_image_delimiter = false;
+    if ( $(".FileImageDelimiterSelect").is(':visible') )
+        needs_file_image_delimiter = true;
     var needs_radio_delimiter = false;
     if ( $(".RadioDelimiterSelect").is(':visible') )
         needs_radio_delimiter = true;
@@ -291,6 +341,7 @@ function updateWarnings() {
         needs_tag_hierarchy_delimiter = true;
 
     var delimiter_value = $("#delimiter_field").val().trim();
+    var file_image_delimiter_value = $("#file_image_delimiter_field").val().trim();
     var radio_delimiter_value = $("#radio_delimiter_field").val().trim();
     var tag_delimiter_value = $("#tag_delimiter_field").val().trim();
     var tag_hierarchy_delimiter_value = $("#tag_hierarchy_delimiter_field").val().trim();
@@ -301,6 +352,11 @@ function updateWarnings() {
     if ( delimiter_value === '' ) {
         $("#delimiter_warn").html(complaint);
         $(".ODRWarnWrapper").show();
+        needs_value = true;
+    }
+    if ( needs_file_image_delimiter && file_image_delimiter_value === '' ) {
+        $("#file_image_delimiter_warn").html(complaint);
+        $(".ODRFileImageWarnWrapper").show();
         needs_value = true;
     }
     if ( needs_radio_delimiter && radio_delimiter_value === '' ) {
@@ -329,6 +385,11 @@ function updateWarnings() {
         $(".ODRWarnWrapper").show();
         has_quote = true;
     }
+    if ( needs_file_image_delimiter && file_image_delimiter_value.indexOf("\"") !== -1) {
+        $("#file_image_delimiter_warn").html(complaint);
+        $(".ODRFileImageWarnWrapper").show();
+        has_quote = true;
+    }
     if ( needs_radio_delimiter && radio_delimiter_value.indexOf("\"") !== -1) {
         $("#radio_delimiter_warn").html(complaint);
         $(".ODRRadioWarnWrapper").show();
@@ -349,6 +410,13 @@ function updateWarnings() {
 
     // ...the other delimiter strings should not contain the primary delimiter character
     complaint = "Delimiter conflict";
+    if ( needs_file_image_delimiter && file_image_delimiter_value.indexOf(delimiter_value) !== -1 ) {
+        $(".ODRWarnWrapper").show();
+        $(".ODRFileImageWarnWrapper").show();
+
+        $("#delimiter_warn").html(complaint);
+        $("#file_image_delimiter_warn").html(complaint);
+    }
     if ( needs_radio_delimiter && radio_delimiter_value.indexOf(delimiter_value) !== -1 ) {
         $(".ODRWarnWrapper").show();
         $(".ODRRadioWarnWrapper").show();
@@ -403,12 +471,19 @@ function deselectAll() {
 function doCSVExport() {
     // Require delimiters before exporting...
     var delimiter_value = $("#delimiter_field").val().trim();
+    var file_image_delimiter_value = $("#file_image_delimiter_field").val().trim();
     var radio_delimiter_value = $("#radio_delimiter_field").val().trim();
     var tag_delimiter_value = $("#tag_delimiter_field").val().trim();
     var tag_hierarchy_delimiter_value = $("#tag_hierarchy_delimiter_field").val().trim();
 
     if ( delimiter_value === '' || delimiter_value.indexOf("\"") !== -1) {
         alert('Invalid column delimiter');
+        return;
+    }
+    if ( $(".FileImageDelimiterSelect").is(':visible')
+        && (file_image_delimiter_value === '' || file_image_delimiter_value.indexOf("\"") !== -1)
+    ) {
+        alert('Invalid file/image delimiter');
         return;
     }
     if ( $(".RadioDelimiterSelect").is(':visible')

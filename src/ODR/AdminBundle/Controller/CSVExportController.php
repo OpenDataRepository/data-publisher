@@ -126,6 +126,10 @@ class CSVExportController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // This doesn't make sense on a master datatype
+            if ( $datatype->getIsMasterType() )
+                throw new ODRBadRequestException('Unable to export from a master template');
+
 
             // ----------------------------------------
             // Verify the search key, and ensure the user can view the results
@@ -222,6 +226,10 @@ class CSVExportController extends ODRCustomController
             $datatype_id = $post['datatype_id'];
             $delimiter = trim($post['delimiter']);
 
+            $file_image_delimiter = null;
+            if ( isset($post['file_image_delimiter']) )
+                $file_image_delimiter = trim($post['file_image_delimiter']);
+
             $radio_delimiter = null;
             if ( isset($post['radio_delimiter']) )
                 $radio_delimiter = trim($post['radio_delimiter']);
@@ -272,6 +280,11 @@ class CSVExportController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // This doesn't make sense on a master datatype
+            if ( $datatype->getIsMasterType() )
+                throw new ODRBadRequestException('Unable to export from a master template');
+
+
 
             // Translate the primary delimiter if needed
             if ($delimiter === 'tab')
@@ -280,6 +293,12 @@ class CSVExportController extends ODRCustomController
                 throw new ODRBadRequestException('Invalid column delimiter');
 
             // If they exist, ensure that the secondary delimiters are legal
+            if ( !is_null($file_image_delimiter)
+                && ($file_image_delimiter === '' || strlen($file_image_delimiter) > 3)
+            ) {
+                throw new ODRBadRequestException('Invalid file/image delimiter');
+            }
+
             if ( !is_null($radio_delimiter)
                 && ($radio_delimiter === '' || strlen($radio_delimiter) > 3)
             ) {
@@ -299,6 +318,8 @@ class CSVExportController extends ODRCustomController
             }
 
             // Ensure that the secondary delimiters don't contain the primary delimiter...
+            if ( !is_null($file_image_delimiter) && strpos($file_image_delimiter, $delimiter) !== false )
+                throw new ODRBadRequestException('Invalid file/image delimiter');
             if ( !is_null($radio_delimiter) && strpos($radio_delimiter, $delimiter) !== false )
                 throw new ODRBadRequestException('Invalid radio delimiter');
             if ( !is_null($tag_delimiter) && strpos($tag_delimiter, $delimiter) !== false )
@@ -306,6 +327,8 @@ class CSVExportController extends ODRCustomController
             if ( !is_null($tag_hierarchy_delimiter) && strpos($tag_hierarchy_delimiter, $delimiter) !== false )
                 throw new ODRBadRequestException('Invalid tag hierarchy delimiter');
             // ...or the field delimiter used by fputcsv() later on
+            if ( !is_null($file_image_delimiter) && strpos($file_image_delimiter, "\"") !== false )
+                throw new ODRBadRequestException('Invalid file/image delimiter');
             if ( !is_null($radio_delimiter) && strpos($radio_delimiter, "\"") !== false )
                 throw new ODRBadRequestException('Invalid radio delimiter');
             if ( !is_null($tag_delimiter) && strpos($tag_delimiter, "\"") !== false )
@@ -340,7 +363,9 @@ class CSVExportController extends ODRCustomController
                     $df = $dt_array['dataFields'][$df_id];
                     $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
 
-                    // Require the relevant delimiter to be set if exporting Radio/Tag typeclasses
+                    // Require the relevant delimiter to be set if exporting File/Image/Radio/Tag typeclasses
+                    if ( ($typeclass === 'File' || $typeclass === 'Image') && is_null($file_image_delimiter) )
+                        throw new ODRBadRequestException('File/Image delimiter not set');
                     if ($typeclass === 'Radio' && is_null($radio_delimiter) )
                         throw new ODRBadRequestException('Radio delimiter not set');
                     if ($typeclass === 'Tag' && is_null($tag_delimiter) )
@@ -422,6 +447,7 @@ class CSVExportController extends ODRCustomController
                         'user_id' => $user->getId(),
 
                         'delimiter' => $delimiter,
+                        'file_image_delimiter' => $file_image_delimiter,
                         'radio_delimiter' => $radio_delimiter,
                         'tag_delimiter' => $tag_delimiter,
                         'tag_hierarchy_delimiter' => $tag_hierarchy_delimiter,
@@ -498,6 +524,10 @@ class CSVExportController extends ODRCustomController
 
             // Don't need to do any additional verification on these...that was handled back in
             //  csvExportStartAction()
+            $file_image_delimiter = null;
+            if ( isset($post['file_image_delimiter']) )
+                $file_image_delimiter = $post['file_image_delimiter'];
+
             $radio_delimiter = null;
             if ( isset($post['radio_delimiter']) )
                 $radio_delimiter = $post['radio_delimiter'];
@@ -539,6 +569,10 @@ class CSVExportController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
             if ($datatype->getId() !== $datatype->getGrandparent()->getId())
                 throw new ODRBadRequestException('Datatype '.$datatype_id.' is not a top-level datatype');
+            // This doesn't make sense on a master datatype
+            if ( $datatype->getIsMasterType() )
+                throw new ODRBadRequestException('Unable to export from a master template');
+
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -562,12 +596,16 @@ class CSVExportController extends ODRCustomController
                 $typeclass = $fieldtype['typeClass'];
                 $typename = $fieldtype['typeName'];
 
-                if ($typeclass !== 'File' && $typeclass !== 'Image' && $typename !== 'Markdown') {
+                if ($typename !== 'Markdown') {
                     if ( !isset($fieldtype_list[$typeclass]) )
                         $fieldtype_list[$typeclass] = array();
                     $fieldtype_list[$typeclass][] = $df_id;
 
-                    if ($typeclass == 'Radio')
+                    if ($typeclass == 'File')
+                        $datarecord_data[$df_id] = array('typeclass' => 'file');
+                    else if ($typeclass == 'Image')
+                        $datarecord_data[$df_id] = array('typeclass' => 'image');
+                    else if ($typeclass == 'Radio')
                         $datarecord_data[$df_id] = array('typeclass' => 'radio');
                     else if ($typeclass == 'Tag')
                         $datarecord_data[$df_id] = array('typeclass' => 'tag');
@@ -577,6 +615,7 @@ class CSVExportController extends ODRCustomController
             }
 
 //print_r($fieldtype_list);  exit();
+//print_r($datarecord_data);  exit();
 
             // ----------------------------------
             // Need to grab external id for this datarecord
@@ -584,13 +623,52 @@ class CSVExportController extends ODRCustomController
             $dr = $dr[$datarecord->getId()];
 
             $external_id = $dr['externalIdField_value'];
+            if ( is_null($external_id) )
+                $external_id = '';
             $tag_hierarchy = null;
 
 
             // ----------------------------------
+            // Going to need these in case of a file/image export
+            $baseurl = $this->container->getParameter('site_baseurl');
+            $router = $this->container->get('router');
+
             // Grab data for each of the datafields selected for export
             foreach ($fieldtype_list as $typeclass => $df_list) {
-                if ($typeclass == 'Radio') {
+                if ($typeclass == 'File') {
+                    foreach ($df_list as $num => $df_id) {
+                        // Ensure the radio selection entry exists first...
+                        if ( isset($dr['dataRecordFields'][$df_id]) ) {
+                            $drf = $dr['dataRecordFields'][$df_id];
+                            if ( isset($drf['file']) ) {
+                                foreach ($drf['file'] as $num => $file) {
+                                    $file_id = $file['id'];
+                                    $route = $baseurl.$router->generate('odr_file_download', array('file_id' => $file_id));
+
+                                    $datarecord_data[$df_id][] = $route;
+                                }
+                            }
+                        }
+                    }
+                }
+                else if ($typeclass == 'Image') {
+                    foreach ($df_list as $num => $df_id) {
+                        // Ensure the image entry exists first...
+                        if ( isset($dr['dataRecordFields'][$df_id]) ) {
+                            $drf = $dr['dataRecordFields'][$df_id];
+                            if ( isset($drf['image']) ) {
+                                foreach ($drf['image'] as $num => $image) {
+                                    // First level in here will be the thumbnail...want the full-size image
+                                    $parent_image_id = $image['parent']['id'];
+                                    $route = $baseurl.$router->generate('odr_image_download', array('image_id' => $parent_image_id));
+
+                                    $datarecord_data[$df_id][] = $route;
+                                }
+                            }
+                        }
+                    }
+                }
+                else if ($typeclass == 'Radio') {
                     foreach ($df_list as $num => $df_id) {
                         // Ensure the radio selection entry exists first...
                         if ( isset($dr['dataRecordFields'][$df_id]) ) {
@@ -678,6 +756,7 @@ class CSVExportController extends ODRCustomController
                             $tc = lcfirst($typeclass);
                             if ( isset($drf[$tc]) ) {
                                 foreach ($drf[$tc] as $num => $storage_entity) {
+                                    // Should only be one...
                                     $value = $storage_entity['value'];
 
                                     if ($typeclass === 'DatetimeValue')
@@ -691,32 +770,43 @@ class CSVExportController extends ODRCustomController
                 }
             }
 
-            // Convert any Radio fields from an array into a string
             foreach ($datarecord_data as $df_id => $data) {
-                if ( is_array($data) && $data['typeclass'] === 'radio' ) {
+                if ( is_null($data) ) {
+                    // Ensure that a null value doesn't get passed to the next phase
+                    $datarecord_data[$df_id] = '';
+                }
+                else if ( is_array($data) ) {
+                    // Otherwise, going to need to convert the array into a string...
+                    $typeclass = $data['typeclass'];
                     unset( $data['typeclass'] );
 
-                    if ( count($data) > 0 )
-                        $datarecord_data[$df_id] = implode($radio_delimiter, $data);
-                    else
+                    if ( count($data) === 0 ) {
+                        // If there are no multiple entries in a field that's supposed to have them,
+                        //  just convert to the empty string
                         $datarecord_data[$df_id] = '';
+                    }
+                    else {
+                        if ($typeclass === 'file' || $typeclass === 'image') {
+                            // Convert any File/Image fields from an array into a string
+                            $datarecord_data[$df_id] = implode($file_image_delimiter, $data);
+                        }
+                        else if ($typeclass === 'radio') {
+                            // Convert any Radio fields from an array into a string
+                            $datarecord_data[$df_id] = implode($radio_delimiter, $data);
+                        }
+                        else if ($typeclass === 'tag') {
+                            // Convert any Tag fields from an array into a string
+                            $datarecord_data[$df_id] = implode($tag_delimiter, $data);
+                        }
+                    }
                 }
             }
-            // Convert any Tag fields from an array into a string
-            foreach ($datarecord_data as $df_id => $data) {
-                if ( is_array($data) && $data['typeclass'] === 'tag' ) {
-                    unset( $data['typeclass'] );
 
-                    if ( count($data) > 0 )
-                        $datarecord_data[$df_id] = implode($tag_delimiter, $data);
-                    else
-                        $datarecord_data[$df_id] = '';
-                }
-            }
 
             // Sort by datafield id to ensure columns are always in same order in csv file
             ksort($datarecord_data);
 //print_r($datarecord_data);  exit();
+//var_dump($datarecord_data);  exit();
 
             // TODO - don't add this if the external id field is currently selected?
             // TODO - don't add this if the external id field is the only selection?
@@ -726,6 +816,7 @@ class CSVExportController extends ODRCustomController
             foreach ($datarecord_data as $df_id => $data)
                 $line[] = $data;
 //print_r($line);  exit();
+//var_dump($line);  exit();
 
 
             // ----------------------------------------
@@ -1213,6 +1304,10 @@ class CSVExportController extends ODRCustomController
             if ( !$user->hasRole('ROLE_ADMIN') || !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+            // This doesn't make sense on a master datatype
+            if ( $datatype->getIsMasterType() )
+                throw new ODRBadRequestException('Unable to export from a master template');
 
 
             $csv_export_path = $this->getParameter('odr_web_directory').'/uploads/csv_export/';

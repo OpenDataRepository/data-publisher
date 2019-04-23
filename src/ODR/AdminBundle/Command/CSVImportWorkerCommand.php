@@ -78,6 +78,7 @@ $output->writeln($data->url);
                     'api_key' => $data->api_key,
 
                     'column_delimiters' => $data->column_delimiters,
+                    'hierarchy_delimiters' => $data->hierarchy_delimiters,
                     'synch_columns' => $data->synch_columns,
                     'mapping' => $data->mapping,
                     'line' => $data->line,
