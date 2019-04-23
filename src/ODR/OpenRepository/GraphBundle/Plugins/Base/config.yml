@@ -1,63 +1,63 @@
 services:
     odr_plugins.base.default:
-        class: %odr_plugin_base_classpath%\Base\DefaultPlugin
+        class: '%odr_plugin_base_classpath%\Base\DefaultPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: '@templating'
 
     # Datatype plugins
     odr_plugins.base.references:
-        class: %odr_plugin_base_classpath%\Base\ReferencesPlugin
+        class: '%odr_plugin_base_classpath%\Base\ReferencesPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: '@templating'
     odr_plugins.base.comment:
-        class: %odr_plugin_base_classpath%\Base\CommentPlugin
+        class: '%odr_plugin_base_classpath%\Base\CommentPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: '@templating'
     odr_plugins.base.link:
-        class: %odr_plugin_base_classpath%\Base\LinkPlugin
+        class: '%odr_plugin_base_classpath%\Base\LinkPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: '@templating'
 
     odr_plugins.base.graph:
-        class: %odr_plugin_base_classpath%\Base\GraphPlugin
+        class: '%odr_plugin_base_classpath%\Base\GraphPlugin'
         arguments:
-            $templating: "@templating"
-            $crypto_service: "@odr.crypto_service"
-            $odr_web_directory: "%odr_web_directory%"
+            $templating: '@templating'
+            $crypto_service: '@odr.crypto_service'
+            $odr_web_directory: '%odr_web_directory%'
 
 #    odr_plugins.base.gcms:
 #        class: %odr_plugin_base_classpath%\Base\GCMassSpecPlugin
 #        arguments:
-#            templating: "@templating"
-#            logger: "@logger"
+#            templating: '@templating'
+#            logger: '@logger'
 
     odr_plugins.base.map:
-        class: %odr_plugin_base_classpath%\Base\MapPlugin
+        class: '%odr_plugin_base_classpath%\Base\MapPlugin'
         arguments:
-            $templating: "@templating"
-            $tokenGenerator: "@fos_user.util.token_generator"
-            $config_options: "%google_maps_config%"
+            $templating: '@templating'
+            $tokenGenerator: '@fos_user.util.token_generator'
+            $config_options: '%google_maps_config%'
 
 
     # Datafield plugins
     odr_plugins.base.chemistry:
-        class: %odr_plugin_base_classpath%\Base\ChemistryPlugin
+        class: '%odr_plugin_base_classpath%\Base\ChemistryPlugin'
         arguments:
-            $dri_service: "@odr.datarecord_info_service"
-            $templating: "@templating"
+            $dri_service: '@odr.datarecord_info_service'
+            $templating: '@templating'
     odr_plugins.base.url:
-        class: %odr_plugin_base_classpath%\Base\URLPlugin
+        class: '%odr_plugin_base_classpath%\Base\URLPlugin'
         arguments:
-            $dri_service: "@odr.datarecord_info_service"
-            $templating: "@templating"
+            $dri_service: '@odr.datarecord_info_service'
+            $templating: '@templating'
     odr_plugins.base.currency:
-        class: %odr_plugin_base_classpath%\Base\CurrencyPlugin
+        class: '%odr_plugin_base_classpath%\Base\CurrencyPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: '@templating'
 
     odr_plugins.base.csvtable:
-        class: %odr_plugin_base_classpath%\Base\CSVTablePlugin
+        class: '%odr_plugin_base_classpath%\Base\CSVTablePlugin'
         arguments:
-            $templating: "@templating"
-            $crypto_service: "@odr.crypto_service"
-            $odr_web_directory: "%odr_web_directory%"
+            $templating: '@templating'
+            $crypto_service: '@odr.crypto_service'
+            $odr_web_directory: '%odr_web_directory%'

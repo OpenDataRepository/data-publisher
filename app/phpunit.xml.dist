@@ -10,8 +10,12 @@
     convertWarningsToExceptions = "true"
     processIsolation            = "false"
     stopOnFailure               = "false"
-    syntaxCheck                 = "false"
     bootstrap                   = "autoload.php" >
+
+    <php>
+        <!-- the value is the FQCN of the application kernel -->
+        <env name="KERNEL_CLASS" value="AppKernel" />
+    </php>
 
     <testsuites>
         <testsuite name="ODR Test Suite">

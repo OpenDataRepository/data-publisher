@@ -783,6 +783,7 @@ odr_validate_tag_list:
     defaults: { _controller: ODRAdminBundle:Tags:validatetaglist }
     requirements:
         datafield_id: \d+
+
 odr_import_tag_list:
     path:  /design/tags/import_list/{datafield_id}/{token}
     defaults: { _controller: ODRAdminBundle:Tags:importtaglist }

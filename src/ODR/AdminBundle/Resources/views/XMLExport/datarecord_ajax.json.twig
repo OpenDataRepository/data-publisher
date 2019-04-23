@@ -1,7 +1,6 @@
 {#
 {% set is_top_level = 1 %}
 {% set is_link = 0 %}
-
 {
     {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
     {{ mychildform.input(
@@ -19,7 +18,6 @@
         1
     ) }}
 }
-
 #}
 
 {% spaceless %}
@@ -30,44 +28,34 @@
 {% if show_records == 1 %}
 {
     {% endif %}
-    {% if record_search is defined and record_search == true %}
-    {% set show_records = 0 %}
-    "records": [
-        {% endif  %}
-        {% for initial_datarecord_id in sorted_datarecord_ids %}
-        {% set data = lookup_array[initial_datarecord_id] %}
+    {% for initial_datarecord_id in sorted_datarecord_ids %}
+    {% set data = lookup_array[initial_datarecord_id] %}
 
-        {% set initial_datatype_id = data['datatype'] %}
-        {% set initial_theme_id = data['theme'] %}
+    {% set initial_datatype_id = data['datatype'] %}
+    {% set initial_theme_id = data['theme'] %}
 
-        {% set datarecord_array_subset = datarecord_array[initial_datarecord_id] %}
-        {% set datatype_array_subset = datatype_array[initial_datatype_id] %}
-        {% set theme_array_subset = theme_array[initial_theme_id] %}
+    {% set datarecord_array_subset = datarecord_array[initial_datarecord_id] %}
+    {% set datatype_array_subset = datatype_array[initial_datatype_id] %}
+    {% set theme_array_subset = theme_array[initial_theme_id] %}
 
-        {{ mychildform.input(
-            datatype_array_subset,
-            datarecord_array_subset,
-            theme_array_subset,
-            initial_datatype_id,
-            initial_datarecord_id,
-            initial_theme_id,
-            is_top_level,
-            is_link,
-            using_metadata,
-            baseurl,
-            version,
-            show_records
-        ) }}
-        {# properly deal with comma here ??  #}
-        {% if record_search is defined and record_search == true %}
-        ,
-        {% endif %}
-        {% endfor %}
-        {% if record_search is defined and record_search == true %}
-    ]
-}
-{% endif  %}
-{% if show_records == 1 %}
+    {{ mychildform.input(
+        datatype_array_subset,
+        datarecord_array_subset,
+        theme_array_subset,
+        initial_datatype_id,
+        initial_datarecord_id,
+        initial_theme_id,
+        is_top_level,
+        is_link,
+        using_metadata,
+        baseurl,
+        version,
+        show_records
+    ) }}
+    {# properly deal with comma here ??  #}
+    {# if !loop.last %},{% endif #}
+    {% endfor %}
+    {% if show_records == 1 %}
 }
 {% endif %}
 {% endspaceless %}

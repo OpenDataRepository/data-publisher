@@ -1,18 +1,18 @@
 services:
     # Datatype plugins
     odr_plugins.ahed.organization:
-        class: %odr_plugin_base_classpath%\AHED\OrganizationPlugin
+        class: '%odr_plugin_base_classpath%\AHED\OrganizationPlugin'
         arguments:
             $templating: "@templating"
     odr_plugins.ahed.person:
-        class: %odr_plugin_base_classpath%\AHED\PersonPlugin
+        class: '%odr_plugin_base_classpath%\AHED\PersonPlugin'
         arguments:
             $templating: "@templating"
     odr_plugins.ahed.sample:
-        class: %odr_plugin_base_classpath%\AHED\SamplePlugin
+        class: '%odr_plugin_base_classpath%\AHED\SamplePlugin'
         arguments:
             $templating: "@templating"
     odr_plugins.ahed.site:
-        class: %odr_plugin_base_classpath%\AHED\SitePlugin
+        class: '%odr_plugin_base_classpath%\AHED\SitePlugin'
         arguments:
             $templating: "@templating"
