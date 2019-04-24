@@ -2825,8 +2825,8 @@ class APIController extends ODRCustomController
             foreach($files_bag as $file) {
                 // Deal with files and images here
                 if(
-                    $data_field->getFieldType()->getId() == 1
-                    || $data_field->getFieldType()->getId() == 2
+                    $data_field->getFieldType()->getId() == 2
+                    || $data_field->getFieldType()->getId() == 3
                 ) {
                     /** @var DataRecordFields $drf */
                     $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
@@ -2932,6 +2932,10 @@ class APIController extends ODRCustomController
 
                             break;
                     }
+                }
+                else {
+                    $field_type = $data_field->getFieldType();
+                    throw new \Exception('Invalid field for file upload.');
                 }
             }
 
