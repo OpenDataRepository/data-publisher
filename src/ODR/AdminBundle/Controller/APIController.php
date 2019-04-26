@@ -2866,7 +2866,7 @@ class APIController extends ODRCustomController
                     $path_prefix = $this->getParameter('odr_web_directory').'/';
                     $destination_folder = 'uploads/files/chunks/user_'.$user->getId().'/completed';
                     if ( !file_exists($path_prefix.$destination_folder) )
-                        mkdir( $path_prefix.$destination_folder );
+                        mkdir( $path_prefix.$destination_folder, 0777, true );
 
                     $tmp_file = $path_prefix.$destination_folder.'/'.$tmp_filename;
                     $destination_file = $path_prefix.$destination_folder.'/'.$original_filename;
