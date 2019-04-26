@@ -412,8 +412,8 @@ class FacadeController extends Controller
             // Only public records currently...
             // TODO Determine a better way to determine how API Users should get public/private records
             // TODO - act as user should be passed on this call?
-            // $user = "anon.";
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = "anon.";
+            // $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 
             // TODO - enforce permissions on template side?
