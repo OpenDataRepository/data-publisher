@@ -3,47 +3,43 @@
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
-{% set datarecordfield = '' %}
 {% set valuefield = '' %}
 {% set valuefield_value = '' %}
-{% if datarecord.dataRecordFields[ datafield.id ] is defined %}
-    {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
 
     {% if field_typename == "Boolean" %}
-        {% set valuefield = datarecordfield.boolean[0] %}
+        {% set valuefield = datafield.boolean[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typename == "File" %}
-        {% set valuefield = datarecordfield.file %}
+        {% set valuefield = datafield.file %}
     {% elseif field_typename == "Image" %}
-        {% set valuefield = datarecordfield.image %}
+        {% set valuefield = datafield.image %}
     {% elseif field_typename == "Decimal" %}
-        {% set valuefield = datarecordfield.decimalValue[0] %}
+        {% set valuefield = datafield.decimalValue[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typename == "Integer" %}
-        {% set valuefield = datarecordfield.integerValue[0] %}
+        {% set valuefield = datafield.integerValue[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typename == "Paragraph Text" %}
-        {% set valuefield = datarecordfield.longText[0] %}
+        {% set valuefield = datafield.longText[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typename == "Long Text" %}
-        {% set valuefield = datarecordfield.longVarchar[0] %}
+        {% set valuefield = datafield.longVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typename == "Medium Text" %}
-        {% set valuefield = datarecordfield.mediumVarchar[0] %}
+        {% set valuefield = datafield.mediumVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typeclass == "Radio" %}
-        {% set valuefield = datarecordfield.radioSelection %}
+        {% set valuefield = datafield.radioSelection %}
     {% elseif field_typename == "Short Text" %}
-        {% set valuefield = datarecordfield.shortVarchar[0] %}
+        {% set valuefield = datafield.shortVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typename == "DateTime" %}
-        {% set valuefield = datarecordfield.datetimeValue[0] %}
+        {% set valuefield = datafield.datetimeValue[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typename == "Markdown" %}
         {% set valuefield = '' %}
     {% endif %}
 
-{% endif %}
 
 {% if valuefield == '' and (field_typename == 'File' or field_typename == 'Image' or field_typeclass == 'Radio') %}
     {% set valuefield = [] %}
@@ -59,7 +55,7 @@
         "field_name": {{ datafield_meta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
         "field_uuid": {{ datafield.dataField.fieldUuid|json_encode|raw }},
         "template_field_uuid": {{ datafield.dataField.templateFieldUuid|json_encode|raw }},
-{#"updated_at": "{{ datarecordfield.created|date('Y-m-d H:i:s') }}", #}
+{#"updated_at": "{{ datafield.created|date('Y-m-d H:i:s') }}", #}
 {% else %}
     "{{ datafield_meta.xml_fieldName }}": {
         "field_uuid": {{ datafield.dataField.fieldUuid|json_encode|raw }},
@@ -126,44 +122,16 @@
 {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
 
 "value": [
-    {% if datafield.radioOptions is defined %}
-        {% for radio_option in datafield.radioOptions %}
-            {% set is_selected = 0 %}
-            {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
-                {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
-            {% endif %}
-
-            {% set radio_option_meta = radio_option.radioOptionMeta %}
-            {% if is_selected == 1 %}
-            {% if version == 'v1' %}
+    {% if datafield.radioSelection is defined %}
+        {% for radio_selection in datafield.radioSelection %}
+            {% set radio_option = radio_selection.radioOption %}
             {
-                "radio_option_{{ radio_option.id }}": {
-                    "name": "{{ radio_option_meta.optionName }}",
-                    "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
-                    "updated_at": "{{ radio_option.radioOptionMeta.created|date('Y-m-d H:i:s') }}",
-                    "id": {{ radio_option.id }},
-                    "selected": "1"
-                }
-            },
-            {% elseif version == 'v2' %}
-            {
-               "{{ radio_option_meta.optionName }}": {
-                    "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
-                    "updated_at": "{{ radio_option.radioOptionMeta.created|date('Y-m-d H:i:s') }}",
-                    "id": {{ radio_option.id }},
-                    "selected": "1"
-                }
-            },
-            {% elseif version == 'v3' %}
-            {
-                "name": "{{ radio_option_meta.optionName }}",
+                "name": "{{ radio_option.optionName }}",
                 "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
-                "updated_at": "{{ radio_option.radioOptionMeta.created|date('Y-m-d H:i:s') }}",
+                "updated_at": "{{ radio_option.created|date('Y-m-d H:i:s') }}",
                 "id": {{ radio_option.id }},
                 "selected": "1"
-            },
-            {% endif %}
-            {% endif %}
+            }{% if not loop.last %},{% endif %}
         {% endfor %}
     {% endif %}
 ]
@@ -171,7 +139,7 @@
     {% elseif field_typename == "Tags" %}
         {% include 'ODRAdminBundle:XMLExport:datarecord_tag_wrapper.json.twig' with {
             'datafield': datafield,
-            'drf': datarecordfield,
+            'drf': datafield,
         } %}
 
 {% else %}

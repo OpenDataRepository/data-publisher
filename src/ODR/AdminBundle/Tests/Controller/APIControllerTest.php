@@ -120,10 +120,13 @@ class APIControllerTest extends WebTestCase
             CURLOPT_POSTFIELDS,
             array(
                 'name' => 'My File Name',
-                'dataset_uuid' => '90eb084',
                 // 'dataset_uuid' => 'dbee98e',
                 // 'template_field_uuid' => '4d5cfec',
-                'template_field_uuid' => '3029d53eade509a7524253602811',
+                // 'dataset_uuid' => '90eb084',
+                // 'template_field_uuid' => '3029d53eade509a7524253602811',
+                'dataset_uuid' => '97e16c2',
+                'record_uuid' => '9dbdd7233d347b02c8ed1f5c6ae1',
+                'template_field_uuid' => 'cc662d72c7b107bba341e0315a9d',
                 'user_email' => 'nate@opendatarepository.org',
                 'file' => $curl_file
             ));

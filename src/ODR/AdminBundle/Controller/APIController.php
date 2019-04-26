@@ -1186,6 +1186,7 @@ class APIController extends ODRCustomController
                                     foreach ($orig_dataset['fields'] as $o_field) {
                                         if (
                                             isset($o_field['value']) &&
+                                            isset($field['field_uuid']) &&
                                             $o_field['field_uuid'] == $field['field_uuid']
                                         ) {
                                             self::selectedTags($o_field['value'], $orig_selected_tags);
@@ -1307,6 +1308,7 @@ class APIController extends ODRCustomController
                                     foreach ($orig_dataset['fields'] as $o_field) {
                                         if (
                                             isset($o_field['value']) &&
+                                            isset($field['field_uuid']) &&
                                             $o_field['field_uuid'] == $field['field_uuid']
                                         ) {
                                             $orig_selected_options = $o_field['value'];
@@ -1430,6 +1432,7 @@ class APIController extends ODRCustomController
                                     foreach ($orig_dataset['fields'] as $o_field) {
                                         if (
                                             isset($o_field['value']) &&
+                                            isset($field['field_uuid']) &&
                                             $o_field['field_uuid'] == $field['field_uuid']
                                         ) {
                                             $orig_selected_options = $o_field['value'];
@@ -1554,6 +1557,7 @@ class APIController extends ODRCustomController
                                     foreach ($orig_dataset['fields'] as $o_field) {
                                         if (
                                             isset($o_field['value']) &&
+                                            isset($field['field_uuid']) &&
                                             $o_field['field_uuid'] == $field['field_uuid']
                                         ) {
                                             $orig_selected_options = $o_field['value'];
@@ -1678,6 +1682,7 @@ class APIController extends ODRCustomController
                                     foreach ($orig_dataset['fields'] as $o_field) {
                                         if (
                                             isset($o_field['value']) &&
+                                            isset($field['field_uuid']) &&
                                             $o_field['field_uuid'] == $field['field_uuid']
                                         ) {
                                             $orig_selected_options = $o_field['value'];
@@ -1802,6 +1807,7 @@ class APIController extends ODRCustomController
                                     foreach ($orig_dataset['fields'] as $o_field) {
                                         if (
                                             isset($o_field['value']) &&
+                                            isset($field['field_uuid']) &&
                                             $o_field['field_uuid'] == $field['field_uuid']
                                         ) {
                                             $orig_selected_options = $o_field['value'];
