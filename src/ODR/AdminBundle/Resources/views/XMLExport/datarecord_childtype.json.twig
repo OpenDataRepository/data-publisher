@@ -71,7 +71,7 @@
 {% else %}
     {
         {#"database_name": {{ datatype.dataTypeMeta.shortName|json_encode|raw }}, #}
-{# "database_uuid": "{{ datarecord.dataType.unique_id }}", #}
+        "database_uuid": "{{ datarecord.dataType.unique_id }}",
         "internal_id": {{ datarecord.id }},
         "external_id": {{ datarecord.externalIdField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
         "record_name": {{ datarecord.nameField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
