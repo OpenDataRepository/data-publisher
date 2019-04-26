@@ -210,9 +210,6 @@ class DatarecordExportService
         // ----------------------------------------
         // Determine which template to use for rendering
         $template = 'ODRAdminBundle:XMLExport:datarecord_ajax.'.$format.'.twig';
-        if($record_search) {
-            $template = 'ODRAdminBundle:XMLExport:search_datarecord_ajax.'.$format.'.twig';
-        }
 
         // Render the DataRecord
         $str = $this->templating->render(
@@ -254,6 +251,9 @@ class DatarecordExportService
      */
     private function reformatJson($data)
     {
+
+        return $data;
+        // return json_encode(json_decode($data));
         // Get rid of all whitespace characters that aren't inside double-quotes
         $trimmed_str = '';
         $in_quotes = false;

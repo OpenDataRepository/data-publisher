@@ -217,10 +217,10 @@ class DatarecordInfoService
                partial dr_cb.{id, username, email, firstName, lastName},
                partial dr_ub.{id, username, email, firstName, lastName},
 
-               dt, partial gp_dt.{id}, partial mdt.{id, unique_id},
+               dt, partial gp_dt.{id}, partial mdt.{id, unique_id}, partial mf.{id, unique_id},
                dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
 
-               drf, partial df.{id}, partial dfm.{id}, partial ft.{id, typeClass},
+               drf, partial df.{id, fieldUuid, templateFieldUuid}, partial dfm.{id, fieldName, xml_fieldName }, partial ft.{id, typeClass, typeName},
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
                e_i, e_im, e_ip, e_ipm, e_is, partial e_ip_cb.{id, username, email, firstName, lastName},
 
@@ -251,6 +251,7 @@ class DatarecordInfoService
             LEFT JOIN dt.grandparent AS gp_dt
             LEFT JOIN dt.dataTypeMeta AS dtm
             LEFT JOIN dt.masterDataType AS mdt
+            LEFT JOIN dt.metadata_for AS mf
             LEFT JOIN dtm.externalIdField AS dt_eif
             LEFT JOIN dtm.nameField AS dt_nf
             LEFT JOIN dtm.sortField AS dt_sf
@@ -398,6 +399,10 @@ class DatarecordInfoService
             //  of some random number
             $new_drf_array = array();
             foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
+
+                // Save FieldMeta
+                $data_field = $drf['dataField'];
+                $data_field['dataFieldMeta'] = $drf['dataField']['dataFieldMeta'][0];
 
                 // Going to delete most of the sub arrays inside $drf that are empty...
                 $expected_fieldtype = $drf['dataField']['dataFieldMeta'][0]['fieldType']['typeClass'];
@@ -552,6 +557,7 @@ class DatarecordInfoService
                 }
 
                 // Store the resulting $drf array by its datafield id
+                $drf['dataField'] = $data_field;
                 $new_drf_array[$df_id] = $drf;
             }
 

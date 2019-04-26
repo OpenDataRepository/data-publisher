@@ -1,4 +1,3 @@
-
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 {% set datarecord = datarecord_array[target_datarecord_id] %}
@@ -50,35 +49,46 @@
 
 
 
-{# describe child datarecords second #}
+{% set is_top_level = 0 %}
+{% set datarecord_array = datarecord['children'] ] %}
+
+{# using macro on purpose to get the template as a string #}
+{% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+{% set show_records = 1 %}
+{#
+{% set show_records = 0 %}
 {% if version != 'v3' %}
-"child_records": {
-{% else %}
-"records": [
+    {% set show_records = 1 %}
 {% endif %}
+#}
+    {% set content = mychildform.input(
+        datatype_descendants,
+        datarecord_array,
+        child_datatype_id,
+        datarecord.id,
+        is_top_level,
+        using_metadata,
+        baseurl,
+        version,
+        show_records
+    ) %}
 
-
-
-
+{#
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
 
-        {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
         {% for theme_datatype in theme_element.themeDataType %}
             {% set child_datatype_id = theme_datatype.dataType.id %}
             {% set child_theme_id = theme_datatype.childTheme.id %}
 
-            {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
             {% if datatype['descendants'][child_datatype_id] is defined %}
                 {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
                 {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
 
-                {# filtering also means there may not be anything in the datarecord array... #}
                 {% if datarecord['children'][child_datatype_id] is defined %}
                     {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
                     {% set is_top_level = 0 %}
 
-                    {# using macro on purpose to get the template as a string #}
                     {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
                     {% set show_records = 0 %}
                     {% if version != 'v3' %}
@@ -123,6 +133,7 @@
         {% endfor %}
     {% endif %}
 {% endfor %}
+#}
 
 
 

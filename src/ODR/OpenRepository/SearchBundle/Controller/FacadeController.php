@@ -409,6 +409,10 @@ class FacadeController extends Controller
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
+            // Only public records currently...
+            // TODO Determine a better way to determine how API Users should get public/private records
+            // TODO - act as user should be passed on this call?
+            // $user = "anon.";
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 

@@ -532,7 +532,8 @@ odr_design_undelete_datafield:
 
 odr_design_delete_datatype:
     path:  /design/displaytemplate/deletedatatype/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:deletedatatype }    # deals with both top-level and child datatypes
+    # deals with both top-level and child datatypes
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:deletedatatype }
     requirements:
         datatype_id:  \d+
 
@@ -1505,6 +1506,16 @@ odr_api_get_datarecord_single:
 odr_api_get_field_stats:
     path:  /api/{version}/search/field/stats/{template_uuid}/{template_field_uuid}.{_format}
     defaults: { _controller: ODRAdminBundle:API:getfieldstats, _format: json }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+        template_uuid: '^[a-z0-9]+$'
+        template_field_uuid: '^[a-z0-9]+$'
+        format: '|xml|json'
+
+odr_api_get_field_legacystats:
+    path:  /api/{version}/search/field/legacystats/{template_uuid}/{template_field_uuid}.{_format}
+    defaults: { _controller: ODRAdminBundle:API:search_field_stats, _format: json }
     methods: [ GET ]
     requirements:
         version: 'v\d+'

@@ -1,4 +1,4 @@
-{% set datafield_meta = datafield.dataFieldMeta %}
+{% set datafield_meta = datafield.dataField.dataFieldMeta %}
 
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
@@ -51,19 +51,19 @@
 
 
 {% if version == 'v3' %}
-  {
+{
 {% elseif version == 'v1' %}
     "field_{{ datafield.id }}": {
 {% endif %}
 {% if version == 'v1' or version == 'v3' %}
         "field_name": {{ datafield_meta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
-        "field_uuid": {{ datafield.fieldUuid|json_encode|raw }},
-        "template_field_uuid": {{ datafield.templateFieldUuid|json_encode|raw }},
+        "field_uuid": {{ datafield.dataField.fieldUuid|json_encode|raw }},
+        "template_field_uuid": {{ datafield.dataField.templateFieldUuid|json_encode|raw }},
 {#"updated_at": "{{ datarecordfield.created|date('Y-m-d H:i:s') }}", #}
 {% else %}
     "{{ datafield_meta.xml_fieldName }}": {
-        "field_uuid": {{ datafield.fieldUuid|json_encode|raw }},
-        "template_field_uuid": {{ datafield.templateFieldUuid|json_encode|raw }},
+        "field_uuid": {{ datafield.dataField.fieldUuid|json_encode|raw }},
+        "template_field_uuid": {{ datafield.dataField.templateFieldUuid|json_encode|raw }},
         "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
 {% endif %}
 
@@ -186,4 +186,4 @@
 
 {% endif %}
 
-    },  {# end of datafield #}
+}  {# end of datafield #}

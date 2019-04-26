@@ -658,6 +658,11 @@ class DisplaytemplateController extends ODRCustomController
             $tmp = array($datatype->getId() => 0);
             $datatypes_to_delete = array(0 => $datatype->getId());
 
+            // If datatype has metadata, delete metadata
+            if($metadata_datatype = $datatype->getMetadataDatatype()) {
+                array_push($datatypes_to_delete, $metadata_datatype->getId());
+            }
+
             while ( count($tmp) > 0 ) {
                 $new_tmp = array();
                 foreach ($tmp as $dt_id => $num) {

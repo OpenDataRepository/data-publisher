@@ -23,7 +23,7 @@ class APIControllerTest extends WebTestCase
         ($debug ? fwrite(STDERR, "Test token loaded.\n"):'');
         self::$client->request(
             'POST',
-            '/api/v3/token',
+            'http://eta.odr.io/api/v3/token',
             [],
             [],
             ['CONTENT_TYPE' => 'application/json'],
@@ -64,7 +64,7 @@ class APIControllerTest extends WebTestCase
         ($debug ? fwrite(STDERR, "Getting template.\n"):'');
         self::$client->request(
             'GET',
-            '/api/v3/search/template/' . self::$template_uuid,
+            'http://eta.odr.io/api/v3/search/template/' . self::$template_uuid,
             [],
             [],
             self::$headers
@@ -98,7 +98,7 @@ class APIControllerTest extends WebTestCase
 
 
         // initialise the curl request
-        $request = curl_init('http://office_dev/api/v3/file?XDEBUG_SESSION_START=phpstorm_xdebug');
+        $request = curl_init('http://eta.odr.io/api/v3/file?XDEBUG_SESSION_START=phpstorm_xdebug');
 
         // send a file
         curl_setopt($request, CURLOPT_POST, true);
@@ -120,8 +120,10 @@ class APIControllerTest extends WebTestCase
             CURLOPT_POSTFIELDS,
             array(
                 'name' => 'My File Name',
-                'dataset_uuid' => 'dbee98e',
-                'template_field_uuid' => '4d5cfec',
+                'dataset_uuid' => '90eb084',
+                // 'dataset_uuid' => 'dbee98e',
+                // 'template_field_uuid' => '4d5cfec',
+                'template_field_uuid' => '3029d53eade509a7524253602811',
                 'user_email' => 'nate@opendatarepository.org',
                 'file' => $curl_file
             ));
@@ -151,7 +153,7 @@ class APIControllerTest extends WebTestCase
         ($debug ? fwrite(STDERR, "Getting dataset.\n"):'');
         self::$client->request(
             'GET',
-            '/api/v3/dataset/dbee98e',
+            'http://eta.odr.io/api/v3/dataset/dbee98e',
             [],
             [],
             self::$headers
