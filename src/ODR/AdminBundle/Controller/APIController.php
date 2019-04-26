@@ -1926,7 +1926,9 @@ class APIController extends ODRCustomController
                                 if (isset($o_field['value']) && !is_array($o_field['value'])
                                     && (
                                         $o_field['template_field_uuid'] == $field['template_field_uuid']
-                                        || $o_field['field_uuid'] == $field['field_uuid']
+                                        || (
+                                            isset($field['field_uuid']) && $o_field['field_uuid'] == $field['field_uuid']
+                                        )
                                     )
                                 ) {
                                     if ($o_field['value'] !== $field['value']) {
