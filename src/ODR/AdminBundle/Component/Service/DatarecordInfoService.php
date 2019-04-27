@@ -217,7 +217,7 @@ class DatarecordInfoService
                partial dr_cb.{id, username, email, firstName, lastName},
                partial dr_ub.{id, username, email, firstName, lastName},
 
-               dt, partial gp_dt.{id}, partial mdt.{id, unique_id}, partial mf.{id, unique_id},
+               dt, partial gp_dt.{id}, partial mdt.{id, unique_id}, partial mf.{id, unique_id}, df_dt, dfm_dt, ft_dt,
                dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
 
                drf, partial df.{id, fieldUuid, templateFieldUuid}, partial dfm.{id, fieldName, xml_fieldName }, partial ft.{id, typeClass, typeName},
@@ -250,6 +250,9 @@ class DatarecordInfoService
             LEFT JOIN dr.dataType AS dt
             LEFT JOIN dt.grandparent AS gp_dt
             LEFT JOIN dt.dataTypeMeta AS dtm
+            LEFT JOIN dt.dataFields AS df_dt
+            LEFT JOIN df_dt.dataFieldMeta AS dfm_dt
+            LEFT JOIN dfm_dt.fieldType AS ft_dt
             LEFT JOIN dt.masterDataType AS mdt
             LEFT JOIN dt.metadata_for AS mf
             LEFT JOIN dtm.externalIdField AS dt_eif

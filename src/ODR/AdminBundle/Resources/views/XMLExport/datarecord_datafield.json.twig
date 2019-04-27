@@ -1,4 +1,8 @@
-{% set datafield_meta = datafield.dataField.dataFieldMeta %}
+{% if datafield.dataField is defined %}
+    {% set datafield_meta = datafield.dataField.dataFieldMeta %}
+{% else %}
+    {% set datafield_meta = datafield.dataFieldMeta[0] %}
+{% endif %}
 
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
@@ -6,7 +10,8 @@
 {% set valuefield = '' %}
 {% set valuefield_value = '' %}
 
-    {% if field_typename == "Boolean" %}
+{% if datafield.dataField is defined %}
+    {% if field_typename == "Boolean"  %}
         {% set valuefield = datafield.boolean[0] %}
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typename == "File" %}
@@ -39,6 +44,7 @@
     {% elseif field_typename == "Markdown" %}
         {% set valuefield = '' %}
     {% endif %}
+{% endif %}
 
 
 {% if valuefield == '' and (field_typename == 'File' or field_typename == 'Image' or field_typeclass == 'Radio') %}
@@ -53,13 +59,22 @@
 {% endif %}
 {% if version == 'v1' or version == 'v3' %}
         "field_name": {{ datafield_meta.fieldName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
-        "field_uuid": {{ datafield.dataField.fieldUuid|json_encode|raw }},
-        "template_field_uuid": {{ datafield.dataField.templateFieldUuid|json_encode|raw }},
-{#"updated_at": "{{ datafield.created|date('Y-m-d H:i:s') }}", #}
+        {% if datafield.dataField is defined %}
+            "field_uuid": {{ datafield.dataField.fieldUuid|json_encode|raw }},
+            "template_field_uuid": {{ datafield.dataField.templateFieldUuid|json_encode|raw }},
+        {% else %}
+            "field_uuid": {{ datafield.fieldUuid|json_encode|raw }},
+            "template_field_uuid": {{ datafield.templateFieldUuid|json_encode|raw }},
+        {% endif %}
 {% else %}
     "{{ datafield_meta.xml_fieldName }}": {
-        "field_uuid": {{ datafield.dataField.fieldUuid|json_encode|raw }},
-        "template_field_uuid": {{ datafield.dataField.templateFieldUuid|json_encode|raw }},
+        {% if datafield.dataField is defined %}
+            "field_uuid": {{ datafield.dataField.fieldUuid|json_encode|raw }},
+            "template_field_uuid": {{ datafield.dataField.templateFieldUuid|json_encode|raw }},
+        {% else %}
+            "field_uuid": {{ datafield.fieldUuid|json_encode|raw }},
+            "template_field_uuid": {{ datafield.templateFieldUuid|json_encode|raw }},
+        {% endif %}
         "updated_at": "{{ datafield_meta.created|date('Y-m-d H:i:s') }}",
 {% endif %}
 

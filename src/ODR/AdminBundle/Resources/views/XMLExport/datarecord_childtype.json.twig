@@ -38,17 +38,41 @@
 
     {# Fields #}
     "fields": [
-        {% for datafield in datarecord.dataRecordFields %}
-        {% if datafield.dataField.dataFieldMeta.fieldType.typeName != "Markdown" %}
-        {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
-            'datarecord': datarecord,
-            'datafield': datafield,
-            'using_metadata': using_metadata,
-            'baseurl': baseurl,
-            'version': version,
-        } %}
-        {% endif %}
-        {% if not loop.last %},{% endif %}
+        {% for dt_datafield in datarecord.dataType.dataFields %}
+            {% set comma = true %}
+            {% set found = false %}
+            {% for datafield in datarecord.dataRecordFields %}
+                {% if datafield.dataField.id == dt_datafield.id  %}
+                    {% if datafield.dataField.dataFieldMeta.fieldType.typeName != "Markdown" %}
+                    {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
+                        'datarecord': datarecord,
+                        'datafield': datafield,
+                        'using_metadata': using_metadata,
+                        'baseurl': baseurl,
+                        'version': version,
+                    } %}
+                    {% set found = true %}
+                    {% else %}
+                        {% set comma = false %}
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+            {% if not found %}
+                {% if dt_datafield.dataFieldMeta[0].fieldType.typeName != "Markdown" %}
+                {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
+                    'datarecord': datarecord,
+                    'datafield': dt_datafield,
+                    'using_metadata': using_metadata,
+                    'baseurl': baseurl,
+                    'version': version,
+                } %}
+                {% else %}
+                    {% set comma = false %}
+                {% endif %}
+            {% endif %}
+            {% if comma %}
+                {% if not loop.last %},{% endif %}
+            {% endif %}
         {% endfor %}
     ],
     "records": [
@@ -96,18 +120,42 @@
 
         {# Fields #}
         "fields": [
-        {% for datafield in datarecord.dataRecordFields %}
-            {% if datafield.dataField.dataFieldMeta.fieldType.typeName != "Markdown" %}
-                {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
-                    'datarecord': datarecord,
-                    'datafield': datafield,
-                    'using_metadata': using_metadata,
-                    'baseurl': baseurl,
-                    'version': version,
-                } %}
-            {% endif %}
-            {% if not loop.last %},{% endif %}
-        {% endfor %}
+{% for dt_datafield in datarecord.dataType.dataFields %}
+{% set comma = true %}
+{% set found = false %}
+{% for datafield in datarecord.dataRecordFields %}
+{% if datafield.dataField.id == dt_datafield.id  %}
+{% if datafield.dataField.dataFieldMeta.fieldType.typeName != "Markdown" %}
+{% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
+    'datarecord': datarecord,
+    'datafield': datafield,
+    'using_metadata': using_metadata,
+    'baseurl': baseurl,
+    'version': version,
+} %}
+{% set found = true %}
+{% else %}
+{% set comma = false %}
+{% endif %}
+{% endif %}
+{% endfor %}
+{% if not found %}
+{% if dt_datafield.dataFieldMeta[0].fieldType.typeName != "Markdown" %}
+{% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
+    'datarecord': datarecord,
+    'datafield': dt_datafield,
+    'using_metadata': using_metadata,
+    'baseurl': baseurl,
+    'version': version,
+} %}
+{% else %}
+{% set comma = false %}
+{% endif %}
+{% endif %}
+{% if comma %}
+{% if not loop.last %},{% endif %}
+{% endif %}
+{% endfor %}
         ],
         "records": [
             {# Check for Children #}
