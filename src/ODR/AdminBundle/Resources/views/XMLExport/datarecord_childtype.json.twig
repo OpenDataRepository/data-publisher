@@ -13,7 +13,7 @@
         {% for dr_id, datarecord in datarecord %}
         {
             {#"database_name": {{ datatype.dataTypeMeta.shortName|json_encode|raw }}, #}
-            "database_uuidj": "{{ datarecord.dataType.unique_id }}",
+            "database_uuid": "{{ datarecord.dataType.unique_id }}",
     "internal_id": {{ datarecord.id }},
     "record_name": {{ datarecord.nameField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
     "record_uuid": "{{ datarecord.unique_id }}",
