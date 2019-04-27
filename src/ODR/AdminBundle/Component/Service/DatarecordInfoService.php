@@ -379,17 +379,22 @@ class DatarecordInfoService
                 if ( $cdr_id == $dr['id'] )
                     continue;
 
-                if ( !isset($child_datarecords[$cdr_dt_id]) )
+                if ($cdr_dt_id !== null &&  !isset($child_datarecords[$cdr_dt_id]) )
                     $child_datarecords[$cdr_dt_id] = array();
-                $child_datarecords[$cdr_dt_id][] = $cdr_id;
+
+                if($cdr_id !== null)
+                    $child_datarecords[$cdr_dt_id][] = $cdr_id;
             }
             foreach ($dr['linkedDatarecords'] as $child_num => $ldt) {
                 $ldr_id = $ldt['descendant']['id'];
                 $ldr_dt_id = $ldt['descendant']['dataType']['id'];
 
-                if ( !isset($child_datarecords[$ldr_dt_id]) )
+                if ($ldr_dt_id !== null && !isset($child_datarecords[$ldr_dt_id]) )
                     $child_datarecords[$ldr_dt_id] = array();
-                $child_datarecords[$ldr_dt_id][] = $ldr_id;
+
+                if($ldr_id !== null) {
+                    $child_datarecords[$ldr_dt_id][] = $ldr_id;
+                }
             }
             $datarecord_data[$dr_num]['children'] = $child_datarecords;
             unset( $datarecord_data[$dr_num]['linkedDatarecords'] );
