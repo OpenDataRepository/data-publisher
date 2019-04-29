@@ -83,23 +83,26 @@
 {% if field_typename == "File" %}
 
         "files": [
-        {% for file in valuefield %}
-            {% set file_meta = file.fileMeta %}
-            {
-                "id": {{ file.id }},
-                "file_uuid": "{{ file.unique_id }}",
-                "original_name": "{% if file_meta.originalFileName != null %}{{ file_meta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}",
-                "href": "{{ baseurl ~ path('odr_file_download', {'file_id': file.id}) }}",
+          {% for file in valuefield %}
+              {
+                  "id": {{ file.id }},
+                  "file_uuid": "{{ file.unique_id }}",
+                  "href": "{{ baseurl ~ path('odr_file_download', {'file_id': file.id}) }}",
+                  {% set file_meta = file.fileMeta %}
+                  "original_name": "{% if file_meta.originalFileName is defined and file_meta.originalFileName != null %}{{ file_meta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}"
+                  {#
+                  "file_uuid": "{{ file.unique_id }}",
 
-                {% if using_metadata == true %}
-                "_file_metadata": {
-                    "_external_id": "{{ file_meta.external_id }}",
-                    "_create_date": "{{ file.created|date('Y-m-d H:i:s') }}",
-                    "_create_auth": "{% if file.createdBy != '' %}{{ file.createdBy|user_string }}{% endif %}",
-                    "_public_date": "{{ file_meta.publicDate|date('Y-m-d H:i:s') }}"
-                }
-                {% endif %}
-            },
+                  {% if using_metadata == true %}
+                  "_file_metadata": {
+                      "_external_id": "{{ file_meta.external_id }}",
+                      "_create_date": "{{ file.created|date('Y-m-d H:i:s') }}",
+                      "_create_auth": "{% if file.createdBy != '' %}{{ file.createdBy|user_string }}{% endif %}",
+                      "_public_date": "{{ file_meta.publicDate|date('Y-m-d H:i:s') }}"
+                  }
+                  {% endif %}
+                  #}
+            }{% if not loop.last %},{% endif %}
         {% endfor %}
         ]   {# end of files #}
 

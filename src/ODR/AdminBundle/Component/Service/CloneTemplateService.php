@@ -1728,15 +1728,17 @@ class CloneTemplateService
                                 $master_df_id = $tdf->getDataField()->getId();
                                 $derived_df = $created_datafields[$master_df_id];
 
-                                // Clone the existing theme datafield entry
-                                $new_tdf = clone $tdf;
-                                $new_tdf->setThemeElement($new_te);
-                                $new_tdf->setDataField($derived_df);
+                                if($derived_df !== null) {
+                                    // Clone the existing theme datafield entry
+                                    $new_tdf = clone $tdf;
+                                    $new_tdf->setThemeElement($new_te);
+                                    $new_tdf->setDataField($derived_df);
+    
+                                    $new_te->addThemeDataField($new_tdf);
+                                    self::persistObject($new_tdf, $user, true);
 
-                                $new_te->addThemeDataField($new_tdf);
-                                self::persistObject($new_tdf, $user, true);
-
-                                $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- cloned theme_datafield entry for datafield '.$master_df_id.' "'.$derived_df->getFieldName().'"');
+                                    $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- cloned theme_datafield entry for datafield '.$master_df_id.' "'.$derived_df->getFieldName().'"');
+                                }
                             }
                         }
                         else {
