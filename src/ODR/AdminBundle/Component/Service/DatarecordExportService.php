@@ -251,7 +251,7 @@ class DatarecordExportService
     private function reformatJson($data)
     {
 
-        // return $data;
+        return $data;
         return json_encode(json_decode($data));
         // Get rid of all whitespace characters that aren't inside double-quotes
         $trimmed_str = '';
