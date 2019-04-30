@@ -1,16 +1,12 @@
-        {% for radio_selection in radio_selections %}
-            {% set radio_option = radio_selection.radioOption %}
-            {% set radio_comma = false %}
-            {% if radio_option is not null %}
-                {% set radio_comma = true %}
-                {   
-                    "name": "{{ radio_option.optionName }} - {{ loop.length }}",
-                    "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
-                    "updated_at": "{{ radio_option.created|date('Y-m-d H:i:s') }}",
-                    "id": {{ radio_option.id }},
-                    "selected": "1"
-                }
-           {% endif %}
-         {% if radio_comma and  not loop.last %},{% endif %}
-            {% if radio_option is not null and radio_selection.selected %}{% endif %}
-        {% endfor %}
+{% for radio_selection in radio_selections %}
+    {% set radio_option = radio_selection.radioOption %}
+    {% if radio_option is not null %}
+        {   
+            "name": "{{ radio_option.optionName }} - {{ loop.length }}",
+            "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
+            "updated_at": "{{ radio_option.created|date('Y-m-d H:i:s') }}",
+            "id": {{ radio_option.id }},
+            "selected": "{{ radio_selection.selected }}"
+        },
+    {% endif %}
+{% endfor %}

@@ -47,6 +47,7 @@ class PlugExtension extends \Twig_Extension
         return array(
             new \Twig_SimpleFilter('datafield_plugin', array($this, 'datafieldPluginFilter')),
             new \Twig_SimpleFilter('datatype_plugin', array($this, 'datatypePluginFilter')),
+            new \Twig_SimpleFilter('comma', array($this, 'commaFilter')),
             new \Twig_SimpleFilter('xml', array($this, 'xmlFilter')),
             new \Twig_SimpleFilter('is_public', array($this, 'isPublicFilter')),
             new \Twig_SimpleFilter('user_string', array($this, 'userStringFilter')),
@@ -123,6 +124,18 @@ class PlugExtension extends \Twig_Extension
         }
     }
 
+
+    public function commaFilter($str)
+    {
+        try {
+            // Super hacky - detect pos of last } and remove remainder
+            $pos = strripos($str, "}");
+            return substr($str, 0, $pos + 1);
+        }
+        catch (\Exception $e) {
+            throw new \Exception("Error executing COMMA filter: [[[" . $str . "]]]");
+        }
+    }
 
     /**
      * Converts invalid XML characters to their XML-safe format.

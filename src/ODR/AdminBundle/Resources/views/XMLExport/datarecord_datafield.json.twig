@@ -144,7 +144,7 @@
 	{% set radio_block %}
     		{% include 'ODRAdminBundle:XMLExport:radio_selection.json.twig' with { 'radio_selections': datafield.radioSelection } %}
 	{% endset %}
-	{{ radio_block|trim(',','right')|raw }}
+	{{ radio_block|comma|raw }}
     {% endif %}
 ]
 
