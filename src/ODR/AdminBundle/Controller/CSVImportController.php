@@ -35,6 +35,8 @@ use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\ShortVarchar;
+use ODR\AdminBundle\Entity\Tags;
+use ODR\AdminBundle\Entity\TagTree;
 use ODR\AdminBundle\Entity\TrackedError;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -44,13 +46,16 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
+use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Cookie;
@@ -391,7 +396,7 @@ class CSVImportController extends ODRCustomController
             foreach ($fieldtypes as $num => $fieldtype) {
                 // Every field can be imported into except for Markdown fields
                 $typename = $fieldtype->getTypeName();
-                if ($typename === 'Markdown' || $typename === 'Tags') {    // TODO - need to fix generalized tag hierarchy import
+                if ($typename === 'Markdown') {
                     unset( $fieldtypes[$num] );
                 }
                 else {
@@ -1080,6 +1085,7 @@ class CSVImportController extends ODRCustomController
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
 
+
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1091,7 +1097,7 @@ class CSVImportController extends ODRCustomController
             foreach ($fieldtypes as $ft) {
                 $typename = $ft->getTypeName();
 
-                if ($typename === 'Markdown' || $typename === 'Tags') {    // TODO - need to fix generalized tag hierarchy import
+                if ($typename === 'Markdown') {
                     // Can't import into a Markdown fieldtype, do nothing
                 }
                 else {
@@ -1174,6 +1180,8 @@ class CSVImportController extends ODRCustomController
 
             // Need to keep track of which columns are files/images
             $file_columns = array();
+            // Also need to keep track of any tags that will be created...
+            $new_tags = array();
 
             // Ensure that the datatype/fieldtype mappings and secondary column delimiters aren't
             //  mismatched or missing
@@ -1210,6 +1218,14 @@ class CSVImportController extends ODRCustomController
                         // Assume that a newly created tag field is going to need a hierarchy delimiter...
                         if ( $typename == "Tags" && !isset($hierarchy_delimiters[$col_num]) ) {
                             throw new ODRException('Invalid Form a...$hierarchy_delimiters['.$col_num.'] not set');
+                        }
+
+                        // If this is an existing tag field...
+                        if ( $typename == "Tags" ) {
+                            // ...then the validation process will need to track which tags are being
+                            //  selected so the start_worker process can create any new tags required
+                            //  before the worker process starts selecting them
+                            $new_tags[$col_num] = array();
                         }
                     }
                 }
@@ -1252,6 +1268,14 @@ class CSVImportController extends ODRCustomController
                             && !isset($hierarchy_delimiters[$col_num])
                         ) {
                             throw new ODRException('Invalid Form b...$hierarchy_delimiters['.$col_num.'] not set');
+                        }
+
+                        // If this is an existing tag field...
+                        if ( $typename == "Tags" ) {
+                            // ...then the validation process will need to track which tags are being
+                            //  selected so the start_worker process can create any new tags required
+                            //  before the worker process starts selecting them
+                            $new_tags[$col_num] = array();
                         }
                     }
                 }
@@ -1372,6 +1396,9 @@ class CSVImportController extends ODRCustomController
 
                 // Will have a value if importing into a linked datatype, or a child datatype that has its external column mapped
                 'remote_external_id_column' => $remote_external_id_column,
+
+                // Store any existing tags from datafields being imported into
+                'new_tags' => $new_tags,
             );
 
 //exit( '<pre>'.print_r($additional_data, true).'</pre>' );
@@ -1782,6 +1809,9 @@ class CSVImportController extends ODRCustomController
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
+            if ( $tracked_job_id === -1 )
+                throw new ODRException('Invalid tracked job id');
+
             $column_names = $post['column_names'];
             $line_num = $post['line_num'];
             $line = $post['line'];
@@ -1827,7 +1857,6 @@ class CSVImportController extends ODRCustomController
                 $remote_external_id_column = $post['remote_external_id_column'];
 
 
-
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 
@@ -1842,6 +1871,7 @@ class CSVImportController extends ODRCustomController
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRException('Invalid job data');
 
+
             /** @var ODRUser $user */
             $user = $repo_user->find($user_id);
             /** @var DataType $datatype */
@@ -1851,6 +1881,16 @@ class CSVImportController extends ODRCustomController
             // This doesn't make sense on a master datatype
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
+
+
+            /** @var TrackedJob $tracked_job */
+            $tracked_job = $repo_tracked_job->find($tracked_job_id);
+            if ( $tracked_job == null )
+                throw new ODRBadRequestException('Invalid tracked job');
+
+            // Only (currently) care about whether the import action will create new tags or not...
+            $additional_data = $tracked_job->getAdditionalData();
+            $new_tags = $additional_data['new_tags'];
 
 
             // ----------------------------------------
@@ -2261,16 +2301,6 @@ class CSVImportController extends ODRCustomController
                         break;
 
                     case "Tag":
-                        // TODO - need to fix generalized tag hierarchy import
-                        $errors[] = array(
-                            'level' => 'Error',
-                            'body' => array(
-                                'line_num' => $line_num,
-                                'message' => 'Unable to import into a Tag datafield at the moment',
-                            ),
-                        );
-                        break;
-
                         // Don't attempt to validate an empty string...it just means there are no tags selected
                         if ( $value == '' )
                             break;
@@ -2317,6 +2347,18 @@ class CSVImportController extends ODRCustomController
                                 );
                             }
                         }
+
+                        // Store the list of potential new tags for persisting back into the
+                        // tracked job entity
+                        $tags_in_column = $new_tags[$column_num];
+                        foreach ($tags as $num => $tag_name) {
+                            $tag_name = trim($tag_name);
+                            $tags_in_column[$tag_name] = 1;
+                        }
+                        $new_tags[$column_num] = $tags_in_column;
+
+                        // NOTE - not able to determine whether the column is attempting to "select"
+                        //  a mid-level tag without knowing the complete tag structure beforehand...
                         break;
                 }
 
@@ -2379,20 +2421,19 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Update the job tracker if necessary
-            if ($tracked_job_id !== -1) {
-                /** @var TrackedJob $tracked_job */
-                $tracked_job = $repo_tracked_job->find($tracked_job_id);
+            // Update the additional_data segment of the tracked job with any new data
+            $additional_data['new_tags'] = $new_tags;
+            $tracked_job->setAdditionalData($additional_data);
 
-                $total = $tracked_job->getTotal();
-                $count = $tracked_job->incrementCurrent($em);
+            // Update the job tracker
+            $total = $tracked_job->getTotal();
+            $count = $tracked_job->incrementCurrent($em);
 
-                if ($count >= $total)
-                    $tracked_job->setCompleted( new \DateTime() );
+            if ($count >= $total)
+                $tracked_job->setCompleted( new \DateTime() );
 
-                $em->persist($tracked_job);
-                $em->flush();
-            }
+            $em->persist($tracked_job);
+            $em->flush();
 
         }
         catch (\Exception $e) {
@@ -2456,6 +2497,8 @@ class CSVImportController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var TagHelperService $th_service */
+            $th_service = $this->container->get('odr.tag_helper_service');
 
 
             // ----------------------------------------
@@ -2466,7 +2509,7 @@ class CSVImportController extends ODRCustomController
             if ( $tracked_job->getJobType() !== "csv_import_validate" )
                 throw new ODRNotFoundException('TrackedJob');
 
-            $presets = json_decode( $tracked_job->getAdditionalData(), true );
+            $presets = $tracked_job->getAdditionalData();
             $target_entity = $tracked_job->getTargetEntity();
             $tmp = explode('_', $target_entity);
             $datatype_id = $tmp[1];
@@ -2592,7 +2635,7 @@ class CSVImportController extends ODRCustomController
             foreach ($fieldtypes as $num => $fieldtype) {
                 // Every field can be imported into except for Markdown fields
                 $typename = $fieldtype->getTypeName();
-                if ($typename === 'Markdown' || $typename === 'Tags') {    // TODO - need to fix generalized tag hierarchy import
+                if ($typename === 'Markdown') {
                     unset( $fieldtypes[$num] );
                 }
                 else {
@@ -2627,8 +2670,76 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
+            // The validation process will have stored an array of every tag that will get selected
+            //  during the import
+            $new_tags = $presets['new_tags'];
+            $datafield_mapping = $presets['datafield_mapping'];
+            $hierarchy_delimiters = $presets['hierarchy_delimiters'];
+
+            $new_tag_arrays = array();
+            foreach ($new_tags as $col_num => $tag_list) {
+                // If this column is for a new datafield...
+                if ( $datafield_mapping[$col_num] === 'new' ) {
+                    // ...then all these tags will have to be created, since they don't exist
+                    $existing_tag_array = array();
+
+                    // $would_create_new_tags is going to be true...
+                    $would_create_new_tags = true;
+                    foreach ($tag_list as $tag_name => $num) {
+                        // Convert the tag into the correct format for insertTagsForListImport()...
+                        $tag_names = array(0 => $tag_name);
+                        if ( isset($hierarchy_delimiters[$col_num]) )
+                            $tag_names = explode($hierarchy_delimiters[$col_num], $tag_name);
+                        foreach ($tag_names as $num => $tag_name)
+                            $tag_names[$num] = trim($tag_name);
+
+                        $existing_tag_array = $th_service->insertTagsForListImport($existing_tag_array, $tag_names, $would_create_new_tags);
+                    }
+
+                    // The only point of this entire if statement is to render stuff for user
+                    //  verification
+                    $new_tag_arrays[$col_num] = $existing_tag_array;
+                }
+                else {
+                    // ...otherwise, this is for an existing datafield
+                    $df_id = $datafield_mapping[$col_num];
+
+                    // Locate the tags already in the datafield
+                    $existing_tag_array = $datafields[$df_id]['tags'];
+                    $existing_tag_array = $th_service->convertTagsForListImport($existing_tag_array);
+
+                    // Determine whether the tags to be selected will require any new tags
+                    $would_create_new_tags = false;
+                    foreach ($tag_list as $tag_name => $num) {
+                        // Convert the tag into the correct format for insertTagsForListImport()...
+                        $tag_names = array(0 => $tag_name);
+                        if ( isset($hierarchy_delimiters[$col_num]) )
+                            $tag_names = explode($hierarchy_delimiters[$col_num], $tag_name);
+                        foreach ($tag_names as $num => $tag_name)
+                            $tag_names[$num] = trim($tag_name);
+
+                        $existing_tag_array = $th_service->insertTagsForListImport($existing_tag_array, $tag_names, $would_create_new_tags);
+                    }
+
+                    // Only care when some new tag is created
+                    if ( $would_create_new_tags )
+                        $new_tag_arrays[$col_num] = $existing_tag_array;
+                }
+            }
+
+            // Need to render the end result of tag creation, so sort those fields by tag name
+            foreach ($new_tag_arrays as $col_num => $tags) {
+                $th_service->orderStackedTagArray($tags, true);
+                $new_tag_arrays[$col_num] = $tags;
+            }
+
+
+            // ----------------------------------------
             // Get any errors reported during validation of this import
             $error_messages = parent::ODR_getTrackedErrorArray($em, $tracked_job_id);
+
+            // TODO - since the complete tag structure is known by now, locate attempts to select mid-level tags?
+            // TODO - ...attempts to do so should probably create a warning
 
             // If some sort of serious error encountered during validation, prevent importing
             $allow_import = true;
@@ -2637,9 +2748,8 @@ class CSVImportController extends ODRCustomController
                     $allow_import = false;
             }
 
-//print_r($error_messages);
-//print_r($presets);
-//return;
+//exit( '<pre>'.print_r($error_messages, true).'</pre>' );
+//exit( '<pre>'.print_r($presets, true).'</pre>' );
 
             // Render the page...
             $return['d'] = array(
@@ -2655,6 +2765,8 @@ class CSVImportController extends ODRCustomController
                         'errors' => $error_messages,
 
                         'datatree_array' => $datatree_array,
+
+                        'resulting_tag_arrays' => $new_tag_arrays,
 
                         // These get passed to layout.html.twig
                         'parent_datatype' => $parent_datatype,
@@ -2712,6 +2824,8 @@ class CSVImportController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var EntityCreationService $ec_service */
@@ -2720,6 +2834,10 @@ class CSVImportController extends ODRCustomController
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
+            /** @var TagHelperService $th_service */
+            $th_service = $this->container->get('odr.tag_helper_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
 
@@ -2736,7 +2854,7 @@ class CSVImportController extends ODRCustomController
             if ($tracked_job->getCompleted() == null)
                 throw new ODRException('Invalid job');
 
-            $job_data = json_decode( $tracked_job->getAdditionalData(), true );
+            $job_data = $tracked_job->getAdditionalData();
             $target_entity = $tracked_job->getTargetEntity();
             $tmp = explode('_', $target_entity);
             $datatype_id = $tmp[1];
@@ -2745,6 +2863,7 @@ class CSVImportController extends ODRCustomController
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
+            $grandparent_datatype = $datatype->getGrandparent();
 
             // --------------------
             // Determine user privileges
@@ -2836,6 +2955,7 @@ class CSVImportController extends ODRCustomController
             $parent_external_id_column = $job_data['parent_external_id_column'];
             $parent_datatype_id = $job_data['parent_datatype_id'];
             $remote_external_id_column = $job_data['remote_external_id_column'];
+            $new_tags = $job_data['new_tags'];
 
 //print_r($job_data);  return;
 
@@ -2869,6 +2989,10 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Store hydrated versions of datafields
+            /** @var DataFields[] $hydrated_datafields */
+            $hydrated_datafields = array();
+
             // Create any necessary datafields
             $new_datafields = array();
             $new_mapping = array();
@@ -2885,6 +3009,9 @@ class CSVImportController extends ODRCustomController
                     if ($datafield == null)
                         throw new ODRException('Invalid Form');
 
+                    // Store for later...
+                    $hydrated_datafields[$datafield->getId()] = $datafield;
+
 //print 'loaded existing datafield '.$datafield_id."\n";
                     $logger->notice('Using existing datafield '.$datafield->getId().' "'.$datafield->getFieldName().'" for csv import of datatype '.$datatype->getId().' by '.$user->getId());
                 }
@@ -2898,9 +3025,9 @@ class CSVImportController extends ODRCustomController
                     if ($fieldtype == null)
                         throw new ODRException('Invalid Form');
 
-                    // Create new datafield
+                    // Create new datafield...not delaying flush on purpose, need datafield id...
                     $created = true;
-                    $datafield = $ec_service->createDatafield($user, $datatype, $fieldtype, $render_plugin);    // Flushing here on purpose
+                    $datafield = $ec_service->createDatafield($user, $datatype, $fieldtype, $render_plugin);
 
                     // Set the datafield's name
                     $datafield_meta = $datafield->getDataFieldMeta();
@@ -2947,6 +3074,8 @@ class CSVImportController extends ODRCustomController
 
                     // Also need to delete some search cache entries here...
                     $search_cache_service->onDatafieldCreate($new_datafield);
+
+                    $hydrated_datafields[$new_datafield->getId()] = $new_datafield;
                 }
 
                 // Save all changes
@@ -2966,6 +3095,102 @@ print_r($new_mapping);
 */
 //return;
 
+            // ----------------------------------------
+            // Create any needed tags based on the additional_data stored in the tracked job...
+            $dt_array = $dti_service->getDatatypeArray($grandparent_datatype->getId(), false);
+            $df_array = $dt_array[$datatype->getId()]['dataFields'];
+
+            // Going to need a list of all tag uuids to prevent duplicates during the creation of
+            //  all these new tags...
+            $query = $em->createQuery(
+               'SELECT t.tagUuid
+                FROM ODRAdminBundle:Tags AS t
+                WHERE t.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+            $all_tag_uuids = array();
+            foreach ($results as $tag)
+                $all_tag_uuids[ $tag['tagUuid'] ] = 1;
+
+
+            // The validation process will have stored an array of every tag that will get selected
+            //  during the import
+            $created_new_tags = false;
+            $datafields_to_resort = array();
+            foreach ($new_tags as $column_id => $tag_data) {
+                // At this point, $new_tags contains every tag that will eventually be selected
+
+                // Need to convert the existing tags in the datafield into a different format so
+                //  new tags can be created more easily...
+                $df_id = $new_mapping[$column_id];
+                $df = $hydrated_datafields[$df_id];
+                $stacked_tag_array = $df_array[$df_id]['tags'];
+                $stacked_tag_array = $th_service->convertTagsForListImport($stacked_tag_array);
+
+                // Going to need the hydrated versions of all tags for this datafield in order to
+                //  properly create TagTree entries...
+                $query = $em->createQuery(
+                   'SELECT t
+                    FROM ODRAdminBundle:Tags AS t
+                    WHERE t.dataField = :datafield_id
+                    AND t.deletedAt IS NULL'
+                )->setParameters( array('datafield_id' => $df->getId()) );
+                $results = $query->getResult();
+
+                /** @var Tags[] $results */
+                $hydrated_tag_array = array();
+                foreach ($results as $tag) {
+                    // Have to store by tag uuid because tag names aren't guaranteed to be unique
+                    //  across the entire tree
+                    $hydrated_tag_array[ $tag->getTagUuid() ] = $tag;
+                }
+                /** @var Tags[] $hydrated_tag_array */
+
+                foreach ($tag_data as $tag_name => $num) {
+                    // Convert the tag into the correct format for insertTagsForListImport()...
+                    $tag_names = array(0 => $tag_name);
+                    if ( isset($hierarchy_delimiters[$column_id]) )
+                        $tag_names = explode($hierarchy_delimiters[$column_id], $tag_name);
+                    foreach ($tag_names as $num => $tag_name)
+                        $tag_names[$num] = trim($tag_name);
+
+                    $stacked_tag_array = self::createTagsForListImport(
+                        $em,         // Needed to persist new tag uuids and tag tree entries
+                        $ec_service, // Needed to create new tags
+                        $user,       // Needed to create new tags
+                        $datafield,  // Needed to create new tags
+                        $hydrated_tag_array,
+                        $all_tag_uuids,         // TODO - fucking uuids...
+                        $stacked_tag_array,
+                        $tag_names,
+                        $created_new_tags,
+                        null    // This initial call is for top-level tags...they don't have a parent
+                    );
+                }
+
+                if ( $df->getRadioOptionNameSort() === true)
+                    $datafields_to_resort[] = $df;
+            }
+
+            // Only do these things when tags have been created
+            if ($created_new_tags) {
+                // Wipe the cached tag tree arrays...
+                $cache_service->delete('cached_tag_tree_'.$grandparent_datatype->getId());
+                $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype->getId());
+
+                // Re-sort each datafield that needs it...
+                foreach ($datafields_to_resort as $num => $df) {
+                    // This function doesn't use cache entries, so it can be called prior to updateDatatypeCacheEntry()
+                    $sort_service->sortTagsByName($user, $df);
+                }
+
+                // Update the cached version of the datatype
+                $dti_service->updateDatatypeCacheEntry($datatype, $user);
+
+                // Shouldn't need to worry about the search cache...
+            }
+
 
             // ----------------------------------------
             // Re-read the csv file so a beanstalk job can be created for each line in the file
@@ -2983,6 +3208,9 @@ print_r($new_mapping);
             $reader = new CsvReader($csv_file, $delimiter);
 //            $reader->setHeaderRowNumber(0);   // don't want associative array
 
+
+            // TODO - (partially) rewrite file so it references tag ids instead of tag names?
+            // TODO - do the same for radio options?  that wouldn't really change the amount of work needed...
 
             // ----------------------------------------
             // Create a beanstalk job for each row of the csv file
@@ -3040,6 +3268,104 @@ print_r($new_mapping);
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * TODO -
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param EntityCreationService $ec_service
+     * @param ODRUser $user
+     * @param DataFields $datafield
+     * @param Tags[] $hydrated_tag_array A flat array of all tags for this datafield, organized by
+     *                                   their uuids
+     * @param array $all_tag_uuids
+     * @param array $stacked_tag_array @see self::convertTagsForListImport()
+     * @param array $posted_tags A flat array of the tag(s) that may end up being inserted into the
+     *                           datafield...top level tag at index 0, its child at 1, etc
+     * @param bool $created_new_tags Set to true when a tag is created
+     * @param Tags|null $parent_tag
+     *
+     * @return array
+     */
+    private function createTagsForListImport($em, $ec_service, $user, $datafield, &$hydrated_tag_array, &$all_tag_uuids, &$stacked_tag_array, $posted_tags, &$created_new_tags, $parent_tag)
+    {
+        $current_tag = null;
+        $tag_name = $posted_tags[0];
+        if ( isset($stacked_tag_array[$tag_name]) ) {
+            // This tag exists already
+            $tag_uuid = $stacked_tag_array[$tag_name]['tagUuid'];
+            $current_tag = $hydrated_tag_array[$tag_uuid];
+        }
+        else {
+            // A tag with this name doesn't exist at this level...create a new tag for it
+            $created_new_tags = true;
+
+            $force_create = true;
+            $delay_uuid = true;
+            $current_tag = $ec_service->createTag($user, $datafield, $force_create, $tag_name, $delay_uuid);
+
+            // Generate a new uuid for this tag...
+            $new_tag_uuid = UniqueUtility::uniqueIdReal();
+            while ( isset($all_tag_uuids[$new_tag_uuid]) )
+                $new_tag_uuid = UniqueUtility::uniqueIdReal();
+            $current_tag->setTagUuid($new_tag_uuid);
+            $em->persist($current_tag);
+
+            // Need to store the new stuff for later reference...
+            $hydrated_tag_array[$new_tag_uuid] = $current_tag;
+            $all_tag_uuids[$new_tag_uuid] = 1;
+
+            $stacked_tag_array[$tag_name] = array(
+                'id' => $new_tag_uuid,    // Don't really care what the ID is...only used for rendering
+                'tagMeta' => array(
+                    'tagName' => $tag_name
+                ),
+                'tagUuid' => $new_tag_uuid,
+            );
+
+
+            // If the parent tag isn't null, then this new tag also needs a new TagTree entry to
+            //  insert it at the correct spot in the tag hierarchy
+            if ( !is_null($parent_tag) ) {
+                // TODO - ...createTagTree() needs a flush before, or the lock file doesn't have all the info it needs to lock properly
+//                $ec_service->createTagTree($user, $parent_tag, $new_tag);
+
+                $tag_tree = new TagTree();
+                $tag_tree->setParent($parent_tag);
+                $tag_tree->setChild($current_tag);
+
+                $tag_tree->setCreatedBy($user);
+
+                $em->persist($tag_tree);
+            }
+        }
+
+        // If there are more children/grandchildren to the tag to add...
+        if ( count($posted_tags) > 1 ) {
+            // ...get any children the existing tag already has
+            $existing_child_tags = array();
+            if ( isset($stacked_tag_array[$tag_name]['children']) )
+                $existing_child_tags = $stacked_tag_array[$tag_name]['children'];
+
+            // This level has been processed, move on to its children
+            $new_tags = array_slice($posted_tags, 1);
+            $stacked_tag_array[$tag_name]['children'] = self::createTagsForListImport(
+                $em,         // Needed to persist new tag uuids and tag tree entries
+                $ec_service, // Needed to create new tags
+                $user,       // Needed to create new tags
+                $datafield,  // Needed to create new tags
+                $hydrated_tag_array,
+                $all_tag_uuids,
+                $existing_child_tags,
+                $new_tags,
+                $created_new_tags,
+                $current_tag
+            );
+        }
+
+        return $stacked_tag_array;
     }
 
 
@@ -3106,6 +3432,7 @@ print_r($new_mapping);
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+            $repo_tags = $em->getRepository('ODRAdminBundle:Tags');
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
 
             /** @var DatarecordInfoService $dri_service */
@@ -3134,6 +3461,9 @@ print_r($new_mapping);
             // This doesn't make sense on a master datatype
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
+
+            // Going to need the cached datatype array if tags are involved...
+            $cached_dt_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
 
 
             // ----------------------------------------
@@ -3667,7 +3997,7 @@ exit();
                                 }
                             }
 
-                            // TODO - add Radio equivalent of "delete all unlisted files/images" for Multiple Radio/Select
+                            // TODO - add Radio equivalent of "delete all unlisted files/images" for Multiple Radio/Select?
 
                             // Now that there won't be extraneous radio options selected afterwards...
                             //  ensure the radio selection entity for the desired radio option exists
@@ -3682,32 +4012,102 @@ exit();
                         $status .= "\n";
                     }
                     else if ($typeclass == 'Tag') {
-                        // TODO - need to fix generalized tag hierarchy import
-/*
                         $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.') '."\n";
 
-                        if ( $column_data === '' )
+                        if ($column_data === '')
                             continue;
+
+                        // At this point, no tags need to be created, so all that should be required
+                        //  is to locate the bottom-level tag being selected...
+                        $df_array = $cached_dt_array[$datatype->getId()]['dataFields'][$datafield_id];
+                        $stacked_tag_array = $df_array['tags'];
 
                         // Going to need the datarecordfield entry for later...
                         $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
 
+                        // TODO - add Tag equivalent of "delete all unlisted files/images"?
+
+                        // Convert the contents of this field into individual tags
                         $tags = explode($column_delimiters[$column_num], $column_data);
 
-                        if ( isset($hierarchy_delimiters[$column_num]) ) {
-                            foreach ($tags as $num => $tag) {
+                        if ( !isset($hierarchy_delimiters[$column_num]) ) {
+                            // This datafield only allows a single level of tags
+                            foreach ($tags as $num => $tag_name)
+                                $tags[$num] = trim($tag_name);
+
+                            // For each tag that needs to be selected...
+                            foreach ($tags as $num => $tag_name) {
+                                // ...locate the tag that this string is referencing
+                                foreach ($stacked_tag_array as $tag_id => $tag_data) {
+                                    if ( $tag_name === $tag_data['tagName'] ) {
+                                        /** @var Tags $tag */
+                                        $tag = $repo_tags->find($tag_id);
+
+                                        // Ensure a tagSelection entity exists
+                                        $tag_selection = $ec_service->createTagSelection($user, $tag, $drf);
+
+                                        // Mark it as selected
+                                        $properties = array('selected' => 1);
+                                        $emm_service->updateTagSelection($user, $tag_selection, $properties, true);    // don't flush immediately...
+
+                                        $status .= '      >> tag_selection for tag ("'.$tag_name.'") now selected'."\n";
+
+                                        // Stop trying to locate this tag, move on to the next one
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        else {
+                            // This datafield is a tag hierarchy
+                            foreach ($tags as $tmp => $tag) {
+                                // Split the hierarchy into an array of levels
                                 $tag_chain = explode($hierarchy_delimiters[$column_num], $tag);
-                                $tags[$num] = $tag_chain;
+                                foreach ($tag_chain as $num => $tag_name)
+                                    $tag_chain[$num] = trim($tag_name);
+
+                                $tags[$tmp] = $tag_chain;
+                            }
+
+                            // Need to locate the bottom-level tag being selected...
+                            foreach ($tags as $num => $tag_chain) {
+                                // ...locate the tag this array is referencing
+                                $tag = null;
+                                $tag_id = self::locateTagForCSVSelection($stacked_tag_array, $tag_chain);
+
+                                if ( is_null($tag_id) ) {
+                                    // If null, then this tag chain referenced a mid-level tag or
+                                    //  some sort of unexpected error occured...do nothing
+
+                                    $full_tag_name = implode(' '.$hierarchy_delimiters[$column_num].' ', $tag_chain);
+                                    $status .= '      ** unable to locate tag ("'.$full_tag_name.'")'."\n";
+                                }
+                                else {
+                                    // Otherwise, load the bottom-level tag
+                                    /** @var Tags $tag */
+                                    $tag = $repo_tags->find($tag_id);
+
+                                    // Ensure a tagSelection entity exists
+                                    $tag_selection = $ec_service->createTagSelection($user, $tag, $drf);
+
+                                    // Mark it as selected
+                                    $properties = array('selected' => 1);
+                                    $emm_service->updateTagSelection($user, $tag_selection, $properties, true);    // don't flush immediately...
+
+                                    $full_tag_name = implode(' '.$hierarchy_delimiters[$column_num].' ', $tag_chain);
+                                    $status .= '      >> tag_selection for tag ("'.$full_tag_name.'") now selected'."\n";
+
+                                    // Move on to the next tag
+                                }
                             }
                         }
 
-                        foreach ($tags as $num => $tag_chain) {
-
-                        }
-*/
+                        // Flush now that all the tags have been marked as selected
+                        $em->flush();
                     }
                 }
             }
+
 
             // ----------------------------------------
             // Load the job so it can be updated
@@ -3715,7 +4115,7 @@ exit();
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
 
             // Check whether any more "additional data" needs to be stored
-            $additional_data = json_decode( $tracked_job->getAdditionalData(), true );
+            $additional_data = $tracked_job->getAdditionalData();
 
             // Creation of new radio options and/or tags requires a rebuild of the cached datatype
             //  array, but that has to happen after all importing is completed...
@@ -3724,9 +4124,9 @@ exit();
                 $status .= ' >> requiring end of import to rebuild cached datatype array...'."\n";
             }
 
-            // Creation of new radio options and/or tags in a datafield sorted by name requires
-            //  that the relevant datafield gets resorted, but that has to happen after all
-            //  importing is completed...
+            // Creation of new radio options in a datafield sorted by name requires the relevant
+            //  datafield gets resorted, but that has to happen after all importing is completed
+            // Tags were created and resorted back in startworkerAction(), so those don't need it
             /** @var DataFields[] $datafields_needing_name_sort */
             foreach ($datafields_needing_name_sort as $df_id => $df) {
                 if ( !isset($additional_data['datafields_needing_resort']) )
@@ -3736,10 +4136,11 @@ exit();
                 $status .= ' >> requiring end of import to resort datafield '.$df_id.' ("'.$df->getFieldName().'")'."\n";
             }
 
-            $tracked_job->setAdditionalData( json_encode($additional_data) );
+            $tracked_job->setAdditionalData($additional_data);
             $em->persist($tracked_job);
             $em->flush();
             $em->refresh($tracked_job);
+
 
             // ----------------------------------------
             // Increment the job counter
@@ -3753,7 +4154,7 @@ exit();
                 // TODO - really want a better system than this...
 
                 // Check whether any more "additional data" was stored...
-                $additional_data = json_decode( $tracked_job->getAdditionalData(), true );
+                $additional_data = $tracked_job->getAdditionalData();
 
                 // Re-sort each of the datafields that need it as a result of creating new radio
                 //  options or tags
@@ -3840,6 +4241,50 @@ exit();
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Locates the tag referenced by the $tag_chain inside $stacked_tag_array.  Returns the id if
+     * a bottom-level tag is found, returns null otherwise.  If $tag_chain references a tag that is
+     * not bottom-level, null is returned.
+     *
+     * @param array $stacked_tag_array
+     * @param string[] $tag_chain
+     *
+     * @param int|null
+     */
+    private function locateTagForCSVSelection($stacked_tag_array, $tag_chain)
+    {
+        // Need to locate the current tag in the current level of the stacked tag array
+        $tag_name = $tag_chain[0];
+
+        foreach ($stacked_tag_array as $tag_id => $tag) {
+            if ( $tag_name === $tag['tagName'] ) {
+                if ( !isset($tag['children']) && count($tag_chain) === 1 ) {
+                    // Successfully found the desired bottom-level tag
+                    return intval($tag_id);
+                }
+                else if ( isset($tag['children']) && count($tag_chain) > 1 ) {
+                    // Successfully found a mid-level tag, need to continue to locate children
+                    $child_tag_chain = array_slice($tag_chain, 1);
+                    return self::locateTagForCSVSelection($tag['children'], $child_tag_chain);
+                }
+                else if ( !isset($tag['children']) && count($tag_chain) > 1 ) {
+                    // No children of this tag, but tag chain references a child...the startWorker()
+                    //  action was supposed to create it, but apparently something went wrong...
+                    return null;
+                }
+                else if ( isset($tag['children']) && count($tag_chain) === 1 ) {
+                    // This tag does have children, but the tag chain doesn't continue...since it
+                    //  doesn't make sense to select a mid-level tag, return null
+                    return null;
+                }
+            }
+        }
+
+        // If this point is reached, then the tag wasn't found...so something went wrong
+        return null;
     }
 
 

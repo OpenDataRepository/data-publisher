@@ -1375,9 +1375,10 @@ class EntityCreationService
      */
     public function createTag($user, $datafield, $force_create, $tag_name, $delay_uuid = false)
     {
+
         $tag = null;
         if ($force_create) {
-            // We're being forced to create a new tag...
+            // We're being forced to create a new top-level tag...
             $tag = self::createTagEntity($user, $datafield, $tag_name, $delay_uuid);
         }
         else {
@@ -1385,7 +1386,7 @@ class EntityCreationService
             /** @var Tags $tag */
             $tag = $this->em->getRepository('ODRAdminBundle:Tags')->findOneBy(
                 array(
-                    'tagName' => $tag_name,
+                    'tagName' => $tag_name,    // TODO - ...this isn't guaranteed to be the correct tag when a hierarchy is involved...
                     'dataField' => $datafield->getId()
                 )
             );

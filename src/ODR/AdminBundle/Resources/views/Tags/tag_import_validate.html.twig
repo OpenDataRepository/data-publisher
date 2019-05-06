@@ -2,8 +2,12 @@
 
 <div class="ODRTagImport_wrapper">
     <div class="ODRTagImport_header">
+        {% if would_create_new_tag %}
         <span class=""><i class="fa fa-check-circle"></i><span>No Errors Found</span></span>
         <button id="ODRTagImportList_button" class="pure-button pure-button-primary">Import Tag List</button>
+        {% else %}
+        <span class=""><i class="fa fa-info-circle"></i><span>No New Tags</span></span>
+        {% endif %}
     </div>
     <div class="ODRTagImport_content">
         {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
@@ -12,6 +16,7 @@
     </div>
 </div>
 
+{% if would_create_new_tag %}
 <script>
     $(function() {
         $("#ODRTagImportList_button").unbind('click').click(function() {
@@ -56,4 +61,6 @@
         });
     });
 </script>
+{% endif %}
+
 {% endspaceless %}

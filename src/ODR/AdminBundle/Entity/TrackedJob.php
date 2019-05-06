@@ -160,12 +160,12 @@ class TrackedJob
     /**
      * Set additional_data
      *
-     * @param string $additionalData
+     * @param array $additionalData
      * @return TrackedJob
      */
     public function setAdditionalData($additionalData)
     {
-        $this->additional_data = $additionalData;
+        $this->additional_data = json_encode( $additionalData );
 
         return $this;
     }
@@ -173,11 +173,11 @@ class TrackedJob
     /**
      * Get additional_data
      *
-     * @return string
+     * @return array
      */
     public function getAdditionalData()
     {
-        return $this->additional_data;
+        return json_decode( $this->additional_data, true );
     }
 
     /**
@@ -443,7 +443,7 @@ class TrackedJob
         $tracked_job['current'] = $this->getCurrent();
         $tracked_job['completed'] = $this->getCompleted();
         $tracked_job['started'] = $this->getStarted();
-        $tracked_job['additional_data'] = json_decode($this->getAdditionalData());
+        $tracked_job['additional_data'] = $this->getAdditionalData();
 
         return $tracked_job;
     }

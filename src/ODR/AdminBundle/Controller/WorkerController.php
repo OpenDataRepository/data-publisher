@@ -102,8 +102,8 @@ class WorkerController extends ODRCustomController
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
 
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
@@ -298,8 +298,11 @@ $ret .= '  Set current to '.$count."\n";
 
 
             // ----------------------------------------
-            // Mark this datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            // Do not mark this datarecord as updated
+            // Delete the relevant cached datarecord entries
+            $cache_service->delete('cached_datarecord_'.$datarecord->getGrandparent()->getId());
+            $cache_service->delete('cached_table_data_'.$datarecord->getGrandparent()->getId());
+
             // Delete all relevant search cache entries
             $search_cache_service->onDatafieldModify($datafield);
 

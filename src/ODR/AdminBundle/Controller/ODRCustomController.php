@@ -722,7 +722,7 @@ class ODRCustomController extends Controller
 
         $tracked_job->setStarted(null);
 
-        $tracked_job->setAdditionalData( json_encode($additional_data) );
+        $tracked_job->setAdditionalData($additional_data);
         $tracked_job->setRestrictions($restrictions);
 
         $tracked_job->setCompleted(null);

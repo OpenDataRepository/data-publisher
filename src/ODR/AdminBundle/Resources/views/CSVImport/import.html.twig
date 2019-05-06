@@ -108,6 +108,33 @@
     </div>
 </div>
 
+{% if presets != null and resulting_tag_arrays|length > 0 %}
+<div class="ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer" style="margin-top:15px;">
+    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <span style="float: right;"><i class="fa fa-lg fa-caret-down"></i></span>
+        <a>Resulting Tag structure</a>
+    </h3>
+</div>
+<div class="content ODRContentWrapper" style="margin: 10px;">
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox">
+            {% for col_num, stacked_tag_array in resulting_tag_arrays %}
+            <div class="ODRDataField pure-u-1-2">
+                <fieldset>
+                    <label id="Label_{{ col_num }}" class="ODRFieldLabel pure-u-1">
+                        <span id="ODRDatafield_{{ col_num }}_name" style="margin-left:10px; font-weight: bold;">{{ columns[col_num] }}</span>
+                    </label>
+                    {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
+                        'stacked_tags': stacked_tag_array,
+                    } %}
+                </fieldset>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if presets != null %}
 <div class="ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer" style="margin-top:15px;">
     <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">

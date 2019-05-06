@@ -14,6 +14,8 @@ namespace ODR\AdminBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+// Services
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -411,5 +413,87 @@ class TagHelperService
         }
 
         return $token_list;
+    }
+
+
+    /**
+     * Takes an existing stacked tag array from a cached_datatype_array entry, and converts it into
+     * a minimal stacked array where the tags are organized by tag names instead of tag ids.
+     *
+     * Only saves the minimal set of entries required to render the tag list later on.
+     *
+     * @param array $stacked_tags
+     *
+     * @return array
+     */
+    public function convertTagsForListImport($stacked_tags)
+    {
+        $stacked_tag_array = array();
+        foreach ($stacked_tags as $tag_id => $tag_entry) {
+            $tag = array(
+                'id' => $tag_id,
+                'tagMeta' => array(
+                    'tagName' => $tag_entry['tagMeta']['tagName'],
+                ),
+                'tagUuid' => $tag_entry['tagUuid'],
+            );
+
+            if ( isset($tag_entry['children']) )
+                $tag['children'] = self::convertTagsForListImport($tag_entry['children']);
+
+            // Acceptable to store tags by name here, since none of its siblings *should* have the
+            //  exact same name...
+            $stacked_tag_array[ $tag_entry['tagName'] ] = $tag;
+        }
+
+        return $stacked_tag_array;
+    }
+
+
+    /**
+     * Splices a single array of tags the user has provided into the existing tags for a datafield.
+     *
+     * @param array $existing_tag_array @see self::convertTagsForListImport()
+     * @param string[] $new_tags
+     * @param &bool $would_create_new_tag Variable is set to true whenever $new_tags contains a tag
+     *                                    that is not in $existing_tag_array
+     *
+     * @return array
+     */
+    public function insertTagsForListImport($existing_tag_array, $new_tags, &$would_create_new_tag)
+    {
+        $tag_name = $new_tags[0];
+        if ( !isset($existing_tag_array[$tag_name]) ) {
+            // A tag with this name doesn't exist at this level yet
+            $would_create_new_tag = true;
+
+            // Twig needs an ID, but don't really care what it is...not going to interact with it
+            $uuid = UniqueUtility::uniqueIdReal();
+
+            // Acceptable to store tags by name here, since none of its siblings *should* have the
+            //  exact same name...
+            $existing_tag_array[$tag_name] = array(
+                'id' => $uuid,
+                'tagMeta' => array(
+                    'tagName' => $tag_name
+                ),
+//                'tagUuid' => $uuid,    // Don't need this just for rendering
+            );
+        }
+
+        // If there are more children/grandchildren to the tag to add...
+        if ( count($new_tags) > 1 ) {
+            // ...get any children the existing tag already has
+            $existing_child_tags = array();
+            if ( isset($existing_tag_array[$tag_name]['children']) )
+                $existing_child_tags = $existing_tag_array[$tag_name]['children'];
+
+            // This level has been processed, move on to its children
+            $new_tags = array_slice($new_tags, 1);
+            $existing_tag_array[$tag_name]['children'] =
+                self::insertTagsForListImport($existing_child_tags, $new_tags, $would_create_new_tag);
+        }
+
+        return $existing_tag_array;
     }
 }

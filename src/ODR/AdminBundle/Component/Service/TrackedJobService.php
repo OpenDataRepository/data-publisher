@@ -176,7 +176,7 @@ class TrackedJobService
             $job['tracked_job_id'] = $tracked_job->getId();
             $job['eta'] = '...';
 
-            $additional_data = json_decode( $tracked_job->getAdditionalData(), true );
+            $additional_data = $tracked_job->getAdditionalData();
             $job['description'] = $additional_data['description'];
             $job['can_delete'] = false;
 
@@ -403,7 +403,7 @@ class TrackedJobService
 
         $tracked_job->setStarted(null);
 
-        $tracked_job->setAdditionalData( json_encode($additional_data) );
+        $tracked_job->setAdditionalData($additional_data);
         $tracked_job->setRestrictions($restrictions);
 
         $tracked_job->setCompleted(null);

@@ -1548,7 +1548,7 @@ class PluginsController extends ODRCustomController
 
                     // If the render plugin option entity doesn't exist, create it
                     if ( is_null($render_plugin_option) ) {
-                        $ec_service->createRenderPluginOption($user, $render_plugin_instance, $option_name, $option_name, true);    // don't need to flush...
+                        $ec_service->createRenderPluginOption($user, $render_plugin_instance, $option_name, $option_value, true);    // don't need to flush...
                         $plugin_settings_changed = true;
                     }
                     else {
