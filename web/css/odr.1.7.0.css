@@ -4051,3 +4051,12 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 #ODRCSVImport_files button.pure-button {
     margin: 5px;
 }
+
+#ODRFieldHistoryDialogTable {
+    padding-left: 25px;
+    text-align: left;
+    /*overflow: auto;*/
+
+    color: #555;
+    line-height: 1.6;
+}

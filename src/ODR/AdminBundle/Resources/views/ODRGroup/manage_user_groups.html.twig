@@ -132,31 +132,81 @@
 <script>
     $(function() {
         $("#ODRDatatypeList").dataTable({
-            "searching": false,
-            "ordering": false,
             "paging": false,
             "info": false,
+            "columnDefs": [
+                {
+                    "targets": [0, 2, 3, 4],
+                    "orderable": false,
+                    "searchable": false
+                }
+            ],
+            "order": [[1, "asc"]],
+            "language": {
+                "emptyTable": "No Databases found"
+            }
+        });
+
+        // Need to ensure that the group list div on the right stays synchronized with the selected
+        //  row of the table on the left
+        var selected_row = null;
+
+        var table = $("#ODRDatatypeList").DataTable();
+        table.on( 'draw.dt', function() {
+            // This datatables event is called after the "order" and "search" events have fired,
+            //  and the table has been redrawn on the page...this redrawing means the position or
+            //  visibility of the group list needs to be updated
+
+            // If the group list div on the right is visible, save which row it's meant for
+            var selected_row_id = '';
+            if ( selected_row !== null )
+                selected_row_id = $(selected_row).attr('id');
+
+            // Iterate over all visible rows, attempting to find the one that is currently selected
+            var selected_element = null;
+            $(".ODRListExpand:visible").each(function() {
+                if ( $(this).children(".fa-caret-right").length > 0 ) {
+                    selected_element = $(this);
+                }
+            });
+
+
+            if ( selected_row_id !== '' && selected_element === null ) {
+                // The group list div is visible but the corresponding row wasn't found, then the
+                //  search function has hidden the corresponding row...so hide the group list div
+                $(".ODRGroupList").hide();
+                selected_row = null;
+            }
+            else if ( selected_row_id !== '' && selected_element !== null ) {
+                // The group list div and its corresponding row are both visible...ensure the group
+                //  list div is in a sensible place relative to its corresponding row
+                openGroupList( $(selected_element) );
+            }
+            else if ( selected_row_id === '' && selected_element === null ) {
+                // Neither the group list div nor its corresponding row are visible...do nothing
+            }
+            else if ( selected_row_id === '' && selected_element !== null ) {
+                // The group list div isn't displayed, but one of the rows is currently "selected"
+                //  ...reset the arrows
+                $(selected_element).children(".fa-caret-right").each(function() {   // should only return one
+                    var row_num = $(this).attr('rel');
+                    $("#datatype_groups_" + row_num).hide();
+
+                    $(this).removeClass('fa-caret-right').addClass('fa-caret-down ODRGrayIcon');
+                });
+            }
         });
 
         $("#ODRDatatypeList").removeAttr('style');
-/*
-        $(".ODRGroupList").each(function() {
-            var datatype_id = $(this).attr('rel');
-
-            var offset = $("#ODRDatatype_" + datatype_id + "_arrow").parent().offset();
-            var top_offset = offset.top;
-            $(this).offset({top: top_offset});
-        });
-*/
         $(".ODRGroupList").hide();
 
         $(".ODRListExpand").unbind('click').click(function() {
-            // If clicking an already open datarecord list, don't run the block that will open it again
-            var self_click = false;
+            // If clicking an already open group list, don't run the block that will open it again
+            var already_open = false;
             if ( $(this).children("i").hasClass('fa-caret-right') )
-                self_click = true;
+                already_open = true;
 
-            // Reset any open datarecord lists
+            // Hide any open group lists and reset the caret that indicates it's open
             $(".ODRListExpand").children(".fa-caret-right").each(function() {   // should only return one
                 var row_num = $(this).attr('rel');
                 $("#datatype_groups_" + row_num).hide();
@@ -164,33 +214,15 @@
                 $(this).removeClass('fa-caret-right').addClass('fa-caret-down ODRGrayIcon');
             });
 
-            // Going to need these three numbers to determine where to put the group list div
-            var table_offset = $("#ODRDatatypeList_wrapper").offset().top;
-            var table_height = $("#ODRDatatypeList_wrapper").height();
-            var offset_top = $(this).parent().offset().top - 15;
-
-            if ( !self_click ) {
-                // Open the selected datarecord list
-                $(this).children("i").each(function() {     // should only return one
-                    var row_num = $(this).attr('rel');
-                    $(this).removeClass('fa-caret-down ODRGrayIcon').addClass('fa-caret-right');
-
-                    // Determine height of the div displaying this datatype's groups
-                    var group_div = $("#datatype_groups_" + row_num);
-                    $(group_div).show();
-                    var group_div_height = $(group_div).height();
-
-                    var final_offset = offset_top;
-
-                    // If the height of the group div is less than the height of the datatype list table...
-                    if (table_height > group_div_height) {
-                        // ...adjust the offset so the bottom of the group div isn't below the bottom of the datatype list table
-                        if ((final_offset + group_div_height) > (table_offset + table_height))
-                            final_offset = (table_offset + table_height) - group_div_height;
-                    }
-
-                    $(group_div).offset({ top: final_offset });
-                });
+            if ( !already_open ) {
+                // If a group list wasn't open...then open it, and mark this row as selected
+                openGroupList( $(this) );
+                selected_row = $(this);
+            }
+            else {
+                // If a group list was already open, it has since been closed...therefore there's
+                //  no selected row right now
+                selected_row = null;
             }
         });
 
@@ -222,7 +254,6 @@
 
             UpdateURL(url);
         });
-
 
         $(".ODRGroupCheckbox").unbind('click').click(function() {
 
@@ -286,5 +317,33 @@
         });
     });
 
+    function openGroupList(element) {
+        // Going to need these three numbers to determine where to put the group list div
+        var table_offset = $("#ODRDatatypeList_wrapper").offset().top;
+        var table_height = $("#ODRDatatypeList_wrapper").height();
+        var offset_top = $(element).parent().offset().top - 15;
+
+        // Open the selected datarecord list
+        $(element).children("i").each(function() {     // should only return one
+            var row_num = $(this).attr('rel');
+            $(this).removeClass('fa-caret-down ODRGrayIcon').addClass('fa-caret-right');
+
+            // Determine height of the div displaying this datatype's groups
+            var group_div = $("#datatype_groups_" + row_num);
+            $(group_div).show();
+            var group_div_height = $(group_div).height();
+
+            var final_offset = offset_top;
+
+            // If the height of the group div is less than the height of the datatype list table...
+            if (table_height > group_div_height) {
+                // ...adjust the offset so the bottom of the group div isn't below the bottom of the datatype list table
+                if ((final_offset + group_div_height) > (table_offset + table_height))
+                    final_offset = (table_offset + table_height) - group_div_height;
+            }
+
+            $(group_div).offset({ top: final_offset });
+        });
+    }
 </script>
 {% endspaceless %}

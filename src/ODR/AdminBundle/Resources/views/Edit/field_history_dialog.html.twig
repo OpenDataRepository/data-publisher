@@ -1,67 +1,76 @@
 {% spaceless %}
+
 	<!-- Field History Dialog -->
-	<div class="pure-form pure-g" style="display: none;" id="dialog_field_history" title="View Field History">
-        <div class="form_contents pure-u-1"></div>
-	</div><!-- End if #dialog_field_history -->
-	
-	<script>
 
-    function DatafieldHistoryFormInit() {
+<script>
 
-        $("#DatafieldHistoryForm").validationOptions({
-            submitHandler: function(form) {
-                var post_data = $(form).serialize();
-                var url = $(form).attr('action');
+    var field_history_body = '<div id="ODRFieldHistoryDialogWrapper" class="ODRHidden"> </div>';
 
-                $.ajax({
-                    type: 'POST',
-                    url: url,
-                    dataType: "json",
-                    data: post_data,
-                    success: function(data, textStatus, jqXHR) {
-                        if(data.r == 0) {
-                            alert("Value reverted!");
-                        }
-/*
-                        // not doing uniqueness failures at the moment
-                        else if (data.r == 2) {
-                            var tmp = data.d.split('||');
+    function openFieldHistoryDialog(datarecord_id, datafield_id) {
+        // open dialog
+        modal_options = {
+            title: 'Field History',
+            loading: true,
+            body: field_history_body,
+            buttons: [
+                {
+                    id: 'ODRFieldHistory_close',
+                    text: 'Close'
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
 
-                            // Grab the form that got changed
-                            var the_form = '#' + tmp[0];
+        loadFieldHistoryDialog(datarecord_id, datafield_id);
 
-                            // Restore the old value
-                            $(the_form).find("input[type='text']").val(tmp[1]);
-
-                            // Show rest of error message
-                            alert(tmp[2]);
-                        }
-*/
-                        else {
-                            // An error has occurred.
-                            // Show Error message dialog
-                            alert(data.d);
-                        }
-                        $("#dialog_field_history").dialog('close');
-                    },
-                    complete: function(jqXHR, textStatus) {
-                        // Get the xdebugToken from response headers
-                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                        // If the Sfjs object exists
-                        if (typeof Sfjs !== "undefined") {
-                            // Grab the toolbar element
-                            var currentElement = $('.sf-toolbar')[0];
-
-                            // Load the data of the given xdebug token into the current toolbar wrapper
-                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                        }
-                    }
-                });
-            }
+        // Attach an event handler to the close button
+        $("#ODRFieldHistory_close").unbind('click').click(function() {
+            closeODRRemodal();
         });
     }
 
-	</script>
+    function loadFieldHistoryDialog(datarecord_id, datafield_id) {
+
+        var url = '{{ path('odr_record_get_field_history', { 'datarecord_id': 0, 'datafield_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 3));
+        url += datarecord_id + '/' + datafield_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                $("#ODRFieldHistoryDialogWrapper").html( data.d.html );
+
+                // remove loading spinner
+                $(".ODRRemodalLoading").fadeOut('150', function() {
+                    $(".ODRRemodalBody").show();
+                    $(".ODRRemodalButtons").show();
+                    $("#ODRFieldHistoryDialogWrapper").show();
+                });
+
+                resetRemodalInnerHeight();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
 
 {% endspaceless %}
