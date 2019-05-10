@@ -283,7 +283,6 @@ class CSVImportController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $session = $request->getSession();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
@@ -299,6 +298,7 @@ class CSVImportController extends ODRCustomController
             $target_datatype = $repo_datatype->find($target_datatype_id);
             if ($target_datatype == null)
                 throw new ODRNotFoundException('Datatype');
+            $grandparent_target_datatype = $target_datatype->getGrandparent();
 
 
             // --------------------
@@ -384,13 +384,14 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Grab all datafields belonging to that datatype
-            $datatype_array = $dti_service->getDatatypeArray($target_datatype_id, false);
+            $datatype_array = $dti_service->getDatatypeArray($grandparent_target_datatype->getId(), false);
             $datafields = $datatype_array[$target_datatype_id]['dataFields'];
             uasort($datafields, "self::name_sort");
 
             // Grab the FieldTypes that the csv importer can read data into
+            $query = $em->createQuery('SELECT ft FROM ODRAdminBundle:FieldType ft ORDER BY ft.typeName');
             /** @var FieldType[] $fieldtypes */
-            $fieldtypes = $repo_fieldtype->findAll();
+            $fieldtypes = $query->getResult();
             $allowed_fieldtypes = array();
 
             foreach ($fieldtypes as $num => $fieldtype) {
@@ -437,7 +438,8 @@ class CSVImportController extends ODRCustomController
 
 
             // Remove any completely blank columns and rows from the csv file
-            $file_encoding_converted = self::trimCSVFile($csv_import_path, $csv_filename, $delimiter);
+            $column_lengths = array();
+            $file_encoding_converted = self::trimCSVFile($csv_import_path, $csv_filename, $delimiter, $column_lengths);
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -453,14 +455,15 @@ class CSVImportController extends ODRCustomController
             $file_headers = $reader->getColumnHeaders();
             $error_messages = array();
             foreach ($file_headers as $column_num => $value) {
-                if ($value == '')
+                if ($value == '') {
                     $error_messages[] = array(
                         'error_level' => 'Error',
                         'error_body' => array(
                             'line_num' => 1,
-                            'message' => 'Column '.($column_num+1).' has an illegal blank header'
+                            'message' => 'Column '.($column_num + 1).' has an illegal blank header'
                         )
                     );
+                }
             }
 
             // Notify of "syntax" errors in the csv file
@@ -496,6 +499,7 @@ class CSVImportController extends ODRCustomController
                             'datatree_array' => $datatree_array,
 
                             'csv_delimiter' => $delimiter,
+                            'column_lengths' => $column_lengths,
                             'columns' => $file_headers,
                             'datafields' => $datafields,
                             'fieldtypes' => $fieldtypes,
@@ -568,10 +572,11 @@ class CSVImportController extends ODRCustomController
      * @param string $csv_import_path
      * @param string $csv_filename
      * @param string $delimiter
+     * @param array $column_lengths Stores the length of the longest value in each column
      *
      * @return boolean true if the function attempted to force UTF-8 encoding in the file, false otherwise
      */
-    private function trimCSVFile($csv_import_path, $csv_filename, $delimiter)
+    private function trimCSVFile($csv_import_path, $csv_filename, $delimiter, &$column_lengths)
     {
         // Apparently SplFileObject doesn't do this before opening the file...
         ini_set('auto_detect_line_endings', TRUE);
@@ -634,7 +639,7 @@ class CSVImportController extends ODRCustomController
             $line_num++;
 
             // If there's a mismatch in the number of columns, don't bother reading rest of file
-            // User needs to fix the file before it can be understood
+            // The user needs to fix the file before it can be understood
             if ( count($row) !== count($header_row) ) {
 //print 'column mismatch';
                 $csv_file = null;
@@ -646,8 +651,7 @@ class CSVImportController extends ODRCustomController
             foreach ($row as $column_id => $value) {
                 if ($value !== '') {
                     // Store that this column and this row have at least one value
-                    if ($column_use[$column_id] == false)
-                        $column_use[$column_id] = true;
+                    $column_use[$column_id] = true;
                     $blank_row = false;
 
                     // Check whether this string is valid UTF-8
@@ -658,6 +662,14 @@ class CSVImportController extends ODRCustomController
                         $encoding_errors[$line_num][$column_id] = 1;
                     }
                 }
+
+                // Keep track of maximum column length...this is outside the previous if statement
+                //  so that lengths get created for columns that are otherwise entirely blank
+                if ( !isset($column_lengths[$column_id]) )
+                    $column_lengths[$column_id] = 0;
+                // TODO - need to use mb_strlen() instead?
+                if ( strlen($value) > $column_lengths[$column_id] )
+                    $column_lengths[$column_id] = strlen($value);
             }
 
             // If none of the columns in this row had a value, save the line number so this blank
