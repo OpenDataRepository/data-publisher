@@ -5,9 +5,9 @@
     backupGlobals               = "false"
     backupStaticAttributes      = "false"
     colors                      = "true"
-    convertErrorsToExceptions   = "true"
-    convertNoticesToExceptions  = "true"
-    convertWarningsToExceptions = "true"
+    convertErrorsToExceptions   = "false"
+    convertNoticesToExceptions  = "false"
+    convertWarningsToExceptions = "false"
     processIsolation            = "false"
     stopOnFailure               = "false"
     bootstrap                   = "autoload.php" >
@@ -15,6 +15,7 @@
     <php>
         <!-- the value is the FQCN of the application kernel -->
         <env name="KERNEL_CLASS" value="AppKernel" />
+        <env name="SYMFONY_DEPRECATIONS_HELPER" value="weak"/>
     </php>
 
     <testsuites>

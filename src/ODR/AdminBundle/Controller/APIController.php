@@ -50,6 +50,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordExportService;
 use ODR\AdminBundle\Component\Service\DatatypeExportService;
@@ -802,7 +803,7 @@ class APIController extends ODRCustomController
 
             $user_email = $_POST['user_email'];
             $template_uuid = $_POST['template_uuid'];
-            $dataset_name = $_POST['dataset_name'];
+            // $dataset_name = $_POST['dataset_name'];
 
             // Check if user exists & throw user not found error
             // Save which user started this creation process
@@ -2180,8 +2181,7 @@ class APIController extends ODRCustomController
                     for ($j = 0; $j < count($dataset['records']); $j++) {
                         $record = $dataset['records'][$j];
                         if (!isset($record['record_uuid'])) {
-                            // New records don't have UUIDs and need to be added
-                            $record_found = false;
+                            // New records don't have UUIDs and need to be ignored in this check
                         } else if (
                             $record['template_uuid'] == $o_record['template_uuid']
                             && $record['record_uuid'] == $o_record['record_uuid']
@@ -2605,6 +2605,9 @@ class APIController extends ODRCustomController
             // Get data from POST/Request
             $data = $request->request->all();
 
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
 
@@ -2727,17 +2730,21 @@ class APIController extends ODRCustomController
             $dti_service->updateDatatypeCacheEntry($data_type, $api_user);
             $dti_service->updateDatatypeCacheEntry($data_type, $user);
 
-            $dri_service->updateDatarecordCacheEntry($data_record, 'anon.');
-            $dti_service->updateDatatypeCacheEntry($data_type, 'anon.');
+            // $dri_service->updateDatarecordCacheEntry($data_record, 'anon.');
+            // $dti_service->updateDatatypeCacheEntry($data_type, 'anon.');
 
             if($actual_data_record != "") {
                 $dri_service->updateDatarecordCacheEntry($actual_data_record, $user);
                 $dri_service->updateDatarecordCacheEntry($actual_data_record, $api_user);
-                $dri_service->updateDatarecordCacheEntry($actual_data_record, 'anon.');
+                // $dri_service->updateDatarecordCacheEntry($actual_data_record, 'anon.');
                 $dti_service->updateDatatypeCacheEntry($actual_data_type, $api_user);
                 $dti_service->updateDatatypeCacheEntry($actual_data_type, $user);
-                $dti_service->updateDatatypeCacheEntry($actual_data_type, 'anon.');
+                // $dti_service->updateDatatypeCacheEntry($actual_data_type, 'anon.');
             }
+
+
+            // Search cache service - reset due to public record
+            $search_cache_service->onDatarecordCreate($data_type);
 
             $response = new Response('Created', 201);
             $url = $this->generateUrl('odr_api_get_datarecord_single', array(

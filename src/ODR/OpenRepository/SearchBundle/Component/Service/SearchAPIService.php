@@ -332,7 +332,12 @@ class SearchAPIService
 
         // ----------------------------------------
         // Get the base information needed so getSearchArrays() can properly setup the search arrays
-        $search_permissions = self::getSearchPermissionsArray($hydrated_entities['datatype'], $affected_datatypes, $user_permissions, $search_as_super_admin);
+        $search_permissions = self::getSearchPermissionsArray(
+            $hydrated_entities['datatype'],
+            $affected_datatypes,
+            $user_permissions,
+            $search_as_super_admin
+        );
 
         // Going to need these two arrays to be able to accurately determine which datarecords
         //  end up matching the query

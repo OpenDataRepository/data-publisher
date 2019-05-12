@@ -49,3 +49,4 @@ created and up-to-date.
 
 
 
+ DEBUG=APIController php bin/phpunit -c app/phpunit.xml.dist

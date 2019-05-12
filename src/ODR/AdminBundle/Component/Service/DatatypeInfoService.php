@@ -183,12 +183,12 @@ class DatatypeInfoService
      *
      * @return array
      */
-    public function getDatatreeArray()
+    public function getDatatreeArray($flush = false)
     {
         // ----------------------------------------
         // If datatree data exists in cache and user isn't demanding a fresh version, return that
         $datatree_array = $this->cache_service->get('cached_datatree_array');
-        if ( $datatree_array !== false && count($datatree_array) > 0 )
+        if (!$flush && $datatree_array !== false && count($datatree_array) > 0 )
             return $datatree_array;
 
 
