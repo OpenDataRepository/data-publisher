@@ -2727,11 +2727,16 @@ class APIController extends ODRCustomController
             $dti_service->updateDatatypeCacheEntry($data_type, $api_user);
             $dti_service->updateDatatypeCacheEntry($data_type, $user);
 
+            $dri_service->updateDatarecordCacheEntry($data_record, 'anon.');
+            $dti_service->updateDatatypeCacheEntry($data_type, 'anon.');
+
             if($actual_data_record != "") {
                 $dri_service->updateDatarecordCacheEntry($actual_data_record, $user);
                 $dri_service->updateDatarecordCacheEntry($actual_data_record, $api_user);
+                $dri_service->updateDatarecordCacheEntry($actual_data_record, 'anon.');
                 $dti_service->updateDatatypeCacheEntry($actual_data_type, $api_user);
                 $dti_service->updateDatatypeCacheEntry($actual_data_type, $user);
+                $dti_service->updateDatatypeCacheEntry($actual_data_type, 'anon.');
             }
 
             $response = new Response('Created', 201);
