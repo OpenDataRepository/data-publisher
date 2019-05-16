@@ -1165,6 +1165,14 @@ odr_mass_update_worker_values:
     defaults: { _controller: ODRAdminBundle:MassEdit:massUpdateWorkerValues }
     methods: [ POST ]
 
+
+odr_mass_delete:
+    path: /admin/massdelete/{datatype_id}/{odr_tab_id}
+    defaults: { _controller: ODRAdminBundle:MassEdit:massDelete }
+    requirements:
+        datatype_id: \d+
+        odr_tab_id: '[a-zA-Z0-9\-\_]{15}|'
+
 #-----------------------------------------
 
 #-----------------------------------------

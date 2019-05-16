@@ -43,6 +43,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
@@ -51,6 +52,7 @@ use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
@@ -607,8 +609,14 @@ exit();
 //print_r($post);  exit();
 
 
-            if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecord_id']) || !isset($post['public_status']) || !isset($post['api_key']) )
+            if ( !isset($post['tracked_job_id'])
+                || !isset($post['user_id'])
+                || !isset($post['datarecord_id'])
+                || !isset($post['public_status'])
+                || !isset($post['api_key'])
+            ) {
                 throw new ODRBadRequestException();
+            }
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
@@ -759,8 +767,15 @@ exit();
 //print_r($post);  exit();
 
 
-            if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecord_id']) || !isset($post['datafield_id']) || !isset($post['value']) || !isset($post['api_key']) )
+            if ( !isset($post['tracked_job_id'])
+                || !isset($post['user_id'])
+                || !isset($post['datarecord_id'])
+                || !isset($post['datafield_id'])
+                || !isset($post['value'])
+                || !isset($post['api_key'])
+            ) {
                 throw new ODRBadRequestException();
+            }
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
@@ -855,26 +870,31 @@ exit();
 
                     // Set radio_selection objects to the desired state
                     foreach ($value as $radio_option_id => $selected) {
-                        // Ensure a RadioSelection entity exists
-                        /** @var RadioOptions $radio_option */
-                        $radio_option = $repo_radio_option->find($radio_option_id);
-                        $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
+                        // Single Select/Radio can have an id of "none", indicating that nothing
+                        //  should be selected
+                        if ($radio_option_id !== 'none') {
+                            // Ensure a RadioSelection entity exists
+                            /** @var RadioOptions $radio_option */
+                            $radio_option = $repo_radio_option->find($radio_option_id);
+                            $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
 
-                        // Ensure it has the correct selected value
-                        $properties = array('selected' => $selected);
-                        $emm_service->updateRadioSelection($user, $radio_selection, $properties);
+                            // Ensure it has the correct selected value
+                            $properties = array('selected' => $selected);
+                            $emm_service->updateRadioSelection($user, $radio_selection, $properties);
 
-                        $ret .= 'setting radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.' to '.$selected."\n";
+                            $ret .= 'setting radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.' to '.$selected."\n";
 
-                        // If this datafield is a Single Radio/Select datafield, then the correct
-                        //  radio option just got selected...remove it from the $radio_selections
-                        //  array so the subsequent block can't modify it
-                        unset( $radio_selections[$radio_option_id] );
+                            // If this datafield is a Single Radio/Select datafield, then the correct
+                            //  radio option just got selected...remove it from the $radio_selections
+                            //  array so the subsequent block can't modify it
+                            unset( $radio_selections[$radio_option_id] );
+                        }
                     }
 
                     // If only a single selection is allowed, deselect the other existing radio_selection objects
                     if ( $field_typename == "Single Radio" || $field_typename == "Single Select" ) {
                         // All radio options remaining in this array need to be marked as unselected
+                        // The radio option id of "none" won't affect anything here
                         $changes_made = false;
                         foreach ($radio_selections as $radio_option_id => $rs) {
                             if ( $rs->getSelected() == 1 ) {
@@ -1088,6 +1108,280 @@ $ret .=  "---------------\n";
         }
         catch (\Exception $e) {
             $source = 0x99001e8b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Deletes the list of datarecords instead of editing or changing their public status
+     *
+     * @param int $datatype_id
+     * @param string $odr_tab_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function massDeleteAction($datatype_id, $odr_tab_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // ----------------------------------------
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var SearchRedirectService $search_redirect_service */
+            $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            /** @var ThemeInfoService $ti_service */
+            $ti_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$user->hasRole('ROLE_ADMIN') )
+                throw new ODRForbiddenException();
+
+            if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canDeleteDatarecord($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Grab datarecord list and search key from user session...didn't use the cache because
+            //  that could've been cleared and would cause this to work on a different subset of
+            //  datarecords
+            $session = $request->getSession();
+            if ( !$session->has('mass_edit_datarecord_lists') )
+                throw new ODRBadRequestException('Missing MassEdit session variable');
+
+            $list = $session->get('mass_edit_datarecord_lists');
+            if ( !isset($list[$odr_tab_id]) )
+                throw new ODRBadRequestException('Missing MassEdit session variable');
+
+            if ( !isset($list[$odr_tab_id]['encoded_search_key'])
+                || !isset($list[$odr_tab_id]['datarecord_list'])
+                || !isset($list[$odr_tab_id]['complete_datarecord_list'])
+            ) {
+                throw new ODRBadRequestException('Malformed MassEdit session variable');
+            }
+
+            $search_key = $list[$odr_tab_id]['encoded_search_key'];
+            if ($search_key === '')
+                throw new ODRBadRequestException('Search key is blank');
+
+
+            // Need a list of datarecords from the user's session to be able to edit them...
+            $complete_datarecord_list = trim($list[$odr_tab_id]['complete_datarecord_list']);
+            $datarecords = trim($list[$odr_tab_id]['datarecord_list']);
+            if ($complete_datarecord_list === '' || $datarecords === '') {
+                // ...but no such datarecord list exists....redirect to search results page
+                return $search_redirect_service->redirectToSearchResult($search_key, 0);
+            }
+
+            // Can't use the complete datarecord list, since that also contains linked datarecords
+            // Only want the mass delete to affect records from this datatype
+//            $complete_datarecord_list = explode(',', $complete_datarecord_list);
+            $datarecords = explode(',', $datarecords);
+
+
+            // Shouldn't be an issue, but delete the datarecord list out of the user's session
+            unset( $list[$odr_tab_id] );
+            $session->set('mass_edit_datarecord_lists', $list);
+
+
+            // ----------------------------------------
+            // Recursively locate all children of these datarecords
+//            $parent_ids = array();
+//            $parent_ids[] = $datarecord->getId();
+            $parent_ids = $datarecords;
+
+//            $datarecords_to_delete = array();
+//            $datarecords_to_delete[] = $datarecord->getId();
+            $datarecords_to_delete = $datarecords;
+
+            while ( count($parent_ids) > 0 ) {
+                // Can't use the grandparent datarecord property, because this deletion request
+                //  could be for a datarecord that isn't top-level
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS parent
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.parent = parent
+                    WHERE dr.id != parent.id AND parent.id IN (:parent_ids)
+                    AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
+                )->setParameters( array('parent_ids' => $parent_ids) );
+                $results = $query->getArrayResult();
+
+                $parent_ids = array();
+                foreach ($results as $result) {
+                    $dr_id = $result['dr_id'];
+
+                    $parent_ids[] = $dr_id;
+                    $datarecords_to_delete[] = $dr_id;
+                }
+            }
+//print '<pre>'.print_r($datarecords_to_delete, true).'</pre>';  //exit();
+
+            // Locate all datarecords that link to any of the datarecords that will be deleted...
+            //  they will need to have their cache entries rebuilt
+            $query = $em->createQuery(
+               'SELECT DISTINCT(gp.id) AS ancestor_id
+                FROM ODRAdminBundle:LinkedDataTree AS ldt
+                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataRecord AS gp WITH ancestor.grandparent = gp
+                WHERE ldt.descendant IN (:datarecord_ids)
+                AND ldt.deletedAt IS NULL
+                AND ancestor.deletedAt IS NULL AND gp.deletedAt IS NULL'
+            )->setParameters( array('datarecord_ids' => $datarecords_to_delete) );
+            $results = $query->getArrayResult();
+
+            $ancestor_datarecord_ids = array();
+            foreach ($results as $result)
+                $ancestor_datarecord_ids[] = $result['ancestor_id'];
+//print '<pre>'.print_r($ancestor_datarecord_ids, true).'</pre>';  //exit();
+
+            // ----------------------------------------
+            // Since this needs to make updates to multiple tables, use a transaction
+            $conn = $em->getConnection();
+            $conn->beginTransaction();
+
+            // TODO - delete datarecordfield entries as well?
+
+            // ...delete all linked_datatree entries that reference these datarecords
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:LinkedDataTree AS ldt
+                SET ldt.deletedAt = :now, ldt.deletedBy = :deleted_by
+                WHERE (ldt.ancestor IN (:datarecord_ids) OR ldt.descendant IN (:datarecord_ids))
+                AND ldt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'deleted_by' => $user->getId(),
+                    'datarecord_ids' => $datarecords_to_delete
+                )
+            );
+            $rows = $query->execute();
+
+            // ...delete each meta entry for the datarecords to be deleted
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataRecordMeta AS drm
+                SET drm.deletedAt = :now
+                WHERE drm.dataRecord IN (:datarecord_ids)
+                AND drm.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'datarecord_ids' => $datarecords_to_delete
+                )
+            );
+            $rows = $query->execute();
+
+            // ...delete all of the datarecords
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataRecord AS dr
+                SET dr.deletedAt = :now, dr.deletedBy = :deleted_by
+                WHERE dr.id IN (:datarecord_ids)
+                AND dr.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'deleted_by' => $user->getId(),
+                    'datarecord_ids' => $datarecords_to_delete
+                )
+            );
+            $rows = $query->execute();
+
+            // No error encountered, commit changes
+//$conn->rollBack();
+            $conn->commit();
+
+            // -----------------------------------
+            // All datarecords deleted by this were top-level, so it doesn't make sense to mark
+            //  anything as updated
+//            if ( !$is_top_level )
+//                $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
+
+            // Delete all cache entries that could reference the datarecords that were just deleted
+            $search_cache_service->onDatarecordDelete($datatype);
+            // Force anything that linked to this datatype to rebuild link entries since at least
+            //  one record got deleted
+            $search_cache_service->onLinkStatusChange($datatype);
+
+            // Force a rebuild of the cache entries for each datarecord that linked to the records
+            //  that just got deleted
+            foreach ($ancestor_datarecord_ids as $num => $dr_id) {
+                $cache_service->delete('cached_datarecord_'.$dr_id);
+                $cache_service->delete('cached_table_data_'.$dr_id);
+            }
+
+
+            // ----------------------------------------
+            // Determine whether any datarecords of this datatype remain
+            $query = $em->createQuery(
+               'SELECT dr.id AS dr_id
+                FROM ODRAdminBundle:DataRecord AS dr
+                WHERE dr.deletedAt IS NULL AND dr.dataType = :datatype'
+            )->setParameters(array('datatype' => $datatype->getId()));
+            $remaining = $query->getArrayResult();
+
+            if ( count($remaining) > 0 ) {
+                $search_key = $search_key_service->encodeSearchKey(
+                    array(
+                        'dt_id' => $datatype->getId()
+                    )
+                );
+
+                // If at least one datarecord remains, redirect to the search results list
+                $preferred_theme_id = $ti_service->getPreferredTheme($user, $datatype->getId(), 'search_results');
+                $url = $this->generateUrl(
+                    'odr_search_render',
+                    array(
+                        'search_theme_id' => $preferred_theme_id,
+                        'search_key' => $search_key
+                    )
+                );
+            }
+            else {
+                // ...otherwise, return to the list of datatypes
+                $url = $this->generateUrl('odr_list_types', array('section' => 'databases'));
+            }
+
+            $return['d'] = array('redirect_url' => $url);
+        }
+        catch (\Exception $e) {
+            // Don't commit changes if any error was encountered...
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollBack();
+
+            $source = 0xd3f22684;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else

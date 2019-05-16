@@ -325,6 +325,8 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -362,6 +364,12 @@ class EditController extends ODRCustomController
             if ( !$pm_service->canDeleteDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+
+            // ----------------------------------------
+            // NOTE - changes here should also be made in MassEditController::massDeleteAction()
+            // ----------------------------------------
+
 
             // Store whether this was a deletion for a top-level datarecord or not
             $is_top_level = true;
@@ -484,8 +492,18 @@ class EditController extends ODRCustomController
             if ( !$is_top_level )
                 $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
 
-            // Delete other search cache entries affected by this
+            // Delete all cache entries that could reference the datarecords that were just deleted
             $search_cache_service->onDatarecordDelete($datatype);
+            // Force anything that linked to this datatype to rebuild link entries since at least
+            //  one record got deleted
+            $search_cache_service->onLinkStatusChange($datatype);
+
+            // Force a rebuild of the cache entries for each datarecord that linked to the records
+            //  that just got deleted
+            foreach ($ancestor_datarecord_ids as $num => $dr_id) {
+                $cache_service->delete('cached_datarecord_'.$dr_id);
+                $cache_service->delete('cached_table_data_'.$dr_id);
+            }
 
 
             // ----------------------------------------
