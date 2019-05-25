@@ -3158,6 +3158,8 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $emm_service */
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
@@ -3496,7 +3498,7 @@ class DisplaytemplateController extends ODRCustomController
                     }
 
                     if ($check_image_sizes)
-                        parent::ODR_checkImageSizes($em, $user, $datafield);
+                        $ec_service->createImageSizes($user, $datafield);
 
                     if ($migrate_data)
                         self::startDatafieldMigration($em, $user, $datafield, $old_fieldtype, $new_fieldtype);
