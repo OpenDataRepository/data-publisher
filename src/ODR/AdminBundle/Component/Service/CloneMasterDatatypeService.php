@@ -24,6 +24,7 @@ use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\GroupDatafieldPermissions;
 use ODR\AdminBundle\Entity\GroupDatatypePermissions;
+use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\RenderPluginMap;
@@ -620,6 +621,27 @@ class CloneMasterDatatypeService
             $this->df_mapping[ $parent_df->getId() ] = $new_df;
 
             $this->logger->info('CloneDatatypeService: copied master datafield '.$parent_df->getId().' "'.$parent_df->getFieldName().'" into new datafield');
+
+            // If the new datafield is an Image field, ensure it has ImageSize entries...
+            if ( $new_df->getFieldType()->getTypeName() === 'Image' ) {
+                /** @var ImageSizes[] $image_sizes */
+                $image_sizes = $parent_df->getImageSizes();
+                foreach ($image_sizes as $image_size) {
+                    // ...by cloning each of the master datafield's image size entities
+                    $new_image_size = clone $image_size;
+                    $new_image_size->setDataField($new_df);
+
+                    // Don't flush immediately...
+                    self::persistObject($new_image_size, true);
+
+                    // NOTE - can't use EntityCreationService::createImageSizes() because that
+                    //  function will load $master_df's ImageSize entities instead of realizing that
+                    //  $new_df doesn't have any...has to do with doctrine still thinking
+                    //  $new_df->getId() === $master_df->getId() prior to the first flush
+                }
+
+                $this->logger->info('CloneDatatypeService: >> created ImageSize entries for new datafield "'.$new_df->getFieldName().'"');
+            }
 
             // Need to update datatype meta to point to correct fields
             // Set the DatatypeMeta External ID field

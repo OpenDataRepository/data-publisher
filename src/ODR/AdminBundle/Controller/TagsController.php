@@ -346,6 +346,8 @@ class TagsController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ODRTabHelperService $tab_helper_service */
+            $tab_helper_service = $this->container->get('odr.tab_helper_service');
             /** @var TagHelperService $th_service */
             $th_service = $this->container->get('odr.tag_helper_service');
 
@@ -411,7 +413,10 @@ class TagsController extends ODRCustomController
                 if ($line === '')
                     continue;
 
-                $new_tags = explode($post['tag_hierarchy_delimiter'], $line);
+                $new_tags = array($line);
+                if ( $datafield->getTagsAllowMultipleLevels() )
+                    $new_tags = explode($post['tag_hierarchy_delimiter'], $line);
+
                 foreach ($new_tags as $num => $tag) {
                     // TODO - other errors?
                     $tag = trim($tag);
@@ -441,11 +446,12 @@ class TagsController extends ODRCustomController
                 $df_array = $dt_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
                 // Convert any existing tags into a slightly different format
-                $stacked_tag_array = self::convertTagsForListImport($df_array['tags']);
+                $stacked_tag_array = $th_service->convertTagsForListImport($df_array['tags']);
 
                 // Splice this tag into the stacked array of existing tags
+                $would_create_new_tag = false;
                 foreach ($posted_tags as $num => $new_tags)
-                    $stacked_tag_array = self::insertTagsForListImport($stacked_tag_array, $new_tags);
+                    $stacked_tag_array = $th_service->insertTagsForListImport($stacked_tag_array, $new_tags, $would_create_new_tag);
 
                 // Ensure the tags are sorted by name
                 $th_service->orderStackedTagArray($stacked_tag_array, true);
@@ -457,12 +463,14 @@ class TagsController extends ODRCustomController
                 if ( $session->has('tag_import_lists') )
                     $tag_import_lists = $session->get('tag_import_lists');
 
-                /** @var ODRTabHelperService $tab_helper_service */
-                $tab_helper_service = $this->container->get('odr.tab_helper_service');
-                $token = $tab_helper_service->createTabId();
-                $tag_import_lists[$token] = $posted_tags;
+                // Don't bother storing the tag list if nothing would get changed on import
+                $token = '';
+                if ( $would_create_new_tag ) {
+                    $token = $tab_helper_service->createTabId();
+                    $tag_import_lists[$token] = $posted_tags;
 
-                $session->set('tag_import_lists', $tag_import_lists);
+                    $session->set('tag_import_lists', $tag_import_lists);
+                }
 
 
                 // Render and return the given tag list as HTML so it can be verified
@@ -470,6 +478,7 @@ class TagsController extends ODRCustomController
                     'html' => $templating->render(
                         'ODRAdminBundle:Tags:tag_import_validate.html.twig',
                         array(
+                            'would_create_new_tag' => $would_create_new_tag,
                             'stacked_tags' => $stacked_tag_array,
 
                             'datafield_id' => $datafield->getId(),
@@ -503,85 +512,6 @@ class TagsController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * Takes an existing stacked tag array from a cached_datatype_array entry, and converts it into
-     * a stacked array where the tags are organized by tag names instead of tag ids.
-     *
-     * Only saves the minimal set of entries required to render the tag list later on.
-     *
-     * @param array $stacked_tags
-     *
-     * @return array
-     */
-    private function convertTagsForListImport($stacked_tags)
-    {
-        $stacked_tag_array = array();
-        foreach ($stacked_tags as $tag_id => $tag_entry) {
-            $tag = array(
-                'id' => $tag_id,
-                'tagMeta' => array(
-                    'tagName' => $tag_entry['tagMeta']['tagName'],
-                ),
-                'tagUuid' => $tag_entry['tagUuid'],
-            );
-
-            if ( isset($tag_entry['children']) )
-                $tag['children'] = self::convertTagsForListImport($tag_entry['children']);
-
-            // Acceptable to store tags by name here, since none of its siblings *should* have the
-            //  exact same name...
-            $stacked_tag_array[ $tag_entry['tagName'] ] = $tag;
-        }
-
-        return $stacked_tag_array;
-    }
-
-
-    /**
-     * Splices an array of tags the user has provided into the existing tags for a datafield.
-     *
-     * @param array $existing_tag_array @see self::convertTagsForListImport()
-     * @param array $new_tags
-     *
-     * @return array
-     */
-    private function insertTagsForListImport($existing_tag_array, $new_tags)
-    {
-        $tag_name = $new_tags[0];
-        if ( !isset($existing_tag_array[$tag_name]) ) {
-            // A tag with this name doesn't exist at this level yet
-
-            // Twig needs an ID, but don't really care what it is...not going to interact with it
-            $uuid = UniqueUtility::uniqueIdReal();
-
-            // Acceptable to store tags by name here, since none of its siblings *should* have the
-            //  exact same name...
-            $existing_tag_array[$tag_name] = array(
-                'id' => $uuid,
-                'tagMeta' => array(
-                    'tagName' => $tag_name
-                ),
-//                'tagUuid' => $uuid,    // Don't need this just for rendering
-            );
-        }
-
-        // If there are more children/grandchildren to the tag to add...
-        if ( count($new_tags) > 1 ) {
-            // ...get any children the existing tag already has
-            $existing_child_tags = array();
-            if ( isset($existing_tag_array[$tag_name]['children']) )
-                $existing_child_tags = $existing_tag_array[$tag_name]['children'];
-
-            // This level has been processed, move on to its children
-            $new_tags = array_slice($new_tags, 1);
-            $existing_tag_array[$tag_name]['children'] =
-                self::insertTagsForListImport($existing_child_tags, $new_tags);
-        }
-
-        return $existing_tag_array;
     }
 
 
@@ -620,6 +550,8 @@ class TagsController extends ODRCustomController
             $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
+            /** @var TagHelperService $th_service */
+            $th_service = $this->container->get('odr.tag_helper_service');
 
 
             /** @var DataFields $datafield */
@@ -716,7 +648,7 @@ class TagsController extends ODRCustomController
             // Going to need a stacked array version of the tags to combine with the posted data
             $dt_array = $dti_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);
             $df_array = $dt_array[$datatype->getId()]['dataFields'][$datafield->getId()];
-            $stacked_tag_array = self::convertTagsForListImport($df_array['tags']);
+            $stacked_tag_array = $th_service->convertTagsForListImport($df_array['tags']);
 
             // Splice each of the posted tag trees into the existing stacked tag structure
             // Flushing is delayed until the updateDatafieldMeta() call
@@ -776,7 +708,7 @@ class TagsController extends ODRCustomController
 
 
     /**
-     * Takes a tag
+     * TODO -
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param EntityCreationService $ec_service
@@ -786,7 +718,8 @@ class TagsController extends ODRCustomController
      *                                   their uuids
      * @param array $all_tag_uuids
      * @param array $stacked_tag_array @see self::convertTagsForListImport()
-     * @param array $posted_tags
+     * @param array $posted_tags A flat array of the tag(s) that may end up being inserted into the
+     *                           datafield...top level tag at index 0, its child at 1, etc
      * @param Tags|null $parent_tag
      *
      * @return array
@@ -801,9 +734,10 @@ class TagsController extends ODRCustomController
             $current_tag = $hydrated_tag_array[$tag_uuid];
         }
         else {
-            // A tag with this name doesn't exist at this level yet
+            // A tag with this name doesn't exist at this level...create a new tag for it
+            $force_create = true;
             $delay_uuid = true;
-            $current_tag = $ec_service->createTag($user, $datafield, true, $tag_name, $delay_uuid);
+            $current_tag = $ec_service->createTag($user, $datafield, $force_create, $tag_name, $delay_uuid);
 
             // Generate a new uuid for this tag...
             $new_tag_uuid = UniqueUtility::uniqueIdReal();
@@ -825,7 +759,8 @@ class TagsController extends ODRCustomController
             );
 
 
-            // If the parent tag isn't null, then a new TagTree entry also needs to be created
+            // If the parent tag isn't null, then this new tag also needs a new TagTree entry to
+            //  insert it at the correct spot in the tag hierarchy
             if ( !is_null($parent_tag) ) {
                 // TODO - ...createTagTree() needs a flush before, or the lock file doesn't have all the info it needs to lock properly
 //                $ec_service->createTagTree($user, $parent_tag, $new_tag);

@@ -691,7 +691,7 @@ class LinkController extends ODRCustomController
             $tracked_job->setCurrent(0);
             $tracked_job->setStarted(new \DateTime());
             $tracked_job->setTargetEntity('datatype_' . $local_datatype_id);
-            $tracked_job->setAdditionalData('');
+            $tracked_job->setAdditionalData( array() );
             $em->persist($tracked_job);
 
             // Save all the changes that were made

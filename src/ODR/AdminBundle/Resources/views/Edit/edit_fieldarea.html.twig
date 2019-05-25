@@ -5,26 +5,27 @@
 {% set datarecord = datarecord_array[target_datarecord_id] %}
 {% set datarecord_meta = datarecord.dataRecordMeta %}
 
-{% set can_edit_record = 0 %}
+{% set can_edit_record = false %}
 {% if datatype_permissions[ datatype.id ] is defined
     and datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
-    {% set can_edit_record = 1 %}
+    {% set can_edit_record = true %}
 {% endif %}
-{% set can_delete_record = 0 %}
+{% set can_delete_record = false %}
 {% if datatype_permissions[ datatype.id ] is defined
     and datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
-    {% set can_delete_record = 1 %}
+    {% set can_delete_record = true %}
 {% endif %}
-{% set is_datatype_admin = 0 %}
+{% set is_datatype_admin = false %}
 {% if datatype_permissions[ datatype.id ] is defined
     and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
-    {% set is_datatype_admin = 1 %}
+    {% set is_datatype_admin = true %}
 {% endif %}
 
 {#
 --------------------</br>
 can_add_record: {{ can_add_record }}</br>
 can_edit_record: {{ can_edit_record }}</br>
+is_datatype_admin: {{ is_datatype_admin }}</br>
 is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
 --------------------</br>
 #}
@@ -50,12 +51,12 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
         <span rel="{{ datatype.id }}">
             <i
                 id="datarecord_{{ datarecord.id }}_public"
-                class="tooltip fa fa-globe {% if datarecord_meta.publicDate|is_public %}ODRActiveIcon{% endif %} {% if is_link == 0 and can_edit_record == 1 %}Pointer ODRPublicChildRecord{% endif %}"
+                class="tooltip fa fa-globe {% if datarecord_meta.publicDate|is_public %}ODRActiveIcon{% endif %} {% if is_link == 0 and can_edit_record %}Pointer ODRPublicChildRecord{% endif %}"
                 title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord_meta.publicDate|is_public %}not {% endif %}Public"
                 rel="{{ datarecord.id }}"
             ></i>
 
-        {% if is_link == 0 and can_delete_record == 1 %}
+        {% if is_link == 0 and can_delete_record %}
             <i
                 class="Pointer tooltip fa fa-times ODRDeleteChildRecord"
                 title="Delete Record"
@@ -63,7 +64,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
             ></i>
         {% endif %}
 
-        {% if is_link == 1 and can_edit_record == 1 %}
+        {% if is_link == 1 and can_edit_record %}
             <a
                 target="_blank"
                 class="Pointer"

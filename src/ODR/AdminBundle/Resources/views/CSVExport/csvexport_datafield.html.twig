@@ -3,7 +3,6 @@
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set field_typename = datafield_meta.fieldType.typeName %}
 
-{% if field_typename != "File" and field_typename != "Image" %}
 <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datafield.id }}" >
     {% set classes = 'ODRCSVExport' %}
     {% if field_typename != 'Markdown' %}
@@ -11,7 +10,9 @@
         {% set classes = classes ~ ' ODROverlayDiv Pointer ODRUnselectedDatafield' %}
     {% endif %}
 
-    {% if field_typename == 'Multiple Radio' or field_typename == 'Multiple Select' %}
+    {% if field_typename == 'File' or field_typename == 'Image' %}
+        {% set classes = classes ~ ' ODRExportFileImageField' %}
+    {% elseif field_typename == 'Multiple Radio' or field_typename == 'Multiple Select' %}
         {% set classes = classes ~ ' ODRExportRadioField' %}
     {% elseif field_typename == 'Tags' %}
         {% set classes = classes ~ ' ODRExportTagField' %}
@@ -25,7 +26,6 @@
 
     <form id="Form_DataField_{{ datafield.id }}" class="pure-u-1">
     <input type="hidden" name="theme_field_id" value="{{ theme_datafield.id }}" />
-{% endif %}
 
     {% if field_typename == "Boolean" %}
     <fieldset>
@@ -33,6 +33,52 @@
             <input type="checkbox" name="" disabled>
             {{ datafield_meta.fieldName }}
         </label>
+    </fieldset>
+
+    {% elseif field_typename == "File" %}
+    <div class="ODRFileDatafield">
+        <div class="ODRFileDatafield_header pure-u-1">
+            <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
+
+            <span id="ODRDataField_{{ datafield.id }}" title="{{ datafield_meta.description }}">
+                <span id="ODRDatafield_{{ datafield.id }}_name" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</span>
+            </span>
+        </div>
+        <div class="ODRFileDatafield_file pure-u-1">
+            <span class="ODRFileSpacer ODRFileSpacer_nonpublic">&nbsp;</span>
+
+            <span class="ODRTruncateFilename">
+                <span class="ODRFileInfoDiv">
+                    <i class="fa fa-lg fa-info-circle"></i>
+                    <span class="ODRFileInfo">
+                        <div>
+                            <i class="fa fa-globe ODRPublicFile"></i>&nbsp;
+                        </div>
+                        <div>
+                            <i class="fa fa-calendar"></i>&nbsp;
+                            Uploaded Unknown Date by Unknown
+                        </div>
+                        <div>
+                            <i class="fa fa-file-o"></i>&nbsp;
+                            0 bytes
+                        </div>
+                    </span>
+                </span>
+                <a class="ODRFileDownload" title="File Name Here" rel="-1">File Name Here</a>
+            </span>
+        </div>
+    </div>
+
+    {% elseif field_typename == "Image" %}
+    <fieldset>
+        <span class="pure-u-1">
+            <h3 id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">
+                <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield_meta.fieldName }}</span>
+            </h3>
+        </span>
+        <div class="pure-u-1">
+            <img class="pure-img" src="/img/blank.jpg" />
+        </div>
     </fieldset>
 
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Paragraph Text" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
@@ -122,8 +168,6 @@
     {% endif %}
     </form>
 
-{% if field_typename != "File" and field_typename != "Image" %}
 </div><!-- End of #Field_{{ datafield.id}} -->
-{% endif %}
 
 {% endspaceless %}

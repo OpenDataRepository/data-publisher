@@ -198,6 +198,12 @@
     {% elseif field_typename == "Tags" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1{% if is_datatype_admin %} Pointer{% endif %}">
+            {% if is_datatype_admin %}
+                <span style="margin-left: 10px;">
+                <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+            </span>
+            {% endif %}
+
             <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
         </label>
         {% if datafield.tags is defined %}

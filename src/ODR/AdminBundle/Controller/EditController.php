@@ -325,6 +325,8 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $pm_service */
@@ -362,6 +364,12 @@ class EditController extends ODRCustomController
             if ( !$pm_service->canDeleteDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+
+            // ----------------------------------------
+            // NOTE - changes here should also be made in MassEditController::massDeleteAction()
+            // ----------------------------------------
+
 
             // Store whether this was a deletion for a top-level datarecord or not
             $is_top_level = true;
@@ -484,8 +492,18 @@ class EditController extends ODRCustomController
             if ( !$is_top_level )
                 $dri_service->updateDatarecordCacheEntry($parent_datarecord, $user);
 
-            // Delete other search cache entries affected by this
+            // Delete all cache entries that could reference the datarecords that were just deleted
             $search_cache_service->onDatarecordDelete($datatype);
+            // Force anything that linked to this datatype to rebuild link entries since at least
+            //  one record got deleted
+            $search_cache_service->onLinkStatusChange($datatype);
+
+            // Force a rebuild of the cache entries for each datarecord that linked to the records
+            //  that just got deleted
+            foreach ($ancestor_datarecord_ids as $num => $dr_id) {
+                $cache_service->delete('cached_datarecord_'.$dr_id);
+                $cache_service->delete('cached_table_data_'.$dr_id);
+            }
 
 
             // ----------------------------------------
@@ -2951,7 +2969,8 @@ class EditController extends ODRCustomController
 
 
     /**
-     * Builds an array of all prior values of the given datafield, to serve as a both display of field history and a reversion dialog.
+     * Builds an array of all prior values of the given datafield, to serve as a both display of
+     * field history and a reversion dialog.
      *
      * @param integer $datarecord_id
      * @param integer $datafield_id
@@ -2966,8 +2985,6 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            throw new ODRNotImplementedException();
-
             // ----------------------------------------
             // Get Entity Manager and setup repositories
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2995,7 +3012,7 @@ class EditController extends ODRCustomController
             // Ensure user has permissions to be doing this
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
 
             if ( !$pm_service->canEditDatafield($user, $datafield, $datarecord) )
@@ -3005,9 +3022,17 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Don't check field history of certain fieldtypes
+            $invalid_typeclasses = array(
+                'File' => 0,
+                'Image' => 0,
+                'Markdown' => 0,
+                'Radio' => 0,
+                'Tag' => 0
+            );
+
             $typeclass = $datafield->getFieldType()->getTypeClass();
-            if ($typeclass == 'File' || $typeclass == 'Image' || $typeclass == 'Markdown' || $typeclass == 'Radio')
-                throw new \Exception('Unable to view history of a '.$typeclass.' datafield, for now');
+            if ( isset($invalid_typeclasses[$typeclass]) )
+                throw new ODRException('Unable to view history of a '.$typeclass.' datafield');
 
 
             // Grab all fieldtypes that the datafield has been
@@ -3025,7 +3050,7 @@ class EditController extends ODRCustomController
             foreach ($results as $result) {
                 $typeclass = $result['type_class'];
 
-                if ( $typeclass !== 'File' && $typeclass !== 'Image' && $typeclass !== 'Markdown' && $typeclass !== 'Radio' )
+                if ( !isset($invalid_typeclasses[$typeclass]) )
                     $all_typeclasses[] = $typeclass;
             }
 
@@ -3039,7 +3064,12 @@ class EditController extends ODRCustomController
                     JOIN ODRAdminBundle:FieldType AS ft WITH e.fieldType = ft
                     JOIN ODROpenRepositoryUserBundle:User AS created_by WITH e.createdBy = created_by
                     WHERE e.dataRecord = :datarecord_id AND e.dataField = :datafield_id'
-                )->setParameters( array('datarecord_id' => $datarecord->getId(), 'datafield_id' => $datafield->getId()) );
+                )->setParameters(
+                    array(
+                        'datarecord_id' => $datarecord->getId(),
+                        'datafield_id' => $datafield->getId()
+                    )
+                );
                 $results = $query->getArrayResult();
 
                 foreach ($results as $result) {
@@ -3051,11 +3081,17 @@ class EditController extends ODRCustomController
                     if ( $result['firstName'] !== '' && $result['lastName'] !== '' )
                         $user_string = $result['firstName'].' '.$result['lastName'];
 
-                    $historical_values[] = array('value' => $value, 'user' => $user_string, 'created' => $created, 'typeclass' => $typeclass, 'typename' => $typename);
+                    $historical_values[] = array(
+                        'value' => $value,
+                        'user' => $user_string,
+                        'created' => $created,
+                        'typeclass' => $typeclass,
+                        'typename' => $typename
+                    );
                 }
             }
 
-            $em->getFilters()->enable('softdeleteable');    // Re-enable the softdeleteable filter
+            $em->getFilters()->enable('softdeleteable');    // Don't need to load deleted rows anymore
 
 
             // ----------------------------------------
@@ -3068,7 +3104,7 @@ class EditController extends ODRCustomController
                     return 1;
             });
 
-//print '<pre>'.print_r($historical_values, true).'</pre>';
+//exit( '<pre>'.print_r($historical_values, true).'</pre>' );
 
             // Filter the array so it doesn't list the same value multiple times in a row
             $previous_value = null;
@@ -3089,8 +3125,7 @@ class EditController extends ODRCustomController
             foreach ($historical_values as $num => $data)
                 $historical_values[$num]['version'] = ($num+1);
 
-//print '<pre>'.print_r($historical_values, true).'</pre>';
-//exit();
+//exit( '<pre>'.print_r($historical_values, true).'</pre>' );
 
             // Generate a csrf token to use if the user wants to revert back to an earlier value
             $current_typeclass = $datafield->getFieldType()->getTypeClass();

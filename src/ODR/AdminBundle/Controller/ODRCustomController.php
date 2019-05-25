@@ -723,7 +723,7 @@ class ODRCustomController extends Controller
 
         $tracked_job->setStarted(null);
 
-        $tracked_job->setAdditionalData( json_encode($additional_data) );
+        $tracked_job->setAdditionalData($additional_data);
         $tracked_job->setRestrictions($restrictions);
 
         $tracked_job->setCompleted(null);
@@ -1009,7 +1009,7 @@ class ODRCustomController extends Controller
 
         // Create Thumbnails
         /** @var ImageSizes[] $sizes */
-        $sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataFields' => $my_obj->getDataField()->getId()) );
+        $sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataField' => $my_obj->getDataField()->getId()) );
 
         foreach ($sizes as $size) {
             // Set original

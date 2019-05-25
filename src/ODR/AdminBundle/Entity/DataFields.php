@@ -88,6 +88,11 @@ class DataFields
     private $groupDatafieldPermissions;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $imageSizes;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataFields
      */
     private $masterDataField;
@@ -124,6 +129,7 @@ class DataFields
         $this->radioOptions = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataFieldMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->groupDatafieldPermissions = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->imageSizes = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -521,6 +527,40 @@ class DataFields
     public function getGroupDatafieldPermissions()
     {
         return $this->groupDatafieldPermissions;
+    }
+
+    /**
+     * Add imageSize
+     *
+     * @param \ODR\AdminBundle\Entity\ImageSizes $imageSize
+     *
+     * @return DataFields
+     */
+    public function addImageSize(\ODR\AdminBundle\Entity\ImageSizes $imageSize)
+    {
+        $this->imageSizes[] = $imageSize;
+
+        return $this;
+    }
+
+    /**
+     * Remove imageSize
+     *
+     * @param \ODR\AdminBundle\Entity\ImageSizes $imageSize
+     */
+    public function removeImageSize(\ODR\AdminBundle\Entity\ImageSizes $imageSize)
+    {
+        $this->imageSizes->removeElement($imageSize);
+    }
+
+    /**
+     * Get imageSizes
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getImageSizes()
+    {
+        return $this->imageSizes;
     }
 
     /**

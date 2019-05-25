@@ -11,7 +11,7 @@
 
 <hr>
     <div>
-        <span>&nbsp;Column to map to the External ID Datafield "{{ parent_datatype.getexternalidfield.getfieldname }}" for the {% if linked_importing %}local{% else %}parent{% endif %} Datatype "{{ parent_datatype.getshortname }}": </span>
+        <span>Column to map to the External ID Datafield "{{ parent_datatype.getexternalidfield.getfieldname }}" for the {% if linked_importing %}local{% else %}parent{% endif %} Datatype "{{ parent_datatype.getshortname }}": </span>
         <select name="parent_external_id_column" id="parent_external_id_column">
             <option value="">Select a column...</option>
         {% for column_id, column_name in columns %}
@@ -39,20 +39,20 @@
     $(function() {
 
         $("#parent_external_id_column").unbind('change').change(function() {
-            if ( $(this).val() == '' )
+            if ( $(this).val() === '' )
                 $("#parent_external_id_warning").show();
             else
                 $("#parent_external_id_warning").hide();
 
             // This parent_external_id selection is currently the only way the import checkboxes can get disabled
-            $(".import_checkbox").removeAttr('disabled');
+            $(".import_checkbox").prop('disabled', false);
             disableColumn( $(this).val() );
         });
 
     {% if presets != null %}
         $("#parent_external_id_column").val( {{ presets.parent_external_id_column }} );
         $("#parent_external_id_column").trigger('change');
-        $("#parent_external_id_column").attr('disabled', 'disabled');
+        $("#parent_external_id_column").prop('disabled', true);
     {% endif %}
 
 {% if linked_importing %}
@@ -67,7 +67,7 @@
     {% if presets != null %}
         $("#remote_external_id_column").val( {{ presets.remote_external_id_column }} );
         $("#remote_external_id_column").trigger('change');
-        $("#remote_external_id_column").attr('disabled', 'disabled');
+        $("#remote_external_id_column").prop('disabled', true);
     {% endif %}
 {% endif %}
     });
@@ -78,7 +78,7 @@
             $("#import_checkbox_" + column_id).trigger('click');
 
         // Disable it so it can't be checked
-        $("#import_checkbox_" + column_id).attr('disabled', 'disabled');
+        $("#import_checkbox_" + column_id).prop('disabled', true);
     }
 
 </script>

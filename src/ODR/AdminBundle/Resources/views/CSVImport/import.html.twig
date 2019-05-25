@@ -66,15 +66,14 @@
 
             <div class="pure-control-group">
                 <label for="delimiter_select" style="width:13em;">Delimiter for CSV File:</label>
-                <select name="csv_delimiter" id="delimiter_select" {% if upload_type == '' %}disabled{% endif %}>
-                    <option value="">Select a delimiter...</option>
-                    <option value="tab">{tab}</option>
-                    <option value="space">{space}</option>
-                    <option value="comma">{comma}</option>
-                    <option value="semicolon">{semicolon}</option>
-                    <option value="colon">{colon}</option>
-                    <option value="pipe">{pipe}</option>
+                <select id="delimiter_select" {% if upload_type == '' %}disabled{% endif %}>
+                    <option rel="">Select a delimiter...</option>
+                    <option rel=",">{comma}</option>
+                    <option rel="tab">{tab}</option>
+                    <option rel="">{other}</option>
                 </select>
+                &nbsp;
+                <input type="text" name="csv_delimiter" id="delimiter_field" class="ODRDelimiterField" maxlength="1" size="3" />
             </div>
         </fieldset>
 
@@ -109,6 +108,33 @@
     </div>
 </div>
 
+{% if presets != null and resulting_tag_arrays|length > 0 %}
+<div class="ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer" style="margin-top:15px;">
+    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <span style="float: right;"><i class="fa fa-lg fa-caret-down"></i></span>
+        <a>Resulting Tag structure</a>
+    </h3>
+</div>
+<div class="content ODRContentWrapper" style="margin: 10px;">
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox">
+            {% for col_num, stacked_tag_array in resulting_tag_arrays %}
+            <div class="ODRDataField pure-u-1-2">
+                <fieldset>
+                    <label id="Label_{{ col_num }}" class="ODRFieldLabel pure-u-1">
+                        <span id="ODRDatafield_{{ col_num }}_name" style="margin-left:10px; font-weight: bold;">{{ columns[col_num] }}</span>
+                    </label>
+                    {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
+                        'stacked_tags': stacked_tag_array,
+                    } %}
+                </fieldset>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if presets != null %}
 <div class="ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer" style="margin-top:15px;">
     <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
@@ -138,14 +164,18 @@
         $("#childtype_single_import_warning").hide();
         $("#childtype_multiple_import_warning").hide();
         $("#invalid_linked_datatype_warning").hide();
+        $("#delimiter_field").hide();
 
     {% if presets == null %}
         $("#delimiter_select").unbind('change').change(function() {
-            delimiterChanged( $(this).val() );
-            if ( $(this).val() == "" || $("#target_datatype").children(':selected').attr('rel') == 'invalid link' )
-                $("#file_upload_div").hide();
-            else
-                $("#file_upload_div").show();
+            var char = $(this).children(':selected').first().attr('rel');
+            $("#delimiter_field").val(char);
+            delimiterChanged(char);
+        });
+
+        $("#delimiter_field").unbind('keyup paste').on('keyup paste', function() {
+            var char = $(this).val();
+            delimiterChanged(char);
         });
 
         $("#target_datatype").unbind('change').change(function() {
@@ -187,32 +217,29 @@
         }
         {% endif %}
 
-        var delimiter = "{{ presets.delimiter }}";
-        switch (delimiter) {
-            case "\t":
-                delimiter = "tab";
-                break;
-            case " ":
-                delimiter = "space";
-                break;
-            case ",":
-                delimiter = "comma";
-                break;
-            case ";":
-                delimiter = "semicolon";
-                break;
-            case ":":
-                delimiter = "colon";
-                break;
-            case "|":
-                delimiter = "pipe";
-                break;
-        }
 
-        $("#delimiter_select").val(delimiter);
+        var delimiter = "{{ presets.delimiter }}";
+        if (delimiter === ',') {
+            $("#delimiter_select").children('option').each(function() {
+                if ( $(this).attr('rel') === ',')
+                    $(this).prop('selected', true);
+            });
+        }
+        else if (delimiter === "\t") {
+            delimiter = "tab";
+            $("#delimiter_select").children('option').each(function() {
+                if ( $(this).attr('rel') === 'tab')
+                    $(this).prop('selected', true);
+            });
+        }
+        else {
+            $("#delimiter_select").children('option').last().prop('selected', true);
+            $("#delimiter_field").show();
+        }
+        $("#delimiter_field").val(delimiter);
+
 
         $(".ODRCSVImportHeader").next().hide();
-
         $(".ODRCSVImportHeader").unbind('click').click(function() {
             if ( $(this).next().is(':hidden') ) {
                 $(this).next().show();
@@ -278,13 +305,24 @@
 
     function delimiterChanged(delimiter) {
 
-        var url = '{{ path('odr_csv_import_delimiter_changed', {'delimiter': ''}) }}';
-        url += delimiter;
+        if ( delimiter === "" || $("#target_datatype").children(':selected').attr('rel') === 'invalid link' )
+            $("#file_upload_div").hide();
+        else
+            $("#file_upload_div").show();
+
+        if ( $("#delimiter_select").children(':selected').html() === '{other}' )
+            $("#delimiter_field").show();
+        else
+            $("#delimiter_field").hide();
+
+        var url = '{{ path('odr_csv_import_delimiter_changed') }}';
+        var data = $("#delimiter_field").serialize();
 
         $.ajax({
             cache: false,
-            type: 'GET',
+            type: 'POST',
             url: url,
+            data: data,
             dataType: 'json',
             success: function(data, textStatus, jqXHR) {
                 // Don't need to do anything specific on success

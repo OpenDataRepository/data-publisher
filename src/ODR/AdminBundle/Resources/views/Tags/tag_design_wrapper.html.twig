@@ -225,8 +225,6 @@
         });
     }
 
-{# inverse of allow_multiple_levels == false and sort_by_name == true #}
-{% if allow_multiple_levels == true or sort_by_name == false %}
     var reordering_tags = false;
     function clearTagHighlights() {
         reordering_tags = false;
@@ -239,6 +237,8 @@
         });
     }
 
+{# inverse of allow_multiple_levels == false and sort_by_name == true #}
+{% if allow_multiple_levels == true or sort_by_name == false %}
     function ensureTagVisibility(element) {
         var pageTop = $('#ODRTagForm').offset().top;
         var pageBottom = pageTop + $('#ODRTagForm').height();

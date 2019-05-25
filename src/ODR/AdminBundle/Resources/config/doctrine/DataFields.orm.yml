@@ -100,6 +100,13 @@ ODR\AdminBundle\Entity\DataFields:
             inversedBy: null
             orphanRemoval: false
 
+        imageSizes:
+            targetEntity: ImageSizes
+            cascade: {  }
+            mappedBy: dataField
+            inversedBy: null
+            orphanRemoval: false
+
     manyToOne:
         # TODO These will probably need to be moved to map tables
         # so that child types can be re-used across multiple master

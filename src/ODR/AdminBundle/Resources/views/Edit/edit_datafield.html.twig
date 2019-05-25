@@ -74,10 +74,6 @@
     >
 
         <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
-{#
-        <input type="hidden" name="{{ field_typeclass }}Form_datarecord" value="{{ datarecord.id }}" />
-        <input type="hidden" name="{{ field_typeclass }}Form_datafield" value="{{ datafield.id }}" />
-#}
 
     {% if field_typename == "Boolean" %}
         <fieldset>
@@ -91,7 +87,10 @@
                         value="1"
                         {% if valuefield_value == 1 %}checked{% endif %}
                     />
-                    <span class="ODRDatafieldHistory">{{ datafield_meta.fieldName }}</span>
+                    &nbsp;{{ datafield_meta.fieldName }}
+                    {% if is_datatype_admin %}
+                    &nbsp;&nbsp;<i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>
+                    {% endif %}
                 </div>
             </label>
         </fieldset>
@@ -169,7 +168,12 @@
 
     {% elseif field_typename == "Paragraph Text" %}
         <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
+                {% if is_datatype_admin %}
+                <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
+                {% endif %}
+                {{ datafield_meta.fieldName }}
+            </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <textarea
                     id="{{ input_id }}"
@@ -184,7 +188,12 @@
 
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
         <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
+                {% if is_datatype_admin %}
+                <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
+                {% endif %}
+                {{ datafield_meta.fieldName }}
+            </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <input
                     {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
@@ -202,7 +211,7 @@
     {#{% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}#}
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
         <fieldset>
-            <label class="ODRRadioField ODRFieldLabel {#ODRDatafieldHistory#} pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            <label class="ODRRadioField ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
 
             {% set print_null_option = false %}
             {% set has_selection = false %}
@@ -265,7 +274,7 @@
     {#{% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}#}
     {% elseif field_typename == "Single Select" %}
         <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel {#ODRDatafieldHistory#} pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            <label for="{{ input_id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
 
             <select
                 {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
@@ -314,7 +323,12 @@
     {% elseif field_typename == "DateTime" %}
         {% set new_id = 'DatetimeValueForm_value_' ~ datafield.id %}
         <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
+                {% if is_datatype_admin %}
+                <i class="fa fa-history Pointer ODRDatafieldHistory" title="View history of {{ datafield_meta.fieldName }}"></i>&nbsp;
+                {% endif %}
+                {{ datafield_meta.fieldName }}
+            </label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <input
                     {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}

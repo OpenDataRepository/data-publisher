@@ -85,6 +85,7 @@ $output->writeln($data->url);
                     'datafield_mapping' => $data->datafield_mapping,
                     'fieldtype_mapping' => $data->fieldtype_mapping,
                     'column_delimiters' => $data->column_delimiters,
+                    'hierarchy_delimiters' => $data->hierarchy_delimiters,
                     'synch_columns' => $data->synch_columns,
 
                     // Only used when importing into a child/linked datatype

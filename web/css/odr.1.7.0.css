@@ -4035,3 +4035,28 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     font-size: 1.2em;
     font-weight: bold;
 }
+
+.csvimport_header {
+    margin: 10px 10px 10px 0px;
+}
+.csvimport_inline_warning {
+    position: relative;
+    top: -3px;
+}
+
+#csv_import_table {
+    font-size: 1.25em;
+}
+
+#ODRCSVImport_files button.pure-button {
+    margin: 5px;
+}
+
+#ODRFieldHistoryDialogTable {
+    padding-left: 25px;
+    text-align: left;
+    /*overflow: auto;*/
+
+    color: #555;
+    line-height: 1.6;
+}
