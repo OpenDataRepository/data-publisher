@@ -1126,14 +1126,11 @@ class DatatypeController extends ODRCustomController
      *
      * @param $master_datatype_id
      * @param int $datatype_id
-     *
-     */
-    /**
-     * @param $master_datatype_id
-     * @param int $datatype_id
      * @param null $admin
+     * @param bool $bypass_queue
+     * @return RedirectResponse
      */
-    public function direct_add_datatype($master_datatype_id, $datatype_id = 0, $admin = null)
+    public function direct_add_datatype($master_datatype_id, $datatype_id = 0, $admin = null, $bypass_queue = false)
     {
         $return = array();
         $return['r'] = 0;
@@ -1149,7 +1146,16 @@ class DatatypeController extends ODRCustomController
 
             /** @var DatatypeInfoService $dti_service */
             $dtc_service = $this->container->get('odr.datatype_create_service');
-            $datatype = $dtc_service->direct_add_datatype($master_datatype_id, $datatype_id, $admin);
+            $datatype = $dtc_service->direct_add_datatype(
+                $master_datatype_id,
+                $datatype_id,
+                $admin,
+                $bypass_queue,
+                $this->get('pheanstalk'),
+                $this->container->getParameter('memcached_key_prefix'),
+                $this->container->getParameter('beanstalk_api_key')
+
+            );
 
             // Forward to database properties page.
             $url = $this->generateUrl(

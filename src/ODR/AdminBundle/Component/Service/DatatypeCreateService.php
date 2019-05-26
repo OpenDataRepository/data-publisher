@@ -101,10 +101,20 @@ class DatatypeCreateService
      * @param int $datatype_id
      * @param null $admin
      * @param bool $bypass_queue
-     * @return DataType|null
+     * @param null $pheanstalk
+     * @param string $redis_prefix
+     * @param string $api_key
+     * @return mixed|DataType|null
      */
-    public function direct_add_datatype($master_datatype_id, $datatype_id = 0, $admin = null, $bypass_queue =  false)
-    {
+    public function direct_add_datatype(
+        $master_datatype_id,
+        $datatype_id = 0,
+        $admin = null,
+        $bypass_queue =  false,
+        $pheanstalk = null,
+        $redis_prefix = '',
+        $api_key = ''
+    ) {
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $this->em */
@@ -284,11 +294,10 @@ class DatatypeCreateService
                     // Send to pheanstalk
                     // ----------------------------------------
                     // If the datatype is being created from a master template...
-                    /*
                     // Start the job to create the datatype from the template
-                    $pheanstalk = $this->get('pheanstalk');
-                    $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-                    $api_key = $this->container->getParameter('beanstalk_api_key');
+                    //$pheanstalk = $context->get('pheanstalk');
+                    //$redis_prefix = $context->container->getParameter('memcached_key_prefix');
+                    //$api_key = $context->container->getParameter('beanstalk_api_key');
 
                     // Insert the new job into the queue
                     $priority = 1024;   // should be roughly default priority
@@ -308,7 +317,6 @@ class DatatypeCreateService
                     $payload = json_encode($params);
 
                     $pheanstalk->useTube('create_datatype_from_master')->put($payload, $priority, 0);
-                    */
                 }
             }
             /*
