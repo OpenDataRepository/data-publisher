@@ -274,7 +274,7 @@ class SearchQueryService
                 $unselected_datarecords[$dt_id] = array();
                 $selected_datarecords[$dt_id] = array();
             }
-            if ( !isset($unselected_datarecords[$dt_id][$df_id]) ) {
+            else if ( !isset($unselected_datarecords[$dt_id][$df_id]) ) {
                 $unselected_datarecords[$dt_id][$df_id] = $all_datarecord_ids[$dt_id];
                 $selected_datarecords[$dt_id][$df_id] = array();
             }

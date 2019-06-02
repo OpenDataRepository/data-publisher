@@ -17,6 +17,7 @@ class APIControllerTest extends WebTestCase
     public static $template_uuid = "2ea627b";
 
     public static $created_dataset = [];
+    public static $created_datarecord = [];
 
     public static $template_data = [];
 
@@ -173,7 +174,9 @@ class APIControllerTest extends WebTestCase
         $response = $cp->post($post_data);
         $code = $response['code'];
         ($debug ? fwrite(STDERR, 'Response Code: ' . $code . "\n") : '');
+        ($debug ? fwrite(STDERR, 'Dataset: ' . $response['response']) : '');
         $created_dataset = json_decode($response['response'], true);
+        ($debug ? fwrite(STDERR, 'Dataset: ' . print_r($created_dataset, true) . "\n") : '');
         self::$created_dataset = array(
             'user_email' => 'nancy.drew@detectivemysteries.com',
             'dataset' => $created_dataset
@@ -453,6 +456,269 @@ class APIControllerTest extends WebTestCase
         $this->assertTrue($code == 302);
     }
 
+    // get actual data record
+    public function testGetDataRecord()
+    {
+        $debug = ((getenv("DEBUG") == "DataRecordFile" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        self::$client = static::createClient();
+
+
+        $headers = self::$headers;
+        $headers['CONTENT_TYPE'] = 'application/json';
+
+        // Test that the outer frame loaded
+        ($debug ? fwrite(STDERR, "Getting template.\n") : '');
+        self::$client->request(
+            'GET',
+            self::$base_url . '/dataset/' . self::$created_dataset['dataset']['metadata_for_uuid'],
+            [],
+            [],
+            self::$headers
+        );
+
+        $content = self::$client->getResponse()->getContent();
+
+        // Show the actual content if debug enabled.
+        ($debug ? fwrite(STDERR, 'Content pulled: ' . $content . "\n") : '');
+
+        self::$created_datarecord = self::$created_dataset;
+        self::$created_datarecord['dataset'] = json_decode($content, true);
+
+        if (!is_array(self::$created_datarecord['dataset'])) {
+            ($debug ? fwrite(STDERR, $content) . "\n" : '');
+        }
+
+        // Should redirect to login
+        $this->assertTrue(isset(self::$created_datarecord['dataset']['record_uuid']));
+
+        if ($debug && isset(self::$created_datarecord['dataset']['record_uuid'])) {
+            fwrite(STDERR, "Record UUID:: " . self::$created_datarecord['dataset']['record_uuid'] . "\n");
+        }
+    }
+
+    public function testAddDataFile()
+    {
+
+        // Add Data File Record
+        $datafile_template =   '
+            {
+                "template_uuid":"823bb3f",
+                "fields":[
+                    {
+                        "template_field_uuid":"b65591cac0768fcb5af0232c68a8",
+                        "value":[
+                            {
+                                "template_radio_option_uuid":"0bf41a7ff126bf8e4bde561e931d",
+                                "selected":1
+                            }
+                        ]
+                    },
+                    {
+                        "template_field_uuid":"2e72d42aa1f1ae8552079cafe7ba",
+                        "value":[]
+                    },
+                    {
+                        "template_field_uuid":"3b971c0238b19bae0bf1b107d5f2",
+                        "value":[
+                            {
+                                "template_radio_option_uuid":"242a05dd3a123f284548d7f6af79",
+                                "selected":1
+                            }
+                        ]
+                    },
+                    {
+                        "template_field_uuid":"47f24cc0bd542e622657a433264a",
+                        "value":""
+                    },
+                    {
+                        "template_field_uuid":"ee18783b1f8bf4ad6a5f3175280b",
+                        "value":""
+                    },
+                    {
+                        "template_field_uuid":"fec69c009425dfcc5639a3692399",
+                        "value":""
+                    },
+                    {
+                        "template_field_uuid":"fc89cca0f3e561e5b48a10fa6fb0",
+                        "value":""
+                    }
+                ]
+            }';
+
+
+        $datafile_data = json_decode($datafile_template, true);
+
+        $debug = ((getenv("DEBUG") == "AddRecordFile" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        self::$client = static::createClient();
+
+        $headers[] = 'Authorization: Bearer ' . self::$token;
+        self::$created_datarecord['dataset']['records'][] = $datafile_data;
+
+        $put_data = json_encode(self::$created_datarecord);
+        $cp = new CurlUtility(
+            self::$base_url . '/dataset',
+            $headers,
+            false,
+            true,
+            __FUNCTION__
+        );
+
+        $response = $cp->put($put_data);
+        $code = json_decode($response['code'], true);
+        ($debug ? fwrite(STDERR, 'Updated Dataset: ' . $updated_dataset . "\n") : '');
+        ($debug ? fwrite(STDERR, 'Datarecord UUID: ' . self::$created_datarecord['dataset']['database_uuid'] . "\n") : '');
+
+        $this->assertTrue($code == 302);
+    }
+
+    // get actual data record
+    public function testUpdateDataRecord()
+    {
+        $debug = ((getenv("DEBUG") == "DataRecordFile" || getenv("DEBUG") == __FUNCTION__) ? true : false);
+        self::$client = static::createClient();
+
+
+        $headers = self::$headers;
+        $headers['CONTENT_TYPE'] = 'application/json';
+
+        // Test that the outer frame loaded
+        ($debug ? fwrite(STDERR, "Getting template.\n") : '');
+        self::$client->request(
+            'GET',
+            self::$base_url . '/dataset/' . self::$created_dataset['dataset']['metadata_for_uuid'],
+            [],
+            [],
+            self::$headers
+        );
+
+        $content = self::$client->getResponse()->getContent();
+
+        // Show the actual content if debug enabled.
+        ($debug ? fwrite(STDERR, 'Content pulled: ' . $content . "\n") : '');
+
+        self::$created_datarecord['dataset'] = json_decode($content, true);
+
+        if (!is_array(self::$created_datarecord['dataset'])) {
+            ($debug ? fwrite(STDERR, $content) . "\n" : '');
+        }
+
+        // Should redirect to login
+        $this->assertTrue(isset(self::$created_datarecord['dataset']['record_uuid']));
+
+        if ($debug && isset(self::$created_datarecord['dataset']['record_uuid'])) {
+            fwrite(STDERR, "Record UUID:: " . self::$created_datarecord['dataset']['record_uuid'] . "\n");
+        }
+    }
+
+    /**
+     * Post File with CURL
+     */
+    public function testDataRecordFile() {
+        $debug = (getenv("DEBUG") == "DataRecordFile" ? true: false);
+
+
+        // Figure out which record of datarecord is the new file placeholder
+
+        // initialise the curl request
+        // $request = curl_init(self::$base_url . '/file?XDEBUG_SESSION_START=phpstorm_xdebug');
+        $request = curl_init(self::$base_url . '/file');
+
+        // send a file
+        curl_setopt($request, CURLOPT_POST, true);
+
+        curl_setopt($request, CURLOPT_HTTPHEADER, array(
+            "Authorization: Bearer ". self::$token
+        ));
+
+        $file_name = '/home/nate/data-publisher/Henry_Fishing.jpg';
+        ($debug ? fwrite(STDERR, $file_name): '');
+
+        $curl_file = '@' . realpath($file_name);
+        if (function_exists('curl_file_create')) { // php 5.5+
+            $curl_file = curl_file_create($file_name);
+        }
+
+        ($debug ? fwrite(STDERR, 'dataset_uuid => ' . self::$created_datarecord['dataset']['records'][0]['database_uuid']): '');
+        ($debug ? fwrite(STDERR, 'record_uuid => ' . self::$created_datarecord['dataset']['records'][0]['record_uuid']): '');
+
+        curl_setopt(
+            $request,
+            CURLOPT_POSTFIELDS,
+            array(
+                'name' => 'Test File Name',
+                'dataset_uuid' => self::$created_datarecord['dataset']['records'][0]['database_uuid'],
+                'record_uuid' => self::$created_datarecord['dataset']['records'][0]['record_uuid'],
+                'template_field_uuid' => '3d51d4ca9d3fccd4f182a56c259e',
+                'user_email' => 'nancy.drew@detectivemysteries.com',
+                'file' => $curl_file
+            ));
+
+        // output the response
+        curl_setopt($request, CURLOPT_RETURNTRANSFER, true);
+        $response = curl_exec($request);
+        ($debug ? fwrite(STDERR, print_r($response)):'');
+
+        $http_status = curl_getinfo($request, CURLINFO_HTTP_CODE);
+        ($debug ? fwrite(STDERR, $http_status):'');
+        $this->assertTrue($http_status == 302);
+
+        // close the session
+        curl_close($request);
+
+    }
+
+    /**
+    * Post File with CURL
+    */
+    public function testDatasetImagePost() {
+        $debug = (getenv("DEBUG") == "APIController" ? true: false);
+
+
+        // initialise the curl request
+        // $request = curl_init(self::$base_url . '/file?XDEBUG_SESSION_START=phpstorm_xdebug');
+        $request = curl_init(self::$base_url . '/file');
+
+        // send a file
+        curl_setopt($request, CURLOPT_POST, true);
+
+        curl_setopt($request, CURLOPT_HTTPHEADER, array(
+            "Authorization: Bearer ". self::$token
+        ));
+
+        $file_name = '/home/nate/data-publisher/Henry_Fishing.jpg';
+        ($debug ? fwrite(STDERR, $file_name): '');
+
+        $curl_file = '@' . realpath($file_name);
+        if (function_exists('curl_file_create')) { // php 5.5+
+            $curl_file = curl_file_create($file_name);
+        }
+
+        curl_setopt(
+            $request,
+            CURLOPT_POSTFIELDS,
+            array(
+                'name' => 'My File Name',
+                'dataset_uuid' => self::$created_dataset['dataset']['database_uuid'],
+                // 'record_uuid' => '9dbdd7233d347b02c8ed1f5c6ae1',
+                'template_field_uuid' => '71019a2b69aa46abd5f03cbbbd9e',
+                'user_email' => 'nancy.drew@detectivemysteries.com',
+                'file' => $curl_file
+            ));
+
+        // output the response
+        curl_setopt($request, CURLOPT_RETURNTRANSFER, true);
+        $response = curl_exec($request);
+        ($debug ? fwrite(STDERR, print_r($response)):'');
+
+        $http_status = curl_getinfo($request, CURLINFO_HTTP_CODE);
+        ($debug ? fwrite(STDERR, $http_status):'');
+        $this->assertTrue($http_status == 302);
+
+        // close the session
+        curl_close($request);
+
+    }
+
     // Publish Dataset
     public function testPublish()
     {
@@ -508,7 +774,7 @@ class APIControllerTest extends WebTestCase
 
         $response = $cp->post($post_data);
         $results = json_decode($response['response'], true);
-        ($debug ? fwrite(STDERR, 'Results: ' . print_r($results, true) . "\n") : '');
+        // ($debug ? fwrite(STDERR, 'Results: ' . print_r($results, true) . "\n") : '');
         ($debug ? fwrite(STDERR, 'Result Count: ' . count($results['records']) . "\n") : '');
         // ($debug ? fwrite(STDERR, 'Result Count: ' . count($results) . "\n") : '');
         // Should have the user_email at least

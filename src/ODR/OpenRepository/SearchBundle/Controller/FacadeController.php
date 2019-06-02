@@ -53,13 +53,12 @@ class FacadeController extends Controller
      */
     public function getDatatypeExportAction($search_slug, Request $request)
     {
-        try
-        {
+        try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             /** @var DataTypeMeta $datatype_meta */
-            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('searchSlug' => $search_slug) );
+            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(array('searchSlug' => $search_slug));
             if ($datatype_meta == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -84,8 +83,7 @@ class FacadeController extends Controller
                 ),
                 $request->query->all()
             );
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $source = 0x9ab9a4bf;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
@@ -93,8 +91,6 @@ class FacadeController extends Controller
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
-
-
 
 
     /**
@@ -108,13 +104,12 @@ class FacadeController extends Controller
      */
     public function getDatarecordListAction($search_slug, Request $request)
     {
-        try
-        {
+        try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             /** @var DataTypeMeta $datatype_meta */
-            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('searchSlug' => $search_slug) );
+            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(array('searchSlug' => $search_slug));
             if ($datatype_meta == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -136,8 +131,7 @@ class FacadeController extends Controller
                 ),
                 $request->query->all()
             );
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $source = 0x100ae284;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
@@ -159,13 +153,12 @@ class FacadeController extends Controller
      */
     public function getDatarecordExportAction($search_slug, $datarecord_id, Request $request)
     {
-        try
-        {
+        try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             /** @var DataTypeMeta $datatype_meta */
-            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('searchSlug' => $search_slug) );
+            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(array('searchSlug' => $search_slug));
             if ($datatype_meta == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -193,8 +186,7 @@ class FacadeController extends Controller
                 ),
                 $request->query->all()
             );
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $source = 0x50cf3669;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
@@ -322,13 +314,12 @@ class FacadeController extends Controller
 
                 $response->setPrivate();
                 //$response->headers->set('Content-Length', filesize($xml_export_path.$filename));
-                $response->headers->set('Content-Disposition', 'attachment; filename="'.$token.'.'.$request->getRequestFormat().'";');
+                $response->headers->set('Content-Disposition', 'attachment; filename="' . $token . '.' . $request->getRequestFormat() . '";');
             }
 
             $response->setContent($data);
             return $response;
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $source = 0x9c2fcbde;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
@@ -337,6 +328,13 @@ class FacadeController extends Controller
         }
     }
 
+    public function searchTemplatePostTestAction($version, $limit, $offset, Request $request) {
+        /** @var SearchAPIService $search_api_service */
+        $search_api_service = $this->container->get('odr.search_api_service');
+
+        // $search_results = $search_api_service->fullTemplateSearch();
+
+    }
 
     /**
      * Attempts to convert a POST request into a format usable by ODR, and then attempts to run a
