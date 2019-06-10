@@ -1004,7 +1004,7 @@ class ODRCustomController extends Controller
 
         // Create Thumbnails
         /** @var ImageSizes[] $sizes */
-        $sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataFields' => $my_obj->getDataField()->getId()) );
+        $sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataField' => $my_obj->getDataField()->getId()) );
 
         foreach ($sizes as $size) {
             // Set original

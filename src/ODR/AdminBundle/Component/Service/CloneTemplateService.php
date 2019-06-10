@@ -16,6 +16,7 @@ namespace ODR\AdminBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\TagTree;
@@ -1470,6 +1471,28 @@ class CloneTemplateService
                     $derived_df = $new_df;
 
                     $this->logger->debug('CloneTemplateService:'.$indent_text.' -- cloned new datafield "'.$new_df->getFieldName().'" (dt '.$derived_datatype->getId().') from master datafield '.$master_df->getId().' (dt_id '.$master_dt->getId().')');
+
+                    // If the new datafield is an Image field, ensure it has ImageSize entries...
+                    if ( $new_df->getFieldType()->getTypeName() === 'Image' ) {
+                        /** @var ImageSizes[] $image_sizes */
+                        $image_sizes = $master_df->getImageSizes();
+                        foreach ($image_sizes as $image_size) {
+                            // ...by cloning each of the master datafield's image size entities
+                            $new_image_size = clone $image_size;
+                            $new_image_size->setDataField($new_df);
+
+                            // Don't flush immediately...
+                            self::persistObject($new_image_size, $user, true);
+
+                            // NOTE - can't use EntityCreationService::createImageSizes() because
+                            //  that function will load $master_df's ImageSize entities instead of
+                            //  realizing that $new_df doesn't have any...has to do with doctrine
+                            //  still thinking $new_df->getId() === $master_df->getId() prior to the
+                            //  first flush
+                        }
+
+                        $this->logger->debug('CloneTemplateService:'.$indent_text.' -- >> created ImageSize entries for new datafield "'.$new_df->getFieldName().'" (dt '.$derived_datatype->getId().')' );
+                    }
                 }
 
                 $derived_df_typeclass = $derived_df->getFieldType()->getTypeClass();

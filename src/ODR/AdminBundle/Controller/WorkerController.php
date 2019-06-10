@@ -551,6 +551,8 @@ $ret .= '  Set current to '.$count."\n";
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
 
 
             /** @var Image $img */
@@ -566,7 +568,7 @@ $ret .= '  Set current to '.$count."\n";
 
             // Ensure an ImageSizes entity exists for this image
             /** @var ImageSizes[] $image_sizes */
-            $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataFields' => $img->getDataField()->getId()) );
+            $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataField' => $img->getDataField()->getId()) );
             if ( count($image_sizes) == 0 ) {
                 // Create missing ImageSizes entities for this datafield
                 parent::ODR_checkImageSizes($em, $user, $img->getDataField());
@@ -574,7 +576,7 @@ $ret .= '  Set current to '.$count."\n";
                 // Reload the newly created ImageSizes for this datafield
                 while ( count($image_sizes) == 0 ) {
                     sleep(1);   // wait a second so whichever process is creating the ImageSizes entities has time to finish
-                    $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataFields' => $img->getDataField()->getId()) );
+                    $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataField' => $img->getDataField()->getId()) );
                 }
 
                 // Set this image to point to the correct ImageSizes entity, since it didn't exist before
