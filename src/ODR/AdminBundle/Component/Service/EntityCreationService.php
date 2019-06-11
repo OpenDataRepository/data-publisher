@@ -33,6 +33,7 @@ use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\GroupDatafieldPermissions;
 use ODR\AdminBundle\Entity\GroupDatatypePermissions;
 use ODR\AdminBundle\Entity\GroupMeta;
+use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LinkedDataTree;
 use ODR\AdminBundle\Entity\LongText;
@@ -943,6 +944,87 @@ class EntityCreationService
 
 
         if ( !$delay_flush )
+            $this->em->flush();
+    }
+
+
+    /**
+     * Ensures an image datafield has its ImageSize entities.
+     * TODO - acquire locks before creating anything?
+     *
+     * @param ODRUser $user
+     * @param DataFields $datafield
+     * @param bool $delay_flush
+     */
+    public function createImageSizes($user, $datafield, $delay_flush = false)
+    {
+        // Don't run this on a datafield that isn't already an image
+        if ( $datafield->getFieldType()->getTypeName() !== 'Image' )
+            return;
+
+        // ----------------------------------------
+        // Attempt to load ImageSize entities from the database to determine if any are missing
+        $has_original = false;
+        $has_thumbnail = false;
+
+        /** @var ImageSizes[] $image_sizes */
+        $image_sizes = $datafield->getImageSizes();
+        foreach ($image_sizes as $image_size) {
+            if ( $image_size->getOriginal() == true )
+                $has_original = true;
+            if ( $image_size->getOriginal() == false && $image_size->getImagetype() == 'thumbnail' )
+                $has_thumbnail = true;
+        }
+
+        // TODO - generalize to more than just two sizes?
+        // TODO - dynamic addition of new image sizes?
+        // TODO - modification of image sizes?
+        if ( !$has_original ) {
+            // The "original" size doesn't exist...
+            $original = new ImageSizes();
+            $original->setDataField($datafield);
+            $original->setWidth(0);
+            $original->setHeight(0);
+            $original->setMinWidth(1024);
+            $original->setMinHeight(768);
+            $original->setMaxWidth(0);
+            $original->setMaxHeight(0);
+            $original->setSizeConstraint('none');
+            $original->setOriginal(1);
+            $original->setImagetype(null);
+
+            $original->setCreated( new \DateTime() );
+            $original->setUpdated( new \DateTime() );
+            $original->setCreatedBy($user);
+            $original->setUpdatedBy($user);
+
+            $this->em->persist($original);
+        }
+
+        if ( !$has_thumbnail ) {
+            // The "thumbnail" size doesn't exist...
+            $thumbnail = new ImageSizes();
+            $thumbnail->setDataField($datafield);
+            $thumbnail->setWidth(500);
+            $thumbnail->setHeight(375);
+            $thumbnail->setMinWidth(500);
+            $thumbnail->setMinHeight(375);
+            $thumbnail->setMaxWidth(500);
+            $thumbnail->setMaxHeight(375);
+            $thumbnail->setSizeConstraint('both');
+            $thumbnail->setOriginal(0);
+            $thumbnail->setImagetype('thumbnail');
+
+            $thumbnail->setCreated( new \DateTime() );
+            $thumbnail->setUpdated( new \DateTime() );
+            $thumbnail->setCreatedBy($user);
+            $thumbnail->setUpdatedBy($user);
+
+            $this->em->persist($thumbnail);
+        }
+
+        // Only flush when this function did something...
+        if ( !$delay_flush && (!$has_original || !$has_thumbnail) )
             $this->em->flush();
     }
 

@@ -1437,7 +1437,7 @@ class PluginsController extends ODRCustomController
                 $plugin_map[$rpf_id] = $datafield->getId();
 
                 if ($fieldtype->getTypeClass() == 'Image')
-                    parent::ODR_checkImageSizes($em, $user, $datafield);
+                    $ec_service->createImageSizes($user, $datafield);    // TODO - test this...no render plugin creates an image at the moment
             }
 
             // If new datafields created, flush entity manager to save the theme_element and datafield meta entries

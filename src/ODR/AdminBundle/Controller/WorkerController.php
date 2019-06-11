@@ -571,7 +571,7 @@ $ret .= '  Set current to '.$count."\n";
             $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataField' => $img->getDataField()->getId()) );
             if ( count($image_sizes) == 0 ) {
                 // Create missing ImageSizes entities for this datafield
-                parent::ODR_checkImageSizes($em, $user, $img->getDataField());
+                $ec_service->createImageSizes($user, $img->getDataField());
 
                 // Reload the newly created ImageSizes for this datafield
                 while ( count($image_sizes) == 0 ) {

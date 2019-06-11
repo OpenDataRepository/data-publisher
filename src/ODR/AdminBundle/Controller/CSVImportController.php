@@ -3082,7 +3082,7 @@ class CSVImportController extends ODRCustomController
                     // If this is a newly created image datafield, ensure it has the required
                     //  ImageSizes entities
                     if ($new_datafield->getFieldType()->getTypeClass() == 'Image')
-                        parent::ODR_checkImageSizes($em, $user, $new_datafield);
+                        $ec_service->createImageSizes($user, $new_datafield, true);    // don't flush immediately...
 
                     // Also need to delete some search cache entries here...
                     $search_cache_service->onDatafieldCreate($new_datafield);
