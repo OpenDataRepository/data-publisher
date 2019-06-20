@@ -3355,12 +3355,21 @@ class APIController extends ODRCustomController
                     'unique_id' => $file_uuid
                 )
             );
-            if ($file == null)
-                throw new ODRNotFoundException('File');
+            if ($file == null) {
+                $file = $em->getRepository('ODRAdminBundle:Image')->findOneBy(
+                    array(
+                        'unique_id' => $file_uuid
+                    )
+                );
+
+                if ($file == null)
+                    throw new ODRNotFoundException('File');
+            }
 
             $datafield = $file->getDataField();
             if ($datafield->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datafield');
+
             $datarecord = $file->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datarecord');
@@ -3370,8 +3379,14 @@ class APIController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
+            // Determine if this is an image or a file
+            $is_image = false;
+            if($file->getDataField()->getFieldType()->getId() == 3) {
+                $is_image = true;
+            }
+
             // Files that aren't done encrypting shouldn't be downloaded
-            if ($file->getProvisioned() == true)
+            if (!$is_image && $file->getProvisioned() == true)
                 throw new ODRNotFoundException('File');
 
 
@@ -3386,10 +3401,11 @@ class APIController extends ODRCustomController
 
 
             // Only allow this action for files smaller than 5Mb?
-            $filesize = $file->getFilesize() / 1024 / 1024;
-            if ($filesize > 50)
-                throw new ODRNotImplementedException('Currently not allowed to download files larger than 5Mb');
-
+            if(!$is_image) {
+                $filesize = $file->getFilesize() / 1024 / 1024;
+                if ($filesize > 50)
+                    throw new ODRNotImplementedException('Currently not allowed to download files larger than 5Mb');
+            }
 
             $filename = 'File_' . $file->getId() . '.' . $file->getExt();
             if (!$file->isPublic())
