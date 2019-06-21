@@ -3428,9 +3428,19 @@ class APIController extends ODRCustomController
             // Set up a response to send the file back
             $response = new StreamedResponse();
             $response->setPrivate();
-            $response->headers->set('Content-Type', mime_content_type($local_filepath));
             $response->headers->set('Content-Length', filesize($local_filepath));        // TODO - apparently this isn't sent?
             $response->headers->set('Content-Disposition', 'attachment; filename="' . $display_filename . '";');
+            if($is_image) {
+                if(preg_match("/.png$/", $local_filepath)) {
+                    $response->headers->set('Content-Type', 'image/png');
+                }
+                else {
+                    $response->headers->set('Content-Type', 'image/jpeg');
+                }
+            }
+            else {
+                $response->headers->set('Content-Type', mime_content_type($local_filepath));
+            }
 
             // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
             $response->setCallback(function () use ($handle) {
