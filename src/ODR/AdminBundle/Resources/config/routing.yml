@@ -1359,7 +1359,7 @@ odr_set_unique_ids:
     path: /admin/set_unique_ids/{uuid_type}
     defaults: { _controller: ODRAdminBundle:Worker:setuniqueids }
     requirements:
-        uuid_type: 'datatype|field|radio|record'
+        uuid_type: 'datatype|field|radio|record|file|image'
 odr_fix_setup_steps:
     path: /admin/fix_setup_steps
     defaults: { _controller: ODRAdminBundle:Worker:fixsetupsteps }
