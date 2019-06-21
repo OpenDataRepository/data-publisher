@@ -1007,6 +1007,9 @@ class ODRCustomController extends Controller
         $repo_image = $em->getRepository('ODRAdminBundle:Image');
 //        $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+        /** @var UUIDService $uuid_service */
+        $uuid_service = $this->container->get('odr.uuid_service');
+
         // Create Thumbnails
         /** @var ImageSizes[] $sizes */
         $sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataField' => $my_obj->getDataField()->getId()) );
@@ -1061,6 +1064,7 @@ class ODRCustomController extends Controller
                     $image->setOriginalChecksum('');
 
                     $image->setCreatedBy($user);
+                    $image->setUniqueId($uuid_service->generateTagUniqueId());
 
                     /* DO NOT create a new metadata entry for the thumbnail...all of its metadata properties are slaved to the parent image */
                 }
