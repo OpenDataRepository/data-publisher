@@ -3399,64 +3399,124 @@ class APIController extends ODRCustomController
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
+            if($is_image) {
+                $image = $file;
+                $image_id = $image->getId();
 
-            // Only allow this action for files smaller than 5Mb?
-            if(!$is_image) {
+                // Ensure file exists before attempting to download it
+                $filename = 'Image_'.$image_id.'.'.$image->getExt();
+                if ( !$image->isPublic() )
+                    $filename = md5($image->getOriginalChecksum().'_'.$image_id.'_'.$user->getId()).'.'.$image->getExt();
+
+                // Ensure the image exists in decrypted format
+                $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
+                if ( !$image->isPublic() || !$image_path )
+                    $image_path = $crypto_service->decryptImage($image_id, $filename);
+
+                $handle = fopen($image_path, 'r');
+                if ($handle === false)
+                    throw new FileNotFoundException($image_path);
+
+                // Have to send image headers first...
+                $response = new Response();
+                $response->setPrivate();
+
+                switch ( strtolower($image->getExt()) ) {
+                    case 'gif':
+                        $response->headers->set('Content-Type', 'image/gif');
+                        break;
+                    case 'png':
+                        $response->headers->set('Content-Type', 'image/png');
+                        break;
+                    case 'jpg':
+                    case 'jpeg':
+                        $response->headers->set('Content-Type', 'image/jpeg');
+                        break;
+                }
+
+                // Attach the image's original name to the headers...
+                $display_filename = $image->getOriginalFileName();
+                if ($display_filename == null)
+                    $display_filename = 'Image_'.$image->getId().'.'.$image->getExt();
+
+                $response->headers->set('Content-Disposition', 'inline; filename="'.$display_filename.'";');
+                $response->sendHeaders();
+
+                // After headers are sent, send the image itself
+                $im = null;
+                switch ( strtolower($image->getExt()) ) {
+                    case 'gif':
+                        $im = imagecreatefromgif($image_path);
+                        imagegif($im);
+                        break;
+                    case 'png':
+                        $im = imagecreatefrompng($image_path);
+                        imagepng($im);
+                        break;
+                    case 'jpg':
+                    case 'jpeg':
+                        $im = imagecreatefromjpeg($image_path);
+                        imagejpeg($im);
+                        break;
+                }
+                imagedestroy($im);
+
+                fclose($handle);
+
+                // If the image isn't public, delete the decrypted version so it can't be accessed without going through symfony
+                if ( !$image->isPublic() )
+                    unlink($image_path);
+
+                return $response;
+
+            }
+            else {
+                // Only allow this action for files smaller than 5Mb?
                 $filesize = $file->getFilesize() / 1024 / 1024;
                 if ($filesize > 50)
                     throw new ODRNotImplementedException('Currently not allowed to download files larger than 5Mb');
-            }
 
-            $filename = 'File_' . $file->getId() . '.' . $file->getExt();
-            if (!$file->isPublic())
-                $filename = md5($file->getOriginalChecksum() . '_' . $file->getId() . '_' . $user->getId()) . '.' . $file->getExt();
+                $filename = 'File_' . $file->getId() . '.' . $file->getExt();
+                if (!$file->isPublic())
+                    $filename = md5($file->getOriginalChecksum() . '_' . $file->getId() . '_' . $user->getId()) . '.' . $file->getExt();
 
-            $local_filepath = realpath($this->getParameter('odr_web_directory') . '/' . $file->getUploadDir() . '/' . $filename);
-            if (!$local_filepath)
-                $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
+                $local_filepath = realpath($this->getParameter('odr_web_directory') . '/' . $file->getUploadDir() . '/' . $filename);
+                if (!$local_filepath)
+                    $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
 
-            $handle = fopen($local_filepath, 'r');
-            if ($handle === false)
-                throw new FileNotFoundException($local_filepath);
+                $handle = fopen($local_filepath, 'r');
+                if ($handle === false)
+                    throw new FileNotFoundException($local_filepath);
 
+                // Attach the original filename to the download
+                $display_filename = $file->getOriginalFileName();
+                if ($display_filename == null)
+                    $display_filename = 'File_' . $file->getId() . '.' . $file->getExt();
 
-            // Attach the original filename to the download
-            $display_filename = $file->getOriginalFileName();
-            if ($display_filename == null)
-                $display_filename = 'File_' . $file->getId() . '.' . $file->getExt();
-
-            // Set up a response to send the file back
-            $response = new StreamedResponse();
-            $response->setPrivate();
-            $response->headers->set('Content-Length', filesize($local_filepath));        // TODO - apparently this isn't sent?
-            $response->headers->set('Content-Disposition', 'attachment; filename="' . $display_filename . '";');
-            if($is_image) {
-                if(preg_match("/.png$/", $local_filepath)) {
-                    $response->headers->set('Content-Type', 'image/png');
-                }
-                else {
-                    $response->headers->set('Content-Type', 'image/jpeg');
-                }
-            }
-            else {
+                // Set up a response to send the file back
+                $response = new StreamedResponse();
+                $response->setPrivate();
+                $response->headers->set('Content-Length', filesize($local_filepath));        // TODO - apparently this isn't sent?
+                $response->headers->set('Content-Disposition', 'attachment; filename="' . $display_filename . '";');
                 $response->headers->set('Content-Type', mime_content_type($local_filepath));
+
+                // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
+                $response->setCallback(function () use ($handle) {
+                    while (!feof($handle)) {
+                        $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
+                        echo $buffer;
+                        flush();
+                    }
+                    fclose($handle);
+                });
+
+                // If file is non-public, delete the decrypted version off the server
+                if (!$file->isPublic())
+                    unlink($local_filepath);
+
+                return $response;
             }
 
-            // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
-            $response->setCallback(function () use ($handle) {
-                while (!feof($handle)) {
-                    $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
-                    echo $buffer;
-                    flush();
-                }
-                fclose($handle);
-            });
-
-            // If file is non-public, delete the decrypted version off the server
-            if (!$file->isPublic())
-                unlink($local_filepath);
-
-            return $response;
         } catch (\Exception $e) {
             // Returning an error...do it in json
             $request->setRequestFormat('json');
