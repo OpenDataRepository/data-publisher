@@ -16,6 +16,7 @@ use FOS\UserBundle\Command\ActivateUserCommand;
 use HWI\Bundle\OAuthBundle\Tests\Fixtures\FOSUser;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\UUIDService;
+use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataRecordMeta;
 use ODR\AdminBundle\Entity\DataTree;
@@ -30,6 +31,7 @@ use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\TagSelection;
 use ODR\AdminBundle\Form\LongVarcharForm;
+use PhpParser\Node\Expr\BinaryOp\ShiftLeft;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -1085,96 +1087,64 @@ class APIController extends ODRCustomController
 
                     // Deal with files and images here
                     if(
-                        $data_field->getFieldType()->getId() == 1
-                        || $data_field->getFieldType()->getId() == 2
+                        $data_field->getFieldType()->getId() == 2
+                        || $data_field->getFieldType()->getId() == 3
                     ) {
-//                        /** @var DataRecordFields $drf */
-//                        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-//                            array(
-//                                'dataRecord' => $dataset['internal_id'],
-//                                'dataField' => $data_field->getId()
-//                            )
-//                        );
-//
-//                        $existing_field = null;
-//                        if (!$drf) {
-//                            // If drf entry doesn't exist, create new
-//                            $drf = new DataRecordFields();
-//                            $drf->setCreatedBy($user);
-//                            $drf->setCreated(new \DateTime());
-//                            $drf->setDataField($data_field);
-//                            $drf->setDataRecord($data_record);
-//                            $em->persist($drf);
-//                        } else {
-//                            switch ($data_field->getFieldType()->getId()) {
-//                                case '2':
-//                                    $existing_field = $em->getRepository('ODRAdminBundle:File')
-//                                        ->findOneBy(array('dataRecordFields' => $drf->getId()));
-//                                    break;
-//                                case '3':
-//                                    $existing_field = $em->getRepository('ODRAdminBundle:Image')
-//                                        ->findOneBy(array('dataRecordFields' => $drf->getId()));
-//                                    break;
-//                            }
-//                        }
-//
-//
-//                        switch ($data_field->getFieldType()->getId()) {
-//                            case '2': // File
-//                                // Check for Allow Multiple
-//                                // If single, delete existing
-//                                if (!$data_field->getDataFieldMeta()->getAllowMultipleUploads()) {
-//                                    // Find existing file entry and delete
-//                                    $em->remove($existing_field);
-//                                    $em->flush();
-//                                }
-//
-//                                // Download file to temp folder
-//
-//                                // Use ODRCC to create image meta
-//                                /*
-//                                    parent::finishUpload(
-//                                        $em,
-//                                        $filepath,
-//                                        $original_filename,
-//                                        $user_id,
-//                                        $drf->getId()
-//                                    );
-//                                */
-//
-//                                $changed = true;
-//
-//                                break;
-//                            case '3': // Image
-//                                // Check for Allow Multiple
-//                                // If single, delete existing
-//                                if (!$data_field->getDataFieldMeta()->getAllowMultipleUploads()) {
-//                                    // Find existing file entry and delete
-//                                    $em->remove($existing_field);
-//                                    $em->flush();
-//                                }
-//
-//                                // Download file to temp folder
-//
-//                                // Use ODRCC to create image meta
-//                                /*
-//                                    parent::finishUpload(
-//                                        $em,
-//                                        $filepath,
-//                                        $original_filename,
-//                                        $user_id,
-//                                        $drf->getId()
-//                                    );
-//                                */
-//
-//                                $changed = true;
-//
-//                                break;
-//                        }
+
+                    }
+                    else if(
+                        $data_field->getFieldType()->getId() == 1
+                    ) {
+                        /** @var DataRecordFields $drf */
+                        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
+                            array(
+                                'dataRecord' => $dataset['internal_id'],
+                                'dataField' => $data_field->getId()
+                            )
+                        );
+
+                        if (!$drf) {
+                            // If drf entry doesn't exist, create new
+                            $drf = new DataRecordFields();
+                            $drf->setCreatedBy($user);
+                            $drf->setCreated(new \DateTime());
+                            $drf->setDataField($data_field);
+                            $drf->setDataRecord($data_record);
+                            $em->persist($drf);
+                        }
+
+                        // Lookup Boolean by DRF & Field ID
+                        /** @var Boolean $bool */
+                        $bool = $em->getRepository('ODRAdminBundle:Boolean')->findOneBy(
+                            array(
+                                'dataRecordFields' => $drf->getId()
+                            )
+                        );
+
+                        if($bool) {
+                            // check if value matches field->selected
+                            if($bool->getValue() !== $field['selected']) {
+                                // remove old entity
+                                $em->remove($bool);
+                            }
+                        }
+
+                        /** @var Boolean $new_field */
+                        $new_field = new Boolean();
+                        $new_field->setDataRecordFields($drf);
+                        $new_field->setCreatedBy($user);
+                        $new_field->setUpdatedBy($user);
+                        $new_field->setCreated(new \DateTime());
+                        $new_field->setUpdated(new \DateTime());
+                        $new_field->setValue($field['selected']);
+                        $em->persist($new_field);
+
+                        $changed = true;
                     }
                     else if (isset($field['value']) && is_array($field['value'])) {
 
                         switch ($data_field->getFieldType()->getId()) {
+
                             case '18':
                                 // Tag field - need to difference hierarchy
                                 // Determine selected tags in original dataset
