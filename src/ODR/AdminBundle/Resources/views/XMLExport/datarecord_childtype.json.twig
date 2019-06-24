@@ -27,25 +27,33 @@
     {% else %}
     "metadata_for_uuid": "",
     {% endif %}
-    {# if using_metadata == true #}
+    {% if using_metadata == true %}
     {# display metadata and datafields for top-level and child datarecords #}
     "_record_metadata": {
-        {% if datarecord.created %}
-        "_create_date": "{{ datarecord.created|date('Y-m-d H:i:s') }}",
-        {% endif %}
-        {% if datarecord.updated %}
-        "_updated_date": "{{ datarecord.updated|date('Y-m-d H:i:s') }}",
-        {% elseif datarecord.dataRecordMeta.created %}
-        "_updated_date": "{{ datarecord.dataRecordMeta.created|date('Y-m-d H:i:s') }}",
-        {% endif %}
-        "_create_auth": "{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string|xml }}{% endif %}",
-        {% if datarecord.dataRecordMeta and datarecord.dataRecordMeta.publicDate %}
-        "_public_date": "{{ datarecord.dataRecordMeta.publicDate|date('Y-m-d H:i:s') }}"
+        {% if datarecord.created is defined and datarecord.created %}
+            "_create_date": "{{ datarecord.created|date('Y-m-d H:i:s') }}",
         {% else %}
-        "_public_date": ""
+            "_create_date": "",
+        {% endif %}
+        {% if datarecord.updated is defined and datarecord.updated %}
+            "_updated_date": "{{ datarecord.updated|date('Y-m-d H:i:s') }}",
+        {% elseif datarecord.dataRecordMeta is defined and datarecord.dataRecordMeta.created is defined and datarecord.dataRecordMeta.created %}
+            "_updated_date": "{{ datarecord.dataRecordMeta.created|date('Y-m-d H:i:s') }}",
+        {% else %}
+            "_updated_date": "",
+        {% endif %}
+        {% if datarecord.createdBy is defined and datarecord.createdBy %}
+            "_create_auth": "{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string|xml }}{% endif %}",
+        {% else %}
+            "_create_auth": "",
+        {% endif %}
+        {% if datarecord.dataRecordMeta is defined and datarecord.dataRecordMeta.publicDate is defined and datarecord.dataRecordMeta.publicDate %}
+            "_public_date": "{{ datarecord.dataRecordMeta.publicDate|date('Y-m-d H:i:s') }}"
+        {% else %}
+            "_public_date": ""
         {% endif %}
     },
-    {# endif #}
+    {% endif %}
 
     {# Fields #}
     "fields": [
