@@ -9,6 +9,7 @@
 "fields": [
 {% endif %}
 {% for theme_element in theme.themeElements %}
+{% set field_block %}
     {% if theme_element.themeDataFields is defined %}
 
         {% for theme_datafield in theme_element.themeDataFields %}
@@ -35,6 +36,8 @@
             {% endif %}
         {% endfor %}
     {% endif %}
+{% endset %}
+{{ field_block|comma|raw }}
 {% endfor %}
 
 {% if version != 'v3' %}

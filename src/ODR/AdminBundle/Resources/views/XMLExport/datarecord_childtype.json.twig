@@ -27,17 +27,29 @@
     {% else %}
     "metadata_for_uuid": "",
     {% endif %}
-    {% if using_metadata == true %}
+    {# if using_metadata == true #}
     {# display metadata and datafields for top-level and child datarecords #}
     "_record_metadata": {
+        {% if datarecord.created %}
         "_create_date": "{{ datarecord.created|date('Y-m-d H:i:s') }}",
+        {% endif %}
+        {% if datarecord.updated %}
+        "_updated_date": "{{ datarecord.updated|date('Y-m-d H:i:s') }}",
+        {% elseif datarecord.dataRecordMeta.created %}
+        "_updated_date": "{{ datarecord.dataRecordMeta.created|date('Y-m-d H:i:s') }}",
+        {% endif %}
         "_create_auth": "{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string|xml }}{% endif %}",
+        {% if datarecord.dataRecordMeta and datarecord.dataRecordMeta.publicDate %}
         "_public_date": "{{ datarecord.dataRecordMeta.publicDate|date('Y-m-d H:i:s') }}"
+        {% else %}
+        "_public_date": ""
+        {% endif %}
     },
-    {% endif %}
+    {# endif #}
 
     {# Fields #}
     "fields": [
+        {% set field_block %}
         {% for dt_datafield in datarecord.dataType.dataFields %}
             {% set comma = true %}
             {% set found = false %}
@@ -74,6 +86,8 @@
                 {% if not loop.last %},{% endif %}
             {% endif %}
         {% endfor %}
+        {% endset %}
+        {{ field_block|comma|raw }}
     ],
     "records": [
         {# Check for Children #}
