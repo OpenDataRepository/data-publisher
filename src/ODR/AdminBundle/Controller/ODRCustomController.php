@@ -355,6 +355,7 @@ class ODRCustomController extends Controller
                         'datatype' => $datatype,
                         'theme' => $theme,
                         'intent' => $intent,
+                        'search_theme_id' => $theme->getId(),
                         'search_key' => $search_key,
                         'user' => $user,
                         'has_datarecords' => $has_datarecords,

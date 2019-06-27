@@ -7,19 +7,16 @@
 
 {% if has_view_permission %}
     <div class="ODRAdvSearch_datafield pure-u-1">
-        <label class="pure-u-1">Modified Date:</label>
-        <input type="text" class="ODRInput ODRDatePicker pure-u-1" id="dt_{{ datatype_id }}_m_start" name="dt_{{ datatype_id }}_m_s" value="" rel="dt_{{ datatype_id }}_m" title="Find Datarecords modified AFTER this date" />
-{#
-    </div>
-    <div class="ODRAdvSearch_datafield pure-u-1">
-#}
+        <label class="pure-u-1" title="Find records based on when they were last modified">Modified Date:</label>
+        <input type="text" class="ODRInput ODRDatePicker pure-u-1 Pointer" id="dt_{{ datatype_id }}_m_start" name="dt_{{ datatype_id }}_m_s" value="" rel="dt_{{ datatype_id }}_m" title="Find records modified AFTER this date" />
+
         <label class="pure-u-1-3"></label>
-        <input type="text" class="ODRInput ODRDatePicker pure-u-1" id="dt_{{ datatype_id }}_m_end" name="dt_{{ datatype_id }}_m_e" value="" rel="dt_{{ datatype_id }}_m" title="Find Datarecords modified BEFORE this date" />
+        <input type="text" class="ODRInput ODRDatePicker pure-u-1 Pointer" id="dt_{{ datatype_id }}_m_end" name="dt_{{ datatype_id }}_m_e" value="" rel="dt_{{ datatype_id }}_m" title="Find records modified BEFORE this date" />
     </div>
 
     <div class="ODRAdvSearch_datafield pure-u-1">
-        <label class="pure-u-1">Modified By:</label>
-        <select class="ODRInput pure-u-1" id="select_modified_by" name="dt_{{ datatype_id }}_m_by" rel="{{ datatype_id }}">
+        <label class="pure-u-1" title="Find records based on which user last modified them">Modified By:</label>
+        <select class="ODRInput pure-u-1 Pointer" id="select_modified_by" name="dt_{{ datatype_id }}_m_by" rel="{{ datatype_id }}">
             <option value=""></option>
             {% for user_id, username in user_list %}
             <option value="{{ user_id }}">{{ username }}</option>
@@ -28,19 +25,16 @@
     </div>
 
     <div class="ODRAdvSearch_datafield pure-u-1">
-        <label class="pure-u-1">Created Date:</label>
-        <input type="text" class="ODRInput ODRDatePicker pure-u-1" id="dt_{{ datatype_id }}_c_start" name="dt_{{ datatype_id }}_c_s" value="" rel="dt_{{ datatype_id }}_c" title="Find Datarecords created AFTER this date" />
-{#
-    </div>
-    <div class="ODRAdvSearch_datafield pure-u-1">
-#}
+        <label class="pure-u-1" title="Find records based on when they were created">Created Date:</label>
+        <input type="text" class="ODRInput ODRDatePicker pure-u-1 Pointer" id="dt_{{ datatype_id }}_c_start" name="dt_{{ datatype_id }}_c_s" value="" rel="dt_{{ datatype_id }}_c" title="Find records created AFTER this date" />
+
         <label class="pure-u-1"></label>
-        <input type="text" class="ODRInput ODRDatePicker pure-u-1" id="dt_{{ datatype_id }}_c_end" name="dt_{{ datatype_id }}_c_e" value="" rel="dt_{{ datatype_id }}_c" title="Find Datarecords created BEFORE this date" />
+        <input type="text" class="ODRInput ODRDatePicker pure-u-1 Pointer" id="dt_{{ datatype_id }}_c_end" name="dt_{{ datatype_id }}_c_e" value="" rel="dt_{{ datatype_id }}_c" title="Find records created BEFORE this date" />
     </div>
 
     <div class="ODRAdvSearch_datafield pure-u-1">
-        <label class="pure-u-1">Created By:</label>
-        <select class="ODRInput pure-u-1" id="select_created_by" name="dt_{{ datatype_id }}_c_by" rel="{{ datatype_id }}">
+        <label class="pure-u-1" title="Find records based on who created them">Created By:</label>
+        <select class="ODRInput pure-u-1 Pointer" id="select_created_by" name="dt_{{ datatype_id }}_c_by" rel="{{ datatype_id }}">
             <option value=""></option>
             {% for user_id, username in user_list %}
             <option value="{{ user_id }}">{{ username }}</option>
@@ -49,19 +43,13 @@
     </div>
 
     <div class="ODRAdvSearch_datafield pure-u-1">
-        <label class="pure-u-1">Public status:</label>
-        <select class="ODRInput pure-u-1" id="select_public" name="dt_{{ datatype_id }}_pub" rel="{{ datatype_id }}">
+        <label class="pure-u-1" title="Find records based on public status">Public status:</label>
+        <select class="ODRInput pure-u-1 Pointer" id="select_public" name="dt_{{ datatype_id }}_pub" rel="{{ datatype_id }}">
             <option id="Option_0" value="">Any</option>
             <option id="Option_nonpublic" value="0">Non-public</option>
             <option id="Option_public" value="1">Public</option>
         </select>
     </div>
-{#
-{% elseif is_top_level == 1 %}
-    <input type="hidden" class="ODRDatatype_require_public" id="dt_{{ datatype_id }}_pub" name="dt_{{ datatype_id }}_pub" value="1" />
-{% else %}
-    <input type="hidden" class="ODRDatatype_require_public ODRSearchDisabled" id="dt_{{ datatype_id }}_pub" name="dt_{{ datatype_id }}_pub" value="1" />
-#}
 {% endif %}
 
 {% endspaceless %}
