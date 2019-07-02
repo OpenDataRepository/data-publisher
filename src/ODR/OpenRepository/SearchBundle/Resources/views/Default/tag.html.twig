@@ -1,18 +1,20 @@
 {% spaceless %}
 
 {# Store whether this tag has any child tags #}
+{% set tag_id = tag.id %}
 {% set has_children = false %}
 {% if tag.children is defined and tag.children is not empty %}
     {% set has_children = true %}
 {% endif %}
 
 <li class="ODRTagItem">
-    {#<span class="ODRTagSpacer"></span>#}
-
-    <label id="Label_{{ tag.id }}" for="Input_{{ tag.id }}" class="ODRTagLabel pure-u-1">
-        <span class="ODRTristateCheckbox">
-            <i class="fa"></i>
-            <input type="hidden" rel="{{ tag.id }}" value="" {% if has_children %}class="ODRSearchParentTag"{% endif %} />
+    <label id="Label_{{ tag_id }}" for="Tag_{{ tag_id }}" class="ODRTagLabel pure-u-1">
+        <span id="Tag_{{ tag_id }}" class="ODRTristateCheckbox">
+            <i class="fa {% if tag_id in selected_tags %}fa-check{% elseif tag_id in unselected_tags %}fa-ban{% endif %}"></i>
+            <input type="hidden" rel="{{ tag_id }}"
+               {% if has_children %}class="ODRSearchParentTag"{% endif %}
+               value="{% if tag_id in selected_tags %}{{ tag_id }}{% elseif tag_id in unselected_tags %}-{{ tag_id }}{% endif %}"
+            />
         </span>
         {{ tag.tagMeta.tagName }}
     </label>
@@ -22,6 +24,9 @@
         {% for child_tag_id, child_tag in tag.children %}
             {% include 'ODROpenRepositorySearchBundle:Default:tag.html.twig' with {
                 'tag': child_tag,
+
+                'selected_tags': selected_tags,
+                'unselected_tags': unselected_tags,
             } %}
         {% endfor %}
     </ul>

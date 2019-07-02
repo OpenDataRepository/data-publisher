@@ -27,6 +27,8 @@
 
 <script>
     $(function() {
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
         // Get the sparkline plugin to work on the smaller graphs
         $(".sparkline").sparkline('html', {type: 'bar', barWidth: '8', height: '50', stackedBarColor: ['#04710a', '#9f1915']});
     });

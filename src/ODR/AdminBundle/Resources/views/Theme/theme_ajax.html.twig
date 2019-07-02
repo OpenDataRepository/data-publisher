@@ -153,7 +153,8 @@
         }
 
         // After DOM Ready
-        jQuery(function() {
+        $(function() {
+            disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
             initDesignScrollHandler($("#ThemeLeftColumn").offset().top);
 
@@ -529,7 +530,7 @@
                 });
             });
 
-            // Don't want to call disabledSelection() on the object properties panel
+            // Don't want to be able to highlight everything...
             $("#content").find(".ODRInnerBox").disableSelection();
 
             $(".ODRDeleteThemeElement").unbind('click').click(function() {

@@ -46,6 +46,8 @@
 
 <script>
     $(function() {
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
         var window_intervals = {};
 {% for job_type, job_name in jobs %}
         window_intervals["{{ job_type }}"] = window.clearInterval( window.ODRJobTracking_{{ job_type }}_interval );

@@ -8,6 +8,14 @@ services:
         class: ODR\AdminBundle\Controller\ODRCustomController
 
 
+    odr.search_sidebar_service:
+        class: ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService
+        arguments:
+            entity_manager: "@doctrine.orm.entity_manager"
+            datatype_info_service: "@odr.datatype_info_service"
+            permissions_service: "@odr.permissions_management_service"
+            logger: "@logger"
+
     odr.search_api_service:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService
         arguments:

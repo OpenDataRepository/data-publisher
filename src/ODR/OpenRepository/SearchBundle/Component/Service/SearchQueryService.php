@@ -91,6 +91,8 @@ class SearchQueryService
 
         if ($type === 'modified')
             $type = 'updated';
+        if ($type === 'modifiedBy')
+            $type = 'updatedBy';
 
         if ( $type === 'updated' || $type === 'created' ) {
             $search_params['str'] = 'dr.'.$type.' BETWEEN :after AND :before';
@@ -101,7 +103,7 @@ class SearchQueryService
             );
         }
         else {
-            // $type == 'modifiedBy' || $type == 'createdBy'
+            // $type == 'updatedBy' || $type == 'createdBy'
             $search_params['str'] = 'dr.'.$type.' = :target_user';
             $search_params['params'] = array(
                 'datatype_id' => $datatype_id,

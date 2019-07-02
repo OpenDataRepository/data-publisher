@@ -124,6 +124,11 @@
 <script>
 
 $(function() {
+    // Adding/removing the class .ODRSearchResultsWide triggers a 0.3s transition
+    disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+    // The overlay divs need this transition to finish before they can get the correct width
+    setTimeout("resizeOverlayDivs()", 375);
+
     initPage();
     window.scrollTo(0,0);
 
@@ -132,6 +137,24 @@ $(function() {
         window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 });
 
+function resizeOverlayDivs() {
+    // Attach an overlay div of sorts over each datafield
+    $(".ODROverlayDiv").each(function() {
+        console.log('resized ' + $(this).attr('id') );
+
+        // Need dimensions of parent div...
+        var height = $(this).parent().css('height');
+        var width = $(this).parent().css('width');
+
+        // Apply dimensions of parent div to loading div
+        $(this).css({"height": height, "line-height": height, "width": width});
+
+        if ( $(this).hasClass('ODRBlockedDatafield') )
+            $(this).attr('title', "This datafield can't be exported");
+        else
+            $(this).attr('title', "This datafield will not be exported");
+    });
+}
 
 function initPage() {
 
@@ -145,21 +168,6 @@ function initPage() {
 
         if (!found)
             $(this).hide();
-    });
-
-    // Attach an overlay div of sorts over each datafield 
-    $(".ODROverlayDiv").each(function() {
-        // Need dimensions of parent div...
-        var height = $(this).parent().css('height');
-        var width = $(this).parent().css('width');
-
-        // Apply dimensions of parent div to loading div
-        $(this).css({"height": height, "line-height": height, "width": width});
-
-        if ( $(this).hasClass('ODRBlockedDatafield') )
-            $(this).attr('title', "This datafield can't be exported");
-        else
-            $(this).attr('title', "This datafield will not be exported");
     });
 
     $(".ODRCSVExport").unbind('click').click(function() {

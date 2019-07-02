@@ -31,7 +31,7 @@
 
 
     <!-- Pure Layout -->
-    <!-- <link rel="stylesheet" href="/css/external/pure-min.css">
+    <!-- <link rel="stylesheet" href="/css/external/pure-min.css"> -->
     <!--[if gt IE 8]><!--><link rel="stylesheet" href="/css/external/pure-grids-responsive-min.css"><!--<![endif]-->
 
 
@@ -325,8 +325,9 @@
 <div role="main" id="main" class="pure-form pure-g remodal-bg">
     <section id="left-spacer" class="pure-u-md-1-24"></section>
 
+    {# need spaceless tag, otherwise the inheriting templates can still output spaces #}
     <section id="content" class="pure-u-1 pure-u-md-22-24" data-sort=true style="margin-top: 10px;">
-        {% block body %}{% endblock %}
+        {% spaceless %}{% block body %}{% endblock %}{% endspaceless %}
     </section><!-- End of #content -->
 
     <section id="right-spacer" class="pure-u-md-1-24"></section>

@@ -60,6 +60,8 @@
 
 <script>
     $(function() {
+        enableSearchSidebar('{{ search_key }}');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
         $(".MenuDesignArea").remove();
 
         var prevent_scroll = false;

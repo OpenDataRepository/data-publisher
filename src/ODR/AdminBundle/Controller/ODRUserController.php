@@ -1304,15 +1304,10 @@ class ODRUserController extends ODRCustomController
             // Update the user list
             $users = $user_manager->findUsers();    // twig filters out disabled users if needed
 
-            $templating = $this->get('templating');
+            // Generate a redirect to the user list
+            $router = $this->get('router');
             $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:user_list.html.twig',
-                    array(
-                        'users' => $users,
-                        'admin_user' => $admin_user
-                    )
-                )
+                'url' => $router->generate('odr_user_list')
             );
         }
         catch (\Exception $e) {
@@ -1371,15 +1366,10 @@ class ODRUserController extends ODRCustomController
             // Update the user list
             $users = $user_manager->findUsers();    // twig filters out disabled users if needed
 
-            $templating = $this->get('templating');
+            // Generate a redirect to the user list
+            $router = $this->get('router');
             $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:user_list.html.twig',
-                    array(
-                        'users' => $users,
-                        'admin_user' => $admin_user
-                    )
-                )
+                'url' => $router->generate('odr_user_list')
             );
         }
         catch (\Exception $e) {

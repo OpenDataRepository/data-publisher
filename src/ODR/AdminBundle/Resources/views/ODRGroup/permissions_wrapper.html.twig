@@ -40,6 +40,8 @@
     var SaveTimeout = 2000;
 
     $(function() {
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
         LoadGroupList({{ datatype.id }});
 
         // Resize all overlay divs on window size

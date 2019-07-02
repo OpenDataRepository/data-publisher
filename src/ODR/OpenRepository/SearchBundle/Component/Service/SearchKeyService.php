@@ -365,9 +365,13 @@ class SearchKeyService
                             if (!$ret)
                                 throw new ODRBadRequestException('Invalid search key: "'.$value.'" is not a valid date', $exception_code);
                         }
-                        else if ( $pieces[3] !== 'by' ) {
+                        else if ( $pieces[3] === 'by' && !is_numeric($value) ) {
+                            throw new ODRBadRequestException('Invalid search key: "'.$value.'" is not a valid user id', $exception_code);
+                        }
+                        else if ( $pieces[3] !== 'by') {
                             throw new ODRBadRequestException('Invalid search key: unrecognized parameter "'.$key.'"', $exception_code);
                         }
+
                     }
                 }
             }
@@ -685,7 +689,7 @@ class SearchKeyService
                             // createdBy or modifiedBy
                             $type .= 'By';
                             $criteria[$dt_id]['search_terms'][$type] = array(
-                                'value' => $value,
+                                'user' => intval($value),
                                 'entity_type' => 'datatype',
                                 'entity_id' => $dt_id,
                                 'datatype_id' => $dt_id,

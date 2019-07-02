@@ -7,1006 +7,375 @@
 
     {% set datatype = datatype_array[target_datatype.id] %}
 
-    {% set can_use_general_search = false %}
-    {% for df_id, datafield in datatype['dataFields'] %}
-        {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-        {% if searchable == 1 or searchable == 2 %}
-            {% set can_use_general_search = true %}
-        {% endif %}
-    {% endfor %}
-
     <div id="markdown_help_dialog_wrapper">
         {% include 'ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig' %}
     </div>
 
-    <div class="pure-u-1 pure-u-sm-1-3 pure-u-md-1-3 pure-u-xl-1-4 ODRContentWrapper ODRSearchVisible">
-        <div class="ODRThemeElement">
-            <div class="ODRInnerBox">
-                <span class="ODRSearchToggle">
-                    <i class="fa fa-lg fa-arrow-circle-left"></i>
-                    <i class="fa fa-lg fa-arrow-circle-right hidden"></i>
-                </span>
-                {% if intent == 'searching' %}
-                    {% include 'ODROpenRepositorySearchBundle:Default:searchpage_markdown.html.twig' with {
-                        'datatype': target_datatype,
-                        'position': 'upper',
-                        'is_datatype_admin': is_datatype_admin,
-                    } %}
-                {% endif %}
+    {# Search sidebar is loaded from ODROpenRepositorySearchBundle:Default:index.html.twig #}
+    {#{% include 'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig' %}#}
 
-                <form id="search_form" class="pure-form pure-u-23-24 pure-form-stacked">
-                    <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}"/>
-                    <input type="hidden" id="selected_theme_id" value="{{ preferred_theme_id }}"/>
+<script>
+    $(function () {
+        // Ensure the sidebar is visible...
+        if ( window.location.href.indexOf('#') === -1 )
+            enableSearchSidebar('', true);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        else
+            enableSearchSidebar();
 
-                    <fieldset id="search_top">
-                        <div>
-                            <div class="pure-u-1">
-                                <a class="ODRSearchHelper Pointer pure-u-1" onclick="changeSearch();">Open Advanced
-                                    Search</a>
-                            </div>
-                            <div class="pure-u-1">
-                                <button class="pure-button pure-button ODRResetButton" type="button" onclick="doReset();">Reset
-                                </button>
-                                <button class="pure-button pure-button-primary ODRSearchButton" type="submit">Search</button>
-                            </div>
-                        </div>
-                    </fieldset>
+        // If user is on the base search page for a datatype...
+        if (window.location.hash.length === 0) {
+            // ...then immediately trigger a search with "default" criteria
+            doSearch();
 
-                    <fieldset class="ODRSearchBoxWrapper">
-                        <div class="pure-u-1">
-                            <label for="textbox_general"
-                                   class="pure-u-1 ODRPrimarySearchLabel">
-                                Search for:
-                                <i class="fa fa-lg fa-question-circle Pointer ODRSearchHelp" style="padding-left:5px;"
-                                   title="Search Help"></i>
-                                <i class="fa fa-lg fa-info-circle Pointer ODRGeneralSearchList"
-                                   style="padding-left:5px;" title="Fields searched when using general search:"></i>
-                                {% if is_datatype_admin %}
-                                    <i class="fa fa-lg fa-edit Pointer ODREditSearchNotes" style="padding-left:5px;"
-                                       title="Edit the search page notes."></i>
-                                {% endif %}
-                            </label>
-                            <input id="textbox_general"
-                                   class="pure-u-1" type="text" name="gen"
-                                   {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %} {% if not can_use_general_search %}disabled="disabled" title="This datatype has no searchable datafields"{% endif %} />
-                            <input type="hidden" id="search_type" value="basic"/>
-                        </div>
+            // Don't immediately return...the search controls need initialization
+            // return;
+        }
+    });
 
-                        <div class="pure-u-1" id="ODRSearchHelp_div" style="display:none;">
-                            {% include 'ODROpenRepositorySearchBundle:Default:search_help.html.twig' %}
-                        </div>
-                        <div class="pure-u-1" id="ODRGeneralSearchList_div" class="ODRTableWrap" style="display:none;">
-                            {% include 'ODROpenRepositorySearchBundle:Default:search_datafield_list.html.twig' with {
-                                'target_datatype': target_datatype,
-                                'datatype_array': datatype_array,
-                                'datatype_list': datatype_list,
-                                'logged_in': logged_in,
-                            } %}
-                        </div>
-                    </fieldset>
+    function applyToTagParents(source_element) {
+        var parent_tag = $(source_element).parent().parent().not('div');
+        if ( $(parent_tag).length === 0)
+            return;
 
-                    {# render target datatype first #}
-                    <fieldset>
-                        {% set datatype = datatype_array[target_datatype.id] %}
-                        <div class="ODRAdvSearch_header {#pure-u-1#}">
-                            <span>{{ datatype['dataTypeMeta']['shortName'] }}</span>
-                            <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
-                        </div>
-                        <div class="ODRAdvSearch_default">
-                            {% for datafield in datatype['dataFields'] %}
-                                {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                                {% if searchable == 2 or searchable == 3 %}
-                                    <div class="ODRAdvSearch_datafield pure-u-1">
-                                    {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
-                                        'datatype_id': datatype['id'],
-                                        'datafield': datafield
-                                    } %}
-                                    </div>
-                                {% endif %}
-                            {% endfor %}
+        // $(parent_tag) should be a <li class="ODRTagItem"> element
+        var parent_checkbox_icon = $(parent_tag).children('label').children('.ODRTristateCheckbox').first().children('i');
 
-                            {# created/modified by, created/modified date, public status of child datarecord #}
-                            {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
-                                'datatype_id': datatype.id,
-                                'user_list': user_list,
-                                'datatype_permissions': datatype_permissions,
-                                'is_top_level': 1
-                            } %}
-                        </div>
-                    </fieldset>
+        var selected_count = $(parent_tag).children('ul').find('.fa-check').length;
+        var unselected_count = $(parent_tag).children('ul').find('.fa-ban').length;
+        var total_count = $(parent_tag).children('ul').find('.fa').length;
 
-                    {# render children of target datatype next #}
-                    {% for child_datatype_id in datatype_list['child_datatypes'] %}
-                        {% set child_datatype = datatype_array[child_datatype_id] %}
+        if (selected_count === 0 && unselected_count === 0) {
+            // No children selected, so this one should be unselected too
+            $(parent_checkbox_icon).removeClass('fa-check fa-ban partial');
+        }
+        else if (selected_count === total_count) {
+            // All children selected, so this one should be selected too
+            $(parent_checkbox_icon).removeClass('fa-ban partial').addClass('fa-check');
+        }
+        else if (unselected_count === total_count) {
+            // All children selected, so this one should be selected too
+            $(parent_checkbox_icon).removeClass('fa-check partial').addClass('fa-ban');
+        }
+        else if (selected_count > 0) {
+            // Some children selected, so this one should be partially selected
+            $(parent_checkbox_icon).removeClass('fa-ban').addClass('fa-check partial');
+        }
+        else if (unselected_count > 0) {
+            // No children are selected, but at least one child is unselected...so this one
+            //  should be partially unselected
+            $(parent_checkbox_icon).removeClass('fa-check').addClass('fa-ban partial');
+        }
 
-                        {% set can_search_child_datatype = false %}
-                        {% for datafield in child_datatype['dataFields'] %}
-                            {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                            {% if searchable == 2 or searchable == 3 %}
-                                {% set can_search_child_datatype = true %}
-                            {% endif %}
-                        {% endfor %}
+        applyToTagParents( $(parent_tag) );
+    }
 
-                        {% if can_search_child_datatype %}
-                            <fieldset>
-                                <div class="ODRAdvSearch_header {#pure-u-1#}">
-                                    <span>{{ child_datatype['dataTypeMeta']['shortName'] }}</span>
-                                    <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
-                                </div>
-                                <div class="ODRAdvSearch_content {#pure-u-23-24#} pure-u-1">
-                                    {% for datafield in child_datatype['dataFields'] %}
-                                        {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                                        {% if searchable == 2 or searchable == 3 %}
-                                            <div class="ODRAdvSearch_datafield pure-u-1">
-                                            {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
-                                                'datatype_id': child_datatype['id'],
-                                                'datafield': datafield
-                                            } %}
-                                            </div>
-                                        {% endif %}
-                                    {% endfor %}
+    function changeSearch() {
+        if ($("#search_type").val() === 'basic') {
+            // Show all advanced search datafields
+            $("#search_type").val('advanced');
+            $(".ODRSearchHelper").each(function () {
+                $(this).html('Close Advanced Search');
+            });
 
-                                    {# created/modified by, created/modified date, public status of child datarecord #}
-                                    {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
-                                        'datatype_id': child_datatype.id,
-                                        'user_list': user_list,
-                                        'datatype_permissions': datatype_permissions,
-                                        'is_top_level': 0
-                                    } %}
-                                </div>
-                            </fieldset>
-                        {% endif %}
-                    {% endfor %}
+            $(".ODRAdvSearch_header").parent().removeAttr('style'); // show() uses display:block..don't want that
+            $(".ODRInput").prop('disabled', false);
 
-                    {# render linked datatypes last #}
-                    {% for linked_datatype_id in datatype_list['linked_datatypes'] %}
-                        {% set linked_datatype = datatype_array[linked_datatype_id] %}
+            $("#search_top").show();
+        }
+        else {
+            // Hide all advanced search datafields
+            $("#search_type").val('basic');
+            $(".ODRSearchHelper").each(function () {
+                $(this).html('Open Advanced Search');
+            });
 
-                        {% set can_search_linked_datatype = false %}
-                        {% for datafield in linked_datatype['dataFields'] %}
-                            {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                            {% if searchable == 2 or searchable == 3 %}
-                                {% set can_search_linked_datatype = true %}
-                            {% endif %}
-                        {% endfor %}
-
-                        {% if can_search_linked_datatype %}
-                            <fieldset>
-                                <div class="ODRAdvSearch_header {#pure-u-1#}">
-                                    <span>{{ linked_datatype['dataTypeMeta']['shortName'] }}</span>
-                                    <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
-                                </div>
-                                {#<div class="pure-u-1-24"></div>#}
-                                <div class="ODRAdvSearch_content {#pure-u-23-24#} pure-u-1">
-                                    {% for datafield in linked_datatype['dataFields'] %}
-                                        {% set searchable = datafield['dataFieldMeta']['searchable'] %}
-                                        {% if searchable == 2 or searchable == 3 %}
-                                            <div class="ODRAdvSearch_datafield pure-u-1">
-                                            {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
-                                                'datatype_id': linked_datatype['id'],
-                                                'datafield': datafield
-                                            } %}
-                                            </div>
-                                        {% endif %}
-                                    {% endfor %}
-
-                                    {# created/modified by, created/modified date, public status of datarecord #}
-                                    {# don't display metadata for linked datatypes...for now... #}
-                                </div>
-                            </fieldset>
-                        {% endif %}
-                    {% endfor %}
-
-                    <fieldset>
-                        <div class="pure-u-1">
-                            <a class="ODRSearchHelper Pointer pure-u-1" onclick="changeSearch();">Open Advanced
-                                Search</a>
-                        </div>
-                        <div class="pure-u-1">
-                            <button class="pure-button pure-button ODRResetButton" type="button" onclick="doReset();">Reset</button>
-                            <button class="pure-button pure-button-primary ODRSearchButton" type="submit">Search</button>
-                        </div>
-                    </fieldset>
-                </form>
-
-                {% if intent == 'searching' %}
-                    {% include 'ODROpenRepositorySearchBundle:Default:searchpage_markdown.html.twig' with {
-                        'datatype': target_datatype,
-                        'position': 'lower',
-                        'is_datatype_admin': is_datatype_admin,
-                    } %}
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- TODO Figure out better way to do odr_bg -->
-    <!-- <img id="odr_bg" class="pure-img"/> -->
-    <div class="pure-u-1 pure-u-sm-2-3 pure-u-md-2-3 pure-u-xl-3-4" id="ODRSearchContent">
-    </div>
-
-    <script>
-
-        $(function () {
-            $("#search_top").hide();
+            $(".ODRAdvSearch_header").parent().hide();
             $(".ODRInput").prop('disabled', true);
 
-            // Prevent normal form behavior
-            $("#search_form").unbind('submit').submit(function (event) {
-                event.preventDefault();
-                doSearch();
-            });
-
-
-            // If user is on the base search page for a datatype...
-            if (window.location.hash.length === 0) {
-                // ...then immediately trigger a search with "default" criteria
-                doSearch();
-
-                // Don't immediately return...the search controls need initialization
-                // return;
-            }
-
-
-            {% if is_datatype_admin %}
-
-            $(".ODRMarkdownHelp_open").unbind('click').click(function(event) {
-                event.preventDefault();
-
-                {# defined in ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig #}
-                openMarkdownHelpDialog();
-            });
-
-            function toggleEditMode() {
-                var edit = $(".ODRSearchPageNotes_edit");
-                var rendered = $(".ODRSearchPageNotes_rendered");
-                var wrapper_upper = $("#ODRSearchPageNotes_upper");
-                var wrapper_lower = $("#ODRSearchPageNotes_lower");
-                var upper = $('#upper_rendered');
-                var lower = $('#lower_rendered');
-
-                if(edit.hasClass('ODRHidden')) {
-                    // Hide rendered divs
-                    rendered.addClass('ODRHidden');
-
-                    // Show wrapper and editor
-                    wrapper_upper.removeClass('ODRHidden');
-                    wrapper_lower.removeClass('ODRHidden');
-                    edit.removeClass('ODRHidden')
-                }
-                else {
-                    // Show portions with data
-                    if(lower.html() !== "") {
-                        lower.removeClass('ODRHidden');
-                    }
-                    else {
-                        wrapper_lower.addClass('ODRHidden')
-                    }
-                    if(upper.html() !== "") {
-                        upper.removeClass('ODRHidden');
-                    }
-                    else {
-                        wrapper_upper.addClass('ODRHidden')
-                    }
-                    edit.addClass('ODRHidden')
-                }
-            }
-            $(".ODREditSearchNotes").unbind('click').click(function () {
-                toggleEditMode();
-            });
-
-            $(".ODRSearchPageNotes_save").unbind('click').click(function () {
-
-                var url = '{{ path('odr_save_search_notes', {'datatype_id': target_datatype.id}) }}';
-
-                $("#upper_value").val($("#upper_raw").val());
-                $("#lower_value").val($("#lower_raw").val());
-
-                $.ajax({
-                    type: 'POST',
-                    url: url,
-                    dataType: 'json',
-                    data: $("#ODRSearchPageNotes_form").serialize(),
-                    success: function (data, textStatus, jqXHR) {
-                        // Initialize markdown-it plugin
-                        var md = window.markdownit();
-                        md.disable(['table', 'strikethrough', 'blockquote']);
-
-                        // Update the display divs with the new text
-                        var markdown_text = '';
-                        markdown_text = md.render($("#upper_raw").val());
-                        $("#upper_rendered").html(markdown_text);
-                        markdown_text = md.render($("#lower_raw").val());
-                        $("#lower_rendered").html(markdown_text);
-
-                        // Show display divs again
-                        toggleEditMode();
-
-                        // Update previous values in case there's an error later on...
-                        $("#upper_old").val($("#upper_raw").val());
-                        $("#lower_old").val($("#lower_raw").val());
-                    },
-                    error: function (jqXHR, textStatus, errorThrown) {
-                        // Revert back to previous values on an error
-                        $("#upper_raw").val($("#upper_old").val());
-                        $("#upper_value").val($("#upper_old").val());
-
-                        $("#lower_raw").val($("#lower_old").val());
-                        $("#lower_value").val($("#lower_old").val());
-                    },
-                    complete: function (jqXHR, textStatus) {
-                        // Get the xdebugToken from response headers
-                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                        // If the Sfjs object exists
-                        if (typeof Sfjs !== "undefined") {
-                            // Grab the toolbar element
-                            var currentElement = $('.sf-toolbar')[0];
-
-                            // Load the data of the given xdebug token into the current toolbar wrapper
-                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
-                        }
-                    }
-                });
-            });
-            {% endif %}
-
-            // Setup accordions
-            $(".ODRAdvSearch_header").unbind('click').click(function () {
-                var content_div = $(this).next();
-
-                if ($(content_div).hasClass('ODRCollapse')) {
-                    // Show all textfields
-                    $(content_div).removeClass('ODRCollapse');
-                    $(content_div).children().each(function () {
-                        $(this).slideDown(200);
-                    });
-
-                    $(this).find('i').removeClass('fa-caret-down').addClass('fa-caret-up');
-                }
-                else {
-                    // Hide all empty textfields
-                    $(content_div).addClass('ODRCollapse');
-                    $(content_div).find('.ODRInput').not('.ODRDatePicker').each(function () {
-                        if ($(this).val() == '')
-                            $(this).parent().slideUp(200);
-                    });
-
-                    // Datepickers need special treatment...
-                    $(content_div).find(".ODRDatePicker[name$='_s']").each(function () {
-                        var id = $(this).attr('id');
-                        var id_data = id.split('_');
-
-                        var end_id = '';
-                        if (id_data.length == 3)
-                            end_id = '#' + id_data[0] + '_' + id_data[1] + '_end';
-                        else if (id_data.length == 4)
-                            end_id = '#' + id_data[0] + '_' + id_data[1] + '_' + id_data[2] + '_end';
-
-                        // If nothing in start and nothing in end, hide this datafield
-                        if ($(this).val() == '' && $(end_id).val() == '')
-                            $(this).parent().slideUp(200);
-                    });
-
-                    // Radio fields also need special treatment...
-                    $(content_div).find('.ODRRadioSearchDiv').each(function () {
-                        // Search for a selection made in this radio field
-                        var selected = false;
-                        $(this).find('i').each(function () {
-                            if ($(this).hasClass('fa-check') || $(this).hasClass('fa-ban')) {
-                                selected = true;
-                                return false;
-                            }
-                        });
-
-                        // If nothing selected, hide this datafield
-                        if (!selected)
-                            $(this).parent().slideUp(200);
-                    });
-
-                    // Tag fields also need special treatment...
-                    $(content_div).find('.ODRTagSearchDiv').each(function () {
-                        // Search for a selection made in this radio field
-                        var selected = false;
-                        $(this).find('i').each(function () {
-                            if ($(this).hasClass('fa-check') || $(this).hasClass('fa-ban')) {
-                                selected = true;
-                                return false;
-                            }
-                        });
-
-                        // If nothing selected, hide this datafield
-                        if (!selected)
-                            $(this).parent().slideUp(200);
-                    });
-
-                    $(this).find('i').removeClass('fa-caret-up').addClass('fa-caret-down');
-                }
-            });
-
-            // Open first accordion (should be target datatype)
-            $(".ODRAdvSearch_header").trigger('click');
-            $(".ODRAdvSearch_default").prev().trigger('click');
-            $(".ODRAdvSearch_header").parent().hide();
-
-            // File/Image stuff
-            $(".ODRFileDatafieldName").unbind('change keyup paste').on('keyup paste', function () {
-                var datafield_id_data = $(this).attr('id').split(/_/);
-                var datafield_id = datafield_id_data[1];
-
-                var value = $(this).val();
-                if (value != '')
-                    $("#datafield_" + datafield_id + "_ex").prop('selectedIndex', '1').change();
-            });
-
-            $(".ODRFileDatafieldExist").unbind('change').change(function () {
-                var datafield_id_data = $(this).attr('id').split(/_/);
-                var datafield_id = datafield_id_data[1];
-
-                var value = $(this).val();
-                if (value != 1)
-                    $("#datafield_" + datafield_id + "_fn").val('');
-            });
-
-            // radio Tristate checkbox
-            $(".ODRRadioLabel > .ODRTristateCheckbox").unbind('click').click(function () {
-                // Grab data about the option being clicked
-                var icon = $(this).children('i').first();
-                var input = $(this).children('input').first();
-                var radio_option_id = $(input).attr('rel');
-
-                if($(this).parent().hasClass("ODRSelectAllOption")) {
-                    return;
-                }
-
-                if ($(icon).hasClass('fa-check')) {
-                    // Currently selected, change to deselected
-                    $(this).attr('title', 'Search for Datarecords where this option is unselected');
-                    $(icon).removeClass('fa-check').addClass('fa-ban');
-                    $(input).val('-' + radio_option_id);
-                }
-                else if ($(icon).hasClass('fa-ban')) {
-                    // Currently deselected, change to blank
-                    $(this).removeAttr('title');
-                    $(icon).removeClass('fa-ban');
-                    $(input).val('');
-                }
-                else {
-{#
-                    // If only a single radio/select, uncheck all other options
-                    if ( $(this).attr('rel') == 'single') {
-                        $(this).parent().parent().find('.fa-check').each(function() {
-                            $(this).parent().removeAttr('title');
-                            $(this).removeClass('fa-check');
-                            $(this).next().val('');
-                        });
-                    }
-#}
-                    // Currently blank, change to selected
-                    $(this).attr('title', 'Search for Datarecords where this option is selected');
-                    $(icon).addClass('fa-check');
-                    $(input).val(radio_option_id);
-                }
-            });
-
-            // tag Tristate checkbox
-            $(".ODRTagLabel > .ODRTristateCheckbox").unbind('click').click(function () {
-                // Grab data about the tag being clicked
-                var tag_item = $(this).parent().parent();
-
-                // If any item is clicked, it'll set all children to selected/unselected...so
-                //  immediately remove the partial class
-                $(this).children('i').first().removeClass('partial');
-
-                if ( $(this).children('i').first().hasClass('fa-check') ) {
-                    // Currently selected, change this tag and all its children to deselected
-                    $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
-                        // Don't change title attribute of a non-leaf tag
-                        if ( !$(element).hasClass('ODRSearchParentTag') )
-                            $(element).attr('title', 'Search for Datarecords where this tag is unselected');
-
-                        $(element).children('i').first().removeClass('fa-check').addClass('fa-ban');
-
-                        var tag_id = $(element).children('input').first().attr('rel');
-                        $(element).children('input').first().val('-' + tag_id);
-                    });
-                }
-                else if ( $(this).children('i').first().hasClass('fa-ban') ) {
-                    // Currently deselected, change this tag and all its children to blank
-                    $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
-                        $(element).removeAttr('title');
-                        $(element).children('i').first().removeClass('fa-ban');
-
-                        var tag_id = $(element).children('input').first().attr('rel');
-                        $(element).children('input').first().val('');
-                    });
-                }
-                else {
-                    // Currently blank, change this tag and all its children to selected
-                    $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
-                        // Don't change title attribute of a non-leaf tag
-                        if ( !$(element).hasClass('ODRSearchParentTag') )
-                            $(element).attr('title', 'Search for Datarecords where this tag is selected');
-
-                        $(element).children('i').first().addClass('fa-check');
-
-                        var tag_id = $(element).children('input').first().attr('rel');
-                        $(element).children('input').first().val(tag_id);
-                    });
-                }
-
-                applyToTagParents( $(tag_item) );
-            });
-
-
-            // Shortcut to select all options of a Multiple Radio/Select datafield
-            $(".ODRSelectAll").unbind('click').click(function () {
-                var datafield_id = $(this).attr('rel');
-
-                $("#Input_" + datafield_id).find('i.fa').each(function () {
-                    if (!$(this).hasClass('fa-check')) {
-                        $(this).parent().attr('title', 'Search for Datarecords where this option is selected');
-                        $(this).removeClass('fa-ban').addClass('fa-check');
-                        $(this).next().val($(this).next().attr('rel'));
-                    }
-                });
-            });
-
-            // Shortcut to deselect all options of a Radio/Select datafield
-            $(".ODRDeselectAll").unbind('click').click(function () {
-                var datafield_id = $(this).attr('rel');
-
-                $("#Input_" + datafield_id).find('i.fa').each(function () {
-                    if (!$(this).hasClass('fa-ban')) {
-                        $(this).parent().attr('title', 'Search for Datarecords where this option is unselected');
-                        $(this).removeClass('fa-check').addClass('fa-ban');
-                        $(this).next().val('-' + $(this).next().attr('rel'));
-                    }
-                });
-            });
-
-            // Shortcut to clear all options of a Radio/Select datafield
-            $(".ODRClearAll").unbind('click').click(function () {
-                var datafield_id = $(this).attr('rel');
-
-                $("#Input_" + datafield_id).find('i.fa').each(function () {
-                    if ($(this).hasClass('fa-check') || $(this).hasClass('fa-ban')) {
-                        $(this).parent().removeAttr('title');
-                        $(this).removeClass('fa-ban fa-check');
-                        $(this).next().val('');
-                    }
-                });
-            });
-
-            $("#textbox_general").focus();
-
-            // Set up datepicker datafields
-            $(".ODRDatePicker").datepicker({
-                showOtherMonths: true,
-                selectOtherMonths: true,
-                changeMonth: true,
-                changeYear: true,
-                dateFormat: 'yy-mm-dd',
-                yearRange: '1800:+10',
-
-                onSelect: function (dateText, inst) {
-
-                    var field_id = $(this).attr('rel');
-                    var start_date = $("#" + field_id + "_start");
-                    var end_date = $("#" + field_id + "_end");
-
-                    var start_date_value = $(start_date).val();
-                    var end_date_value = $(end_date).val();
-
-                    if (end_date_value !== '' && start_date_value !== '') {
-                        if (start_date_value > end_date_value)
-                            $(end_date).datepicker("setDate", start_date_value);
-                        else if (end_date_value < start_date_value)
-                            $(start_date).datepicker("setDate", end_date_value);
-
-                        $(start_date).datepicker("option", "maxDate", end_date_value);
-                        $(end_date).datepicker("option", "minDate", start_date_value);
-                    }
-                    else if (start_date_value === '') {
-                        $(start_date).datepicker("option", "maxDate", end_date_value);
-                        $(end_date).datepicker("option", "minDate", null);
-                    }
-                    else if (end_date_value === '') {
-                        $(start_date).datepicker("option", "maxDate", null);
-                        $(end_date).datepicker("option", "minDate", start_date_value);
-                    }
-
-                },
-                onClose: function () {
-                    $(this).blur();
-                },
-                beforeShow: function (input, inst) {
-                }
-            });
-
-            // Slide out the help menu
-            $(".ODRSearchHelp").unbind('click').click(function () {
-                $("#ODRSearchHelp_div").slideToggle();
-            });
-
-            $(".ODRGeneralSearchList").unbind('click').click(function () {
-                $("#ODRGeneralSearchList_div").slideToggle();
-            });
+            $("#search_top").hide();
+        }
+    }
+
+    function doReset() {
+        // radio and tag fields
+        $(".ODRRadioSearchDiv").find(".ODRTristateCheckbox").each(function() {
+            $(this).removeAttr('title');
+            $(this).children(".fa").removeClass('fa-check fa-ban partial');
+            $(this).children("input").val('');
         });
 
-        function applyToTagParents(source_element) {
-            var parent_tag = $(source_element).parent().parent().not('div');
-            if ( $(parent_tag).length === 0)
-                return;
+        // general field
+        $("#textbox_general").val('');
 
-            // $(parent_tag) should be a <li class="ODRTagItem"> element
-            var parent_checkbox_icon = $(parent_tag).children('label').children('.ODRTristateCheckbox').first().children('i');
+        // select fields
+        $("select.ODRInput").val('');
 
-            var selected_count = $(parent_tag).children('ul').find('.fa-check').length;
-            var unselected_count = $(parent_tag).children('ul').find('.fa-ban').length;
-            var total_count = $(parent_tag).children('ul').find('.fa').length;
-
-            if (selected_count === 0 && unselected_count === 0) {
-                // No children selected, so this one should be unselected too
-                $(parent_checkbox_icon).removeClass('fa-check fa-ban partial');
-            }
-            else if (selected_count === total_count) {
-                // All children selected, so this one should be selected too
-                $(parent_checkbox_icon).removeClass('fa-ban partial').addClass('fa-check');
-            }
-            else if (unselected_count === total_count) {
-                // All children selected, so this one should be selected too
-                $(parent_checkbox_icon).removeClass('fa-check partial').addClass('fa-ban');
-            }
-            else if (selected_count > 0) {
-                // Some children selected, so this one should be partially selected
-                $(parent_checkbox_icon).removeClass('fa-ban').addClass('fa-check partial');
-            }
-            else if (unselected_count > 0) {
-                // No children are selected, but at least one child is unselected...so this one
-                //  should be partially unselected
-                $(parent_checkbox_icon).removeClass('fa-check').addClass('fa-ban partial');
-            }
-
-            applyToTagParents( $(parent_tag) );
-        }
-
-        function changeSearch() {
-            if ($("#search_type").val() === 'basic') {
-                // Show all advanced search datafields
-                $("#search_type").val('advanced');
-                $(".ODRSearchHelper").each(function () {
-                    $(this).html('Close Advanced Search');
-                });
-
-                $(".ODRAdvSearch_header").parent().removeAttr('style'); // show() uses display:block..don't want that
-                $(".ODRInput").prop('disabled', false);
-
-                $("#search_top").show();
+        // every other field
+        $("input.ODRInput").not(".hidden").each(function () {
+            if ($(this).hasClass('ODRDatePicker')) {
+                $(this).datepicker('setDate', '');
+                $(this).datepicker("option", "maxDate", null);
+                $(this).datepicker("option", "minDate", null);
             }
             else {
-                // Hide all advanced search datafields
-                $("#search_type").val('basic');
-                $(".ODRSearchHelper").each(function () {
-                    $(this).html('Open Advanced Search');
-                });
-
-                $(".ODRAdvSearch_header").parent().hide();
-                $(".ODRInput").prop('disabled', true);
-
-                $("#search_top").hide();
+                $(this).val('');
             }
-        }
+        });
 
-        function doReset() {
-            // radio and tag fields
-            $(".ODRTristateCheckbox").removeAttr('title');
-            $(".ODRTristateCheckbox > .fa").removeClass('fa-check fa-ban partial');
-            $(".ODRTristateCheckbox > input").val('');
+    }
 
-            // general field
-            $("#textbox_general").val('');
+    function doSearch() {
+        // Values for Radio datafields need to be manually set
+        $(".ODRRadioSearchDiv").each(function () {
+            var data = $(this).attr('id').split(/_/);
+            var datafield_id = data[1];
 
-            // select fields
-            $("select.ODRInput").val('');
+            // Reset the input's value since this is rebuilding the search value from scratch
+            var datafield = $("#datafield_" + datafield_id);
+            datafield.val('');
 
-            // every other field
-            $("input.ODRInput").not(".hidden").each(function () {
-                if ($(this).hasClass('ODRDatePicker')) {
-                    $(this).datepicker('setDate', '');
-                    $(this).datepicker("option", "maxDate", null);
-                    $(this).datepicker("option", "minDate", null);
+            var str = '';
+            var first_selection = true;
+            var has_selections = false;
+
+            $(this).find('input').each(function () {
+                // Grab the radio_option_id
+                var value = $(this).val().trim();
+                if (value == '')
+                    return;
+
+                has_selections = true;
+
+                if (!first_selection) {
+                    str += ',' + value;
                 }
                 else {
-                    $(this).val('');
+                    first_selection = false;
+                    str += value;
                 }
             });
 
-        }
+            if (has_selections)
+                datafield.val(str);
+        });
 
-        function doSearch() {
-            // Values for Radio datafields need to be manually set
-            $(".ODRRadioSearchDiv").each(function () {
-                var data = $(this).attr('id').split(/_/);
-                var datafield_id = data[1];
+        // Same for tag datafields
+        $(".ODRTagSearchDiv").each(function () {
+            var data = $(this).attr('id').split(/_/);
+            var datafield_id = data[1];
 
-                // Reset the input's value since this is rebuilding the search value from scratch
-                var datafield = $("#datafield_" + datafield_id);
-                datafield.val('');
+            // Reset the input's value since this is rebuilding the search value from scratch
+            var datafield = $("#datafield_" + datafield_id);
+            datafield.val('');
 
-                var str = '';
-                var first_selection = true;
-                var has_selections = false;
+            var str = '';
+            var first_selection = true;
+            var has_selections = false;
 
-                $(this).find('input').each(function () {
-                    // Grab the radio_option_id
-                    var value = $(this).val().trim();
-                    if (value == '')
-                        return;
-
-                    has_selections = true;
-
-                    if (!first_selection) {
-                        str += ',' + value;
-                    }
-                    else {
-                        first_selection = false;
-                        str += value;
-                    }
-                });
-
-                if (has_selections)
-                    datafield.val(str);
-            });
-
-            // Same for tag datafields
-            $(".ODRTagSearchDiv").each(function () {
-                var data = $(this).attr('id').split(/_/);
-                var datafield_id = data[1];
-
-                // Reset the input's value since this is rebuilding the search value from scratch
-                var datafield = $("#datafield_" + datafield_id);
-                datafield.val('');
-
-                var str = '';
-                var first_selection = true;
-                var has_selections = false;
-
-                $(this).find('input').not('.ODRSearchParentTag').each(function () {
-                    // Grab the tag
-                    var value = $(this).val().trim();
-                    if (value == '')
-                        return;
-
-                    has_selections = true;
-
-                    if (!first_selection) {
-                        str += ',' + value;
-                    }
-                    else {
-                        first_selection = false;
-                        str += value;
-                    }
-                });
-
-                if (has_selections)
-                    $(datafield).val(str);
-            });
-
-            // Ensure the two parts of the search criteria for a file/image match
-            $(".ODRFileDatafieldName").each(function () {
-                var df_id_data = $(this).attr('id').split(/_/);
-                var df_id = df_id_data[1];
-
+            $(this).find('input').not('.ODRSearchParentTag').each(function () {
+                // Grab the tag
                 var value = $(this).val().trim();
-                var exist_value = $("#datafield_" + df_id + "_ex option:selected").val();
+                if (value == '')
+                    return;
 
-                if (exist_value == '') {
-                    $(this).val('');
+                has_selections = true;
+
+                if (!first_selection) {
+                    str += ',' + value;
                 }
-                else if (exist_value == 0) {
-                    $(this).val('""');   // If user wanted datarecords that do not have files/images, set this datafield's value to empty string
-                }
-                else if (exist_value == 1 && value == '') {
-                    $(this).val('!""');  // If user wanted datarecords that do have files/images, but didn't specify a filename, set this datafield's value to 'not empty'
+                else {
+                    first_selection = false;
+                    str += value;
                 }
             });
 
-            // Request search results
-            var url = '{{ path('odr_search_results') }}';
+            if (has_selections)
+                $(datafield).val(str);
+        });
 
-            showSearchOverlay();
+        // Ensure the two parts of the search criteria for a file/image match
+        $(".ODRFileDatafieldName").each(function () {
+            var df_id_data = $(this).attr('id').split(/_/);
+            var df_id = df_id_data[1];
 
-            // TODO - need to communicate which theme to use...
+            var value = $(this).val().trim();
+            var exist_value = $("#datafield_" + df_id + "_ex option:selected").val();
 
-            $.ajax({
-                type: 'POST',
-                url: url,
-                dataType: 'json',
-                data: $("#search_form").serialize(),
-                success: function (data, textStatus, jqXHR) {
+            if (exist_value == '') {
+                $(this).val('');
+            }
+            else if (exist_value == 0) {
+                $(this).val('""');   // If user wanted datarecords that do not have files/images, set this datafield's value to empty string
+            }
+            else if (exist_value == 1 && value == '') {
+                $(this).val('!""');  // If user wanted datarecords that do have files/images, but didn't specify a filename, set this datafield's value to 'not empty'
+            }
+        });
+
+        // Request search results
+        var url = '{{ path('odr_search_results') }}';
+
+        showSearchOverlay();
+
+        // TODO - need to communicate which theme to use...
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            dataType: 'json',
+            data: $("#search_form").serialize(),
+            success: function (data, textStatus, jqXHR) {
                 {% if intent == "searching" %}
-                    // Overwrite any currently existing tab id, since a new search was performed
-                    if (window.sessionStorage.getItem('odr_tab_id')) {
-                        // Tell the server to stop storing data for the old tab
-                        // TODO - transfer page length?
-                        var url = '{{ path('odr_datatables_state_destroy', { 'odr_tab_id': '' } ) }}';
-                        url += window.sessionStorage.getItem('odr_tab_id');
+                // Overwrite any currently existing tab id, since a new search was performed
+                if (window.sessionStorage.getItem('odr_tab_id')) {
+                    // Tell the server to stop storing data for the old tab
+                    // TODO - transfer page length?
+                    var url = '{{ path('odr_datatables_state_destroy', { 'odr_tab_id': '' } ) }}';
+                    url += window.sessionStorage.getItem('odr_tab_id');
 
-                        $.ajax({
-                            type: 'GET',
-                            url: url,
-                            dataType: 'json',
-                        });
-                    }
-                    window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
-
-                    // Now that the search has been performed and cached, render the results
-                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1' } ) }}';
-                    url = url.substr(0, url.length - 2);
-                    url += $("#selected_theme_id").val() + '/' + data.d.search_key + '/1';
-
-                    // UpdateURL() will end up forcing a hashchange event one way or another, causing
-                    //  the event handler in common_js.html.twig to then call loadSearchContent()
-                    UpdateURL(url);
-
-                {% elseif intent == "linking" %}
-                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
-                    url = url.substr(0, url.length - 10);
-                    url += data.d.search_key + '/1/linking';
-
-                    // Render the html into the search_content div on this page
                     $.ajax({
                         type: 'GET',
                         url: url,
                         dataType: 'json',
-                        success: function (data, textStatus, jqXHR) {
-                            $(".search_content").html(data.d.html);
-                            hideSearchOverlay();
-                        }
                     });
-                {% endif %}
-                },
-                error: function (jqXHR, textStatus, errorThrown) {
-                    // TODO - should everything get reset on an error?
-                    // doReset();
-                },
-                complete: function (jqXHR, textStatus) {
+                }
+                window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+                // Now that the search has been performed and cached, render the results
+                var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1' } ) }}';
+                url = url.substr(0, url.length - 2);
+                url += $("#selected_theme_id").val() + '/' + data.d.search_key + '/1';
 
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
+                // Save the search key so TODO
+                $("#ODRSidebarSearchKey").val(data.d.search_key);
 
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                // UpdateURL() will end up forcing a hashchange event one way or another
+                UpdateURL(url);
+                hideSearchOverlay();
+
+                {% elseif intent == "linking" %}
+                var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
+                url = url.substr(0, url.length - 10);
+                url += data.d.search_key + '/1/linking';
+
+                // Render the html into the search_content div on this page
+                $.ajax({
+                    type: 'GET',
+                    url: url,
+                    dataType: 'json',
+                    success: function (data, textStatus, jqXHR) {
+                        $(".search_content").html(data.d.html);
+                        hideSearchOverlay();
                     }
+                });
+                {% endif %}
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // TODO - should everything get reset on an error?
+                // doReset();
+            },
+            complete: function (jqXHR, textStatus) {
+
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
                 }
-            });
-        }
-    </script>
-
-    <script>
-
-        var search_content = "";
-
-        $(function() {
-            setupBackgroundImage();
-
-
-            // Check if search content needs to be loaded
-            if(search_content !== window.location.hash.substr(1)) {
-                //showOverlay();
-                // loadSearchContent(window.location.hash.substr(1));
             }
-
-            // TODO Parser to set search options based on hash string
-
-            $(".ODRSearchToggle").unbind('click').click(function() {
-                searchToggle();
-            })
         });
+    }
+</script>
 
+<script>
 
+    var search_content = "";
 
-        function searchToggle() {
-            var search = $(".ODRContentWrapper");
-            var searchToggle = $(".ODRSearchToggle");
-            if(search.hasClass("ODRSearchVisible")) {
-                search.removeClass("ODRSearchVisible").addClass("ODRSearchHidden");
-                searchToggle.find(".fa-arrow-circle-left").addClass('hidden');
-                searchToggle.find(".fa-arrow-circle-right").removeClass('hidden');
-                $("#ODRSearchContent").addClass("ODRSearchResultsWide");
-            }
-            else {
-                search.removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
-                searchToggle.find(".fa-arrow-circle-right").addClass('hidden');
-                searchToggle.find(".fa-arrow-circle-left").removeClass('hidden');
-                $("#ODRSearchContent").removeClass("ODRSearchResultsWide");
-            }
-        }
+    $(function() {
+        setupBackgroundImage();
+    });
 
-
-
-        function setupBackgroundImage() {
-            {% if background_image_id != null %}
-            if (window.location.hash === '') {
-                // After the rest of the page is loaded, start loading the bg image
-                var url = "{{ path('odr_image_download', {'image_id': 0 }) }}";
-                url = url.substring(0, url.length - 1);
-                url += "{{ background_image_id }}";
-                $("#odr_bg").attr('src', url);
-            }
-            {% endif %}
-
-            {% if intent == 'searching' %}
-            // Setup IntroJS Walkthrough
-            jQuery('#ODRHelpButton')
-                .attr('data-step', '1')
-                .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br /><br />  For quicker navigation, use your left and right arrow keys to go through the tutorial.');
-            jQuery('#textbox_general')
-                .attr('data-step', '2')
-                .attr('data-intro', 'This is the "general search" box. Enter terms in this field that you want to find in any of the available search fields.');
-            jQuery('.ODRGeneralSearchList')
-                .attr('data-step', '3')
-                .attr('data-intro', 'Clicking this icon brings up a panel that lists the fields in this database that will be searched when using the "general search" box.');
-            jQuery('.ODRSearchHelp')
-                .attr('data-step', '4')
-                .attr('data-intro', 'All search fields can make use of operators and logic to build more refined searches.  Clicking this icon presents instructions on using operators to build more complex searches.');
-            jQuery('.ODRSearchHelper:first')
-                .attr('data-step', '5')
-                .attr('data-intro', 'Click this link to open or close "Advanced Search".  Advanced search allows you to refine searches to specific fields or field selections.');
-
-            // Initialize the help button
-            jQuery('#ODRHelpButton').unbind('click').click(function () {
-                introJs()
-                    .onbeforechange(introJsStepBeforeChangeHandler)
-                    .onbeforeexit(introJsExitHandler)
-                    .start();
-            });
-            {% endif %}
-        }
-
-        {% if intent == 'searching' %}
-        var introjs_starting_search_type = "basic";
-
-        function introJsExitHandler() {
-            if (introjs_starting_search_type === "basic" && $("#search_type").val() !== 'basic') {
-                changeSearch()
-            }
-        }
-
-        function introJsStepBeforeChangeHandler(elem) {
-            if (jQuery(elem).hasClass("ODRGeneralSearchList")) {
-                if (!jQuery("#ODRGeneralSearchList_div").is(":visible")) {
-                    jQuery(elem).click();
-                }
-            }
-            if (jQuery(elem).hasClass("ODRSearchHelp")) {
-                if (!jQuery("#ODRSearchHelp_div").is(":visible")) {
-                    jQuery(elem).click();
-                }
-                if (jQuery("#ODRGeneralSearchList_div").is(":visible")) {
-                    jQuery(".ODRGeneralSearchList").click();
-                }
-            }
-            if (jQuery(elem).hasClass("ODRSearchHelper")) {
-                if (jQuery("#ODRSearchHelp_div").is(":visible")) {
-                    jQuery(".ODRSearchHelp").click();
-                }
-                if ($("#search_type").val() === 'basic') {
-                    introjs_starting_search_type = "basic";
-                    changeSearch();
-                }
-                else {
-                    introjs_starting_search_type = "advanced";
-                }
-            }
+    function setupBackgroundImage() {
+        {% if background_image_id != null %}
+        if (window.location.hash === '') {
+            // After the rest of the page is loaded, start loading the bg image
+            var url = "{{ path('odr_image_download', {'image_id': 0 }) }}";
+            url = url.substring(0, url.length - 1);
+            url += "{{ background_image_id }}";
+            $("#odr_bg").attr('src', url);
         }
         {% endif %}
-    </script>
+
+        {% if intent == 'searching' %}
+        // Setup IntroJS Walkthrough
+        jQuery('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br /><br />  For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+        jQuery('#textbox_general')
+            .attr('data-step', '2')
+            .attr('data-intro', 'This is the "general search" box. Enter terms in this field that you want to find in any of the available search fields.');
+        jQuery('.ODRGeneralSearchList')
+            .attr('data-step', '3')
+            .attr('data-intro', 'Clicking this icon brings up a panel that lists the fields in this database that will be searched when using the "general search" box.');
+        jQuery('.ODRSearchHelp')
+            .attr('data-step', '4')
+            .attr('data-intro', 'All search fields can make use of operators and logic to build more refined searches.  Clicking this icon presents instructions on using operators to build more complex searches.');
+        jQuery('.ODRSearchHelper:first')
+            .attr('data-step', '5')
+            .attr('data-intro', 'Click this link to open or close "Advanced Search".  Advanced search allows you to refine searches to specific fields or field selections.');
+
+        // Initialize the help button
+        jQuery('#ODRHelpButton').unbind('click').click(function () {
+            introJs()
+                .onbeforechange(introJsStepBeforeChangeHandler)
+                .onbeforeexit(introJsExitHandler)
+                .start();
+        });
+        {% endif %}
+    }
+
+    {% if intent == 'searching' %}
+    var introjs_starting_search_type = "basic";
+
+    function introJsExitHandler() {
+        if (introjs_starting_search_type === "basic" && $("#search_type").val() !== 'basic') {
+            changeSearch()
+        }
+    }
+
+    function introJsStepBeforeChangeHandler(elem) {
+        if (jQuery(elem).hasClass("ODRGeneralSearchList")) {
+            if (!jQuery("#ODRGeneralSearchList_div").is(":visible")) {
+                jQuery(elem).click();
+            }
+        }
+        if (jQuery(elem).hasClass("ODRSearchHelp")) {
+            if (!jQuery("#ODRSearchHelp_div").is(":visible")) {
+                jQuery(elem).click();
+            }
+            if (jQuery("#ODRGeneralSearchList_div").is(":visible")) {
+                jQuery(".ODRGeneralSearchList").click();
+            }
+        }
+        if (jQuery(elem).hasClass("ODRSearchHelper")) {
+            if (jQuery("#ODRSearchHelp_div").is(":visible")) {
+                jQuery(".ODRSearchHelp").click();
+            }
+            if ($("#search_type").val() === 'basic') {
+                introjs_starting_search_type = "basic";
+                changeSearch();
+            }
+            else {
+                introjs_starting_search_type = "advanced";
+            }
+        }
+    }
+    {% endif %}
+</script>
 
 {% endspaceless %}

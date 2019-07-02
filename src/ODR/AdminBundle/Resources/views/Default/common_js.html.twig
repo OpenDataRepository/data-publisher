@@ -3,21 +3,7 @@
     {# This is intentionally placed outside the $(function() {...} block #}
     {# jquery3 modified how the 'load' event was handled, and firefox wouldn't trigger this reliably #}
     $(window).on('load', function() {
-        // Skip this process for the search page
-        if (window.location.hash !== ""
-            && (window.location.hash.substr(1).match(/\/search/)
-                || window.location.hash.substr(1).match(/\/app_dev.php\/search/)
-                || window.location.hash.substr(1).match(/\/view\//)
-                || window.location.hash.substr(1).match(/\/app_dev.php\/view\//)
-                || window.location.hash.substr(1).match(/\/edit\//)
-                || window.location.hash.substr(1).match(/\/app_dev.php\/edit\//)
-            )
-        ) {
-            // console.log( 'window.onload: loadSearchContent("' + window.location.hash.substr(1) + '")' );
-            loadSearchContent( window.location.hash.substr(1) );
-            return;
-        }
-        else if ( window.location.hash !== '') {
+        if ( window.location.hash !== '') {
             // window.location.hash doesn't preserve url encoding...
             var tmp = window.location.href.split('#');
             var url = tmp[1];
@@ -53,19 +39,6 @@
         $(window).on("hashchange", function(event) {
             // Needed, unfortunately...
             event.preventDefault();
-
-            // Grab the URL from the browser and reload it
-            // Skip this process for the search page
-            if (window.location.hash.substr(1).match(/\/search/)
-                || window.location.hash.substr(1).match(/\/app_dev.php\/search/)
-                || window.location.hash.substr(1).match(/\/view\//)
-                || window.location.hash.substr(1).match(/\/app_dev.php\/view\//)
-                || window.location.hash.substr(1).match(/\/edit\//)
-                || window.location.hash.substr(1).match(/\/app_dev.php\/edit\//)
-                ) {
-                loadSearchContent(window.location.hash.substr(1))
-                return;
-            }
 
             // Close Menu
             $("#ODRNav").hide();
@@ -186,7 +159,13 @@
         });
     }
 
-    function UpdateURL(url, force) {
+    function reloadPage() {
+        // TODO - should check if URL has hash value...
+        var url = window.location.hash.substr(1);
+        LoadContentFullAjax( url );
+    }
+
+    function UpdateURL(url) {
         // Update the URL and hash
         var current_hash = window.location.hash.substr(1);
         if ( current_hash !== url ) {
@@ -204,11 +183,11 @@
     var xhr = null;
     var timer = null;
     function LoadContentFullAjax(url, use_fade) {
-        if (timer) {
-            window.clearTimeout(timer)
-        }
+        if (timer)
+            window.clearTimeout(timer);
+
         // Default use_fade to 1
-        if (undefined == use_fade)
+        if (use_fade === undefined)
             use_fade = true;
 
         // TODO Determine if this HACK is needed
@@ -224,7 +203,7 @@
 
         // Disable scroll handlers
         $(window).off('scroll');
-        $("#content").fadeTo(200, faded_opacity, function() {
+        $("#ODRSearchContent").fadeTo(200, faded_opacity, function() {
             // Abort any LoadContentFullAjax() call that's currently in progress
             if (xhr != null)
                 xhr.abort();
@@ -242,18 +221,14 @@
                 dataType: "json",
                 data: data,
                 success: function(data, textStatus, jqXHR) {
+                    xhr = null;
 
                     if ( data.r == 2 ) {   // for redirects to another url
-                        xhr = null;
                         UpdateURL( data.d.url );
                     }
                     else {
-                        $("#content").html(data.d.html);
-                        $("#content").fadeTo(200, 1.0);
-
-                        xhr = null;
+                        $("#ODRSearchContent").html(data.d.html).fadeTo(200, 1.0);
                     }
-
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     // Don't need to do anything specific on an error
@@ -268,34 +243,91 @@
                         var currentElement = $('.sf-toolbar')[0];
 
                         // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
                     }
                 }
             });
         });
     }
 
-    function loadSearchContent(url) {
-        showSearchOverlay();
-        $.ajax({
-            type: 'GET',
-            url: url,
-            dataType: 'json',
-            success: function (data) {
-                if ( data.r === 2 ) {
-                    // redirect to single record
-                    xhr = null;
-                    UpdateURL( data.d.url );
-                }
-                else {
-                    // show search results
-                    xhr = null;
-                    $('#ODRSearchContent').html(data.d.html);
-                }
 
-                hideSearchOverlay();
+    function disableSearchSidebar() {
+        $("#ODRSearchContent").addClass("ODRSearchResultsWide");
+        $("#ODRSearchSidebar").addClass("ODRHidden");
+    }
+
+    function enableSearchSidebar(search_key, force_visible) {
+        var sidebar = $("#ODRSearchSidebar");
+        var content = $("#ODRSearchContent");
+
+        $(sidebar).removeClass("ODRHidden");
+
+        if (force_visible === undefined || force_visible === null)
+            force_visible = false;
+
+        if ( !force_visible ) {
+            if ($(sidebar).hasClass("ODRSearchVisible"))
+                $(content).removeClass("ODRSearchResultsWide");
+            else
+                $(content).addClass("ODRSearchResultsWide");
+        }
+        else {
+            $(sidebar).removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
+            $(".ODRSearchToggle").children(".fa-arrow-circle-left").removeClass('hidden');
+            $(".ODRSearchToggle").children(".fa-arrow-circle-right").addClass('hidden');
+            $(content).removeClass("ODRSearchResultsWide");
+        }
+
+        updateSearchSidebar(search_key);
+    }
+
+    function updateSearchSidebar(search_key) {
+        if ( search_key !== '' && search_key !== undefined && $("#ODRSidebarSearchKey").val() !== search_key ) {
+            var url = '{{ path('odr_reload_search_sidebar', {'force_rebuild': 0, 'search_key': ''}) }}';
+
+            if ( $("#ODRSearchSidebar").html() === '' ) {
+                // TODO - this doesn't solve the problem of not having the search javascript...
+                url = url.substr(0, url.length - 2) + '1/';
             }
-        });
+
+            url += search_key;
+
+            $.ajax({
+                type: 'GET',
+                url: url,
+                dataType: 'json',
+                success: function (data) {
+                    if ( data.d.html !== '' )
+                        $("#ODRSearchSidebar").html(data.d.html);
+                }
+            });
+        }
+    }
+
+    $("#ODRSearchSidebar").on("click", ".ODRSearchToggle", function() {
+        searchToggle();
+    });
+
+    function searchToggle() {
+        var search = $(".ODRContentWrapper");
+        var searchToggle = $(".ODRSearchToggle");
+
+        if (search.hasClass("ODRSearchVisible")) {
+            search.removeClass("ODRSearchVisible").addClass("ODRSearchHidden");
+
+            searchToggle.find(".fa-arrow-circle-left").addClass('hidden');
+            searchToggle.find(".fa-arrow-circle-right").removeClass('hidden');
+
+            $("#ODRSearchContent").addClass("ODRSearchResultsWide");
+        }
+        else {
+            search.removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
+
+            searchToggle.find(".fa-arrow-circle-right").addClass('hidden');
+            searchToggle.find(".fa-arrow-circle-left").removeClass('hidden');
+
+            $("#ODRSearchContent").removeClass("ODRSearchResultsWide");
+        }
     }
 
     function showSearchOverlay() {
@@ -312,10 +344,10 @@
     }
 
     function setupAccordionHighlights() {
-        $("#content > .ODRFormWrap > .ODRDataType > .ODRAccordionWrapper > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3")
+         $("#content > #ODRSearchContent > .ODRFormWrap > .ODRDataType > .ODRAccordionWrapper > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3")
             .alternateNestedBgColor(".ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3", ['ODRAccordionPrimary', 'ODRAccordionSecondary']);
 
-        console.log('accordion highlight')
+        // console.log('accordion highlight')
     }
 
     function setupAccordions() {
@@ -338,6 +370,7 @@
                 onWindowResize();
             });
         });
+
         // Hide all the content blocks
         var prev_selection = false;
         $(".ODRFormAccordion").children("h3").each(function() {
@@ -507,12 +540,6 @@
         });
     }
 
-    function reloadPage() {
-        // TODO - should check if URL has hash value...
-        var url = window.location.hash.substr(1);
-        LoadContentFullAjax( url );
-    }
-
     function resetRemodalInnerHeight() {
         var modal = $("#ODRRemodal");
         var modal_inner = modal.find(".ODRRemodalInner");
@@ -577,13 +604,13 @@
             do {
                 // Set bg color for current $sub element
                 $sub.addClass(colors[i++ % l]);
-                console.log($sub.next().attr('id'))
+                // console.log($sub.next().attr('id'))
                 // Set $sub to direct children matching given selector
                 $sub = $sub.next().find(subselect);
-                console.log('Found subs: ', $sub.length);
+                // console.log('Found subs: ', $sub.length);
 
                 // Will repeat the do section if the condition returns true
-                console.log('Repeat sub: ', i)
+                // console.log('Repeat sub: ', i)
             } while ($sub.length > 0);
         });
     };

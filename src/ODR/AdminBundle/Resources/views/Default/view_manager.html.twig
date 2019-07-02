@@ -300,8 +300,7 @@
 {% if page_type == 'display' or page_type == 'edit' or page_type == 'linking' %}
                     // If viewing a single datarecord, reload the search content...the correct theme
                     //  will be pulled from the user's session
-                    var url = window.location.hash.substr(1);
-                    loadSearchContent(url);
+                    reloadPage();
 {% else %}
                     // Need to extract the offset, then redirect to a URL with the desired theme id
                     var hash = window.location.hash;

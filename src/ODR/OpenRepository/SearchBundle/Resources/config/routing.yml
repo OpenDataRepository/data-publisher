@@ -53,6 +53,13 @@ odr_reload_search_overlay_datafield:
     requirements:
         datafield_id:  \d+
 
+odr_reload_search_sidebar:
+    path:  /search/reload_sidebar/{force_rebuild}/{search_key}
+    defaults: { _controller: ODROpenRepositorySearchBundle:Default:reloadsearchsidebar }
+    requirements:
+        force_rebuild: 0|1
+        search_key: '[a-zA-Z0-9\-\_]*'
+
 # ----------------------------------------
 
 # ----------------------------------------
