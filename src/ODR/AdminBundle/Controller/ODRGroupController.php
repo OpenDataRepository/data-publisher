@@ -956,12 +956,12 @@ class ODRGroupController extends ODRCustomController
                     //  database got messed up somehow...
                     $changes_made = false;
                     foreach ($results as $ug) {
+                        // Can't just call $em->remove($ug)...that won't set deletedBy
+
                         /** @var UserGroup $ug */
                         $ug->setDeletedBy($admin_user);
                         $ug->setDeletedAt(new \DateTime());
                         $em->persist($ug);
-//                        $em->remove($ug);
-                        $em->detach($ug);
 
                         $changes_made = true;
                     }
@@ -970,9 +970,8 @@ class ODRGroupController extends ODRCustomController
                     if ($changes_made)
                         $em->flush();
 
-                    // Can't just setDeletedBy() then remove()...doctrine only commits the remove()
-                    foreach ($results as $ug)
-                        $em->detach($ug);
+                    // Calling $em->remove($ug) on a $ug that's already soft-deleted completely
+                    //  deletes the $ug out of the backend database
                 }
 
                 // Add this user to the desired group
