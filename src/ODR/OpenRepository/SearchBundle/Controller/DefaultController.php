@@ -253,6 +253,7 @@ class DefaultController extends Controller
                     'logged_in' => $logged_in,
                     'window_title' => $target_datatype->getShortName(),
                     'intent' => 'searching',
+                    'sidebar_reload' => false,
                     'search_slug' => $search_slug,
                     'site_baseurl' => $site_baseurl,
                     'search_string' => $search_string,
@@ -288,113 +289,6 @@ class DefaultController extends Controller
         $response = new Response($html);
         $response->headers->set('Content-Type', 'text/html');
         $response->headers->setCookie(new Cookie('prev_searched_datatype', $search_slug));
-        return $response;
-    }
-
-
-    /**
-     * Renders a version of the search page currently used for linking datarecords.
-     * TODO - move this somewhere?  reorganize so that this is the action that renders search page?
-     *
-     * @param integer $target_datatype_id The database id of the DataType marked for searching...
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function searchboxAction($target_datatype_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Need to only return top-level datatypes
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SearchSidebarService $ssb_service */
-            $ssb_service = $this->container->get('odr.search_sidebar_service');
-            /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
-
-
-            // Need to grab all searchable datafields for the target_datatype and its descendants
-            $target_datatype_id = intval($target_datatype_id);
-            /** @var DataType $target_datatype */
-            $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($target_datatype_id);
-            if ($target_datatype == null)
-                throw new ODRNotFoundException('Datatype');
-
-
-            // ------------------------------
-            // Grab user and their permissions if possible
-            /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = $pm_service->getUserPermissionsArray($admin_user);
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
-
-            $logged_in = true;
-
-
-            // ----------------------------------------
-            // Need to build everything used by the sidebar...
-            $datatype_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId());
-            $datatype_relations = $ssb_service->getSidebarDatatypeRelations($datatype_array, $target_datatype_id);
-            $user_list = $ssb_service->getSidebarUserList($admin_user);
-
-            // Save which theme the user wants to use to render the search box with
-            $preferred_theme_id = $theme_info_service->getPreferredTheme($admin_user, $target_datatype->getId(), 'search_results');
-
-
-            // ----------------------------------------
-            // Render the template
-            $site_baseurl = $this->container->getParameter('site_baseurl');
-            $templating = $this->get('templating');
-            $return['d'] = array(
-                'html' => $templating->render(
-                    'ODROpenRepositorySearchBundle:Default:search.html.twig',
-                    array(
-                        // required twig/javascript parameters
-                        'user' => $admin_user,
-                        'datatype_permissions' => $datatype_permissions,
-                        'datafield_permissions' => $datafield_permissions,
-
-                        'user_list' => $user_list,
-                        'logged_in' => $logged_in,
-                        'intent' => 'linking',
-                        'site_baseurl' => $site_baseurl,
-                        'preferred_theme_id' => $preferred_theme_id,
-
-                        // required for background image
-                        'background_image_id' => null,
-
-                        // datatype/datafields to search
-                        'target_datatype' => $target_datatype,
-                        'datatype_array' => $datatype_array,
-                        'datatype_relations' => $datatype_relations,
-                    )
-                )
-            );
-
-            // Clear the previously viewed datarecord since the user is probably pulling up a new list if he looks at this
-            $session = $request->getSession();
-            $session->set('scroll_target', '');
-
-        }
-        catch (\Exception $e) {
-            $source = 0x5078a3e1;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
 
@@ -770,6 +664,7 @@ class DefaultController extends Controller
 
             $return['d'] = array(
                 'html' => $html,
+                'search_key' => $filtered_search_key,
             );
         }
         catch (\Exception $e) {
@@ -926,11 +821,12 @@ class DefaultController extends Controller
      *
      * @param string $search_key
      * @param int $force_rebuild
+     * @param string $intent
      * @param Request $request
      *
      * @return Response
      */
-    public function reloadsearchsidebarAction($search_key, $force_rebuild, Request $request)
+    public function reloadsearchsidebarAction($search_key, $force_rebuild, $intent, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -979,6 +875,8 @@ class DefaultController extends Controller
                 $logged_in = false;
             // --------------------
 
+            if ( $intent !== 'searching' && $intent !== 'linking' )
+                throw new ODRBadRequestException();
 
             // Default to not making any changes
             $return['d'] = array('html' => '');
@@ -1024,6 +922,7 @@ class DefaultController extends Controller
 
                 $templating = $this->get('templating');
                 $return['d'] = array(
+                    'num_params' => count($search_params),
                     'html' => $templating->render(
                         'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig',
                         array(
@@ -1037,7 +936,8 @@ class DefaultController extends Controller
 
                             'user_list' => $user_list,
                             'logged_in' => $logged_in,
-                            'intent' => 'searching',
+                            'intent' => $intent,
+                            'sidebar_reload' => true,
 
                             // datatype/datafields to search
                             'target_datatype' => $target_datatype,

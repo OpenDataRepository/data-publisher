@@ -256,7 +256,7 @@
         $("#ODRSearchSidebar").addClass("ODRHidden");
     }
 
-    function enableSearchSidebar(search_key, force_visible) {
+    function enableSearchSidebar(search_key, force_visible, intent) {
         var sidebar = $("#ODRSearchSidebar");
         var content = $("#ODRSearchContent");
 
@@ -278,27 +278,56 @@
             $(content).removeClass("ODRSearchResultsWide");
         }
 
-        updateSearchSidebar(search_key);
+        if (intent === undefined || intent === null)
+            intent = 'searching';
+
+        updateSearchSidebar(search_key, intent);
     }
 
-    function updateSearchSidebar(search_key) {
-        if ( search_key !== '' && search_key !== undefined && $("#ODRSidebarSearchKey").val() !== search_key ) {
-            var url = '{{ path('odr_reload_search_sidebar', {'force_rebuild': 0, 'search_key': ''}) }}';
+    function updateSearchSidebar(search_key, intent) {
+        var force_rebuild = false;
+        if ( $("#ODRSidebarSearchKey").val() !== search_key || $("#ODRSearchSidebar").html() === '' )
+            force_rebuild = true;
 
-            if ( $("#ODRSearchSidebar").html() === '' ) {
+        if ( search_key !== '' && search_key !== undefined && $("#ODRSidebarSearchKey").val() !== search_key ) {
+            var url = '{{ path('odr_reload_search_sidebar', {'force_rebuild': 0, 'search_key': '', 'intent': ''}) }}';
+            url = url.substr(0, url.length - 3);
+
+            if ( force_rebuild ) {
                 // TODO - this doesn't solve the problem of not having the search javascript...
-                url = url.substr(0, url.length - 2) + '1/';
+                 url += '1/';
+            }
+            else {
+                url += '0/';
             }
 
-            url += search_key;
+            url += search_key + '/' + intent;
 
             $.ajax({
                 type: 'GET',
                 url: url,
                 dataType: 'json',
                 success: function (data) {
-                    if ( data.d.html !== '' )
+                    if ( data.d.html !== '' ) {
                         $("#ODRSearchSidebar").html(data.d.html);
+                        InitSearchSidebar();
+
+                        if ( data.d.num_params <= 1 ) {
+                            // Close all accordions, then re-open the first one (target datatype)
+                            $(".ODRAdvSearch_header").trigger('click');
+                            $(".ODRAdvSearch_default").prev().trigger('click');
+                            // Default to not-advanced search
+                            $(".ODRAdvSearch_header").parent().hide();
+                        }
+                        else {
+                            // Close all accordions...those with search params will remain partially open
+                            $(".ODRAdvSearch_header").trigger('click');
+                            // Hide the advanced search div...
+                            $(".ODRAdvSearch_header").parent().hide();
+                            // ...then switch back to advanced search
+                            changeSearch();
+                        }
+                    }
                 }
             });
         }
@@ -330,11 +359,16 @@
         }
     }
 
-    function showSearchOverlay() {
+    function showSearchOverlay(intent) {
         $("#loading-overlay").fadeIn('fast');
         $("#loading").html('<span>Searching...</span>');
         $("#loading").fadeIn('fast');
-        $("#ODRSearchContent").html('');
+
+        if (intent === undefined || intent === null)
+            intent = 'searching';
+
+        if ( intent === 'searching' )
+            $("#ODRSearchContent").html('');
     }
 
     function hideSearchOverlay() {

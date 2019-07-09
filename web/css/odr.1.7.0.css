@@ -4061,3 +4061,34 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     color: #555;
     line-height: 1.6;
 }
+
+.ODRLinkHeaderWrapper {
+    margin-top: 25px;
+
+    border: 1px solid #7fb9d8;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    padding-top: 0px;
+    padding-left: 0px;
+    padding-right: 0px;
+    border-radius: 4px;
+    background-color: white;
+}
+.ODRLinkHeader_caret {
+    margin-right: 10px;
+    font-size: 1.5em;
+}
+
+#ODRSearchBoxContent {
+    margin-top: 25px;
+}
+
+.SearchResults_link_box {
+    line-height: 1.1em;
+    margin: 0.5em;
+    font-size: 1.2em;
+}
+#TextResults_current_paginate > a {
+    margin: 5px;
+}

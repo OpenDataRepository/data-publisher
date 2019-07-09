@@ -17,6 +17,7 @@
 
     <div class="ODRThemeElement">
         <input id="ODRSidebarSearchKey" type="hidden" value="{% if search_key is defined and search_key != '' %}{{ search_key }}{% endif %}" />
+        <input id="ODRSearchIntent" type="hidden" value="{{ intent }}" />
 
         <div class="ODRInnerBox">
             <span class="ODRSearchToggle">
@@ -44,7 +45,7 @@
                         </div>
                         <div class="pure-u-1">
                             <button class="pure-button pure-button ODRResetButton" type="button" onclick="doReset();">Reset</button>
-                            <button class="pure-button pure-button-primary ODRSearchButton" type="submit">Search</button>
+                            <button class="pure-button pure-button-primary ODRSearchButton" type="submit">Search{% if intent == 'linking' %} for records to Link{% endif %}</button>
                         </div>
                     </div>
                 </fieldset>
@@ -210,7 +211,7 @@
                     </div>
                     <div class="pure-u-1">
                         <button class="pure-button pure-button ODRResetButton" type="button" onclick="doReset();">Reset</button>
-                        <button class="pure-button pure-button-primary ODRSearchButton" type="submit">Search</button>
+                        <button class="pure-button pure-button-primary ODRSearchButton" type="submit">Search{% if intent == 'linking' %} for records to Link{% endif %}</button>
                     </div>
                 </fieldset>
             </form>
@@ -226,9 +227,9 @@
     </div>
 
 <script>
-    $(function() {
+    function InitSearchSidebar() {
         $("#search_top").hide();
-        $(".ODRInput").prop('disabled', true);
+        $(".ODRInput").prop("disabled", true);
 
         // Prevent normal form behavior
         $("#search_form").unbind('submit').submit(function (event) {
@@ -308,21 +309,6 @@
                 $(this).find('i').removeClass('fa-caret-up').addClass('fa-caret-down');
             }
         });
-
-{% if search_params|length == 0 %}
-        // Close all accordions, then re-open the first one (target datatype)
-        $(".ODRAdvSearch_header").trigger('click');
-        $(".ODRAdvSearch_default").prev().trigger('click');
-        // Default to not-advanced search
-        $(".ODRAdvSearch_header").parent().hide();
-{% else %}
-        // Close all accordions...those with search params will remain partially open
-        $(".ODRAdvSearch_header").trigger('click');
-        // Hide the advanced search div...
-        $(".ODRAdvSearch_header").parent().hide();
-        // ...then switch back to advanced search
-        changeSearch();
-{% endif %}
 
         // File/Image stuff
         $(".ODRFileDatafieldName").unbind('change keyup paste').on('keyup paste', function () {
@@ -618,6 +604,6 @@
             });
         });
 {% endif %}
-    });
+    }
 </script>
 {% endspaceless %}

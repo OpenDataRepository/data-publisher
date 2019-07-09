@@ -9,27 +9,6 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-{#
-<div class="ODRFormHeader clearfix">
-    {% for ancestor in linked_datatype_ancestors %}
-        {% if datatype_permissions[ ancestor.id ] is defined and datatype_permissions[ ancestor.id ][ 'dr_edit' ] is defined %}
-            <button type="button" class="pure-button" onclick="LinkRecord({{ ancestor.id }},{{ datatype.id }},{{ datarecord.id }});">Link to {{ ancestor.dataTypeMeta.shortName }} Records.</button>
-        {% endif %}
-    {% endfor %}
-
-    {% for descendant in linked_datatype_descendants %}
-        {% if datatype_permissions[ descendant.id ] is defined and datatype_permissions[ descendant.id ][ 'dr_edit' ] is defined %}
-            <button type="button" class="pure-button" onclick="LinkRecord({{ datatype.id }},{{ descendant.id }},{{ datarecord.id }});">Link to {{ descendant.dataTypeMeta.shortName }} Records.</button>
-        {% endif %}
-    {% endfor %}
-
-    {% for disabled in disabled_datatype_links %}
-        {% if datatype_permissions[ disabled.id ] is defined and datatype_permissions[ disabled.id ][ 'dr_edit' ] is defined %}
-            <button type="button" class="pure-button pure-button-disabled" title="Unable to link to Datarecords of this Datatype because it does not have a Table Theme.">Unable to link to {{ disabled.dataTypeMeta.shortName }} Records.</button>
-        {% endif %}
-    {% endfor %}
-</div>
-#}
 
 {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
     'datatype': datatype,
@@ -53,6 +32,7 @@
     'is_top_level': is_top_level,
     'token_list': token_list,
 } %}
+
 
 {% if is_datatype_admin %}
 <div id="field_history_dialog_wrapper">

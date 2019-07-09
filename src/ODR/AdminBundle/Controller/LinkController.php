@@ -41,6 +41,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\UUIDService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -83,8 +84,6 @@ class LinkController extends ODRCustomController
             $local_datatype = $repo_datatype->find($datatype_id);
             if ($local_datatype == null)
                 throw new ODRNotFoundException('Datatype');
-
-
 
 
             /** @var ThemeElement $theme_element */
@@ -1555,6 +1554,8 @@ class LinkController extends ODRCustomController
             $tth_service = $this->container->get('odr.table_theme_helper_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
 
 
             // Grab the datatypes from the database
@@ -1647,6 +1648,13 @@ class LinkController extends ODRCustomController
             // Since the above statement didn't throw an exception, the one below shouldn't either...
             $theme_id = $theme_service->getPreferredTheme($user, $remote_datatype->getId(), 'search_results');
             // $theme_id may be for a "master" theme instead of a "search_results" or "table" theme
+
+            // Create a base search key for the remote datatype, so the search sidebar can be used
+            $remote_datatype_search_key = $search_key_service->encodeSearchKey(
+                array(
+                    'dt_id' => $remote_datatype->getId()
+                )
+            );
 
 
             // ----------------------------------------
@@ -1774,6 +1782,7 @@ class LinkController extends ODRCustomController
                     array(
                         'search_theme_id' => $search_theme_id,
                         'search_key' => $search_key,
+                        'remote_datatype_search_key' => $remote_datatype_search_key,
 
                         'local_datarecord' => $local_datarecord,
                         'local_datarecord_is_ancestor' => $local_datarecord_is_ancestor,

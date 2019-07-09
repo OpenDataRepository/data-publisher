@@ -1570,7 +1570,7 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
     font-size: 1.1em !important;
 }
 .ODRSearchButton {
-    width: 10em !important;
+    min-width: 10em !important;
 }
 .ODRResetButton {
     max-width: 4em !important;

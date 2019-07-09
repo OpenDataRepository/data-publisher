@@ -77,15 +77,23 @@
             message: "The originally requested layout is marked as private.  The database's default layout is being displayed instead.",
             closeConfirm: true
         });
+{% else %}
+        if ( $(".ODRDataField").length === 0 && $(".ODRShortResults_empty") === undefined ) {
+            $("#ODRMainMenu").overhang({
+                type: "warn",
+                message: "This layout is either empty, or you're unable to view its contents.  You need to switch to a different layout to see any search results.",
+                closeConfirm: true
+            });
+        }
 {% endif %}
 
-        {% if notify_of_sync is defined and notify_of_sync == true %}
+{% if notify_of_sync is defined and notify_of_sync == true %}
         {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
             'datatype_id': datatype.id,
             'theme_id': theme.id,
             'search_key': search_key,
         }%}
-        {% endif %}
+{% endif %}
     });
 
 

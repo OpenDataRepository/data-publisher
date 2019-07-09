@@ -16,11 +16,34 @@
 
 <script>
     $(function () {
-        // Ensure the sidebar is visible...
-        if ( window.location.href.indexOf('#') === -1 )
+        if ( window.location.href.indexOf('#') === -1 ) {
+            // Ensure the sidebar is visible when on the default search page
             enableSearchSidebar('', true);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-        else
+        }
+        else {
+            // Everywhere else, just ensure it's up to date
             enableSearchSidebar();
+        }
+
+        InitSearchSidebar();
+
+{% if sidebar_reload == false %}
+    {% if search_params|length <= 1 %}
+        // Close all accordions, then re-open the first one (target datatype)
+        $(".ODRAdvSearch_header").trigger('click');
+        $(".ODRAdvSearch_default").prev().trigger('click');
+        // Default to not-advanced search
+        $(".ODRAdvSearch_header").parent().hide();
+    {% else %}
+        // Close all accordions...those with search params will remain partially open
+        $(".ODRAdvSearch_header").trigger('click');
+        // Hide the advanced search div...
+        $(".ODRAdvSearch_header").parent().hide();
+        // ...then switch back to advanced search
+        changeSearch();
+    {% endif %}
+    console.log('----------------------------------------');
+{% endif %}
 
         // If user is on the base search page for a datatype...
         if (window.location.hash.length === 0) {
@@ -78,7 +101,7 @@
             });
 
             $(".ODRAdvSearch_header").parent().removeAttr('style'); // show() uses display:block..don't want that
-            $(".ODRInput").prop('disabled', false);
+            $(".ODRInput").prop("disabled", false);
 
             $("#search_top").show();
         }
@@ -90,7 +113,7 @@
             });
 
             $(".ODRAdvSearch_header").parent().hide();
-            $(".ODRInput").prop('disabled', true);
+            $(".ODRInput").prop("disabled", true);
 
             $("#search_top").hide();
         }
@@ -215,7 +238,7 @@
         // Request search results
         var url = '{{ path('odr_search_results') }}';
 
-        showSearchOverlay();
+        showSearchOverlay( $("#ODRSearchIntent").val() );
 
         // TODO - need to communicate which theme to use...
 
@@ -225,50 +248,52 @@
             dataType: 'json',
             data: $("#search_form").serialize(),
             success: function (data, textStatus, jqXHR) {
-                {% if intent == "searching" %}
-                // Overwrite any currently existing tab id, since a new search was performed
-                if (window.sessionStorage.getItem('odr_tab_id')) {
-                    // Tell the server to stop storing data for the old tab
-                    // TODO - transfer page length?
-                    var url = '{{ path('odr_datatables_state_destroy', { 'odr_tab_id': '' } ) }}';
-                    url += window.sessionStorage.getItem('odr_tab_id');
+                if ( $("#ODRSearchIntent").val() === 'searching' ) {
+                    // Overwrite any currently existing tab id, since a new search was performed
+                    if (window.sessionStorage.getItem('odr_tab_id')) {
+                        // Tell the server to stop storing data for the old tab
+                        // TODO - transfer page length?
+                        var url = '{{ path('odr_datatables_state_destroy', { 'odr_tab_id': '' } ) }}';
+                        url += window.sessionStorage.getItem('odr_tab_id');
 
+                        $.ajax({
+                            type: 'GET',
+                            url: url,
+                            dataType: 'json',
+                        });
+                    }
+                    window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
+
+                    // Now that the search has been performed and cached, render the results
+                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1' } ) }}';
+                    url = url.substr(0, url.length - 2);
+                    url += $("#selected_theme_id").val() + '/' + data.d.search_key + '/1';
+
+                    // Save the search key so TODO
+                    $("#ODRSidebarSearchKey").val(data.d.search_key);
+
+                    // UpdateURL() will end up forcing a hashchange event one way or another
+                    UpdateURL(url);
+                    hideSearchOverlay();
+                }
+                else if ( $("#ODRSearchIntent").val() === 'linking' ) {
+                    var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
+                    url = url.substr(0, url.length - 10);
+                    url += data.d.search_key + '/1/linking';
+
+                    // Render the html into the #ODRSearchBoxContent div on this page
                     $.ajax({
                         type: 'GET',
                         url: url,
                         dataType: 'json',
+                        success: function (data, textStatus, jqXHR) {
+                            $("#ODRSidebarSearchKey").val(data.d.search_key);
+                            $("#ODRSearchBoxContent").html(data.d.html);
+
+                            hideSearchOverlay();
+                        }
                     });
                 }
-                window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
-
-                // Now that the search has been performed and cached, render the results
-                var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1' } ) }}';
-                url = url.substr(0, url.length - 2);
-                url += $("#selected_theme_id").val() + '/' + data.d.search_key + '/1';
-
-                // Save the search key so TODO
-                $("#ODRSidebarSearchKey").val(data.d.search_key);
-
-                // UpdateURL() will end up forcing a hashchange event one way or another
-                UpdateURL(url);
-                hideSearchOverlay();
-
-                {% elseif intent == "linking" %}
-                var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
-                url = url.substr(0, url.length - 10);
-                url += data.d.search_key + '/1/linking';
-
-                // Render the html into the search_content div on this page
-                $.ajax({
-                    type: 'GET',
-                    url: url,
-                    dataType: 'json',
-                    success: function (data, textStatus, jqXHR) {
-                        $(".search_content").html(data.d.html);
-                        hideSearchOverlay();
-                    }
-                });
-                {% endif %}
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // TODO - should everything get reset on an error?

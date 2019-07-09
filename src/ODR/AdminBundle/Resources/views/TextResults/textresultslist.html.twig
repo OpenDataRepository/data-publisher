@@ -237,8 +237,17 @@
             var reload_page = false;
             var original_num_columns = {{ num_columns }};
 
-            // If number of columns is different from what's expected, reload the page
-            if ( json.data[0].length !== original_num_columns ) {
+            if ( original_num_columns === 2 ) {
+                // If no columns in the first place, display a warning...without this, the table
+                //  would always set reload_page to true, causing an infinite reload cycle
+                $("#ODRMainMenu").overhang({
+                    type: "warn",
+                    message: "This layout is either empty, or you're unable to view its contents.  You need to switch to a different layout to see any search results.",
+                    closeConfirm: true
+                });
+            }
+            else if ( json.data[0].length !== original_num_columns ) {
+                // If number of columns is different from what's expected, reload the page
                 reload_page = true;
             }
 {% if can_edit_datatype %}
