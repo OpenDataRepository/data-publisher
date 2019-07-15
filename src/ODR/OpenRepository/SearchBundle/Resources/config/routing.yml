@@ -25,6 +25,11 @@ odr_search_results:
     defaults: { _controller:ODROpenRepositorySearchBundle:Default:search }
     methods: [ POST ]
 
+odr_inline_link_search:
+    path:  /search/inline_link
+    defaults: { _controller:ODROpenRepositorySearchBundle:Default:inlinelink }
+    methods: [ POST ]
+
 odr_search_render:
     path: /search/display/{search_theme_id}/{search_key}/{offset}/{intent}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:render, offset: 1, intent: 'searching' }
@@ -32,7 +37,7 @@ odr_search_render:
         search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
         offset: \d+
-        intent: searching|linking|linking_ajax
+        intent: searching|linking
 
 odr_default_search_render:
     path: /search/render_default/{datatype_id}

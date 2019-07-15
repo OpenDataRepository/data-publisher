@@ -32,6 +32,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -725,6 +726,199 @@ class DefaultController extends Controller
         }
         catch (\Exception $e) {
             $source = 0xc49e75eb;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Handles an "inline" linking request...takes search values from fields on the page, and then
+     * returns an array so that a jQuery autocomplete plugin can render an abbreviated view of the
+     * datarecords that matched the search.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function inlinelinkAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        // The max number of results this function should return
+        $max_results = 10;
+
+        try {
+            $post = $request->request->all();
+//print_r($post);  exit();
+
+            if ( !isset($post['dt_id']) || !is_numeric($post['dt_id']) ) {
+                throw new ODRBadRequestException();
+            }
+
+            $datatype_id = intval($post['dt_id']);
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // Find the first/single datafield in the post
+            $search_params = array('dt_id' => $datatype_id);
+            foreach ($post as $key => $value) {
+                if ( $key === 'dt_id' || $key === 'ajax_request' )
+                    continue;
+
+                if ( !is_numeric($key) )
+                    throw new ODRBadRequestException();
+
+                $search_params[ intval($key) ] = trim($value);
+            }
+
+            // Verify the posted search request
+            $search_key = $search_key_service->encodeSearchKey($search_params);
+            $search_key_service->validateSearchKey($search_key);
+
+
+            // ----------------------------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $pm_service->getUserPermissionsArray($user);
+
+            if ( !$pm_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+            $can_view_datarecords = $pm_service->canViewNonPublicDatarecords($user, $datatype);
+            // ----------------------------------------
+
+
+            // Ensure the user isn't trying to search on something they can't access...
+            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
+            // Run a search on the given parameters
+            $result = $search_api_service->performSearch($datatype, $filtered_search_key, $user_permissions);
+
+
+            // Load the cached versions of the first couple datarecords matching the search
+            $dr_array = array();
+            $output = array();
+            foreach ($result['grandparent_datarecord_list'] as $num => $dr_id) {
+                $dr = $dri_service->getDatarecordArray($dr_id, false);
+
+                // Only store the cached datarecord if the user can view it
+                $public_date = $dr[$dr_id]['dataRecordMeta']['publicDate'];
+                if ( $can_view_datarecords || $public_date->format('Y-m-d H:i:s') !== '2200-01-01 00:00:00' ) {
+                    $dr_array[$dr_id] = $dr[$dr_id];
+
+                    // Also initialize an output container for each datarecord
+                    $output[$dr_id] = array();
+                }
+
+                // Continue loading datarecord entries until the limit is reached
+                if ( count($dr_array) >= $max_results)
+                    break;
+            }
+
+            // Filter out all datafields from the datarecord arrays that the user isn't allowed to see
+            // Need to have the actual cached datatype array, otherwise it won't work properly
+            $dt_array = $dti_service->getDatatypeArray($datatype_id, false);
+            $pm_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
+
+
+            // ----------------------------------------
+            // Only interested in these typeclasses...
+            $typeclasses = array(
+                'IntegerValue' => 1,
+                'DecimalValue' => 1,
+                'ShortVarchar' => 1,
+                'MediumVarchar' => 1,
+                'LongVarchar' => 1,
+                'LongText' => 1,
+            );
+
+            // datarecordFields use the same typeclass name, but the first character is lowercase
+            foreach ($typeclasses as $typeclass => $num)
+                $typeclasses[$typeclass] = lcfirst($typeclass);
+
+
+            // Need to display all fields of these typeclasses in the same order...
+            foreach ($dt_array as $dt_id => $dt) {
+                // ...so for each datafield in the datatype...
+                foreach ($dt['dataFields'] as $df_id => $df) {
+                    // ...if it's one of the correct typeclasses...
+                    $field_typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                    if ( isset($typeclasses[$field_typeclass]) ) {
+                        // ...then locate the value for this field in each of the datarecords
+                        $drf_typeclass = $typeclasses[$field_typeclass];
+
+                        foreach ($dr_array as $dr_id => $dr) {
+                            // ...entries for each datafield aren't guaranteed to exist in the
+                            //  datarecord array...
+                            if ( isset($dr['dataRecordFields'][$df_id]) ) {
+                                // Only save the value if it's not empty
+                                $field_value = trim($dr['dataRecordFields'][$df_id][$drf_typeclass][0]['value']);
+                                if ($field_value !== '')
+                                    $output[$dr_id][$df_id] = $field_value;
+                            }
+                        }
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
+            // TODO - convert $output into a string here so .autocomplete( "instance" )._renderItem
+            // TODO -  in edit_ajax.html.twig doesn't have to?
+            $final_output = array();
+            if ( empty($output) ) {
+                $final_output = array(
+                    'record_id' => -1,
+                    'fields' => array(),
+                );
+            }
+            else {
+                foreach ($output as $dr_id => $data) {
+                    $final_output[$dr_id] = array(
+                        'record_id' => $dr_id,
+                        'fields' => array()
+                    );
+
+                    foreach ($data as $df_id => $value) {
+                        $final_output[$dr_id]['fields'][] = array(
+                            'field_id' => $df_id,
+                            'field_value' => $value,
+                        );
+                    }
+                }
+            }
+
+            $return['d'] = $final_output;
+        }
+        catch (\Exception $e) {
+            $source = 0x76b670c0;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

@@ -177,7 +177,7 @@
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <textarea
                     id="{{ input_id }}"
-                    class="pure-u-1"
+                    class="pure-u-1{% if is_link > 0 %} ODRLinkLookupInput{% endif %}"
                     name="{{ input_name }}"
                     {% if datafield_meta.required == 1 %}required="required"{% endif %}
                     data-error-type="inline"
@@ -199,7 +199,7 @@
                     {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
                     type="text"
                     id="{{ input_id }}"
-                    class="pure-u-1"
+                    class="pure-u-1{% if is_link > 0 %} ODRLinkLookupInput{% endif %}"
                     name="{{ input_name }}"
                     value="{{ valuefield_value }}"
                     data-error-type="inline"
