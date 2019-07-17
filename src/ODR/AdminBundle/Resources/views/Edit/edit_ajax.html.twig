@@ -192,7 +192,6 @@ function initPage() {
         }
     });
 
-
     $(".ODRPublicFile").parent().unbind('click').click(function(event) {
         // Grab necessary attributes
         var icon_div = $(this).children(".ODRPublicFile");
@@ -671,34 +670,34 @@ function initPage() {
                                             console.log('id: ', form_id);
                                             SaveRecordData('#' + form_id, '');
                                         });
-                                    }
-                                    else {
-                                        DeleteLinkedRecord(current_linked_record, false);
-                                        LinkRecordOnly(
-                                            ancestor_datatype_id,
-                                            descendant_datatype_id,
-                                            local_record_id,
-                                            ui.item.record_id,
-                                            function() {
-                                                var field_area = $("#FieldArea_" + ui.item.record_id);
-                                                if (field_area.parent().hasClass("ODRDropdownAccordion")) {
-                                                    field_area.parent().find(".ODRSelect").val(ui.item.record_id).change();
-                                                }
-                                                else if (field_area.parent().hasClass("ODRTabAccordion")) {
-                                                    field_area.parent().find(".ODRTabButton").each(function() {
-                                                        if ($(this).attr('rel').toString() === ui.item.record_id.toString()) {
-                                                            $(this).click();
-                                                        }
-                                                    });
-                                                }
-                                                else {
-                                                    field_area.prev().click();
-                                                }
-                                            }
-                                        )
-                                    }
-                                    return false;
                                 }
+                                else {
+                                    DeleteLinkedRecord(current_linked_record, false);
+                                    LinkRecordOnly(
+                                        ancestor_datatype_id,
+                                        descendant_datatype_id,
+                                        local_record_id,
+                                        ui.item.record_id,
+                                        function() {
+                                            var field_area = $("#FieldArea_" + ui.item.record_id);
+                                            if (field_area.parent().hasClass("ODRDropdownAccordion")) {
+                                                field_area.parent().find(".ODRSelect").val(ui.item.record_id).change();
+                                            }
+                                            else if (field_area.parent().hasClass("ODRTabAccordion")) {
+                                                field_area.parent().find(".ODRTabButton").each(function() {
+                                                    if ($(this).attr('rel').toString() === ui.item.record_id.toString()) {
+                                                        $(this).click();
+                                                    }
+                                                });
+                                            }
+                                            else {
+                                                field_area.prev().click();
+                                            }
+                                        }
+                                    )
+                                }
+                                return false;
+                            }
                         })
                         .autocomplete( "instance" )._renderItem = function( ul, item ) {
                             if (item.record_id === -1) {

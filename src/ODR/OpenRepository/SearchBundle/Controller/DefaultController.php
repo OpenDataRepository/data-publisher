@@ -894,7 +894,7 @@ class DefaultController extends Controller
             // TODO -  in edit_ajax.html.twig doesn't have to?
             $final_output = array();
             if ( empty($output) ) {
-                $final_output = array(
+                $final_output[-1] = array(
                     'record_id' => -1,
                     'fields' => array(),
                 );
