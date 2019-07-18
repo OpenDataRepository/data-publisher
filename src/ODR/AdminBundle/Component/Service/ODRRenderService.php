@@ -347,7 +347,7 @@ class ODRRenderService
         $template_name = 'ODRAdminBundle:CSVExport:csvexport_ajax.html.twig';
         $extra_parameters = array(
             'odr_tab_id' => $odr_tab_id,
-            'include_links' => false,
+//            'include_links' => false,
         );
 
         $datarecord = null;
@@ -361,8 +361,8 @@ class ODRRenderService
             $theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
         }
 
-        // Not allowed to csv export linked datarecords, so it doesn't make sense to ensure they're
-        //  in sync first
+        // Ensure all relevant themes are in sync before rendering the end result
+        $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($theme, $user);
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
     }
