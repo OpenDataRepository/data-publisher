@@ -2643,16 +2643,18 @@
             }
         });
 
-
-        tdf_odpf.find("input").each(function() {
-            var id_data = tdf_odpf.attr('id').split(/_/);
+        var tdf_odtpf = $("#ThemeDesignForm .ODRDatatreePropertiesForm");
+        tdf_odtpf.each(function() {
+            var id_data = tdf_odtpf.attr('id').split(/_/);
             var datatree_id = id_data[1];
 
-            if( $(this).is(":checkbox") ) {
-                $(this).unbind('change').change(function() {
-                    SaveDatatreeProperties(datatree_id);
-                });
-            }
+            tdf_odtpf.find("input").each(function() {
+                if ( $(this).is(":checkbox") ) {
+                    $(this).unbind('change').change(function () {
+                        SaveDatatreeProperties(datatree_id);
+                    });
+                }
+            });
         });
 
         var tdf_otdpf = $("#ThemeDesignForm .ODRThemeDatatypePropertiesForm");
