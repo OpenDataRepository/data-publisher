@@ -331,9 +331,7 @@ class FacadeController extends Controller
     public function searchTemplatePostTestAction($version, $limit, $offset, Request $request) {
         /** @var SearchAPIService $search_api_service */
         $search_api_service = $this->container->get('odr.search_api_service');
-
-        // $search_results = $search_api_service->fullTemplateSearch();
-
+        $search_api_service->fullTemplateSearch();
     }
 
     /**

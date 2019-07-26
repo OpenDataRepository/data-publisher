@@ -1892,6 +1892,126 @@ class APIController extends ODRCustomController
                                 }
                                 break;
 
+                            case '18':
+                                // TagSelection
+                                // Determine selected tags in original dataset
+                                // Determine selected tags in current
+
+                                // Need to reduce to keys?
+                                $selected_options = $field['value'];
+
+                                $orig_selected_options = array();
+                                if ($orig_dataset) {
+                                    foreach ($orig_dataset['fields'] as $o_field) {
+                                        if (
+                                            isset($o_field['value']) &&
+                                            isset($field['field_uuid']) &&
+                                            $o_field['field_uuid'] == $field['field_uuid']
+                                        ) {
+                                            $orig_selected_options = $o_field['value'];
+                                        }
+                                    }
+                                }
+
+                                $new_options = array();
+                                $deleted_options = array();
+
+                                // check for new options
+                                foreach ($selected_options as $option) {
+                                    $found = false;
+                                    foreach ($orig_selected_options as $o_option) {
+                                        if ($option == $o_option) {
+                                            $found = true;
+                                        }
+                                    }
+                                    if (!$found) {
+                                        array_push($new_options, $option['template_tag_uuid']);
+                                    }
+                                }
+
+                                // Check for deleted options
+                                foreach ($orig_selected_options as $o_option) {
+                                    $found = false;
+                                    foreach ($selected_options as $option) {
+                                        if ($option == $o_option) {
+                                            $found = true;
+                                        }
+                                    }
+                                    if (!$found) {
+                                        array_push($deleted_options, $o_option['template_tag_uuid']);
+                                    }
+                                }
+
+                                /** @var DataRecordFields $drf */
+                                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
+                                    array(
+                                        'dataRecord' => $dataset['internal_id'],
+                                        'dataField' => $data_field->getId()
+                                    )
+                                );
+
+                                // Delete deleted options
+                                foreach ($deleted_options as $option_uuid) {
+                                    /** @var Tags $option */
+                                    $option = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
+                                        array(
+                                            'tagUuid' => $option_uuid,
+                                            'dataField' => $data_field->getId()
+                                        )
+                                    );
+                                    /** @var TagSelection $option_selection */
+                                    $option_selection = $em->getRepository('ODRAdminBundle:tagSelection')->findOneBy(
+                                        array(
+                                            'tag' => $option->getId(),
+                                            'dataRecordFields' => $drf->getId()
+                                        )
+                                    );
+
+                                    if ($option_selection) {
+                                        $em->remove($option_selection);
+                                        $changed = true;
+                                    }
+                                }
+
+                                // Add or delete options as needed
+                                // Check if new option exists in template
+                                // Add to template if not exists
+                                foreach ($new_options as $option_uuid) {
+                                    // Lookup Option by UUID
+                                    /** @var Tags $option */
+                                    $option = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
+                                        array(
+                                            'tagUuid' => $option_uuid,
+                                            'dataField' => $data_field->getId()
+
+                                        )
+                                    );
+
+                                    if (!$drf) {
+                                        // If drf entry doesn't exist, create new
+                                        $drf = new DataRecordFields();
+                                        $drf->setCreatedBy($user);
+                                        $drf->setCreated(new \DateTime());
+                                        $drf->setDataField($data_field);
+                                        $drf->setDataRecord($data_record);
+                                        $em->persist($drf);
+                                    }
+
+                                    /** @var TagSelection $new_field */
+                                    $new_field = new TagSelection();
+                                    $new_field->setTag($option);
+                                    $new_field->setDataRecordFields($drf);
+                                    $new_field->setCreatedBy($user);
+                                    $new_field->setUpdatedBy($user);
+                                    $new_field->setCreated(new \DateTime());
+                                    $new_field->setUpdated(new \DateTime());
+                                    $new_field->setSelected(1);
+                                    $em->persist($new_field);
+
+                                    $changed = true;
+                                }
+                                break;
+
                         }
                     } else if (isset($field['value'])) {
                         // Field is singular data field
@@ -3062,7 +3182,7 @@ class APIController extends ODRCustomController
         $data = $cache_service
             ->get('json_record_' . $datarecord_uuid . '_' . $user->getId());
 
-        if (!$data || $flush) {
+        if (1 || !$data || $flush) {
             // Render the requested datarecord
             $data = $dre_service->getData(
                 $version,

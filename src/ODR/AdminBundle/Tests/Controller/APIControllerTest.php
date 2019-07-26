@@ -12,7 +12,8 @@ class APIControllerTest extends WebTestCase
     public static $token = "";
     public static $headers = array();
 
-    public static $base_url = "http://office_dev/api/v3";
+    // public static $base_url = "http://office_dev/api/v3";
+    public static $base_url = "http://eta.odr.io/api/v3";
 
     public static $template_uuid = "2ea627b";
 
@@ -31,26 +32,24 @@ class APIControllerTest extends WebTestCase
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
         // $timer = (getenv("TIMER") == "1" ? true : false);
 
-        self::$client = static::createClient();
+        $post_data = json_encode(array(
+            'username' => 'nate@opendatarepository.org',
+            'password' => 'n518se'
+        ));
 
-        // Test that the outer frame loaded
-        ($debug ? fwrite(STDERR, "Test token loaded.\n") : '');
-        self::$client->request(
-            'POST',
+        $cp = new CurlUtility(
             self::$base_url . '/token',
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json'],
-            json_encode([
-                'username' => 'test@opendatarepository.org',
-                'password' => '12345asdF**'
-            ])
+            array('Content-type: application/json'),
+            false,
+            true,
+            __FUNCTION__
         );
 
-        $content = self::$client->getResponse()->getContent();
+        $response = $cp->post($post_data);
+        $content = $response['response'];
 
         // Show the actual content if debug enabled.
-        ($debug ? fwrite(STDERR, 'Token Data:') : '');
+        ($debug ? fwrite(STDERR, 'Token Data:' . $content) : '');
 
         $token = json_decode($content, true);
 
@@ -77,23 +76,21 @@ class APIControllerTest extends WebTestCase
     public function testTemplate()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
-        self::$client = static::createClient();
 
+        $headers[] = 'Authorization: Bearer ' . self::$token;
+        $headers[] = 'Content-type: application/json';
 
-        $headers = self::$headers;
-        $headers['CONTENT_TYPE'] = 'application/json';
-
-        // Test that the outer frame loaded
         ($debug ? fwrite(STDERR, "Getting template.\n") : '');
-        self::$client->request(
-            'GET',
+        $cp = new CurlUtility(
             self::$base_url . '/search/template/' . self::$template_uuid,
-            [],
-            [],
-            self::$headers
+            $headers,
+            false,
+            true,
+            __FUNCTION__
         );
 
-        $content = self::$client->getResponse()->getContent();
+        $response = $cp->get();
+        $content = $response['response'];
 
         // Show the actual content if debug enabled.
         ($debug ? fwrite(STDERR, 'Content pulled.' . "\n") : '');
@@ -119,9 +116,10 @@ class APIControllerTest extends WebTestCase
     public function testUser()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
-        self::$client = static::createClient();
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
+
+        ($debug ? fwrite(STDERR, 'Content: ' . print_r($headers, true) . "\n") : '');
 
         $post_data = array(
             'user_email' => 'nancy.drew@detectivemysteries.com',
@@ -153,7 +151,6 @@ class APIControllerTest extends WebTestCase
     public function testCreate()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
-        self::$client = static::createClient();
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
 
@@ -193,7 +190,6 @@ class APIControllerTest extends WebTestCase
     public function testUpdateName()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
-        self::$client = static::createClient();
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
         for ($i = 0; $i < count(self::$created_dataset['dataset']['fields']); $i++) {
@@ -236,17 +232,17 @@ class APIControllerTest extends WebTestCase
                     {
                         "field_name": "First Name",
                         "template_field_uuid": "0143860",
-                        "value": "John_' .rand(100000,999999) . '"
+                        "value": "John_' . rand(100000, 999999) . '"
                     },
                     {
                         "field_name": "Last Name",
                         "template_field_uuid": "4d9ea52",
-                        "value": "Doe_' . rand(100000,999999) . '"
+                        "value": "Doe_' . rand(100000, 999999) . '"
                     },
                     {
                         "field_name": "Contact Email",
                         "template_field_uuid": "e3dcbc9",
-                        "value": "random_person_' . rand(100000,999999) . '@nasa.gov"
+                        "value": "random_person_' . rand(100000, 999999) . '@nasa.gov"
                     },
                     {
                         "field_name": "Person Website",
@@ -256,7 +252,7 @@ class APIControllerTest extends WebTestCase
                     {
                         "field_name": "ORCID Identifier",
                         "template_field_uuid": "2877316",
-                        "value": "' . rand(100000000000,999999999999) . '"
+                        "value": "' . rand(100000000000, 999999999999) . '"
                     }
                 ],
                 "records": [
@@ -266,15 +262,15 @@ class APIControllerTest extends WebTestCase
                         "fields": [
                             {
                                 "template_field_uuid": "ed4f42c",
-                                "value": "Institution_' . rand(10000,99999) . '"
+                                "value": "Institution_' . rand(10000, 99999) . '"
                             },
                             {
                                 "template_field_uuid": "2d1d105",
-                                "value": "Mail-Stop ' . rand(10000,99999) . '" 
+                                "value": "Mail-Stop ' . rand(10000, 99999) . '" 
                             },
                             {
                                 "template_field_uuid": "3503e92",
-                                "value": "City_' . rand(10000,99999) . '"
+                                "value": "City_' . rand(10000, 99999) . '"
                             },
                             {
                                 "template_field_uuid": "062df8b",
@@ -287,7 +283,7 @@ class APIControllerTest extends WebTestCase
                             },
                             {
                                 "template_field_uuid": "79590b6",
-                                "value": "94035-' . rand(10000,99999) . '"
+                                "value": "94035-' . rand(10000, 99999) . '"
                             },
                             {
                                 "template_field_uuid": "c7d1a2e",
@@ -307,7 +303,6 @@ class APIControllerTest extends WebTestCase
         $person_data = json_decode($add_person);
 
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
-        self::$client = static::createClient();
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
         self::$created_dataset['dataset']['records'][] = $person_data;
@@ -430,7 +425,6 @@ class APIControllerTest extends WebTestCase
         $institution_data = json_decode($institution_template);
 
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
-        self::$client = static::createClient();
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
         self::$created_dataset['dataset']['records'][] = $institution_data;
@@ -460,23 +454,21 @@ class APIControllerTest extends WebTestCase
     public function testGetDataRecord()
     {
         $debug = ((getenv("DEBUG") == "DataRecordFile" || getenv("DEBUG") == __FUNCTION__) ? true : false);
-        self::$client = static::createClient();
 
+        $headers[] = 'Authorization: Bearer ' . self::$token;
+        $headers[] = 'Content-type: application/json';
 
-        $headers = self::$headers;
-        $headers['CONTENT_TYPE'] = 'application/json';
-
-        // Test that the outer frame loaded
         ($debug ? fwrite(STDERR, "Getting template.\n") : '');
-        self::$client->request(
-            'GET',
+        $cp = new CurlUtility(
             self::$base_url . '/dataset/' . self::$created_dataset['dataset']['metadata_for_uuid'],
-            [],
-            [],
-            self::$headers
+            $headers,
+            false,
+            true,
+            __FUNCTION__
         );
 
-        $content = self::$client->getResponse()->getContent();
+        $response = $cp->get();
+        $content = $response['response'];
 
         // Show the actual content if debug enabled.
         ($debug ? fwrite(STDERR, 'Content pulled: ' . $content . "\n") : '');
@@ -498,9 +490,10 @@ class APIControllerTest extends WebTestCase
 
     public function testAddDataFile()
     {
+        $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
 
         // Add Data File Record
-        $datafile_template =   '
+        $datafile_template = '
             {
                 "template_uuid":"823bb3f",
                 "fields":[
@@ -548,8 +541,6 @@ class APIControllerTest extends WebTestCase
 
         $datafile_data = json_decode($datafile_template, true);
 
-        $debug = ((getenv("DEBUG") == "AddRecordFile" || getenv("DEBUG") == __FUNCTION__) ? true : false);
-        self::$client = static::createClient();
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
         self::$created_datarecord['dataset']['records'][] = $datafile_data;
@@ -565,7 +556,6 @@ class APIControllerTest extends WebTestCase
 
         $response = $cp->put($put_data);
         $code = json_decode($response['code'], true);
-        ($debug ? fwrite(STDERR, 'Updated Dataset: ' . $updated_dataset . "\n") : '');
         ($debug ? fwrite(STDERR, 'Datarecord UUID: ' . self::$created_datarecord['dataset']['database_uuid'] . "\n") : '');
 
         $this->assertTrue($code == 302);
@@ -574,24 +564,22 @@ class APIControllerTest extends WebTestCase
     // get actual data record
     public function testUpdateDataRecord()
     {
-        $debug = ((getenv("DEBUG") == "DataRecordFile" || getenv("DEBUG") == __FUNCTION__) ? true : false);
-        self::$client = static::createClient();
+        $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
 
+        $headers[] = 'Authorization: Bearer ' . self::$token;
+        $headers[] = 'Content-type: application/json';
 
-        $headers = self::$headers;
-        $headers['CONTENT_TYPE'] = 'application/json';
-
-        // Test that the outer frame loaded
         ($debug ? fwrite(STDERR, "Getting template.\n") : '');
-        self::$client->request(
-            'GET',
+        $cp = new CurlUtility(
             self::$base_url . '/dataset/' . self::$created_dataset['dataset']['metadata_for_uuid'],
-            [],
-            [],
-            self::$headers
+            $headers,
+            false,
+            true,
+            __FUNCTION__
         );
 
-        $content = self::$client->getResponse()->getContent();
+        $response = $cp->get();
+        $content = $response['response'];
 
         // Show the actual content if debug enabled.
         ($debug ? fwrite(STDERR, 'Content pulled: ' . $content . "\n") : '');
@@ -611,10 +599,11 @@ class APIControllerTest extends WebTestCase
     }
 
     /**
-     * Post File with CURL
+     * Retrieve the updated data
      */
-    public function testDataRecordFile() {
-        $debug = (getenv("DEBUG") == "DataRecordFile" ? true: false);
+    public function testDataRecordFile()
+    {
+        $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
 
 
         // Figure out which record of datarecord is the new file placeholder
@@ -627,19 +616,19 @@ class APIControllerTest extends WebTestCase
         curl_setopt($request, CURLOPT_POST, true);
 
         curl_setopt($request, CURLOPT_HTTPHEADER, array(
-            "Authorization: Bearer ". self::$token
+            "Authorization: Bearer " . self::$token
         ));
 
         $file_name = '/home/nate/data-publisher/Henry_Fishing.jpg';
-        ($debug ? fwrite(STDERR, $file_name): '');
+        ($debug ? fwrite(STDERR, $file_name) : '');
 
         $curl_file = '@' . realpath($file_name);
         if (function_exists('curl_file_create')) { // php 5.5+
             $curl_file = curl_file_create($file_name);
         }
 
-        ($debug ? fwrite(STDERR, 'dataset_uuid => ' . self::$created_datarecord['dataset']['records'][0]['database_uuid']): '');
-        ($debug ? fwrite(STDERR, 'record_uuid => ' . self::$created_datarecord['dataset']['records'][0]['record_uuid']): '');
+        ($debug ? fwrite(STDERR, 'dataset_uuid => ' . self::$created_datarecord['dataset']['records'][0]['database_uuid']) : '');
+        ($debug ? fwrite(STDERR, 'record_uuid => ' . self::$created_datarecord['dataset']['records'][0]['record_uuid']) : '');
 
         curl_setopt(
             $request,
@@ -656,10 +645,10 @@ class APIControllerTest extends WebTestCase
         // output the response
         curl_setopt($request, CURLOPT_RETURNTRANSFER, true);
         $response = curl_exec($request);
-        ($debug ? fwrite(STDERR, print_r($response)):'');
+        ($debug ? fwrite(STDERR, print_r($response)) : '');
 
         $http_status = curl_getinfo($request, CURLINFO_HTTP_CODE);
-        ($debug ? fwrite(STDERR, $http_status):'');
+        ($debug ? fwrite(STDERR, $http_status) : '');
         $this->assertTrue($http_status == 302);
 
         // close the session
@@ -668,10 +657,11 @@ class APIControllerTest extends WebTestCase
     }
 
     /**
-    * Post File with CURL
-    */
-    public function testDatasetImagePost() {
-        $debug = (getenv("DEBUG") == "APIController" ? true: false);
+     * Post File with CURL
+     */
+    public function testDatasetImagePost()
+    {
+        $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
 
 
         // initialise the curl request
@@ -682,11 +672,11 @@ class APIControllerTest extends WebTestCase
         curl_setopt($request, CURLOPT_POST, true);
 
         curl_setopt($request, CURLOPT_HTTPHEADER, array(
-            "Authorization: Bearer ". self::$token
+            "Authorization: Bearer " . self::$token
         ));
 
         $file_name = '/home/nate/data-publisher/Henry_Fishing.jpg';
-        ($debug ? fwrite(STDERR, $file_name): '');
+        ($debug ? fwrite(STDERR, $file_name) : '');
 
         $curl_file = '@' . realpath($file_name);
         if (function_exists('curl_file_create')) { // php 5.5+
@@ -700,7 +690,8 @@ class APIControllerTest extends WebTestCase
                 'name' => 'My File Name',
                 'dataset_uuid' => self::$created_dataset['dataset']['database_uuid'],
                 // 'record_uuid' => '9dbdd7233d347b02c8ed1f5c6ae1',
-                'template_field_uuid' => '71019a2b69aa46abd5f03cbbbd9e',
+                // 'template_field_uuid' => '71019a2b69aa46abd5f03cbbbd9e',
+                'template_field_uuid' => 'c135ef75e9684091f7a1436539b6',
                 'user_email' => 'nancy.drew@detectivemysteries.com',
                 'file' => $curl_file
             ));
@@ -708,10 +699,10 @@ class APIControllerTest extends WebTestCase
         // output the response
         curl_setopt($request, CURLOPT_RETURNTRANSFER, true);
         $response = curl_exec($request);
-        ($debug ? fwrite(STDERR, print_r($response)):'');
+        ($debug ? fwrite(STDERR, print_r($response)) : '');
 
         $http_status = curl_getinfo($request, CURLINFO_HTTP_CODE);
-        ($debug ? fwrite(STDERR, $http_status):'');
+        ($debug ? fwrite(STDERR, $http_status) : '');
         $this->assertTrue($http_status == 302);
 
         // close the session
@@ -723,7 +714,6 @@ class APIControllerTest extends WebTestCase
     public function testPublish()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
-        self::$client = static::createClient();
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
 
@@ -756,7 +746,6 @@ class APIControllerTest extends WebTestCase
     public function testGeneralSearch()
     {
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
-        self::$client = static::createClient();
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
 
@@ -781,506 +770,5 @@ class APIControllerTest extends WebTestCase
         $this->assertTrue(count($results) > 0);
     }
 
-
-
-//    /**
-//     * Post File with CURL
-//     */
-//    public function testFilePost() {
-//        $debug = (getenv("DEBUG") == "APIController" ? true: false);
-//
-//
-//        // initialise the curl request
-//        // $request = curl_init(self::$base_url . '/file?XDEBUG_SESSION_START=phpstorm_xdebug');
-//        $request = curl_init(self::$base_url . '/file');
-//
-//        // send a file
-//        curl_setopt($request, CURLOPT_POST, true);
-//
-//        curl_setopt($request, CURLOPT_HTTPHEADER, array(
-//            "Authorization: Bearer ". self::$token
-//        ));
-//
-//        $file_name = '/home/nate/data-publisher/initial_setup.sql';
-//        ($debug ? fwrite(STDERR, $file_name): '');
-//
-//        $curl_file = '@' . realpath($file_name);
-//        if (function_exists('curl_file_create')) { // php 5.5+
-//            $curl_file = curl_file_create($file_name);
-//        }
-//
-//        curl_setopt(
-//            $request,
-//            CURLOPT_POSTFIELDS,
-//            array(
-//                'name' => 'My File Name',
-//                // 'dataset_uuid' => 'dbee98e',
-//                // 'template_field_uuid' => '4d5cfec',
-//                // 'dataset_uuid' => '90eb084',
-//                // 'template_field_uuid' => '3029d53eade509a7524253602811',
-//                'dataset_uuid' => '97e16c2',
-//                'record_uuid' => '9dbdd7233d347b02c8ed1f5c6ae1',
-//                'template_field_uuid' => 'cc662d72c7b107bba341e0315a9d',
-//                'user_email' => 'nate@opendatarepository.org',
-//                'file' => $curl_file
-//            ));
-//
-//        // output the response
-//        curl_setopt($request, CURLOPT_RETURNTRANSFER, true);
-//        $response = curl_exec($request);
-//        ($debug ? fwrite(STDERR, print_r($response)):'');
-//
-//        $http_status = curl_getinfo($request, CURLINFO_HTTP_CODE);
-//        ($debug ? fwrite(STDERR, $http_status):'');
-//        $this->assertTrue($http_status == 302);
-//
-//        // close the session
-//        curl_close($request);
-//
-//    }
-
-//    /**
-//     * Check user & databases (new random user)
-//     */
-//    public function testGetDataset() {
-//        $debug = (getenv("DEBUG") == "APIController" ? true: false);
-//        self::$client = static::createClient();
-//
-//        // Test that the outer frame loaded
-//        ($debug ? fwrite(STDERR, "Getting dataset.\n"):'');
-//        self::$client->request(
-//            'GET',
-//            self::$base_url . '/dataset/dbee98e',
-//            [],
-//            [],
-//            self::$headers
-//        );
-//
-//        $content = self::$client->getResponse()->getContent();
-//
-//        // Show the actual content if debug enabled.
-//        ($debug ? fwrite(STDERR, 'Content pulled.' . "\n"):'');
-//
-//        $dataset = json_decode($content, true);
-//
-//        if(!is_array($dataset)) {
-//            ($debug ? fwrite(STDERR, $content) . "\n":'');
-//        }
-//
-//        // Should redirect to login
-//        $this->assertTrue(isset($dataset['database_uuid']));
-//
-//        if($debug && isset($dataset['database_uuid'])) {
-//            // self::$dataset_data = $dataset;
-//            fwrite(STDERR, print_r($dataset) . "\n");
-//        }
-//    }
-
-
-//    /**
-//     * Update database add options
-//     */
-//    public function testCreate() {
-//        $debug = (getenv("DEBUG") == "APIController" ? true: false);
-//        self::$client = static::createClient();
-//
-//        // Test that the outer frame loaded
-//        ($debug ? fwrite(STDERR, "Getting template.\n"):'');
-//        self::$client->request(
-//            'GET',
-//            '/search/template/' . self::$template_uuid,
-//            [],
-//            [],
-//            self::$headers
-//        );
-//
-//        $content = self::$client->getResponse()->getContent();
-//
-//        // Show the actual content if debug enabled.
-//        ($debug ? fwrite(STDERR, 'Content pulled.' . "\n"):'');
-//
-//        $template = json_decode($content, true);
-//
-//        if(!is_array($template)) {
-//            ($debug ? fwrite(STDERR, $content) . "\n":'');
-//        }
-//
-//        // Should redirect to login
-//        $this->assertTrue(isset($template['name']));
-//
-//        if($debug && isset($template['name'])) {
-//            self::$template_data = $template;
-//            fwrite(STDERR, $template['name'] . "\n");
-//        }
-//    }
-//
-//    /**
-//     * Update database add child/linked record
-//     */
-//    public function testCreate() {
-//        $debug = (getenv("DEBUG") == "APIController" ? true: false);
-//        self::$client = static::createClient();
-//
-//        // Test that the outer frame loaded
-//        ($debug ? fwrite(STDERR, "Getting template.\n"):'');
-//        self::$client->request(
-//            'GET',
-//            '/search/template/' . self::$template_uuid,
-//            [],
-//            [],
-//            self::$headers
-//        );
-//
-//        $content = self::$client->getResponse()->getContent();
-//
-//        // Show the actual content if debug enabled.
-//        ($debug ? fwrite(STDERR, 'Content pulled.' . "\n"):'');
-//
-//        $template = json_decode($content, true);
-//
-//        if(!is_array($template)) {
-//            ($debug ? fwrite(STDERR, $content) . "\n":'');
-//        }
-//
-//        // Should redirect to login
-//        $this->assertTrue(isset($template['name']));
-//
-//        if($debug && isset($template['name'])) {
-//            self::$template_data = $template;
-//            fwrite(STDERR, $template['name'] . "\n");
-//        }
-//    }
-//
-//    /**
-//     * Update database add file
-//     */
-//    public function testCreate() {
-//        $debug = (getenv("DEBUG") == "APIController" ? true: false);
-//        self::$client = static::createClient();
-//
-//        // Test that the outer frame loaded
-//        ($debug ? fwrite(STDERR, "Getting template.\n"):'');
-//        self::$client->request(
-//            'GET',
-//            '/search/template/' . self::$template_uuid,
-//            [],
-//            [],
-//            self::$headers
-//        );
-//
-//        $content = self::$client->getResponse()->getContent();
-//
-//        // Show the actual content if debug enabled.
-//        ($debug ? fwrite(STDERR, 'Content pulled.' . "\n"):'');
-//
-//        $template = json_decode($content, true);
-//
-//        if(!is_array($template)) {
-//            ($debug ? fwrite(STDERR, $content) . "\n":'');
-//        }
-//
-//        // Should redirect to login
-//        $this->assertTrue(isset($template['name']));
-//
-//        if($debug && isset($template['name'])) {
-//            self::$template_data = $template;
-//            fwrite(STDERR, $template['name'] . "\n");
-//        }
-//    }
-//
-//    /**
-//     * Update database GET file
-//     */
-//    public function testCreate() {
-//        $debug = (getenv("DEBUG") == "APIController" ? true: false);
-//        self::$client = static::createClient();
-//
-//        // Test that the outer frame loaded
-//        ($debug ? fwrite(STDERR, "Getting template.\n"):'');
-//        self::$client->request(
-//            'GET',
-//            '/search/template/' . self::$template_uuid,
-//            [],
-//            [],
-//            self::$headers
-//        );
-//
-//        $content = self::$client->getResponse()->getContent();
-//
-//        // Show the actual content if debug enabled.
-//        ($debug ? fwrite(STDERR, 'Content pulled.' . "\n"):'');
-//
-//        $template = json_decode($content, true);
-//
-//        if(!is_array($template)) {
-//            ($debug ? fwrite(STDERR, $content) . "\n":'');
-//        }
-//
-//        // Should redirect to login
-//        $this->assertTrue(isset($template['name']));
-//
-//        if($debug && isset($template['name'])) {
-//            self::$template_data = $template;
-//            fwrite(STDERR, $template['name'] . "\n");
-//        }
-//    }
-//
-//    /**
-//     * Get user & check for database
-//     */
-//    public function testCreate() {
-//        $debug = (getenv("DEBUG") == "APIController" ? true: false);
-//        self::$client = static::createClient();
-//
-//        // Test that the outer frame loaded
-//        ($debug ? fwrite(STDERR, "Getting template.\n"):'');
-//        self::$client->request(
-//            'GET',
-//            '/search/template/' . self::$template_uuid,
-//            [],
-//            [],
-//            self::$headers
-//        );
-//
-//        $content = self::$client->getResponse()->getContent();
-//
-//        // Show the actual content if debug enabled.
-//        ($debug ? fwrite(STDERR, 'Content pulled.' . "\n"):'');
-//
-//        $template = json_decode($content, true);
-//
-//        if(!is_array($template)) {
-//            ($debug ? fwrite(STDERR, $content) . "\n":'');
-//        }
-//
-//        // Should redirect to login
-//        $this->assertTrue(isset($template['name']));
-//
-//        if($debug && isset($template['name'])) {
-//            self::$template_data = $template;
-//            fwrite(STDERR, $template['name'] . "\n");
-//        }
-//    }
-//
-//    /**
-//     * Get Dataset Non-public
-//     */
-//    public function testCreate() {
-//        $debug = (getenv("DEBUG") == "APIController" ? true: false);
-//        self::$client = static::createClient();
-//
-//        // Test that the outer frame loaded
-//        ($debug ? fwrite(STDERR, "Getting template.\n"):'');
-//        self::$client->request(
-//            'GET',
-//            '/search/template/' . self::$template_uuid,
-//            [],
-//            [],
-//            self::$headers
-//        );
-//
-//        $content = self::$client->getResponse()->getContent();
-//
-//        // Show the actual content if debug enabled.
-//        ($debug ? fwrite(STDERR, 'Content pulled.' . "\n"):'');
-//
-//        $template = json_decode($content, true);
-//
-//        if(!is_array($template)) {
-//            ($debug ? fwrite(STDERR, $content) . "\n":'');
-//        }
-//
-//        // Should redirect to login
-//        $this->assertTrue(isset($template['name']));
-//
-//        if($debug && isset($template['name'])) {
-//            self::$template_data = $template;
-//            fwrite(STDERR, $template['name'] . "\n");
-//        }
-//    }
-//
-//    /**
-//     * Add file to related dataset
-//     */
-//    public function testCreate() {
-//        $debug = (getenv("DEBUG") == "APIController" ? true: false);
-//        self::$client = static::createClient();
-//
-//        // Test that the outer frame loaded
-//        ($debug ? fwrite(STDERR, "Getting template.\n"):'');
-//        self::$client->request(
-//            'GET',
-//            '/search/template/' . self::$template_uuid,
-//            [],
-//            [],
-//            self::$headers
-//        );
-//
-//        $content = self::$client->getResponse()->getContent();
-//
-//        // Show the actual content if debug enabled.
-//        ($debug ? fwrite(STDERR, 'Content pulled.' . "\n"):'');
-//
-//        $template = json_decode($content, true);
-//
-//        if(!is_array($template)) {
-//            ($debug ? fwrite(STDERR, $content) . "\n":'');
-//        }
-//
-//        // Should redirect to login
-//        $this->assertTrue(isset($template['name']));
-//
-//        if($debug && isset($template['name'])) {
-//            self::$template_data = $template;
-//            fwrite(STDERR, $template['name'] . "\n");
-//        }
-//    }
-//
-//    /**
-//     * Publish database
-//     */
-//    public function testCreate() {
-//        $debug = (getenv("DEBUG") == "APIController" ? true: false);
-//        self::$client = static::createClient();
-//
-//        // Test that the outer frame loaded
-//        ($debug ? fwrite(STDERR, "Getting template.\n"):'');
-//        self::$client->request(
-//            'GET',
-//            '/search/template/' . self::$template_uuid,
-//            [],
-//            [],
-//            self::$headers
-//        );
-//
-//        $content = self::$client->getResponse()->getContent();
-//
-//        // Show the actual content if debug enabled.
-//        ($debug ? fwrite(STDERR, 'Content pulled.' . "\n"):'');
-//
-//        $template = json_decode($content, true);
-//
-//        if(!is_array($template)) {
-//            ($debug ? fwrite(STDERR, $content) . "\n":'');
-//        }
-//
-//        // Should redirect to login
-//        $this->assertTrue(isset($template['name']));
-//
-//        if($debug && isset($template['name'])) {
-//            self::$template_data = $template;
-//            fwrite(STDERR, $template['name'] . "\n");
-//        }
-//    }
-//
-//    /**
-//     * Search for Dataset Public
-//     */
-//    public function testCreate() {
-//        $debug = (getenv("DEBUG") == "APIController" ? true: false);
-//        self::$client = static::createClient();
-//
-//        // Test that the outer frame loaded
-//        ($debug ? fwrite(STDERR, "Getting template.\n"):'');
-//        self::$client->request(
-//            'GET',
-//            '/search/template/' . self::$template_uuid,
-//            [],
-//            [],
-//            self::$headers
-//        );
-//
-//        $content = self::$client->getResponse()->getContent();
-//
-//        // Show the actual content if debug enabled.
-//        ($debug ? fwrite(STDERR, 'Content pulled.' . "\n"):'');
-//
-//        $template = json_decode($content, true);
-//
-//        if(!is_array($template)) {
-//            ($debug ? fwrite(STDERR, $content) . "\n":'');
-//        }
-//
-//        // Should redirect to login
-//        $this->assertTrue(isset($template['name']));
-//
-//        if($debug && isset($template['name'])) {
-//            self::$template_data = $template;
-//            fwrite(STDERR, $template['name'] . "\n");
-//        }
-//    }
-//
-//    /**
-//     * Update database add file
-//     */
-//    public function testCreate() {
-//        $debug = (getenv("DEBUG") == "APIController" ? true: false);
-//        self::$client = static::createClient();
-//
-//        // Test that the outer frame loaded
-//        ($debug ? fwrite(STDERR, "Getting template.\n"):'');
-//        self::$client->request(
-//            'GET',
-//            '/search/template/' . self::$template_uuid,
-//            [],
-//            [],
-//            self::$headers
-//        );
-//
-//        $content = self::$client->getResponse()->getContent();
-//
-//        // Show the actual content if debug enabled.
-//        ($debug ? fwrite(STDERR, 'Content pulled.' . "\n"):'');
-//
-//        $template = json_decode($content, true);
-//
-//        if(!is_array($template)) {
-//            ($debug ? fwrite(STDERR, $content) . "\n":'');
-//        }
-//
-//        // Should redirect to login
-//        $this->assertTrue(isset($template['name']));
-//
-//        if($debug && isset($template['name'])) {
-//            self::$template_data = $template;
-//            fwrite(STDERR, $template['name'] . "\n");
-//        }
-//    }
-//
-//    /**
-//     * Update database add file
-//     */
-//    public function testCreate() {
-//        $debug = (getenv("DEBUG") == "APIController" ? true: false);
-//        self::$client = static::createClient();
-//
-//        // Test that the outer frame loaded
-//        ($debug ? fwrite(STDERR, "Getting template.\n"):'');
-//        self::$client->request(
-//            'GET',
-//            '/search/template/' . self::$template_uuid,
-//            [],
-//            [],
-//            self::$headers
-//        );
-//
-//        $content = self::$client->getResponse()->getContent();
-//
-//        // Show the actual content if debug enabled.
-//        ($debug ? fwrite(STDERR, 'Content pulled.' . "\n"):'');
-//
-//        $template = json_decode($content, true);
-//
-//        if(!is_array($template)) {
-//            ($debug ? fwrite(STDERR, $content) . "\n":'');
-//        }
-//
-//        // Should redirect to login
-//        $this->assertTrue(isset($template['name']));
-//
-//        if($debug && isset($template['name'])) {
-//            self::$template_data = $template;
-//            fwrite(STDERR, $template['name'] . "\n");
-//        }
-//    }
 }
+

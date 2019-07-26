@@ -395,53 +395,7 @@ class SearchAPIService
         */
         $query = $this->em->createQuery(
             'SELECT
-               dr, 
-               partial drm.{id, publicDate}, 
-               partial p_dr.{id}, 
-               partial gp_dr.{id},
-
-               dt, 
-               partial gp_dt.{id}, 
-               partial mdt.{id, unique_id}, 
-               partial mf.{id, unique_id}, 
-               df_dt, 
-               dfm_dt, 
-               ft_dt,
-               
-               dtm, 
-               partial dt_eif.{id}, 
-               partial dt_nf.{id}, 
-               partial dt_sf.{id},
-
-               drf, 
-               partial df.{id, fieldUuid, templateFieldUuid}, 
-               partial dfm.{id, fieldName, xml_fieldName }, 
-               partial ft.{id, typeClass, typeName},
-               
-               e_f, 
-               e_fm, 
-               
-               e_i, 
-               e_im, 
-               e_ip, 
-               e_ipm, 
-               e_is, 
-
-               e_b, 
-               e_iv, 
-               e_dv, 
-               e_lt, 
-               e_lvc, 
-               e_mvc, 
-               e_svc, 
-               e_dtv, 
-               rs, 
-               ro, 
-               ts, 
-               t,
-
-               partial cdr.{id}, partial cdr_dt.{id},
-               ldt, partial ldr.{id}, partial ldr_dt.{id}
+               dr.id 
 
             FROM ODRAdminBundle:DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
@@ -501,6 +455,56 @@ class SearchAPIService
         )->setParameters(array('master_datatype_id' => $master_datatype_id));
 
         /*
+         *
+         *
+               partial drm.{id, publicDate},
+               partial p_dr.{id},
+               partial gp_dr.{id},
+
+               dt,
+               partial gp_dt.{id},
+               partial mdt.{id, unique_id},
+               partial mf.{id, unique_id},
+               df_dt,
+               dfm_dt,
+               ft_dt,
+
+               dtm,
+               partial dt_eif.{id},
+               partial dt_nf.{id},
+               partial dt_sf.{id},
+
+               drf,
+               partial df.{id, fieldUuid, templateFieldUuid},
+               partial dfm.{id, fieldName, xml_fieldName },
+               partial ft.{id, typeClass, typeName},
+
+               e_f,
+               e_fm,
+
+               e_i,
+               e_im,
+               e_ip,
+               e_ipm,
+               e_is,
+
+               e_b,
+               e_iv,
+               e_dv,
+               e_lt,
+               e_lvc,
+               e_mvc,
+               e_svc,
+               e_dtv,
+               rs,
+               ro,
+               ts,
+               t,
+
+               partial cdr.{id}, partial cdr_dt.{id},
+               ldt, partial ldr.{id}, partial ldr_dt.{id}
+         *
+         *
         e_f.id IS NOT NULL
         AND e_fm.id IS NOT NULL
         AND e_i.id IS NOT NULL
@@ -520,6 +524,7 @@ class SearchAPIService
         AND ro.id IS NOT NULL
         AND ts.id IS NOT NULL
         AND t.id IS NOT NULL
+
         */
 
         // This should get all of the data for all records in databases derived from the template.
@@ -536,7 +541,6 @@ class SearchAPIService
 
         var_export($query->getSQL()); // print the SQL query - you will need to replace the parameters in the query
         // var_dump($query->getParams());exit();
-
         exit();
         // $datarecord_data = $query->getArrayResult();
 

@@ -12,7 +12,6 @@
     {% set data = lookup_array[initial_datarecord_id] %}
     {% set initial_datatype_id = data['datatype'] %}
     {% set datarecord_array_subset = datarecord_array[initial_datarecord_id] %}
-    {% set datatype_array_subset = datatype_array[initial_datatype_id] %}
 
     {{ mychildform.input(
         datarecord_array_subset,

@@ -114,6 +114,25 @@ class CurlUtility
         );
     }
 
+    public function get() {
+        curl_setopt($this->request, CURLOPT_HTTPHEADER, $this->headers);
+
+        if($this->time) $this->exec_time();
+        $response = curl_exec($this->request);
+        if($this->time) $this->exec_time(false);
+        ($this->debug ? fwrite(STDERR, print_r($response)) : '');
+
+        $http_status = curl_getinfo($this->request, CURLINFO_HTTP_CODE);
+        ($this->debug ? fwrite(STDERR, $http_status) : '');
+
+        // close the session
+        curl_close($this->request);
+
+        return array(
+            'code' => $http_status,
+            'response' => $response
+        );
+    }
 
 
 
