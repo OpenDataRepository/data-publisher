@@ -1,53 +1,80 @@
 {% spaceless %}
 
+{% set parent_datatype_id = parent_datarecord.dataType.id %}
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 {% set datarecord = datarecord_array[target_datarecord_id] %}
 {% set datarecord_meta = datarecord.dataRecordMeta %}
+
+{% set can_edit_parent_record = false %}
+{% if datatype_permissions[ parent_datatype_id ] is defined
+    and datatype_permissions[ parent_datatype_id ][ 'dr_edit' ] is defined %}
+    {% set can_edit_parent_record = true %}
+{% endif %}
+
+{% set can_add_record = false %}
+{% if datatype_permissions[ datatype.id ] is defined
+    and datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
+    {% set can_add_record = true %}
+{% endif %}
 
 {% set can_edit_record = false %}
 {% if datatype_permissions[ datatype.id ] is defined
     and datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
     {% set can_edit_record = true %}
 {% endif %}
+
 {% set can_delete_record = false %}
 {% if datatype_permissions[ datatype.id ] is defined
     and datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
     {% set can_delete_record = true %}
 {% endif %}
+
 {% set is_datatype_admin = false %}
 {% if datatype_permissions[ datatype.id ] is defined
     and datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
     {% set is_datatype_admin = true %}
 {% endif %}
 
+
+{% set datarecord_is_fake = false %}
+{% if datarecord.is_fake is defined and datarecord.is_fake == true %}
+    {% set datarecord_is_fake = true %}
+{% endif %}
+
 {#
 --------------------</br>
-can_add_record: {{ can_add_record }}</br>
-can_edit_record: {{ can_edit_record }}</br>
-is_datatype_admin: {{ is_datatype_admin }}</br>
-is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
+datatype: {{ datatype.id }}, datarecord: {{ datarecord.id }} {% if is_link == 1 %} -- is_link{% endif %}</br>
+can_add_record: {% if can_add_record %}yes{% else %}no{% endif %}</br>
+can_edit_record: {% if can_edit_record %}yes{% else %}no{% endif %}</br>
+can_delete_record: {% if can_delete_record %}yes{% else %}no{% endif %}</br>
+is_datatype_admin: {% if is_datatype_admin %}yes{% else %}no{% endif %}</br>
 --------------------</br>
 #}
 
 {% if is_top_level == 0 and (display_type == 1 or display_type == 2) %}    {# tabbed or dropdown display_type #}
+    {% if not datarecord_is_fake %}
     <div id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
-    {% if is_link == 1 %}
+        {% if is_link == 1 %}
         <span rel="{{ datatype.id }}">
+            {% if can_edit_parent_record %}
             <i
                 class="fa fa-link Pointer tooltip ODRUnlinkRecord"
                 title="This is a linked record.  Click to unlink."
                 rel="{{ datarecord.id }}"
             ></i>
+            {% endif %}
+            {% if can_delete_record %}
             <i
                 class="Pointer tooltip fa fa-times ODRDeleteLinkedRecord"
                 title="Delete this Linked Record"
                 rel="{{ datarecord.id }}"
             ></i>
+            {% endif %}
         </span>
-    {% endif %}
+        {% endif %}
 
-    {% if datarecord.id != datarecord.grandparent.id %}
+        {% if datarecord.id != datarecord.grandparent.id %}
         <span rel="{{ datatype.id }}">
             <i
                 id="datarecord_{{ datarecord.id }}_public"
@@ -56,27 +83,28 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
                 rel="{{ datarecord.id }}"
             ></i>
 
-        {% if is_link == 0 and can_delete_record %}
+            {% if is_link == 0 and can_delete_record %}
             <i
                 class="Pointer tooltip fa fa-times ODRDeleteChildRecord"
                 title="Delete Record"
                 rel="{{ datarecord.id }}"
             ></i>
-        {% endif %}
-
-        {% if is_link == 1 and can_edit_record %}
-            <a
-                target="_blank"
-                class="Pointer"
-                onclick="UpdateURL('#{{ path('odr_record_edit', {'datarecord_id': datarecord.id}) }}');"
-                style="margin-left: 5px;"
-            >
-                <strong>Edit</strong>
-            </a>
-        {% endif %}
+            {% endif %}
         </span>
-    {% endif %}
+        {% endif %}
     </div>
+    {% else %}    {# datarecord_is_fake == true #}
+        {% if display_type == 2 %}    {# dropdown display type #}
+        <div id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools">
+            <span>
+                <i
+                    class="fa fa-lg fa-hourglass-half Pointer tooltip"
+                    title="This is a temporary record..."
+                ></i>
+            </span>
+        </div>
+        {% endif %}
+    {% endif %}
 {% endif %}
 
 
@@ -106,7 +134,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
                                 {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {
                                     'datafield': datafield
                                 } %}
-                            {% elseif can_edit_datafield == 1 %}
+                            {% elseif can_edit_datafield == 1 or datarecord_is_fake %}
                                 {% include 'ODRAdminBundle:Edit:edit_datafield.html.twig' with {
                                     'datatype': datatype,
                                     'datarecord': datarecord,

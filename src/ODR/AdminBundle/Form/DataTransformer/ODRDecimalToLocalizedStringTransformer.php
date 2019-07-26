@@ -13,6 +13,7 @@
 
 namespace ODR\AdminBundle\Form\DataTransformer;
 
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 use Symfony\Component\Form\Exception\TransformationFailedException;
 use Symfony\Component\Form\Extension\Core\DataTransformer\NumberToLocalizedStringTransformer;
 
@@ -39,14 +40,7 @@ class ODRDecimalToLocalizedStringTransformer extends NumberToLocalizedStringTran
      */
     public function reverseTransform($value)
     {
-        // The main goal is to prevent leading zeros, and values like "-0.00" from being saved
-
-        // Regex matches zero, optionally followed by a decimal point then any sequence of digits
-        // OR
-        // an optional minus sign followed by a non-zero integer, optionally followed by a decimal point and any sequence of digits
-        // OR
-        // a minus sign followed by a zero and a decimal point, followed by any sequence of digits that has at least one non-zero digit
-        if ( preg_match('/^0(\.[0-9]+)?$|^-?[1-9][0-9]*(\.[0-9]+)?$|^-0\.[0-9]*[1-9]+[0-9]*$/', $value) !== 1 )
+        if ( !ValidUtility::isValidDecimal($value) )
             throw new TransformationFailedException();
 
         // If the given value is acceptable, just return the string itself...the Decimal entity will

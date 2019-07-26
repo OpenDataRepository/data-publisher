@@ -20,10 +20,12 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Symfony
 use Doctrine\ORM\EntityManager;
@@ -701,6 +703,169 @@ class ODRRenderService
 
 
     /**
+     * Renders and returns the HTML for a child/linked datatype on the edit page.
+     *
+     * @param ODRUser $user
+     * @param ThemeElement $theme_element
+     * @param DataRecord $parent_datarecord
+     * @param DataRecord $top_level_datarecord
+     * @param bool $insert_fake_datarecord
+     *
+     * @return string
+     */
+    public function reloadEditChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord, $insert_fake_datarecord = false)
+    {
+        $template_name = 'ODRAdminBundle:Edit:edit_childtype_reload.html.twig';
+
+        $extra_parameters = array(
+            'token_list' => array(),
+        );
+
+        if ($insert_fake_datarecord)
+            $extra_parameters['insert_fake_datarecord'] = true;
+
+
+        // TODO - is this needed?
+        // Ensure all relevant themes are in sync before rendering the end result
+//        $parent_theme = $theme_element->getTheme()->getParentTheme();
+//        $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($parent_theme, $user);
+
+        return self::reloadChildtype($user, $template_name, $extra_parameters, $theme_element, $parent_datarecord, $top_level_datarecord);
+    }
+
+
+    /**
+     * Renders and returns the HTML for a child/linked datatype on the edit page.
+     *
+     * @param ODRUser $user
+     * @param string $template_name
+     * @param array $extra_parameters
+     * @param ThemeElement $theme_element
+     * @param DataRecord $parent_datarecord
+     * @param DataRecord $top_level_datarecord
+     *
+     * @return string
+     */
+    private function reloadChildtype($user, $template_name, $extra_parameters, $theme_element, $parent_datarecord, $top_level_datarecord)
+    {
+        // ----------------------------------------
+        // Going to need these to locate entities and determine a few properties
+        /** @var ThemeDataType $theme_datatype */
+        $theme_datatype = $theme_element->getThemeDataType()->first();
+        $child_datatype = $theme_datatype->getDataType();
+        $child_theme = $theme_datatype->getChildTheme();
+
+        $parent_theme = $theme_element->getTheme();
+
+        $top_level_theme = $parent_theme->getParentTheme();
+        $top_level_datatype = $top_level_theme->getDataType();
+
+        $parent_dr_id = $parent_datarecord->getId();
+        $child_dt_id = $child_datatype->getId();
+
+        // Load cached arrays of all the top-level entities
+        $datatype_array = $this->dti_service->getDatatypeArray($top_level_datatype->getId());    // do want links
+        $datarecord_array = $this->dri_service->getDatarecordArray($top_level_datarecord->getId());    // do want links
+        $theme_array = $this->theme_service->getThemeArray($top_level_theme->getId());
+
+
+        // ----------------------------------------
+        // The datatype/datarecord arrays need to be filtered so the user isn't allowed to see stuff
+        //  they shouldn't...the theme array intentionally isn't filtered
+        $user_permissions = $this->pm_service->getUserPermissionsArray($user);
+        $datatype_permissions = $user_permissions['datatypes'];
+        $datafield_permissions = $user_permissions['datafields'];
+
+        $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+        // Inline linking requires the insertion of a "fake" datarecord into the child/linked datatype
+        //  during the reload process
+        if ( isset($extra_parameters['insert_fake_datarecord']) ) {
+            // Create the "fake" datarecord...
+            $fake_dr_entry = $this->dri_service->createFakeDatarecordEntry($datatype_array, $child_datatype->getId());
+
+            // Splice it into the existing $datarecord_array
+            $fake_dr_id = $fake_dr_entry['id'];
+            $datarecord_array[$fake_dr_id] = $fake_dr_entry;
+
+            // Splice a reference to the "fake" datarecord into the parent_datarecord so the array
+            //  stacker works properly
+            if ( !isset($datarecord_array[$parent_dr_id]['children']) )
+                $datarecord_array[$parent_dr_id]['children'] = array();
+            if ( !isset($datarecord_array[$parent_dr_id]['children'][$child_dt_id]) )
+                $datarecord_array[$parent_dr_id]['children'][$child_dt_id] = array();
+            $datarecord_array[$parent_dr_id]['children'][$child_dt_id][] = $fake_dr_id;
+
+            // TODO - stacking is inserting the fake record in the front?  not super bad since it's automatically selected, but........
+        }
+
+        // Building the token list requires filtering to be done first...
+        $extra_parameters['token_list'] = $this->dri_service->generateCSRFTokens($datatype_array, $datarecord_array);
+
+
+        // ----------------------------------------
+        // "Inflate" the currently flattened arrays to make twig's life easier...
+        $stacked_datatype_array[ $child_datatype->getId() ] =
+            $this->dti_service->stackDatatypeArray($datatype_array, $child_datatype->getId());
+        $stacked_datarecord_array[ $parent_datarecord->getId() ] =
+            $this->dri_service->stackDatarecordArray($datarecord_array, $parent_datarecord->getId());
+        $stacked_theme_array[ $child_theme->getId() ] =
+            $this->theme_service->stackThemeArray($theme_array, $child_theme->getId());
+
+
+        // Find the ThemeDatatype entry that contains the child/linked datatype getting reloaded
+        $is_link = 0;          // default to "not linked"
+        $display_type = 1;     // default to "accordion"
+        $multiple_allowed = 1; // default to "multiple allowed"
+
+        $tdt = null;
+        foreach ($theme_array[$parent_theme->getId()]['themeElements'] as $num => $te) {
+            if ( $te['id'] === $theme_element->getId() ) {
+                if ( isset($te['themeDataType']) && isset($te['themeDataType'][0]) ) {
+                    $tdt = $te['themeDataType'][0];
+
+                    $is_link = $tdt['is_link'];
+                    $display_type = $tdt['display_type'];
+                    $multiple_allowed = $tdt['multiple_allowed'];
+                }
+            }
+        }
+
+        // The only way this exception gets thrown is when the backend database is messed up
+        if ( is_null($tdt) )
+            throw new ODRException('reloadEditChildtype(): Cached datarecord array malformed');
+
+
+        // ----------------------------------------
+        // Hard-code these, since Edit is the only mode that needs a childtype reload
+        $parameters = array(
+            'datatype_array' => $stacked_datatype_array,
+            'datarecord_array' => $stacked_datarecord_array,
+            'theme_array' => $stacked_theme_array,
+
+            'target_datatype_id' => $child_datatype->getId(),
+            'parent_datarecord_id' => $parent_datarecord->getId(),
+            'target_theme_id' => $child_theme->getId(),
+
+            'datatype_permissions' => $datatype_permissions,
+            'datafield_permissions' => $datafield_permissions,
+
+            'is_top_level' => 0,
+            'is_link' => $is_link,
+            'display_type' => $display_type,
+            'multiple_allowed' => $multiple_allowed,
+        );
+
+        $parameters = array_merge($parameters, $extra_parameters);
+
+        return $this->templating->render(
+            $template_name,
+            $parameters
+        );
+    }
+
+
+    /**
      * Renders and returns the HTML for a single theme element on the master design page.
      *
      * @param ODRUser $user
@@ -749,15 +914,6 @@ class ODRRenderService
         $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($parent_theme, $user);
 
         return self::reloadThemeElement($user, $template_name, $extra_parameters, $theme_element);
-    }
-
-
-    /**
-     * TODO - replace childtype reloading in edit page with this
-     */
-    public function reloadEditThemeElement()
-    {
-        throw new ODRNotImplementedException();
     }
 
 

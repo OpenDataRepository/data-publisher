@@ -1603,8 +1603,8 @@ class LinkController extends ODRCustomController
                     throw new ODRNotFoundException('Search Theme');
 
                 // ...require it to match the datatype being rendered
-                if ($search_theme->getDataType()->getId() !== $local_datatype->getId())
-                    throw new ODRBadRequestException();
+//                if ($search_theme->getDataType()->getId() !== $local_datatype->getId())
+//                    throw new ODRBadRequestException();
             }
 
 
@@ -1843,16 +1843,25 @@ class LinkController extends ODRCustomController
             $descendant_datatype_id = $post['descendant_datatype_id'];
             $datarecords = array();
             if ( isset($post['datarecords']) ) {
-                if(isset($post['post_type']) && $post['post_type'] == 'JSON') {
-                    foreach($post['datarecords'] as $index => $data) {
+                if ( isset($post['post_type']) && $post['post_type'] == 'JSON' ) {
+                    foreach ($post['datarecords'] as $index => $data) {
                         $datarecords[$data] = $data;
                     }
                 }
                 else {
                     $datarecords = $post['datarecords'];
                 }
-
             }
+
+            // The "search" linking sends this controller action a list of datarecords that should
+            //  remain linked...requiring the removal of records not listed in the post request
+            $remove_records_not_in_post = true;
+            if ( isset($post['post_action']) && $post['post_action'] == 'ADD_ONLY' ) {
+                // The "inline" linking only sends the id of a single datarecord that should be
+                //  linked...so this controller action should not attempt to do cleanup
+                $remove_records_not_in_post = false;
+            }
+
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1934,9 +1943,14 @@ class LinkController extends ODRCustomController
                    'SELECT dr.id AS dr_id
                     FROM ODRAdminBundle:DataRecord AS dr
                     JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
-                    WHERE dr.id IN (:datarecord_ids) AND drm.publicDate = "2200-01-01 00:00:00"
+                    WHERE dr.id IN (:datarecord_ids) AND drm.publicDate = :public_date
                     AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
-                )->setParameters( array('datarecord_ids' => $remote_datarecord_ids) );
+                )->setParameters(
+                    array(
+                        'datarecord_ids' => $remote_datarecord_ids,
+                        'public_date' => "2200-01-01 00:00:00"
+                    )
+                );
                 $results = $query->getArrayResult();
 
                 // ...if there are, then prevent the action since the user isn't allowed to see them
@@ -1949,39 +1963,38 @@ class LinkController extends ODRCustomController
             // --------------------
 
 
+            // Ensure these actions are undertaken on the correct entity
             $linked_datatree = null;
             $local_datarecord_is_ancestor = true;
             if ($local_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
                 $local_datarecord_is_ancestor = false;
             }
 
-            // Grab records currently linked to the local_datarecord
-            $remote = 'ancestor';
-            if (!$local_datarecord_is_ancestor)
-                $remote = 'descendant';
 
-            $query = $em->createQuery(
-               'SELECT ldt
-                FROM ODRAdminBundle:LinkedDataTree AS ldt
-                WHERE ldt.'.$remote.' = :datarecord
-                AND ldt.deletedAt IS NULL'
-            )->setParameters( array('datarecord' => $local_datarecord->getId()) );
-            $results = $query->getResult();
+            // ----------------------------------------
+            // Going to need to clear the "associated_datarecords_for_<dr_id>" cache entry for
+            //  potentially multiple datarecords...
+            $records_to_check = array();
 
-            $linked_datatree = array();
-            foreach ($results as $num => $ldt)
-                $linked_datatree[] = $ldt;
-            /** @var LinkedDataTree[] $linked_datatree */
+            if ($remove_records_not_in_post) {
+                // Locate all records currently linked to the local_datarecord
+                $remote = 'ancestor';
+                if (!$local_datarecord_is_ancestor)
+                    $remote = 'descendant';
 
+                $query = $em->createQuery(
+                   'SELECT ldt
+                    FROM ODRAdminBundle:LinkedDataTree AS ldt
+                    WHERE ldt.'.$remote.' = :datarecord
+                    AND ldt.deletedAt IS NULL'
+                )->setParameters( array('datarecord' => $local_datarecord->getId()) );
+                $results = $query->getResult();
 
-            if(
-                !isset($post['post_action'])
-                || (
-                    isset($post['post_action'])
-                    && $post['post_action'] != 'ADD_ONLY'
-                )
-            ) {
-                // If this is add only we don't check and remove
+                $linked_datatree = array();
+                foreach ($results as $num => $ldt)
+                    $linked_datatree[] = $ldt;
+                /** @var LinkedDataTree[] $linked_datatree */
+
                 foreach ($linked_datatree as $ldt) {
                     $remote_datarecord = null;
                     if ($local_datarecord_is_ancestor)
@@ -1998,19 +2011,19 @@ class LinkController extends ODRCustomController
                     }
 
                     // If a descendant datarecord isn't listed in $datarecords, it got unlinked
-                    if (!isset($datarecords[$remote_datarecord->getId()])) {
+                    if ( !isset($datarecords[$remote_datarecord->getId()]) ) {
                         // print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
                         // Mark the ancestor datarecord as updated
                         $dri_service->updateDatarecordCacheEntry($ldt->getAncestor(), $user);
-                        // Since a datarecord got unlinked, rebuild the list of what the ancestor datarecord links to
-                        $cache_service->delete('associated_datarecords_for_' . $ldt->getAncestor()->getGrandparent()->getId());
+                        // Setup for figuring out which cache entries need deleted
+                        $records_to_check[ $ldt->getAncestor()->getGrandparent()->getId() ] = 1;
 
-                        // Remove the linked_data_tree entry
+                        // Have to save who deleted this linked_datatree entry first...
                         $ldt->setDeletedBy($user);
                         $em->persist($ldt);
                         $em->flush($ldt);
-
+                        // ...then mark the linked_datatree entry as deleted...can't do both at once
                         $em->remove($ldt);
                     } else {
                         // Otherwise, a datarecord was linked and still is linked...
@@ -2021,16 +2034,16 @@ class LinkController extends ODRCustomController
             }
 
 
+            // ----------------------------------------
             // Anything remaining in $datarecords is a newly linked datarecord
             foreach ($datarecords as $id => $num) {
-                $remote_datarecord = $repo_datarecord->find($id);
-
                 // Must be a valid record
-                if($remote_datarecord === null)
+                $remote_datarecord = $repo_datarecord->find($id);
+                if ($remote_datarecord === null)
                     throw new ODRForbiddenException();
 
 
-                // Attempt to find a link between these two datarecords that was deleted at some point in the past
+                // For readability, translate local/remote datarecord into ancestor/descendant
                 $ancestor_datarecord = null;
                 $descendant_datarecord = null;
                 if ($local_datarecord_is_ancestor) {
@@ -2047,21 +2060,54 @@ class LinkController extends ODRCustomController
                 // Ensure there is a link between the two datarecords
                 $ec_service->createDatarecordLink($user, $ancestor_datarecord, $descendant_datarecord);
 
-
                 // Force a rebuild of the cached entry for the ancestor datarecord
                 $dri_service->updateDatarecordCacheEntry($ancestor_datarecord, $user);
-                // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
-                $cache_service->delete('associated_datarecords_for_'.$ancestor_datarecord->getGrandparent()->getId());
+                // Setup for figuring out which cache entries need deleted
+                $records_to_check[ $ancestor_datarecord->getGrandparent()->getId() ] = 1;
             }
 
+            // Done modifying the database
             $em->flush();
 
+
+            // ----------------------------------------
+            // Locate all records that need to have their "associated_datarecords_for_<dr_id>" cache
+            //  cache entry removed so the view/edit pages show the correct linked records
+            $records_to_clear = $records_to_check;
+            $records_to_check = array_flip($records_to_check);
+
+            while ( !empty($records_to_check) ) {
+                // Determine whether anything links to these records ancestor...
+                $query = $em->createQuery(
+                   'SELECT ancestor.id AS ancestor_id
+                    FROM ODRAdminBundle:LinkedDataTree AS ldt
+                    JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    WHERE descendant.id IN (:datarecords)
+                    AND ldt.deletedAt IS NULL
+                    AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                )->setParameters( array('datarecords' => $records_to_check) );
+                $results = $query->getArrayResult();
+
+                $records_to_check = array();
+                foreach ($results as $result) {
+                    $ancestor_id = $result['ancestor_id'];
+                    $records_to_clear[$ancestor_id] = 1;
+                    $records_to_check[] = $ancestor_id;
+                }
+            }
+
+            // Clearing this cache entry for each of the ancestor records found ensures that the
+            //  newly linked/unlinked datarecords show up (or not) when they should
+            foreach ($records_to_clear as $dr_id => $num)
+                $cache_service->delete('associated_datarecords_for_'.$dr_id);
+
+
+            // ----------------------------------------
             $return['d'] = array(
                 'datatype_id' => $descendant_datatype->getId(),
                 'datarecord_id' => $local_datarecord->getId()
             );
-
-            // Any cached entries that needed clearing have already been cleared
         }
         catch (\Exception $e) {
             $source = 0x5392e9e1;
@@ -2190,7 +2236,7 @@ class LinkController extends ODRCustomController
 
                 // Determine whether there are any non-public datarecords in the list that the user wants to link...
                 $query = $em->createQuery(
-                    'SELECT dr.id AS dr_id
+                   'SELECT dr.id AS dr_id
                     FROM ODRAdminBundle:DataRecord AS dr
                     JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
                     WHERE dr.id IN (:datarecord_ids) AND drm.publicDate = "2200-01-01 00:00:00"
@@ -2207,20 +2253,20 @@ class LinkController extends ODRCustomController
             }
             // --------------------
 
-
+            // Ensure these actions are undertaken on the correct entity
             $linked_datatree = null;
             $local_datarecord_is_ancestor = true;
             if ($local_datarecord->getDataType()->getId() !== $ancestor_datatype->getId()) {
                 $local_datarecord_is_ancestor = false;
             }
 
-            // Grab records currently linked to the local_datarecord
+            // Load all records currently linked to the local_datarecord
             $remote = 'ancestor';
             if (!$local_datarecord_is_ancestor)
                 $remote = 'descendant';
 
             $query = $em->createQuery(
-                'SELECT ldt
+               'SELECT ldt
                 FROM ODRAdminBundle:LinkedDataTree AS ldt
                 WHERE ldt.'.$remote.' = :datarecord
                 AND ldt.deletedAt IS NULL'
@@ -2233,9 +2279,12 @@ class LinkController extends ODRCustomController
             /** @var LinkedDataTree[] $linked_datatree */
 
 
-            // If this is add only we don't check and remove
+            // ----------------------------------------
+            // Going to need to clear the "associated_datarecords_for_<dr_id>" cache entry for
+            //  potentially multiple datarecords...
+            $records_to_check = array();
+
             foreach ($linked_datatree as $ldt) {
-                // TODO This is a really dangerous way of doing things...
                 $remote_datarecord = null;
                 if ($local_datarecord_is_ancestor)
                     $remote_datarecord = $ldt->getDescendant();
@@ -2251,31 +2300,64 @@ class LinkController extends ODRCustomController
                 }
 
                 // If a descendant datarecord is listed in $datarecords, it got unlinked
-                if (isset($datarecords[$remote_datarecord->getId()])) {
+                if ( isset($datarecords[$remote_datarecord->getId()]) ) {
                     // print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
                     // Mark the ancestor datarecord as updated
                     $dri_service->updateDatarecordCacheEntry($ldt->getAncestor(), $user);
-                    // Since a datarecord got unlinked, rebuild the list of what the ancestor datarecord links to
-                    $cache_service->delete('associated_datarecords_for_' . $ldt->getAncestor()->getGrandparent()->getId());
+                    // Setup for figuring out which cache entries need deleted
+                    $records_to_check[ $ldt->getAncestor()->getGrandparent()->getId() ] = 1;
 
-                    // Remove the linked_data_tree entry
+                    // Have to save who deleted this linked_datatree entry first...
                     $ldt->setDeletedBy($user);
                     $em->persist($ldt);
                     $em->flush($ldt);
-
+                    // ...then mark the linked_datatree entry as deleted...can't do both at once
                     $em->remove($ldt);
                 }
             }
 
             $em->flush();
 
+
+            // ----------------------------------------
+            // Locate all records that need to have their "associated_datarecords_for_<dr_id>" cache
+            //  cache entry removed so the view/edit pages show the correct linked records
+            $records_to_clear = $records_to_check;
+            $records_to_check = array_flip($records_to_check);
+
+            while ( !empty($records_to_check) ) {
+                // Determine whether anything links to these records ancestor...
+                $query = $em->createQuery(
+                   'SELECT ancestor.id AS ancestor_id
+                    FROM ODRAdminBundle:LinkedDataTree AS ldt
+                    JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    WHERE descendant.id IN (:datarecords)
+                    AND ldt.deletedAt IS NULL
+                    AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                )->setParameters( array('datarecords' => $records_to_check) );
+                $results = $query->getArrayResult();
+
+                $records_to_check = array();
+                foreach ($results as $result) {
+                    $ancestor_id = $result['ancestor_id'];
+                    $records_to_clear[$ancestor_id] = 1;
+                    $records_to_check[] = $ancestor_id;
+                }
+            }
+
+            // Clearing this cache entry for each of the ancestor records found ensures that the
+            //  newly linked/unlinked datarecords show up (or not) when they should
+            foreach ($records_to_clear as $dr_id => $num)
+                $cache_service->delete('associated_datarecords_for_'.$dr_id);
+
+
+            // ----------------------------------------
             $return['d'] = array(
                 'datatype_id' => $descendant_datatype->getId(),
                 'datarecord_id' => $local_datarecord->getId()
             );
-
-            // Any cached entries that needed clearing have already been cleared
         }
         catch (\Exception $e) {
             $source = 0xdd047dcd;

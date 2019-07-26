@@ -813,6 +813,7 @@ class DefaultController extends Controller
                 throw new ODRForbiddenException();
 
             $can_view_datarecords = $pm_service->canViewNonPublicDatarecords($user, $datatype);
+            $can_add_datarecord = $pm_service->canAddDatarecord($user, $datatype);
             // ----------------------------------------
 
 
@@ -892,10 +893,17 @@ class DefaultController extends Controller
             // ----------------------------------------
             // TODO - convert $output into a string here so .autocomplete( "instance" )._renderItem
             // TODO -  in edit_ajax.html.twig doesn't have to?
-            $final_output = array();
+            $final_output = array(
+                'can_add_datarecord' => $can_add_datarecord
+            );
             if ( empty($output) ) {
-                $final_output[-1] = array(
-                    'record_id' => -1,
+                if ( $can_add_datarecord )
+                    $dr_id = -1;
+                else
+                    $dr_id = -2;
+
+                $final_output[$dr_id] = array(
+                    'record_id' => $dr_id,
                     'fields' => array(),
                 );
             }

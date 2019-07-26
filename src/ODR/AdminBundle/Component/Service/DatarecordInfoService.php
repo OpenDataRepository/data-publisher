@@ -15,10 +15,13 @@ namespace ODR\AdminBundle\Component\Service;
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 // Utility
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
@@ -720,5 +723,80 @@ class DatarecordInfoService
         }
 
         return $token_list;
+    }
+
+
+    /**
+     * Uses the given cached datatype array to generate a cache entry for a barebones "fake" record
+     * of the given datatype id.
+     *
+     * This function assumes it's creating a fake top-level datarecord.  The caller will need to
+     * splice this fake datarecord's ids into the cached array of a parent datarecord, if needed.
+     * The caller will also need to deal with setting the parent/grandparent attributes in this case.
+     *
+     * @param array $datatype_array @see DatatypeInfoService::getDatatypeArray()
+     * @param int $target_datatype_id
+     *
+     * @return array
+     */
+    public function createFakeDatarecordEntry($datatype_array, $target_datatype_id)
+    {
+        if ( !isset($datatype_array[$target_datatype_id]) )
+            throw new ODRBadRequestException('Unable to generate a fake record of datatype '.$target_datatype_id, 0x00ba0e84);
+
+        // Going to need to copy most of the cached datatype array into the fake datarecord entry
+        $dt_entry = $datatype_array[$target_datatype_id];
+        // It doesn't really matter whether these entries exist or not, but unset them to be tidy
+        unset( $dt_entry[$target_datatype_id]['dataFields'] );
+        unset( $dt_entry[$target_datatype_id]['createdBy'] );
+        unset( $dt_entry[$target_datatype_id]['updatedBy'] );
+
+
+        // The new "fake" datarecord needs an id
+        // generateCSRFTokens() doesn't require it to be numeric
+        $fake_id = UniqueUtility::uniqueIdReal();
+        while ( is_numeric($fake_id) )
+            $fake_id = UniqueUtility::uniqueIdReal();
+
+        $entry = array(
+            'id' => $fake_id,
+            'is_fake' => true,
+
+            // These values shouldn't cause a problem...
+            'provisioned' => true,
+            'unique_id' => '',
+
+            'dataRecordMeta' => array(
+                'id' => null,    // TODO - problem here?  drf_id should never be used...
+                'publicDate' => new \DateTime('2200-00-00 00:00:00'),
+            ),
+
+            'parent' => array(
+                'id' => $fake_id,
+            ),
+            'grandparent' => array(
+                'id' => $fake_id,
+            ),
+            'dataType' => $dt_entry,
+
+            // These null values shouldn't cause a problem...
+            'created' => null,
+            'updated' => null,
+            'createdBy' => null,
+            'updatedBy' => null,
+            'deletedAt' => null,
+
+            'children' => array(),
+            'externalIdField_value' => '',
+            'nameField_value' => $fake_id,    // Get Edit mode to render the datatype name instead of a blank
+            'sortField_value' => '',
+            'sortField_typeclass' => '',
+
+            // Don't actually need to create entries here, twig effectively assumes all fields
+            //  have no value in this case
+            'dataRecordFields' => array()
+        );
+
+        return $entry;
     }
 }

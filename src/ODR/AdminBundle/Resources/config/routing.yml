@@ -642,11 +642,13 @@ odr_record_edit:
         offset: \d+
 
 odr_record_reload_child:
-    path: /edit/childreload/{child_datatype_id}/{parent_datarecord_id}
-    defaults: { _controller: ODRAdminBundle:Edit:reloadchild }
+    path: /edit/childreload/{theme_element_id}/{parent_datarecord_id}/{top_level_datarecord_id}/{insert_fake_datarecord}
+    defaults: { _controller: ODRAdminBundle:Edit:reloadchild, insert_fake_datarecord: 0 }
     requirements:
-        child_datatype_id: \d+
+        theme_element_id: \d+
         parent_datarecord_id: \d+
+        top_level_datarecord_id: \d+
+        insert_fake_datarecord: 0|1
 odr_record_reload_datafield:
     path: /edit/datafieldreload/{source_datarecord_id}/{datarecord_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Edit:reloaddatafield }
@@ -667,6 +669,10 @@ odr_record_save:
     requirements:
         datarecord_id:  \d+
         datafield_id_id:  \d+
+odr_record_save_as_new:
+    path:  /edit/save_as_new
+    defaults: { _controller: ODRAdminBundle:Edit:saveasnew }
+    methods: [ POST ]
 
 odr_record_public:
     path:  /edit/publicdatarecord/{datarecord_id}
