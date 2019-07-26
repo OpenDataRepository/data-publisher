@@ -3182,7 +3182,7 @@ class APIController extends ODRCustomController
         $data = $cache_service
             ->get('json_record_' . $datarecord_uuid . '_' . $user->getId());
 
-        if (1 || !$data || $flush) {
+        if (!$data || $flush) {
             // Render the requested datarecord
             $data = $dre_service->getData(
                 $version,
