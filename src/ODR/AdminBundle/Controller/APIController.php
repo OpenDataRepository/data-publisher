@@ -1226,7 +1226,6 @@ class APIController extends ODRCustomController
                                 }
 
 
-                                // Add or delete tags as needed
                                 // Check if new tag exists in template
                                 // Add to template if not exists
                                 foreach ($new_tags as $tag_uuid) {
@@ -1263,6 +1262,25 @@ class APIController extends ODRCustomController
 
                                     $changed = true;
 
+
+                                    // Trying to do everything realtime - no waiting forever stuff
+                                    // Maybe the references will be stored in the variable anyway?
+                                    $em->flush();
+                                    $em->refresh($new_field);
+
+                                    // Added tags need to replace their value in the array
+                                    for($j=0;$j < count($field['value']);$j++) {
+                                        if($field['value'][$j]['template_tag_uuid'] == $tag->getTagUuid() ) {
+                                            // replace this block
+                                            $field['value'][$j]['name'] = $tag->getTagName();
+                                            $field['value'][$j]['id'] = $new_field->getId();
+                                            $field['value'][$j]['selected'] = 1;
+                                            $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+                                            $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
+                                        }
+                                    }
+                                    // Assign the updated field back to the dataset.
+                                    $dataset['fields'][$i] = $field;
                                 }
 
                                 break;
@@ -2425,10 +2443,11 @@ class APIController extends ODRCustomController
                 // Mark this datarecord as updated
                 $em->flush();
                 /** @var ODRUser $api_user */  // Anon when nobody is logged in.
-                $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
-                $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
+                // $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
+                // Forget about the cache - just return the dataset...
 
-                $dri_service->updateDatarecordCacheEntry($data_record, $user);
+                // $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
+                // $dri_service->updateDatarecordCacheEntry($data_record, $user);
             }
 
             // Check Related datatypes
@@ -2442,7 +2461,7 @@ class APIController extends ODRCustomController
     /**
      * @param $version
      * @param Request $request
-     * @return \Symfony\Component\HttpFoundation\RedirectResponse
+     * @return \Symfony\Component\HttpFoundation\Response
      */
     public function updatedatasetAction($version, Request $request)
     {
@@ -2515,6 +2534,15 @@ class APIController extends ODRCustomController
                 */
                 $dataset = self::datasetDiff($dataset, $metadata_record, $user, $changed);
 
+
+
+                // Here we need to set the anon record as well...
+                // Anon metadata records will always be public...
+                // Also need a filter to filter by permissions.  Really easy
+                // if the JSON had public/not-public as a field in all datapoints.
+                $cache_service->set('json_record_' . $record_uuid . '_' . $admin->getId(), json_encode($dataset));
+
+                /*
                 if ($changed) {
                     // Get dataset again
 
@@ -2529,9 +2557,11 @@ class APIController extends ODRCustomController
                     );
 
                 }
+                */
 
                 // Respond and redirect to record
                 $response = new Response('Updated', 200);
+                /*
                 $url = $this->generateUrl('odr_api_get_datarecord_single', array(
                     'version' => $version,
                     'datarecord_uuid' => $record_uuid
@@ -2539,6 +2569,11 @@ class APIController extends ODRCustomController
                 $response->headers->set('Location', $url);
 
                 return $this->redirect($url);
+                */
+
+                $response->headers->set('Content-Type', 'application/json');
+                $response->setContent(json_encode($dataset));
+                return $response;
 
             } else {
                 throw new ODRException('No dataset data to update.');
