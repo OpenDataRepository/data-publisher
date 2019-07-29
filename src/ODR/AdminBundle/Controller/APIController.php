@@ -3103,7 +3103,27 @@ class APIController extends ODRCustomController
                             // If single, delete existing
                             if ($existing_field && !$data_field->getDataFieldMeta()->getAllowMultipleUploads()) {
                                 // Find existing file entry and delete
-                                $em->remove($existing_field);
+                                $repo_image = $em->getRepository('ODRAdminBundle:Image');
+
+                                $image = $existing_field;
+                                /** @var Image[] $images */
+                                $images = $repo_image->findBy( array('parent' => $image->getId()) );
+                                foreach ($images as $img) {
+                                    // Ensure no decrypted version of any of the thumbnails exist on the server
+                                    $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
+                                    if ( file_exists($local_filepath) )
+                                        unlink($local_filepath);
+
+                                    // Delete the alternate sized image from the database
+                                    $em->remove($img);
+                                }
+
+                                // Ensure no decrypted version of the original image exists on the server
+                                $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$image->getId().'.'.$image->getExt();
+                                if ( file_exists($local_filepath) )
+                                    unlink($local_filepath);
+
+                                $em->remove($image);
                                 $em->flush();
                             }
 
