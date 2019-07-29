@@ -1103,7 +1103,7 @@ class SearchKeyService
                                 case 'File':
                                 case 'Image':
                                     // A general search doesn't make sense for Files/Images/Datetime fields
-                                    continue;
+                                    break;
 
                                 case 'IntegerValue':
                                 case 'DecimalValue':

@@ -1195,7 +1195,8 @@ class APIController extends ODRCustomController
                                 }
 
                                 /** @var DataRecordFields $drf */
-                                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
+                                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')
+                                    ->findOneBy(
                                     array(
                                         'dataRecord' => $dataset['internal_id'],
                                         'dataField' => $data_field->getId()
@@ -1212,7 +1213,8 @@ class APIController extends ODRCustomController
                                         )
                                     );
                                     /** @var TagSelection $tag_selection */
-                                    $tag_selection = $em->getRepository('ODRAdminBundle:TagSelection')->findOneBy(
+                                    $tag_selection = $em->getRepository('ODRAdminBundle:TagSelection')
+                                        ->findOneBy(
                                         array(
                                             'tag' => $tag->getId(),
                                             'dataRecordFields' => $drf->getId()
@@ -1224,7 +1226,6 @@ class APIController extends ODRCustomController
                                         $changed = true;
                                     }
                                 }
-
 
                                 // Check if new tag exists in template
                                 // Add to template if not exists
@@ -1406,6 +1407,26 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+
+                                    // Trying to do everything realtime - no waiting forever stuff
+                                    // Maybe the references will be stored in the variable anyway?
+                                    $em->flush();
+                                    $em->refresh($new_field);
+
+                                    // Added tags need to replace their value in the array
+                                    for($j=0;$j < count($field['value']);$j++) {
+                                        if($field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid() ) {
+                                            // replace this block
+                                            $field['value'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
+                                            $field['value'][$j]['name'] = $option->getOptionName();
+                                            $field['value'][$j]['id'] = $new_field->getId();
+                                            $field['value'][$j]['selected'] = 1;
+                                            $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+                                            $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
+                                        }
+                                    }
+                                    // Assign the updated field back to the dataset.
+                                    $dataset['fields'][$i] = $field;
                                 }
 
                                 break;
@@ -1532,6 +1553,26 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+
+                                    // Trying to do everything realtime - no waiting forever stuff
+                                    // Maybe the references will be stored in the variable anyway?
+                                    $em->flush();
+                                    $em->refresh($new_field);
+
+                                    // Added tags need to replace their value in the array
+                                    for($j=0;$j < count($field['value']);$j++) {
+                                        if($field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid() ) {
+                                            // replace this block
+                                            $field['value'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
+                                            $field['value'][$j]['name'] = $option->getOptionName();
+                                            $field['value'][$j]['id'] = $new_field->getId();
+                                            $field['value'][$j]['selected'] = 1;
+                                            $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+                                            $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
+                                        }
+                                    }
+                                    // Assign the updated field back to the dataset.
+                                    $dataset['fields'][$i] = $field;
                                 }
                                 break;
 
@@ -1657,6 +1698,26 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+
+                                    // Trying to do everything realtime - no waiting forever stuff
+                                    // Maybe the references will be stored in the variable anyway?
+                                    $em->flush();
+                                    $em->refresh($new_field);
+
+                                    // Added tags need to replace their value in the array
+                                    for($j=0;$j < count($field['value']);$j++) {
+                                        if($field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid() ) {
+                                            // replace this block
+                                            $field['value'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
+                                            $field['value'][$j]['name'] = $option->getOptionName();
+                                            $field['value'][$j]['id'] = $new_field->getId();
+                                            $field['value'][$j]['selected'] = 1;
+                                            $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+                                            $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
+                                        }
+                                    }
+                                    // Assign the updated field back to the dataset.
+                                    $dataset['fields'][$i] = $field;
                                 }
                                 break;
 
@@ -1782,6 +1843,26 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+
+                                    // Trying to do everything realtime - no waiting forever stuff
+                                    // Maybe the references will be stored in the variable anyway?
+                                    $em->flush();
+                                    $em->refresh($new_field);
+
+                                    // Added tags need to replace their value in the array
+                                    for($j=0;$j < count($field['value']);$j++) {
+                                        if($field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid() ) {
+                                            // replace this block
+                                            $field['value'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
+                                            $field['value'][$j]['name'] = $option->getOptionName();
+                                            $field['value'][$j]['id'] = $new_field->getId();
+                                            $field['value'][$j]['selected'] = 1;
+                                            $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+                                            $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
+                                        }
+                                    }
+                                    // Assign the updated field back to the dataset.
+                                    $dataset['fields'][$i] = $field;
                                 }
                                 break;
 
@@ -1907,129 +1988,28 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+
+                                    // Trying to do everything realtime - no waiting forever stuff
+                                    // Maybe the references will be stored in the variable anyway?
+                                    $em->flush();
+                                    $em->refresh($new_field);
+
+                                    // Added tags need to replace their value in the array
+                                    for($j=0;$j < count($field['value']);$j++) {
+                                        if($field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid() ) {
+                                            // replace this block
+                                            $field['value'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
+                                            $field['value'][$j]['name'] = $option->getOptionName();
+                                            $field['value'][$j]['id'] = $new_field->getId();
+                                            $field['value'][$j]['selected'] = 1;
+                                            $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+                                            $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
+                                        }
+                                    }
+                                    // Assign the updated field back to the dataset.
+                                    $dataset['fields'][$i] = $field;
                                 }
                                 break;
-
-                            case '18':
-                                // TagSelection
-                                // Determine selected tags in original dataset
-                                // Determine selected tags in current
-
-                                // Need to reduce to keys?
-                                $selected_options = $field['value'];
-
-                                $orig_selected_options = array();
-                                if ($orig_dataset) {
-                                    foreach ($orig_dataset['fields'] as $o_field) {
-                                        if (
-                                            isset($o_field['value']) &&
-                                            isset($field['field_uuid']) &&
-                                            $o_field['field_uuid'] == $field['field_uuid']
-                                        ) {
-                                            $orig_selected_options = $o_field['value'];
-                                        }
-                                    }
-                                }
-
-                                $new_options = array();
-                                $deleted_options = array();
-
-                                // check for new options
-                                foreach ($selected_options as $option) {
-                                    $found = false;
-                                    foreach ($orig_selected_options as $o_option) {
-                                        if ($option == $o_option) {
-                                            $found = true;
-                                        }
-                                    }
-                                    if (!$found) {
-                                        array_push($new_options, $option['template_tag_uuid']);
-                                    }
-                                }
-
-                                // Check for deleted options
-                                foreach ($orig_selected_options as $o_option) {
-                                    $found = false;
-                                    foreach ($selected_options as $option) {
-                                        if ($option == $o_option) {
-                                            $found = true;
-                                        }
-                                    }
-                                    if (!$found) {
-                                        array_push($deleted_options, $o_option['template_tag_uuid']);
-                                    }
-                                }
-
-                                /** @var DataRecordFields $drf */
-                                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                                    array(
-                                        'dataRecord' => $dataset['internal_id'],
-                                        'dataField' => $data_field->getId()
-                                    )
-                                );
-
-                                // Delete deleted options
-                                foreach ($deleted_options as $option_uuid) {
-                                    /** @var Tags $option */
-                                    $option = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                                        array(
-                                            'tagUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
-                                        )
-                                    );
-                                    /** @var TagSelection $option_selection */
-                                    $option_selection = $em->getRepository('ODRAdminBundle:tagSelection')->findOneBy(
-                                        array(
-                                            'tag' => $option->getId(),
-                                            'dataRecordFields' => $drf->getId()
-                                        )
-                                    );
-
-                                    if ($option_selection) {
-                                        $em->remove($option_selection);
-                                        $changed = true;
-                                    }
-                                }
-
-                                // Add or delete options as needed
-                                // Check if new option exists in template
-                                // Add to template if not exists
-                                foreach ($new_options as $option_uuid) {
-                                    // Lookup Option by UUID
-                                    /** @var Tags $option */
-                                    $option = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                                        array(
-                                            'tagUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
-
-                                        )
-                                    );
-
-                                    if (!$drf) {
-                                        // If drf entry doesn't exist, create new
-                                        $drf = new DataRecordFields();
-                                        $drf->setCreatedBy($user);
-                                        $drf->setCreated(new \DateTime());
-                                        $drf->setDataField($data_field);
-                                        $drf->setDataRecord($data_record);
-                                        $em->persist($drf);
-                                    }
-
-                                    /** @var TagSelection $new_field */
-                                    $new_field = new TagSelection();
-                                    $new_field->setTag($option);
-                                    $new_field->setDataRecordFields($drf);
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    $new_field->setCreated(new \DateTime());
-                                    $new_field->setUpdated(new \DateTime());
-                                    $new_field->setSelected(1);
-                                    $em->persist($new_field);
-
-                                    $changed = true;
-                                }
-                                break;
-
                         }
                     } else if (isset($field['value'])) {
                         // Field is singular data field
@@ -2129,6 +2109,16 @@ class APIController extends ODRCustomController
                                         $em->remove($existing_field);
                                     }
                                     $changed = true;
+
+                                    // Trying to do everything realtime - no waiting forever stuff
+                                    $em->flush();
+                                    $em->refresh($new_field);
+
+                                    // Assign the updated field back to the dataset.
+                                    $field['value'] = $new_field->getValue();
+                                    $field['id'] = $new_field->getId();
+                                    $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+                                    $dataset['fields'][$i] = $field;
                                     break;
                                 case '5':
                                     /** @var LongText $new_field */
@@ -2154,6 +2144,16 @@ class APIController extends ODRCustomController
                                         $em->remove($existing_field);
                                     }
                                     $changed = true;
+
+                                    // Trying to do everything realtime - no waiting forever stuff
+                                    $em->flush();
+                                    $em->refresh($new_field);
+
+                                    // Assign the updated field back to the dataset.
+                                    $field['value'] = $new_field->getValue();
+                                    $field['id'] = $new_field->getId();
+                                    $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+                                    $dataset['fields'][$i] = $field;
                                     break;
 
                                 case '6':
@@ -2180,6 +2180,16 @@ class APIController extends ODRCustomController
                                         $em->remove($existing_field);
                                     }
                                     $changed = true;
+
+                                    // Trying to do everything realtime - no waiting forever stuff
+                                    $em->flush();
+                                    $em->refresh($new_field);
+
+                                    // Assign the updated field back to the dataset.
+                                    $field['value'] = $new_field->getValue();
+                                    $field['id'] = $new_field->getId();
+                                    $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+                                    $dataset['fields'][$i] = $field;
                                     break;
                                 case '7':
                                     /** @var MediumVarchar $new_field */
@@ -2205,6 +2215,16 @@ class APIController extends ODRCustomController
                                         $em->remove($existing_field);
                                     }
                                     $changed = true;
+
+                                    // Trying to do everything realtime - no waiting forever stuff
+                                    $em->flush();
+                                    $em->refresh($new_field);
+
+                                    // Assign the updated field back to the dataset.
+                                    $field['value'] = $new_field->getValue();
+                                    $field['id'] = $new_field->getId();
+                                    $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+                                    $dataset['fields'][$i] = $field;
                                     break;
                                 case '9':
                                     /** @var ShortVarchar $new_field */
@@ -2230,6 +2250,16 @@ class APIController extends ODRCustomController
                                         $em->remove($existing_field);
                                     }
                                     $changed = true;
+
+                                    // Trying to do everything realtime - no waiting forever stuff
+                                    $em->flush();
+                                    $em->refresh($new_field);
+
+                                    // Assign the updated field back to the dataset.
+                                    $field['value'] = $new_field->getValue();
+                                    $field['id'] = $new_field->getId();
+                                    $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+                                    $dataset['fields'][$i] = $field;
                                     break;
                                 case '16':
                                     /** @var DecimalValue $new_field */
@@ -2255,10 +2285,21 @@ class APIController extends ODRCustomController
                                         $em->remove($existing_field);
                                     }
                                     $changed = true;
+
+                                    // Trying to do everything realtime - no waiting forever stuff
+                                    $em->flush();
+                                    $em->refresh($new_field);
+
+                                    // Assign the updated field back to the dataset.
+                                    $field['value'] = $new_field->getValue();
+                                    $field['id'] = $new_field->getId();
+                                    $field['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+                                    $dataset['fields'][$i] = $field;
                                     break;
                                 default:
                                     break;
                             }
+
 
 
                             // Check if field is "name" field for datatype
@@ -2430,6 +2471,11 @@ class APIController extends ODRCustomController
                         // Populate the UUID of the newly added record
                         $record['record_uuid'] = $new_record->getUniqueId();
                         $record['internal_id'] = $new_record->getId();
+                        $record['updated_at'] = $new_record->getUpdated()->format('Y-m-d H:i:s');
+                        $record['created_at'] = $new_record->getCreated()->format('Y-m-d H:i:s');
+                        if(!isset($record['database_uuid'])) {
+                            $record['database_uuid'] = $record_data_type->getUniqueId();
+                        }
 
                         // Difference with null
                         $null_record = false;
@@ -2445,6 +2491,9 @@ class APIController extends ODRCustomController
                 /** @var ODRUser $api_user */  // Anon when nobody is logged in.
                 // $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
                 // Forget about the cache - just return the dataset...
+
+                // TODO Clear caches for ODR Symfony UI here.  Symfony will not be maintained in sync
+                // with API until a user queries a record.
 
                 // $dri_service->updateDatarecordCacheEntry($data_record, $api_user);
                 // $dri_service->updateDatarecordCacheEntry($data_record, $user);

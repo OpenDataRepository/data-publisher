@@ -12,8 +12,8 @@ class APIControllerTest extends WebTestCase
     public static $token = "";
     public static $headers = array();
 
-    // public static $base_url = "http://office_dev/api/v3";
-    public static $base_url = "http://eta.odr.io/api/v3";
+    public static $base_url = "http://office_dev/app_dev.php/api/v3";
+    // public static $base_url = "http://eta.odr.io/api/v3";
 
     public static $template_uuid = "2ea627b";
 
@@ -219,7 +219,7 @@ class APIControllerTest extends WebTestCase
         ($debug ? fwrite(STDERR, 'Dataset UUID: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
 
         // Should have the user_email at least
-        $this->assertTrue($code == 302);
+        $this->assertTrue($code == 302 || $code == 200);
     }
 
 
@@ -325,7 +325,7 @@ class APIControllerTest extends WebTestCase
         ($debug ? fwrite(STDERR, 'Dataset UUID: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
 
         // Should have the user_email at least
-        $this->assertTrue($code == 302);
+        $this->assertTrue($code == 302 || $code == 200);
     }
 
 
@@ -363,7 +363,7 @@ class APIControllerTest extends WebTestCase
                     "value": "GRID_ID_' . rand(100000000, 999999999) . '"
                 }
             ],
-            "related_databases": [
+            "records": [
                 {
                     "name": "Postal Address",
                     "template_uuid": "95f9363",
@@ -447,7 +447,7 @@ class APIControllerTest extends WebTestCase
         ($debug ? fwrite(STDERR, 'Dataset UUID: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
 
         // Should have the user_email at least
-        $this->assertTrue($code == 302);
+        $this->assertTrue($code == 302 || $code == 200);
     }
 
     // get actual data record
@@ -458,9 +458,11 @@ class APIControllerTest extends WebTestCase
         $headers[] = 'Authorization: Bearer ' . self::$token;
         $headers[] = 'Content-type: application/json';
 
-        ($debug ? fwrite(STDERR, "Getting template.\n") : '');
+        ($debug ? fwrite(STDERR, "Getting data record.\n") : '');
+        $url = self::$base_url . '/dataset/' . self::$created_dataset['dataset']['metadata_for_uuid'];
+        ($debug ? fwrite(STDERR, "URL: " . $url . "\n") : '');
         $cp = new CurlUtility(
-            self::$base_url . '/dataset/' . self::$created_dataset['dataset']['metadata_for_uuid'],
+            $url,
             $headers,
             false,
             true,
@@ -546,8 +548,10 @@ class APIControllerTest extends WebTestCase
         self::$created_datarecord['dataset']['records'][] = $datafile_data;
 
         $put_data = json_encode(self::$created_datarecord);
+        $url = self::$base_url . '/dataset';
+        ($debug ? fwrite(STDERR, "URL: " . $url . "\n") : '');
         $cp = new CurlUtility(
-            self::$base_url . '/dataset',
+            $url,
             $headers,
             false,
             true,
@@ -555,10 +559,14 @@ class APIControllerTest extends WebTestCase
         );
 
         $response = $cp->put($put_data);
+        $updated_dataset = json_decode($response['response'], true);
+        // self::$created_datarecord['dataset'] = $updated_dataset;
+        ($debug ? fwrite(STDERR, 'Updated dataset: ' . var_export($updated_dataset, true) . "\n") : '');
+
         $code = json_decode($response['code'], true);
         ($debug ? fwrite(STDERR, 'Datarecord UUID: ' . self::$created_datarecord['dataset']['database_uuid'] . "\n") : '');
 
-        $this->assertTrue($code == 302);
+        $this->assertTrue($code == 302 || $code == 200);
     }
 
     // get actual data record
@@ -569,7 +577,7 @@ class APIControllerTest extends WebTestCase
         $headers[] = 'Authorization: Bearer ' . self::$token;
         $headers[] = 'Content-type: application/json';
 
-        ($debug ? fwrite(STDERR, "Getting template.\n") : '');
+        ($debug ? fwrite(STDERR, "Getting Updated Data Record.\n") : '');
         $cp = new CurlUtility(
             self::$base_url . '/dataset/' . self::$created_dataset['dataset']['metadata_for_uuid'],
             $headers,
@@ -649,7 +657,7 @@ class APIControllerTest extends WebTestCase
 
         $http_status = curl_getinfo($request, CURLINFO_HTTP_CODE);
         ($debug ? fwrite(STDERR, $http_status) : '');
-        $this->assertTrue($http_status == 302);
+        $this->assertTrue($http_status == 302 || $code == 200);
 
         // close the session
         curl_close($request);
@@ -703,7 +711,7 @@ class APIControllerTest extends WebTestCase
 
         $http_status = curl_getinfo($request, CURLINFO_HTTP_CODE);
         ($debug ? fwrite(STDERR, $http_status) : '');
-        $this->assertTrue($http_status == 302);
+        $this->assertTrue($http_status == 302 || $code == 200);
 
         // close the session
         curl_close($request);

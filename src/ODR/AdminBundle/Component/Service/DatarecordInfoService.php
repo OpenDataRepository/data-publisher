@@ -679,9 +679,9 @@ class DatarecordInfoService
 
         // Delete associated datarecords cache
         $this->cache_service->delete('associated_datarecords_for_'.$dr->getId());
-
-        // Clear json caches used in API
-        $this->cache_service->delete('json_record_' . $dr->getUniqueId() . '_' . $user->getId());
+        //
+        //        // Clear json caches used in API
+        // $this->cache_service->delete('json_record_' . $dr->getUniqueId() . '_' . $user->getId());
     }
 
 
