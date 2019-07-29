@@ -2545,7 +2545,7 @@ class APIController extends ODRCustomController
                 /** @var CacheService $cache_service */
                 $cache_service = $this->container->get('odr.cache_service');
                 $metadata_record = $cache_service
-                    ->get('json_record_' . $record_uuid . '_' . $admin->getId());
+                    ->get('json_record_' . $record_uuid);
 
 
                 if (!$metadata_record) {
@@ -2584,12 +2584,11 @@ class APIController extends ODRCustomController
                 $dataset = self::datasetDiff($dataset, $metadata_record, $user, $changed);
 
 
-
                 // Here we need to set the anon record as well...
                 // Anon metadata records will always be public...
                 // Also need a filter to filter by permissions.  Really easy
                 // if the JSON had public/not-public as a field in all datapoints.
-                $cache_service->set('json_record_' . $record_uuid . '_' . $admin->getId(), json_encode($dataset));
+                $cache_service->set('json_record_' . $record_uuid, json_encode($dataset));
 
                 /*
                 if ($changed) {
@@ -3264,7 +3263,7 @@ class APIController extends ODRCustomController
         /** @var CacheService $cache_service */
         $cache_service = $this->container->get('odr.cache_service');
         $data = $cache_service
-            ->get('json_record_' . $datarecord_uuid . '_' . $user->getId());
+            ->get('json_record_' . $datarecord_uuid);
 
         if (!$data || $flush) {
             // Render the requested datarecord
@@ -3283,7 +3282,7 @@ class APIController extends ODRCustomController
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
             $cache_service->set(
-                'json_record_' . $datarecord_uuid . '_' . $user->getId(),
+                'json_record_' . $datarecord_uuid,
                 $data
             );
         }
