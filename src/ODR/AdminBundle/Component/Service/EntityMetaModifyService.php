@@ -1424,6 +1424,9 @@ class EntityMetaModifyService
         if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
             $existing_values['value'] = strval($existing_values['value']);
 
+        // NOTE - intentionally doesn't prevent overly-long strings from being saved into the
+        //  Short/Medium/LongVarchar entities...an exception being thrown is usually desirable
+
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] !== $value )
                 $changes_made = true;

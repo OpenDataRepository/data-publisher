@@ -2168,6 +2168,7 @@ class CSVImportController extends ODRCustomController
                         }
                         break;
 
+                    // TODO - make these use ValidUtility?
                     case "IntegerValue":
                         if ($value !== '') {
                             // Warn about invalid characters in an integer conversion
@@ -2226,13 +2227,14 @@ class CSVImportController extends ODRCustomController
                         }
                         break;
 
+                    // TODO - make these use ValidUtility?
                     case "ShortVarchar":
                         if ($length > 32) {
                             $errors[] = array(
                                 'level' => 'Warning',
                                 'body' => array(
                                     'line_num' => $line_num,
-                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a ShortVarchar field can only store 32 characters',
+                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a ShortVarchar field can only store up to 32 characters',
                                 ),
                             );
                         }
@@ -2243,7 +2245,7 @@ class CSVImportController extends ODRCustomController
                                 'level' => 'Warning',
                                 'body' => array(
                                     'line_num' => $line_num,
-                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a MediumVarchar field can only store 64 characters',
+                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a MediumVarchar field can only store up to 64 characters',
                                 ),
                             );
                         }
@@ -2254,7 +2256,7 @@ class CSVImportController extends ODRCustomController
                                 'level' => 'Warning',
                                 'body' => array(
                                     'line_num' => $line_num,
-                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a LongVarchar field can only store 255 characters',
+                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a LongVarchar field can only store up to 255 characters',
                                 ),
                             );
                         }
@@ -3908,9 +3910,29 @@ exit();
                         /** @var LongText|LongVarchar|MediumVarchar|ShortVarchar $entity */
                         $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
+                        // Need to truncate overly-long strings here...otherwise doctrine will throw
+                        //  an error and the import of this record will fail
+                        $truncated = false;
+                        if ( $typeclass == 'ShortVarchar' && strlen($column_data) > 32 ) {
+                            $truncated = true;
+                            $column_data = substr($column_data, 0, 32);
+                        }
+                        else if ( $typeclass == 'MediumVarchar' && strlen($column_data) > 64 ) {
+                            $truncated = true;
+                            $column_data = substr($column_data, 0, 64);
+                        }
+                        else if ( $typeclass == 'LongVarchar' && strlen($column_data) > 255 ) {
+                            $truncated = true;
+                            $column_data = substr($column_data, 0, 255);
+                        }
+
                         // Ensure the value stored in the entity matches the value in the import file
                         $emm_service->updateStorageEntity($user, $entity, array('value' => $column_data));
-                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'"...'."\n";
+
+                        if ( $truncated )
+                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'" (TRUNCATED)...'."\n";
+                        else
+                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'"...'."\n";
 
                     }
                     else if ($typeclass == 'DatetimeValue') {
