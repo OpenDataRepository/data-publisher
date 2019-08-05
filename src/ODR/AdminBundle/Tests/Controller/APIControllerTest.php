@@ -13,6 +13,7 @@ class APIControllerTest extends WebTestCase
     public static $headers = array();
 
     public static $base_url = "http://office_dev/app_dev.php/api/v3";
+    // public static $base_url = "http://localhost:8000/app_dev.php/api/v3";
     // public static $base_url = "http://eta.odr.io/api/v3";
 
     public static $template_uuid = "2ea627b";
@@ -122,9 +123,9 @@ class APIControllerTest extends WebTestCase
         ($debug ? fwrite(STDERR, 'Content: ' . print_r($headers, true) . "\n") : '');
 
         $post_data = array(
-            'user_email' => 'nancy.drew@detectivemysteries.com',
-            'first_name' => 'Nancy',
-            'last_name' => 'Drew',
+            'user_email' => 'nathan.a.stone@nasa.gov',
+            'first_name' => 'Nathan',
+            'last_name' => 'Stone',
         );
 
         $cp = new CurlUtility(
@@ -155,9 +156,9 @@ class APIControllerTest extends WebTestCase
         $headers[] = 'Authorization: Bearer ' . self::$token;
 
         $post_data = array(
-            'user_email' => 'nancy.drew@detectivemysteries.com',
-            'first_name' => 'Nancy',
-            'last_name' => 'Drew',
+            'user_email' => 'nathan.a.stone@nasa.gov',
+            'first_name' => 'Nathan',
+            'last_name' => 'Stone',
             'template_uuid' => self::$template_uuid,
         );
 
@@ -175,7 +176,7 @@ class APIControllerTest extends WebTestCase
         $created_dataset = json_decode($response['response'], true);
         ($debug ? fwrite(STDERR, 'Dataset: ' . print_r($created_dataset, true) . "\n") : '');
         self::$created_dataset = array(
-            'user_email' => 'nancy.drew@detectivemysteries.com',
+            'user_email' => 'nathan.a.stone@nasa.gov',
             'dataset' => $created_dataset
         );
         ($debug ? fwrite(STDERR, 'Dataset UUID AA: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
@@ -646,7 +647,7 @@ class APIControllerTest extends WebTestCase
                 'dataset_uuid' => self::$created_datarecord['dataset']['records'][0]['database_uuid'],
                 'record_uuid' => self::$created_datarecord['dataset']['records'][0]['record_uuid'],
                 'template_field_uuid' => '3d51d4ca9d3fccd4f182a56c259e',
-                'user_email' => 'nancy.drew@detectivemysteries.com',
+                'user_email' => 'nathan.a.stone@nasa.gov',
                 'file' => $curl_file
             ));
 
@@ -700,7 +701,7 @@ class APIControllerTest extends WebTestCase
                 // 'record_uuid' => '9dbdd7233d347b02c8ed1f5c6ae1',
                 // 'template_field_uuid' => '71019a2b69aa46abd5f03cbbbd9e',
                 'template_field_uuid' => 'c135ef75e9684091f7a1436539b6',
-                'user_email' => 'nancy.drew@detectivemysteries.com',
+                'user_email' => 'nathan.a.stone@nasa.gov',
                 'file' => $curl_file
             ));
 
@@ -726,7 +727,7 @@ class APIControllerTest extends WebTestCase
         $headers[] = 'Authorization: Bearer ' . self::$token;
 
         $post_data = array(
-            'user_email' => 'nancy.drew@detectivemysteries.com',
+            'user_email' => 'nathan.a.stone@nasa.gov',
             'dataset_uuid' => self::$created_dataset['dataset']['database_uuid']
         );
 

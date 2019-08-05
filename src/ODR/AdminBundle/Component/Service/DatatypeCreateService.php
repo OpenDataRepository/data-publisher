@@ -104,6 +104,7 @@ class DatatypeCreateService
      * @param null $pheanstalk
      * @param string $redis_prefix
      * @param string $api_key
+     * @param string $preload
      * @return mixed|DataType|null
      */
     public function direct_add_datatype(
@@ -113,7 +114,8 @@ class DatatypeCreateService
         $bypass_queue =  false,
         $pheanstalk = null,
         $redis_prefix = '',
-        $api_key = ''
+        $api_key = '',
+        $preload = ''
     ) {
         try {
             // Grab necessary objects
@@ -166,6 +168,9 @@ class DatatypeCreateService
                 // Is this a Master Type?
                 $datatype->setIsMasterType(false);
                 $datatype->setMasterDataType($master_datatype);
+                if($preload !== null) {
+                    $datatype->setPreloadStatus($preload);
+                }
 
                 $datatype->setCreatedBy($admin);
                 $datatype->setUpdatedBy($admin);
@@ -244,6 +249,10 @@ class DatatypeCreateService
                 // Need to always set a unique id
                 $metadata_unique_id = $this->uuid_service->generateDatatypeUniqueId();
                 $metadata_datatype->setUniqueId($metadata_unique_id);
+
+                if($preload !== null) {
+                    $metadata_datatype->setPreloadStatus($preload);
+                }
 
                 // Set new datatype meta
                 $metadata_datatype_meta = clone $datatype->getDataTypeMeta();

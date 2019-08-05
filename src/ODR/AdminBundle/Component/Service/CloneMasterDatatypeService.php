@@ -257,7 +257,7 @@ class CloneMasterDatatypeService
 
             // Check if datatype is not in "initial" mode
             if ($datatype->getSetupStep() != DataType::STATE_INITIAL)
-                throw new ODRException("Datatype is not in the correct setup mode.  Setup step was: ".$datatype->getSetupStep());
+                throw new ODRException("Datatype " . $datatype->getId() . " is not in the correct setup mode.  Setup step was: ".$datatype->getSetupStep());
 
             if ( is_null($datatype->getMasterDataType()) || $datatype->getMasterDataType()->getId() < 1 ) {
                 throw new ODRException("Invalid master template id");
@@ -290,6 +290,7 @@ class CloneMasterDatatypeService
             $associated_datatypes = array();
             foreach ($results as $result)
                 $associated_datatypes[] = $result['dt_id'];
+
             $this->logger->debug('CloneDatatypeService: $associated_datatypes: '.print_r($associated_datatypes, true));
 
             // Remove linked datatypes that already exist in template group

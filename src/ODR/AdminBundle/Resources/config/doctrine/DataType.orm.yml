@@ -41,6 +41,13 @@ ODR\AdminBundle\Entity\DataType:
             default: ''
             column: setup_step
 
+        preload_status:
+            type: string
+            length: 32
+            nullable: true
+            default: ''
+            column: preload_status
+
         is_master_type:
             type: boolean
             nullable: false

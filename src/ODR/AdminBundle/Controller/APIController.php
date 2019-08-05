@@ -12,9 +12,11 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use Doctrine\ORM\EntityManager;
 use FOS\UserBundle\Command\ActivateUserCommand;
 use HWI\Bundle\OAuthBundle\Tests\Fixtures\FOSUser;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataRecordFields;
@@ -23,6 +25,7 @@ use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\FileMeta;
+use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LongText;
@@ -30,7 +33,9 @@ use ODR\AdminBundle\Entity\LongVarchar;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\TagSelection;
+use ODR\AdminBundle\Entity\UserGroup;
 use ODR\AdminBundle\Form\LongVarcharForm;
+use ODR\OpenRepository\UserBundle\Entity\User;
 use PhpParser\Node\Expr\BinaryOp\ShiftLeft;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
@@ -172,10 +177,8 @@ class APIController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
-
             $top_level_datatype_ids = $dti_service->getTopLevelDatatypes();
             $datatree_array = $dti_service->getDatatreeArray();
-
 
             // ----------------------------------------
             $results = array();
@@ -810,46 +813,142 @@ class APIController extends ODRCustomController
             // Check if user exists & throw user not found error
             // Save which user started this creation process
             $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var User $user */
             $user = $user_manager->findUserBy(array('email' => $user_email));
             if (is_null($user))
                 throw new ODRNotFoundException('User');
 
             // Check if template is valid
-            /** @var \Doctrine\ORM\EntityManager $em */
+            /** @var EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             /** @var DataType $master_datatype */
-            $master_datatype = $em->getRepository('ODRAdminBundle:DataType')
+            $master_datatype = $repo_datatype
                 ->findOneBy(array('unique_id' => $template_uuid));
 
             if ($master_datatype == null)
                 throw new ODRNotFoundException('Datatype');
-
 
             // If a metadata datatype is loaded directly, need to create full template
             if ($metadata_for = $master_datatype->getMetadataFor()) {
                 $master_datatype = $metadata_for;
             }
 
-            /** @var DatatypeCreateService $dtc_service */
-            $dtc_service = $this->container->get('odr.datatype_create_service');
+            // Check here if a database exists in "preload" mode with correct version
+            /** @var DataType[] $datatypes */
+            $datatypes = $repo_datatype->findBy([
+                'masterDataType' => $master_datatype->getMetadataDatatype()->getId(),
+                'preload_status' => $master_datatype->getMetadataDatatype()->getDataTypeMeta()->getMasterRevision()
+            ]);
 
-            /** @var DataType $datatype */
-            $datatype = $dtc_service->direct_add_datatype(
-                $master_datatype->getId(),
-                0,
-                $user,
-                true
-            );
+            /*
+            print $master_datatype->getMetadataDatatype()->getId() . " -- ";
+            print $master_datatype->getMetadataDatatype()->getDataTypeMeta()->getMasterRevision() . " -- ";
+            print count($datatypes) . " - ";
+            print $datatypes[0]->getId(); exit();
+            */
+
+            $datatype = null;
+            if(count($datatypes) > 0) {
+                // Use the prebuilt datatype
+                // This is a metadata datatype
+                /** @var DataType $metadata_datatype */
+                $metadata_datatype = $datatypes[0];
+
+                /** @var \DateTime $date_value */
+                $date_value = new \DateTime();
+
+                /** @var DataType[] $related_datatypes */
+                $related_datatypes = $repo_datatype->findBy([
+                    'template_group' => $metadata_datatype->getTemplateGroup()
+                ]);
+                foreach($related_datatypes as $related_datatype) {
+                    $related_datatype->setCreatedBy($user);
+                    $related_datatype->setUpdatedBy($user);
+                    $related_datatype->setCreated($date_value);
+                    $related_datatype->setUpdated($date_value);
+                    $related_datatype->setPreloadStatus('issued');
+                    $permission_groups = $related_datatype->getGroups();
+
+                    /** @var Group[] $permission_groups */
+                    foreach($permission_groups as $group) {
+                        if ($group->getPurpose() == 'admin') {
+                            $user_group = new UserGroup();
+                            $user_group->setUser($user);
+                            $user_group->setGroup($group);
+                            $user_group->setCreated($date_value);
+                            $user_group->setCreatedBy($user);
+                            $em->persist($user_group);
+                        }
+                    }
+                }
+
+                /** @var DataRecord $metadata_record */
+                $metadata_record = $em->getRepository('ODRAdminBundle:DataRecord')
+                    ->findOneBy(array('dataType' => $metadata_datatype->getId()));
+
+                $metadata_record->setCreated($date_value);
+                $metadata_record->setCreatedBy($user);
+                $metadata_record->setUpdated($date_value);
+                $metadata_record->setUpdatedBy($user);
+
+                $em->persist($metadata_record);
+                // Updating datatype info
+                $em->flush();
+
+                /** @var CacheService $cache_service */
+                $cache_service = $this->container->get('odr.cache_service');
+                $cache_service->delete('user_'.$user->getId().'_permissions');
 
 
-            // Return dataset URL  (201 - created)
+                // Now get the json record and update it with the correct user_id ant date times
+                $json_metadata_record = $cache_service
+                    ->get('json_record_' . $metadata_record->getUniqueId());
 
-            // Return metadata datatype if one exists
-            if ($metadata_datatype = $datatype->getMetadataDatatype()) {
+
+                if (!$json_metadata_record) {
+                    // Need to pull record using getExport...
+                    $json_metadata_record = self::getRecordData(
+                        'v3',
+                        $metadata_record->getUniqueId(),
+                        'json',
+                        $user
+                    );
+
+                    if ($json_metadata_record) {
+                        $json_metadata_record = json_decode($json_metadata_record, true);
+                    }
+                } else {
+                    // Check if dataset has public attribute
+                    $json_metadata_record = json_decode($json_metadata_record, true);
+                }
+
+                // parse through and fix metadata
+                $json_metadata_record = self::checkRecord($json_metadata_record, $user, $date_value);
+
+                $cache_service->set('json_record_' . $metadata_record->getUniqueId(),  json_encode($json_metadata_record));
+
+                // set the "datatype" to the metadata datatype
                 $datatype = $metadata_datatype;
             }
+            else {
+                /** @var DatatypeCreateService $dtc_service */
+                $dtc_service = $this->container->get('odr.datatype_create_service');
 
+                /** @var DataType $datatype */
+                $datatype = $dtc_service->direct_add_datatype(
+                    $master_datatype->getId(),
+                    0,
+                    $user,
+                    true
+                );
+
+                // Return metadata datatype if one exists
+                if ($metadata_datatype = $datatype->getMetadataDatatype()) {
+                    $datatype = $metadata_datatype;
+                }
+            }
             // If this is a metadata type get the first record
 
             // Retrieve first (and only) record ...
@@ -954,7 +1053,6 @@ class APIController extends ODRCustomController
             ), false);
             $response->headers->set('Location', $url);
 
-
             return $this->redirect($url);
 
         } catch (\Exception $e) {
@@ -967,6 +1065,26 @@ class APIController extends ODRCustomController
 
     }
 
+    /**
+     * @param $record
+     * @param User $user
+     * @param \DateTime $datetime_value
+     *
+     * @return JSON record
+     */
+    private function checkRecord(&$record, $user, $datetime_value) {
+        if(isset($record['_record_metadata'])) {
+            $record['_record_metadata']['_create_auth'] = $user->getEmailCanonical();
+            $record['_record_metadata']['_create_date'] = $datetime_value->format('Y-m-d H:i:s');
+        }
+
+        $output_records = array();
+        foreach($record['records'] as $child_record) {
+            $output_records[] = self::checkRecord($child_record, $user, $datetime_value);
+        }
+        $record['records'] = $output_records;
+        return $record;
+    }
 
     /**
      * @param $str
@@ -1016,7 +1134,6 @@ class APIController extends ODRCustomController
         }
     }
 
-
     private function selectedTags($tag_tree, &$selected_tags = array())
     {
 
@@ -1030,7 +1147,6 @@ class APIController extends ODRCustomController
             }
         }
     }
-
 
     /**
      * @param $dataset
@@ -2712,8 +2828,8 @@ class APIController extends ODRCustomController
 
             $user_manager = $this->container->get('fos_user.user_manager');
             // TODO fix this to use API Credential
-            $user = $user_manager->findUserBy(array('email' => $data['user_email']));
-            if (is_null($user))
+            // $user = $user_manager->findUserBy(array('email' => $data['user_email']));
+            // if (is_null($user))
                 throw new ODRNotFoundException('User');
 
             $datafield = $file->getDataField();
@@ -3152,6 +3268,7 @@ class APIController extends ODRCustomController
                 }
             }
 
+            // TODO - need to build image and file arrays here and fix into JSON....
 
             // Flush Caches
             /** @var ODRUser $api_user */  // Anon when nobody is logged in.

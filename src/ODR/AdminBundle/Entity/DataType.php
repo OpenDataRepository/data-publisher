@@ -1097,4 +1097,33 @@ class DataType
     {
         return $this->getDataTypeMeta()->getRenderPlugin();
     }
+    /**
+     * @var string|null
+     */
+    private $preload_status;
+
+
+    /**
+     * Set preloadStatus.
+     *
+     * @param string|null $preloadStatus
+     *
+     * @return DataType
+     */
+    public function setPreloadStatus($preloadStatus = null)
+    {
+        $this->preload_status = $preloadStatus;
+
+        return $this;
+    }
+
+    /**
+     * Get preloadStatus.
+     *
+     * @return string|null
+     */
+    public function getPreloadStatus()
+    {
+        return $this->preload_status;
+    }
 }
