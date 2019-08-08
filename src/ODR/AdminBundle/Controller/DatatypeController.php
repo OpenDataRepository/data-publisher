@@ -34,6 +34,7 @@ use ODR\AdminBundle\Form\UpdateDatatypePropertiesForm;
 use ODR\AdminBundle\Form\CreateDatatypeForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
@@ -1125,10 +1126,11 @@ class DatatypeController extends ODRCustomController
      *
      * @param $master_datatype_id
      * @param int $datatype_id
-     *
+     * @param null $admin
+     * @param bool $bypass_queue
      * @return RedirectResponse
      */
-    public function direct_add_datatype($master_datatype_id, $datatype_id = 0)
+    public function direct_add_datatype($master_datatype_id, $datatype_id = 0, $admin = null, $bypass_queue = false)
     {
         $return = array();
         $return['r'] = 0;
@@ -1136,153 +1138,24 @@ class DatatypeController extends ODRCustomController
         $return['d'] = array();
 
         try {
-            // TODO - modify ODRAdminBundle:Datatype:create_type_choose_template.html.twig so a "blank" metadata datatype can be created?
-            // TODO - currently, any creation of a metadata datatype *MUST* come from a template...
-
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
-            /** @var UUIDService $uuid_service */
-            $uuid_service = $this->container->get('odr.uuid_service');
-
-
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            // A master datatype is required
-            // ...locate the master template datatype and store that it's the "source" for this new datatype
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            /** @var DataType $master_datatype */
-            $master_datatype = $repo_datatype->find($master_datatype_id);
-            if ($master_datatype == null)
-                throw new ODRNotFoundException('Master Datatype');
-
-            // Create new DataType form
-            $datatypes_to_process = array();
-            $datatype = null;
-            $unique_id = null;
-            $clone_and_link = false;
-            if ($datatype_id > 0) {
-                /** @var DataType $datatype */
-                $datatype = $repo_datatype->find($datatype_id);
-                $master_metadata = $master_datatype->getMetadataDatatype();
-
-                $unique_id = $datatype->getUniqueId();
-                $clone_and_link = true;
-            }
-            else {
-                // Create a new datatype
-                $datatype = $ec_service->createDatatype($admin, 'New Dataset', true);    // delay flush to change a few properties
-
-                // This datatype is derived from a master datatype
-                $datatype->setMasterDataType($master_datatype);
-                $em->persist($datatype);
-
-                // Also need to change the search slug from the default value
-                $datatype_meta = $datatype->getDataTypeMeta();
-                $datatype_meta->setSearchSlug( $datatype->getUniqueId() );
-                $em->persist($datatype_meta);
-
-                $em->flush();
-
-                array_push($datatypes_to_process, $datatype);
-
-                // If is non-master datatype, clone master-related metadata type
-                $master_datatype = $datatype->getMasterDataType();
-                $master_metadata = $master_datatype->getMetadataDatatype();
+            if($admin === null) {
+                $admin = $this->container->get('security.token_storage')->getToken()->getUser();
             }
 
-            /*
-             * Create Datatype Metadata Object (a second datatype to store one record with the properties
-             * for the parent datatype).
-             */
+            /** @var DatatypeCreateService $dtc_service */
+            $dtc_service = $this->container->get('odr.datatype_create_service');
+            $datatype = $dtc_service->direct_add_datatype(
+                $master_datatype_id,
+                $datatype_id,
+                $admin,
+                $bypass_queue,
+                $this->get('pheanstalk'),
+                $this->container->getParameter('memcached_key_prefix'),
+                $this->container->getParameter('beanstalk_api_key')
 
-            if ($master_metadata != null) {
-                $metadata_datatype = clone $master_metadata;
-                // Unset is master type
-                $metadata_datatype->setIsMasterType(0);
-                $metadata_datatype->setGrandparent($metadata_datatype);
-                $metadata_datatype->setParent($metadata_datatype);
-                $metadata_datatype->setMasterDataType($master_metadata);
-                // Set template group to that of datatype
-                $metadata_datatype->setTemplateGroup($datatype->getTemplateGroup());
-                // Clone has wrong state - set to initial
-                $metadata_datatype->setSetupStep(DataType::STATE_INITIAL);
-
-                // Need to always set a unique id
-                $metadata_unique_id = $uuid_service->generateDatatypeUniqueId();
-                $metadata_datatype->setUniqueId($metadata_unique_id);
-
-                // Set new datatype meta
-                $metadata_datatype_meta = clone $datatype->getDataTypeMeta();
-                $metadata_datatype_meta->setShortName("Properties");
-                $metadata_datatype_meta->setLongName($datatype->getDataTypeMeta()->getLongName() . " - Properties");
-                $metadata_datatype_meta->setDataType($metadata_datatype);
-
-                // Associate the metadata
-                $metadata_datatype->addDataTypeMetum($metadata_datatype_meta);
-                $metadata_datatype->setMetadataFor($datatype);
-
-                // New Datatype
-                $em->persist($metadata_datatype);
-                // New Datatype Meta
-                $em->persist($metadata_datatype_meta);
-
-                // Set Metadata Datatype
-                $datatype->setMetadataDatatype($metadata_datatype);
-                $em->persist($datatype);
-                $em->flush();
-
-                array_push($datatypes_to_process, $metadata_datatype);
-
-            }
-            /*
-             * END Create Datatype Metadata Object
-             */
-
-
-
-            /*
-             * Clone theme or create theme as needed for new datatype(s)
-             */
-            // Determine which is parent
-            /** @var DataType $datatype */
-            foreach ($datatypes_to_process as $datatype) {
-                // ----------------------------------------
-                // If the datatype is being created from a master template...
-                // Start the job to create the datatype from the template
-                $pheanstalk = $this->get('pheanstalk');
-                $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-                $api_key = $this->container->getParameter('beanstalk_api_key');
-
-                // Insert the new job into the queue
-                $priority = 1024;   // should be roughly default priority
-                $params = array(
-                    "user_id" => $admin->getId(),
-                    "datatype_id" => $datatype->getId(),
-//                    "template_group" => $unique_id,
-                    "template_group" => $datatype->getTemplateGroup(),
-                    "redis_prefix" => $redis_prefix,    // debug purposes only
-                    "api_key" => $api_key,
-                );
-
-                $params["clone_and_link"] = false;
-                if ($clone_and_link)
-                    $params["clone_and_link"] = true;
-
-                $payload = json_encode($params);
-
-                $pheanstalk->useTube('create_datatype_from_master')->put($payload, $priority, 0);
-
-            }
-            /*
-             * END Clone theme or create theme as needed for new datatype(s)
-             */
-
+            );
 
             // Forward to database properties page.
             $url = $this->generateUrl(
@@ -1305,7 +1178,6 @@ class DatatypeController extends ODRCustomController
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
-
 
     /**
      * Creates a new top-level DataType.

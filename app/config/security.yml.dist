@@ -23,6 +23,36 @@ security:
 #            id: odr.openrepository.oauthclient.oauth_user_provider
 
     firewalls:
+        login:
+            pattern:  ^/api/v3/token
+            stateless: true
+            anonymous: true
+            provider: fos_userbundle
+            json_login:
+                check_path:               api_login_check
+                success_handler:          lexik_jwt_authentication.handler.authentication_success
+                failure_handler:          lexik_jwt_authentication.handler.authentication_failure
+                #require_previous_session: false
+                #username_parameter: email
+                #password_parameter: password
+            context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
+
+        api:
+            pattern:   ^/api
+            stateless: true
+            provider: fos_userbundle
+            #lexik_jwt:
+            #    authorization_header:
+            #        enabled: true
+            #        prefix:  Bearer
+            #    query_parameter:
+            #        enabled: true
+            #        name:    bearer
+            guard:
+                authenticators:
+                    - lexik_jwt_authentication.jwt_token_authenticator
+            context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
+
         oauth_token:
             pattern:    ^/oauth/v2/token
             security:   false
@@ -77,7 +107,7 @@ security:
                 always_use_default_target_path: true
 
             remember_me:
-                key:      [[ ENTER RANDOM KEY HERE - Text String ]]
+                secret:   [[ ENTER RANDOM KEY HERE - Text String ]]
                 lifetime: 1209600
                 path:     /
                 domain:   ~
@@ -92,9 +122,14 @@ security:
     access_control:
 ##########
 # API control
-        - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
-        - { path: ^/admin/datatype_export, role: IS_AUTHENTICATED_ANONYMOUSLY }   # allows json/xml download of datatype specs, controller restricts access as needed
-        - { path: ^/admin/datarecord_export, role: IS_AUTHENTICATED_ANONYMOUSLY } # allows json/xml download of datarecords, controller restricts access as needed
+
+        - { path: ^/api/v3/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/api,       role: [IS_AUTHENTICATED_FULLY, ROLE_ADMIN] }
+#        - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
+
+#        - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
+#        - { path: ^/admin/datatype_export, role: IS_AUTHENTICATED_ANONYMOUSLY }   # allows json/xml download of datatype specs, controller restricts access as needed
+#        - { path: ^/admin/datarecord_export, role: IS_AUTHENTICATED_ANONYMOUSLY } # allows json/xml download of datarecords, controller restricts access as needed
 
 ##########
 # These need to stay anonymous, otherwise users are unable to log in
@@ -148,7 +183,6 @@ security:
 
 ##########
         - { path: ^/admin/new_user, role: ROLE_ADMIN }            # Create new user
-#        - { path: ^/admin/user/change_password, role: ROLE_ADMIN }
         - { path: ^/admin/user/edit, role: ROLE_ADMIN }           # View other users' profiles
         - { path: ^/admin/user/save, role: ROLE_ADMIN }           # Make changes to other users' profiles
 

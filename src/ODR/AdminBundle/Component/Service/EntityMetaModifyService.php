@@ -78,10 +78,10 @@ class EntityMetaModifyService
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $entityManager,
+        EntityManager $entity_manager,
         Logger $logger
     ) {
-        $this->em = $entityManager;
+        $this->em = $entity_manager;
         $this->logger = $logger;
     }
 

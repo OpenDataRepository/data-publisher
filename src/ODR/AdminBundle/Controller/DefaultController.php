@@ -94,105 +94,107 @@ class DefaultController extends ODRCustomController
 
         try {
             // ----------------------------------------
-            // Ensure user has correct set of permissions, since this is immediately called after login...
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+//            // Ensure user has correct set of permissions, since this is immediately called after login...
+//            /** @var \Doctrine\ORM\EntityManager $em */
+//            $em = $this->getDoctrine()->getManager();
+//
+//            /** @var CacheService $cache_service */
+//            $cache_service = $this->container->get('odr.cache_service');
+//            /** @var DatatypeInfoService $dti_service */
+//            $dti_service = $this->container->get('odr.datatype_info_service');
+//            /** @var PermissionsManagementService $pm_service */
+//            $pm_service = $this->container->get('odr.permissions_management_service');
+//
+//
+//            /** @var User $user */
+//            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+//            $datatype_permissions = $pm_service->getDatatypePermissions($user);
+//
+//
+//            // ----------------------------------------
+//            // Only want to create dashboard html graphs for top-level datatypes...
+//            $datatypes = $dti_service->getTopLevelDatatypes();
+//
+//            $dashboard_order = array();
+//            $dashboard_headers = array();
+//            $dashboard_graphs = array();
+//            foreach ($datatypes as $num => $datatype_id) {
+//                // "Manually" finding permissions to avoid having to load each datatype from doctrine
+//                $can_view_datatype = false;
+//                if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_view' ]) )
+//                    $can_view_datatype = true;
+//
+//                $can_view_datarecord = false;
+//                if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dr_view' ]) )
+//                    $can_view_datarecord = true;
+//
+//                // Determine whether this datatype is public
+//                $include_links = false;
+//                $datatype_data = $dti_service->getDatatypeArray($datatype_id, $include_links);
+//
+//                $public_date  = $datatype_data[$datatype_id]['dataTypeMeta']['publicDate']
+//                    ->format('Y-m-d H:i:s');
+//
+//
+//                // Don't display if the datatype isn't public and the user doesn't have permission to view it
+//                if ($public_date == '2200-01-01 00:00:00' && !$can_view_datatype)
+//                    continue;
+//
+//                // Also don't display on dashboard if this is a "master template" datatype
+//                if ($datatype_data[$datatype_id]['is_master_type'] == 1)
+//                    continue;
+//
+//
+//                // Attempt to load existing cache entry for this datatype's dashboard html
+//                $cache_entry = 'dashboard_'.$datatype_id;
+//                if (!$can_view_datarecord)
+//                    $cache_entry .= '_public_only';
+//
+//                $data = $cache_service->get($cache_entry);
+//                if ($data == false) {
+//                    // Rebuild the cached entry if it doesn't exist
+//                    self::getDashboardHTML($em, $datatype_id);
+//
+//                    // Cache entry should now exist, reload it
+//                    $data = $cache_service->get($cache_entry);
+//                }
+//
+//                $total = $data['total'];
+//                $header = $data['header'];
+//                $graph = $data['graph'];
+//
+//                $dashboard_order[$datatype_id] = $total;
+//                $dashboard_headers[$datatype_id] = $header;
+//                $dashboard_graphs[$datatype_id] = $graph;
+//            }
+//
+//            // Sort by number of datarecords
+//            arsort($dashboard_order);
+//
+//            $header_str = '';
+//            $graph_str = '';
+//            $count = 0;
+//            foreach ($dashboard_order as $datatype_id => $total) {
+//                // Only display the top 9 datatypes with the most datarecords
+//                $count++;
+//                if ($count > 9)
+//                    continue;
+//
+//                $header_str .= $dashboard_headers[$datatype_id];
+//                $graph_str .= $dashboard_graphs[$datatype_id];
+//            }
+//
+//            // Finally, render the main dashboard page
+//            $templating = $this->get('templating');
+//            $html = $templating->render(
+//                'ODRAdminBundle:Default:dashboard.html.twig',
+//                array(
+//                    'dashboard_headers' => $header_str,
+//                    'dashboard_graphs' => $graph_str,
+//                )
+//            );
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-            /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
-
-
-            // ----------------------------------------
-            // Only want to create dashboard html graphs for top-level datatypes...
-            $datatypes = $dti_service->getTopLevelDatatypes();
-
-            $dashboard_order = array();
-            $dashboard_headers = array();
-            $dashboard_graphs = array();
-            foreach ($datatypes as $num => $datatype_id) {
-                // "Manually" finding permissions to avoid having to load each datatype from doctrine
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                // Determine whether this datatype is public
-                $include_links = false;
-                $datatype_data = $dti_service->getDatatypeArray($datatype_id, $include_links);
-
-                $public_date  = $datatype_data[$datatype_id]['dataTypeMeta']['publicDate']
-                    ->format('Y-m-d H:i:s');
-
-
-                // Don't display if the datatype isn't public and the user doesn't have permission to view it
-                if ($public_date == '2200-01-01 00:00:00' && !$can_view_datatype)
-                    continue;
-
-                // Also don't display on dashboard if this is a "master template" datatype
-                if ($datatype_data[$datatype_id]['is_master_type'] == 1)
-                    continue;
-
-
-                // Attempt to load existing cache entry for this datatype's dashboard html
-                $cache_entry = 'dashboard_'.$datatype_id;
-                if (!$can_view_datarecord)
-                    $cache_entry .= '_public_only';
-
-                $data = $cache_service->get($cache_entry);
-                if ($data == false) {
-                    // Rebuild the cached entry if it doesn't exist
-                    self::getDashboardHTML($em, $datatype_id);
-
-                    // Cache entry should now exist, reload it
-                    $data = $cache_service->get($cache_entry);
-                }
-
-                $total = $data['total'];
-                $header = $data['header'];
-                $graph = $data['graph'];
-
-                $dashboard_order[$datatype_id] = $total;
-                $dashboard_headers[$datatype_id] = $header;
-                $dashboard_graphs[$datatype_id] = $graph;
-            }
-
-            // Sort by number of datarecords
-            arsort($dashboard_order);
-
-            $header_str = '';
-            $graph_str = '';
-            $count = 0;
-            foreach ($dashboard_order as $datatype_id => $total) {
-                // Only display the top 9 datatypes with the most datarecords
-                $count++;
-                if ($count > 9)
-                    continue;
-
-                $header_str .= $dashboard_headers[$datatype_id];
-                $graph_str .= $dashboard_graphs[$datatype_id];
-            }
-
-            // Finally, render the main dashboard page
-            $templating = $this->get('templating');
-            $html = $templating->render(
-                'ODRAdminBundle:Default:dashboard.html.twig',
-                array(
-                    'dashboard_headers' => $header_str,
-                    'dashboard_graphs' => $graph_str,
-                )
-            );
+            $html = "<h2>DASHBOARD HERE</h2>";
             $return['d'] = array('html' => $html);
 
         }

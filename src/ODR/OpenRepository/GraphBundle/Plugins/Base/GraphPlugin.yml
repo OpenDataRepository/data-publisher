@@ -50,7 +50,7 @@ odr_plugins.base.graph:
             type: string
             default: vert
             choices: vert||Vertical Bars,horizontal||Horizontal Bars
-            description: Direction of bars on bar graph.  Format: [bar_name, value] for vertical bars.  Format: [value, bar_name] for horizontal bars.
+            description: "Direction of bars on bar graph.  Format: [bar_name, value] for vertical bars.  Format: [value, bar_name] for horizontal bars."
             applies_to: bar
         bar_options:
             name: Bar Grouping Option

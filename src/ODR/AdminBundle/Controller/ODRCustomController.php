@@ -15,6 +15,7 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\AdminBundle\Component\Service\UUIDService;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -472,7 +473,7 @@ class ODRCustomController extends Controller
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $generator = $this->container->get('security.secure_random');
+            $generator = $this->container->get('security.util.secure_random');
             $crypto = $this->get("dterranova_crypto.crypto_adapter");
 
             $repo_filechecksum = $em->getRepository('ODRAdminBundle:FileChecksum');
@@ -765,6 +766,9 @@ class ODRCustomController extends Controller
     {
         // ----------------------------------------
         // Load required objects
+        /** @var UUIDService $uuid_service */
+        $uuid_service = $this->container->get('odr.uuid_service');
+
         /** @var User $user */
         $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
         /** @var DataRecordFields $drf */
@@ -814,11 +818,15 @@ class ODRCustomController extends Controller
         if ($typeclass == 'Image') {
             /** @var Image $my_obj */
             $my_obj->setOriginal('1');
+
+            $my_obj->setUniqueId($uuid_service->generateImageUniqueId());
         }
         else if ($typeclass == 'File') {
             /** @var File $my_obj */
             $my_obj->setFilesize(0);
             $my_obj->setProvisioned(true);
+
+            $my_obj->setUniqueId($uuid_service->generateFileUniqueId());
         }
 
         // Save changes
@@ -966,6 +974,9 @@ class ODRCustomController extends Controller
         $repo_image = $em->getRepository('ODRAdminBundle:Image');
 //        $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+        /** @var UUIDService $uuid_service */
+        $uuid_service = $this->container->get('odr.uuid_service');
+
         // Create Thumbnails
         /** @var ImageSizes[] $sizes */
         $sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataField' => $my_obj->getDataField()->getId()) );
@@ -1020,6 +1031,7 @@ class ODRCustomController extends Controller
                     $image->setOriginalChecksum('');
 
                     $image->setCreatedBy($user);
+                    $image->setUniqueId($uuid_service->generateImageUniqueId());
 
                     /* DO NOT create a new metadata entry for the thumbnail...all of its metadata properties are slaved to the parent image */
                 }

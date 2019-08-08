@@ -5,8 +5,11 @@
         RewriteBase /
     </IfModule>
 
-    rewriteCond %{REQUEST_FILENAME} !-f
-    rewriteRule ^(.*)$ app.php [QSA,L]
+    RewriteCond %{HTTP:Authorization} ^(.*)
+    RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^(.*)$ app.php [QSA,L]
 </IfModule>
 
 #php_flag xdebug.profiler_enable 0 

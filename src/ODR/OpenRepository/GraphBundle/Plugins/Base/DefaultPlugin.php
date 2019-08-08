@@ -37,6 +37,7 @@ class DefaultPlugin implements DatafieldPluginInterface
      *
      * @param EngineInterface $templating
      */
+    // public function __construct(Templating $templating) {
     public function __construct(EngineInterface $templating) {
         $this->templating = $templating;
     }

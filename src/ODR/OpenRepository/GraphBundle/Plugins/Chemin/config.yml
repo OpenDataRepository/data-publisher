@@ -1,48 +1,48 @@
 services:
     # Datatype plugins
     odr_plugins.chemin.chemined1:
-        class: %odr_plugin_base_classpath%\Chemin\CheminED1Plugin
+        class: '%odr_plugin_base_classpath%\Chemin\CheminED1Plugin'
         arguments:
-            templating: "@templating"
-            logger: "@logger"
+            $templating: "@templating"
+            $logger: "@logger"
     odr_plugins.chemin.chemineda:
-        class: %odr_plugin_base_classpath%\Chemin\CheminEDAPlugin
+        class: '%odr_plugin_base_classpath%\Chemin\CheminEDAPlugin'
         arguments:
-            templating: "@templating"
-            logger: "@logger"
+            $templating: "@templating"
+            $logger: "@logger"
     odr_plugins.chemin.chemineds:
-        class: %odr_plugin_base_classpath%\Chemin\CheminEDSPlugin
+        class: '%odr_plugin_base_classpath%\Chemin\CheminEDSPlugin'
         arguments:
-            templating: "@templating"
-            logger: "@logger"
+            $templating: "@templating"
+            $logger: "@logger"
     odr_plugins.chemin.cheminee1:
-        class: %odr_plugin_base_classpath%\Chemin\CheminEE1Plugin
+        class: '%odr_plugin_base_classpath%\Chemin\CheminEE1Plugin'
         arguments:
-            templating: "@templating"
-            logger: "@logger"
+            $templating: "@templating"
+            $logger: "@logger"
     odr_plugins.chemin.chemineea:
-        class: %odr_plugin_base_classpath%\Chemin\CheminEEAPlugin
+        class: '%odr_plugin_base_classpath%\Chemin\CheminEEAPlugin'
         arguments:
-            templating: "@templating"
-            logger: "@logger"
+            $templating: "@templating"
+            $logger: "@logger"
     odr_plugins.chemin.cheminees:
-        class: %odr_plugin_base_classpath%\Chemin\CheminEESPlugin
+        class: '%odr_plugin_base_classpath%\Chemin\CheminEESPlugin'
         arguments:
-            templating: "@templating"
-            logger: "@logger"
+            $templating: "@templating"
+            $logger: "@logger"
     odr_plugins.chemin.cheminefm:
-        class: %odr_plugin_base_classpath%\Chemin\CheminEFMPlugin
+        class: '%odr_plugin_base_classpath%\Chemin\CheminEFMPlugin'
         arguments:
-            templating: "@templating"
-            logger: "@logger"
+            $templating: "@templating"
+            $logger: "@logger"
     odr_plugins.chemin.cheminetr:
-        class: %odr_plugin_base_classpath%\Chemin\CheminETRPlugin
+        class: '%odr_plugin_base_classpath%\Chemin\CheminETRPlugin'
         arguments:
-            templating: "@templating"
-            logger: "@logger"
+            $templating: "@templating"
+            $logger: "@logger"
 
     odr_plugins.chemin.qanalyze:
-        class: %odr_plugin_base_classpath%\Chemin\QanalyzePlugin
+        class: '%odr_plugin_base_classpath%\Chemin\QanalyzePlugin'
         arguments:
-            templating: "@templating"
-            logger: "@logger"
+            $templating: "@templating"
+            $logger: "@logger"

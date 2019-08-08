@@ -32,12 +32,12 @@ class TrackedPathService
     /**
      * TrackedPathService constructor.
      *
-     * @param RequestStack $requestStack
+     * @param RequestStack $request_stack
      */
     public function __construct(
-        RequestStack $requestStack
+        RequestStack $request_stack
     ) {
-        $this->requestStack = $requestStack;
+        $this->requestStack = $request_stack;
     }
 
 

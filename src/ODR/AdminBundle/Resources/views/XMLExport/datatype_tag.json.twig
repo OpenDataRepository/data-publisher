@@ -15,6 +15,7 @@
     "{{ tag_meta.tagName }}": {
     {% endif %}
 
+        "name": "{{ tag_meta.tagName }}",
         "template_tag_uuid": {{ tag.tagUuid|json_encode|raw }},
         "updated_at": "{{ tag_meta.updated|date('Y-m-d H:i:s') }}",    {# TODO - should this be controlled by using_metadata? #}
     {% if has_children %}
@@ -26,7 +27,9 @@
         {% endfor %}
         ]
     {% endif %}
+    {% if version == 'v1' or version == 'v2' %}
     }
+    {% endif %}
 
 {# each tag is its own JSON object #}
 },

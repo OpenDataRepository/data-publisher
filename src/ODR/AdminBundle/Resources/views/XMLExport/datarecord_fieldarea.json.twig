@@ -1,11 +1,15 @@
-
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
 {% set datarecord = datarecord_array[target_datarecord_id] %}
 
 {# describe datafields first #}
+{% if version != 'v3' %}
 "fields": {
+{% else %}
+"fields": [
+{% endif %}
 {% for theme_element in theme.themeElements %}
+{% set field_block %}
     {% if theme_element.themeDataFields is defined %}
 
         {% for theme_datafield in theme_element.themeDataFields %}
@@ -32,117 +36,112 @@
             {% endif %}
         {% endfor %}
     {% endif %}
+{% endset %}
+{{ field_block|comma|raw }}
 {% endfor %}
-},
 
-{# describe child datarecords second #}
-"child_records": {
+{% if version != 'v3' %}
+},
+{% else %}
+],
+{% endif %}
+
+
+
+
+
+
+
+{% set is_top_level = 0 %}
+{% set datarecord_array = datarecord['children'] ] %}
+
+{# using macro on purpose to get the template as a string #}
+{% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+{% set show_records = 1 %}
+{#
+{% set show_records = 0 %}
+{% if version != 'v3' %}
+    {% set show_records = 1 %}
+{% endif %}
+#}
+    {% set content = mychildform.input(
+        datatype_descendants,
+        datarecord_array,
+        child_datatype_id,
+        datarecord.id,
+        is_top_level,
+        using_metadata,
+        baseurl,
+        version,
+        show_records
+    ) %}
+
+{#
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
 
-        {# should only be a single child datatype per theme_datatype, but keep the loop incase that changes in the future #}
         {% for theme_datatype in theme_element.themeDataType %}
             {% set child_datatype_id = theme_datatype.dataType.id %}
             {% set child_theme_id = theme_datatype.childTheme.id %}
 
-            {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
             {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
                 {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
                 {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
 
-                {# filtering also means there may not be anything in the datarecord array... #}
-                {% if datarecord['children'][child_datatype_id] is defined and theme_datatype.is_link == 0 %}
+                {% if datarecord['children'][child_datatype_id] is defined %}
                     {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
                     {% set is_top_level = 0 %}
 
-                    {# using macro on purpose to get the template as a string #}
                     {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
-                    {% set content = mychildform.input(child_datatype, datarecord_array, child_theme, child_datatype_id, datarecord.id, child_theme_id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
+                    {% set show_records = 0 %}
+                    {% if version != 'v3' %}
+                        {% set show_records = 1 %}
+                    {% endif %}
+                    {% set content = mychildform.input(
+                        child_datatype,
+                        datarecord_array,
+                        child_theme,
+                        child_datatype_id,
+                        datarecord.id,
+                        child_theme_id,
+                        is_top_level,
+                        theme_datatype.is_link,
+                        using_metadata,
+                        baseurl,
+                        version,
+                        show_records
+                    ) %}
 
                     {% if "{" in content|trim %}
-                        {% set child_datatype_meta = child_datatype[child_datatype_id].dataTypeMeta %}
-                        {% set child_datatype_master_datatype = child_datatype[child_datatype_id].masterDataType %}
+                        {% if version != 'v3' %}
+                            "database_{{ child_datatype_id }}":
+                            {
+                                "database_name": {{ child_datatype[child_datatype_id].dataTypeMeta.shortName|json_encode|raw }},
+                                "database_uuid": {{ child_datatype[child_datatype_id].unique_id|json_encode|raw }},
 
-                        {% if version == 'v1' %}
-                            "database_{{ child_datatype_id }}": {
-                                "database_name": {{ child_datatype_meta.shortName|json_encode|raw }},    {# lack of surrounding quotation marks necessary #}
-                        {% else %}
-                            "{{ child_datatype_meta.xml_shortName }}": {
-                        {% endif %}
-
-                                {% set master_datatype_unique_id = "" %}
-                                {% if child_datatype_master_datatype is not null %}
-                                    {% set master_datatype_unique_id = child_datatype_master_datatype.unique_id %}
+                                {% if child_datatype[child_datatype_id].masterDataType %}
+                                    "template_uuid": {{ child_datatype[child_datatype_id].masterDataType.unique_id|json_encode|raw }},
+                                {% else  %}
+                                    "template_uuid": "",
                                 {% endif %}
-                                "template_uuid": "{{ master_datatype_unique_id }}",
-
                                 {{ content }}
-
-                            {# closing brace for child datatype #}
                             },
-                            {# ---------- #}
-
+                        {% elseif version == 'v3' %}
+                            {{ content }}
+                            {% if not loop.last %},{% endif %}
+                        {% endif %}
                     {% endif %}
-
                 {% endif %}
             {% endif %}
         {% endfor %}
     {% endif %}
 {% endfor %}
+#}
+
+
+
+{% if version != 'v3' %}
 },
-
-{# describe linked datarecords third #}
-"linked_records": {
-{% for theme_element in theme.themeElements %}
-    {% if theme_element.themeDataType is defined %}
-
-        {# should only be a single linked datatype per theme_datatype, but keep the loop incase that changes in the future #}
-        {% for theme_datatype in theme_element.themeDataType %}
-            {% set child_datatype_id = theme_datatype.dataType.id %}
-            {% set child_theme_id = theme_datatype.childTheme.id %}
-
-            {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
-            {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
-                {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
-                {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
-
-                {# filtering also means there may not be anything in the datarecord array... #}
-                {% if datarecord['children'][child_datatype_id] is defined and theme_datatype.is_link == 1 %}
-                    {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
-                    {% set is_top_level = 0 %}
-
-                    {# using macro on purpose to get the template as a string #}
-                    {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
-                    {% set content = mychildform.input(child_datatype, datarecord_array, child_theme, child_datatype_id, datarecord.id, child_theme_id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
-
-                    {% if "{" in content|trim %}
-                        {% set child_datatype_meta = child_datatype[child_datatype_id].dataTypeMeta %}
-                        {% set child_datatype_master_datatype = child_datatype[child_datatype_id].masterDataType %}
-
-                        {% if version == 'v1' %}
-                            "database_{{ child_datatype_id }}": {
-                                "database_name": {{ child_datatype_meta.shortName|json_encode|raw }},    {# lack of surrounding quotation marks necessary #}
-                        {% else %}
-                            "{{ child_datatype_meta.xml_shortName }}": {
-                        {% endif %}
-
-                                {% set master_datatype_unique_id = "" %}
-                                {% if child_datatype_master_datatype is not null %}
-                                    {% set master_datatype_unique_id = child_datatype_master_datatype.unique_id %}
-                                {% endif %}
-                                "template_uuid": "{{ master_datatype_unique_id }}",
-
-                                {{ content }}
-
-                            {# closing brace for linked datatype #}
-                            },
-                            {# ---------- #}
-
-                    {% endif %}
-
-                {% endif %}
-            {% endif %}
-        {% endfor %}
-    {% endif %}
-{% endfor %}
-}
+{% else %}
+]
+{% endif %}

@@ -102,14 +102,14 @@ class EntityCreationService
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $entityManager,
-        CacheService $cacheService,
-        UUIDService $UUIDService,
+        EntityManager $entity_manager,
+        CacheService $cache_service,
+        UUIDService $uuid_service,
         Logger $logger
     ) {
-        $this->em = $entityManager;
-        $this->cache_service = $cacheService;
-        $this->uuid_service = $UUIDService;
+        $this->em = $entity_manager;
+        $this->cache_service = $cache_service;
+        $this->uuid_service = $uuid_service;
 
         $this->logger = $logger;
     }

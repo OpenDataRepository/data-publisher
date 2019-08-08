@@ -67,13 +67,13 @@ class DatarecordInfoService
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        TagHelperService $tagHelperService,
+        TagHelperService $tag_helper_service,
         CsrfTokenManager $token_manager,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->th_service = $tagHelperService;
+        $this->th_service = $tag_helper_service;
         $this->token_manager = $token_manager;
         $this->logger = $logger;
     }
@@ -220,10 +220,10 @@ class DatarecordInfoService
                partial dr_cb.{id, username, email, firstName, lastName},
                partial dr_ub.{id, username, email, firstName, lastName},
 
-               dt, partial gp_dt.{id}, partial mdt.{id, unique_id},
+               dt, partial gp_dt.{id}, partial mdt.{id, unique_id}, partial mf.{id, unique_id}, df_dt, dfm_dt, ft_dt,
                dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
 
-               drf, partial df.{id}, partial dfm.{id}, partial ft.{id, typeClass},
+               drf, partial df.{id, fieldUuid, templateFieldUuid}, partial dfm.{id, fieldName, xml_fieldName }, partial ft.{id, typeClass, typeName},
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
                e_i, e_im, e_ip, e_ipm, e_is, partial e_ip_cb.{id, username, email, firstName, lastName},
 
@@ -253,7 +253,11 @@ class DatarecordInfoService
             LEFT JOIN dr.dataType AS dt
             LEFT JOIN dt.grandparent AS gp_dt
             LEFT JOIN dt.dataTypeMeta AS dtm
+            LEFT JOIN dt.dataFields AS df_dt
+            LEFT JOIN df_dt.dataFieldMeta AS dfm_dt
+            LEFT JOIN dfm_dt.fieldType AS ft_dt
             LEFT JOIN dt.masterDataType AS mdt
+            LEFT JOIN dt.metadata_for AS mf
             LEFT JOIN dtm.externalIdField AS dt_eif
             LEFT JOIN dtm.nameField AS dt_nf
             LEFT JOIN dtm.sortField AS dt_sf
@@ -381,17 +385,22 @@ class DatarecordInfoService
                 if ( $cdr_id == $dr['id'] )
                     continue;
 
-                if ( !isset($child_datarecords[$cdr_dt_id]) )
+                if ($cdr_dt_id !== null &&  !isset($child_datarecords[$cdr_dt_id]) )
                     $child_datarecords[$cdr_dt_id] = array();
-                $child_datarecords[$cdr_dt_id][] = $cdr_id;
+
+                if($cdr_id !== null)
+                    $child_datarecords[$cdr_dt_id][] = $cdr_id;
             }
             foreach ($dr['linkedDatarecords'] as $child_num => $ldt) {
                 $ldr_id = $ldt['descendant']['id'];
                 $ldr_dt_id = $ldt['descendant']['dataType']['id'];
 
-                if ( !isset($child_datarecords[$ldr_dt_id]) )
+                if ($ldr_dt_id !== null && !isset($child_datarecords[$ldr_dt_id]) )
                     $child_datarecords[$ldr_dt_id] = array();
-                $child_datarecords[$ldr_dt_id][] = $ldr_id;
+
+                if($ldr_id !== null) {
+                    $child_datarecords[$ldr_dt_id][] = $ldr_id;
+                }
             }
             $datarecord_data[$dr_num]['children'] = $child_datarecords;
             unset( $datarecord_data[$dr_num]['linkedDatarecords'] );
@@ -401,6 +410,10 @@ class DatarecordInfoService
             //  of some random number
             $new_drf_array = array();
             foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
+
+                // Save FieldMeta
+                $data_field = $drf['dataField'];
+                $data_field['dataFieldMeta'] = $drf['dataField']['dataFieldMeta'][0];
 
                 // Going to delete most of the sub arrays inside $drf that are empty...
                 $expected_fieldtype = $drf['dataField']['dataFieldMeta'][0]['fieldType']['typeClass'];
@@ -555,6 +568,7 @@ class DatarecordInfoService
                 }
 
                 // Store the resulting $drf array by its datafield id
+                $drf['dataField'] = $data_field;
                 $new_drf_array[$df_id] = $drf;
             }
 
@@ -665,6 +679,12 @@ class DatarecordInfoService
 
         // Delete the filtered list of data meant specifically for table themes
         $this->cache_service->delete('cached_table_data_'.$dr->getId());
+
+        // Delete associated datarecords cache
+        $this->cache_service->delete('associated_datarecords_for_'.$dr->getId());
+        //
+        //        // Clear json caches used in API
+        $this->cache_service->delete('json_record_' . $dr->getUniqueId());
     }
 
 

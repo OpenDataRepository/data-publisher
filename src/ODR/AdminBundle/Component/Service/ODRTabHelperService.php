@@ -27,12 +27,12 @@ class ODRTabHelperService
     /**
      * @var RequestStack
      */
-    private $requestStack;
+    private $request_stack;
 
     /**
      * @var TokenGenerator
      */
-    private $tokenGenerator;
+    private $token_generator;
 
     /**
      * @var int
@@ -43,15 +43,15 @@ class ODRTabHelperService
     /**
      * ODRTabHelperService constructor.
      *
-     * @param RequestStack $requestStack
-     * @param TokenGenerator $tokenGenerator
+     * @param RequestStack $request_stack
+     * @param TokenGenerator $token_generator
      */
     public function __construct(
-        RequestStack $requestStack,
-        TokenGenerator $tokenGenerator
+        RequestStack $request_stack,
+        TokenGenerator $token_generator
     ) {
-        $this->requestStack = $requestStack;
-        $this->tokenGenerator = $tokenGenerator;
+        $this->request_stack = $request_stack;
+        $this->token_generator = $token_generator;
 
         $this->default_page_length = 100;
     }
@@ -64,7 +64,7 @@ class ODRTabHelperService
      */
     public function createTabId()
     {
-        return substr($this->tokenGenerator->generateToken(), 0, 15);
+        return substr($this->token_generator->generateToken(), 0, 15);
     }
 
 
@@ -380,7 +380,7 @@ class ODRTabHelperService
             return null;
 
         // Get the current user's session from the request...
-        $request = $this->requestStack->getCurrentRequest();
+        $request = $this->request_stack->getCurrentRequest();
         $session = $request->getSession();
         if ( !$session->has('stored_tab_data') )
             return null;
@@ -402,7 +402,7 @@ class ODRTabHelperService
      */
     public function setTabData($odr_tab_id, $tab_data)
     {
-       $request = $this->requestStack->getCurrentRequest();
+       $request = $this->request_stack->getCurrentRequest();
        $session = $request->getSession();
 
        if ( !$session->has('stored_tab_data') ) {

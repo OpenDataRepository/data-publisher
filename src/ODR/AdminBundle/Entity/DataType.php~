@@ -54,6 +54,11 @@ class DataType
     private $setup_step;
 
     /**
+     * @var string|null
+     */
+    private $preload_status;
+
+    /**
      * @var boolean
      */
     private $is_master_type;
@@ -275,6 +280,30 @@ class DataType
     public function getSetupStep()
     {
         return $this->setup_step;
+    }
+
+    /**
+     * Set preloadStatus.
+     *
+     * @param string|null $preloadStatus
+     *
+     * @return DataType
+     */
+    public function setPreloadStatus($preloadStatus = null)
+    {
+        $this->preload_status = $preloadStatus;
+
+        return $this;
+    }
+
+    /**
+     * Get preloadStatus.
+     *
+     * @return string|null
+     */
+    public function getPreloadStatus()
+    {
+        return $this->preload_status;
     }
 
     /**

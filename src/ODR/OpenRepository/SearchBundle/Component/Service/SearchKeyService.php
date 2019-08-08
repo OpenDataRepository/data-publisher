@@ -53,12 +53,12 @@ class SearchKeyService
      * @param Logger $logger
      */
     public function __construct(
-        DatatypeInfoService $datatypeInfoService,
-        SearchService $searchService,
+        DatatypeInfoService $datatype_info_service,
+        SearchService $search_service,
         Logger $logger
     ) {
-        $this->dti_service = $datatypeInfoService;
-        $this->search_service = $searchService;
+        $this->dti_service = $datatype_info_service;
+        $this->search_service = $search_service;
         $this->logger = $logger;
     }
 
@@ -494,8 +494,9 @@ class SearchKeyService
                                 case 'DatetimeValue':
                                 case 'File':
                                 case 'Image':
-                                    // A general search doesn't make sense for Files/Images/Datetime fields
-                                    continue;
+                                    // A general search doesn't make sense for Files/Images/Datetime
+                                    //  fields...don't create a criteria entry to be searched on
+                                    break;
 
                                 case 'IntegerValue':
                                 case 'DecimalValue':
@@ -1105,8 +1106,9 @@ class SearchKeyService
                                 case 'DatetimeValue':
                                 case 'File':
                                 case 'Image':
-                                    // A general search doesn't make sense for Files/Images/Datetime fields
-                                    continue;
+                                    // A general search doesn't make sense for Files/Images/Datetime
+                                    //  fields...don't create a criteria entry to be searched on
+                                    break;
 
                                 case 'IntegerValue':
                                 case 'DecimalValue':

@@ -168,9 +168,9 @@ class CloneMasterDatatypeService
         CacheService $cache_service,
         CloneMasterTemplateThemeService $clone_master_template_theme_service,
         DatatypeInfoService $datatype_info_service,
-        EntityCreationService $entityCreationService,
+        EntityCreationService $entity_creation_service,
         ThemeInfoService $theme_info_service,
-        UUIDService $UUIDService,
+        UUIDService $uuid_service,
         UserManagerInterface $user_manager,
         Logger $logger
     ) {
@@ -178,9 +178,9 @@ class CloneMasterDatatypeService
         $this->cache_service = $cache_service;
         $this->clone_master_template_theme_service = $clone_master_template_theme_service;
         $this->dti_service = $datatype_info_service;
-        $this->ec_service = $entityCreationService;
+        $this->ec_service = $entity_creation_service;
         $this->tif_service = $theme_info_service;
-        $this->uuid_service = $UUIDService;
+        $this->uuid_service = $uuid_service;
         $this->user_manager = $user_manager;
         $this->logger = $logger;
     }
@@ -257,7 +257,7 @@ class CloneMasterDatatypeService
 
             // Check if datatype is not in "initial" mode
             if ($datatype->getSetupStep() != DataType::STATE_INITIAL)
-                throw new ODRException("Datatype is not in the correct setup mode.  Setup step was: ".$datatype->getSetupStep());
+                throw new ODRException("Datatype " . $datatype->getId() . " is not in the correct setup mode.  Setup step was: ".$datatype->getSetupStep());
 
             if ( is_null($datatype->getMasterDataType()) || $datatype->getMasterDataType()->getId() < 1 ) {
                 throw new ODRException("Invalid master template id");
@@ -290,6 +290,7 @@ class CloneMasterDatatypeService
             $associated_datatypes = array();
             foreach ($results as $result)
                 $associated_datatypes[] = $result['dt_id'];
+
             $this->logger->debug('CloneDatatypeService: $associated_datatypes: '.print_r($associated_datatypes, true));
 
             // Remove linked datatypes that already exist in template group
@@ -427,6 +428,8 @@ class CloneMasterDatatypeService
             // TODO Convert to delayed flush and flush at once
             self::cloneDatatree($this->master_datatype);
 
+            $this->em->flush();
+
             foreach ($this->created_datatypes as $dt)
                 $this->em->refresh($dt);
 
@@ -452,10 +455,17 @@ class CloneMasterDatatypeService
                 // TODO Might need to flush here - not sure
                 $this->em->flush();
 
+
+
+                // Pseudo code
+                // Foreach new group
+                // Clone all permissions with one insert...
+
+
                 /** @var DataFields[] $datafields */
                 $datafields = $dt->getDataFields();
                 foreach ($datafields as $df)
-                    // TODO Convert to delayed flush and flush at once
+                    // TODO Convert to delayed flush and flush once
                     self::cloneDatafieldPermissions($df);
             }
 
@@ -811,7 +821,9 @@ class CloneMasterDatatypeService
         $this->logger->info('CloneDatatypeService: attempting to clone datatree entries for datatype '.$parent_datatype->getId().' "'.$parent_datatype->getShortName().'"...');
 
         /** @var DataTree[] $datatree_array */
-        $datatree_array = $this->em->getRepository('ODRAdminBundle:DataTree')->findBy( array('ancestor' => $parent_datatype->getId()) );
+        $datatree_array = $this->em->getRepository('ODRAdminBundle:DataTree')
+            ->findBy( array('ancestor' => $parent_datatype->getId()) );
+
         if ( empty($datatree_array) )
             $this->logger->debug('CloneDatatypeService: -- no datatree entries found');
 
@@ -831,15 +843,15 @@ class CloneMasterDatatypeService
                     $new_dt = new DataTree();
                     $new_dt->setAncestor($current_ancestor);
                     $new_dt->setDescendant($datatype);
-                    self::persistObject($new_dt);
+                    self::persistObject($new_dt, true);
 
                     // Clone the datatree's meta entry
                     $new_meta = clone $datatree->getDataTreeMeta();
                     $new_meta->setDataTree($new_dt);
-                    self::persistObject($new_meta);
+                    self::persistObject($new_meta, true);
 
                     $new_dt->addDataTreeMetum($new_meta);
-                    self::persistObject($new_dt);
+                    self::persistObject($new_dt, true);
 
                     $this->logger->info('CloneDatatypeService: -- created new datatree with datatype '.$current_ancestor->getId().' "'.$current_ancestor->getShortName().'" as ancestor and datatype '.$datatype->getId().' "'.$datatype->getShortName().'" as descendant, is_link = '.$new_meta->getIsLink());
                     // Also create any datatree entries required for this newly-created datatype
@@ -879,10 +891,15 @@ class CloneMasterDatatypeService
         if ( is_null($master_groups) )
             throw new ODRException('CloneDatatypeService: Master Datatype '.$master_datatype->getId().' has no group entries to clone.');
 
+        // Save New Groups with map for cloning datafields
+        $new_groups = array();
+
         // Clone all of the master datatype's groups
         foreach ($master_groups as $master_group) {
             $new_group = clone $master_group;
             $new_group->setDataType($datatype);
+
+            $new_groups[$master_group->getId()] = $new_group;
 
             // Ensure the "in-memory" version of $datatype knows about the new group
             $datatype->addGroup($new_group);
@@ -931,16 +948,34 @@ class CloneMasterDatatypeService
                     //  get a stale/incomplete version when accessing the datatype later on
                 }
             }
-
-            // TODO No reason to flush here....
-            // $this->em->flush();
-
-            // TODO But we should persist here?
-
-            // Don't need to delete cached permissions for any other users or groups...nobody
-            //  belongs to them yet
         }
+
+        /*
+         * TODO Finish this refactor
+         *
+        // Flush and refresh new groups to get ids
+        $this->em->flush();
+        foreach($new_groups as $master_group_id => $new_group) {
+            $this->em->refresh($new_group);
+
+            // clone all fields for group in single query
+            // Insert into datafield_permissions (fields) SELECT fields from datafield_permissions by group
+            $db = $this->_em->getConnection();
+            $query = "INSERT INTO odr_group_datafield_permissions (
+                    myfield
+                ) SELECT 
+                   ogdp.myfield 
+                   
+                   FROM odr_group_datafield_permissions 
+                   WHERE table1.id < 1000";
+            $stmt = $db->prepare($query);
+            $params = array();
+            $stmt->execute($params);
+
+        }
+        */
     }
+
 
 
     /**
@@ -998,6 +1033,8 @@ class CloneMasterDatatypeService
         if ( is_null($grandparent_groups) )
             throw new ODRException('CloneDatatypeService: Grandparent Datatype '.$grandparent_datatype_id.' has no group entries');
 
+
+        // insert into group datafield (fields) select (fields, new_group_id)
 
         // For each datatype permission from the master template...
         foreach ($master_gdt_permissions as $master_permission) {

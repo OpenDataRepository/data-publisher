@@ -73,14 +73,14 @@ class CloneMasterTemplateThemeService
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        PermissionsManagementService $pm_service,
-        ThemeInfoService $theme_service,
+        PermissionsManagementService $permissions_service,
+        ThemeInfoService $theme_info_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->pm_service = $pm_service;
-        $this->theme_service = $theme_service;
+        $this->pm_service = $permissions_service;
+        $this->theme_service = $theme_info_service;
         $this->logger = $logger;
     }
 

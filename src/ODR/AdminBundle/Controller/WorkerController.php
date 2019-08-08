@@ -1654,7 +1654,7 @@ $ret .= '  Set current to '.$count."\n";
 
         // NOTE - go into the orm files for each of these entities and disable the gedmo timestampable on update first
         $save = false;
-//        $save = true;
+        $save = true;
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1818,6 +1818,86 @@ $ret .= '  Set current to '.$count."\n";
                     // ...and persist the datarecord
                     if ($save)
                         $em->persist($ro);
+                }
+                print '</pre>';
+            }
+            else if ($uuid_type === 'image') {
+                print '<pre>';
+                // Need to get all current ids in use in order to determine uniqueness of a new id...
+                $query = $em->createQuery(
+                    'SELECT oi.unique_id
+                    FROM ODRAdminBundle:Image AS oi 
+                    WHERE oi.deletedAt IS NULL and oi.unique_id IS NOT NULL'
+                );
+                $results = $query->getArrayResult();
+
+                $existing_ids = array();
+                foreach ($results as $num => $result)
+                    $existing_ids[ $result['unique_id'] ] = 1;
+
+                // Now that we have a list of the existing unique ids...
+                /** @var Image[] $images */
+                $images = $em->getRepository('ODRAdminBundle:Image')->findBy(
+                    array('unique_id' => null)
+                );
+                // Appears to be able to work in a single call
+
+                foreach ($images as $image) {
+                    // Keep generating ids until we come across one that's not in use
+                    $unique_id = UniqueUtility::uniqueIdReal(28);
+                    while ( isset($existing_ids[$unique_id]) )
+                        $unique_id = UniqueUtility::uniqueIdReal(28);
+
+                    // Now that we found one that's not in use, save it...
+                    $image->setUniqueId($unique_id);
+
+                    print 'set image '.$image->getId().' to have unique id '.$unique_id."\n";
+
+                    // ...update the existing list of unique_ids so this one doesn't get used again
+                    $existing_ids[ $unique_id ] = 1;
+                    // ...and persist the datarecord
+                    if ($save)
+                        $em->persist($image);
+                }
+                print '</pre>';
+            }
+            else if ($uuid_type === 'file') {
+                print '<pre>';
+                // Need to get all current ids in use in order to determine uniqueness of a new id...
+                $query = $em->createQuery(
+                    'SELECT oi.unique_id
+                    FROM ODRAdminBundle:File AS oi 
+                    WHERE oi.deletedAt IS NULL and oi.unique_id IS NOT NULL'
+                );
+                $results = $query->getArrayResult();
+
+                $existing_ids = array();
+                foreach ($results as $num => $result)
+                    $existing_ids[ $result['unique_id'] ] = 1;
+
+                // Now that we have a list of the existing unique ids...
+                /** @var File[] $files */
+                $files = $em->getRepository('ODRAdminBundle:File')->findBy(
+                    array('unique_id' => null)
+                );
+                // Appears to be able to work in a single call
+
+                foreach ($files as $file) {
+                    // Keep generating ids until we come across one that's not in use
+                    $unique_id = UniqueUtility::uniqueIdReal(28);
+                    while ( isset($existing_ids[$unique_id]) )
+                        $unique_id = UniqueUtility::uniqueIdReal(28);
+
+                    // Now that we found one that's not in use, save it...
+                    $file->setUniqueId($unique_id);
+
+                    print 'set file '.$file->getId().' to have unique id '.$unique_id."\n";
+
+                    // ...update the existing list of unique_ids so this one doesn't get used again
+                    $existing_ids[ $unique_id ] = 1;
+                    // ...and persist the datarecord
+                    if ($save)
+                        $em->persist($file);
                 }
                 print '</pre>';
             }

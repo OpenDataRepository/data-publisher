@@ -160,27 +160,27 @@ class CloneTemplateService
      */
     public function __construct(
         EntityManager $entity_manager,
-        EntityMetaModifyService $entityMetaModifyService,
-        CacheService $cacheService,
-        SearchCacheService $searchCacheService,
-        CloneThemeService $cloneThemeService,
-        DatatypeInfoService $datatypeInfoService,
-        EntityCreationService $entityCreationService,
-        PermissionsManagementService $pm_service,
-        ThemeInfoService $themeInfoService,
-        UUIDService $UUIDService,
+        EntityMetaModifyService $entity_meta_modify_service,
+        CacheService $cache_service,
+        SearchCacheService $search_cache_service,
+        CloneThemeService $clone_theme_service,
+        DatatypeInfoService $datatype_info_service,
+        EntityCreationService $entity_creation_service,
+        PermissionsManagementService $permissions_service,
+        ThemeInfoService $theme_info_service,
+        UUIDService $uuid_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->emm_service = $entityMetaModifyService;
-        $this->cache_service = $cacheService;
-        $this->search_cache_service = $searchCacheService;
-        $this->ct_service = $cloneThemeService;
-        $this->dti_service = $datatypeInfoService;
-        $this->ec_service = $entityCreationService;
-        $this->pm_service = $pm_service;
-        $this->ti_service = $themeInfoService;
-        $this->uuid_service = $UUIDService;
+        $this->emm_service = $entity_meta_modify_service;
+        $this->cache_service = $cache_service;
+        $this->search_cache_service = $search_cache_service;
+        $this->ct_service = $clone_theme_service;
+        $this->dti_service = $datatype_info_service;
+        $this->ec_service = $entity_creation_service;
+        $this->pm_service = $permissions_service;
+        $this->ti_service = $theme_info_service;
+        $this->uuid_service = $uuid_service;
         $this->logger = $logger;
 
         $this->template_datatypes = array();
@@ -1751,15 +1751,17 @@ class CloneTemplateService
                                 $master_df_id = $tdf->getDataField()->getId();
                                 $derived_df = $created_datafields[$master_df_id];
 
-                                // Clone the existing theme datafield entry
-                                $new_tdf = clone $tdf;
-                                $new_tdf->setThemeElement($new_te);
-                                $new_tdf->setDataField($derived_df);
+                                if($derived_df !== null) {
+                                    // Clone the existing theme datafield entry
+                                    $new_tdf = clone $tdf;
+                                    $new_tdf->setThemeElement($new_te);
+                                    $new_tdf->setDataField($derived_df);
+    
+                                    $new_te->addThemeDataField($new_tdf);
+                                    self::persistObject($new_tdf, $user, true);
 
-                                $new_te->addThemeDataField($new_tdf);
-                                self::persistObject($new_tdf, $user, true);
-
-                                $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- cloned theme_datafield entry for datafield '.$master_df_id.' "'.$derived_df->getFieldName().'"');
+                                    $this->logger->debug('CloneTemplateService:'.$indent_text.' -- -- cloned theme_datafield entry for datafield '.$master_df_id.' "'.$derived_df->getFieldName().'"');
+                                }
                             }
                         }
                         else {

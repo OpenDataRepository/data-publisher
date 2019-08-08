@@ -40,10 +40,10 @@ class UUIDService
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $entityManager,
+        EntityManager $entity_manager,
         Logger $logger
     ) {
-        $this->em = $entityManager;
+        $this->em = $entity_manager;
         $this->logger = $logger;
     }
 
@@ -56,6 +56,7 @@ class UUIDService
      */
     public function generateDatafieldUniqueId()
     {
+        /*
         // Need to get all current ids in use in order to determine uniqueness of a new id...
         $query = $this->em->createQuery(
            'SELECT df.fieldUuid
@@ -73,7 +74,9 @@ class UUIDService
         $unique_id = UniqueUtility::uniqueIdReal();
         while ( isset($existing_ids[$unique_id]) )
             $unique_id = UniqueUtility::uniqueIdReal();
+        */
 
+        $unique_id = UniqueUtility::uniqueIdReal(28);
         return $unique_id;
     }
 
@@ -86,6 +89,7 @@ class UUIDService
      */
     public function generateDatarecordUniqueId()
     {
+        /*
         // Need to get all current ids in use in order to determine uniqueness of a new id...
         $query = $this->em->createQuery(
            'SELECT dr.unique_id
@@ -103,7 +107,9 @@ class UUIDService
         $unique_id = UniqueUtility::uniqueIdReal();
         while ( isset($existing_ids[$unique_id]) )
             $unique_id = UniqueUtility::uniqueIdReal();
+        */
 
+        $unique_id = UniqueUtility::uniqueIdReal(28);
         return $unique_id;
     }
 
@@ -117,6 +123,7 @@ class UUIDService
      */
     public function generateDatatypeUniqueId()
     {
+        /*
         // Need to get all current ids in use in order to determine uniqueness of a new id...
         $query = $this->em->createQuery(
            'SELECT dt.unique_id
@@ -135,6 +142,35 @@ class UUIDService
         while ( isset($existing_ids[$unique_id]) )
             $unique_id = UniqueUtility::uniqueIdReal();
 
+        */
+
+        $unique_id = UniqueUtility::uniqueIdReal();
+        return $unique_id;
+    }
+
+
+    /**
+     * Generates and returns a unique_id string that doesn't collide with any other file's
+     * "unique_id" property.
+     *
+     * @return string
+     */
+    public function generateFileUniqueId()
+    {
+        $unique_id = UniqueUtility::uniqueIdReal(28);
+        return $unique_id;
+    }
+
+
+    /**
+     * Generates and returns a unique_id string that doesn't collide with any other file's
+     * "unique_id" property.
+     *
+     * @return string
+     */
+    public function generateImageUniqueId()
+    {
+        $unique_id = UniqueUtility::uniqueIdReal(28);
         return $unique_id;
     }
 
@@ -147,6 +183,7 @@ class UUIDService
      */
     public function generateRadioOptionUniqueId()
     {
+        /*
         // Need to get all current ids in use in order to determine uniqueness of a new id...
         $query = $this->em->createQuery(
            'SELECT ro.radioOptionUuid
@@ -164,7 +201,9 @@ class UUIDService
         $unique_id = UniqueUtility::uniqueIdReal();
         while ( isset($existing_ids[$unique_id]) )
             $unique_id = UniqueUtility::uniqueIdReal();
+        */
 
+        $unique_id = UniqueUtility::uniqueIdReal(28);
         return $unique_id;
     }
 
@@ -177,6 +216,7 @@ class UUIDService
      */
     public function generateTagUniqueId()
     {
+        /*
         // Need to get all current ids in use in order to determine uniqueness of a new id...
         $query = $this->em->createQuery(
            'SELECT t.tagUuid
@@ -194,7 +234,9 @@ class UUIDService
         $unique_id = UniqueUtility::uniqueIdReal();
         while ( isset($existing_ids[$unique_id]) )
             $unique_id = UniqueUtility::uniqueIdReal();
+        */
 
+        $unique_id = UniqueUtility::uniqueIdReal(28);
         return $unique_id;
     }
 

@@ -56,14 +56,14 @@ class TagHelperService
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $em,
+        EntityManager $entity_manager,
         CacheService $cache_service,
-        CsrfTokenManager $csrfTokenManager,
+        CsrfTokenManager $token_manager,
         Logger $logger
     ) {
-        $this->em = $em;
+        $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->token_manager = $csrfTokenManager;
+        $this->token_manager = $token_manager;
         $this->logger = $logger;
     }
 

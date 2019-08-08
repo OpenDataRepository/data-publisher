@@ -8,40 +8,35 @@
         "classmap": [ "app/AppKernel.php", "app/AppCache.php" ]
     },
     "require": {
-        "php": ">=5.5.9",
-        "symfony/symfony": "2.8.*",
-        "doctrine/orm": "^2.5",
-        "doctrine/doctrine-bundle": "~1.4",
-        "symfony/assetic-bundle": "~2.3",
-        "symfony/swiftmailer-bundle": "~2.3",
-        "symfony/monolog-bundle": "~2.4",
-        "symfony/polyfill-iconv": "~1.0",
-        "sensio/distribution-bundle": "~5.0",
-        "sensio/framework-extra-bundle": "^3.0.2",
-        "incenteev/composer-parameter-handler": "~2.0",
-        "twig/extensions": "~1.0",
-        "gedmo/doctrine-extensions": "2.4.*",
-        "friendsofsymfony/user-bundle": "~2.0",
-        "friendsofsymfony/oauth-server-bundle": "1.5.*",
-        "mrpoundsign/pheanstalk-5.3": "dev-master",
+        "symfony/symfony": "3.4.*",
+        "symfony/swiftmailer-bundle": "^3.2",
+        "symfony/monolog-bundle": "^3.3",
+        "gedmo/doctrine-extensions": "^2.4",
+        "twig/extensions": "^1.5",
+        "jms/security-extra-bundle": "^1.6",
+	"paragonie/random_compat": ">=1 <9.99",
+	"dterranova/crypto-bundle": "dev-master",
+  	"mrpoundsign/pheanstalk-5.3": "dev-master",
         "drymek/pheanstalk-bundle": "dev-master",
-        "jms/security-extra-bundle": "1.5.*",
-        "jms/di-extra-bundle": "1.4.*",
-        "dterranova/crypto-bundle": "dev-master",
-        "knplabs/knp-markdown-bundle": "~1.3",
-        "league/commonmark": "~0.15",
-        "symfony/filesystem": "2.3.*",
-        "ddeboer/data-import": "@stable",
-        "phpunit/phpunit": "^4.8",
+        "friendsofsymfony/oauth-server-bundle": "^1.6",
+        "knplabs/knp-markdown-bundle": "^1.7",
+        "league/commonmark": "^0.18.5",
         "predis/predis": "^1.1",
-        "snc/redis-bundle": "~2.0",
-        "ramsey/uuid": "^3.5",
-        "neitanod/forceutf8": "~2.0",
-        "hwi/oauth-bundle": "~0.5"
-    },
-    "require-dev": {
-        "sensio/generator-bundle": "~3.0",
-        "symfony/phpunit-bridge": "~2.7"
+        "snc/redis-bundle": "^2.1",
+        "ramsey/uuid": "^3.8",
+        "neitanod/forceutf8": "^2.0",
+	"hwi/oauth-bundle": "^0.6.3",
+	"php-http/guzzle6-adapter": "~1.1.1",
+	"php-http/httplug-bundle": "~1.13",
+        "friendsofsymfony/user-bundle": "^2.1",
+        "ddeboer/data-import": "^0.20.0",
+        "incenteev/composer-parameter-handler": "^2.1",
+        "sensio/framework-extra-bundle": "^5.3",
+        "sensio/generator-bundle": "^3.1",
+        "doctrine/orm": "^2.6",
+        "doctrine/doctrine-bundle": "^1.10",
+        "sensio/distribution-bundle": "^5.0",
+        "lexik/jwt-authentication-bundle": "^2.6"
     },
     "scripts": {
         "post-install-cmd": [
@@ -62,10 +57,7 @@
         ]
     },
     "config": {
-        "bin-dir": "bin",
-        "platform": {
-            "php": "5.5.9"
-        }
+        "bin-dir": "bin"
     },
     "minimum-stability": "stable",
     "extra": {
@@ -75,7 +67,15 @@
             "file": "app/config/parameters.yml"
         },
         "branch-alias": {
-            "dev-master": "2.8-dev"
+            "dev-master": "3.4-dev"
         }
+    },
+    "require-dev": {
+        "symfony/phpunit-bridge": "^4.2",
+        "symfony/browser-kit": "3.*",
+        "symfony/css-selector": "3.*",
+        "symfony/maker-bundle": "^1.11",
+        "phpunit/phpunit": "^7.5",
+        "symfony/test-pack": "^1.0"
     }
 }

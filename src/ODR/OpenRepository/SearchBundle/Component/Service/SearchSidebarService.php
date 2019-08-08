@@ -50,20 +50,20 @@ class SearchSidebarService
     /**
      * SearchSidebarService constructor.
      *
-     * @param EntityManager $entityManager
-     * @param DatatypeInfoService $datatypeInfoService
-     * @param PermissionsManagementService $permissionsManagementService
+     * @param EntityManager $entity_manager
+     * @param DatatypeInfoService $datatype_info_service
+     * @param PermissionsManagementService $permissions_service
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $entityManager,
-        DatatypeInfoService $datatypeInfoService,
-        PermissionsManagementService $permissionsManagementService,
+        EntityManager $entity_manager,
+        DatatypeInfoService $datatype_info_service,
+        PermissionsManagementService $permissions_service,
         Logger $logger
     ) {
-        $this->em = $entityManager;
-        $this->dti_service = $datatypeInfoService;
-        $this->pm_service = $permissionsManagementService;
+        $this->em = $entity_manager;
+        $this->dti_service = $datatype_info_service;
+        $this->pm_service = $permissions_service;
         $this->logger = $logger;
     }
 

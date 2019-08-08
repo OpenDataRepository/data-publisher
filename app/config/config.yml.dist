@@ -9,15 +9,15 @@ framework:
     #esi:             ~
     #translator:      { fallback: %locale% }
     translator: ~
-    secret:          %secret%
+    secret:          "%secret%"
     router:
         resource: "%kernel.root_dir%/config/routing.yml"
-        strict_requirements: %kernel.debug%
+        strict_requirements: "%kernel.debug%"
     form:            true
     csrf_protection: true
     validation:      { enabled: true, enable_annotations: false }
     templating:      { engines: ['twig'] } #assets_version: SomeVersionScheme
-    default_locale:  %locale%
+    default_locale:  "%locale%"
     session:
         gc_probability: 0
         handler_id: ~  #  session.handler.memcached
@@ -27,43 +27,25 @@ framework:
 
 # Twig Configuration
 twig:
-    debug:            %kernel.debug%
-    strict_variables: %kernel.debug%
+    debug:            "%kernel.debug%"
+    strict_variables: "%kernel.debug%"
     #cache: memcached
     #cache: false
     exception_controller: ODR.exception_controller:showAction
 
-# Knp Markdown Configuration
-knp_markdown:
-    parser:
-        service: odr.markdown.parser
-
-# Assetic Configuration
-assetic:
-    debug:          %kernel.debug%
-    use_controller: false
-    bundles:        [ ]
-    #java: /usr/bin/java
-    filters:
-        cssrewrite: ~
-        #closure:
-        #    jar: %kernel.root_dir%/Resources/java/compiler.jar
-        #yui_css:
-        #    jar: %kernel.root_dir%/Resources/java/yuicompressor-2.4.7.jar
-
 # Doctrine Configuration
 doctrine:
     dbal:
-        driver:   %database_driver%
-        host:     %database_host%
-        port:     %database_port%
-        dbname:   %database_name%
-        user:     %database_user%
-        password: %database_password%
+        driver:   "%database_driver%"
+        host:     "%database_host%"
+        port:     "%database_port%"
+        dbname:   "%database_name%"
+        user:     "%database_user%"
+        password: "%database_password%"
         charset:  UTF8
 
     orm:
-        auto_generate_proxy_classes: %kernel.debug%
+        auto_generate_proxy_classes: "%kernel.debug%"
         auto_mapping: true
         result_cache_driver:
             type: memcached
@@ -101,12 +83,18 @@ doctrine:
                 prefix: Gedmo\Tree\Entity
                 dir: "%kernel.root_dir%/../vendor/gedmo/doctrine-extensions/lib/Gedmo/Tree/Entity"
 
+lexik_jwt_authentication:
+    secret_key:       '%kernel.root_dir%/config/jwt/private.pem' # required for token creation
+    public_key:       '%kernel.root_dir%/config/jwt/public.pem'  # required for token verification
+    pass_phrase:      'opendatarepository' # required for token creation, usage of an environment variable is recommended
+    token_ttl:        360000
+
 # Swiftmailer Configuration
 swiftmailer:
-    transport: %mailer_transport%
-    host:      %mailer_host%
-    username:  %mailer_user%
-    password:  %mailer_password%
+    transport: "%mailer_transport%"
+    host:      "%mailer_host%"
+    username:  "%mailer_user%"
+    password:  "%mailer_password%"
     spool:     { type: memory }
 
 # dterranovaCrypto Configuration
@@ -175,7 +163,10 @@ snc_redis:
             # TODO: https://github.com/snc/SncRedisBundle/pull/199/files
             #serialization: php
 
-drymek_pheanstalk: ~
+drymek_pheanstalk:
+    server:  127.0.0.1
+    port:    11300
+    timeout: 3
 
 services:
     ajax.listener:
@@ -185,16 +176,16 @@ services:
     memcached:
         class: Memcached
         calls:
-            - [ addServers, [ %memcached.servers% ]]
+            - [ addServers, [ "%memcached.servers%" ]]
     session.memcached:
         class: Memcached
-        arguments:
-            persistent_id: %session_memcached_prefix%
+#        arguments:
+#            persistent_id: %session_memcached_prefix%
         calls:
-            - [ addServer, [ %session_memcached_host%, %session_memcached_port% ]]
+            - [ addServer, [ "%session_memcached_host%", "%session_memcached_port%" ]]
     session.handler.memcached:
         class:     Symfony\Component\HttpFoundation\Session\Storage\Handler\MemcachedSessionHandler
-        arguments: [@session.memcached, { prefix: %session_memcached_prefix%, expiretime: %session_memcached_expire% }]
+        arguments: ["@session.memcached", { prefix: "%session_memcached_prefix%", expiretime: "%session_memcached_expire%" }]
 
     ODR.exception_controller:
         class: ODR\AdminBundle\Controller\ODRExceptionController
@@ -205,4 +196,4 @@ services:
         # for the third argument, keys need to match the key of the resource owners in these various configuration files
         # the value for each needs to be the lowercase resource owner key, followed by "Id"
         # e.g.  arguments: [@doctrine.orm.entity_manager, @session, {GitHub: githubId, Google: googleId}]
-        arguments: [@doctrine.orm.entity_manager, @session, {}]
+        arguments: ["@doctrine.orm.entity_manager", "@session", {}]

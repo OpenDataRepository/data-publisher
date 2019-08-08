@@ -1,4 +1,3 @@
 FOS\UserBundle\Model\User:
     constraints:
-        - Callback:
-            methods: [isPasswordValid]
+        - Callback: isPasswordValid

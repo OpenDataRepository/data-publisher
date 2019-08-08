@@ -76,15 +76,15 @@ class PermissionsManagementService
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        DatatypeInfoService $datatypeInfoService,
-        SearchAPIService $searchAPIService,
+        DatatypeInfoService $datatype_info_service,
+        SearchAPIService $search_api_service,
         UserManagerInterface $user_manager,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $datatypeInfoService;
-        $this->search_api_service = $searchAPIService;
+        $this->dti_service = $datatype_info_service;
+        $this->search_api_service = $search_api_service;
         $this->user_manager = $user_manager;
         $this->logger = $logger;
     }
@@ -1063,7 +1063,10 @@ if ($debug)
                 // ...also need to remove images the user isn't allowed to see
                 // TODO - this needs its own permission instead of using "can_view_datarecord"
                 foreach ($drf['image'] as $image_num => $image) {
-                    if ( $image['parent']['imageMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00'
+                    if (
+                        isset($image['parent']['imageMeta']['publicDate'])
+                        && $image['parent']['imageMeta']['publicDate'] != null
+                        && $image['parent']['imageMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00'
                         && !$can_view_datarecord[$dt_id]
                     ) {
                         unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['image'][$image_num] );

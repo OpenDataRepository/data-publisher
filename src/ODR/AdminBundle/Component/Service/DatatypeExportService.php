@@ -67,16 +67,16 @@ class DatatypeExportService
      */
     public function __construct(
         EntityManager $entity_manager,
-        DatatypeInfoService $dti_service,
-        PermissionsManagementService $pm_service,
-        ThemeInfoService $theme_service,
+        DatatypeInfoService $datatype_info_service,
+        PermissionsManagementService $permissions_service,
+        ThemeInfoService $theme_info_service,
         EngineInterface $templating,
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->dti_service = $dti_service;
-        $this->pm_service = $pm_service;
-        $this->theme_service = $theme_service;
+        $this->dti_service = $datatype_info_service;
+        $this->pm_service = $permissions_service;
+        $this->theme_service = $theme_info_service;
         $this->templating = $templating;
         $this->logger = $logger;
     }
@@ -114,7 +114,8 @@ class DatatypeExportService
         $theme_array = $this->theme_service->getThemeArray($master_theme->getId());
 
         // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-        $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+        // TODO - Something is wrong with permissions for tags.  May need to pull changes.
+        // $this->pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
         // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
         $stacked_datatype_array[ $datatype->getId() ] = $this->dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
