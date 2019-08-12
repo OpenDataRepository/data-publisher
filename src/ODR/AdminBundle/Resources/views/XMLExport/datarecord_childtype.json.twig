@@ -147,7 +147,11 @@
                     {% set comma = true %}
                     {% set found = false %}
                     {% for datafield in datarecord.dataRecordFields %}
-                        {% if datafield.dataField.id == dt_datafield.id  %}
+                        {# TODO Determine why one of these variables is not set sometimes #}
+                        {% if dt_datafield.id is defined
+                            and datafield.dataField.id is defined
+                            and datafield.dataField.id == dt_datafield.id
+                            %}
                             {% if datafield.dataField.dataFieldMeta.fieldType.typeName != "Markdown" %}
                                 {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
                                     'datarecord': datarecord,
