@@ -1,5 +1,5 @@
 describe('HandsontableEditor', () => {
-  var id = 'testContainer';
+  const id = 'testContainer';
 
   beforeEach(function() {
     this.$container = $(`<div id="${id}"></div>`).appendTo('body');
@@ -14,16 +14,16 @@ describe('HandsontableEditor', () => {
 
   function getManufacturerData() {
     return [
-      {name: 'BMW', country: 'Germany', owner: 'Bayerische Motoren Werke AG'},
-      {name: 'Chrysler', country: 'USA', owner: 'Chrysler Group LLC'},
-      {name: 'Nissan', country: 'Japan', owner: 'Nissan Motor Company Ltd'},
-      {name: 'Suzuki', country: 'Japan', owner: 'Suzuki Motor Corporation'},
-      {name: 'Toyota', country: 'Japan', owner: 'Toyota Motor Corporation'},
-      {name: 'Volvo', country: 'Sweden', owner: 'Zhejiang Geely Holding Group'}
+      { name: 'BMW', country: 'Germany', owner: 'Bayerische Motoren Werke AG' },
+      { name: 'Chrysler', country: 'USA', owner: 'Chrysler Group LLC' },
+      { name: 'Nissan', country: 'Japan', owner: 'Nissan Motor Company Ltd' },
+      { name: 'Suzuki', country: 'Japan', owner: 'Suzuki Motor Corporation' },
+      { name: 'Toyota', country: 'Japan', owner: 'Toyota Motor Corporation' },
+      { name: 'Volvo', country: 'Sweden', owner: 'Zhejiang Geely Holding Group' }
     ];
   }
 
-  it('should create an editor that is a Handsontable instance', function() {
+  it('should create an editor that is a Handsontable instance', () => {
     handsontable({
       columns: [
         {
@@ -38,10 +38,100 @@ describe('HandsontableEditor', () => {
     selectCell(2, 0);
 
     keyDownUp('enter');
-    expect(this.$container.find('.handsontableEditor:visible').length).toEqual(1);
+    expect(spec().$container.find('.handsontableEditor:visible').length).toEqual(1);
   });
 
-  it('should destroy the editor when Esc is pressed', function() {
+  it('should create an editor directly below the textarea element', () => {
+    handsontable({
+      columns: [
+        {
+          type: 'handsontable',
+          handsontable: {
+            colHeaders: ['Marque', 'Country', 'Parent company'],
+            data: getManufacturerData()
+          }
+        }
+      ]
+    });
+    selectCell(2, 0);
+
+    keyDownUp('enter');
+    expect(spec().$container.find('.handsontableEditor')[0].offsetTop).toEqual(spec().$container.find('.handsontableInput')[0].offsetHeight);
+  });
+
+  it('should prepare the editor only once per instance', () => {
+    handsontable({
+      columns: [
+        {
+          type: 'handsontable',
+          handsontable: {
+            colHeaders: ['Marque', 'Country', 'Parent company'],
+            data: getManufacturerData()
+          }
+        }
+      ]
+    });
+
+    selectCell(0, 0);
+
+    keyDownUp('enter');
+    keyDownUp('enter');
+    keyDownUp('enter');
+    keyDownUp('enter');
+    keyDownUp('enter');
+    keyDownUp('enter');
+    keyDownUp('enter');
+    keyDownUp('enter');
+    keyDownUp('enter');
+    keyDownUp('enter');
+    keyDownUp('enter');
+    keyDownUp('enter');
+    expect(spec().$container.find('.handsontableEditor').length).toEqual(1);
+  });
+
+  it('should reuse the container and display them after select the same or different cell', () => {
+    handsontable({
+      columns: [
+        {
+          type: 'handsontable',
+          handsontable: {
+            colHeaders: ['Marque', 'Country', 'Parent company'],
+            data: getManufacturerData()
+          }
+        }
+      ]
+    });
+
+    selectCell(0, 0);
+    keyDownUp('enter');
+
+    let container = spec().$container.find('.handsontableEditor')[0];
+
+    expect(container.clientHeight).toBeGreaterThan(2);
+
+    selectCell(0, 0);
+    keyDownUp('enter');
+
+    container = spec().$container.find('.handsontableEditor')[0];
+
+    expect(container.clientHeight).toBeGreaterThan(2);
+
+    selectCell(1, 0);
+    keyDownUp('enter');
+
+    container = spec().$container.find('.handsontableEditor')[0];
+
+    expect(container.clientHeight).toBeGreaterThan(2);
+
+    selectCell(1, 0);
+    keyDownUp('enter');
+
+    container = spec().$container.find('.handsontableEditor')[0];
+
+    expect(container.clientHeight).toBeGreaterThan(2);
+  });
+
+  it('should destroy the editor when Esc is pressed', () => {
     handsontable({
       columns: [
         {
@@ -57,15 +147,15 @@ describe('HandsontableEditor', () => {
 
     keyDownUp('enter');
     keyDownUp('esc');
-    expect(this.$container.find('.handsontableEditor:visible').length).toEqual(0);
+    expect(spec().$container.find('.handsontableEditor:visible').length).toEqual(0);
   });
 
   // see https://github.com/handsontable/handsontable/issues/3380
   it('should not throw error while selecting the next cell by hitting enter key', () => {
-    var spy = jasmine.createSpyObj('error', ['test']);
-    var prevError = window.onerror;
+    const spy = jasmine.createSpyObj('error', ['test']);
+    const prevError = window.onerror;
 
-    window.onerror = function(messageOrEvent, source, lineno, colno, error) {
+    window.onerror = function() {
       spy.test();
     };
     handsontable({
@@ -87,7 +177,35 @@ describe('HandsontableEditor', () => {
     window.onerror = prevError;
   });
 
-  it('Enter pressed in nested HT should set the value and hide the editor', function() {
+  it('should not throw error while close no open editor by hitting delete key and `beforeChange` return false', () => {
+    const spy = jasmine.createSpyObj('error', ['test']);
+    const prevError = window.onerror;
+
+    window.onerror = function() {
+      spy.test();
+    };
+    handsontable({
+      columns: [{
+        type: 'handsontable',
+        handsontable: {
+          data: [['Marque'], ['Country'], ['Parent company']]
+        }
+      }],
+      beforeChange: () => false
+    });
+
+    selectCell(0, 0);
+    keyDownUp('delete');
+
+    expect(spy.test.calls.count()).toBe(0);
+    expect(() => {
+      keyDownUp('delete');
+    }).not.toThrowError('Uncaught TypeError: Cannot read property "rootElement" of undefined');
+
+    window.onerror = prevError;
+  });
+
+  it('Enter pressed in nested HT should set the value and hide the editor', () => {
     handsontable({
       columns: [
         {
@@ -104,12 +222,12 @@ describe('HandsontableEditor', () => {
     keyDownUp('enter');
     keyDownUp('arrow_down');
     keyDownUp('enter');
-    expect(this.$container.find('.handsontableEditor:visible').length).toEqual(0);
+    expect(spec().$container.find('.handsontableEditor:visible').length).toEqual(0);
     expect(getDataAtCell(2, 0)).toEqual('BMW');
   });
 
   it('should keep focus on textarea after arrow is pressed', () => {
-    var hot = handsontable({
+    const hot = handsontable({
       columns: [
         {
           type: 'handsontable',
@@ -144,11 +262,11 @@ describe('HandsontableEditor', () => {
     keyDownUp('arrow_down');
     keyDownUp('arrow_down');
 
-    expect(getSelected()).toEqual([4, 0, 4, 0]);
+    expect(getSelected()).toEqual([[4, 0, 4, 0]]);
   });
 
   it('should focus the TD after HT editor is prepared, finished (by keyboard) and destroyed', () => {
-    var selections = [];
+    const selections = [];
 
     handsontable({
       columns: [
@@ -157,14 +275,14 @@ describe('HandsontableEditor', () => {
           handsontable: {
             colHeaders: ['Marque', 'Country', 'Parent company'],
             data: getManufacturerData(),
-            afterSelection() {
-              selections.push(['inner', arguments[0]]); // arguments[0] is selection start row
+            afterSelection(row) {
+              selections.push(['inner', row]);
             }
           }
         }
       ],
-      afterSelection() {
-        selections.push(['outer', arguments[0]]); // arguments[0] is selection start row
+      afterSelection(row) {
+        selections.push(['outer', row]);
       }
     });
     expect(selections.length).toBe(0);
@@ -189,7 +307,7 @@ describe('HandsontableEditor', () => {
 
   describe('strict mode', () => {
     it('should open editor and select cell (0, 0) in inner HOT', () => {
-      var hot = handsontable({
+      const hot = handsontable({
         columns: [
           {
             type: 'handsontable',
@@ -205,38 +323,17 @@ describe('HandsontableEditor', () => {
 
       keyDownUp('enter');
 
-      var ht = hot.getActiveEditor();
-      var innerHot = ht.htEditor;
+      const ht = hot.getActiveEditor();
+      const innerHot = ht.htEditor;
 
-      expect(innerHot.getSelected()).toEqual([0, 0, 0, 0]);
-    });
-
-    it('should hide textarea', () => {
-      var hot = handsontable({
-        columns: [
-          {
-            type: 'handsontable',
-            handsontable: {
-              colHeaders: ['Marque', 'Country', 'Parent company'],
-              data: getManufacturerData()
-            },
-            strict: true
-          }
-        ]
-      });
-      selectCell(2, 0);
-
-      keyDownUp('enter');
-
-      expect(hot.getActiveEditor().TEXTAREA.style.visibility).toEqual('hidden');
-
+      expect(innerHot.getSelected()).toEqual([[0, 0, 0, 0]]);
     });
   });
 
   describe('non strict mode', () => {
 
     it('should open editor and DO NOT select any cell in inner HOT', () => {
-      var hot = handsontable({
+      const hot = handsontable({
         columns: [
           {
             type: 'handsontable',
@@ -251,14 +348,14 @@ describe('HandsontableEditor', () => {
 
       keyDownUp('enter');
 
-      var ht = hot.getActiveEditor();
-      var innerHot = ht.htEditor;
+      const ht = hot.getActiveEditor();
+      const innerHot = ht.htEditor;
 
       expect(innerHot.getSelected()).toBeUndefined();
     });
 
     it('should show textarea', () => {
-      var hot = handsontable({
+      const hot = handsontable({
         columns: [
           {
             type: 'handsontable',
@@ -272,8 +369,30 @@ describe('HandsontableEditor', () => {
       selectCell(2, 0);
 
       keyDownUp('enter');
-      expect(hot.getActiveEditor().TEXTAREA.style.visibility).toEqual('visible');
 
+      expect(hot.getActiveEditor().TEXTAREA.parentElement.style.zIndex).toEqual('');
+      expect(hot.getActiveEditor().TEXTAREA.style.visibility).toEqual('');
+    });
+  });
+
+  describe('IME support', () => {
+    it('should focus editable element after selecting the cell', async() => {
+      handsontable({
+        columns: [
+          {
+            type: 'handsontable',
+            handsontable: {
+              colHeaders: ['Marque', 'Country', 'Parent company'],
+              data: getManufacturerData()
+            }
+          }
+        ]
+      });
+      selectCell(0, 0, 0, 0, true, false);
+
+      await sleep(10);
+
+      expect(document.activeElement).toBe(getActiveEditor().TEXTAREA);
     });
   });
 });

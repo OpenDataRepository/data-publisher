@@ -1,4 +1,4 @@
-import {empty} from './../helpers/dom/element';
+import { empty } from './../helpers/dom/element';
 import TextEditor from './textEditor';
 
 /**
@@ -11,7 +11,7 @@ class PasswordEditor extends TextEditor {
   createElements() {
     super.createElements();
 
-    this.TEXTAREA = document.createElement('input');
+    this.TEXTAREA = this.hot.rootDocument.createElement('input');
     this.TEXTAREA.setAttribute('type', 'password');
     this.TEXTAREA.className = 'handsontableInput';
     this.textareaStyle = this.TEXTAREA.style;

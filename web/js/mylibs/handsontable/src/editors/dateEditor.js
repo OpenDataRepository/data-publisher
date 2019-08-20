@@ -1,18 +1,18 @@
 import moment from 'moment';
 import Pikaday from 'pikaday';
 import 'pikaday/css/pikaday.css';
-import {addClass, outerHeight} from './../helpers/dom/element';
-import {deepExtend} from './../helpers/object';
+import { addClass, outerHeight } from './../helpers/dom/element';
+import { deepExtend } from './../helpers/object';
 import EventManager from './../eventManager';
-import {isMetaKey} from './../helpers/unicode';
-import {stopPropagation} from './../helpers/dom/event';
+import { isMetaKey } from './../helpers/unicode';
+import { stopPropagation } from './../helpers/dom/event';
 import TextEditor from './textEditor';
 
 /**
  * @private
  * @editor DateEditor
  * @class DateEditor
- * @dependencies TextEditor moment pikaday
+ * @dependencies TextEditor
  */
 class DateEditor extends TextEditor {
   /**
@@ -49,7 +49,7 @@ class DateEditor extends TextEditor {
   createElements() {
     super.createElements();
 
-    this.datePicker = document.createElement('DIV');
+    this.datePicker = this.hot.rootDocument.createElement('DIV');
     this.datePickerStyle = this.datePicker.style;
     this.datePickerStyle.position = 'absolute';
     this.datePickerStyle.top = 0;
@@ -57,7 +57,7 @@ class DateEditor extends TextEditor {
     this.datePickerStyle.zIndex = 9999;
 
     addClass(this.datePicker, 'htDatepickerHolder');
-    document.body.appendChild(this.datePicker);
+    this.hot.rootDocument.body.appendChild(this.datePicker);
 
     this.$datePicker = new Pikaday(this.getDatePickerConfig());
     const eventManager = new EventManager(this);
@@ -65,7 +65,7 @@ class DateEditor extends TextEditor {
     /**
      * Prevent recognizing clicking on datepicker as clicking outside of table
      */
-    eventManager.addEventListener(this.datePicker, 'mousedown', (event) => stopPropagation(event));
+    eventManager.addEventListener(this.datePicker, 'mousedown', event => stopPropagation(event));
     this.hideDatepicker();
   }
 
@@ -73,7 +73,13 @@ class DateEditor extends TextEditor {
    * Destroy data picker instance
    */
   destroyElements() {
+    const datePickerParentElement = this.datePicker.parentNode;
+
     this.$datePicker.destroy();
+
+    if (datePickerParentElement) {
+      datePickerParentElement.removeChild(this.datePicker);
+    }
   }
 
   /**
@@ -87,7 +93,6 @@ class DateEditor extends TextEditor {
    * @param {Object} cellProperties Object with cell properties ({@see Core#getCellMeta})
    */
   prepare(row, col, prop, td, originalValue, cellProperties) {
-    this._opened = false;
     super.prepare(row, col, prop, td, originalValue, cellProperties);
   }
 
@@ -106,9 +111,9 @@ class DateEditor extends TextEditor {
    */
   close() {
     this._opened = false;
-    this.instance._registerTimeout(setTimeout(() => {
-      this.instance.selection.refreshBorders();
-    }, 0));
+    this.instance._registerTimeout(() => {
+      this.instance._refreshBorders();
+    });
 
     super.close();
   }
@@ -120,7 +125,7 @@ class DateEditor extends TextEditor {
   finishEditing(isCancelled = false, ctrlDown = false) {
     if (isCancelled) { // pressed ESC, restore original value
       // var value = this.instance.getDataAtCell(this.row, this.col);
-      let value = this.originalValue;
+      const value = this.originalValue;
 
       if (value !== void 0) {
         this.setValue(value);
@@ -138,15 +143,15 @@ class DateEditor extends TextEditor {
   showDatepicker(event) {
     this.$datePicker.config(this.getDatePickerConfig());
 
-    let offset = this.TD.getBoundingClientRect();
-    let dateFormat = this.cellProperties.dateFormat || this.defaultDateFormat;
-    let datePickerConfig = this.$datePicker.config();
+    const offset = this.TD.getBoundingClientRect();
+    const dateFormat = this.cellProperties.dateFormat || this.defaultDateFormat;
+    const datePickerConfig = this.$datePicker.config();
     let dateStr;
-    let isMouseDown = this.instance.view.isMouseDown();
-    let isMeta = event ? isMetaKey(event.keyCode) : false;
+    const isMouseDown = this.instance.view.isMouseDown();
+    const isMeta = event ? isMetaKey(event.keyCode) : false;
 
-    this.datePickerStyle.top = `${window.pageYOffset + offset.top + outerHeight(this.TD)}px`;
-    this.datePickerStyle.left = `${window.pageXOffset + offset.left}px`;
+    this.datePickerStyle.top = `${this.hot.rootWindow.pageYOffset + offset.top + outerHeight(this.TD)}px`;
+    this.datePickerStyle.left = `${this.hot.rootWindow.pageXOffset + offset.left}px`;
 
     this.$datePicker._onInputFocus = function() {};
     datePickerConfig.format = dateFormat;
@@ -203,8 +208,8 @@ class DateEditor extends TextEditor {
    * @returns {Object}
    */
   getDatePickerConfig() {
-    let htInput = this.TEXTAREA;
-    let options = {};
+    const htInput = this.TEXTAREA;
+    const options = {};
 
     if (this.cellProperties && this.cellProperties.datePickerConfig) {
       deepExtend(options, this.cellProperties.datePickerConfig);
@@ -218,7 +223,9 @@ class DateEditor extends TextEditor {
     options.bound = false;
     options.format = options.format || this.defaultDateFormat;
     options.reposition = options.reposition || false;
-    options.onSelect = (dateStr) => {
+    options.onSelect = (value) => {
+      let dateStr = value;
+
       if (!isNaN(dateStr.getTime())) {
         dateStr = moment(dateStr).format(this.cellProperties.dateFormat || this.defaultDateFormat);
       }

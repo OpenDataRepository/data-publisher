@@ -1,11 +1,10 @@
 import {
   addClass,
   fastInnerText,
-  isVisible,
   removeClass,
 } from './../../../helpers/dom/element';
-import {objectEach} from './../../../helpers/object';
-import {toUpperCaseFirst, randomString} from './../../../helpers/string';
+import { objectEach } from './../../../helpers/object';
+import { toUpperCaseFirst, randomString } from './../../../helpers/string';
 import Event from './event';
 import Overlays from './overlays';
 import Scroll from './scroll';
@@ -21,10 +20,12 @@ class Walkontable {
    * @param {Object} settings
    */
   constructor(settings) {
-    let originalHeaders = [];
+    const originalHeaders = [];
 
     // this is the namespace for global events
     this.guid = `wt_${randomString()}`;
+    this.rootDocument = settings.table.ownerDocument;
+    this.rootWindow = this.rootDocument.defaultView;
 
     // bootstrap from settings
     if (settings.cloneSource) {
@@ -75,7 +76,7 @@ class Walkontable {
   draw(fastDraw = false) {
     this.drawInterrupted = false;
 
-    if (!fastDraw && !isVisible(this.wtTable.TABLE)) {
+    if (!fastDraw && !this.wtTable.isVisible()) {
       // draw interrupted because TABLE is not visible
       this.drawInterrupted = true;
     } else {
@@ -98,10 +99,10 @@ class Walkontable {
       return this.wtTable.getCell(coords);
     }
 
-    let totalRows = this.wtSettings.getSetting('totalRows');
-    let fixedRowsTop = this.wtSettings.getSetting('fixedRowsTop');
-    let fixedRowsBottom = this.wtSettings.getSetting('fixedRowsBottom');
-    let fixedColumns = this.wtSettings.getSetting('fixedColumnsLeft');
+    const totalRows = this.wtSettings.getSetting('totalRows');
+    const fixedRowsTop = this.wtSettings.getSetting('fixedRowsTop');
+    const fixedRowsBottom = this.wtSettings.getSetting('fixedRowsBottom');
+    const fixedColumns = this.wtSettings.getSetting('fixedColumnsLeft');
 
     if (coords.row < fixedRowsTop && coords.col < fixedColumns) {
       return this.wtOverlays.topLeftCornerOverlay.clone.wtTable.getCell(coords);
@@ -117,7 +118,7 @@ class Walkontable {
     } else if (coords.col < fixedColumns) {
       return this.wtOverlays.leftOverlay.clone.wtTable.getCell(coords);
 
-    } else if (coords.row < totalRows && coords.row > totalRows - fixedRowsBottom) {
+    } else if (coords.row < totalRows && coords.row >= totalRows - fixedRowsBottom) {
       if (this.wtOverlays.bottomOverlay && this.wtOverlays.bottomOverlay.clone) {
         return this.wtOverlays.bottomOverlay.clone.wtTable.getCell(coords);
       }
@@ -137,41 +138,41 @@ class Walkontable {
   }
 
   /**
-   * Scroll the viewport to a row at the given index in the data source
-   *
-   * @param {Number} row
-   * @returns {Walkontable}
-   */
-  scrollVertical(row) {
-    this.wtOverlays.topOverlay.scrollTo(row);
-    this.getSetting('onScrollVertically');
-
-    return this;
-  }
-
-  /**
-   * Scroll the viewport to a column at the given index in the data source
-   *
-   * @param {Number} column
-   * @returns {Walkontable}
-   */
-  scrollHorizontal(column) {
-    this.wtOverlays.leftOverlay.scrollTo(column);
-    this.getSetting('onScrollHorizontally');
-
-    return this;
-  }
-
-  /**
-   * Scrolls the viewport to a cell (rerenders if needed)
+   * Scrolls the viewport to a cell (rerenders if needed).
    *
    * @param {CellCoords} coords
-   * @returns {Walkontable}
+   * @param {Boolean} [snapToTop]
+   * @param {Boolean} [snapToRight]
+   * @param {Boolean} [snapToBottom]
+   * @param {Boolean} [snapToLeft]
+   * @returns {Boolean}
    */
-  scrollViewport(coords) {
-    this.wtScroll.scrollViewport(coords);
+  scrollViewport(coords, snapToTop, snapToRight, snapToBottom, snapToLeft) {
+    return this.wtScroll.scrollViewport(coords, snapToTop, snapToRight, snapToBottom, snapToLeft);
+  }
 
-    return this;
+  /**
+   * Scrolls the viewport to a column (rerenders if needed).
+   *
+   * @param {Number} column Visual column index.
+   * @param {Boolean} [snapToRight]
+   * @param {Boolean} [snapToLeft]
+   * @returns {Boolean}
+   */
+  scrollViewportHorizontally(column, snapToRight, snapToLeft) {
+    return this.wtScroll.scrollViewportHorizontally(column, snapToRight, snapToLeft);
+  }
+
+  /**
+   * Scrolls the viewport to a row (rerenders if needed).
+   *
+   * @param {Number} row Visual row index.
+   * @param {Boolean} [snapToTop]
+   * @param {Boolean} [snapToBottom]
+   * @returns {Boolean}
+   */
+  scrollViewportVertically(row, snapToTop, snapToBottom) {
+    return this.wtScroll.scrollViewportVertically(row, snapToTop, snapToBottom);
   }
 
   /**
@@ -196,6 +197,15 @@ class Walkontable {
   }
 
   /**
+   * Check if this instance acts as an overlay (internally called as "clone" of the master table).
+   *
+   * @returns {Boolean}
+   */
+  isClone() {
+    return !this.cloneSource;
+  }
+
+  /**
    * Check overlay type of this Walkontable instance.
    *
    * @param {String} name Clone type @see {Overlay.CLONE_TYPES}.
@@ -213,12 +223,12 @@ class Walkontable {
    * Export settings as class names added to the parent element of the table.
    */
   exportSettingsAsClassNames() {
-    let toExport = {
+    const toExport = {
       rowHeaders: ['array'],
       columnHeaders: ['array']
     };
-    let allClassNames = [];
-    let newClassNames = [];
+    const allClassNames = [];
+    const newClassNames = [];
 
     objectEach(toExport, (optionType, key) => {
       if (optionType.indexOf('array') > -1 && this.getSetting(key).length) {
