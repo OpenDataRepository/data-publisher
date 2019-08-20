@@ -1736,6 +1736,8 @@ odr_api_user_check:
         version: 'v\d+'
         _format: '|json|xml'
 
+# This doesn't need to be an official route because the firewall sends the request straight to the
+#  lexik_jwt_authentication handler
 #odr_api_token:
 #    path: /api/{version}/token
 #    defaults: { _controller: ODRAdminBundle:API:token, _format: 'json', version: 'v3'}

@@ -220,10 +220,10 @@ class DatarecordInfoService
                partial dr_cb.{id, username, email, firstName, lastName},
                partial dr_ub.{id, username, email, firstName, lastName},
 
-               dt, partial gp_dt.{id}, partial mdt.{id, unique_id}, partial mf.{id, unique_id}, df_dt, dfm_dt, ft_dt,
+               dt, partial gp_dt.{id}, partial mdt.{id, unique_id}, partial mf.{id, unique_id},
                dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
 
-               drf, partial df.{id, fieldUuid, templateFieldUuid}, partial dfm.{id, fieldName, xml_fieldName }, partial ft.{id, typeClass, typeName},
+               drf, partial df.{id, fieldUuid, templateFieldUuid}, partial dfm.{id, fieldName, xml_fieldName}, partial ft.{id, typeClass, typeName},
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
                e_i, e_im, e_ip, e_ipm, e_is, partial e_ip_cb.{id, username, email, firstName, lastName},
 
@@ -253,11 +253,9 @@ class DatarecordInfoService
             LEFT JOIN dr.dataType AS dt
             LEFT JOIN dt.grandparent AS gp_dt
             LEFT JOIN dt.dataTypeMeta AS dtm
-            LEFT JOIN dt.dataFields AS df_dt
-            LEFT JOIN df_dt.dataFieldMeta AS dfm_dt
-            LEFT JOIN dfm_dt.fieldType AS ft_dt
             LEFT JOIN dt.masterDataType AS mdt
             LEFT JOIN dt.metadata_for AS mf
+
             LEFT JOIN dtm.externalIdField AS dt_eif
             LEFT JOIN dtm.nameField AS dt_nf
             LEFT JOIN dtm.sortField AS dt_sf
@@ -410,21 +408,17 @@ class DatarecordInfoService
             //  of some random number
             $new_drf_array = array();
             foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
-
-                // Save FieldMeta
-                $data_field = $drf['dataField'];
-                $data_field['dataFieldMeta'] = $drf['dataField']['dataFieldMeta'][0];
+                // Not going to end up saving datafield/datafieldmeta...
+                $df_id = $drf['dataField']['id'];
+                $drf['dataField']['dataFieldMeta'] = $drf['dataField']['dataFieldMeta'][0];
 
                 // Going to delete most of the sub arrays inside $drf that are empty...
-                $expected_fieldtype = $drf['dataField']['dataFieldMeta'][0]['fieldType']['typeClass'];
+                $expected_fieldtype = $drf['dataField']['dataFieldMeta']['fieldType']['typeClass'];
                 $expected_fieldtype = lcfirst($expected_fieldtype);
                 if ($expected_fieldtype == 'radio')
                     $expected_fieldtype = 'radioSelection';
                 else if ($expected_fieldtype == 'tag')
                     $expected_fieldtype = 'tagSelection';
-
-                $df_id = $drf['dataField']['id'];
-                unset( $drf['dataField'] );
 
                 // Flatten file metadata and get rid of encrypt_key
                 foreach ($drf['file'] as $file_num => $file) {
@@ -568,7 +562,6 @@ class DatarecordInfoService
                 }
 
                 // Store the resulting $drf array by its datafield id
-                $drf['dataField'] = $data_field;
                 $new_drf_array[$df_id] = $drf;
             }
 
@@ -591,6 +584,7 @@ class DatarecordInfoService
 
             $formatted_datarecord_data[$dr_id] = $dr_data;
         }
+
 
         // Save the formatted datarecord data back in the cache, and return it
         $this->cache_service->set('cached_datarecord_'.$grandparent_datarecord_id, $formatted_datarecord_data);
@@ -708,6 +702,47 @@ class DatarecordInfoService
 
         foreach ($results as $result)
             $this->cache_service->delete('cached_table_data_'.$result['dr_id']);
+    }
+
+
+    /**
+     * Given an array of $datarecord ids, this function locates every datarecord that links to the
+     * ids in that array, then locates every record that links to
+     *
+     * @param array $datarecord_ids array  dr_ids are values in the array, NOT keys
+     */
+    public function deleteCachedDatarecordLinkData($datarecord_ids)
+    {
+        $records_to_check = $datarecord_ids;
+        $records_to_clear = $records_to_check;
+
+        while ( !empty($records_to_check) ) {
+            // Determine whether anything links to the given datarecords...
+            $query = $this->em->createQuery(
+               'SELECT grandparent.id AS ancestor_id
+                FROM ODRAdminBundle:LinkedDataTree AS ldt
+                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataRecord AS grandparent WITH ancestor.grandparent = grandparent
+                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                WHERE descendant.id IN (:datarecords)
+                AND ldt.deletedAt IS NULL
+                AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL
+                AND grandparent.deletedAt IS NULL'
+            )->setParameters( array('datarecords' => $records_to_check) );
+            $results = $query->getArrayResult();
+
+            $records_to_check = array();
+            foreach ($results as $result) {
+                $ancestor_id = $result['ancestor_id'];
+                $records_to_clear[] = $ancestor_id;
+                $records_to_check[] = $ancestor_id;
+            }
+        }
+
+        // Clearing this cache entry for each of the ancestor records found ensures that the
+        //  newly linked/unlinked datarecords show up (or not) when they should
+        foreach ($records_to_clear as $num => $dr_id)
+            $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
     }
 
 

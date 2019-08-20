@@ -226,7 +226,6 @@ services:
             $datarecord_info_service: "@odr.datarecord_info_service"
             $datatype_info_service: "@odr.datatype_info_service"
             $permissions_service: "@odr.permissions_management_service"
-            $theme_info_service: "@odr.theme_info_service"
             $templating: "@templating"
             $logger: "@logger"
 

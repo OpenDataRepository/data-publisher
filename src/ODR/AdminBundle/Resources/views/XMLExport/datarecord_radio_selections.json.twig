@@ -1,0 +1,17 @@
+"value": [
+{% if drf.radioSelection is defined %}
+    {% set radio_selections = drf.radioSelection %}
+    {% for num, ro in df.radioOptions %}
+        {% if radio_selections[ro.id] is defined and radio_selections[ro.id].selected %}
+        {
+            "id": {{ ro.id }},
+            "template_radio_option_uuid": "{{ ro.radioOptionUuid }}",
+            "name": "{{ ro.optionName }}",
+            "created_at": "{{ ro.created|date('Y-m-d H:i:s') }}",
+            "updated_at": "{{ ro.radioOptionMeta.updated|date('Y-m-d H:i:s') }}",
+            "selected": {{ radio_selections[ro.id].selected }}
+        }{% if not loop.last %},{% endif %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
+]

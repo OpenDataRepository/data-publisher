@@ -18,36 +18,36 @@
     {% set child_is_selected = 1 %}
 {% endif %}
 
-{% if is_selected == 1 or child_is_selected == 1 %}
-
-    {% set tag_start = '' %}
-    {% set tag_end = '' %}
-    {% if version == 'v1' %}
-        {% set tag_start = '<tag_' ~ tag.id ~ '><name>' ~ tag_meta.tagName|xml ~'</name>' %}
-        {% set tag_end = '</tag_' ~ tag.id ~ '>' %}
-    {% elseif version == 'v2' %}
-        {% set tag_start = '<' ~ tag_meta.xml_tagName ~ '>' %}
-        {% set tag_end = '</' ~ tag_meta.xml_tagName ~ '>' %}
-    {% endif %}
-
-    {{ tag_start|raw }}
+{% if is_selected == 1 %}
+    <tag>
         <id>{{ tag.id }}</id>
-    {% if not has_children %}
-        <selected>1</selected>
-    {% endif %}
         <template_tag_uuid>{{ tag.tagUuid }}</template_tag_uuid>
-        <updated_at>{{ tag_meta.updated|date('Y-m-d H:i:s') }}</updated_at>    {# TODO - should this be controlled by using_metadata? #}
-    {% if has_children %}
-        <children>
-        {% for child_tag_id, child_tag in tag.children %}
-            {% include 'ODRAdminBundle:XMLExport:datarecord_tag.xml.twig' with {
-                'tag_selections': tag_selections,
-                'child_tag_selections': child_tag_selections,
-                'tag': child_tag,
-            } %}
-        {% endfor %}
-        </children>
-    {% endif %}
-    {{ tag_end|raw }}
 
+        {% if parent_tags_prefix == '' %}
+            <name>{{ tag.tagName|xml|raw }}</name>
+        {% else %}
+            <name>{{ parent_tags_prefix|xml|raw }} &gt; {{ tag.tagName|xml|raw }}</name>
+        {% endif %}
+
+        <created_at>{{ tag.created|date('Y-m-d H:i:s') }}</created_at>
+        <updated_at>{{ tag_meta.updated|date('Y-m-d H:i:s') }}</updated_at>
+        <selected>1</selected>
+    </tag>
+{% elseif has_children and child_is_selected == 1 %}
+    {% if parent_tags_prefix == '' %}
+        {% set parent_tags_prefix = tag.tagName %}
+    {% else %}
+        {% set parent_tags_prefix = parent_tags_prefix ~ ' > ' ~ tag.tagName %}
+        {# Twig will convert the '>' into '&gt;' on the next template include #}
+    {% endif %}
+
+    {% for child_tag_id, child_tag in tag.children %}
+        {% include 'ODRAdminBundle:XMLExport:datarecord_tag.xml.twig' with {
+            'tag_selections': tag_selections,
+            'child_tag_selections': child_tag_selections,
+            'tag': child_tag,
+
+            'parent_tags_prefix': parent_tags_prefix
+        } %}
+    {% endfor %}
 {% endif %}
