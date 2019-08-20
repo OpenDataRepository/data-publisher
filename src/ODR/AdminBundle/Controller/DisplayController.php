@@ -204,6 +204,8 @@ class DisplayController extends ODRCustomController
             $can_edit_datatype = $pm_service->canEditDatatype($user, $datatype);
             // Store whether the user is permitted to edit this specific datarecord
             $can_edit_datarecord = $pm_service->canEditDatarecord($user, $datarecord);
+            // Store whether the user is permitted to create new datarecords for this datatype
+            $can_add_datarecord = $pm_service->canAddDatarecord($user, $datatype);
 
             if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canViewDatarecord($user, $datarecord) )
                 throw new ODRForbiddenException();
@@ -326,6 +328,7 @@ class DisplayController extends ODRCustomController
                 'ODRAdminBundle:Display:display_header.html.twig',
                 array(
                     'can_edit_datarecord' => $can_edit_datarecord,
+                    'can_add_datarecord' => $can_add_datarecord,
                     'datarecord' => $datarecord,
                     'datatype' => $datatype,
 
