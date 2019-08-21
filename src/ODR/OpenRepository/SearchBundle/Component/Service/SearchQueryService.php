@@ -1508,9 +1508,13 @@ if ( isset($debug['search_string_parsing']) ) {
         $in_quotes = false;
         $tmp = '';
         for ($i = 0; $i < strlen($str); $i++) {
-            $char = $str[$i];
+            // Need to use multibyte substr to be able to handle multibyte unicode sequences...
+//            $char = $str[$i];
+            $char = mb_substr($str, $i, 1);
 
-            if ($char == "\"") {
+            // Attempt to treat doublequote (U+0022) the same as the unicode "smart quote" characters
+            //  e.g. (U+0022) should equal (U+201C and U+201D)
+            if ($char == "\"" || $char == "“" || $char == "”") {
                 if ($in_quotes) {
                     // found closing quote
                     $in_quotes = false;
