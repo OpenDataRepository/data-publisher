@@ -920,8 +920,10 @@
                     tools.link_dt.unbind('click').click(function () {
                         $(this).effect("highlight", {}, 2000);
                         // Find parent theme element...
-                        // linkDatatype(id);
-                        console.log('not implemented yet....');
+                        var te_id_data = $("#DataType_" + id).parent().parent().attr('id').split(/_/);
+                        var te_id = te_id_data[1];
+
+                        linkDatatype(te_id);
                     });
                 }
                 else {

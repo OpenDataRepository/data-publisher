@@ -723,6 +723,47 @@ class DatatypeInfoService
 
 
     /**
+     * Because ODR permits an arbitrarily deep hierarchy when it comes to linking datatypes...
+     * e.g.  A links to B links to C links to D links to...etc
+     * ...the cache entry 'associated_datatypes_for_<A>' will then mention (B, C, D, etc.), because
+     *  they all need to be loaded via getDatatypeData() in order to properly render A.
+     *
+     * However, this means that linking/unlinking of datatypes between B/C, C/D, D/etc also affects
+     * which datatypes A needs to load...so any linking/unlinking needs to be propagated upwards...
+     *
+     * TODO - ...create a new CacheClearService and move every single cache clearing function into there instead?
+     *
+     * @param array $datatype_ids array  dt_ids are values in the array, NOT keys
+     */
+    public function deleteCachedDatatypeLinkData($datatype_ids)
+    {
+        $datatree_array = self::getDatatreeArray();
+        $datatypes_to_clear = array();
+
+        $datatypes_to_check = $datatype_ids;
+        while ( !empty($datatypes_to_check) ) {
+            // Determine whether anything links to the given datatypes...
+            $tmp = array();
+            foreach ($datatypes_to_check as $num => $dt_id) {
+                $datatypes_to_clear[$dt_id] = 1;
+
+                if ( isset($datatree_array['linked_from'][$dt_id]) ) {
+                    foreach ($datatree_array['linked_from'][$dt_id] as $num => $ancestor_id)
+                        $tmp[] = $ancestor_id;
+                }
+            }
+
+            $datatypes_to_check = $tmp;
+        }
+
+        // Clearing this cache entry for each of the ancestor records found ensures that the
+        //  newly linked/unlinked datarecords show up (or not) when they should
+        foreach ($datatypes_to_clear as $dt_id => $num)
+            $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
+    }
+
+
+    /**
      * Should be called whenever the default sort order of datarecords within a datatype changes.
      *
      * @param int $datatype_id

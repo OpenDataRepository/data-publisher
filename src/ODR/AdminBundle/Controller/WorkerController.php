@@ -314,7 +314,7 @@ $ret .= '  Set current to '.$count."\n";
 
             $source = 0x5e17488a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -385,7 +385,7 @@ $ret .= '  Set current to '.$count."\n";
 
             $source = 0x7057656e;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -499,7 +499,7 @@ $ret .= '  Set current to '.$count."\n";
         catch (\Exception $e) {
             $source = 0xb115dc04;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1415,7 +1415,7 @@ $ret .= '  Set current to '.$count."\n";
 
             $source = 0x0a4b8452;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1550,7 +1550,7 @@ $ret .= '  Set current to '.$count."\n";
         catch (\Exception $e) {
             $source = 0x0214889b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1626,7 +1626,7 @@ $ret .= '  Set current to '.$count."\n";
         catch (\Exception $e) {
             $source = 0x675970ad;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1654,7 +1654,9 @@ $ret .= '  Set current to '.$count."\n";
 
         // NOTE - go into the orm files for each of these entities and disable the gedmo timestampable on update first
         $save = false;
-        $save = true;
+//        $save = true;
+
+        // TODO - ...were these going to be 100% random, or derived from id + ODR instance + entity type?
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1960,7 +1962,7 @@ $ret .= '  Set current to '.$count."\n";
         catch (\Exception $e) {
             $source = 0x74a51771;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2016,9 +2018,9 @@ $ret .= '  Set current to '.$count."\n";
                 $em->flush();
         }
         catch (\Exception $e) {
-            $source = 0xd895a5e6;
+            $source = 0x0d6cf8d9;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2072,7 +2074,7 @@ $ret .= '  Set current to '.$count."\n";
         catch (\Exception $e) {
             $source = 0xd895a5e6;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

@@ -7,35 +7,19 @@
 
     function openLinkDatatypeDialog(local_datatype_id, theme_element_id) {
         // open dialog
-        {% if datatype.is_master_type %}
         var modal_options = {
-            title: 'Manage Linked Templates',
+            title: 'Manage Linked {% if datatype.is_master_type %}Templates{% else %}Databases{% endif %}',
             loading: true,
             body: link_datatype_dialog_body,
             buttons: [
                 {
                     id: 'ODRLinkDatatypeFormSubmit',
-                    text: 'Link Template',
+                    text: 'Link to Selected {% if datatype.is_master_type %}Template{% else %}Database{% endif %}',
                     // secondary: true,
                     disabled: true
                 }
             ]
         };
-        {% else %}
-        var modal_options = {
-            title: 'Manage Linked Datatypes',
-            loading: true,
-            body: link_datatype_dialog_body,
-            buttons: [
-                {
-                    id: 'ODRLinkDatatypeFormSubmit',
-                    text: 'Link Database',
-                    // secondary: true,
-                    disabled: true
-                }
-            ]
-        };
-        {% endif %}
         openODRRemodal(modal_options);
 
         loadLinkData(local_datatype_id, theme_element_id);
@@ -92,6 +76,12 @@
 
 
     function submitLinkDatatypeForm() {
+        // If the button got clicked, and the selection matches the current remote datatype, then
+        //  the user wants to break the link
+        var selected_datatype_id = $("#selected_datatype").val();
+        var current_remote_datatype = $("#ODRLinkDatatypeForm_previous").val();
+        if ( selected_datatype_id === current_remote_datatype )
+            $("#selected_datatype").val('');
 
         var data = $('#ODRLinkDatatypeForm').serialize();
         var url = $('#ODRLinkDatatypeForm').attr('action');
@@ -106,8 +96,8 @@
                 var linked_datatype_id = data.d.linked_datatype_id;
                 var theme_element_id = data.d.element_id;
 
-                if (data.d.using_linked_type == 1) {  // there is now a linked datatype in this theme element
-                    console.log('TED = ' + theme_element_id)
+                if (data.d.using_linked_type === 1) {  // there is now a linked datatype in this theme element
+                    // console.log('TED = ' + theme_element_id)
                     ReloadThemeElement(theme_element_id);   // need the entire linked type in there...this will also cause icons to be muted
                 }
                 else {
@@ -115,7 +105,7 @@
                     $("#DataType_" + linked_datatype_id).remove();
                     // Reload TED?
                     ReloadThemeElement(theme_element_id);   // need the entire linked type in there...this will also cause icons to be muted
-                    console.log('TED 2 = ' + theme_element_id)
+                    // console.log('TED 2 = ' + theme_element_id)
 
                     // Unmute the other icons
                 }

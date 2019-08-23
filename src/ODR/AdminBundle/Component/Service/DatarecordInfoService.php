@@ -674,10 +674,7 @@ class DatarecordInfoService
         // Delete the filtered list of data meant specifically for table themes
         $this->cache_service->delete('cached_table_data_'.$dr->getId());
 
-        // Delete associated datarecords cache
-        $this->cache_service->delete('associated_datarecords_for_'.$dr->getId());
-        //
-        //        // Clear json caches used in API
+        // Clear json caches used in API
         $this->cache_service->delete('json_record_' . $dr->getUniqueId());
     }
 
@@ -706,8 +703,16 @@ class DatarecordInfoService
 
 
     /**
-     * Given an array of $datarecord ids, this function locates every datarecord that links to the
-     * ids in that array, then locates every record that links to
+     * Because ODR permits an arbitrarily deep hierarchy when it comes to linking datarecords...
+     * e.g.  A links to B links to C links to D links to...etc
+     * ...the cache entry 'associated_datarecords_for_<A>' will then mention (B, C, D, etc.), because
+     *  they all need to be loaded via getDatarecordArray() in order to properly render A.
+     *
+     * However, this means that linking/unlinking of datarecords between B/C, C/D, D/etc also affects
+     * which datarecords A needs to load...so any linking/unlinking needs to be propagated upwards...
+     *
+     * TODO - potentially modify this to use SearchService::getCachedSearchDatarecordList()?
+     * TODO - ...or create a new CacheClearService and move every single cache clearing function into there instead?
      *
      * @param array $datarecord_ids array  dr_ids are values in the array, NOT keys
      */

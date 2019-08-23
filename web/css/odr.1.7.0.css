@@ -4092,3 +4092,17 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 #TextResults_current_paginate > a {
     margin: 5px;
 }
+
+#ODRLinkDetails_wrapper {
+    text-align: left;
+    min-height: 250px;
+}
+.ODRLinkDetailsHeader {
+    color: black;
+    text-align: right;
+    width: 10em;
+    margin-right: 1em;
+}
+.ODRLinkDetailsContent {
+    display: inline-block;
+}
