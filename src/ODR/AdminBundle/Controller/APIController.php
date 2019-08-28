@@ -13,7 +13,7 @@
 namespace ODR\AdminBundle\Controller;
 
 use Doctrine\ORM\EntityManager;
-use FOS\UserBundle\Command\ActivateUserCommand;
+use FOS\UserBundle\Model\UserManager;
 use HWI\Bundle\OAuthBundle\Tests\Fixtures\FOSUser;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\DatatypeCreateService;
@@ -34,10 +34,8 @@ use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\TagSelection;
 use ODR\AdminBundle\Entity\UserGroup;
-use ODR\AdminBundle\Form\LongVarcharForm;
 use ODR\OpenRepository\UserBundle\Entity\User;
-use PhpParser\Node\Expr\BinaryOp\ShiftLeft;
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
@@ -48,7 +46,6 @@ use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\Tags;
-use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -2808,6 +2805,64 @@ class APIController extends ODRCustomController
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
+    }
+
+    /**
+     * @param $version
+     * @param $dataset_uuid
+     * @param Request $request
+     * @return Response
+     */
+    public function deleteDatasetByUUIDAction($version, $dataset_uuid, Request $request)
+    {
+        // get user from post body
+        try {
+            /** @var EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            $content = $request->getContent();
+            if (!empty($content)) {
+                $data = json_decode($content, true); // 2nd param to get as array
+                // user
+                /** @var UserManager $user_manager */
+                $user_manager = $this->container->get('fos_user.user_manager');
+
+                /** @var ODRUser $user */
+                $user = $user_manager->findUserBy(array('email' => $data['user_email']));
+                if (is_null($user))
+                    throw new ODRNotFoundException('User');
+
+                /** @var DataType $data_type */
+                $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                    array(
+                        'unique_id' => $dataset_uuid
+                    )
+                );
+
+                /** @var PermissionsManagementService $pm_service */
+                $pm_service = $this->container->get('odr.permissions_management_service');
+                // Ensure user has permissions to be doing this
+                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                    throw new ODRForbiddenException();
+                // --------------------
+
+                /** @var DatatypeInfoService $dti_service */
+                $dti_service = $this->container->get('odr.datatype_info_service');
+                $dti_service->deleteDatatype($datatype, $user);
+
+                // Delete datatype
+                $response = new Response('Deleted', 200);
+                return $response;
+            } else {
+                throw new ODRBadRequestException('User must be identified for permissions check.');
+            }
+        } catch (\Exception $e) {
+            $source = 0x1923491;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
     }
 
     public function fileDeleteByUUIDAction($version, $file_uuid, Request $request) {

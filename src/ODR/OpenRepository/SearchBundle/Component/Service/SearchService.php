@@ -25,7 +25,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
 // Other
 use Doctrine\ORM\EntityManager;
@@ -46,9 +46,9 @@ class SearchService
     private $cache_service;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatatreeService
      */
-    private $dti_service;
+    private $dt_service;
 
     /**
      * @var TagHelperService
@@ -69,24 +69,24 @@ class SearchService
     /**
      * SearchService constructor.
      *
-     * @param EntityManager $entityManager
-     * @param CacheService $cacheService
-     * @param DatatypeInfoService $datatypeInfoService
-     * @param TagHelperService $tagHelperService
-     * @param SearchQueryService $searchQueryService
+     * @param EntityManager $entity_manager
+     * @param CacheService $cache_service
+     * @param DatatreeService $datatree_service
+     * @param TagHelperService $tag_helper_service
+     * @param SearchQueryService $search_query_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
-        DatatypeInfoService $datatype_info_service,
+        DatatreeService $datatree_service,
         TagHelperService $tag_helper_service,
         SearchQueryService $search_query_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
-        $this->dti_service = $datatype_info_service;
+        $this->dt_service = $datatree_service;
         $this->th_service = $tag_helper_service;
         $this->search_query_service = $search_query_service;
         $this->logger = $logger;
@@ -1827,7 +1827,7 @@ class SearchService
      */
     public function getRelatedDatatypes($top_level_datatype_id)
     {
-        $datatree_array = $this->dti_service->getDatatreeArray();
+        $datatree_array = $this->dt_service->getDatatreeArray();
         $related_datatypes = self::getRelatedDatatypes_worker($datatree_array, array($top_level_datatype_id) );
 
         // array_values() to make unique

@@ -14,7 +14,10 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
+use Doctrine\DBAL\Connection as DBALConnection;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -46,6 +49,11 @@ class DatatypeInfoService
     private $th_service;
 
     /**
+     * @var SearchCacheService
+     */
+    private $search_cache_service;
+
+    /**
      * @var string
      */
     private $odr_web_dir;
@@ -61,7 +69,8 @@ class DatatypeInfoService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param TagHelperService $tagHelperService
+     * @param TagHelperService $tag_helper_service
+     * @param SearchCacheService $search_cache_service
      * @param string $odr_web_dir
      * @param Logger $logger
      */
@@ -69,12 +78,14 @@ class DatatypeInfoService
         EntityManager $entity_manager,
         CacheService $cache_service,
         TagHelperService $tag_helper_service,
+        SearchCacheService $search_cache_service,
         $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
         $this->th_service = $tag_helper_service;
+        $this->search_cache_service = $search_cache_service;
         $this->odr_web_dir = $odr_web_dir;
         $this->logger = $logger;
     }
@@ -105,6 +116,412 @@ class DatatypeInfoService
             throw new ODRNotFoundException('Datatype', false, 0xaf067bda);
 
         return $dt;
+    }
+
+
+    public function deleteDatatype(DataType $datatype, ODRUser $user = null) {
+        try {
+            /** @var EntityManager $em */
+            $em = $this->em;
+            $conn = $em->getConnection();
+
+            $grandparent = $datatype->getGrandparent();
+            if ($grandparent->getDeletedAt() != null)
+                throw new ODRNotFoundException('Grandparent Datatype');
+            $grandparent_datatype_id = $grandparent->getId();
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            if($user == null)
+                throw new ODRForbiddenException();
+
+
+            // TODO - prevent datatype deletion when called from a linked dataype?  not sure if this is possible...
+            // TODO - prevent datatype deletion when jobs are in progress?
+
+            // ----------------------------------------
+            // Locate ids of all datatypes that need deletion...can't just use grandparent datatype id
+            //  since this could be a child datatype
+            $datatree_array = self::getDatatreeArray();
+
+            $tmp = array($datatype->getId() => 0);
+            $datatypes_to_delete = array(0 => $datatype->getId());
+
+            // If datatype has metadata, delete metadata
+            if($metadata_datatype = $datatype->getMetadataDatatype()) {
+                array_push($datatypes_to_delete, $metadata_datatype->getId());
+            }
+
+            while ( count($tmp) > 0 ) {
+                $new_tmp = array();
+                foreach ($tmp as $dt_id => $num) {
+                    $child_datatype_ids = array_keys($datatree_array['descendant_of'], $dt_id);
+                    foreach ($child_datatype_ids as $num => $child_datatype_id) {
+                        $new_tmp[$child_datatype_id] = 0;
+                        $datatypes_to_delete[] = $child_datatype_id;
+                    }
+                    unset($tmp[$dt_id]);
+                }
+                $tmp = $new_tmp;
+            }
+            $datatypes_to_delete = array_unique($datatypes_to_delete);
+            $datatypes_to_delete = array_values($datatypes_to_delete);
+
+            // Determine all Groups and all Users affected by this
+            $query = $em->createQuery(
+                'SELECT g.id AS group_id
+                FROM ODRAdminBundle:Group AS g
+                WHERE g.dataType IN (:datatype_ids)
+                AND g.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            $results = $query->getArrayResult();
+
+            $groups_to_delete = array();
+            foreach ($results as $result)
+                $groups_to_delete[] = $result['group_id'];
+            $groups_to_delete = array_unique($groups_to_delete);
+            $groups_to_delete = array_values($groups_to_delete);
+
+            $query = $em->createQuery(
+                'SELECT u.id AS user_id
+                FROM ODRAdminBundle:UserGroup AS ug
+                JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+                WHERE ug.group IN (:groups) AND ug.deletedAt IS NULL'
+            )->setParameters( array('groups' => $groups_to_delete) );
+            $all_affected_users = $query->getArrayResult();
+
+            // Locate all cached theme entries that need to be rebuilt...
+            $query = $em->createQuery(
+                'SELECT t.id AS theme_id
+                FROM ODRAdminBundle:Theme AS t
+                JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
+                JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.themeElement = te
+                WHERE tdt.dataType IN (:datatype_ids)
+                AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            $results = $query->getArrayResult();
+
+            $cached_themes_to_delete = array();
+            foreach ($results as $result)
+                $cached_themes_to_delete[] = $result['theme_id'];
+            $cached_themes_to_delete = array_unique($cached_themes_to_delete);
+            $cached_themes_to_delete = array_values($cached_themes_to_delete);
+
+            // ----------------------------------------
+            // Since this needs to make updates to multiple tables, use a transaction
+            $conn->beginTransaction();
+
+            /*
+             * NOTE - the update queries can't use $em->createQuery(<DQL>)->execute(); because DQL
+             * doesn't allow multi-table updates.
+             *
+             * Additionally, the update queries also can't use $conn->prepare(<SQL>)->execute();
+             * because the SQL IN() clause typically won't be interpreted correctly by the underlying
+             * database abstraction layer.
+             *
+             * These update queries have to use $conn->executeUpdate(<SQL>) and explicit typehinting...
+             * that way, Doctrine can rewrite the queries so the database abstraction layer can
+             * interpret them correctly.
+             */
+
+
+            // ----------------------------------------
+            // Determine which datarecords are going to need to be recached, before the linked
+            //  datatree entries are deleted...
+            $query = $em->createQuery(
+                'SELECT DISTINCT(grandparent.id) AS dr_id
+                FROM ODRAdminBundle:DataRecord AS grandparent
+                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ancestor.grandparent = grandparent
+                JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                WHERE descendant.dataType IN (:datatype_ids)
+                AND descendant.deletedAt IS NULL AND ldt.deletedAt IS NULL
+                AND ancestor.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
+            ) ->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            $results = $query->getArrayResult();
+
+            $datarecords_to_recache = array();
+            foreach ($results as $result)
+                $datarecords_to_recache[] = $result['dr_id'];
+
+            // Get the ids of all LinkedDataTree entries that need to be deleted
+            $query = $em->createQuery(
+                'SELECT ldt.id AS ldt_id
+                FROM ODRAdminBundle:LinkedDataTree AS ldt
+                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                WHERE (ancestor.dataType IN (:datatype_ids) OR descendant.dataType IN (:datatype_ids))
+                AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            $results = $query->getArrayResult();
+
+            $linked_datatree_ids = array();
+            foreach ($results as $ldt)
+                $linked_datatree_ids[] = $ldt['ldt_id'];
+
+            // Since a datarecord can't link to itself, don't need to worry about duplicates
+
+
+            // Delete the LinkedDataTree entries...the query could technically be done a different
+            //  way, but this is consistent with the rest of the multi-table updates
+            $query_str =
+                'UPDATE odr_linked_data_tree AS ldt
+                SET ldt.deletedAt = NOW(), ldt.deletedBy = '.$user->getId().'
+                WHERE ldt.id IN (?)';
+            $parameters = array(1 => $linked_datatree_ids);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+
+            // ----------------------------------------
+            /*
+                        // Delete Datarecord, DatarecordMeta, and DatarecordField entries
+                        $query_str =
+                           'UPDATE odr_data_record AS dr, odr_data_record_meta AS drm, odr_data_record_fields AS drf
+                            SET dr.deletedAt = NOW(), drm.deletedAt = NOW(), drf.deletedAt = NOW(),
+                                dr.deletedBy = '.$user->getId().'
+                            WHERE drm.data_record_id = dr.id AND drf.data_record_id = dr.id
+                            AND dr.data_type_id IN (?)
+                            AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL AND drf.deletedAt IS NULL';
+                        $parameters = array(1 => $datatypes_to_delete);
+                        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+                        $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            */
+
+            // ----------------------------------------
+            /*
+                        // Delete Datafields and their DatafieldMeta entries
+                        $query_str =
+                           'UPDATE odr_data_fields AS df, odr_data_fields_meta AS dfm
+                            SET df.deletedAt = NOW(), df.deletedBy = '.$user->getId().', dfm.deletedAt = NOW()
+                            WHERE dfm.data_field_id = df.id AND df.data_type_id IN (?)
+                            AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL';
+                        $parameters = array(1 => $datatypes_to_delete);
+                        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+                        $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            */
+
+            // ----------------------------------------
+            /*
+                        // Delete all ThemeDatatype entries
+                        $query_str =
+                           'UPDATE odr_theme_data_type AS tdt, odr_theme_element AS te, odr_theme AS t
+                            SET tdt.deletedAt = NOW(), tdt.deletedBy = '.$user->getId().'
+                            WHERE tdt.theme_element_id = te.id AND te.theme_id = t.id
+                            AND t.data_type_id IN (?)
+                            AND tdt.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL';
+                        $parameters = array(1 => $datatypes_to_delete);
+                        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+                        $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            */
+            // Delete any leftover ThemeDatatype entries that refer to $datatypes_to_delete...these would be other datatypes linking to the ones being deleted
+            // (if block above is commented, then it'll also arbitrarily delete themeDatatype entries for child datatypes)
+            $query_str =
+                'UPDATE odr_theme_data_type AS tdt
+                SET tdt.deletedAt = NOW(), tdt.deletedBy = '.$user->getId().'
+                WHERE tdt.data_type_id IN (?)
+                AND tdt.deletedAt IS NULL';
+            $parameters = array(1 => $datatypes_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+            /*
+                        // Delete all ThemeDatafield entries
+                        $query_str =
+                           'UPDATE odr_theme_data_field AS tdf, odr_theme_element AS te, odr_theme AS t
+                            SET tdf.deletedAt = NOW(), tdf.deletedBy = '.$user->getId().'
+                            WHERE tdf.theme_element_id = te.id AND te.theme_id = t.id
+                            AND t.data_type_id IN (?)
+                            AND tdf.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL';
+                        $parameters = array(1 => $datatypes_to_delete);
+                        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+                        $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            */
+            /*
+                        // Delete all ThemeElement and ThemeElementMeta entries
+                        $query_str =
+                           'UPDATE odr_theme_element AS te, odr_theme_element_meta AS tem, odr_theme AS t
+                            SET te.deletedAt = NOW(), tem.deletedAt = NOW()
+                                te.deletedBy = '.$user->getId().'
+                            WHERE tem.theme_element_id = te.id AND te.theme_id = t.id
+                            AND t.data_type_id IN (?)
+                            AND te.deletedAt IS NULL AND tem.deletedAt IS NULL AND t.deletedAt IS NULL';
+                        $parameters = array(1 => $datatypes_to_delete);
+                        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+                        $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            */
+            // Delete all Theme and ThemeMeta entries
+            $query_str =
+                'UPDATE odr_theme AS t, odr_theme_meta AS tm
+                SET t.deletedAt = NOW(), tm.deletedAt = NOW(),
+                    t.deletedBy = '.$user->getId().'
+                WHERE tm.theme_id = t.id AND t.data_type_id IN (?)
+                AND t.deletedAt IS NULL AND tm.deletedAt IS NULL';
+            $parameters = array(1 => $datatypes_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+
+            // ----------------------------------------
+            // Get the ids of all DataTree entries that need to be deleted
+            $query = $em->createQuery(
+                'SELECT ancestor.id AS ancestor_id, dt.id AS dt_id
+                FROM ODRAdminBundle:DataTree AS dt
+                JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
+                WHERE (ancestor.id IN (:datatype_ids) OR descendant.id IN (:datatype_ids))
+                AND dt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            $results = $query->getArrayResult();
+
+            $ancestor_datatype_ids = array();
+            $datatree_ids = array();
+            foreach ($results as $dt) {
+                $ancestor_datatype_ids[] = $dt['ancestor_id'];
+                $datatree_ids[] = $dt['dt_id'];
+            }
+
+            // Shouldn't need to worry about duplicates...
+
+            // Delete all Datatree and DatatreeMeta entries
+            $query_str =
+                'UPDATE odr_data_tree AS dt, odr_data_tree_meta AS dtm
+                SET dt.deletedAt = NOW(), dtm.deletedAt = NOW(),
+                    dt.deletedBy = '.$user->getId().'
+                WHERE dtm.data_tree_id = dt.id AND dt.id IN (?)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL';
+            $parameters = array(1 => $datatree_ids);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+
+            // ----------------------------------------
+            /*
+                        // Delete Group, GroupMeta, GroupDatatypePermission, and GroupDatafieldPermission entries
+                        $query_str =
+                           'UPDATE odr_group AS g, odr_group_meta AS gm, odr_group_datatype_permissions AS gdtp, odr_group_datafield_permissions AS gdfp
+                            SET g.deletedAt = NOW(), gm.deletedAt = NOW(), gdtp.deletedAt = NOW(), gdfp.deletedAt = NOW(),
+                                g.deletedBy = '.$user->getId().'
+                            WHERE g.data_type_id IN (?)
+                            AND gm.group_id = g.id AND gdtp.data_type_id = g.id AND gdfp.data_type_id = g.id
+                            AND g.deletedAt IS NULL AND gm.deletedAt IS NULL AND gdtp.deletedAt IS NULL AND gdfp.deletedAt IS NULL';
+                        $parameters = array(1 => $datatypes_to_delete);
+                        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+                        $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            */
+
+            // Remove members from the Groups for this Datatype
+            $query_str =
+                'UPDATE odr_user_group AS ug
+                SET ug.deletedAt = NOW(), ug.deletedBy = '.$user->getId().'
+                WHERE ug.group_id IN (?)
+                AND ug.deletedAt IS NULL';
+            $parameters = array(1 => $groups_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+
+            // ----------------------------------------
+            // Delete all Datatype and DatatypeMeta entries
+            $query_str =
+                'UPDATE odr_data_type AS dt, odr_data_type_meta AS dtm
+                SET dt.deletedAt = NOW(), dtm.deletedAt = NOW(),
+                    dt.deletedBy = '.$user->getId().'
+                WHERE dtm.data_type_id = dt.id AND dt.id IN (?)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL';
+            $parameters = array(1 => $datatypes_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
+
+            // ----------------------------------------
+            // Ensure that the cached tag hierarchy doesn't reference this datatype anymore
+            $this->cache_service->delete('cached_tag_tree_'.$grandparent_datatype_id);
+
+            // Delete cached versions of all Datarecords of this Datatype if needed
+            if ($datatype->getId() == $grandparent_datatype_id) {
+                $query = $em->createQuery(
+                    'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.dataType = :datatype_id'
+                )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
+                $results = $query->getArrayResult();
+
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+                foreach ($results as $result) {
+                    $dr_id = $result['dr_id'];
+
+                    $this->cache_service->delete('cached_datarecord_'.$dr_id);
+                    $this->cache_service->delete('cached_table_data_'.$dr_id);
+                    $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
+                }
+            }
+
+
+            // ----------------------------------------
+            // Delete cached versions of datatypes that linked to this Datatype
+            foreach ($ancestor_datatype_ids as $num => $dt_id) {
+                $this->cache_service->delete('cached_datatype_'.$dt_id);
+                $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
+            }
+
+            // Delete cached versions of datarecords that linked into this Datatype
+            foreach ($datarecords_to_recache as $num => $dr_id) {
+                $this->cache_service->delete('cached_datarecord_'.$dr_id);
+                $this->cache_service->delete('cached_table_data_'.$dr_id);
+                $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
+            }
+
+
+            // ----------------------------------------
+            // Delete cached entries for Group and User permissions involving this Datatype
+            foreach ($groups_to_delete as $num => $group_id)
+                $this->cache_service->delete('group_'.$group_id.'_permissions');
+
+            foreach ($all_affected_users as $user) {
+                $user_id = $user['user_id'];
+                $this->cache_service->delete('user_'.$user_id.'_permissions');
+            }
+
+            // ...cached searches
+            $this->search_cache_service->onDatatypeDelete($datatype);
+
+            // ...cached datatype data
+            foreach ($datatypes_to_delete as $num => $dt_id) {
+                $this->cache_service->delete('cached_datatype_'.$dt_id);
+                $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
+
+                $this->cache_service->delete('dashboard_'.$dt_id);
+                $this->cache_service->delete('dashboard_'.$dt_id.'_public_only');
+            }
+
+            // ...cached theme data
+            foreach ($cached_themes_to_delete as $num => $t_id)
+                $this->cache_service->delete('cached_theme_'.$t_id);
+
+
+            // ...and the cached version of the datatree array
+            $this->cache_service->delete('top_level_datatypes');
+            $this->cache_service->delete('top_level_themes');
+            $this->cache_service->delete('cached_datatree_array');
+
+            // No error encountered, commit changes
+            $conn->commit();
+        }
+        catch (\Exception $e) {
+            // Don't commit changes if any error was encountered...
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollBack();
+
+            $source = 0xa6304ef8;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
     }
 
 

@@ -17,7 +17,7 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 // Services
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeService;
 use ODR\AdminBundle\Component\Service\SortService;
 // Other
 use Doctrine\ORM\EntityManager;
@@ -33,9 +33,9 @@ class SearchAPIService
     private $em;
 
     /**
-     * @var DatatypeInfoService
+     * @var DatatreeService
      */
-    private $dti_service;
+    private $dt_service;
 
     /**
      * @var SearchService
@@ -67,16 +67,16 @@ class SearchAPIService
      * SearchAPIService constructor.
      *
      * @param EntityManager $entity_manager
-     * @param DatatypeInfoService $datatypeInfoService
-     * @param SearchService $searchService
-     * @param SearchCacheService $searchCacheService
-     * @param SearchKeyService $searchKeyService
-     * @param SortService $sortService
+     * @param DatatreeService $datatree_service
+     * @param SearchService $search_service
+     * @param SearchCacheService $search_cache_service
+     * @param SearchKeyService $search_key_service
+     * @param SortService $sort_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
-        DatatypeInfoService $datatype_info_service,
+        DatatreeService $datatree_service,
         SearchService $search_service,
         SearchCacheService $search_cache_service,
         SearchKeyService $search_key_service,
@@ -84,7 +84,7 @@ class SearchAPIService
         Logger $logger
     ) {
         $this->em = $entity_manager;
-        $this->dti_service = $datatype_info_service;
+        $this->dt_service = $datatree_service;
         $this->search_service = $search_service;
         $this->search_cache_service = $search_cache_service;
         $this->search_key_service = $search_key_service;
@@ -1446,7 +1446,7 @@ class SearchAPIService
         // ----------------------------------------
         // In order to properly build the search arrays, all child/linked datatypes with some
         //  connection to this datatype need to be located first
-        $datatree_array = $this->dti_service->getDatatreeArray();
+        $datatree_array = $this->dt_service->getDatatreeArray();
 
         // Base setup for both arrays...
         $flattened_list = array();

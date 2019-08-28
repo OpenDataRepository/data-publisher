@@ -13,7 +13,13 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
+use Doctrine\DBAL\Connection as DBALConnection;
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Other
 use Doctrine\ORM\EntityManager;
@@ -57,7 +63,7 @@ class DatarecordInfoService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param TagHelperService $tagHelperService
+     * @param TagHelperService $tag_helper_service
      * @param CsrfTokenManager $token_manager
      * @param Logger $logger
      */

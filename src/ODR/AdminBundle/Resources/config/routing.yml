@@ -1685,6 +1685,15 @@ odr_api_get_dataset_single:
         dataset_uuid: '^[a-z0-9]+$'
         format: 'json'
 
+odr_api_delete_dataset:
+    path:  /api/{version}/dataset/{dataset_uuid}
+    defaults: { _controller: ODRAdminBundle:API:deleteDatasetByUUID, version: 'v3' }
+    methods: [ DELETE ]
+    requirements:
+        version: 'v\d+'
+        dataset_uuid: '^[a-z0-9]+$'
+        format: 'json'
+
 odr_api_create_dataset_from_template:
     path: /api/{version}/dataset
     defaults: { _controller: ODRAdminBundle:API:createdataset, _format: 'json', version: 'v3'}
