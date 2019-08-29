@@ -939,7 +939,7 @@ class DisplayController extends ODRCustomController
             }
             else {
                 // return new RedirectResponse($this->getParameter('site_baseurl') .'/uploads/images/' . $filename);
-                return new RedirectResponse($this->getParameter('site_baseurl') .'/uploads/images/' . $filename);
+                return new RedirectResponse('/uploads/images/' . $filename);
             }
         }
         catch (\Exception $e) {
