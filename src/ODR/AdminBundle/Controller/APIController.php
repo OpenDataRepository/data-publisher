@@ -67,6 +67,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -4193,57 +4194,63 @@ class APIController extends ODRCustomController
 
             // Ensure the image exists in decrypted format
             $image_path = realpath($this->getParameter('odr_web_directory') . '/' . $filename);     // realpath() returns false if file does not exist
-            if (!$image->isPublic() || !$image_path)
+            if (!$image->isPublic() || !$image_path) {
                 $image_path = $crypto_service->decryptImage($image_id, $filename);
 
-            $handle = fopen($image_path, 'r');
-            if ($handle === false)
-                throw new FileNotFoundException($image_path);
+                $handle = fopen($image_path, 'r');
+                if ($handle === false)
+                    throw new FileNotFoundException($image_path);
 
 
-            // Attach the original filename to the download
-            $display_filename = $image->getOriginalFileName();
-            if ($display_filename == null)
-                $display_filename = 'Image_' . $image->getId() . '.' . $image->getExt();
+                // Attach the original filename to the download
+                $display_filename = $image->getOriginalFileName();
+                if ($display_filename == null)
+                    $display_filename = 'Image_' . $image->getId() . '.' . $image->getExt();
 
-            // Set up a response to send the image back
-            $response = new StreamedResponse();
-            $response->setPrivate();
-            $response->headers->set('Content-Type', mime_content_type($image_path));
-            $response->headers->set('Content-Length', filesize($image_path));        // TODO - apparently this isn't sent?
-            $response->headers->set('Content-Disposition', 'attachment; filename="' . $display_filename . '";');
-            /*
-                        // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
-                        $response->headers->setCookie(
-                            new Cookie(
-                                'fileDownload', // name
-                                'true',         // value
-                                0,              // duration set to 'session'
-                                '/',            // default path
-                                null,           // default domain
-                                false,          // don't require HTTPS
-                                false           // allow cookie to be accessed outside HTTP protocol
-                            )
-                        );
-            */
-            //$response->sendHeaders();
+                // Set up a response to send the image back
+                $response = new StreamedResponse();
+                $response->setPrivate();
+                $response->headers->set('Content-Type', mime_content_type($image_path));
+                $response->headers->set('Content-Length', filesize($image_path));        // TODO - apparently this isn't sent?
+                $response->headers->set('Content-Disposition', 'attachment; filename="' . $display_filename . '";');
+                /*
+                            // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
+                            $response->headers->setCookie(
+                                new Cookie(
+                                    'fileDownload', // name
+                                    'true',         // value
+                                    0,              // duration set to 'session'
+                                    '/',            // default path
+                                    null,           // default domain
+                                    false,          // don't require HTTPS
+                                    false           // allow cookie to be accessed outside HTTP protocol
+                                )
+                            );
+                */
+                //$response->sendHeaders();
 
-            // Use symfony's StreamedResponse to send the decrypted image back in chunks to the user
+                // Use symfony's StreamedResponse to send the decrypted image back in chunks to the user
 
-            $response->setCallback(function () use ($handle) {
-                while (!feof($handle)) {
-                    $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
-                    echo $buffer;
-                    flush();
-                }
-                fclose($handle);
-            });
+                $response->setCallback(function () use ($handle) {
+                    while (!feof($handle)) {
+                        $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
+                        echo $buffer;
+                        flush();
+                    }
+                    fclose($handle);
+                });
 
-            // If image is non-public, delete the decrypted version off the server
-            if (!$image->isPublic())
-                unlink($image_path);
+                // If image is non-public, delete the decrypted version off the server
+                if (!$image->isPublic())
+                    unlink($image_path);
 
-            return $response;
+
+                return $response;
+            }
+            else {
+                return new RedirectResponse($this->getParameter('site_baseurl') .'/uploads/images/' . $filename);
+            }
+
         } catch (\Exception $e) {
             // Returning an error...do it in json
             $request->setRequestFormat('json');
