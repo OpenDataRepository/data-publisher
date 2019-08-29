@@ -3610,7 +3610,11 @@ class APIController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             // $token = $this->container->get('security.token_storage')->getToken();   // <-- will return 'anon.' when nobody is logged in
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            // $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+
+
+            // TODO this is currently used by public searches only.  Need to improve call to allow private.
+            $user = 'anon.';
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 
             // TODO - should permissions get involved on the template side?
