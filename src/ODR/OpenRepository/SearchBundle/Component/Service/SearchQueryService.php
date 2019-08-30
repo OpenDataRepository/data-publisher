@@ -156,7 +156,7 @@ class SearchQueryService
             'SELECT dr.id AS dr_id
             FROM odr_data_record AS dr
             JOIN odr_data_record_meta AS drm ON drm.data_record_id = dr.id
-            WHERE dr.data_type_id = :datatype_id AND drm.public_date <= CURRENT_DATE()
+            WHERE dr.data_type_id = :datatype_id AND drm.public_date <= CURRENT_TIMESTAMP()
             AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
 
         // 'str' => 'drm.public_date != :public_date',
@@ -167,7 +167,7 @@ class SearchQueryService
                 'SELECT dr.id AS dr_id
             FROM odr_data_record AS dr
             JOIN odr_data_record_meta AS drm ON drm.data_record_id = dr.id
-            WHERE dr.data_type_id = :datatype_id AND drm.public_date > CURRENT_DATE()
+            WHERE dr.data_type_id = :datatype_id AND drm.public_date > CURRENT_TIMESTAMP()
             AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
         }
 

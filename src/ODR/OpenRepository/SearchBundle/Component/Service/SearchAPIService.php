@@ -121,11 +121,9 @@ class SearchAPIService
             $searchable_datafields = $this->search_service->getSearchableDatafields($top_level_datatype_id);
             foreach ($searchable_datafields as $dt_id => $datatype_data) {
                 $is_public = true;
-                // print  $datatype_data['dt_public_date'];exit();
-                // $public_date = \DateTime::createFromFormat ( "Y-m-d H:i:s", $datatype_data['dt_public_date']);
-                // if ($datatype_data['dt_public_date'] === '2200-01-01')
-                // if ($datatype_data['dt_public_date'] <= new \DateTime())
-                if ($datatype_data['dt_public_date'] <= new \DateTime())
+
+                $public_date = \DateTime::createFromFormat ( "Y-m-d H:i:s", $datatype_data['dt_public_date']);
+                if ($public_date > new \DateTime("now", new \DateTimeZone('UTC')))
                     $is_public = false;
 
                 $can_view_dt = false;
