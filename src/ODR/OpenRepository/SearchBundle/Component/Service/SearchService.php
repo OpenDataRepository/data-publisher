@@ -2060,7 +2060,8 @@ class SearchService
                         $df_id = $result['df_id'];
                         $df_uuid = $result['df_uuid'];    // required for cross-template searching
 
-                        if ($result['df_public_date']->format('Y-m-d') !== '2200-01-01') {
+                        // if ($result['df_public_date']->format('Y-m-d') !== '2200-01-01') {
+                        if ($result['df_public_date'] <= new \DateTime()) {
                             $df_list['datafields'][$df_id] = array(
                                 'searchable' => $searchable,
                                 'typeclass' => $typeclass,
