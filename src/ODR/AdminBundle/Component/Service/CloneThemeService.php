@@ -26,7 +26,6 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
-use Symfony\Component\Filesystem\LockHandler;
 
 
 class CloneThemeService
@@ -41,6 +40,11 @@ class CloneThemeService
      * @var CacheService
      */
     private $cache_service;
+
+    /**
+     * @var LockService
+     */
+    private $lock_service;
 
     /**
      * @var PermissionsManagementService
@@ -63,19 +67,22 @@ class CloneThemeService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param PermissionsManagementService $pm_service
+     * @param LockService $lock_service
+     * @param PermissionsManagementService $permissions_service
      * @param ThemeInfoService $theme_service
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        LockService $lock_service,
         PermissionsManagementService $permissions_service,
         ThemeInfoService $theme_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->lock_service = $lock_service;
         $this->pm_service = $permissions_service;
         $this->theme_service = $theme_service;
         $this->logger = $logger;
@@ -400,10 +407,10 @@ class CloneThemeService
 
         // Bad Things (tm) happen if multiple processes attempt to synchronize the same theme at
         //  the same time, so use Symfony's LockHandler component to prevent that...
-        $lockHandler = new LockHandler('theme_'.$theme->getId().'_sync.lock');
-        if (!$lockHandler->lock()) {
+        $lockHandler = $this->lock_service->createLock('theme_'.$theme->getId().'_sync.lock', 900.0);    // acquire lock for 15 minutes?
+        if ( !$lockHandler->acquire() ) {
             // Another process is already synchronizing this theme...block until it's done...
-            $lockHandler->lock(true);
+            $lockHandler->acquire(true);
             // ...then abort the synchronization without duplicating any changes
             return false;
         }
@@ -497,6 +504,9 @@ class CloneThemeService
         $this->cache_service->delete('associated_datatypes_for_'.$theme->getDataType()->getId());   // this is already a top-level theme for a grandparent datatype
 
         $this->logger->info('----------------------------------------');
+
+        // Can release the lock on the theme cloning now
+        $lockHandler->release();
 
         // Return that changes were made
         return true;

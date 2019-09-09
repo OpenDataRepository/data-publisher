@@ -890,57 +890,73 @@ class DisplayController extends ODRCustomController
             if ($handle === false)
                 throw new FileNotFoundException($image_path);
 
-            // Have to send image headers first...
-            $response = new Response();
-            $response->setPrivate();
-            switch ( strtolower($image->getExt()) ) {
-                case 'gif':
-                    $response->headers->set('Content-Type', 'image/gif');
-                    break;
-                case 'png':
-                    $response->headers->set('Content-Type', 'image/png');
-                    break;
-                case 'jpg':
-                case 'jpeg':
-                    $response->headers->set('Content-Type', 'image/jpeg');
-                    break;
+
+            if ( $image->isPublic() ) {
+                // Since the image is public, it's expected to continue to exist...so return a
+                //  redirect to its current location instead of streaming its contents
+                $baseurl = $this->container->getParameter('site_baseurl');
+                $upload_dir = $image->getUploadDir();
+
+                $response = new RedirectResponse($baseurl.'/'.$upload_dir.'/'.$filename);
+
+                fclose($handle);
+                return $response;
             }
+            else {
+                // The image is not public...any decrypted version will only briefly exist, so need
+                //  to create/return a Reponse for the user to download it
+                $response = new Response();
+                $response->setPrivate();
+                switch (strtolower($image->getExt())) {
+                    case 'gif':
+                        $response->headers->set('Content-Type', 'image/gif');
+                        break;
+                    case 'png':
+                        $response->headers->set('Content-Type', 'image/png');
+                        break;
+                    case 'jpg':
+                    case 'jpeg':
+                        $response->headers->set('Content-Type', 'image/jpeg');
+                        break;
+                }
 
-            // Attach the image's original name to the headers...
-            $display_filename = $image->getOriginalFileName();
-            if ($display_filename == null)
-                $display_filename = 'Image_'.$image_id.'.'.$image->getExt();
-            $response->headers->set('Content-Disposition', 'inline; filename="'.$display_filename.'";');
+                // Attach the image's original name to the headers...
+                $display_filename = $image->getOriginalFileName();
+                if ($display_filename == null)
+                    $display_filename = 'Image_'.$image_id.'.'.$image->getExt();
+                $response->headers->set('Content-Disposition', 'inline; filename="'.$display_filename.'";');
 
-            $response->sendHeaders();
+                $response->sendHeaders();
 
-            // After headers are sent, send the image itself
-            $im = null;
-            switch ( strtolower($image->getExt()) ) {
-                case 'gif':
-                    $im = imagecreatefromgif($image_path);
-                    imagegif($im);
-                    break;
-                case 'png':
-                    $im = imagecreatefrompng($image_path);
-                    imagepng($im);
-                    break;
-                case 'jpg':
-                case 'jpeg':
-                    $im = imagecreatefromjpeg($image_path);
-                    imagejpeg($im);
-                    break;
+                // After headers are sent, send the image itself
+                $im = null;
+                switch (strtolower($image->getExt())) {
+                    case 'gif':
+                        $im = imagecreatefromgif($image_path);
+                        imagegif($im);
+                        break;
+                    case 'png':
+                        $im = imagecreatefrompng($image_path);
+                        imagepng($im);
+                        break;
+                    case 'jpg':
+                    case 'jpeg':
+                        $im = imagecreatefromjpeg($image_path);
+                        imagejpeg($im);
+                        break;
+                }
+                imagedestroy($im);
+
+                fclose($handle);
+
+                // If the image isn't public, delete the decrypted version so it can't be accessed
+                //  without going through symfony
+                if (!$image->isPublic())
+                    unlink($image_path);
+
+                // Return the previously created response
+                return $response;
             }
-            imagedestroy($im);
-
-            fclose($handle);
-
-            // If the image isn't public, delete the decrypted version so it can't be accessed without going through symfony
-            if ( !$image->isPublic() )
-                unlink($image_path);
-
-            // Return the previously created response
-            return $response;
         }
         catch (\Exception $e) {
             $source = 0xc2fbf062;

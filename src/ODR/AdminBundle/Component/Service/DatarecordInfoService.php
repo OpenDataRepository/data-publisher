@@ -17,6 +17,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -295,7 +296,7 @@ class DatarecordInfoService
             LEFT JOIN ts.updatedBy AS ts_ub
             LEFT JOIN ts.tag AS t
 
-            LEFT JOIN drf.dataField AS df
+            JOIN drf.dataField AS df
             LEFT JOIN df.dataFieldMeta AS dfm
             LEFT JOIN dfm.fieldType AS ft
 
@@ -336,7 +337,15 @@ class DatarecordInfoService
         //  object for each entity.  Therefore, the preceding query generates an array that needs
         //  to be slightly flattened in a few places.
         foreach ($datarecord_data as $dr_num => $dr) {
+            $dr_id = $dr['id'];
+
             // Flatten datarecord_meta
+            if ( count($dr['dataRecordMeta']) == 0 ) {
+                // ...throwing an exception here because this shouldn't ever happen, and also requires
+                //  manual intervention to fix...
+                throw new ODRException('Unable to rebuild the cached_datarecord_'.$dr_id.' array because of a database error for datarecord '.$dr_id);
+            }
+
             $drm = $dr['dataRecordMeta'][0];
             $datarecord_data[$dr_num]['dataRecordMeta'] = $drm;
             $datarecord_data[$dr_num]['createdBy'] = UserUtility::cleanUserData( $dr['createdBy'] );
@@ -383,22 +392,21 @@ class DatarecordInfoService
                 if ( $cdr_id == $dr['id'] )
                     continue;
 
-                if ($cdr_dt_id !== null &&  !isset($child_datarecords[$cdr_dt_id]) )
+                if ( $cdr_dt_id !== null && !isset($child_datarecords[$cdr_dt_id]) )
                     $child_datarecords[$cdr_dt_id] = array();
 
-                if($cdr_id !== null)
+                if ( $cdr_id !== null )
                     $child_datarecords[$cdr_dt_id][] = $cdr_id;
             }
             foreach ($dr['linkedDatarecords'] as $child_num => $ldt) {
                 $ldr_id = $ldt['descendant']['id'];
                 $ldr_dt_id = $ldt['descendant']['dataType']['id'];
 
-                if ($ldr_dt_id !== null && !isset($child_datarecords[$ldr_dt_id]) )
+                if ( $ldr_dt_id !== null && !isset($child_datarecords[$ldr_dt_id]) )
                     $child_datarecords[$ldr_dt_id] = array();
 
-                if($ldr_id !== null) {
+                if ( $ldr_id !== null )
                     $child_datarecords[$ldr_dt_id][] = $ldr_id;
-                }
             }
             $datarecord_data[$dr_num]['children'] = $child_datarecords;
             unset( $datarecord_data[$dr_num]['linkedDatarecords'] );
@@ -408,8 +416,15 @@ class DatarecordInfoService
             //  of some random number
             $new_drf_array = array();
             foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
-                // Not going to end up saving datafield/datafieldmeta...
+                // Not going to end up saving datafield/datafieldmeta...but ensure it exists anyways
                 $df_id = $drf['dataField']['id'];
+
+                if ( count($drf['dataField']['dataFieldMeta']) == 0 ) {
+                    // ...throwing an exception here because this shouldn't ever happen, and also
+                    //  requires manual intervention to fix...
+                    throw new ODRException('Unable to rebuild the cached_datarecord_'.$dr_id.' array because of a database error for datafield '.$df_id);
+                }
+
                 $drf['dataField']['dataFieldMeta'] = $drf['dataField']['dataFieldMeta'][0];
 
                 // Going to delete most of the sub arrays inside $drf that are empty...
@@ -423,6 +438,12 @@ class DatarecordInfoService
                 // Flatten file metadata and get rid of encrypt_key
                 foreach ($drf['file'] as $file_num => $file) {
                     unset( $drf['file'][$file_num]['encrypt_key'] );
+
+                    if ( count($file['fileMeta']) == 0 ) {
+                        // ...throwing an exception here because this shouldn't ever happen, and also
+                        //  requires manual intervention to fix...
+                        throw new ODRException('Unable to rebuild the cached_datarecord_'.$dr_id.' array because of a database error for file '.$file['id']);
+                    }
 
                     $fm = $file['fileMeta'][0];
                     $drf['file'][$file_num]['fileMeta'] = $fm;
@@ -439,6 +460,13 @@ class DatarecordInfoService
                     unset( $image['parent']['encrypt_key'] );
 
                     unset( $image['imageMeta'] );   // This is a phantom meta entry created for this image's thumbnail
+
+                    if ( count($image['parent']['imageMeta']) == 0 ) {
+                        // ...throwing an exception here because this shouldn't ever happen, and also
+                        //  requires manual intervention to fix...
+                        throw new ODRException('Unable to rebuild the cached_datarecord_'.$dr_id.' array because of a database error for image '.$image['parent']['id']);
+                    }
+
                     $im = $image['parent']['imageMeta'][0];
                     $image['parent']['imageMeta'] = $im;
 

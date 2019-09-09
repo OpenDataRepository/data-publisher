@@ -34,6 +34,9 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Forms
 use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
 use ODR\AdminBundle\Form\ODRUserProfileForm;
+// OAuth
+use HWI\Bundle\OAuthBundle\Security\OAuthUtils;
+use ODR\OpenRepository\OAuthServerBundle\OAuth\ClientManager;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
@@ -328,6 +331,7 @@ class ODRUserController extends ODRCustomController
 
             // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
             if ( $self_edit && $this->has('hwi_oauth.security.oauth_utils') ) {
+                /** @var OAuthUtils $oauth_utils */
                 $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
                 $resource_owners = $oauth_utils->getResourceOwners();
 
@@ -353,6 +357,7 @@ class ODRUserController extends ODRCustomController
             if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
                 $has_oauth_clients = true;
 
+                /** @var ClientManager $client_manager */
                 $client_manager = $this->get('odr.oauth_server.client_manager');
                 $owned_clients = $client_manager->getOwnedClients($user);
             }
@@ -475,6 +480,7 @@ class ODRUserController extends ODRCustomController
 
             // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
             if ( $self_edit && $this->has('hwi_oauth.security.oauth_utils') ) {
+                /** @var OAuthUtils $oauth_utils */
                 $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
                 $resource_owners = $oauth_utils->getResourceOwners();
 
@@ -500,6 +506,7 @@ class ODRUserController extends ODRCustomController
             if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
                 $has_oauth_clients = true;
 
+                /** @var ClientManager $client_manager */
                 $client_manager = $this->get('odr.oauth_server.client_manager');
                 $owned_clients = $client_manager->getOwnedClients($user);
             }

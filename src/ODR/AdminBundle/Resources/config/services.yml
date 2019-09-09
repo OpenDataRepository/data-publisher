@@ -49,6 +49,12 @@ services:
             $cache_service: "@snc_redis.default"
             $cache_prefix: "%memcached_key_prefix%"
 
+    odr.lock_service:
+        class: ODR\AdminBundle\Component\Service\LockService
+        arguments:
+            $redis_client: "@snc_redis.default"
+            $cache_prefix: "%memcached_key_prefix%"
+
     odr.crypto_service:
         class: ODR\AdminBundle\Component\Service\CryptoService
         arguments:
@@ -93,6 +99,7 @@ services:
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
+            $lock_service: "@odr.lock_service"
             $permissions_service: "@odr.permissions_management_service"
             $theme_service: "@odr.theme_info_service"
             $logger: "@monolog.logger.clone_theme"
@@ -107,6 +114,7 @@ services:
             $clone_theme_service: "@odr.clone_theme_service"
             $datatype_info_service: "@odr.datatype_info_service"
             $entity_creation_service: "@odr.entity_creation_service"
+            $lock_service: "@odr.lock_service"
             $permissions_service: "@odr.permissions_management_service"
             $theme_info_service: "@odr.theme_info_service"
             $uuid_service: "@odr.uuid_service"
@@ -195,6 +203,7 @@ services:
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
+            $lock_service: "@odr.lock_service"
             $uuid_service: "@odr.uuid_service"
             $logger: "@logger"
 

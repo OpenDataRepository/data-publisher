@@ -142,6 +142,11 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
                                 $entity = $drf['integerValue'];
                             }
                             break;
+                        case 'DecimalValue':
+                            if (isset($drf['decimalValue'])) {
+                                $entity = $drf['decimalValue'];
+                            }
+                            break;
                         case 'ShortVarchar':
                             if (isset($drf['shortVarchar'])) {
                                 $entity = $drf['shortVarchar'];

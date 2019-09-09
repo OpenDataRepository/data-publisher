@@ -13,7 +13,7 @@ odr_plugins.base.graph:
         pivot:
             name: Pivot Field 
             description: If multiple data sets are plotted, the pivot field will be displayed to allow the user to switch between data sets.
-            type: IntegerValue|ShortVarchar|MediumVarchar|LongVarchar
+            type: IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar
     config_options:
         graph_type:
             name: Graph Type

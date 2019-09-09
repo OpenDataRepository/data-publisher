@@ -31,7 +31,6 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
-use Symfony\Component\Filesystem\LockHandler;
 
 
 class CloneTemplateService
@@ -71,6 +70,11 @@ class CloneTemplateService
      * @var EntityCreationService
      */
     private $ec_service;
+
+    /**
+     * @var LockService
+     */
+    private $lock_service;
 
     /**
      * @var PermissionsManagementService
@@ -147,15 +151,16 @@ class CloneTemplateService
      * CloneTemplateService constructor.
      *
      * @param EntityManager $entity_manager
-     * @param EntityMetaModifyService $entityMetaModifyService
-     * @param CacheService $cacheService
-     * @param SearchCacheService $searchCacheService
-     * @param CloneThemeService $cloneThemeService
-     * @param DatatypeInfoService $datatypeInfoService
-     * @param EntityCreationService $entityCreationService
-     * @param PermissionsManagementService $pm_service
-     * @param ThemeInfoService $themeInfoService
-     * @param UUIDService $UUIDService
+     * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param CacheService $cache_service
+     * @param SearchCacheService $search_cache_service
+     * @param CloneThemeService $clone_theme_service
+     * @param DatatypeInfoService $datatype_info_service
+     * @param EntityCreationService $entity_creation_service
+     * @param LockService $lock_service
+     * @param PermissionsManagementService $permissions_service
+     * @param ThemeInfoService $theme_info_service
+     * @param UUIDService $uuid_service
      * @param Logger $logger
      */
     public function __construct(
@@ -166,6 +171,7 @@ class CloneTemplateService
         CloneThemeService $clone_theme_service,
         DatatypeInfoService $datatype_info_service,
         EntityCreationService $entity_creation_service,
+        LockService $lock_service,
         PermissionsManagementService $permissions_service,
         ThemeInfoService $theme_info_service,
         UUIDService $uuid_service,
@@ -178,6 +184,7 @@ class CloneTemplateService
         $this->ct_service = $clone_theme_service;
         $this->dti_service = $datatype_info_service;
         $this->ec_service = $entity_creation_service;
+        $this->lock_service = $lock_service;
         $this->pm_service = $permissions_service;
         $this->ti_service = $theme_info_service;
         $this->uuid_service = $uuid_service;
@@ -842,10 +849,10 @@ class CloneTemplateService
 
         // Bad Things (tm) happen if multiple processes attempt to synchronize the same template at
         //  the same time, so use Symfony's LockHandler component to prevent that...
-        $lockHandler = new LockHandler('datatype_'.$datatype->getId().'_sync_with_master.lock');
-        if (!$lockHandler->lock()) {
+        $lockHandler = $this->lock_service->createLock('datatype_'.$datatype->getId().'_sync_with_master.lock', 900.0);    // acquire lock for 15 minutes?
+        if ( !$lockHandler->acquire() ) {
             // Another process is already synchronizing this template...block until it's done...
-            $lockHandler->lock(true);
+            $lockHandler->acquire(true);
             // ...then abort the synchronization without duplicating any changes
             return false;
         }
@@ -1011,6 +1018,9 @@ class CloneTemplateService
         $datatype->setDatatypeType(null);
         $this->em->persist($datatype);
         $this->em->flush();
+
+        // Can release the lock on the template cloning now
+        $lockHandler->release();
 
         return true;
     }
