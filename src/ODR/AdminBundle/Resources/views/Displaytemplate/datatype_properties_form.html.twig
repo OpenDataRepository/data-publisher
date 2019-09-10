@@ -53,6 +53,13 @@
                 </div>
             {% endif %}
 
+            <div class="pure-control-group">
+                <label for="{{ datatype_form.newRecordsArePublic.vars.id }}">
+                    {{ datatype_form.newRecordsArePublic.vars.label }}
+                </label>
+                {{ form_errors(datatype_form.newRecordsArePublic) }}
+                {{ form_widget(datatype_form.newRecordsArePublic, { 'attr': {'style': 'width:auto'} }) }}
+            </div>
 
             <div class="pure-control-group">
                 <label for="{{ datatype_form.externalIdField.vars.id }}">

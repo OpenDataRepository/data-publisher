@@ -76,6 +76,12 @@ ODR\AdminBundle\Entity\DataTypeMeta:
             nullable: false
             column: public_date
 
+        newRecordsArePublic:
+            type: boolean
+            nullable: false
+            default: false
+            column: new_records_are_public
+
         created:
             type: datetime
             gedmo:

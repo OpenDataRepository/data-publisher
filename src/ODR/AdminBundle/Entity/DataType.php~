@@ -1078,6 +1078,16 @@ class DataType
     }
 
     /**
+     * Get newRecordsArePublic
+     *
+     * @return bool
+     */
+    public function getNewRecordsArePublic()
+    {
+        return $this->getDataTypeMeta()->getNewRecordsArePublic();
+    }
+
+    /**
      * Get externalIdField
      *
      * @return \ODR\AdminBundle\Entity\DataFields

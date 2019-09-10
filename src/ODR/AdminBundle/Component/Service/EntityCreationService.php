@@ -183,18 +183,20 @@ class EntityCreationService
         $datafield_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 
         $datafield_meta->setChildrenPerRow(1);
-        $datafield_meta->setRadioOptionNameSort(0);
-        $datafield_meta->setRadioOptionDisplayUnselected(0);
-        $datafield_meta->setTagsAllowNonAdminEdit(0);
-        $datafield_meta->setTagsAllowMultipleLevels(0);
+        $datafield_meta->setRadioOptionNameSort(false);
+        $datafield_meta->setRadioOptionDisplayUnselected(false);
+        $datafield_meta->setTagsAllowNonAdminEdit(false);
+        $datafield_meta->setTagsAllowMultipleLevels(false);
         if ( $fieldtype->getTypeClass() === 'File' || $fieldtype->getTypeClass() === 'Image' ) {
-            $datafield_meta->setAllowMultipleUploads(1);
-            $datafield_meta->setShortenFilename(1);
+            $datafield_meta->setAllowMultipleUploads(true);
+            $datafield_meta->setShortenFilename(true);
         }
         else {
-            $datafield_meta->setAllowMultipleUploads(0);
-            $datafield_meta->setShortenFilename(0);
+            $datafield_meta->setAllowMultipleUploads(false);
+            $datafield_meta->setShortenFilename(false);
         }
+        $datafield_meta->setNewFilesArePublic(false);    // Newly uploaded files/images default to non-public
+
         $datafield_meta->setCreatedBy($user);
         $datafield_meta->setUpdatedBy($user);
 
@@ -243,7 +245,11 @@ class EntityCreationService
 
         $datarecord_meta = new DataRecordMeta();
         $datarecord_meta->setDataRecord($datarecord);
-        $datarecord_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
+
+        if ( $datatype->getNewRecordsArePublic() )
+            $datarecord_meta->setPublicDate(new \DateTime());   // public
+        else
+            $datarecord_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // not public
 
         $datarecord_meta->setCreatedBy($user);
         $datarecord_meta->setUpdatedBy($user);
@@ -471,6 +477,8 @@ class EntityCreationService
 
         // Default to "not-public"
         $datatype_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
+
+        $datatype_meta->setNewRecordsArePublic(false);    // newly created datarecords default to not-public
 
         $datatype_meta->setMasterPublishedRevision(0);
         $datatype_meta->setMasterRevision(0);

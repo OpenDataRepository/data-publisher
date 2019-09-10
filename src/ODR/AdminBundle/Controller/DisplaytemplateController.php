@@ -2959,6 +2959,7 @@ class DisplaytemplateController extends ODRCustomController
                         'longName' => $submitted_data->getLongName(),
                         'description' => $submitted_data->getDescription(),
 
+                        'newRecordsArePublic' => $submitted_data->getNewRecordsArePublic(),
                     );
 
                     // These datafields are permitted to be null
@@ -3476,6 +3477,7 @@ class DisplaytemplateController extends ODRCustomController
                         'is_unique' => $submitted_data->getIsUnique(),
                         'allow_multiple_uploads' => $submitted_data->getAllowMultipleUploads(),
                         'shorten_filename' => $submitted_data->getShortenFilename(),
+                        'newFilesArePublic' => $submitted_data->getNewFilesArePublic(),
                         'children_per_row' => $submitted_data->getChildrenPerRow(),
                         'radio_option_name_sort' => $submitted_data->getRadioOptionNameSort(),
                         'radio_option_display_unselected' => $submitted_data->getRadioOptionDisplayUnselected(),

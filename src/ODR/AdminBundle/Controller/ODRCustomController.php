@@ -774,6 +774,7 @@ class ODRCustomController extends Controller
         /** @var DataRecordFields $drf */
         $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->find($datarecordfield_id);
         $typeclass = $drf->getDataField()->getFieldType()->getTypeClass();
+        $new_files_are_public = $drf->getDataField()->getNewFilesArePublic();
 
         // Get Symfony to guess the extension of the file via mimetype...a potential wrong extension shouldn't matter since Results::filedownloadAction() renames the file during downloads anyways
         $path_prefix = $this->getParameter('odr_web_directory').'/';
@@ -841,7 +842,12 @@ class ODRCustomController extends Controller
 
             $new_image_meta->setOriginalFileName($original_filename);
             $new_image_meta->setDisplayorder(0);    // TODO - actual display order?
-            $new_image_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public    TODO - let user decide default status
+
+            if ( $new_files_are_public )
+                $new_image_meta->setPublicDate(new \DateTime());   // public
+            else
+                $new_image_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // not public
+
             $new_image_meta->setCaption(null);
             $new_image_meta->setExternalId('');
 
@@ -854,7 +860,12 @@ class ODRCustomController extends Controller
             $new_file_meta->setFile($my_obj);
 
             $new_file_meta->setOriginalFileName($original_filename);
-            $new_file_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
+
+            if ( $new_files_are_public )
+                $new_file_meta->setPublicDate(new \DateTime());   // public
+            else
+                $new_file_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // not public
+
             $new_file_meta->setDescription(null);
             $new_file_meta->setExternalId('');
 

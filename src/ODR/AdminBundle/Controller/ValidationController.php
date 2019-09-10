@@ -15,16 +15,25 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataFieldsMeta;
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordMeta;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTreeMeta;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\FieldType;
+use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileMeta;
+use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageMeta;
+use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioOptionsMeta;
 use ODR\AdminBundle\Entity\RenderPlugin;
+use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeMeta;
+use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -383,6 +392,8 @@ class ValidationController extends ODRCustomController
 
             /** @var RenderPlugin $default_render_plugin */
             $default_render_plugin = $repo_render_plugin->findOneBy( array('pluginClassName' => 'odr_plugins.base.default') );
+            /** @var FieldType $default_fieldtype */
+            $default_fieldtype = $repo_fieldtype->find(9);    // shortvarchar
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
@@ -419,11 +430,12 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_datafields as $num => $df_id) {
+                    /** @var DataFields $df */
                     $df = $repo_datafield->find($df_id);
 
                     $dfm = new DataFieldsMeta();
                     $dfm->setDataField($df);
-                    $dfm->setFieldType( $repo_fieldtype->find(9) );     // shortvarchar
+                    $dfm->setFieldType($default_fieldtype);
                     $dfm->setRenderPlugin($default_render_plugin);
 
                     $dfm->setMasterRevision(0);
@@ -441,7 +453,7 @@ class ValidationController extends ODRCustomController
                     $dfm->setIsUnique(false);
                     $dfm->setRequired(false);
                     $dfm->setSearchable(0);
-                    $dfm->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
+                    $dfm->setPublicDate( new \DateTime('2200-01-01 00:00:00') );    // not public
 
                     $dfm->setChildrenPerRow(1);
                     $dfm->setRadioOptionNameSort(0);
@@ -483,11 +495,16 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_datarecords as $num => $dr_id) {
+                    /** @var DataRecord $dr */
                     $dr = $repo_datarecord->find($dr_id);
 
                     $drm = new DataRecordMeta();
                     $drm->setDataRecord($dr);
-                    $drm->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
+
+                    if ( $dr->getDataType()->getNewRecordsArePublic() )
+                        $drm->setPublicDate(new \DateTime());   // public
+                    else
+                        $drm->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // not public
 
                     $drm->setCreatedBy($user);
                     $drm->setUpdatedBy($user);
@@ -542,6 +559,7 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_datatypes as $num => $dt_id) {
+                    /** @var DataType $dt */
                     $dt = $repo_datatype->find($dt_id);
 
                     $dtm = new DataTypeMeta();
@@ -557,7 +575,7 @@ class ValidationController extends ODRCustomController
                     $dtm->setSearchNotesUpper(null);
                     $dtm->setSearchNotesLower(null);
 
-                    $dtm->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+                    $dtm->setPublicDate(new \DateTime('1980-01-01 00:00:00'));    // public
 
                     $dtm->setExternalIdField(null);
                     $dtm->setNameField(null);
@@ -602,13 +620,18 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_files as $num => $f_id) {
+                    /** @var File $file */
                     $file = $repo_file->find($f_id);
 
                     $fm = new FileMeta();
                     $fm->setFile($file);
                     $fm->setOriginalFileName('file_name');
                     $fm->setExternalId('');
-                    $fm->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+
+                    if ( $file->getDataField()->getNewFilesArePublic() )
+                        $fm->setPublicDate(new \DateTime());    // public
+                    else
+                        $fm->setPublicDate(new \DateTime('2200-01-01 00:00:00'));    // not public
 
                     $fm->setCreatedBy($user);
                     $fm->setUpdatedBy($user);
@@ -644,6 +667,7 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_images as $num => $i_id) {
+                    /** @var Image $image */
                     $image = $repo_image->find($i_id);
 
                     $im = new ImageMeta();
@@ -652,7 +676,11 @@ class ValidationController extends ODRCustomController
                     $im->setOriginalFileName('image name');
                     $im->setCaption('image caption');
                     $im->setExternalId('');
-                    $im->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+
+                    if ( $image->getDataField()->getNewFilesArePublic() )
+                        $im->setPublicDate(new \DateTime());    // public
+                    else
+                        $im->setPublicDate(new \DateTime('2200-01-01 00:00:00'));    // not public
 
                     $im->setCreatedBy($user);
                     $im->setUpdatedBy($user);
@@ -688,6 +716,7 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_radio_options as $num => $ro_id) {
+                    /** @var RadioOptions $ro */
                     $ro = $repo_radio_options->find($ro_id);
 
                     $rom = new RadioOptionsMeta();
@@ -731,6 +760,7 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_themes as $num => $t_id) {
+                    /** @var Theme $theme */
                     $theme = $repo_theme->find($t_id);
 
                     $tm = new ThemeMeta();
@@ -777,6 +807,7 @@ class ValidationController extends ODRCustomController
 
             if ($save) {
                 foreach ($missing_theme_elements as $num => $te_id) {
+                    /** @var ThemeElement $te */
                     $te = $repo_theme_element->find($te_id);
 
                     $tem = new ThemeElementMeta();

@@ -296,7 +296,7 @@ class DatarecordInfoService
             LEFT JOIN ts.updatedBy AS ts_ub
             LEFT JOIN ts.tag AS t
 
-            JOIN drf.dataField AS df
+            LEFT JOIN drf.dataField AS df
             LEFT JOIN df.dataFieldMeta AS dfm
             LEFT JOIN dfm.fieldType AS ft
 
@@ -416,7 +416,14 @@ class DatarecordInfoService
             //  of some random number
             $new_drf_array = array();
             foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
-                // Not going to end up saving datafield/datafieldmeta...but ensure it exists anyways
+                // Not going to end up saving datafield/datafieldmeta...but need to verify it exists
+                if ( !is_array($drf['dataField']) || count($drf['dataField']) == 0 ) {
+                    // If the dataField array is empty, then this is most likely a datarecordfield
+                    //  entry that references a deleted datafield
+
+                    // Not really an error, since deleting datafields doesn't also delete drf entries
+                    continue;
+                }
                 $df_id = $drf['dataField']['id'];
 
                 if ( count($drf['dataField']['dataFieldMeta']) == 0 ) {

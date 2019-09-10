@@ -636,38 +636,40 @@ class LinkController extends ODRCustomController
 
 
             // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name since they're already from the form
-            $datatype_meta_data = new DataTypeMeta();
-            $datatype_meta_data->setDataType($datatype);
-            $datatype_meta_data->setShortName('New Dataset');
-            $datatype_meta_data->setLongName('New Dataset');
+            $datatype_meta = new DataTypeMeta();
+            $datatype_meta->setDataType($datatype);
+            $datatype_meta->setShortName('New Dataset');
+            $datatype_meta->setLongName('New Dataset');
 
             /** @var RenderPlugin $default_render_plugin */
             $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
-            $datatype_meta_data->setRenderPlugin($default_render_plugin);
+            $datatype_meta->setRenderPlugin($default_render_plugin);
 
             // Default search slug to Dataset ID
-            $datatype_meta_data->setSearchSlug($datatype->getUniqueId());
-            $datatype_meta_data->setXmlShortName('');
+            $datatype_meta->setSearchSlug($datatype->getUniqueId());
+            $datatype_meta->setXmlShortName('');
 
             // Master Template Metadata
             // Once a child database is completely created from the master template, the creation process will update the revisions appropriately.
-            $datatype_meta_data->setMasterRevision(0);
-            $datatype_meta_data->setMasterPublishedRevision(0);
-            $datatype_meta_data->setTrackingMasterRevision(0);
+            $datatype_meta->setMasterRevision(0);
+            $datatype_meta->setMasterPublishedRevision(0);
+            $datatype_meta->setTrackingMasterRevision(0);
 
-            $datatype_meta_data->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
+            $datatype_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
 
-            $datatype_meta_data->setExternalIdField(null);
-            $datatype_meta_data->setNameField(null);
-            $datatype_meta_data->setSortField(null);
-            $datatype_meta_data->setBackgroundImageField(null);
+            $datatype_meta->setNewRecordsArePublic(false);    // newly created datarecords default to not-public
 
-            $datatype_meta_data->setCreatedBy($user);
-            $datatype_meta_data->setUpdatedBy($user);
-            $em->persist($datatype_meta_data);
+            $datatype_meta->setExternalIdField(null);
+            $datatype_meta->setNameField(null);
+            $datatype_meta->setSortField(null);
+            $datatype_meta->setBackgroundImageField(null);
+
+            $datatype_meta->setCreatedBy($user);
+            $datatype_meta->setUpdatedBy($user);
+            $em->persist($datatype_meta);
 
             // Ensure the "in-memory" version of the new datatype knows about its meta entry
-            $datatype->addDataTypeMetum($datatype_meta_data);
+            $datatype->addDataTypeMetum($datatype_meta);
             $em->flush();
 
 

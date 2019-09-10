@@ -1313,6 +1313,8 @@ class DatatypeController extends ODRCustomController
 
                     $submitted_data->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 
+                    $submitted_data->setNewRecordsArePublic(false);    // newly created datarecords default to not-public
+
                     $submitted_data->setExternalIdField(null);
                     $submitted_data->setNameField(null);
                     $submitted_data->setSortField(null);
