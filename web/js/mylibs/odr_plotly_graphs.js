@@ -792,6 +792,7 @@ function lineChartPlotly(chart_obj, onComplete) {
             }
 
             // Is tracking loaded_data useful?
+            var trace_count = 0;
             var loaded_data = [];
             for (var display_order in file_data) {
                 var file = file_data[display_order];
@@ -805,102 +806,134 @@ function lineChartPlotly(chart_obj, onComplete) {
                         var x = [];
                         var y = [];
                         for (var i = 0; i < lines.length; i++) {
-                            var values = lines[i].split(",")
+                            var values = lines[i].split(",");
                             for(var j in values) {
-                                values[j] = values[j].trim()
+                                values[j] = values[j].trim();
                             }
                             // Load the numeric values (both must be valid for line to be accepted
                             if(!values[0].match(/^#/) && (values[0].match(/^[0-9]/) || values[0].match(/^\.[0-9]/)) && !values[1].match(/^#/) && (values[1].match(/^[0-9]/) || values[1].match(/^\.[0-9]/))) {
-                                x.push(Number(values[0]))
-                                y.push(Number(values[1]))
+                                x.push(Number(values[0]));
+                                y.push(Number(values[1]));
                             }
                         }
 
                         // Build the trace object for Plotly
-                        var trace = {}
-                        trace.x = x
-                        trace.y = y
+                        var trace = {};
+                        trace.x = x;
+                        trace.y = y;
                         if (chart_obj.line_type != undefined) {
-                            trace.mode = chart_obj.line_type
+                            trace.mode = chart_obj.line_type;
                         }
                         else {
-                            trace.mode = 'lines'
+                            trace.mode = 'lines';
                         }
-                        trace.name = file.legend
+                        trace.name = file.legend;
+
+                        // When each file is being plotted with its own y-axis scaling, plotly
+                        //  requires each set of data to reference its own y-axis
+                        trace_count++;
+                        if ( chart_obj.normalize_y_axis === "yes" ) {
+                            if (trace_count === 1) {
+                                // Use the default value for first set of data
+                                trace.yaxis = 'y';
+                            }
+                            else {
+                                // Subsequent sets of data get "y2", "y3", "y4", etc
+                                trace.yaxis = 'y' + trace_count.toString();
+                            }
+                        }
 
                         // Add line to chart data
-                        chart_data.push(trace)
+                        chart_data.push(trace);
 
                         // Store that this data is loaded
-                        loaded_data[dr_id] = 1
+                        loaded_data[dr_id] = 1;
                     }
                 }
             }
 
-            var xaxis_settings = {}
+            // console.log( JSON.stringify(chart_obj) );
+
+            var xaxis_settings = {};
             if(chart_obj.x_axis_dir == "desc" && (chart_obj.x_axis_min == "auto" || chart_obj.x_axis_max == "auto")) {
-                xaxis_settings.autorange = 'reversed'
+                xaxis_settings.autorange = 'reversed';
             }
 
             if(chart_obj.x_axis_log == "yes")  {
-                xaxis_settings.type = 'log'
+                xaxis_settings.type = 'log';
             }
 
             if(chart_obj.x_axis_caption != "") {
-                xaxis_settings.title = chart_obj.x_axis_caption
+                xaxis_settings.title = chart_obj.x_axis_caption;
             }
 
             if (chart_obj.x_axis_tick_interval != "auto") {
-                xaxis_settings.dtick = chart_obj.x_axis_tick_interval
-                xaxis_settings.tick0 = chart_obj.x_axis_tick_start
+                xaxis_settings.dtick = chart_obj.x_axis_tick_interval;
+                xaxis_settings.tick0 = chart_obj.x_axis_tick_start;
             }
             else {
-                xaxis_settings.autottick = true
+                xaxis_settings.autottick = true;
             }
 
             if(chart_obj.x_axis_labels != "yes") {
-                xaxis_settings.showticklabels = false
+                xaxis_settings.showticklabels = false;
             }
 
             if(chart_obj.x_axis_min != "auto" && chart_obj.x_axis_max != "auto" ) {
-                xaxis_settings.range = [ chart_obj.x_axis_min, chart_obj.x_axis_max ]
+                xaxis_settings.range = [ chart_obj.x_axis_min, chart_obj.x_axis_max ];
             }
 
-            xaxis_settings.showline = true
-            xaxis_settings.showgrid = true
-            xaxis_settings.zeroline = false
+            xaxis_settings.showline = true;
+            xaxis_settings.showgrid = true;
+            xaxis_settings.zeroline = false;
 
-            var yaxis_settings = {}
+            var yaxis_settings = {};
             if(chart_obj.y_axis_dir == "desc" && (chart_obj.y_axis_min == "auto" || chart_obj.y_axis_max == "auto")) {
-                yaxis_settings.autorange = 'reversed'
+                yaxis_settings.autorange = 'reversed';
             }
             if(chart_obj.y_axis_log == "yes") {
-                yaxis_settings.type = 'log'
+                yaxis_settings.type = 'log';
             }
 
             if(chart_obj.y_axis_caption != "") {
-                yaxis_settings.title = chart_obj.y_axis_caption
+                yaxis_settings.title = chart_obj.y_axis_caption;
             }
 
             if (chart_obj.y_axis_tick_interval != "auto") {
-                yaxis_settings.dtick = chart_obj.y_axis_tick_interval
-                yaxis_settings.tick0 = chart_obj.y_axis_tick_start
+                yaxis_settings.dtick = chart_obj.y_axis_tick_interval;
+                yaxis_settings.tick0 = chart_obj.y_axis_tick_start;
             }
             else {
-                yaxis_settings.autottick = true
+                yaxis_settings.autottick = true;
             }
 
             if(chart_obj.x_axis_labels != "yes") {
-                yaxis_settings.showticklabels = false
+                yaxis_settings.showticklabels = false;
             }
 
             if(chart_obj.y_axis_min != "auto" && chart_obj.y_axis_max != "auto" ) {
-                yaxis_settings.range = [ chart_obj.y_axis_min, chart_obj.y_axis_max ]
+                yaxis_settings.range = [ chart_obj.y_axis_min, chart_obj.y_axis_max ];
             }
 
-            yaxis_settings.showline = true
-            yaxis_settings.showgrid = true
-            yaxis_settings.zeroline = false
+            yaxis_settings.zeroline = false;
+
+
+            if ( chart_obj.normalize_y_axis === "no" || trace_count < 2 ) {
+                // Gridlines and ticks make sense here because all files are going to be displayed
+                //  with the exact same y-axis scaling
+                yaxis_settings.showline = true;
+                yaxis_settings.showgrid = true;
+
+                // Also, always display y-axis markers when there's only one file
+            }
+            else {
+                // These settings don't make sense when each file being graphed has its own
+                //  y-axis scaling...
+                yaxis_settings.showline = false;
+                yaxis_settings.showgrid = false;
+                yaxis_settings.showticklabels = false;
+                yaxis_settings.visible = false;
+            }
 
 
             var layout = {
@@ -920,8 +953,39 @@ function lineChartPlotly(chart_obj, onComplete) {
                 yaxis: yaxis_settings
             };
 
+            // When each set of data is being graphed with its own y-axis...
+            if ( chart_obj.normalize_y_axis === "yes" ) {
+                // ...then plotly requires a separate yaxis settings object for each set of data
+                var axis_basestr = 'yaxis';
+                for (i = 1; i <= trace_count; i++) {
+                    // The very first set of data doesn't need modified settings...
+                    if (i > 1) {
+                        // ...but all sets of data after the first need an additional property
+
+                        //  Need to create a copy of the original y-axis settings object...
+                        // NOTE - could also use json stringify() then json parse(), since this doesn't have any dates
+                        var settings_copy = jQuery.extend({}, yaxis_settings);
+                        var axis_str = axis_basestr + i.toString();
+
+                        layout[axis_str] = settings_copy;
+
+                        if ( i === 2 ) {
+                            // The second set of data needs to overlay the first y-axis
+                            layout[axis_str].overlaying = 'y';
+                        }
+                        else {
+                            // The third/fourth/etc sets of data need to overlay the previous y-axis
+                            layout[axis_str].overlaying = 'y' + (i - 1).toString();
+                        }
+                    }
+                }
+            }
+
+            // console.log( JSON.stringify(layout) );
+
+
             // Create responsive div for automatic resizing
-            var graph_div = plotlyResponsiveDiv(chart_obj)
+            var graph_div = plotlyResponsiveDiv(chart_obj);
             Plotly.newPlot(graph_div, chart_data, layout).then(
                 onComplete(chart_obj)
             )
