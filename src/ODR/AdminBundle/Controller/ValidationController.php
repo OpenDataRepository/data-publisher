@@ -1322,6 +1322,8 @@ class ValidationController extends ODRCustomController
             );
             $query->execute();
 
+            print "Deleting these datatree and their datatree_meta entries...\n".print_r($datatree_ids, true)."\n\n";
+
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:DataTreeMeta AS dtm
                 SET dtm.deletedAt = :now
@@ -1766,10 +1768,11 @@ class ValidationController extends ODRCustomController
      *
      * @return Response
      */
-    public function finddatatypeswithoutmasterthemesAction(Request $request)
+    public function finddatatypeswithoutmasterthemesAction($check_top_level, Request $request)
     {
-//        $top_level = false;
         $top_level = true;
+        if ( $check_top_level == 0 )
+            $top_level = false;
 
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();

@@ -30,8 +30,9 @@ ODR\AdminBundle\Entity\Tags:
         # derived.  If not template derived, the tag is custom made and has it's own unique id.
         tagUuid:
             type: string
-            length: 36
+            length: 32
             nullable: true
+            default: ''
             column: tag_uuid
 
         created:

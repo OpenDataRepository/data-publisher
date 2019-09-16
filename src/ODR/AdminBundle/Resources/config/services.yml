@@ -258,7 +258,6 @@ services:
     odr.uuid_service:
         class: ODR\AdminBundle\Component\Service\UUIDService
         arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
             $logger: "@logger"
 
     # Defines a number of reusable classes to use inside Symfony forms

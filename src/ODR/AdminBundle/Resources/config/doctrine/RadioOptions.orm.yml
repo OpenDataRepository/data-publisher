@@ -30,8 +30,9 @@ ODR\AdminBundle\Entity\RadioOptions:
         # id.
         radioOptionUuid:
             type: string
-            length: 36
+            length: 32
             nullable: true
+            default: ''
             column: radio_option_uuid
 
         created:

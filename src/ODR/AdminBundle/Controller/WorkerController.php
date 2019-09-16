@@ -30,10 +30,11 @@ use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\RenderPlugin;
+use ODR\AdminBundle\Entity\Tags;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\OpenRepository\UserBundle\Entity\User;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -51,7 +52,6 @@ use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\UUIDService;
-use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -118,7 +118,7 @@ class WorkerController extends ODRCustomController
             $ret = '';
 
             // Grab necessary objects
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find( $user_id );
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find( $datarecord_id );
@@ -363,7 +363,7 @@ $ret .= '  Set current to '.$count."\n";
                 throw new ODRBadRequestException('Invalid Form');
 
             // Grab necessary objects
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -431,7 +431,7 @@ $ret .= '  Set current to '.$count."\n";
 
             // --------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 //            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             // TODO - check for permissions?  restrict rebuild of thumbnails to certain datatypes?
@@ -560,7 +560,7 @@ $ret .= '  Set current to '.$count."\n";
             if ($img == null)
                 throw new \Exception('Image '.$object_id.' has been deleted');
 
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find(2);    // TODO - need an actual system user...
 
             // Ensure the full-size image exists on the server
@@ -1080,9 +1080,10 @@ $ret .= '  Set current to '.$count."\n";
 
         // Load all top-level themes
         $query = $em->createQuery(
-           'SELECT partial t.{id, themeType}, partial dt.{id}
+           'SELECT partial t.{id, themeType}, partial dt.{id}, partial dtm.{id, shortName}
             FROM ODRAdminBundle:Theme AS t
             JOIN t.dataType AS dt
+            LEFT JOIN dt.dataTypeMeta AS dtm
             WHERE t = t.parentTheme'
         );
         $top_level_themes = $query->getArrayResult();
@@ -1186,7 +1187,7 @@ $ret .= '  Set current to '.$count."\n";
         $em = $this->getDoctrine()->getManager();
 
         try {
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
@@ -1205,6 +1206,8 @@ $ret .= '  Set current to '.$count."\n";
             $top_level_themes = self::computedependencies();
 //exit( '<pre>'.print_r($top_level_themes, true).'</pre>' );
 
+            $count = 0;
+
             // Want to be able to update deleted entities as well
             $em->getFilters()->disable('softdeleteable');
 
@@ -1214,36 +1217,52 @@ $ret .= '  Set current to '.$count."\n";
                 $datatype_id = $theme['dataType']['id'];
                 $theme_type = $theme['themeType'];
 
-                print "\n".'top_level_datatype: '.$datatype_id.' ('.$theme_type.')'."\n";
+                // Want the most recent name for this datatype
+                $datatype_name = 'ERROR';
+                foreach ($theme['dataType']['dataTypeMeta'] as $num => $dtm)
+                    $datatype_name = $dtm['shortName'];
+
+                $count++;
+                print "\n".$count.') top_level_datatype: '.$datatype_id.' "'.$datatype_name.'" ('.$theme_type.')'."\n";
 
                 $query = $em->createQuery(
                    'SELECT
                         partial t.{id},
                         partial dt.{id},
+                        partial dtm.{id, shortName},
                         partial te.{id},
                         partial tdt.{id, deletedAt},
                         partial c_dt.{id},
+                        partial c_dtm.{id, shortName},
                         partial gp_dt.{id},
                         partial c_t.{id}
 
                     FROM ODRAdminBundle:Theme AS t
                     JOIN t.dataType AS dt
+                    LEFT JOIN dt.dataTypeMeta AS dtm
                     JOIN t.themeElements AS te
                     JOIN te.themeDataType AS tdt
                     JOIN tdt.dataType AS c_dt
+                    LEFT JOIN c_dt.dataTypeMeta AS c_dtm
                     JOIN c_dt.grandparent AS gp_dt
                     LEFT JOIN tdt.childTheme AS c_t
                     WHERE t.parentTheme = :theme_id'
                 )->setParameters( array('theme_id' => $theme_id) );
                 $results = $query->getArrayResult();
 
-//                print '<pre>'.print_r($results, true).'</pre>';  break;
+                if ( count($results) == 0 )
+                    print ' ~~ no theme_datatype entries'."\n";
 
                 foreach ($results as $num => $t) {
                     $dt_id = $t['dataType']['id'];
                     $t_id = $t['id'];
 
-                    print ' -- datatype: '.$dt_id.'  theme: '.$t_id."\n";
+                    // Want the most recent name for this datatype
+                    $dt_name = 'ERROR';
+                    foreach ($t['dataType']['dataTypeMeta'] as $num => $dtm)
+                        $dt_name = $dtm['shortName'];
+
+                    print ' -- datatype: '.$dt_id.' "'.$dt_name.'" theme: '.$t_id."\n";
 
                     foreach ($t['themeElements'] as $num => $te) {
                         foreach ($te['themeDataType'] as $num => $tdt) {
@@ -1254,6 +1273,11 @@ $ret .= '  Set current to '.$count."\n";
                             $tdt_id = $tdt['id'];
                             $c_dt_id = $tdt['dataType']['id'];
                             $gp_dt_id = $tdt['dataType']['grandparent']['id'];
+
+                            // Want the most recent name for the targetted datatype
+                            $c_dt_name = 'ERROR';
+                            foreach ($tdt['dataType']['dataTypeMeta'] as $num => $dtm)
+                                $c_dt_name = $dtm['shortName'];
 
                             // Determine whether the child datatype id belongs to a linked datatype
                             $is_linked_datatype = false;
@@ -1268,6 +1292,7 @@ $ret .= '  Set current to '.$count."\n";
                                 print ' -- -- linked_datatype_id: '.$c_dt_id;
                             else
                                 print ' -- -- child_datatype_id: '.$c_dt_id;
+                            print ' "'.$c_dt_name.'"';
 
                             if ($is_deleted)
                                 print '  DELETED';
@@ -1288,7 +1313,6 @@ $ret .= '  Set current to '.$count."\n";
                             else {
                                 if ( $is_linked_datatype || count($sub_results) == 0 ) {
                                     if (!$is_deleted) {
-
                                         // ----------------------------------------
                                         /** @var ThemeDataType $theme_datatype */
                                         $theme_datatype = $repo_theme_datatype->find($tdt_id);
@@ -1409,6 +1433,8 @@ $ret .= '  Set current to '.$count."\n";
             $cache_service->delete('top_level_themes');
         }
         catch (\Exception $e) {
+            print '</pre>';
+
             // Don't want any changes made being saved to the database
             $em->getFilters()->enable('softdeleteable');
             $em->clear();
@@ -1447,7 +1473,7 @@ $ret .= '  Set current to '.$count."\n";
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
@@ -1534,7 +1560,7 @@ $ret .= '  Set current to '.$count."\n";
                         break;
 
                     default:
-                        print '<pre>Ecountered unrecognized plugin name "'.$render_plugin->getPluginName().'", marked as deleted</pre>';
+                        print '<pre>Encountered unrecognized plugin name "'.$render_plugin->getPluginName().'", marked as deleted</pre>';
                         if ($save)
                             $render_plugin->setDeletedAt(new \DateTime());
                         break;
@@ -1581,7 +1607,7 @@ $ret .= '  Set current to '.$count."\n";
             $em = $this->getDoctrine()->getManager();
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
@@ -1624,6 +1650,7 @@ $ret .= '  Set current to '.$count."\n";
                 $em->flush();
         }
         catch (\Exception $e) {
+            print '</pre>';
             $source = 0x675970ad;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
@@ -1653,16 +1680,15 @@ $ret .= '  Set current to '.$count."\n";
         $return['d'] = '';
 
         // NOTE - go into the orm files for each of these entities and disable the gedmo timestampable on update first
+        // NOTE - also ensure all datatypes/datarecords/datafields/files/images/radio options/tags have null unique_ids first
         $save = false;
 //        $save = true;
-
-        // TODO - ...were these going to be 100% random, or derived from id + ODR instance + entity type?
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
@@ -1671,6 +1697,7 @@ $ret .= '  Set current to '.$count."\n";
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var UUIDService $uuid_service */
             $uuid_service = $this->container->get('odr.uuid_service');
+
 
             if ($uuid_type === 'datatype') {
                 // Need all datatypes, as well as a list of which ones are top-level...
@@ -1742,41 +1769,20 @@ $ret .= '  Set current to '.$count."\n";
                 }
                 print '</pre>';
             }
-            else if ($uuid_type === 'field') {
+            else if ($uuid_type === 'datafield') {
                 print '<pre>';
-                // Need to get all current ids in use in order to determine uniqueness of a new id...
-                $query = $em->createQuery(
-                   'SELECT df.fieldUuid
-                    FROM ODRAdminBundle:DataFields AS df
-                    WHERE df.deletedAt IS NULL and df.fieldUuid IS NOT NULL'
-                );
-                $results = $query->getArrayResult();
-
-                $existing_ids = array();
-                foreach ($results as $num => $result)
-                    $existing_ids[ $result['fieldUuid'] ] = 1;
-
-                // Now that we have a list of the existing unique ids...
                 /** @var DataFields[] $datafields */
                 $datafields = $em->getRepository('ODRAdminBundle:DataFields')->findBy(
                     array('fieldUuid' => null)
                 );
-                // Only ~7k datafields, easily done with a single query
+                // Only ~7k datafields, should work with a single query
 
                 foreach ($datafields as $df) {
-                    // Keep generating ids until we come across one that's not in use
-                    $unique_id = UniqueUtility::uniqueIdReal();
-                    while ( isset($existing_ids[$unique_id]) )
-                        $unique_id = UniqueUtility::uniqueIdReal();
-
-                    // Now that we found one that's not in use, save it...
+                    $unique_id = $uuid_service->generateDatafieldUniqueId();
                     $df->setFieldUuid($unique_id);
 
                     print 'set datafield '.$df->getId().' to have unique id '.$unique_id."\n";
 
-                    // ...update the existing list of unique_ids so this one doesn't get used again
-                    $existing_ids[ $unique_id ] = 1;
-                    // ...and persist the datarecord
                     if ($save)
                         $em->persist($df);
                 }
@@ -1784,20 +1790,6 @@ $ret .= '  Set current to '.$count."\n";
             }
             else if ($uuid_type === 'radio') {
                 print '<pre>';
-                // Need to get all current ids in use in order to determine uniqueness of a new id...
-                $query = $em->createQuery(
-                   'SELECT ro.radioOptionUuid
-                    FROM ODRAdminBundle:RadioOptions AS ro
-                    WHERE ro.deletedAt IS NULL and ro.radioOptionUuid IS NOT NULL'
-                );
-                $results = $query->getArrayResult();
-
-                $existing_ids = array();
-                foreach ($results as $num => $result)
-                    $existing_ids[ $result['radioOptionUuid'] ] = 1;
-
-
-                // Now that we have a list of the existing unique ids...
                 /** @var RadioOptions[] $radio_options */
                 $radio_options = $em->getRepository('ODRAdminBundle:RadioOptions')->findBy(
                     array('radioOptionUuid' => null)
@@ -1805,39 +1797,37 @@ $ret .= '  Set current to '.$count."\n";
                 // Appears to be able to work in a single call
 
                 foreach ($radio_options as $ro) {
-                    // Keep generating ids until we come across one that's not in use
-                    $unique_id = UniqueUtility::uniqueIdReal();
-                    while ( isset($existing_ids[$unique_id]) )
-                        $unique_id = UniqueUtility::uniqueIdReal();
-
-                    // Now that we found one that's not in use, save it...
+                    $unique_id = $uuid_service->generateRadioOptionUniqueId();
                     $ro->setRadioOptionUuid($unique_id);
 
                     print 'set radio option '.$ro->getId().' to have unique id '.$unique_id."\n";
 
-                    // ...update the existing list of unique_ids so this one doesn't get used again
-                    $existing_ids[ $unique_id ] = 1;
-                    // ...and persist the datarecord
                     if ($save)
                         $em->persist($ro);
                 }
                 print '</pre>';
             }
+            else if ($uuid_type === 'tag') {
+                print '<pre>';
+                /** @var Tags[] $tags */
+                $tags = $em->getRepository('ODRAdminBundle:Tags')->findBy(
+                    array('tagUuid' => null)
+                );
+                // Appears to be able to work in a single call
+
+                foreach ($tags as $tag) {
+                    $unique_id = $uuid_service->generateTagUniqueId();
+                    $tag->setTagUuid($unique_id);
+
+                    print 'set tag '.$tag->getId().' to have unique id '.$unique_id."\n";
+
+                    if ($save)
+                        $em->persist($tag);
+                }
+                print '</pre>';
+            }
             else if ($uuid_type === 'image') {
                 print '<pre>';
-                // Need to get all current ids in use in order to determine uniqueness of a new id...
-                $query = $em->createQuery(
-                    'SELECT oi.unique_id
-                    FROM ODRAdminBundle:Image AS oi 
-                    WHERE oi.deletedAt IS NULL and oi.unique_id IS NOT NULL'
-                );
-                $results = $query->getArrayResult();
-
-                $existing_ids = array();
-                foreach ($results as $num => $result)
-                    $existing_ids[ $result['unique_id'] ] = 1;
-
-                // Now that we have a list of the existing unique ids...
                 /** @var Image[] $images */
                 $images = $em->getRepository('ODRAdminBundle:Image')->findBy(
                     array('unique_id' => null)
@@ -1845,19 +1835,11 @@ $ret .= '  Set current to '.$count."\n";
                 // Appears to be able to work in a single call
 
                 foreach ($images as $image) {
-                    // Keep generating ids until we come across one that's not in use
-                    $unique_id = UniqueUtility::uniqueIdReal(28);
-                    while ( isset($existing_ids[$unique_id]) )
-                        $unique_id = UniqueUtility::uniqueIdReal(28);
-
-                    // Now that we found one that's not in use, save it...
+                    $unique_id = $uuid_service->generateImageUniqueId();
                     $image->setUniqueId($unique_id);
 
                     print 'set image '.$image->getId().' to have unique id '.$unique_id."\n";
 
-                    // ...update the existing list of unique_ids so this one doesn't get used again
-                    $existing_ids[ $unique_id ] = 1;
-                    // ...and persist the datarecord
                     if ($save)
                         $em->persist($image);
                 }
@@ -1865,19 +1847,6 @@ $ret .= '  Set current to '.$count."\n";
             }
             else if ($uuid_type === 'file') {
                 print '<pre>';
-                // Need to get all current ids in use in order to determine uniqueness of a new id...
-                $query = $em->createQuery(
-                    'SELECT oi.unique_id
-                    FROM ODRAdminBundle:File AS oi 
-                    WHERE oi.deletedAt IS NULL and oi.unique_id IS NOT NULL'
-                );
-                $results = $query->getArrayResult();
-
-                $existing_ids = array();
-                foreach ($results as $num => $result)
-                    $existing_ids[ $result['unique_id'] ] = 1;
-
-                // Now that we have a list of the existing unique ids...
                 /** @var File[] $files */
                 $files = $em->getRepository('ODRAdminBundle:File')->findBy(
                     array('unique_id' => null)
@@ -1885,39 +1854,18 @@ $ret .= '  Set current to '.$count."\n";
                 // Appears to be able to work in a single call
 
                 foreach ($files as $file) {
-                    // Keep generating ids until we come across one that's not in use
-                    $unique_id = UniqueUtility::uniqueIdReal(28);
-                    while ( isset($existing_ids[$unique_id]) )
-                        $unique_id = UniqueUtility::uniqueIdReal(28);
-
-                    // Now that we found one that's not in use, save it...
+                    $unique_id = $uuid_service->generateFileUniqueId();
                     $file->setUniqueId($unique_id);
 
                     print 'set file '.$file->getId().' to have unique id '.$unique_id."\n";
 
-                    // ...update the existing list of unique_ids so this one doesn't get used again
-                    $existing_ids[ $unique_id ] = 1;
-                    // ...and persist the datarecord
                     if ($save)
                         $em->persist($file);
                 }
                 print '</pre>';
             }
-            else if ($uuid_type === 'record') {
+            else if ($uuid_type === 'datarecord') {
                 print '<pre>';
-                // Need to get all current ids in use in order to determine uniqueness of a new id...
-                $query = $em->createQuery(
-                   'SELECT dr.unique_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.deletedAt IS NULL and dr.unique_id IS NOT NULL'
-                );
-                $results = $query->getArrayResult();
-
-                $existing_ids = array();
-                foreach ($results as $num => $result)
-                    $existing_ids[ $result['unique_id'] ] = 1;
-
-
                 // Now that we have a list of the existing unique ids, load a pile of datarecords
                 //  that don't have a unique id yet
                 $query = $em->createQuery(
@@ -1926,27 +1874,19 @@ $ret .= '  Set current to '.$count."\n";
                     WHERE dr.unique_id IS NULL AND dr.deletedAt IS NULL'
                 );
                 // Can't go much above this, or the query will timeout apparently
-                $query->setMaxResults(15000);
+//                $query->setMaxResults(15000);
 
                 /** @var DataRecord[] $datarecords */
                 $datarecords = $query->getResult();
 
                 $count = 0;
                 foreach ($datarecords as $dr) {
-                    // Keep generating ids until we come across one that's not in use
-                    $unique_id = UniqueUtility::uniqueIdReal();
-                    while ( isset($existing_ids[$unique_id]) )
-                        $unique_id = UniqueUtility::uniqueIdReal();
-
-                    // Now that we found one that's not in use, save it...
+                    $unique_id = $uuid_service->generateDatarecordUniqueId();
                     $dr->setUniqueId($unique_id);
 
                     print 'set datarecord '.$dr->getId().' to have unique id '.$unique_id."\n";
                     $count++;
 
-                    // ...update the existing list of unique_ids so this one doesn't get used again
-                    $existing_ids[ $unique_id ] = 1;
-                    // ...and persist the datarecord
                     if ($save)
                         $em->persist($dr);
 
@@ -1960,6 +1900,8 @@ $ret .= '  Set current to '.$count."\n";
                 $em->flush();
         }
         catch (\Exception $e) {
+            print '</pre>';
+
             $source = 0x74a51771;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
@@ -1992,7 +1934,7 @@ $ret .= '  Set current to '.$count."\n";
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
@@ -2028,55 +1970,5 @@ $ret .= '  Set current to '.$count."\n";
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'text/html');
         return $response;
-    }
-
-
-    public function asdfAction(Request $request)
-    {
-        try {
-/*
-            $array = array(
-                "fields" => array(
-//                    0 => array(
-//                        "field_name" => "Astrobiology Disciplines",
-//                        "selected_options" => array(
-//                            0 => array(
-//                                "name" => "geochemistry",
-//                                "template_radio_option_uuid" => "0730d71",
-//                            )
-//                        ),
-//                        "template_field_uuid" => "cfc0199",
-//                    )
-                    0 => array(
-//                        "field_name" => "Dataset Name",
-                        "value" => "c",
-                        "template_field_uuid" => "08088a9"
-//                        "template_field_uuid" => "a4b7180"
-                    )
-                ),
-                "general" => "",
-                "sort_by" => array(
-//                    0 => array(
-//                        "dir" => "asc",
-//                        "template_field_uuid" => "08088a9",
-//                    )
-                ),
-//                "template_name" => "AHED Core 1.0 Properties",
-                "template_uuid" => "2ea627b",
-            );
-
-            $json = json_encode($array);
-//            exit( '<pre>'.print_r($json, true).'</pre>' );
-            $base64 = base64_encode($json);
-            exit( '<pre>'.print_r($base64, true).'</pre>' );
-*/
-        }
-        catch (\Exception $e) {
-            $source = 0xd895a5e6;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
     }
 }
