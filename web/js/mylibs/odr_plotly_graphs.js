@@ -969,13 +969,11 @@ function lineChartPlotly(chart_obj, onComplete) {
 
                         layout[axis_str] = settings_copy;
 
-                        if ( i === 2 ) {
-                            // The second set of data needs to overlay the first y-axis
+                        if ( i >= 2 ) {
+                            // All sets of data after the first need to overlay the ORIGINAL y-axis
+                            // Apparently, attempting to overlay "y2" or "y3" only results in
+                            //  displaying the very last plot
                             layout[axis_str].overlaying = 'y';
-                        }
-                        else {
-                            // The third/fourth/etc sets of data need to overlay the previous y-axis
-                            layout[axis_str].overlaying = 'y' + (i - 1).toString();
                         }
                     }
                 }
