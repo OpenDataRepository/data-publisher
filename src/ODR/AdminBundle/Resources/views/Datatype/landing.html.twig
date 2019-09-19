@@ -212,6 +212,7 @@
             'icon': 0
         } %}
         {% include 'ODRAdminBundle:Datatype:type_list_related_databases.html.twig' with {
+            'top_level_datatype': datatype,
             'datatypes': related_datatypes,
             'metadata': related_metadata,
             'datatype_permissions': datatype_permissions

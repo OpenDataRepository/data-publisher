@@ -158,11 +158,19 @@ services:
             $odr_web_dir: "%odr_web_directory%"
             $logger: "@logger"
 
+    odr.datatree_info_service:
+        class: ODR\AdminBundle\Component\Service\DatatreeInfoService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $logger: "@logger"
+
     odr.datatype_info_service:
         class: ODR\AdminBundle\Component\Service\DatatypeInfoService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $tag_helper_service: "@odr.tag_helper_service"
             $odr_web_dir: "%odr_web_directory%"
             $logger: "@logger"
@@ -211,6 +219,20 @@ services:
         class: ODR\AdminBundle\Component\Service\EntityMetaModifyService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
+            $logger: "@logger"
+
+    odr.entity_deletion_service:
+        class: ODR\AdminBundle\Component\Service\EntityDeletionService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
+            $datatype_info_service: "@odr.datatype_info_service"
+            $entity_meta_modify_service: "@odr.entity_meta_modify_service"
+            $permissions_management_service: "@odr.permissions_management_service"
+            $search_cache_service: "@odr.search_cache_service"
+            $search_service: "@odr.search_service"
+            $theme_info_service: "@odr.theme_info_service"
             $logger: "@logger"
 
     odr.render_service:

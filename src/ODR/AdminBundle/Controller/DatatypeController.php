@@ -34,6 +34,7 @@ use ODR\AdminBundle\Form\UpdateDatatypePropertiesForm;
 use ODR\AdminBundle\Form\CreateDatatypeForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
@@ -339,9 +340,10 @@ class DatatypeController extends ODRCustomController
 
 
     /**
-     * TODO -
+     * Takes a unique_id or a search slug string, and returns a redirect to the datatype the string
+     * refers to.
      *
-     * @param $datatype_unique_id
+     * @param string $datatype_unique_id
      * @param Request $request
      *
      * @return Response
@@ -425,7 +427,8 @@ class DatatypeController extends ODRCustomController
 
 
     /**
-     * TODO -
+     * Renders and returns the HTML for a datatype's "landing" page...has links for administration
+     * and for listing related datatypes.
      *
      * @param $datatype_id
      * @param Request $request
@@ -443,8 +446,8 @@ class DatatypeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatatreeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -453,6 +456,7 @@ class DatatypeController extends ODRCustomController
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
+            $grandparent_datatype = $datatype->getGrandparent();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -475,14 +479,20 @@ class DatatypeController extends ODRCustomController
             }
             else {
                 // Ensure user has permissions to be doing this
-                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                if ( !$pm_service->canViewDatatype($user, $datatype) )
                     throw new ODRForbiddenException();
 
                 $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
 
                 // ----------------------------------------
-                // TODO - should this also be pulling linked datatypes?  cause right now that'll only work when they're created via templates...
+                // Need to locate all datatypes that link to and are linked to by the requested datatype
+                $datatree_array = $dti_service->getDatatreeArray();
+                $linked_anestors = $dti_service->getLinkedAncestors( array($grandparent_datatype->getId()), $datatree_array );
+                $linked_descendants = $dti_service->getLinkedDescendants( array($grandparent_datatype->getId()), $datatree_array );
+
+                $linked_datatypes = array_merge($linked_anestors, $linked_descendants);
+
                 // Get Data for Related Records
                 $query = $em->createQuery(
                    'SELECT dt, dtm, partial gp.{id}, md, mf, dt_cb, dt_ub
@@ -493,11 +503,13 @@ class DatatypeController extends ODRCustomController
                     LEFT JOIN dt.metadata_for AS mf
                     LEFT JOIN dt.createdBy AS dt_cb
                     LEFT JOIN dt.updatedBy AS dt_ub
-                    WHERE dt.template_group LIKE :template_group AND dt.setup_step IN (:setup_steps)
+                    WHERE dt.setup_step IN (:setup_steps)
+                    AND (dt.template_group LIKE :template_group OR dt.id IN (:linked_datatypes))
                     AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND gp.deletedAt IS NULL'
                 )->setParameters(
                     array(
                         'template_group' => $datatype->getTemplateGroup(),
+                        'linked_datatypes' => $linked_datatypes,
                         'setup_steps' => DataType::STATE_VIEWABLE
                     )
                 );
@@ -522,7 +534,8 @@ class DatatypeController extends ODRCustomController
                         $dt['metadata_for'] = $result['metadata_for'];
                     }
 
-                    $dt['associated_datatypes'] = $dti_service->getAssociatedDatatypes(array($dt_id));
+                    // TODO - why was this data loaded?  it wasn't used in the twig files...
+//                    $dt['associated_datatypes'] = $dti_service->getAssociatedDatatypes(array($dt_id));
                     $datatypes[$dt_id] = $dt;
                 }
 
@@ -652,7 +665,8 @@ class DatatypeController extends ODRCustomController
                     $dt['metadata_for'] = $result['metadata_for'];
                 }
 
-                $dt['associated_datatypes'] = $dti_service->getAssociatedDatatypes(array($dt_id));
+                // TODO - why was this data loaded?  it wasn't used in the twig files...
+//                $dt['associated_datatypes'] = $dti_service->getAssociatedDatatypes(array($dt_id));
                 $datatypes[$dt_id] = $dt;
             }
 

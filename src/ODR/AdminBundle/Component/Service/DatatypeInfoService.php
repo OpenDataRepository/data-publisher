@@ -41,6 +41,11 @@ class DatatypeInfoService
     private $cache_service;
 
     /**
+     * @var DatatreeInfoService
+     */
+    private $dti_service;
+
+    /**
      * @var TagHelperService
      */
     private $th_service;
@@ -61,19 +66,22 @@ class DatatypeInfoService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
-     * @param TagHelperService $tagHelperService
+     * @param DatatreeInfoService $datatree_info_service
+     * @param TagHelperService $tag_helper_service
      * @param string $odr_web_dir
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        DatatreeInfoService $datatree_info_service,
         TagHelperService $tag_helper_service,
         $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->dti_service = $datatree_info_service;
         $this->th_service = $tag_helper_service;
         $this->odr_web_dir = $odr_web_dir;
         $this->logger = $logger;
@@ -152,6 +160,8 @@ class DatatypeInfoService
 
 
     /**
+     * @deprecated replace with DatatreeInfoService::getGrandparentDatatypeId()
+     *
      * Traverses the cached version of the datatree array in order to return the grandparent id
      * of the given datatype id.
      *
@@ -179,6 +189,8 @@ class DatatypeInfoService
 
 
     /**
+     * @deprecated replace with DatatreeInfoService::getDatatreeArray()
+     *
      * Utility function to returns the DataTree table in array format
      *
      * @return array
@@ -291,6 +303,8 @@ class DatatypeInfoService
 
 
     /**
+     * @deprecated replace with DatatreeInfoService::getAssociatedDatatypes()
+     *
      * This function locates all datatypes whose grandparent id is in $grandparent_datatype_ids,
      * then calls self::getLinkedDatatypes() to locate all datatypes linked to by these datatypes,
      * which calls this function again to locate any datatypes that are linked to by those
@@ -333,6 +347,8 @@ class DatatypeInfoService
 
 
     /**
+     * @deprecated replace with DatatreeInfoService::getLinkedDescendants()
+     *
      * Builds and returns a list of all datatypes linked to from the provided datatype ids.
      *
      * @param int[] $ancestor_ids
@@ -701,28 +717,20 @@ class DatatypeInfoService
     {
         // Whenever an edit is made to a datatype, each of its parents (if it has any) also need
         //  to be marked as updated
-        $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
-        $datatree_array = self::getDatatreeArray();
-
-        $dt = $datatype;
-        while (
-            isset($datatree_array['descendant_of'][$dt->getId()])
-            && $datatree_array['descendant_of'][$dt->getId()] !== ''
-        ) {
+        while ( $datatype->getId() !== $datatype->getParent()->getId() ) {
             // Mark this (non-top-level) datatype as updated by this user
-            $dt->setUpdatedBy($user);
-            $dt->setUpdated(new \DateTime());
-            $this->em->persist($dt);
+            $datatype->setUpdatedBy($user);
+            $datatype->setUpdated(new \DateTime());
+            $this->em->persist($datatype);
 
             // Continue locating parent datatypes...
-            $parent_dt_id = $datatree_array['descendant_of'][$dt->getId()];
-            $dt = $repo_datatype->find($parent_dt_id);
+            $datatype = $datatype->getParent();
         }
 
-        // $dt is now guaranteed to be top-level
-        $dt->setUpdatedBy($user);
-        $dt->setUpdated(new \DateTime());
-        $this->em->persist($dt);
+        // $datatype is now guaranteed to be top-level
+        $datatype->setUpdatedBy($user);
+        $datatype->setUpdated(new \DateTime());
+        $this->em->persist($datatype);
 
         // Save all changes made
         $this->em->flush();
@@ -730,7 +738,7 @@ class DatatypeInfoService
 
         // Child datatypes don't have their own cached entries, it's all contained within the
         //  cache entry for their top-level datatype
-        $this->cache_service->delete('cached_datatype_'.$dt->getId());
+        $this->cache_service->delete('cached_datatype_'.$datatype->getId());
     }
 
 
@@ -744,38 +752,30 @@ class DatatypeInfoService
      * which datatypes A needs to load...so any linking/unlinking needs to be propagated upwards...
      *
      * TODO - ...create a new CacheClearService and move every single cache clearing function into there instead?
+     * TODO - ...or should this be off in the DatatreeInfoService?
      *
      * @param array $datatype_ids array  dt_ids are values in the array, NOT keys
      */
     public function deleteCachedDatatypeLinkData($datatype_ids)
     {
-        $datatree_array = self::getDatatreeArray();
-        $datatypes_to_clear = array();
+        // Locate all datatypes that end up needing to load cache entries for the datatypes in
+        //  $datatype_ids...
+        $datatree_array = $this->dti_service->getDatatreeArray();
+        $all_linked_ancestors = $this->dti_service->getLinkedAncestors($datatype_ids, $datatree_array, true);
 
-        $datatypes_to_check = $datatype_ids;
-        while ( !empty($datatypes_to_check) ) {
-            // Determine whether anything links to the given datatypes...
-            $tmp = array();
-            foreach ($datatypes_to_check as $num => $dt_id) {
-                $datatypes_to_clear[$dt_id] = 1;
+        // Ensure the datatype that were originally passed in get the cache entry cleared
+        foreach ($datatype_ids as $num => $dt_id)
+            $all_linked_ancestors[] = $dt_id;
 
-                if ( isset($datatree_array['linked_from'][$dt_id]) ) {
-                    foreach ($datatree_array['linked_from'][$dt_id] as $num => $ancestor_id)
-                        $tmp[] = $ancestor_id;
-                }
-            }
-
-            $datatypes_to_check = $tmp;
-        }
-
-        // Clearing this cache entry for each of the ancestor records found ensures that the
+        // Clearing this cache entry for each of the ancestor datatypes found ensures that the
         //  newly linked/unlinked datarecords show up (or not) when they should
-        foreach ($datatypes_to_clear as $dt_id => $num)
+        foreach ($all_linked_ancestors as $num => $dt_id)
             $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
     }
 
 
     /**
+     * TODO - shouldn't this technically be in SortService?
      * Should be called whenever the default sort order of datarecords within a datatype changes.
      *
      * @param int $datatype_id

@@ -33,14 +33,13 @@
             <thead>
             <tr>
                 <th></th>
-                <th></th>
                 <th>Database Name</th>
                 <th>Records</th>
 
                 <th>Search</th>
                 <th>Dashboard</th>
                 <th>Created By</th>
-                <th>Delete</th>
+                <th>Description</th>
             </tr>
             </thead>
             <tbody>
@@ -50,10 +49,8 @@
                     Only show databases that are not "properties" databases.  Hide databases
                     that were created as part of a template group.
                 #}
-                {% if
-                    (datatype.metadata_for is defined and datatype.metadata_for is null)
-                    and
-                    (datatype.unique_id is null or datatype.unique_id == datatype.template_group)
+                {% if (datatype.metadata_for is defined and datatype.metadata_for is null)
+                    and (datatype.unique_id is null or datatype.unique_id == datatype.template_group)
                 %}
 
                     {% set datatype_meta = datatype.dataTypeMeta %}
@@ -104,25 +101,7 @@
                         <tr id="RowDataType_{{ datatype.id }}" {% if hidden_datatype %}class="ODRPublicDatatype ODRHidden"{% endif %}>
 
                             <td>{{ datatype.id }}</td>
-
-                            <td>
-                                <span class="ODRDatatypeInfoDiv">
-                                    <i class="fa fa-lg fa-info-circle"></i>
-                                    <span class="ODRDatatypeInfo">
-                                        <div>
-                                            <b>Created By: </b>{{ datatype.createdBy|user_string }}
-                                            <b> on </b>{{ datatype.created|date('Y-m-d') }}
-                                        </div>
-                                        <div>
-                                            <b>Description: </b>{{ datatype_meta.description }}
-                                        </div>
-                                    </span>
-                                </span>
-                            </td>
-
-
                             <td id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype_meta.longName }}</td>
-
 
                             {# number of datarecords for this datatype #}
                             {% set datarecord_count = 0 %}
@@ -130,7 +109,6 @@
                                 {% set datarecord_count = metadata[ datatype.id ] %}
                             {% endif %}
                             <td id="ODRDatarecordList_{{ datatype.id }}_count">{{ datarecord_count }}</td>
-
 
                             {# link to search this datatype #}
                             <td>
@@ -159,21 +137,8 @@
                                 </a>
                             </td>
 
-                            <td>
-                                {{ datatype.createdBy|user_string }} [{{ datatype.created|date('Y-m-d') }}]
-                            </td>
-
-                            {# deletion link for this datatype #}
-                            <td>
-                                {% if is_datatype_admin %}
-                                    <a id="ODRDatatypeList_{{ datatype.id }}_delete"
-                                       class="Pointer"
-                                       onclick="deleteDataType({{ datatype.id }});"
-                                    >
-                                        <i class="fa fa-lg fa-trash-o"></i>
-                                    </a>
-                                {% endif %}
-                            </td>
+                            <td>{{ datatype.createdBy|user_string }} [{{ datatype.created|date('Y-m-d') }}]</td>
+                            <td>{{ datatype_meta.description }}</td>
                         </tr>
                     {% endif %}
                 {% endif %}
@@ -193,12 +158,16 @@
                         "visible": false
                     },
                     {
-                        "targets": [1, 4, 5, 7],
+                        "targets": [3, 4],
                         "orderable": false,
                         "searchable": false
+                    },
+                    {
+                        "width": "30%",
+                        "targets": [6]
                     }
                 ],
-                "order": [[2, "asc"]],
+                "order": [[1, "asc"]],
                 "autoWidth": true,
                 "paging": false,
                 "fixedHeader": {
@@ -234,89 +203,6 @@
             redoRowClasses();
             {% endif %}
         });
-
-        function addDataRecord(urlpath, datatype_id) {
-            if (confirm('Are you sure you want to create a new record?')) {
-                var url = '{{ path('odr_record_add', { 'datatype_id': 0 }) }}';
-                url = url.substring(0, (url.length - 1));
-                url += datatype_id;
-
-                $.ajax({
-                    cache: false,
-                    type: 'GET',
-                    url: url,
-                    dataType: "json",
-                    success: function (data, textStatus, jqXHR) {
-                        // Reload this area of the page
-                        var datarecord_id = data.d.datarecord_id;
-
-                        var url = urlpath + '#{{ path('odr_record_edit', { 'datarecord_id': 0 }) }}';
-                        url = url.substring(0, (url.length - 1));
-                        url += datarecord_id;
-
-                        window.location = url;
-                    },
-                    error: function (jqXHR, textStatus, errorThrown) {
-                        // Don't need to do anything specific on an error
-                    },
-                    complete: function (jqXHR, textStatus) {
-                        // Get the xdebugToken from response headers
-                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                        // If the Sfjs object exists
-                        if (typeof Sfjs !== "undefined") {
-                            // Grab the toolbar element
-                            var currentElement = $('.sf-toolbar')[0];
-
-                            // Load the data of the given xdebug token into the current toolbar wrapper
-                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
-                        }
-                    }
-                });
-            }
-        }
-
-        function deleteDataType(datatype_id) {
-            // TODO This function needs to check for dependent databases via link tree.
-            var datatype_name = $("#ODRDatarecordList_" + datatype_id + "_name").html();
-
-            if (confirm("Are you sure you want to delete the \"" + datatype_name + "\" database and all associated records?")) {
-                // Delete the datatype selected
-                var url = '{{ path('odr_design_delete_datatype', { 'datatype_id': 0 }) }}';
-                url = url.substring(0, (url.length - 1));
-                url += datatype_id;
-
-                $.ajax({
-                    cache: false,
-                    type: 'GET',
-                    url: url,
-                    dataType: "json",
-                    success: function (data, textStatus, jqXHR) {
-                        // Delete the proper row from the page...
-                        var row = $( '#RowDataType_' + datatype_id );
-                        row.fadeOut('slow', function() {
-                            row.remove();
-                        });
-                    },
-                    error: function (jqXHR, textStatus, errorThrown) {
-                        // Don't need to do anything specific on an error
-                    },
-                    complete: function (jqXHR, textStatus) {
-                        // Get the xdebugToken from response headers
-                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                        // If the Sfjs object exists
-                        if (typeof Sfjs !== "undefined") {
-                            // Grab the toolbar element
-                            var currentElement = $('.sf-toolbar')[0];
-
-                            // Load the data of the given xdebug token into the current toolbar wrapper
-                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
-                        }
-                    }
-                });
-            }
-        }
 
         {% if hidden_datatype_count != 0 %}
         function redoRowClasses() {

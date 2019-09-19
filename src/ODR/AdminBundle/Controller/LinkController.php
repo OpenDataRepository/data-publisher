@@ -1054,7 +1054,7 @@ class LinkController extends ODRCustomController
 
             // Regardless of whether something got linked or unlinked, the cache entry
             //  'associated_datatypes_for_<dt_id>' only relies on the local datatype...
-            $dti_service->deleteCachedDatatypeLinkData( array($local_datatype_id) );
+            $dti_service->deleteCachedDatatypeLinkData( array($local_datatype->getGrandparent()->getId()) );
             // ...and the cache entry 'cached_search_dt_<dt_id>_linked_dr_parents' only depends
             //  on the remote datatype
             $search_cache_service->onLinkStatusChange($remote_datatype);

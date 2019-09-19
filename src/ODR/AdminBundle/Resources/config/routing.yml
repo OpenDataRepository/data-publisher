@@ -276,7 +276,7 @@ odr_datatype_find_landing:
     path:  /admin/find/landing/{datatype_unique_id}
     defaults: { _controller: ODRAdminBundle:Datatype:find_landing }
     requirements:
-        datatype_unique_id: '^[a-z0-9]+$'
+        datatype_unique_id: '^[a-zA-Z0-9\-\_]+$'
 
 odr_datatype_landing:
     path:  /admin/type/landing/{datatype_id}
@@ -1682,6 +1682,15 @@ odr_api_get_dataset_single:
     path:  /api/{version}/dataset/{dataset_uuid}.{_format}
     defaults: { _controller: ODRAdminBundle:API:getRecordByDatasetUUID, _format: json, version: 'v3' }
     methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+        dataset_uuid: '^[a-z0-9]+$'
+        format: 'json'
+
+odr_api_delete_dataset:
+    path:  /api/{version}/dataset/{dataset_uuid}
+    defaults: { _controller: ODRAdminBundle:API:deleteDatasetByUUID, version: 'v3' }
+    methods: [ DELETE ]
     requirements:
         version: 'v\d+'
         dataset_uuid: '^[a-z0-9]+$'

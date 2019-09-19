@@ -12,42 +12,32 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use Doctrine\ORM\EntityManager;
-use FOS\UserBundle\Command\ActivateUserCommand;
-use HWI\Bundle\OAuthBundle\Tests\Fixtures\FOSUser;
-use ODR\AdminBundle\Component\Service\EntityCreationService;
-use ODR\AdminBundle\Component\Service\DatatypeCreateService;
-use ODR\AdminBundle\Component\Service\UUIDService;
+// Entities
+use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Entity\Boolean;
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordMeta;
 use ODR\AdminBundle\Entity\DataTree;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\DecimalValue;
+use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileMeta;
 use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\LongVarchar;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RadioSelection;
-use ODR\AdminBundle\Entity\TagSelection;
-use ODR\AdminBundle\Entity\UserGroup;
-use ODR\AdminBundle\Form\LongVarcharForm;
-use ODR\OpenRepository\UserBundle\Entity\User;
-use PhpParser\Node\Expr\BinaryOp\ShiftLeft;
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-
-// Entities
-use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Image;
+use ODR\AdminBundle\Entity\RadioOptions;
+use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\Tags;
+use ODR\AdminBundle\Entity\TagSelection;
+use ODR\AdminBundle\Entity\UserGroup;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -56,20 +46,27 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
+use FOS\UserBundle\Model\UserManager;
+use HWI\Bundle\OAuthBundle\Tests\Fixtures\FOSUser;
 use ODR\AdminBundle\Component\Service\CacheService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordExportService;
+use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\DatatypeExportService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
+use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
+use Doctrine\ORM\EntityManager;
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -123,7 +120,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0xfd346a45;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -294,7 +291,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0x5dc89429;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -430,7 +427,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0x43dd4818;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -621,7 +618,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0xd12ec6ee;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -777,7 +774,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0x1c7b55d0;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -903,8 +900,7 @@ class APIController extends ODRCustomController
 
 
                 // Now get the json record and update it with the correct user_id ant date times
-                $json_metadata_record = $cache_service
-                    ->get('json_record_' . $metadata_record->getUniqueId());
+                $json_metadata_record = $cache_service->get('json_record_' . $metadata_record->getUniqueId());
 
 
                 if (!$json_metadata_record) {
@@ -927,7 +923,9 @@ class APIController extends ODRCustomController
                 // parse through and fix metadata
                 $json_metadata_record = self::checkRecord($json_metadata_record, $user, $date_value);
 
-                $cache_service->set('json_record_' . $metadata_record->getUniqueId(),  json_encode($json_metadata_record));
+                // TODO - can't cache data after it gets run through permissions...doing so means that
+                // TODO - the first user to access a record dictates what every subsequent user can see...
+//                $cache_service->set('json_record_' . $metadata_record->getUniqueId(),  json_encode($json_metadata_record));
 
                 // set the "datatype" to the metadata datatype
                 $datatype = $metadata_datatype;
@@ -1056,9 +1054,9 @@ class APIController extends ODRCustomController
             return $this->redirect($url);
 
         } catch (\Exception $e) {
-            $source = 0x89adf33e;
+            $source = 0xbb9d0e55;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2567,7 +2565,7 @@ class APIController extends ODRCustomController
                         $new_record_meta->setUpdated(new \DateTime());
                         $new_record_meta->setCreated(new \DateTime());
                         $new_record_meta->setDataRecord($new_record);
-                        $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:01.0Z'));
+                        $new_record_meta->setPublicDate(new \DateTime('2200-01-01T00:00:01.0Z'));    // TODO - user specified public status
 
                         // Need to persist and flush
                         $em->persist($new_record);
@@ -2660,8 +2658,7 @@ class APIController extends ODRCustomController
 
                 /** @var CacheService $cache_service */
                 $cache_service = $this->container->get('odr.cache_service');
-                $metadata_record = $cache_service
-                    ->get('json_record_' . $record_uuid);
+                $metadata_record = $cache_service->get('json_record_' . $record_uuid);
 
 
                 if (!$metadata_record) {
@@ -2704,7 +2701,10 @@ class APIController extends ODRCustomController
                 // Anon metadata records will always be public...
                 // Also need a filter to filter by permissions.  Really easy
                 // if the JSON had public/not-public as a field in all datapoints.
-                $cache_service->set('json_record_' . $record_uuid, json_encode($dataset));
+
+                // TODO - can't cache data after it gets run through permissions...doing so means that
+                // TODO - the first user to access a record dictates what every subsequent user can see...
+//                $cache_service->set('json_record_' . $record_uuid, json_encode($dataset));
 
                 /*
                 if ($changed) {
@@ -2746,7 +2746,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0x89adf33e;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2801,13 +2801,72 @@ class APIController extends ODRCustomController
 
 
         } catch (\Exception $e) {
-            $source = 0x722347a6;
+            $source = 0x530bdf46;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+    }
+
+    /**
+     * @param $version
+     * @param $dataset_uuid
+     * @param Request $request
+     * @return Response
+     */
+    public function deleteDatasetByUUIDAction($version, $dataset_uuid, Request $request)
+    {
+        // get user from post body
+        try {
+            /** @var EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            $content = $request->getContent();
+            if (!empty($content)) {
+                $data = json_decode($content, true); // 2nd param to get as array
+
+                // user
+                /** @var UserManager $user_manager */
+                $user_manager = $this->container->get('fos_user.user_manager');
+
+                /** @var ODRUser $user */
+                $user = $user_manager->findUserBy(array('email' => $data['user_email']));
+                if (is_null($user))
+                    throw new ODRNotFoundException('User');
+
+                /** @var DataType $datatype */
+                $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                    array(
+                        'unique_id' => $dataset_uuid
+                    )
+                );
+
+                /** @var PermissionsManagementService $pm_service */
+                $pm_service = $this->container->get('odr.permissions_management_service');
+                // Ensure user has permissions to be doing this
+                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                    throw new ODRForbiddenException();
+                // --------------------
+
+                /** @var EntityDeletionService $ed_service */
+                $ed_service = $this->container->get('odr.entity_deletion_service');
+                $ed_service->deleteDatatype($datatype, $user);
+
+                // Delete datatype
+                $response = new Response('Deleted', 200);
+                return $response;
+            } else {
+                throw new ODRBadRequestException('User must be identified for permissions check.');
+            }
+        } catch (\Exception $e) {
+            $source = 0x4e5cd01c;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-
     }
 
     public function fileDeleteByUUIDAction($version, $file_uuid, Request $request) {
@@ -2879,9 +2938,9 @@ class APIController extends ODRCustomController
             return $this->redirect($url);
 
         } catch (\Exception $e) {
-            $source = 0x8a83ef88;
+            $source = 0x238ad264;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3045,9 +3104,9 @@ class APIController extends ODRCustomController
             return $this->redirect($url);
 
         } catch (\Exception $e) {
-            $source = 0x722347a6;
+            $source = 0x759720a3;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3210,7 +3269,7 @@ class APIController extends ODRCustomController
                             // set file public status to match field public status
                             /** @var FileMeta $file_meta */
                             $file_meta = $file_obj->getFileMeta();
-                            $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());
+                            $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());    // TODO - user specified public status
                             $em->persist($file_meta);
 
                             break;
@@ -3256,7 +3315,7 @@ class APIController extends ODRCustomController
 
                             /** @var ImageMeta $file_meta */
                             $file_meta = $file_obj->getImageMeta();
-                            $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());
+                            $file_meta->setPublicDate($data_field->getDataFieldMeta()->getPublicDate());    // TODO - user specified public status
                             $em->persist($file_meta);
 
                             break;
@@ -3290,7 +3349,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0x8a83ef88;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3326,9 +3385,9 @@ class APIController extends ODRCustomController
 
 
         } catch (\Exception $e) {
-            $source = 0x722347a6;
+            $source = 0x4c04b1f8;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3399,8 +3458,7 @@ class APIController extends ODRCustomController
         // TODO - system needs to delete these keys when record is updated elsewhere
         /** @var CacheService $cache_service */
         $cache_service = $this->container->get('odr.cache_service');
-        $data = $cache_service
-            ->get('json_record_' . $datarecord_uuid);
+        $data = $cache_service->get('json_record_' . $datarecord_uuid);
 
         if (!$data || $flush) {
             // Render the requested datarecord
@@ -3418,10 +3476,10 @@ class APIController extends ODRCustomController
             // TODO work out how to expire this data...
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            $cache_service->set(
-                'json_record_' . $datarecord_uuid,
-                $data
-            );
+
+            // TODO - can't cache data after it gets run through permissions...doing so means that
+            // TODO - the first user to access a record dictates what every subsequent user can see...
+//            $cache_service->set('json_record_' . $datarecord_uuid, $data);
         }
 
         return $data;
@@ -3479,7 +3537,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0x722347a6;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3554,7 +3612,11 @@ class APIController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             // $token = $this->container->get('security.token_storage')->getToken();   // <-- will return 'anon.' when nobody is logged in
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+//            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+
+
+            // TODO this is currently used by public searches only.  Need to improve call to allow private.
+            $user = 'anon.';
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 
             // TODO - should permissions get involved on the template side?
@@ -3638,9 +3700,9 @@ class APIController extends ODRCustomController
             $response->setContent($data);
             return $response;
         } catch (\Exception $e) {
-            $source = 0x883def33;
+            $source = 0x17ebd9fe;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3831,9 +3893,9 @@ class APIController extends ODRCustomController
             // Returning an error...do it in json
             $request->setRequestFormat('json');
 
-            $source = 0xbbaafae5;
+            $source = 0xdbcbc39d;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -3945,7 +4007,7 @@ class APIController extends ODRCustomController
 
             $source = 0xbbaafae5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode());
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -4061,9 +4123,9 @@ class APIController extends ODRCustomController
             // Returning an error...do it in json
             $request->setRequestFormat('json');
 
-            $source = 0x8a8b2309;
+            $source = 0x1bdf1b99;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -4138,64 +4200,68 @@ class APIController extends ODRCustomController
 
             // Ensure the image exists in decrypted format
             $image_path = realpath($this->getParameter('odr_web_directory') . '/' . $filename);     // realpath() returns false if file does not exist
-            if (!$image->isPublic() || !$image_path)
+            if (!$image->isPublic() || !$image_path) {
                 $image_path = $crypto_service->decryptImage($image_id, $filename);
 
-            $handle = fopen($image_path, 'r');
-            if ($handle === false)
-                throw new FileNotFoundException($image_path);
+                $handle = fopen($image_path, 'r');
+                if ($handle === false)
+                    throw new FileNotFoundException($image_path);
 
 
-            // Attach the original filename to the download
-            $display_filename = $image->getOriginalFileName();
-            if ($display_filename == null)
-                $display_filename = 'Image_' . $image->getId() . '.' . $image->getExt();
+                // Attach the original filename to the download
+                $display_filename = $image->getOriginalFileName();
+                if ($display_filename == null)
+                    $display_filename = 'Image_'.$image->getId().'.'.$image->getExt();
 
-            // Set up a response to send the image back
-            $response = new StreamedResponse();
-            $response->setPrivate();
-            $response->headers->set('Content-Type', mime_content_type($image_path));
-            $response->headers->set('Content-Length', filesize($image_path));        // TODO - apparently this isn't sent?
-            $response->headers->set('Content-Disposition', 'attachment; filename="' . $display_filename . '";');
-            /*
-                        // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
-                        $response->headers->setCookie(
-                            new Cookie(
-                                'fileDownload', // name
-                                'true',         // value
-                                0,              // duration set to 'session'
-                                '/',            // default path
-                                null,           // default domain
-                                false,          // don't require HTTPS
-                                false           // allow cookie to be accessed outside HTTP protocol
-                            )
-                        );
-            */
-            //$response->sendHeaders();
+                // Set up a response to send the image back
+                $response = new StreamedResponse();
+                $response->setPrivate();
+                $response->headers->set('Content-Type', mime_content_type($image_path));
+                $response->headers->set('Content-Length', filesize($image_path));        // TODO - apparently this isn't sent?
+                $response->headers->set('Content-Disposition', 'attachment; filename="'.$display_filename.'";');
+                /*
+                            // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
+                            $response->headers->setCookie(
+                                new Cookie(
+                                    'fileDownload', // name
+                                    'true',         // value
+                                    0,              // duration set to 'session'
+                                    '/',            // default path
+                                    null,           // default domain
+                                    false,          // don't require HTTPS
+                                    false           // allow cookie to be accessed outside HTTP protocol
+                                )
+                            );
+                */
+                //$response->sendHeaders();
 
-            // Use symfony's StreamedResponse to send the decrypted image back in chunks to the user
+                // Use symfony's StreamedResponse to send the decrypted image back in chunks to the user
 
-            $response->setCallback(function () use ($handle) {
-                while (!feof($handle)) {
-                    $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
-                    echo $buffer;
-                    flush();
-                }
-                fclose($handle);
-            });
+                $response->setCallback(function () use ($handle) {
+                    while (!feof($handle)) {
+                        $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
+                        echo $buffer;
+                        flush();
+                    }
+                    fclose($handle);
+                });
 
-            // If image is non-public, delete the decrypted version off the server
-            if (!$image->isPublic())
-                unlink($image_path);
+                // If image is non-public, delete the decrypted version off the server
+                if (!$image->isPublic())
+                    unlink($image_path);
 
-            return $response;
+                return $response;
+            }
+            else {
+                return new RedirectResponse('/uploads/images/' . $filename);
+            }
         } catch (\Exception $e) {
             // Returning an error...do it in json
             $request->setRequestFormat('json');
 
             $source = 0x8a8b2309;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -4299,7 +4365,7 @@ class APIController extends ODRCustomController
         } catch (\Exception $e) {
             $source = 0x883def33;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

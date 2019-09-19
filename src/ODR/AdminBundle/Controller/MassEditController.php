@@ -1220,6 +1220,8 @@ $ret .=  "---------------\n";
             $session->set('mass_edit_datarecord_lists', $list);
 
 
+            // TODO - replace with EntityDeletionService::deleteDatarecord()
+
             // ----------------------------------------
             // Recursively locate all children of these datarecords
 //            $parent_ids = array();

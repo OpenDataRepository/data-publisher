@@ -76,6 +76,7 @@
                 // Unique ID is the last bit
                 var unique_id = url_bits[(url_bits.length - 1)];
 
+                // NOTE - despite being named as unique_ids, this also works with search slugs
                 var url = '{{ path('odr_datatype_find_landing', { 'datatype_unique_id': 0 }) }}';
                 url = url.substring(0, (url.length - 1));
                 url += unique_id;
