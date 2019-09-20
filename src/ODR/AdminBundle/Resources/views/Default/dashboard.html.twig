@@ -3,10 +3,14 @@
     {{ dashboard_headers | raw }}
 </div>
 
-<h1 class="pure-u-1">Change in number of Datarecords over last 6 weeks</h1>
+<h1 class="pure-u-1">Changes over the past 6 weeks</h1>
 			
 <div id="ODRDashboardGraphs" class="pure-u-1">
+{% if dashboard_graphs|raw|length > 0 %}
     {{ dashboard_graphs | raw }}
+{% else %}
+    <div style="margin-left: 20px;">No changes made</div>
+{% endif %}
 </div>
 
 <style>
