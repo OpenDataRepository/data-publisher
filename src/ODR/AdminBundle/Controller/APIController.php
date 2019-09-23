@@ -13,7 +13,6 @@
 namespace ODR\AdminBundle\Controller;
 
 // Entities
-use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecordFields;
@@ -56,9 +55,11 @@ use ODR\AdminBundle\Component\Service\DatatypeExportService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\EntityDeletionService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\UUIDService;
+use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
@@ -656,9 +657,6 @@ class APIController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
-
 
             /** @var DataType $template_datatype */
             $template_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
@@ -787,6 +785,7 @@ class APIController extends ODRCustomController
      *
      * @param $version
      * @param Request $request
+     *
      * @return \Symfony\Component\HttpFoundation\RedirectResponse
      */
     public function createdatasetAction($version, Request $request)
@@ -810,7 +809,7 @@ class APIController extends ODRCustomController
             // Check if user exists & throw user not found error
             // Save which user started this creation process
             $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $user_manager->findUserBy(array('email' => $user_email));
             if (is_null($user))
                 throw new ODRNotFoundException('User');
@@ -967,6 +966,13 @@ class APIController extends ODRCustomController
                 // TODO Naming is a little weird here
                 $metadata_record->setProvisioned(false);
                 $em->flush();
+
+
+                // Not 100% certain this is needed since this is a metadata datatype, but better to
+                //  safe than sorry...
+                /** @var SearchCacheService $search_cache_service */
+                $search_cache_service = $this->container->get('odr.search_cache_service');
+                $search_cache_service->onDatarecordCreate($datatype);
             }
 
             // Retrieve first (and only) record ...
@@ -989,6 +995,12 @@ class APIController extends ODRCustomController
                     // TODO Naming is a little weird here
                     $actual_data_record->setProvisioned(false);
                     $em->flush();
+
+                    // Not 100% certain this is needed since this is a metadata datatype, but better to
+                    //  safe than sorry...
+                    /** @var SearchCacheService $search_cache_service */
+                    $search_cache_service = $this->container->get('odr.search_cache_service');
+                    $search_cache_service->onDatarecordCreate($datatype->getMetadataFor());
                 }
 
             }
@@ -1063,12 +1075,13 @@ class APIController extends ODRCustomController
 
     }
 
+
     /**
-     * @param $record
-     * @param User $user
+     * @param array $record
+     * @param ODRUser $user
      * @param \DateTime $datetime_value
      *
-     * @return JSON record
+     * @return array $record
      */
     private function checkRecord(&$record, $user, $datetime_value) {
         if(isset($record['_record_metadata'])) {
@@ -1083,6 +1096,7 @@ class APIController extends ODRCustomController
         $record['records'] = $output_records;
         return $record;
     }
+
 
     /**
      * @param $str
@@ -1099,6 +1113,7 @@ class APIController extends ODRCustomController
         }
     }
 
+
     /**
      * Creates a mysql compatible date string
      * @param $str
@@ -1114,6 +1129,7 @@ class APIController extends ODRCustomController
             throw new \Exception("Error executing Date Now filter");
         }
     }
+
 
     /**
      * Generates a unique id
@@ -1132,6 +1148,11 @@ class APIController extends ODRCustomController
         }
     }
 
+
+    /**
+     * @param array $tag_tree
+     * @param array $selected_tags
+     */
     private function selectedTags($tag_tree, &$selected_tags = array())
     {
 
@@ -1146,11 +1167,12 @@ class APIController extends ODRCustomController
         }
     }
 
+
     /**
-     * @param $dataset
-     * @param $orig_dataset
-     * @param $user
-     * @param $changed
+     * @param array $dataset
+     * @param array $orig_dataset
+     * @param ODRUser $user
+     * @param boolean $changed
      * @return mixed
      * @throws \Exception
      */
@@ -1169,11 +1191,8 @@ class APIController extends ODRCustomController
 
         // Check if fields are added or updated
         try {
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -1254,6 +1273,9 @@ class APIController extends ODRCustomController
                         $em->persist($new_field);
 
                         $changed = true;
+
+                        // New boolean value, delete cached search results for this datafield
+                        $search_cache_service->onDatafieldModify($data_field);
                     }
                     else if (isset($field['value']) && is_array($field['value'])) {
 
@@ -1261,6 +1283,8 @@ class APIController extends ODRCustomController
 
                             case '18':
                                 // Tag field - need to difference hierarchy
+                                $tags_changed = false;
+
                                 // Determine selected tags in original dataset
                                 // Determine selected tags in current
                                 $selected_tags = array();
@@ -1338,6 +1362,7 @@ class APIController extends ODRCustomController
                                     if ($tag_selection) {
                                         $em->remove($tag_selection);
                                         $changed = true;
+                                        $tags_changed = true;
                                     }
                                 }
 
@@ -1376,6 +1401,7 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+                                    $tags_changed = true;
 
 
                                     // Trying to do everything realtime - no waiting forever stuff
@@ -1398,10 +1424,16 @@ class APIController extends ODRCustomController
                                     $dataset['fields'][$i] = $field;
                                 }
 
+                                if ($tags_changed) {
+                                    // Tags were created and/or deleted...clear cached search results
+                                    //  for this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
+                                }
                                 break;
 
                             case '8':
                                 // Single Radio
+                                $radio_changed = false;
 
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
@@ -1481,6 +1513,7 @@ class APIController extends ODRCustomController
                                     if ($option_selection) {
                                         $em->remove($option_selection);
                                         $changed = true;
+                                        $radio_changed = true;
                                     }
                                 }
 
@@ -1521,6 +1554,7 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+                                    $radio_changed = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     // Maybe the references will be stored in the variable anyway?
@@ -1543,155 +1577,163 @@ class APIController extends ODRCustomController
                                     $dataset['fields'][$i] = $field;
                                 }
 
-                                break;
-
-                            case '12':
-                                // Checkbox
-                                // Determine selected options in original dataset
-                                // Determine selected options in current
-                                $selected_options = $field['value'];
-
-                                $orig_selected_options = array();
-                                if ($orig_dataset) {
-                                    foreach ($orig_dataset['fields'] as $o_field) {
-                                        if (
-                                            isset($o_field['value']) &&
-                                            isset($field['field_uuid']) &&
-                                            $o_field['field_uuid'] == $field['field_uuid']
-                                        ) {
-                                            $orig_selected_options = $o_field['value'];
-                                        }
-                                    }
-                                }
-
-                                $new_options = array();
-                                $deleted_options = array();
-
-                                // check for new options
-                                foreach ($selected_options as $option) {
-                                    $found = false;
-                                    foreach ($orig_selected_options as $o_option) {
-                                        if ($option == $o_option) {
-                                            $found = true;
-                                        }
-                                    }
-                                    if (!$found) {
-                                        array_push($new_options, $option['template_radio_option_uuid']);
-                                    }
-                                }
-
-                                /*
-                                if(count($new_options) > 1) {
-                                    throw new \Exception('Invalid option count: Field ' . $data_field['field_uuid']);
-                                }
-                                */
-
-                                // Check for deleted options
-                                foreach ($orig_selected_options as $o_option) {
-                                    $found = false;
-                                    foreach ($selected_options as $option) {
-                                        if ($option == $o_option) {
-                                            $found = true;
-                                        }
-                                    }
-                                    if (!$found) {
-                                        array_push($deleted_options, $o_option['template_radio_option_uuid']);
-                                    }
-                                }
-
-                                /** @var DataRecordFields $drf */
-                                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                                    array(
-                                        'dataRecord' => $dataset['internal_id'],
-                                        'dataField' => $data_field->getId()
-                                    )
-                                );
-
-                                // Delete deleted options
-                                foreach ($deleted_options as $option_uuid) {
-                                    /** @var RadioOptions $option */
-                                    $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
-                                        array(
-                                            'radioOptionUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
-                                        )
-                                    );
-                                    /** @var RadioSelection $option_selection */
-                                    $option_selection = $em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy(
-                                        array(
-                                            'radioOption' => $option->getId(),
-                                            'dataRecordFields' => $drf->getId()
-                                        )
-                                    );
-
-                                    if ($option_selection) {
-                                        $em->remove($option_selection);
-                                        $changed = true;
-                                    }
-                                }
-
-
-                                // Add or delete options as needed
-                                // Check if new option exists in template
-                                // Add to template if not exists
-                                foreach ($new_options as $option_uuid) {
-                                    // Lookup Option by UUID
-                                    /** @var RadioOptions $option */
-                                    $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
-                                        array(
-                                            'radioOptionUuid' => $option_uuid,
-                                            'dataField' => $data_field->getId()
-
-                                        )
-                                    );
-
-                                    if (!$drf) {
-                                        // If drf entry doesn't exist, create new
-                                        $drf = new DataRecordFields();
-                                        $drf->setCreatedBy($user);
-                                        $drf->setCreated(new \DateTime());
-                                        $drf->setDataField($data_field);
-                                        $drf->setDataRecord($data_record);
-                                        $em->persist($drf);
-                                    }
-
-                                    /** @var RadioSelection $new_field */
-                                    $new_field = new RadioSelection();
-                                    $new_field->setRadioOption($option);
-                                    $new_field->setDataRecordFields($drf);
-                                    $new_field->setCreatedBy($user);
-                                    $new_field->setUpdatedBy($user);
-                                    $new_field->setCreated(new \DateTime());
-                                    $new_field->setUpdated(new \DateTime());
-                                    $new_field->setSelected(1);
-                                    $em->persist($new_field);
-
-                                    $changed = true;
-
-                                    // Trying to do everything realtime - no waiting forever stuff
-                                    // Maybe the references will be stored in the variable anyway?
-                                    $em->flush();
-                                    $em->refresh($new_field);
-
-                                    // Added tags need to replace their value in the array
-                                    for($j=0;$j < count($field['value']);$j++) {
-                                        if($field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid() ) {
-                                            // replace this block
-                                            $field['value'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
-                                            $field['value'][$j]['name'] = $option->getOptionName();
-                                            $field['value'][$j]['id'] = $new_field->getId();
-                                            $field['value'][$j]['selected'] = 1;
-                                            $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
-                                            $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
-                                        }
-                                    }
-                                    // Assign the updated field back to the dataset.
-                                    $dataset['fields'][$i] = $field;
+                                if ($radio_changed) {
+                                    // Radio options were created and/or deleted...clear cached
+                                    //  search results for this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
                                 }
                                 break;
+
+                            // TODO - this fieldtype has been deleted since 2014, nothing else in ODR supports it
+//                            case '12':
+//                                // Checkbox
+//                                // Determine selected options in original dataset
+//                                // Determine selected options in current
+//                                $selected_options = $field['value'];
+//
+//                                $orig_selected_options = array();
+//                                if ($orig_dataset) {
+//                                    foreach ($orig_dataset['fields'] as $o_field) {
+//                                        if (
+//                                            isset($o_field['value']) &&
+//                                            isset($field['field_uuid']) &&
+//                                            $o_field['field_uuid'] == $field['field_uuid']
+//                                        ) {
+//                                            $orig_selected_options = $o_field['value'];
+//                                        }
+//                                    }
+//                                }
+//
+//                                $new_options = array();
+//                                $deleted_options = array();
+//
+//                                // check for new options
+//                                foreach ($selected_options as $option) {
+//                                    $found = false;
+//                                    foreach ($orig_selected_options as $o_option) {
+//                                        if ($option == $o_option) {
+//                                            $found = true;
+//                                        }
+//                                    }
+//                                    if (!$found) {
+//                                        array_push($new_options, $option['template_radio_option_uuid']);
+//                                    }
+//                                }
+//
+//                                /*
+//                                if(count($new_options) > 1) {
+//                                    throw new \Exception('Invalid option count: Field ' . $data_field['field_uuid']);
+//                                }
+//                                */
+//
+//                                // Check for deleted options
+//                                foreach ($orig_selected_options as $o_option) {
+//                                    $found = false;
+//                                    foreach ($selected_options as $option) {
+//                                        if ($option == $o_option) {
+//                                            $found = true;
+//                                        }
+//                                    }
+//                                    if (!$found) {
+//                                        array_push($deleted_options, $o_option['template_radio_option_uuid']);
+//                                    }
+//                                }
+//
+//                                /** @var DataRecordFields $drf */
+//                                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
+//                                    array(
+//                                        'dataRecord' => $dataset['internal_id'],
+//                                        'dataField' => $data_field->getId()
+//                                    )
+//                                );
+//
+//                                // Delete deleted options
+//                                foreach ($deleted_options as $option_uuid) {
+//                                    /** @var RadioOptions $option */
+//                                    $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
+//                                        array(
+//                                            'radioOptionUuid' => $option_uuid,
+//                                            'dataField' => $data_field->getId()
+//                                        )
+//                                    );
+//                                    /** @var RadioSelection $option_selection */
+//                                    $option_selection = $em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy(
+//                                        array(
+//                                            'radioOption' => $option->getId(),
+//                                            'dataRecordFields' => $drf->getId()
+//                                        )
+//                                    );
+//
+//                                    if ($option_selection) {
+//                                        $em->remove($option_selection);
+//                                        $changed = true;
+//                                    }
+//                                }
+//
+//
+//                                // Add or delete options as needed
+//                                // Check if new option exists in template
+//                                // Add to template if not exists
+//                                foreach ($new_options as $option_uuid) {
+//                                    // Lookup Option by UUID
+//                                    /** @var RadioOptions $option */
+//                                    $option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
+//                                        array(
+//                                            'radioOptionUuid' => $option_uuid,
+//                                            'dataField' => $data_field->getId()
+//
+//                                        )
+//                                    );
+//
+//                                    if (!$drf) {
+//                                        // If drf entry doesn't exist, create new
+//                                        $drf = new DataRecordFields();
+//                                        $drf->setCreatedBy($user);
+//                                        $drf->setCreated(new \DateTime());
+//                                        $drf->setDataField($data_field);
+//                                        $drf->setDataRecord($data_record);
+//                                        $em->persist($drf);
+//                                    }
+//
+//                                    /** @var RadioSelection $new_field */
+//                                    $new_field = new RadioSelection();
+//                                    $new_field->setRadioOption($option);
+//                                    $new_field->setDataRecordFields($drf);
+//                                    $new_field->setCreatedBy($user);
+//                                    $new_field->setUpdatedBy($user);
+//                                    $new_field->setCreated(new \DateTime());
+//                                    $new_field->setUpdated(new \DateTime());
+//                                    $new_field->setSelected(1);
+//                                    $em->persist($new_field);
+//
+//                                    $changed = true;
+//
+//                                    // Trying to do everything realtime - no waiting forever stuff
+//                                    // Maybe the references will be stored in the variable anyway?
+//                                    $em->flush();
+//                                    $em->refresh($new_field);
+//
+//                                    // Added tags need to replace their value in the array
+//                                    for($j=0;$j < count($field['value']);$j++) {
+//                                        if($field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid() ) {
+//                                            // replace this block
+//                                            $field['value'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
+//                                            $field['value'][$j]['name'] = $option->getOptionName();
+//                                            $field['value'][$j]['id'] = $new_field->getId();
+//                                            $field['value'][$j]['selected'] = 1;
+//                                            $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
+//                                            $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
+//                                        }
+//                                    }
+//                                    // Assign the updated field back to the dataset.
+//                                    $dataset['fields'][$i] = $field;
+//                                }
+//                                break;
 
                             case '13':
                                 // Multiple Radio
+                                $radio_changed = false;
+
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -1772,6 +1814,7 @@ class APIController extends ODRCustomController
                                     if ($option_selection) {
                                         $em->remove($option_selection);
                                         $changed = true;
+                                        $radio_changed = true;
                                     }
                                 }
 
@@ -1812,6 +1855,7 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+                                    $radio_changed = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     // Maybe the references will be stored in the variable anyway?
@@ -1832,11 +1876,19 @@ class APIController extends ODRCustomController
                                     }
                                     // Assign the updated field back to the dataset.
                                     $dataset['fields'][$i] = $field;
+                                }
+
+                                if ($radio_changed) {
+                                    // Radio options were created and/or deleted...clear cached
+                                    //  search results for this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
                                 }
                                 break;
 
                             case '14':
                                 // Single Select
+                                $radio_changed = false;
+
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -1917,6 +1969,7 @@ class APIController extends ODRCustomController
                                     if ($option_selection) {
                                         $em->remove($option_selection);
                                         $changed = true;
+                                        $radio_changed = true;
                                     }
                                 }
 
@@ -1957,6 +2010,7 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+                                    $radio_changed = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     // Maybe the references will be stored in the variable anyway?
@@ -1978,10 +2032,18 @@ class APIController extends ODRCustomController
                                     // Assign the updated field back to the dataset.
                                     $dataset['fields'][$i] = $field;
                                 }
+
+                                if ($radio_changed) {
+                                    // Radio options were created and/or deleted...clear cached
+                                    //  search results for this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
+                                }
                                 break;
 
                             case '15':
                                 // Multiple Select
+                                $radio_changed = false;
+
                                 // Determine selected options in original dataset
                                 // Determine selected options in current
                                 $selected_options = $field['value'];
@@ -2062,6 +2124,7 @@ class APIController extends ODRCustomController
                                     if ($option_selection) {
                                         $em->remove($option_selection);
                                         $changed = true;
+                                        $radio_changed = true;
                                     }
                                 }
 
@@ -2102,6 +2165,7 @@ class APIController extends ODRCustomController
                                     $em->persist($new_field);
 
                                     $changed = true;
+                                    $radio_changed = true;
 
                                     // Trying to do everything realtime - no waiting forever stuff
                                     // Maybe the references will be stored in the variable anyway?
@@ -2122,6 +2186,12 @@ class APIController extends ODRCustomController
                                     }
                                     // Assign the updated field back to the dataset.
                                     $dataset['fields'][$i] = $field;
+                                }
+
+                                if ($radio_changed) {
+                                    // Radio options were created and/or deleted...clear cached
+                                    //  search results for this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
                                 }
                                 break;
                         }
@@ -2228,6 +2298,10 @@ class APIController extends ODRCustomController
                                     $em->flush();
                                     $em->refresh($new_field);
 
+                                    // IntegerValue was modified...clear cached search results for
+                                    //  this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
+
                                     // Assign the updated field back to the dataset.
                                     $field['value'] = $new_field->getValue();
                                     $field['id'] = $new_field->getId();
@@ -2262,6 +2336,10 @@ class APIController extends ODRCustomController
                                     // Trying to do everything realtime - no waiting forever stuff
                                     $em->flush();
                                     $em->refresh($new_field);
+
+                                    // ParagraphText was modified...clear cached search results for
+                                    //  this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
 
                                     // Assign the updated field back to the dataset.
                                     $field['value'] = $new_field->getValue();
@@ -2299,6 +2377,10 @@ class APIController extends ODRCustomController
                                     $em->flush();
                                     $em->refresh($new_field);
 
+                                    // LongVarchar was modified...clear cached search results for
+                                    //  this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
+
                                     // Assign the updated field back to the dataset.
                                     $field['value'] = $new_field->getValue();
                                     $field['id'] = $new_field->getId();
@@ -2333,6 +2415,10 @@ class APIController extends ODRCustomController
                                     // Trying to do everything realtime - no waiting forever stuff
                                     $em->flush();
                                     $em->refresh($new_field);
+
+                                    // MediumVarchar was modified...clear cached search results for
+                                    //  this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
 
                                     // Assign the updated field back to the dataset.
                                     $field['value'] = $new_field->getValue();
@@ -2369,6 +2455,10 @@ class APIController extends ODRCustomController
                                     $em->flush();
                                     $em->refresh($new_field);
 
+                                    // ShortVarchar was modified...clear cached search results for
+                                    //  this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
+
                                     // Assign the updated field back to the dataset.
                                     $field['value'] = $new_field->getValue();
                                     $field['id'] = $new_field->getId();
@@ -2404,6 +2494,10 @@ class APIController extends ODRCustomController
                                     $em->flush();
                                     $em->refresh($new_field);
 
+                                    // DecimalValue was modified...clear cached search results for
+                                    //  this datafield
+                                    $search_cache_service->onDatafieldModify($data_field);
+
                                     // Assign the updated field back to the dataset.
                                     $field['value'] = $new_field->getValue();
                                     $field['id'] = $new_field->getId();
@@ -2434,6 +2528,7 @@ class APIController extends ODRCustomController
 
 
             // Remove deleted records
+            $deleted_records = array();
             if ($orig_dataset && isset($orig_dataset['records'])) {
                 // Check if old record exists and delete if necessary...
                 for ($i = 0; $i < count($orig_dataset['records']); $i++) {
@@ -2455,7 +2550,7 @@ class APIController extends ODRCustomController
 
                     if (!$record_found) {
                         // Use delete record
-                        /** @var DataType $master_data_type */
+                        /** @var DataRecord $del_record */
                         $del_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
                             array(
                                 'unique_id' => $o_record['record_uuid']
@@ -2463,6 +2558,9 @@ class APIController extends ODRCustomController
                         );
 
                         if ($del_record) {
+                            // Store which datatype had a record deleted
+                            $deleted_records[ $del_record->getDataType()->getId() ] = $del_record->getDataType();
+
                             $em->remove($del_record);
                             $em->flush();
                             $changed = true;
@@ -2470,6 +2568,12 @@ class APIController extends ODRCustomController
 
                     }
                 }
+            }
+
+            if ( !empty($deleted_records) ) {
+                // Datarecords were deleted...clear cached search results for each affected datatype
+                foreach ($deleted_records as $dt_id => $dt)
+                $search_cache_service->onDatarecordDelete($dt);
             }
 
             // Need to check for child & linked records
@@ -2573,6 +2677,9 @@ class APIController extends ODRCustomController
                         $em->flush();
                         $em->refresh($new_record);
 
+                        // A datarecord got created, delete relevant search cache entries
+                        $search_cache_service->onDatarecordCreate($record_data_type);
+
                         if ($is_link) {
                             /** @var EntityCreationService $ec_service */
                             $ec_service = $this->container->get('odr.entity_creation_service');
@@ -2624,6 +2731,7 @@ class APIController extends ODRCustomController
     /**
      * @param $version
      * @param Request $request
+     *
      * @return \Symfony\Component\HttpFoundation\Response
      */
     public function updatedatasetAction($version, Request $request)
@@ -2753,6 +2861,14 @@ class APIController extends ODRCustomController
 
     }
 
+
+    /**
+     * @param $version
+     * @param $dataset_uuid
+     * @param Request $request
+     *
+     * @return Response
+     */
     public function getRecordByDatasetUUIDAction($version, $dataset_uuid, Request $request)
     {
 
@@ -2771,7 +2887,7 @@ class APIController extends ODRCustomController
                 throw new ODRNotFoundException('User');
 
             // Find datatype for Dataset UUID
-            /** @var DataRecord $data_record */
+            /** @var DataType $data_type */
             $data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
                 array(
                     'unique_id' => $dataset_uuid
@@ -2810,10 +2926,12 @@ class APIController extends ODRCustomController
 
     }
 
+
     /**
      * @param $version
      * @param $dataset_uuid
      * @param Request $request
+     *
      * @return Response
      */
     public function deleteDatasetByUUIDAction($version, $dataset_uuid, Request $request)
@@ -2869,6 +2987,14 @@ class APIController extends ODRCustomController
         }
     }
 
+
+    /**
+     * @param $version
+     * @param $file_uuid
+     * @param Request $request
+     *
+     * @return RedirectResponse
+     */
     public function fileDeleteByUUIDAction($version, $file_uuid, Request $request) {
         try {
             // ----------------------------------------
@@ -2885,6 +3011,7 @@ class APIController extends ODRCustomController
             if ($file == null)
                 throw new ODRNotFoundException('File');
 
+            /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             // TODO fix this to use API Credential
             // $user = $user_manager->findUserBy(array('email' => $data['user_email']));
@@ -2947,6 +3074,12 @@ class APIController extends ODRCustomController
     }
 
 
+    /**
+     * @param $version
+     * @param Request $request
+     *
+     * @return RedirectResponse
+     */
     public function publishAction($version, Request $request) {
 
         try {
@@ -2955,9 +3088,6 @@ class APIController extends ODRCustomController
 
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
 
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
@@ -3069,6 +3199,8 @@ class APIController extends ODRCustomController
             $em->flush();
 
 
+            // TODO - why are these calls doubled?  only the last one has any effect...
+
             // Flush Caches
             /** @var ODRUser $api_user */  // Anon when nobody is logged in.
             $api_user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -3115,6 +3247,7 @@ class APIController extends ODRCustomController
     /**
      * @param $version
      * @param Request $request
+     *
      * @return Response
      */
     public function addfileAction($version, Request $request)
@@ -3125,17 +3258,16 @@ class APIController extends ODRCustomController
             // Get data from POST/Request
             $data = $request->request->all();
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             // TODO fix this to use API Credential
+            /** @var ODRUser $user */
             $user = $user_manager->findUserBy(array('email' => $data['user_email']));
             if (is_null($user))
                 throw new ODRNotFoundException('User');
@@ -3228,7 +3360,7 @@ class APIController extends ODRCustomController
                     }
 
                     // Move file to web directory (really?)
-                    $tmp_filename = $file->getFileName();
+                    $tmp_filename = $file->getFilename();
                     $original_filename = $file->getClientOriginalName();
                     // Check whether file is uploaded completely and properly
                     $path_prefix = $this->getParameter('odr_web_directory').'/';
@@ -3360,6 +3492,8 @@ class APIController extends ODRCustomController
      * @param $version
      * @param $datarecord_uuid
      * @param Request $request
+     *
+     * @return Response
      */
     public function getRecordAction($version, $datarecord_uuid, Request $request)
     {
@@ -3372,6 +3506,7 @@ class APIController extends ODRCustomController
             // $user_manager = $this->container->get('fos_user.user_manager');
             // $user = $user_manager->findUserBy(array('email' => 'nate@opendatarepository.org'));
 
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if (is_null($user))
                 throw new ODRNotFoundException('User');
@@ -3393,6 +3528,7 @@ class APIController extends ODRCustomController
         }
 
     }
+
 
     /**
      * @param $version
@@ -3485,6 +3621,7 @@ class APIController extends ODRCustomController
         return $data;
     }
 
+
     /**
      * Renders and returns the json/XML version of the given DataRecord.
      *
@@ -3492,6 +3629,7 @@ class APIController extends ODRCustomController
      * @param $datarecord_uuid
      * @param Request $request
      * @param null $user
+     *
      * @return Response
      */
     public function getDatarecordExportAction($version, $datarecord_uuid, Request $request, $user = null)
@@ -3552,6 +3690,8 @@ class APIController extends ODRCustomController
      * @param $template_uuid
      * @param $template_field_uuid
      * @param Request $request
+     *
+     * @return Response
      */
     public function getfieldstatsAction(
         $version,
@@ -3708,6 +3848,14 @@ class APIController extends ODRCustomController
         }
     }
 
+
+    /**
+     * @param $version
+     * @param $file_uuid
+     * @param Request $request
+     *
+     * @return Response|StreamedResponse
+     */
     public function fileDownloadByUUIDAction($version, $file_uuid, Request $request)
     {
         try {
@@ -3721,7 +3869,7 @@ class APIController extends ODRCustomController
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
-            /** @var File $file */
+            /** @var File|Image $file */
             $file = $em->getRepository('ODRAdminBundle:File')->findOneBy(
                 array(
                     'unique_id' => $file_uuid
@@ -4013,12 +4161,15 @@ class APIController extends ODRCustomController
         }
     }
 
+
     /**
      * Retrieve user info and list of created databases (that have metadata).
      * Creates user if not exists.
      *
      * @param $version
      * @param Request $request
+     *
+     * @return Response
      */
     public function userAction($version, Request $request)
     {
@@ -4030,6 +4181,7 @@ class APIController extends ODRCustomController
             $first_name = $_POST['first_name'];
             $last_name = $_POST['last_name'];
 
+            /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
             /** @var FOSUser $user */
@@ -4138,7 +4290,7 @@ class APIController extends ODRCustomController
      * @param integer $image_id
      * @param Request $request
      *
-     * @return JsonResponse|StreamedResponse
+     * @return JsonResponse|StreamedResponse|RedirectResponse
      */
     public function imagedownloadAction($version, $image_id, Request $request)
     {
@@ -4268,11 +4420,11 @@ class APIController extends ODRCustomController
     }
 
 
-
     /**
      * @param $template_uuid
      * @param $template_field_uuid
      * @param Request $request
+     *
      * @return Response
      */
     public function search_field_statsAction($template_uuid, $template_field_uuid, Request $request)

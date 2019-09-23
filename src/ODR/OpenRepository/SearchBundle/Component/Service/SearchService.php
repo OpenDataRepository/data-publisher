@@ -1818,6 +1818,8 @@ class SearchService
 
 
     /**
+     * TODO - replace with DatatreeInfoService?
+     *
      * Uses the cached datatree aray to recursively locate every child/linked datatype related to
      * the given datatype id.  Does NOT filter by user permissions.
      *
@@ -1836,6 +1838,8 @@ class SearchService
 
 
     /**
+     * TODO - replace with DatatreeInfoService?
+     *
      * Uses the cached datatree array to recursively locate every child/linked datatypes related to
      * the datatype ids in the given array.
      *
