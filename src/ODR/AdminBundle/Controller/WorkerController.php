@@ -2001,8 +2001,14 @@ $ret .= '  Set current to '.$count."\n";
             /** @var DataType[] $all_datatypes */
             $all_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
 
+            $use_shortname = array(
+                29, 108, 220, 225, 253,
+                308, 342, 384, 391, 392,
+                397
+            );
+
             print '<table border="1">';
-            print '<tr><th>ID</th><th>Grandparent ID</th><th>Short Name</th><th>Long Name</th><th>Different?</th>';
+            print '<tr><th>ID</th><th>Grandparent ID</th><th>Short Name</th><th>Long Name</th><th>Fix</th>';
             foreach ($all_datatypes as $dt) {
                 print '<tr>';
                 print '<td>'.$dt->getId().'</td>';
@@ -2011,13 +2017,39 @@ $ret .= '  Set current to '.$count."\n";
                 print '<td>'.$dt->getLongName().'</td>';
 
                 print '<td>';
-                if ( strcmp($dt->getShortName(), $dt->getLongName()) !== 0 )
-                    print 'X';
-                print '</td>';
+                if ( $dt->getShortName() === $dt->getLongName() ) {
+                    print '';
+                }
+                else if ( $dt->getId() !== $dt->getGrandparent()->getId() && $dt->getLongName() === "New Child" ) {
+                    if ( $save ) {
+                        $dt->getDataTypeMeta()->setLongName( $dt->getShortName() );
+                        $em->persist( $dt->getDataTypeMeta() );
+                    }
 
-                print '</tr>';
+                    print '<b>set long_name to "'.$dt->getShortName().'"</b>';
+                }
+                else if ( in_array($dt->getId(), $use_shortname) ) {
+                    if ( $save ) {
+                        $dt->getDataTypeMeta()->setLongName( $dt->getShortName() );
+                        $em->persist( $dt->getDataTypeMeta() );
+                    }
+
+                    print '<b>set long_name to "'.$dt->getShortName().'"</b>';
+                }
+                else {
+                    if ( $save ) {
+                        $dt->getDataTypeMeta()->setShortName( $dt->getLongName() );
+                        $em->persist( $dt->getDataTypeMeta() );
+                    }
+
+                    print '<b>set long_name to "'.$dt->getLongName().'"</b>';
+                }
+                print '</td>';
             }
             print '</table>';
+
+            if ($save)
+                $em->flush();
         }
         catch (\Exception $e) {
             $source = 0x2e4e2e42;
