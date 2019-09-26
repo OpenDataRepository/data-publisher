@@ -1971,4 +1971,64 @@ $ret .= '  Set current to '.$count."\n";
         $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function updatedatatypenamesAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+
+            /** @var DataType[] $all_datatypes */
+            $all_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
+
+            print '<table border="1">';
+            print '<tr><th>ID</th><th>Grandparent ID</th><th>Short Name</th><th>Long Name</th><th>Different?</th>';
+            foreach ($all_datatypes as $dt) {
+                print '<tr>';
+                print '<td>'.$dt->getId().'</td>';
+                print '<td>'.$dt->getGrandparent()->getId().'</td>';
+                print '<td>'.$dt->getShortName().'</td>';
+                print '<td>'.$dt->getLongName().'</td>';
+
+                print '<td>';
+                if ( strcmp($dt->getShortName(), $dt->getLongName()) !== 0 )
+                    print 'X';
+                print '</td>';
+
+                print '</tr>';
+            }
+            print '</table>';
+        }
+        catch (\Exception $e) {
+            $source = 0x2e4e2e42;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
 }
