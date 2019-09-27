@@ -168,8 +168,12 @@ class ODRUserController extends ODRCustomController
             $user = $user_manager->findUserByEmail($email);
 
             // If found, return their user id
-            if ($user !== null)
-                $return['d'] = $user->getId();
+            if ($user !== null) {
+                if ( $user->getId() !== $admin_user->getId() && !$user->hasRole('ROLE_SUPER_ADMIN') )
+                    $return['d'] = $user->getId();
+                else
+                    $return['d'] = -1;
+            }
             else
                 $return['d'] = 0;
         }

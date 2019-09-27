@@ -16,10 +16,12 @@
 </div>
 
 <script>
+    var xhr;
     $(function() {
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
         $("#saved").hide();
+        xhr = null;
 
         $("#ODRUserProfileForm").validate({
             rules: {
@@ -41,15 +43,15 @@
         });
 
         var old_email = '';
-        $("#submitButton").removeClass('pure-button-primary').attr('disabled', 'disabled').attr('title', 'Email needs to be checked for availability first');
+        $("#submitButton").removeClass('pure-button-primary').prop('disabled', true);
         $("#{{ profile_form.email.vars.id }}").unbind('keyup').unbind('paste');
         $("#{{ profile_form.email.vars.id }}").on('keyup paste', function() {
             var new_email = $(this).val();
             if (old_email != new_email) {
                 old_email = new_email;
 
-                $("#emailCheckButton").addClass('pure-button-primary').html('Check Email Availability').removeAttr('disabled');
-                $("#submitButton").removeClass('pure-button-primary').attr('disabled', 'disabled').attr('title', 'Email needs to be checked for availability first');
+                $("#emailCheckButton").addClass('pure-button-primary').html('Check Email Availability').prop('disabled', false);
+                $("#submitButton").removeClass('pure-button-primary').prop('disabled', true);
             }
         });
 
@@ -73,15 +75,21 @@
             dataType: 'json',
             data: {"email": email},
             success: function(data, textStatus, jqXHR) {
-                $("#emailCheckButton").removeClass('pure-button-primary').attr('disabled', 'disabled');
+                $("#emailCheckButton").removeClass('pure-button-primary').prop('disabled', true);
 
-                if (data.d == 0) {
-                    // Email not found
-                    $("#submitButton").addClass('pure-button-primary').html('Save').attr('onclick', 'saveProfileForm();').removeAttr('disabled').removeAttr('title');
+                if (data.d === 0) {
+                    // Email not found, can create new user
+                    $("#submitButton").addClass('pure-button-primary').html('Save').attr('onclick', 'saveProfileForm();').prop('disabled', false);
+                }
+                else if (data.d === -1) {
+                    // User checked whether their own profile existed, or managed to check the email
+                    //  of a super-admin
+                    $("#submitButton").html('Unable to modify permissions for this user').attr('onclick', '');
+                    $("#emailCheckButton").html('User already exists');
                 }
                 else {
-                    // Email already exists
-                    $("#submitButton").addClass('pure-button-primary').html('View User Permissions').attr('onclick', 'viewPermissions(' + data.d + ');').removeAttr('disabled').removeAttr('title');
+                    // Email that was checked belongs to a different user
+                    $("#submitButton").addClass('pure-button-primary').html('View User Permissions').attr('onclick', 'viewPermissions(' + data.d + ');').prop('disabled', false);
                     $("#emailCheckButton").html('User already exists');
                 }
             },
@@ -123,11 +131,15 @@
             return;
         }
 
+        // Only submit once
+        if ( xhr !== null )
+            return;
+
         var url = "{{ path('odr_admin_new_user_save') }}";
 
-        $("#submitButton").attr('disabled', 'disabled').html('Creating New User...');
+        $("#submitButton").prop('disabled', true).html('Creating New User...');
 
-        $.ajax({
+        xhr = $.ajax({
             url: url,
             type: 'post',
             dataType: 'json',
@@ -136,10 +148,14 @@
                 // Redirect to their permissions page
                 alert('User Created');
                 UpdateURL( data.d.url );
+
+                xhr = null;
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Reset the email validation and the save button
                 checkEmail();
+
+                xhr = null;
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
