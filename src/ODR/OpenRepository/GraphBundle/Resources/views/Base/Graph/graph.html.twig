@@ -77,20 +77,14 @@ if (!window.ODRChart) {
         this.GraphData = function (chart_obj) {
             /* These lines are all chart setup.  Pick and choose which chart features you want to utilize. */
             switch (graph_type) {
-                case "line":
-                    return lineChartGenerator(chart_obj, clearPlotlyBars);
                 case "xy":
                     return lineChartPlotly(chart_obj, clearPlotlyBars);
                 case "bar":
                     return barChartPlotly(chart_obj, clearPlotlyBars);
                 case "histogram":
                     return histogramChartPlotly(chart_obj, clearPlotlyBars);
-                case "starea":
-                    break;
-                case "sgbar":
-                    break;
-                case "cline":
-                    break;
+                case "stackedarea":
+                    return stackedAreaChartPlotly(chart_obj, preparePlotlyStatic);
                 case "lineerror":
                     return lineerrorChartPlotly(chart_obj, clearPlotlyBars);
                 case "piechart":

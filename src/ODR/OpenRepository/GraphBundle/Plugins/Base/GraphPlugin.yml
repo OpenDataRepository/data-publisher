@@ -19,7 +19,8 @@ odr_plugins.base.graph:
             name: Graph Type
             type: string
             default: xy
-            choices: xy||XY Plot,bar||Bar Chart (stacked/grouped/horizontal/vertical),windrose||WindRose,histogram||Histogram,polar||Polar,bubble||Bubble Chart,lineerror||Line w/Error Bars,stick||Stick Plot,starea||Stacked Area,piechart||Pie Chart
+#            choices: xy||XY Plot,bar||Bar Chart (stacked/grouped/horizontal/vertical),windrose||WindRose,histogram||Histogram,polar||Polar,bubble||Bubble Chart,lineerror||Line w/Error Bars,stick||Stick Plot,starea||Stacked Area,piechart||Pie Chart
+            choices: xy||XY Plot,bar||Bar Chart (stacked/grouped/horizontal/vertical),histogram||Histogram,lineerror||Line w/Error Bars,stackedarea||Stacked Area,piechart||Pie Chart
             description: Choose the graph type XY (scatter), Line, Horizontal Bar, or Vertical Bar.
         use_rollup:
             name: Use Rollup Graph

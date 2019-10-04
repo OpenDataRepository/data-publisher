@@ -96,20 +96,14 @@
             this.GraphData = function (chart_obj) {
                 /* These lines are all chart setup.  Pick and choose which chart features ou want to utilize. */
                 switch (graph_type) {
-                    case "line":
-                        return lineChartGenerator(chart_obj, preparePlotlyStatic);
                     case "xy":
                         return lineChartPlotly(chart_obj, preparePlotlyStatic);
                     case "bar":
                         return barChartPlotly(chart_obj, preparePlotlyStatic);
                     case "histogram":
                         return histogramChartPlotly(chart_obj, preparePlotlyStatic);
-                    case "starea":
-                        break;
-                    case "sgbar":
-                        break;
-                    case "cline":
-                        break;
+                    case "stackedarea":
+                        return stackedAreaChartPlotly(chart_obj, preparePlotlyStatic);
                     case "lineerror":
                         return lineerrorChartPlotly(chart_obj, preparePlotlyStatic);
                     case "piechart":
