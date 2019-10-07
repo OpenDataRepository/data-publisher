@@ -560,7 +560,9 @@
     }
 
     function setupTagTree() {
-        $(".ODRTagParent").unbind('click').click(function() {
+        $(".ODRTagParent").unbind('click').click(function(event) {
+            event.stopImmediatePropagation();
+
             if ( $(this).hasClass('ODRTagCollapsed') ) {
                 $(this).next().next().show();
                 $(this).children(".fa").first().removeClass("fa-caret-right").addClass("fa-caret-down");
