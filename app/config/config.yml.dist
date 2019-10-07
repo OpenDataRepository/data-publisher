@@ -33,6 +33,11 @@ twig:
     #cache: false
     exception_controller: ODR.exception_controller:showAction
 
+# Knp Markdown Configuration
+knp_markdown:
+    parser:
+        service: odr.markdown.parser
+
 # Doctrine Configuration
 doctrine:
     dbal:

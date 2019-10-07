@@ -7,7 +7,7 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * This service exists to get the KnpMarkdownBundle to use the more apparently more standardized
+ * This service exists to get the KnpMarkdownBundle to use the apparently more standardized
  * CommonMark PHP Markdown engine instead of the default Markdown parser that comes with the bundle.
  *
  * @see http://commonmark.thephpleague.com/
@@ -37,11 +37,11 @@ class ODRMarkdownParserService extends CommonMarkConverter implements MarkdownPa
                 'inner_separator' => "\n",
                 'soft_break'      => "\n",
             ),
-            'enable_em' => true,
-            'enable_strong' => true,
+            'enable_em' => false,        // defaults to true
+            'enable_strong' => false,    // defaults to true
             'use_asterisk' => true,
             'use_underscore' => true,
-            'html_input' => 'strip',            // defaults to 'escape'
+            'html_input' => 'strip',     // defaults to 'escape'
             'allow_unsafe_links' => false,
         );
 
