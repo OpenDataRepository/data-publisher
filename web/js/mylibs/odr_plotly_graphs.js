@@ -1153,7 +1153,7 @@ function stackedAreaChartPlotly(chart_obj, onComplete) {
 
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
-                        console.log('Plotting bar: ' + dr_id);
+                        console.log('Plotting stacked area: ' + dr_id);
 
                         var lines = file.lines;
                         var x = [];

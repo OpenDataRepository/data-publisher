@@ -1311,6 +1311,9 @@ class CSVImportController extends ODRCustomController
             // Verify any secondary delimiters
             foreach ($column_delimiters as $col_num => $delimiter) {
                 $delimiter = trim($delimiter);
+                if ($delimiter === 'space')
+                    $delimiter = ' ';
+
                 $column_delimiters[$col_num] = $delimiter;
 
                 if ( $delimiter === '' || strlen($delimiter) > 3 )

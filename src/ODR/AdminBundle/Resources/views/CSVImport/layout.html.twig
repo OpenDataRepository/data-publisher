@@ -93,7 +93,8 @@
                     <select id="column_{{ column_id }}_select" class="secondary_delimiter" rel="{{ column_id }}" {#disabled#}>
                         <option rel="">Select a delimiter...</option>
                         <option rel="|">{pipe}</option>
-                        <option rel=":">{colon}</option>
+                        <option rel="space">{space}</option>
+                        <option rel=",">{comma}</option>
                         <option rel="">{other}</option>
                     </select>
                     &nbsp;
@@ -467,6 +468,9 @@
             }
 
             var secondary_delimiter = $(secondary_delimiter_field).val().trim();
+            if ( secondary_delimiter === 'space' )
+                secondary_delimiter = ' ';
+
             if (secondary_delimiter === '') {
                 $(this).html("<i class=\"fa fa-warning fa-lg Cursor\"></i>&nbsp;Delimiters can't be blank");
                 return;
