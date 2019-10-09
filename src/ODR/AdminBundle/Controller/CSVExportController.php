@@ -287,7 +287,6 @@ class CSVExportController extends ODRCustomController
                 throw new ODRBadRequestException('Unable to export from a master template');
 
 
-
             // Translate the primary delimiter if needed
             if ($delimiter === 'tab')
                 $delimiter = "\t";
@@ -304,7 +303,11 @@ class CSVExportController extends ODRCustomController
             if ( !is_null($radio_delimiter)
                 && ($radio_delimiter === '' || strlen($radio_delimiter) > 3)
             ) {
-                throw new ODRBadRequestException('Invalid radio delimiter');
+                if ( $radio_delimiter !== 'space' ) {
+                    // Radio delimiter is allowed to be 'space', otherwise it wouldn't really
+                    //  transfer through the background jobs
+                    throw new ODRBadRequestException('Invalid radio delimiter');
+                }
             }
 
             if ( !is_null($tag_delimiter)
@@ -602,6 +605,8 @@ class CSVExportController extends ODRCustomController
             $radio_delimiter = null;
             if ( isset($post['radio_delimiter']) )
                 $radio_delimiter = $post['radio_delimiter'];
+            if ( $radio_delimiter === 'space' )
+                $radio_delimiter = ' ';
 
             $tag_delimiter = null;
             if ( isset($post['tag_delimiter']) )

@@ -34,7 +34,7 @@
             <select class="FileImageDelimiterSelect">
                 {#<option>Select a delimiter...</option>#}
                 <option rel="|">{pipe}</option>
-{#                <option rel=":">{colon}</option>#}
+                <option rel=",">{comma}</option>
 {#                <option rel="">{other}</option>#}
             </select>
         </td>
@@ -51,7 +51,8 @@
             <select class="RadioDelimiterSelect">
                 {#<option>Select a delimiter...</option>#}
                 <option rel="|">{pipe}</option>
-                <option rel=":">{colon}</option>
+                <option rel=",">{comma}</option>
+                <option rel="space">{space}</option>
                 <option rel="">{other}</option>
             </select>
         </td>
@@ -68,7 +69,7 @@
             <select class="TagDelimiterSelect">
                 {#<option>Select a delimiter...</option>#}
                 <option rel="|">{pipe}</option>
-                <option rel=":">{colon}</option>
+                <option rel=",">{comma}</option>
                 <option rel="">{other}</option>
             </select>
         </td>
