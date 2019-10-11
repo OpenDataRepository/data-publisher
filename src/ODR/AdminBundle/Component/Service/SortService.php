@@ -377,8 +377,8 @@ class SortService
                 }
             }
 
-            // Natural sort works in most cases...
-            $flag = SORT_NATURAL;
+            // Case-insensitive natural sort works in most cases...
+            $flag = SORT_NATURAL | SORT_FLAG_CASE;
             if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
                 $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
 
@@ -606,8 +606,8 @@ class SortService
                 }
             }
 
-            // Natural sort works in most cases...
-            $flag = SORT_NATURAL;
+            // Case-insensitive natural sort works in most cases...
+            $flag = SORT_NATURAL | SORT_FLAG_CASE;
             if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
                 $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
 

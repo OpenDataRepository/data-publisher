@@ -1873,8 +1873,8 @@ $ret .= '  Set current to '.$count."\n";
                     FROM ODRAdminBundle:DataRecord AS dr
                     WHERE dr.unique_id IS NULL AND dr.deletedAt IS NULL'
                 );
-                // Can't go much above this, or the query will timeout apparently
-//                $query->setMaxResults(15000);
+                // Unable to load/modify ~300k records at once...
+                $query->setMaxResults(60000);
 
                 /** @var DataRecord[] $datarecords */
                 $datarecords = $query->getResult();
