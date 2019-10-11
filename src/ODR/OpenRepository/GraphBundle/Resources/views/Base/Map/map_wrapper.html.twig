@@ -1,5 +1,14 @@
 {% spaceless %}
 
+{% set datatype = datatype_array[target_datatype_id] %}
+
+{% set parent_datarecord_id = "" %}
+{% for dr_id,datarecord in datarecord_array %}
+    {% if datarecord.dataType.id == target_datatype_id %}
+        {% set parent_datarecord_id = datarecord.parent.id %}
+    {% endif %}
+{% endfor %}
+
 {% if is_top_level == 1 %}
     <div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
 {% endif %}
@@ -59,7 +68,6 @@
             'plugin_options': plugin_options,
 
             'gps_locations': gps_locations,
-            'api_key': api_key,
             'unique_id': unique_id,
         } %}
 

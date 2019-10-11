@@ -32,6 +32,3 @@ parameters:
         jupyterhub_baseurl: [[ ENTER URL OF JUPYTERHUB DOMAIN HERE ]]     # This url MUST NOT have a trailing forward slash
         api_key: [[ ENTER RANDOM KEY HERE - Text String ]]
         bridge_token: [[ ENTER RANDOM KEY HERE - Text String ]]
-
-    google_maps_config:
-        api_key: [[ ENTER GOOGLE MAPS API KEY HERE IF USING MAP PLUGIN ]]

@@ -47,17 +47,13 @@ class MapPlugin implements DatatypePluginInterface
      *
      * @param EngineInterface $templating
      * @param TokenGenerator $tokenGenerator
-     * @param array $config_options
      */
     public function __construct(
         EngineInterface $templating,
-        TokenGenerator $tokenGenerator,
-        $config_options
+        TokenGenerator $tokenGenerator
     ) {
         $this->templating = $templating;
         $this->tokenGenerator = $tokenGenerator;
-
-        $this->api_key = $config_options['api_key'];
     }
 
 
@@ -183,11 +179,9 @@ class MapPlugin implements DatatypePluginInterface
                     'is_link' => $rendering_options['is_link'],
                     'display_type' => $rendering_options['display_type'],
 
-
                     'plugin_options' => $options,
 
                     'gps_locations' => $gps_locations,
-                    'api_key' => $this->api_key,
                     'unique_id' => $unique_id,
                 )
             );
