@@ -122,9 +122,16 @@ class SearchAPIService
             foreach ($searchable_datafields as $dt_id => $datatype_data) {
                 $is_public = true;
 
+                // Attempt at date-based public date searches
+                /*
                 $public_date = \DateTime::createFromFormat ( "Y-m-d H:i:s", $datatype_data['dt_public_date']);
                 if ($public_date > new \DateTime("now", new \DateTimeZone('UTC')))
                     $is_public = false;
+                */
+
+                if ($datatype_data['dt_public_date'] === '2200-01-01')
+                    $is_public = false;
+
 
                 $can_view_dt = false;
                 if ($search_as_super_admin)

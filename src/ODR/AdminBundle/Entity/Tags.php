@@ -343,4 +343,33 @@ class Tags
     {
         return $this->getTagMeta()->getDisplayOrder();
     }
+    /**
+     * @var int
+     */
+    private $userCreated;
+
+
+    /**
+     * Set userCreated.
+     *
+     * @param int $userCreated
+     *
+     * @return Tags
+     */
+    public function setUserCreated($userCreated)
+    {
+        $this->userCreated = $userCreated;
+
+        return $this;
+    }
+
+    /**
+     * Get userCreated.
+     *
+     * @return int
+     */
+    public function getUserCreated()
+    {
+        return $this->userCreated;
+    }
 }

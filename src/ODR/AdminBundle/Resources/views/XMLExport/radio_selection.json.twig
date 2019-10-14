@@ -4,6 +4,9 @@
         {   
             "name": "{{ radio_option.optionName }}",
             "template_radio_option_uuid": {{ radio_option.radioOptionUuid|json_encode|raw }},
+            {% if radio_option.userCreated %}
+                "user_created": "1",
+            {% endif %}
             "updated_at": "{{ radio_option.created|date('Y-m-d H:i:s') }}",
             "id": {{ radio_option.id }},
             "selected": "{{ radio_selection.selected }}"

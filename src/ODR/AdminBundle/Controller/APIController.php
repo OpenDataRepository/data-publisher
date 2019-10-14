@@ -31,8 +31,11 @@ use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\LongVarchar;
 use ODR\AdminBundle\Entity\RadioOptions;
+use ODR\AdminBundle\Entity\RadioOptionsMeta;
 use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Entity\TagMeta;
 use ODR\AdminBundle\Entity\TagSelection;
+use ODR\AdminBundle\Entity\TagTree;
 use ODR\AdminBundle\Entity\UserGroup;
 use ODR\OpenRepository\UserBundle\Entity\User;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -1263,6 +1266,8 @@ class APIController extends ODRCustomController
                                 // Tag field - need to difference hierarchy
                                 // Determine selected tags in original dataset
                                 // Determine selected tags in current
+                                // print $field['template_field_uuid']."\n";
+
                                 $selected_tags = array();
                                 self::selectedTags($field['value'], $selected_tags);
 
@@ -1341,6 +1346,7 @@ class APIController extends ODRCustomController
                                     }
                                 }
 
+
                                 // Check if new tag exists in template
                                 // Add to template if not exists
                                 foreach ($new_tags as $tag_uuid) {
@@ -1350,9 +1356,69 @@ class APIController extends ODRCustomController
                                         array(
                                             'tagUuid' => $tag_uuid,
                                             'dataField' => $data_field->getId()
-
                                         )
                                     );
+
+                                    // User Added Options
+                                    if(!$tag) {
+                                        // Create tag and set as user created
+                                        $tag = new Tags();
+
+                                        // Option UUID gets overloaded with the name if a user created tag
+                                        $tag->setTagName($tag_uuid);
+
+                                        /** @var UUIDService $uuid_service */
+                                        $uuid_service = $this->container->get('odr.uuid_service');
+                                        $tag->setTagUuid($uuid_service->generateTagUniqueId());
+                                        $tag->setCreatedBy($user);
+                                        $tag->setCreated(new \DateTime());
+                                        $tag->setUserCreated(1);
+                                        $tag->setDataField($data_field);
+                                        $em->persist($tag);
+
+                                        // Search $field['value'] for tag and find parent
+                                        $tag_parent_uuid = null;
+                                        foreach($field['value'] as $field_tag) {
+                                            if($field_tag['template_tag_uuid'] == $tag_uuid) {
+                                                // This is our tag
+                                                $tag_parent_uuid = $field_tag['tag_parent_uuid'];
+                                            }
+                                        }
+
+                                        if($tag_parent_uuid == null)
+                                            throw new \Exception('Tag parent UUID is required when adding user-created tags');
+
+                                        // Look up parent tag
+                                        $tag_parent = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
+                                            array(
+                                                'tagUuid' => $tag_parent_uuid,
+                                                'dataField' => $data_field->getId()
+                                            )
+                                        );
+
+                                        if(!$tag_parent)
+                                            throw new \Exception('The parent tag is invalid or not found.');
+
+                                        /** @var TagTree $tag_tree */
+                                        $tag_tree = new TagTree();
+                                        $tag_tree->setChild($tag);
+                                        $tag_tree->setParent($tag_parent);
+                                        $tag_tree->setCreatedBy($user);
+                                        $tag_tree->setCreated(new \DateTime());
+                                        $em->persist($tag_tree);
+
+                                        /** @var TagMeta $tag_meta */
+                                        $tag_meta = new TagMeta();
+                                        $tag_meta->setTag($tag);
+                                        $tag_meta->setTagName($tag_uuid);
+                                        $tag_meta->setXmlTagName($tag_uuid);
+                                        $tag_meta->setDisplayOrder(0);
+                                        $tag_meta->setCreatedBy($user);
+                                        $tag_meta->setCreated(new \DateTime());
+                                        $tag_meta->setUpdatedBy($user);
+                                        $tag_meta->setUpdated(new \DateTime());
+                                        $em->persist($tag_meta);
+                                    }
 
                                     if (!$drf) {
                                         // If drf entry doesn't exist, create new
@@ -1385,13 +1451,26 @@ class APIController extends ODRCustomController
 
                                     // Added tags need to replace their value in the array
                                     for($j=0;$j < count($field['value']);$j++) {
-                                        if($field['value'][$j]['template_tag_uuid'] == $tag->getTagUuid() ) {
+                                        if(
+                                            $field['value'][$j]['template_tag_uuid'] == $tag->getTagUuid()
+                                            || (
+                                                $tag->getUserCreated()
+                                                && $field['value'][$j]['template_tag_uuid'] == $tag_uuid
+                                            )
+                                        ) {
                                             // replace this block
-                                            $field['value'][$j]['name'] = $tag->getTagName();
+                                            $field['value'][$j]['template_tag_uuid'] = $tag->getTagUuid();
                                             $field['value'][$j]['id'] = $new_field->getId();
                                             $field['value'][$j]['selected'] = 1;
                                             $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
                                             $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
+                                            if($tag->getUserCreated()) {
+                                                $field['value'][$j]['name'] = $tag_uuid;
+                                                $field['value'][$j]['user_created'] = 1;
+                                            }
+                                            else {
+                                                $field['value'][$j]['name'] = $tag->getOptionName();
+                                            }
                                         }
                                     }
                                     // Assign the updated field back to the dataset.
@@ -1499,6 +1578,35 @@ class APIController extends ODRCustomController
                                         )
                                     );
 
+                                    // User Added Options
+                                    if(!$option) {
+                                        // Create option and set as user created
+                                        $option = new RadioOptions();
+
+                                        // Option UUID gets overloaded with the name if a user created option
+                                        $option->setOptionName($option_uuid);
+
+                                        /** @var UUIDService $uuid_service */
+                                        $uuid_service = $this->container->get('odr.uuid_service');
+                                        $option->setRadioOptionUuid($uuid_service->generateTagUniqueId());
+                                        $option->setCreatedBy($user);
+                                        $option->setCreated(new \DateTime());
+                                        $option->setUserCreated(1);
+                                        $option->setDataField($data_field);
+                                        $em->persist($option);
+
+                                        /** @var RadioOptionsMeta $option_meta */
+                                        $option_meta = new RadioOptionsMeta();
+                                        $option_meta->setRadioOption($option);
+                                        $option_meta->setIsDefault(false);
+                                        $option_meta->setCreatedBy($user);
+                                        $option_meta->setCreated(new \DateTime());
+                                        $option_meta->setDisplayOrder(0);
+                                        $option_meta->setXmlOptionName($option->getOptionName());
+                                        $option_meta->setOptionName($option->getOptionName());
+                                        $em->persist($option_meta);
+                                    }
+
                                     if (!$drf) {
                                         // If drf entry doesn't exist, create new
                                         $drf = new DataRecordFields();
@@ -1529,14 +1637,26 @@ class APIController extends ODRCustomController
 
                                     // Added tags need to replace their value in the array
                                     for($j=0;$j < count($field['value']);$j++) {
-                                        if($field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid() ) {
+                                        if(
+                                            $field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid()
+                                            || (
+                                                $option->getUserCreated()
+                                                && $field['value'][$j]['template_radio_option_uuid'] == $option_uuid
+                                            )
+                                        ) {
                                             // replace this block
                                             $field['value'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
-                                            $field['value'][$j]['name'] = $option->getOptionName();
                                             $field['value'][$j]['id'] = $new_field->getId();
                                             $field['value'][$j]['selected'] = 1;
                                             $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
                                             $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
+                                            if($option->getUserCreated()) {
+                                                $field['value'][$j]['name'] = $option_uuid;
+                                                $field['value'][$j]['user_created'] = 1;
+                                            }
+                                            else {
+                                                $field['value'][$j]['name'] = $option->getOptionName();
+                                            }
                                         }
                                     }
                                     // Assign the updated field back to the dataset.
@@ -1645,6 +1765,35 @@ class APIController extends ODRCustomController
                                         )
                                     );
 
+                                    // User Added Options
+                                    if(!$option) {
+                                        // Create option and set as user created
+                                        $option = new RadioOptions();
+
+                                        // Option UUID gets overloaded with the name if a user created option
+                                        $option->setOptionName($option_uuid);
+
+                                        /** @var UUIDService $uuid_service */
+                                        $uuid_service = $this->container->get('odr.uuid_service');
+                                        $option->setRadioOptionUuid($uuid_service->generateTagUniqueId());
+                                        $option->setCreatedBy($user);
+                                        $option->setCreated(new \DateTime());
+                                        $option->setUserCreated(1);
+                                        $option->setDataField($data_field);
+                                        $em->persist($option);
+
+                                        /** @var RadioOptionsMeta $option_meta */
+                                        $option_meta = new RadioOptionsMeta();
+                                        $option_meta->setRadioOption($option);
+                                        $option_meta->setIsDefault(false);
+                                        $option_meta->setCreatedBy($user);
+                                        $option_meta->setCreated(new \DateTime());
+                                        $option_meta->setDisplayOrder(0);
+                                        $option_meta->setXmlOptionName($option->getOptionName());
+                                        $option_meta->setOptionName($option->getOptionName());
+                                        $em->persist($option_meta);
+                                    }
+
                                     if (!$drf) {
                                         // If drf entry doesn't exist, create new
                                         $drf = new DataRecordFields();
@@ -1675,14 +1824,26 @@ class APIController extends ODRCustomController
 
                                     // Added tags need to replace their value in the array
                                     for($j=0;$j < count($field['value']);$j++) {
-                                        if($field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid() ) {
+                                        if(
+                                            $field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid()
+                                            || (
+                                                $option->getUserCreated()
+                                                && $field['value'][$j]['template_radio_option_uuid'] == $option_uuid
+                                            )
+                                        ) {
                                             // replace this block
                                             $field['value'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
-                                            $field['value'][$j]['name'] = $option->getOptionName();
                                             $field['value'][$j]['id'] = $new_field->getId();
                                             $field['value'][$j]['selected'] = 1;
                                             $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
                                             $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
+                                            if($option->getUserCreated()) {
+                                                $field['value'][$j]['name'] = $option_uuid;
+                                                $field['value'][$j]['user_created'] = 1;
+                                            }
+                                            else {
+                                                $field['value'][$j]['name'] = $option->getOptionName();
+                                            }
                                         }
                                     }
                                     // Assign the updated field back to the dataset.
@@ -1790,6 +1951,35 @@ class APIController extends ODRCustomController
                                         )
                                     );
 
+                                    // User Added Options
+                                    if(!$option) {
+                                        // Create option and set as user created
+                                        $option = new RadioOptions();
+
+                                        // Option UUID gets overloaded with the name if a user created option
+                                        $option->setOptionName($option_uuid);
+
+                                        /** @var UUIDService $uuid_service */
+                                        $uuid_service = $this->container->get('odr.uuid_service');
+                                        $option->setRadioOptionUuid($uuid_service->generateTagUniqueId());
+                                        $option->setCreatedBy($user);
+                                        $option->setCreated(new \DateTime());
+                                        $option->setUserCreated(1);
+                                        $option->setDataField($data_field);
+                                        $em->persist($option);
+
+                                        /** @var RadioOptionsMeta $option_meta */
+                                        $option_meta = new RadioOptionsMeta();
+                                        $option_meta->setRadioOption($option);
+                                        $option_meta->setIsDefault(false);
+                                        $option_meta->setCreatedBy($user);
+                                        $option_meta->setCreated(new \DateTime());
+                                        $option_meta->setDisplayOrder(0);
+                                        $option_meta->setXmlOptionName($option->getOptionName());
+                                        $option_meta->setOptionName($option->getOptionName());
+                                        $em->persist($option_meta);
+                                    }
+
                                     if (!$drf) {
                                         // If drf entry doesn't exist, create new
                                         $drf = new DataRecordFields();
@@ -1820,14 +2010,26 @@ class APIController extends ODRCustomController
 
                                     // Added tags need to replace their value in the array
                                     for($j=0;$j < count($field['value']);$j++) {
-                                        if($field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid() ) {
+                                        if(
+                                            $field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid()
+                                            || (
+                                                $option->getUserCreated()
+                                                && $field['value'][$j]['template_radio_option_uuid'] == $option_uuid
+                                            )
+                                        ) {
                                             // replace this block
                                             $field['value'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
-                                            $field['value'][$j]['name'] = $option->getOptionName();
                                             $field['value'][$j]['id'] = $new_field->getId();
                                             $field['value'][$j]['selected'] = 1;
                                             $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
                                             $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
+                                            if($option->getUserCreated()) {
+                                                $field['value'][$j]['name'] = $option_uuid;
+                                                $field['value'][$j]['user_created'] = 1;
+                                            }
+                                            else {
+                                                $field['value'][$j]['name'] = $option->getOptionName();
+                                            }
                                         }
                                     }
                                     // Assign the updated field back to the dataset.
@@ -1935,6 +2137,35 @@ class APIController extends ODRCustomController
                                         )
                                     );
 
+                                    // User Added Options
+                                    if(!$option) {
+                                        // Create option and set as user created
+                                        $option = new RadioOptions();
+
+                                        // Option UUID gets overloaded with the name if a user created option
+                                        $option->setOptionName($option_uuid);
+
+                                        /** @var UUIDService $uuid_service */
+                                        $uuid_service = $this->container->get('odr.uuid_service');
+                                        $option->setRadioOptionUuid($uuid_service->generateTagUniqueId());
+                                        $option->setCreatedBy($user);
+                                        $option->setCreated(new \DateTime());
+                                        $option->setUserCreated(1);
+                                        $option->setDataField($data_field);
+                                        $em->persist($option);
+
+                                        /** @var RadioOptionsMeta $option_meta */
+                                        $option_meta = new RadioOptionsMeta();
+                                        $option_meta->setRadioOption($option);
+                                        $option_meta->setIsDefault(false);
+                                        $option_meta->setCreatedBy($user);
+                                        $option_meta->setCreated(new \DateTime());
+                                        $option_meta->setDisplayOrder(0);
+                                        $option_meta->setXmlOptionName($option->getOptionName());
+                                        $option_meta->setOptionName($option->getOptionName());
+                                        $em->persist($option_meta);
+                                    }
+
                                     if (!$drf) {
                                         // If drf entry doesn't exist, create new
                                         $drf = new DataRecordFields();
@@ -1965,14 +2196,26 @@ class APIController extends ODRCustomController
 
                                     // Added tags need to replace their value in the array
                                     for($j=0;$j < count($field['value']);$j++) {
-                                        if($field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid() ) {
+                                        if(
+                                            $field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid()
+                                            || (
+                                                $option->getUserCreated()
+                                                && $field['value'][$j]['template_radio_option_uuid'] == $option_uuid
+                                            )
+                                        ) {
                                             // replace this block
                                             $field['value'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
-                                            $field['value'][$j]['name'] = $option->getOptionName();
                                             $field['value'][$j]['id'] = $new_field->getId();
                                             $field['value'][$j]['selected'] = 1;
                                             $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
                                             $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
+                                            if($option->getUserCreated()) {
+                                                $field['value'][$j]['name'] = $option_uuid;
+                                                $field['value'][$j]['user_created'] = 1;
+                                            }
+                                            else {
+                                                $field['value'][$j]['name'] = $option->getOptionName();
+                                            }
                                         }
                                     }
                                     // Assign the updated field back to the dataset.
@@ -2011,6 +2254,7 @@ class APIController extends ODRCustomController
                                         }
                                     }
                                     if (!$found) {
+                                        // TODO Should we add a check for "new_option" in UUID and then read an option name field?
                                         array_push($new_options, $option['template_radio_option_uuid']);
                                     }
                                 }
@@ -2052,12 +2296,15 @@ class APIController extends ODRCustomController
                                         )
                                     );
                                     /** @var RadioSelection $option_selection */
-                                    $option_selection = $em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy(
-                                        array(
-                                            'radioOption' => $option->getId(),
-                                            'dataRecordFields' => $drf->getId()
-                                        )
-                                    );
+                                    $option_selection = false;
+                                    if($option) {
+                                        $option_selection = $em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy(
+                                            array(
+                                                'radioOption' => $option->getId(),
+                                                'dataRecordFields' => $drf->getId()
+                                            )
+                                        );
+                                    }
 
                                     if ($option_selection) {
                                         $em->remove($option_selection);
@@ -2079,6 +2326,37 @@ class APIController extends ODRCustomController
 
                                         )
                                     );
+
+                                    // User Added Options
+                                    if(!$option) {
+                                        // Create option and set as user created
+                                        /** @var RadioOptions $option */
+                                        $option = new RadioOptions();
+
+                                        // Option UUID gets overloaded with the name if a user created option
+                                        $option->setOptionName($option_uuid);
+
+                                        /** @var UUIDService $uuid_service */
+                                        $uuid_service = $this->container->get('odr.uuid_service');
+                                        $option->setRadioOptionUuid($uuid_service->generateTagUniqueId());
+                                        $option->setCreatedBy($user);
+                                        $option->setCreated(new \DateTime());
+                                        $option->setUserCreated(1);
+                                        $option->setDataField($data_field);
+                                        $em->persist($option);
+
+                                        /** @var RadioOptionsMeta $option_meta */
+                                        $option_meta = new RadioOptionsMeta();
+                                        $option_meta->setRadioOption($option);
+                                        $option_meta->setIsDefault(false);
+                                        $option_meta->setCreatedBy($user);
+                                        $option_meta->setCreated(new \DateTime());
+                                        $option_meta->setDisplayOrder(0);
+                                        $option_meta->setXmlOptionName($option_uuid);
+                                        $option_meta->setOptionName($option_uuid);
+                                        $em->persist($option_meta);
+
+                                    }
 
                                     if (!$drf) {
                                         // If drf entry doesn't exist, create new
@@ -2110,17 +2388,29 @@ class APIController extends ODRCustomController
 
                                     // Added tags need to replace their value in the array
                                     for($j=0;$j < count($field['value']);$j++) {
-                                        if($field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid() ) {
+                                        if(
+                                            $field['value'][$j]['template_radio_option_uuid'] == $option->getRadioOptionUuid()
+                                            || (
+                                                $option->getUserCreated()
+                                                && $field['value'][$j]['template_radio_option_uuid'] == $option_uuid
+                                            )
+                                        ) {
                                             // replace this block
                                             $field['value'][$j]['template_radio_option_uuid'] = $option->getRadioOptionUuid();
-                                            $field['value'][$j]['name'] = $option->getOptionName();
                                             $field['value'][$j]['id'] = $new_field->getId();
                                             $field['value'][$j]['selected'] = 1;
                                             $field['value'][$j]['updated_at'] = $new_field->getUpdated()->format('Y-m-d H:i:s');
                                             $field['value'][$j]['created_at'] = $new_field->getCreated()->format('Y-m-d H:i:s');
+                                            if($option->getUserCreated()) {
+                                                $field['value'][$j]['name'] = $option_uuid;
+                                                $field['value'][$j]['user_created'] = 1;
+                                            }
+                                            else {
+                                                $field['value'][$j]['name'] = $option->getOptionName();
+                                            }
                                         }
                                     }
-                                    // Assign the updated field back to the dataset.
+                                    // Assign the updated field back to the dataset.test
                                     $dataset['fields'][$i] = $field;
                                 }
                                 break;

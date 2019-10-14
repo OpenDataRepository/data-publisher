@@ -145,6 +145,7 @@ class SearchQueryService
         // ----------------------------------------
         // Assume by default that caller wants all public datarecords
         // TODO This query is invalid.  Dates need to be compared as dates and not strings...
+        /*
         $search_params = array(
             'params' => array(
                 'datatype_id' => $datatype_id
@@ -159,9 +160,6 @@ class SearchQueryService
             WHERE dr.data_type_id = :datatype_id AND drm.public_date <= CURRENT_TIMESTAMP()
             AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
 
-        // 'str' => 'drm.public_date != :public_date',
-        // 'public_date' => '2200-01-01 00:00:00'
-
         if ( !$is_public ) {
             $query =
                 'SELECT dr.id AS dr_id
@@ -170,18 +168,31 @@ class SearchQueryService
             WHERE dr.data_type_id = :datatype_id AND drm.public_date > CURRENT_TIMESTAMP()
             AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
         }
+        */
 
-        // 'str' => 'drm.public_date != :public_date',
-        // 'public_date' => '2200-01-01 00:00:00'
+        $search_params = array(
+            'str' => 'drm.public_date != :public_date',
+            'params' => array(
+                'datatype_id' => $datatype_id,
+                'public_date' => '2200-01-01 00:00:00'
+            )
+        );
+        if ( !$is_public ) {
+            $search_params = array(
+                'str' => 'drm.public_date = :public_date',
+                'params' => array(
+                    'datatype_id' => $datatype_id,
+                    'public_date' => '2200-01-01 00:00:00'
+                )
+            );
+        }
 
-        /*
         $query =
            'SELECT dr.id AS dr_id
             FROM odr_data_record AS dr
             JOIN odr_data_record_meta AS drm ON drm.data_record_id = dr.id
             WHERE dr.data_type_id = :datatype_id AND '.$search_params['str'].'
             AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
-        */
 
         // ----------------------------------------
         // Execute and return the native SQL query

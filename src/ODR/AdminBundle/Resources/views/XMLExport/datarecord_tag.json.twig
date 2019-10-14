@@ -33,6 +33,9 @@
     {% if not has_children %}
         "selected": "1",
     {% endif %}
+    {% if tag.userCreated %}
+        "user_created": 1,
+    {% endif %}
         "name": "{{ tag_meta.tagName }}",
         "template_tag_uuid": {{ tag.tagUuid|json_encode|raw }},
         "updated_at": "{{ tag_meta.updated|date('Y-m-d H:i:s') }}",    {# TODO - should this be controlled by using_metadata? #}

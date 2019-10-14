@@ -354,4 +354,33 @@ class RadioOptions
     {
         return $this->getRadioOptionMeta()->getIsDefault();
     }
+    /**
+     * @var int
+     */
+    private $userCreated;
+
+
+    /**
+     * Set userCreated.
+     *
+     * @param int $userCreated
+     *
+     * @return RadioOptions
+     */
+    public function setUserCreated($userCreated)
+    {
+        $this->userCreated = $userCreated;
+
+        return $this;
+    }
+
+    /**
+     * Get userCreated.
+     *
+     * @return int
+     */
+    public function getUserCreated()
+    {
+        return $this->userCreated;
+    }
 }

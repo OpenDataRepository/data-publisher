@@ -2014,7 +2014,8 @@ class SearchService
         $searchable_datafields = array();
         foreach ($related_datatypes as $num => $dt_id) {
             $df_list = $this->cache_service->get('cached_search_dt_'.$dt_id.'_datafields');
-            if (1 || !$df_list) {
+            // if (1 || !$df_list) {
+            if (!$df_list) {
                 // If not cached, need to rebuild the list...
                 $query = $this->em->createQuery(
                    'SELECT
@@ -2039,8 +2040,12 @@ class SearchService
 
                 // Only need these once...
                 $df_list = array(
-                    'dt_public_date' => $results[0]['dt_public_date']->format('Y-m-d H:i:s'),
+                    // Attempts at dynamic public dates
+                    // 'dt_public_date' => $results[0]['dt_public_date']->format('Y-m-d H:i:s'),
                     // 'dt_public_date' => $results[0]['dt_public_date'],
+
+                    // Original fixed public date 2200....
+                    'dt_public_date' => $results[0]['dt_public_date']->format('Y-m-d'),
                     'datafields' => array(
                         'non_public' => array()
                     )
@@ -2061,9 +2066,9 @@ class SearchService
                         $df_id = $result['df_id'];
                         $df_uuid = $result['df_uuid'];    // required for cross-template searching
 
-                        // if ($result['df_public_date']->format('Y-m-d') !== '2200-01-01') {
-                    // This date is an object
-                        if ($result['df_public_date'] <= new \DateTime("now", new \DateTimeZone('UTC'))) {
+                        // Attempt at dynamic date
+                        // if ($result['df_public_date'] <= new \DateTime("now", new \DateTimeZone('UTC'))) {
+                        if ($result['df_public_date']->format('Y-m-d') !== '2200-01-01') {
                             $df_list['datafields'][$df_id] = array(
                                 'searchable' => $searchable,
                                 'typeclass' => $typeclass,
