@@ -22,7 +22,7 @@
                 <button type="button" id="ODRPageSelectButton" class="pure-button" type="submit">Go</button>
             </span>
             {% if offset >= 4 %}
-                <button class="pure-button" onclick="UpdateURL('#{{ path_str }}/1');">
+                <button class="ODRPageChooserButton pure-button" onclick="UpdateURL('#{{ path_str }}/1');">
                     <span>1</span>
                 </button>
             {% endif %}
@@ -32,7 +32,7 @@
             {% endif %}
 
             {% for i in start..end %}
-                <button class="pure-button {% if i == offset %}pure-button-primary{% endif %}"
+                <button class="ODRPageChooserButton pure-button {% if i == offset %}pure-button-primary{% endif %}"
                         onclick="UpdateURL('#{{ path_str }}/{{ i }}');">
                     <span>{{ i }}</span>
                 </button>
@@ -43,7 +43,7 @@
             {% endif %}
 
             {% if offset <= num_pages - 3 %}
-                <button class="pure-button" onclick="UpdateURL('#{{ path_str }}/{{ num_pages }}');">
+                <button class="ODRPageChooserButton pure-button" onclick="UpdateURL('#{{ path_str }}/{{ num_pages }}');">
                     <span>{{ num_pages }}</span>
                 </button>
             {% endif %}
@@ -108,16 +108,19 @@
 <script>
     $(function() {
 
-        $("#ODRPageSelectForm input[type='text']")
-            .on("click", function () {
-                $(this).select();
-            });
+        $("#ODRPageSelectForm input[type='text']").on("click", function () {
+            $(this).select();
+        });
 
-        $("#ODRPageSelectForm")
-            .unbind('submit').submit(function (event) {
-                event.preventDefault();
-                goToPage();
-            });
+        $("#ODRPageSelectForm").unbind('submit').submit(function (event) {
+            event.preventDefault();
+            goToPage();
+        });
+
+        $(".ODRPageChooserButton").unbind('click').click(function (event) {
+            // Prevent form submission when clicking buttons
+            event.preventDefault();
+        });
 
         $("#ODRPageSelect").unbind('click').click(function() {
             if ( $("#ODRPagePopup").is(':hidden') )
