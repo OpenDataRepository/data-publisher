@@ -37,8 +37,8 @@ class ODRMarkdownParserService extends CommonMarkConverter implements MarkdownPa
                 'inner_separator' => "\n",
                 'soft_break'      => "\n",
             ),
-            'enable_em' => false,        // defaults to true
-            'enable_strong' => false,    // defaults to true
+            'enable_em' => true,        // controls whether italic stuff is rendered
+            'enable_strong' => true,    // controls whether bold stuff is rendered
             'use_asterisk' => true,
             'use_underscore' => true,
             'html_input' => 'strip',     // defaults to 'escape'
