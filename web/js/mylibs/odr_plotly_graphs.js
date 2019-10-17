@@ -425,20 +425,20 @@ function barChartPlotly(chart_obj, onComplete) {
 
                             // Load the numeric values
                             if ( values.length === 2 ) {
-                                var x_tmp = Number(values[0]);
+                                var x_tmp = values[0];    // x values could be strings or numbers
                                 var y_tmp = Number(values[1]);
 
-                                if ( !isNaN(x_tmp) && !isNaN(y_tmp) ) {
+                                if ( !isNaN(y_tmp) ) {
                                     x.push(x_tmp);
                                     y.push(y_tmp);
                                 }
                             }
                             else if ( values.length === 3 ) {
-                                var x_tmp = Number(values[0]);
+                                var x_tmp = values[0];    // x values could be strings or numbers
                                 var y_tmp = Number(values[1]);
                                 var e_tmp = Number(values[2]);
 
-                                if ( !isNaN(x_tmp) && !isNaN(y_tmp) && !isNaN(e_tmp) ) {
+                                if ( !isNaN(y_tmp) && !isNaN(e_tmp) ) {
                                     x.push(x_tmp);
                                     y.push(y_tmp);
                                     e.push(e_tmp);
