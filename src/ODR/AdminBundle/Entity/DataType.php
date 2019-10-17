@@ -1045,7 +1045,13 @@ class DataType
      */
     public function getPublicDate()
     {
-        return $this->getDataTypeMeta()->getPublicDate();
+	if(!is_bool($this->getDataTypeMeta())){
+
+         	 return $this->getDataTypeMeta()->getPublicDate();
+	}
+        else {
+                 return new \DateTime('2200-01-01 00:00:00');
+        }
     }
 
     /**
