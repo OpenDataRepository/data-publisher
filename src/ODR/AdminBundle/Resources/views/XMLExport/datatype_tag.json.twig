@@ -17,6 +17,9 @@
 
         "name": "{{ tag_meta.tagName }}",
         "template_tag_uuid": {{ tag.tagUuid|json_encode|raw }},
+        {% if tag.tag_parent_uuid is defined %}
+            "tag_parent_uuid": {{ tag.tag_parent_uuid }},
+        {% endif %}
         "updated_at": "{{ tag_meta.updated|date('Y-m-d H:i:s') }}",    {# TODO - should this be controlled by using_metadata? #}
     {% if has_children %}
         "children": [

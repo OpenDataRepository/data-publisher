@@ -13,13 +13,8 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
-use Doctrine\DBAL\Connection as DBALConnection;
 use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Exception\ODRException;
-use ODR\AdminBundle\Exception\ODRForbiddenException;
-use ODR\AdminBundle\Exception\ODRNotFoundException;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
+use ODR\AdminBundle\Entity\TagTree;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Other
 use Doctrine\ORM\EntityManager;
@@ -514,6 +509,14 @@ class DatarecordInfoService
                     $ts['updatedBy'] = UserUtility::cleanUserData( $ts['updatedBy'] );
 
                     $t_id = $ts['tag']['id'];
+                    if($ts['tag']['userCreated'] > 0) {
+                        /** @var TagTree $tag_tree */
+                        $tag_tree = $this->em->getRepository('ODRAdminBundle:TagTree')
+                            ->findOneBy(array(
+                                'child' => $ts['tag']['id']
+                            ));
+                        $ts['tag_parent_uuid'] = $tag_tree->getParent()->getTagUuid();
+                    }
                     $new_ts_array[$t_id] = $ts;
                 }
                 $drf['tagSelection'] = $new_ts_array;

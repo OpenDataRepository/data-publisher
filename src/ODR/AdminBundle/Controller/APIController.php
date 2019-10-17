@@ -3099,6 +3099,9 @@ class APIController extends ODRCustomController
     }
 
     /**
+     * This works with the "data" dataset by default and automatically deletes the related
+     * metadata.
+     *
      * @param $version
      * @param $dataset_uuid
      * @param Request $request
@@ -3123,12 +3126,18 @@ class APIController extends ODRCustomController
                 if (is_null($user))
                     throw new ODRNotFoundException('User');
 
-                /** @var DataType $data_type */
+                /** @var DataType $datatype */
                 $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
                     array(
                         'unique_id' => $dataset_uuid
                     )
                 );
+
+                // When calling with a metadata datatype, automatically delete the
+                // actual dataset data and the related metadata
+                if($data_datatype = $datatype->getMetadataFor()) {
+                    $datatype = $data_datatype;
+                }
 
                 /** @var PermissionsManagementService $pm_service */
                 $pm_service = $this->container->get('odr.permissions_management_service');

@@ -84,6 +84,7 @@ class TagHelperService
      */
     public function getTagHierarchy($grandparent_datatype_id, $use_tag_uuids = false)
     {
+        // TODO We need to stop making arrays like this - completely untenable long term
         // Attempt to load this from the cache first...
         $tag_hierarchy = null;
         if (!$use_tag_uuids)
