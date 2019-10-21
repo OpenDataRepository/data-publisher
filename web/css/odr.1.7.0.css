@@ -4106,3 +4106,25 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 .ODRLinkDetailsContent {
     display: inline-block;
 }
+
+
+.ODRManageGroupsHeader {
+    border-bottom: 1px solid #111111;
+    font-weight: bold;
+    padding: 10px 18px;
+    margin-top: 15px;
+}
+.ODRGrayIcon {
+    opacity: 0.4;
+}
+.ODRGroupListCheckbox {
+    left: 35%;
+    position: relative;
+}
+
+.ODRGroupCheckbox {
+    cursor: pointer;
+}
+.ODRGroupName {
+    margin-left: 10px;
+}

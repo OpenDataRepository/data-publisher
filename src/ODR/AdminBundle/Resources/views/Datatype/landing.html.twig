@@ -138,7 +138,7 @@
                 {# TODO - some way to create a metadata thingy from here if one doesn't exist? #}
                 {# metadata layout designer link #}
                 <div>
-                    {% if is_datatype_admin %}
+                    {% if level >= 3 and is_datatype_admin %}    {# ROLE_ADMIN or above #}
                         {% if datatype.metadata_datatype is defined and datatype.metadata_datatype is not null %}
                             <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
                                class="address"
@@ -162,7 +162,7 @@
 
                 {# Group management link for this datatype #}
                 <div>
-                    {% if is_datatype_admin %}
+                    {% if level >= 3 and is_datatype_admin %}    {# ROLE_ADMIN or above #}
                         <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups"
                            class="address"
                            href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"
@@ -172,17 +172,20 @@
                     {% endif %}
                 </div>
 
+            {% if is_datatype_admin %}
+                {# spacer div so deletion is harder to unintentionally click on #}
+                <div>&nbsp;</div>
+
                 {# deletion link for this datatype #}
                 <div>
-                    {% if is_datatype_admin %}
-                        <a id="ODRDatatypeList_{{ datatype.id }}_delete"
-                           class="Pointer"
-                           onclick="deleteDataType({{ datatype.id }});"
-                        >
-                            <i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete
-                        </a>
-                    {% endif %}
+                    <a id="ODRDatatypeList_{{ datatype.id }}_delete"
+                       class="Pointer"
+                       onclick="deleteDataType({{ datatype.id }});"
+                    >
+                        <i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete
+                    </a>
                 </div>
+            {% endif %}
 
             </div>
             {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}

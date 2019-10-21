@@ -634,10 +634,12 @@ class DefaultController extends Controller
             $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_df_id, $sort_ascending);
             $datarecords = $search_results['grandparent_datarecord_list'];
 
-            // Bypass list entirely if only one datarecord
+            // Bypass list entirely if only one datarecord...
             if ( count($datarecords) == 1 && $intent === 'searching') {
                 $datarecord_id = $datarecords[0];
-                return $search_redirect_service->redirectToSingleDatarecord($datarecord_id);
+                // ...but also send the search_theme_id and the search key so the search sidebar
+                //  doesn't disappear on users
+                return $search_redirect_service->redirectToSingleDatarecord($datarecord_id, $search_theme_id, $filtered_search_key);
             }
 
 

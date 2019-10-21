@@ -153,11 +153,13 @@ class SearchRedirectService
      * When the search result only contains a single datarecord, the user should be redirected to
      * the view page for that single datarecord.
      *
-     * @param $datarecord_id
+     * @param int $datarecord_id
+     * @param int $search_theme_id
+     * @param string $search_key
      *
      * @return Response
      */
-    public function redirectToSingleDatarecord($datarecord_id)
+    public function redirectToSingleDatarecord($datarecord_id, $search_theme_id = 0, $search_key = '')
     {
         // Can't use $this->redirect, because it won't update the hash...
         $return = array(
@@ -167,7 +169,9 @@ class SearchRedirectService
                 'url' => $this->router->generate(
                     'odr_display_view',
                     array(
-                        'datarecord_id' => $datarecord_id
+                        'datarecord_id' => $datarecord_id,
+                        'search_theme_id' => $search_theme_id,
+                        'search_key' => $search_key
                     )
                 )
             )
