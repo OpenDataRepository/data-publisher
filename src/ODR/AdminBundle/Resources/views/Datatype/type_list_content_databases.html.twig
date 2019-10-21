@@ -33,12 +33,14 @@
             <thead>
             <tr>
                 <th></th>
+                <th></th>
                 <th>Database Name</th>
                 <th>Records</th>
 
                 <th>Search</th>
                 <th>Dashboard</th>
                 <th>Created By</th>
+                <th>Created On</th>
                 <th>Description</th>
             </tr>
             </thead>
@@ -97,10 +99,13 @@
                         {% set hidden_datatype_count = hidden_datatype_count + 1 %}
                     {% endif %}
 
-                    {% if can_view_datatype or datatype_meta.publicDate|is_public == true %}
+                    {% set datatype_is_public = datatype_meta.publicDate|is_public %}
+
+                    {% if can_view_datatype or datatype_is_public %}
                         <tr id="RowDataType_{{ datatype.id }}" {% if hidden_datatype %}class="ODRPublicDatatype ODRHidden"{% endif %}>
 
                             <td>{{ datatype.id }}</td>
+                            <td><i class="fa fa-lg fa-globe {% if datatype_is_public %}ODRActiveIcon{% endif %}" title="Database is{% if not datatype_is_public %} not{% endif %} public"></i></td>
                             <td id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype_meta.longName }}</td>
 
                             {# number of datarecords for this datatype #}
@@ -117,7 +122,7 @@
                                 {% else %}
                                     <a id="ODRDatarecordList_{{ datatype.id }}_search"
                                        href="{{ datatype_baseurl }}"
-                                       title="Search {{ datatype_meta.shortName }} DataRecords"
+                                       title="Search {{ datatype_meta.longName }} DataRecords"
                                     >
                                         <i class="fa fa-lg fa-search"></i>
                                         <span class="pure-visible-xl">&nbsp;Search</span>
@@ -130,14 +135,15 @@
                                 <a id="ODRDatarecordList_{{ datatype.id }}_landing"
                                    class="address"
                                    href="{{ datatype_baseurl }}#{{ path('odr_datatype_landing', { 'datatype_id': datatype.id }) }}"
-                                   title="{{ datatype_meta.shortName }} Info Page"
+                                   title="{{ datatype_meta.longName }} Info Page"
                                 >
                                     <i class="fa fa-lg fa-tachometer"></i>
                                     <span class="pure-visible-xl">&nbsp;Dashboard</span>
                                 </a>
                             </td>
 
-                            <td>{{ datatype.createdBy|user_string }} [{{ datatype.created|date('Y-m-d') }}]</td>
+                            <td>{{ datatype.createdBy|user_string }}</td>
+                            <td>{{ datatype.created|date('Y-m-d') }}</td>
                             <td>{{ datatype_meta.description }}</td>
                         </tr>
                     {% endif %}
@@ -158,16 +164,16 @@
                         "visible": false
                     },
                     {
-                        "targets": [3, 4],
+                        "targets": [4, 5],
                         "orderable": false,
                         "searchable": false
                     },
                     {
                         "width": "30%",
-                        "targets": [6]
+                        "targets": [8]
                     }
                 ],
-                "order": [[1, "asc"]],
+                "order": [[2, "asc"]],
                 "autoWidth": true,
                 "paging": false,
                 "fixedHeader": {
