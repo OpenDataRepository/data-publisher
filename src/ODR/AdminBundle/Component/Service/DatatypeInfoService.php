@@ -101,7 +101,7 @@ class DatatypeInfoService
     public function getDatatypeFromUniqueId($unique_id)
     {
         // Ensure it's a valid unique identifier first...
-        $pattern = '/^[a-z0-9]{7}$/';
+        $pattern = '/^[a-z0-9]+$/';
         if ( preg_match($pattern, $unique_id) !== 1 )
             throw new ODRBadRequestException('Invalid unique_id: "'.$unique_id.'"', 0xaf067bda);
 

@@ -1155,9 +1155,6 @@ class SearchService
      * Searches the specified datafield for the specified value, returning an array of
      * datarecord ids that match the search.
      *
-     * Split from self::searchTextOrNumberDatafield() because a boolean value technically isn't
-     * "number" or "text".  Backend doesn't really care though.
-     *
      * @param DataFields $datafield
      * @param bool $value
      *
@@ -1188,33 +1185,41 @@ class SearchService
 
         // ----------------------------------------
         // Otherwise, going to need to run the search again...
-        $result = $this->search_query_service->searchTextOrNumberDatafield(
-            $datafield->getDataType()->getId(),
-            $datafield->getId(),
-            $typeclass,
-            $boolean_value
+
+        // This should already be cached from earlier in the search routine
+        $datarecord_list = self::getCachedSearchDatarecordList($datafield->getDataType()->getId());
+
+        // Probably not strictly necessary, but keep parent datarecord ids out of the query function
+        foreach ($datarecord_list as $dr_id => $parent_id)
+            $datarecord_list[$dr_id] = 1;
+
+        $result = $this->search_query_service->searchBooleanDatafield(
+            $datarecord_list,
+            $datafield->getId()
         );
 
-        $end_result = array(
-            'dt_id' => $datafield->getDataType()->getId(),
-            'records' => $result
-        );
 
         // ...then recache the search result
-        $cached_searches[$value] = $end_result;
-        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
+        $cache_entry = array(
+            0 => array(
+                'dt_id' => $datafield->getDataType()->getId(),
+                'records' => $result[0]
+            ),
+            1 => array(
+                'dt_id' => $datafield->getDataType()->getId(),
+                'records' => $result[1]
+            ),
+        );
+        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cache_entry);
 
         // ...then return it
-        return $end_result;
+        return $cache_entry[$boolean_value];
     }
 
 
     /**
      * Searches the specified template datafield for the specified value, and returns an array of
      * datarecord ids that match the given criteria.
-     *
-     * Split from self::searchTextOrNumberDatafield() because a boolean value technically isn't
-     * "number" or "text".  Backend doesn't really care though.
      *
      * @param DataFields $template_datafield
      * @param bool $value
@@ -1248,19 +1253,22 @@ class SearchService
 
         // ----------------------------------------
         // Otherwise, going to need to run the search again...
-        $result = $this->search_query_service->searchTextOrNumberTemplateDatafield(
-            $template_datafield->getFieldUuid(),
-            $typeclass,
-            $boolean_value
+
+        // This should already be cached from earlier in the search routine
+        $datarecord_list = self::getCachedTemplateDatarecordList($template_datafield->getDataType()->getUniqueId());
+
+        $result = $this->search_query_service->searchBooleanTemplateDatafield(
+            $datarecord_list,
+            $template_datafield->getFieldUuid()
         );
 
 
         // ...then recache the search result
-        $cached_searches[$value] = $result;
+        $cached_searches = $result;
         $this->cache_service->set('cached_search_template_df_'.$template_datafield->getFieldUuid(), $cached_searches);
 
         // ...then return it
-        return $result;
+        return $cached_searches[$boolean_value];
     }
 
 

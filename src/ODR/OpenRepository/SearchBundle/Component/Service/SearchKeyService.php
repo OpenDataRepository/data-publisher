@@ -782,7 +782,7 @@ class SearchKeyService
 
         if ( !isset($search_params['template_uuid']) )
             throw new ODRBadRequestException('Invalid search key: missing "template_uuid"', $exception_code);
-        $pattern = '/^[a-z0-9]{7}$/';
+        $pattern = '/^[a-z0-9]+$/';
         if ( preg_match($pattern, $search_params['template_uuid']) !== 1 )
             throw new ODRBadRequestException('Invalid search key: "template_uuid" is in wrong format', $exception_code);
 

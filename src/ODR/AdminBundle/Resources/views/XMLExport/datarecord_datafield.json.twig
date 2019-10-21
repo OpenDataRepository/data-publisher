@@ -146,7 +146,7 @@
 {% else %}
 
     {% if field_typename == "Boolean" %}
-        "selected": "{% if valuefield_value == 1 %}1{% else %}0{% endif %}"
+        "selected": {% if valuefield_value == 1 %}1{% else %}0{% endif %}
     {% elseif field_typename == "DateTime" %}
         "value": "{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != '9999-12-31' %}{{ valuefield_value|date('Y-m-d') }}{% endif %}"
     {% else %}

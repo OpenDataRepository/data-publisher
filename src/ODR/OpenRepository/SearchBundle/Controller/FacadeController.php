@@ -301,7 +301,16 @@ class FacadeController extends Controller
 
             // Render the resulting list of datarecords into a single chunk of export data
             $baseurl = $this->container->getParameter('site_baseurl');
-            $data = $dre_service->getData($version, $datarecord_list, $request->getRequestFormat(), $display_metadata, $user, $baseurl);
+            $data = $dre_service->getData(
+                $version,
+                $datarecord_list,
+                $request->getRequestFormat(),
+                $display_metadata,
+                $user,
+                $baseurl,
+                1,
+                true
+            );
 
 
             // ----------------------------------------
@@ -763,7 +772,6 @@ class FacadeController extends Controller
                 $baseurl,
                 1,
                 true
-
             );
 
 

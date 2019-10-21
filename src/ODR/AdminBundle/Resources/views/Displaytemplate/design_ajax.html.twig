@@ -181,9 +181,6 @@
 
         initPage();
 
-        // Attach click handlers to tags
-        setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
-
 {# TODO - enable this once a better non-master theme designer gets worked out...
         {% if notify_of_sync is defined and notify_of_sync == true %}
         {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
@@ -1741,6 +1738,8 @@
         // Sets up the object click handlers
         InitDatatypeTools();
 
+        // Attach click handlers to tags
+        setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
         // Click handler to Reset Opacity
         $("#ODRDatatypeDesign").find("> .ODRDataType > .ODRFieldArea").click(function(e) {

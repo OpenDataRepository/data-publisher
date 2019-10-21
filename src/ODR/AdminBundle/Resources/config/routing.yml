@@ -1556,7 +1556,7 @@ odr_search_api_get_datatype_single:
     path:  /{search_slug}/api/info.{_format}
     defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatatypeExport, search_slug: '', _format: json }
     requirements:
-        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'    # any 32 charactera alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
+        search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'    # any 32 character alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
         _format: '|json|xml'
 
 odr_search_api_get_datarecord_list:

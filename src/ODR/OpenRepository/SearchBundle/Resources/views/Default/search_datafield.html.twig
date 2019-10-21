@@ -37,8 +37,8 @@
 {% if field_typename == "Boolean" %}
     <select class="ODRInput pure-u-1 Pointer" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" rel="{{ datatype_id }}">
         <option value="">Any</option>
-        <option value="0" {% if preset_value == '0' %}selected{% endif %}>Unselected</option>
-        <option value="1" {% if preset_value == '1' %}selected{% endif %}>Selected</option>
+        <option value="0" {% if preset_value == '0' %}selected{% endif %}>Unchecked</option>
+        <option value="1" {% if preset_value == '1' %}selected{% endif %}>Checked</option>
     </select>
 
 
