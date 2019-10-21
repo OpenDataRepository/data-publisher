@@ -73,7 +73,7 @@ class DatatreeInfoService
         // ----------------------------------------
         // Otherwise...get all the datatree data
         $query = $this->em->createQuery(
-            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
+           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
             FROM ODRAdminBundle:DataType AS ancestor
             JOIN ODRAdminBundle:DataTree AS dt WITH ancestor = dt.ancestor
             JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
@@ -126,7 +126,6 @@ class DatatreeInfoService
      * Given the id of a top-level datatype, returns the ids of all other top-level datatypes that
      * need to have their cache entries loaded so that the original top-level datatype can get
      * rendered.
-     * TODO - rename the cache entry to something that emphasizes it's a collection of linked datatype ids?
      *
      * @param int $top_level_datatype_id
      *
@@ -328,5 +327,76 @@ class DatatreeInfoService
 
         $linked_descendants = array_keys($linked_descendants);
         return $linked_descendants;
+    }
+
+
+    /**
+     * Returns the ids of all datarecords that need to have their cache entries loaded so the given
+     *  $top_level_datarecord_id can be properly rendered.
+     *
+     * @param int $top_level_datarecord_id
+     *
+     * @return array
+     */
+    public function getAssociatedDatarecords($top_level_datarecord_id)
+    {
+        // Need to locate all linked datarecords for the provided datarecord
+        $associated_datarecords = $this->cache_service->get('associated_datarecords_for_'.$top_level_datarecord_id);
+        if ($associated_datarecords == false) {
+            $associated_datarecords = self::getAssociatedDatarecords_worker( array($top_level_datarecord_id) );
+
+            // Also need the requested top-level datarecords in here
+            $associated_datarecords[$top_level_datarecord_id] = 1;
+            // These datarecord ids need to be stored as values instead of keys
+            $associated_datarecords = array_keys($associated_datarecords);
+
+            // Save the list of associated datarecords back into the cache
+            $this->cache_service->set('associated_datarecords_for_'.$top_level_datarecord_id, $associated_datarecords);
+        }
+
+        return $associated_datarecords;
+    }
+
+
+    /**
+     * Finds all records that are linked to by all children/grandchildren of the datarecords in
+     *  $datarecord_ids.
+     *
+     * @param array $datarecord_ids
+     *
+     * @return array
+     */
+    private function getAssociatedDatarecords_worker($datarecord_ids)
+    {
+        $datarecords_to_return = array();
+        $datarecords_to_check = array();
+
+        $query = $this->em->createQuery(
+           'SELECT ldr.id AS ldr_id
+            FROM ODRAdminBundle:DataRecord dr
+            JOIN ODRAdminBundle:DataRecord cdr WITH cdr.grandparent = dr
+            JOIN ODRAdminBundle:LinkedDataTree ldt WITH ldt.ancestor = cdr
+            JOIN ODRAdminBundle:DataRecord ldr WITH ldt.descendant = ldr
+            WHERE dr.id IN (:datarecord_ids)
+            AND dr.deletedAt IS NULL AND cdr.deletedAt IS NULL
+            AND ldt.deletedAt IS NULL AND ldr.deletedAt IS NULL'
+        )->setParameters( array('datarecord_ids' => $datarecord_ids) );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $num => $result) {
+            $ldr_id = $result['ldr_id'];
+
+            $datarecords_to_check[] = $ldr_id;
+            $datarecords_to_return[$ldr_id] = 1;
+        }
+
+        if ( !empty($datarecords_to_check) ) {
+            $tmp = self::getAssociatedDatarecords_worker($datarecords_to_check);
+
+            foreach ($tmp as $dr_id => $num)
+                $datarecords_to_return[$dr_id] = 1;
+        }
+
+        return $datarecords_to_return;
     }
 }

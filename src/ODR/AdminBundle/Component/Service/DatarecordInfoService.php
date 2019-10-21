@@ -127,6 +127,8 @@ class DatarecordInfoService
 
 
     /**
+     * @deprecated replace with DatatreeInfoService::getAssociatedDatarecords()
+     *
      * This function locates all datarecords whose grandparent id is in $grandparent_datarecord_ids,
      * then calls self::getLinkedDatarecords() to locate all datarecords linked to by these datarecords,
      * which calls this function again to locate any datarecords that are linked to by those
@@ -167,6 +169,8 @@ class DatarecordInfoService
 
 
     /**
+     * @deprecated
+     *
      * Builds and returns a list of all datarecords linked to from the provided datarecord ids.
      *
      * @param int[] $ancestor_ids
