@@ -1886,7 +1886,7 @@ class EditController extends ODRCustomController
                             // ...determine whether the new value is a duplicate of a value that already exists
                             $found_existing_value = self::findExistingValue($em, $datafield, $datarecord->getParent()->getId(), $new_value);
                             if ($found_existing_value)
-                                throw new ODRConflictException('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield...reverting back to old value.');
+                                throw new ODRConflictException('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield.');
                         }
 
                         // ----------------------------------------

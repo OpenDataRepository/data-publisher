@@ -1312,17 +1312,43 @@ function SaveRecordData(form_id, interval) {
     console.log('Save Form: ', form_id);
     $(form_id).find('.ODRSaveIndicator').fadeIn('50');
 
+    // May need these in case of errors
+    var input_div = $(form_id).find('div.ODRFieldWrapper');
+    var input_id = $(input_div).find('input').attr('id');
+
     $.ajax({
         type: 'POST',
         url: url,
         dataType: "json",
         data: post_data,
         success: function(data, textStatus, xhr) {
-            // Don't need to do anything special on success
+            // Remove any warnings about uniqueness conflicts
+            $(form_id).removeClass('ODRInputError');
+            // Could potentially be a jquery validate error message in here too...since the save
+            //  finished successfully, remove all warning labels
+            $(input_div).children('label').remove();
         },
         error: function(jqXHR, textStatus, errorThrown) {
-            // Just reload the datafield on error, since can't restore the old value
-            ReloadDatafield(datarecord_id, datafield_id);
+            if ( jqXHR.status !== 409 ) {
+                // Just reload the datafield on most errors, since can't restore the old value
+                ReloadDatafield(datarecord_id, datafield_id);
+            }
+            else {
+                // Otherwise, conflict error...don't want to reload the field because that tends to
+                //  completely disrupts users that are trying to enter correct values
+
+                // Ensure only one label per field
+                if ( $('#' + input_id + '-error').length === 0 ) {
+                    $(form_id).addClass('ODRInputError');
+                    var label = $("<label>", {
+                        // "id": input_id + '-error',
+                        // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
+                        "for": input_id,
+                        "html": "This value is a duplicate in a field that requires unique values"
+                    });
+                    $(input_div).append($(label));
+                }
+            }
         },
         complete: function(jqXHR, textStatus) {
             // Get the xdebugToken from response headers
