@@ -14,6 +14,7 @@
 namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
 // Other
+use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
 
@@ -1312,9 +1313,18 @@ class SearchQueryService
 
 
         // ----------------------------------------
+        // Typehint the parameters so inequality searches work better
+        $types = array();
+        foreach ($search_params['params'] as $key => $value) {
+            if ( is_numeric($value) )
+                $types[$key] = ParameterType::INTEGER;
+            else
+                $types[$key] = ParameterType::STRING;
+        }
+
         // Execute and return the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $search_params['params']);
+        $results = $conn->fetchAll($query, $search_params['params'], $types);
 
         $datarecords = array();
         foreach ($results as $result)
@@ -1373,7 +1383,7 @@ class SearchQueryService
         $search_params_text['params']['template_df_id'] = $master_datafield_uuid;
         $params[0] = $params[1] = $params[2] = $params[3] = $search_params_text;
 
-        // ...and a second for the numericla fieldtypes because their value columns can store nulls
+        // ...and a second for the numerical fieldtypes because their value columns can store nulls
         $search_params_num = self::parseField($value, $is_filename, true);
         $search_params_num['params']['template_df_id'] = $master_datafield_uuid;
         $params[4] = $params[5] = $search_params_num;
@@ -1448,8 +1458,18 @@ class SearchQueryService
         $conn = $this->em->getConnection();
 
         $results = array();
-        foreach ($typeclasses as $id => $typeclass)
-            $results[$id] = $conn->fetchAll($queries[$id], $params[$id]['params']);
+        foreach ($typeclasses as $id => $typeclass) {
+            // Typehint the parameters so inequality searches work better
+            $types = array();
+            foreach ($params[$id]['params'] as $key => $value) {
+                if ( is_numeric($value) )
+                    $types[$key] = ParameterType::INTEGER;
+                else
+                    $types[$key] = ParameterType::STRING;
+            }
+
+            $results[$id] = $conn->fetchAll($queries[$id], $params[$id]['params'], $types);
+        }
 
         // Create an array structure so the matching datarecords can be filtered based on user
         //  datatype/datafield permissions later
