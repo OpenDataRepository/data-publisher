@@ -11,7 +11,7 @@
 {% else %}
     <h1 class="no-margin-top-phone">
         <span>{{ title }} &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
-        <a id="page_settings" name="page_settings"><i class="fa fa-md fa-fw fa-cog"></i></a>
+        <a id="ODRPageSelectSettings"><i class="fa fa-md fa-fw fa-cog"></i></a>
     </h1>
 {% endif %}
 
@@ -166,7 +166,7 @@
         // Setup Theme System
         setupThemeSystem();
 
-        $("#page_settings").unbind('click').click(function(event) {
+        $("#ODRPageSelectSettings").unbind('click').click(function(event) {
             $("#page_settings_menu").toggle('fast');
         });
     }

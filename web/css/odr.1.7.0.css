@@ -4128,3 +4128,16 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 .ODRGroupName {
     margin-left: 10px;
 }
+
+#ODRPageSelectSettings {
+    text-align: left;
+}
+
+#ODRPageSelectForm {
+    text-align: left;
+}
+
+#ODRPageSelect_header {
+    margin-top: 15px;
+    text-align: left;
+}

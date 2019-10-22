@@ -1564,6 +1564,10 @@ exit();
             // Get all available themes for this datatype that the user can view
             $themes = $theme_service->getAvailableThemes($user, $datatype, $page_type);
 
+            // If the previous query didn't return anything, then load the master layout instead
+            if ( empty($themes) )
+                $themes = $theme_service->getAvailableThemes($user, $datatype, "master");
+
             // Get the user's default theme for this datatype, if they have one
             $user_default_theme = $theme_service->getUserDefaultTheme($user, $datatype_id, $page_type);
             $selected_theme_id = $theme_service->getPreferredTheme($user, $datatype_id, $page_type);

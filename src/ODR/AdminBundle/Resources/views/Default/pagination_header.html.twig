@@ -10,9 +10,15 @@
     {% set end = num_pages %}
 {% endif %}
 
-<div id="pagination_header">
-    <div class="pure-u-1 pure-u-xl-5-8">
+<div id="pagination_header" class="pure-u-1">
+    <div id="ODRPageSelect_header" class="pure-u-1 pure-u-md-1-8">
+        <a id="ODRPageSelectSettings">
+            <i class="fa fa-lg fa-fw fa-cog"></i>
+            <span class="ODRPaginationLabel">&nbsp;Tools</span>
+        </a>
+    </div>
 
+    <div class="pure-u-1 pure-u-md-1-2">
         <form id="ODRPageSelectForm" name="ODRPageSelectForm">
             <span id="ODRPageSelect" class="odr_page_button Pointer">
                 <i class="fa fa-caret-down fa-lg"></i><span class="ODRPaginationLabel">Page&nbsp;</span>
@@ -54,7 +60,8 @@
 
         </form>
     </div>
-    <div class="pure-u-1 pure-u-xl-3-8">
+
+    <div class="pure-u-1 pure-u-md-3-8">
         <span>
             <span class="ODRPaginationLabel">Show:</span>
             <button type="button" class="ODRPageLength pure-button {% if page_length == 10 %}pure-button-primary{% endif %}" rel="10">10</button>
@@ -63,46 +70,44 @@
             <button type="button" class="ODRPageLength pure-button {% if page_length == 100 %}pure-button-primary{% endif %}" rel="100">100</button>
             <span class="ODRPaginationLabel hidden"> records/page</span>
         </span>
-
-        <a id="page_settings" name="page_settings"><i class="fa fa-md fa-fw fa-cog"></i></a>
     </div>
-        {% set is_datatype_admin = false %}
-        {% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
-            {% set is_datatype_admin = true %}
-        {% endif %}
 
-        {% set user_role = '' %}
-        {% if user != 'anon.' %}
-            {% for role in user.getroles %}
-                {% if role == 'ROLE_ADMIN' %}
-                    {% set user_role = 'ROLE_ADMIN' %}
-                {% endif %}
-            {% endfor %}
-        {% endif %}
+    {% set is_datatype_admin = false %}
+    {% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+        {% set is_datatype_admin = true %}
+    {% endif %}
+
+    {% set user_role = '' %}
+    {% if user != 'anon.' %}
+        {% for role in user.getroles %}
+            {% if role == 'ROLE_ADMIN' %}
+                {% set user_role = 'ROLE_ADMIN' %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
 
 
-        {# Page/View Options #}
-        {% set page_type = 'search_results' %}
-        {% if intent == 'linking' %}
-            {% set page_type = 'linking' %}
-        {% endif %}
+    {# Page/View Options #}
+    {% set page_type = 'search_results' %}
+    {% if intent == 'linking' %}
+        {% set page_type = 'linking' %}
+    {% endif %}
 
-        {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
-            'datatype': datatype,
-            'theme': theme,
-            'page_type': page_type,
-            'search_key': search_key,
+    {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
+        'datatype': datatype,
+        'theme': theme,
+        'page_type': page_type,
+        'search_key': search_key,
 
-            'display_export_options': true,
-            'intent': intent,
-            'user_role': user_role,
-            'has_datarecords': has_datarecords,
+        'display_export_options': true,
+        'intent': intent,
+        'user_role': user_role,
+        'has_datarecords': has_datarecords,
 
-            'notitle': true,
-            'has_search_restriction': has_search_restriction,
-            'editable_only': editable_only,
-        } %}
-
+        'notitle': true,
+        'has_search_restriction': has_search_restriction,
+        'editable_only': editable_only,
+    } %}
 </div>
 
 <script>
@@ -189,27 +194,27 @@
         jQuery('#ODRHelpButton')
             .attr('data-step', '1')
             .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br /><br />  For quicker navigation, use your left and right arrow keys to go through the tutorial.');
-        jQuery('#page_settings')
+        jQuery('#ODRPageSelectSettings')
             .attr('data-step', '2')
             .attr('data-intro', 'The settings gear contains customizable settings for this page (search results).');
         jQuery('#ChooseView')
             .attr('data-step', '3')
             .attr('data-intro', 'Clicking "Choose View" brings up a menu of options for selecting alternate search views or creating your own.');
-        jQuery('#ODRPageSelect')
-            .attr('data-step', '4')
-            .attr('data-intro', 'You may jump to a specific results page by using the "Jump to page" option.');
-        jQuery('.ODRShortResultsHeader:first')
-            .attr('data-step', '5')
-            .attr('data-intro', 'Click the left side of a result header to view the record.');
-        jQuery('.ODRShortResultsHeader_edit:first')
-            .attr('data-step', '6')
-            .attr('data-intro', 'Click this right side of a result header to enter the edit page for that record.');
         jQuery('#ODRMassEdit')
-            .attr('data-step', '7')
+            .attr('data-step', '4')
             .attr('data-intro', 'Mass edit allows users with appropriate permissions to edit all records in the result list at once.');
         jQuery('#ODRCSVExport')
-            .attr('data-step', '8')
+            .attr('data-step', '5')
             .attr('data-intro', 'CSV Export lets users create CSV downloads of the data in the result list.');
+        jQuery('#ODRPageSelect')
+            .attr('data-step', '6')
+            .attr('data-intro', 'You may jump to a specific results page by using the "Jump to page" option.');
+        jQuery('.ODRShortResultsHeader:first')
+            .attr('data-step', '7')
+            .attr('data-intro', 'Click the left side of a result header to view the record.');
+        jQuery('.ODRShortResultsHeader_edit:first')
+            .attr('data-step', '8')
+            .attr('data-intro', 'Click this right side of a result header to enter the edit page for that record.');
         jQuery('#ODRRunApp')
             .attr('data-step', '9')
             .attr('data-intro', 'If this button is visible, one or more JupyterHub apps will be available in the select box to the left.   ');
@@ -223,9 +228,6 @@
                 .start();
         });
     });
-
-    function introJsExitHandler() {
-    }
 
     function goToPage() {
         var page = parseInt( $("#odr_page_input").val() );
@@ -244,26 +246,31 @@
     }
 
     function introJsStepBeforeChangeHandler(elem) {
-        if(jQuery(elem).attr("id") === "page_settings") {
-            if(!jQuery("#page_settings_menu").is(":visible")) {
+        if (jQuery(elem).attr("id") === "ODRPageSelectSettings") {
+            if (!jQuery("#page_settings_menu").is(":visible")) {
+                // Click the gear icon so the "Choose View", "Mass Edit", and "CSV Export" buttons
+                //  are visible
                 jQuery(elem).click();
             }
         }
-        if(jQuery(elem).attr("id") === "ChooseView") {
-        }
-        if(jQuery(elem).attr("id") === "ODRPageSelect") {
-            if(jQuery("#ChooseView").is(":visible")) {
-                jQuery("#page_settings").click();
+        if (jQuery(elem).attr("id") === "ODRPageSelect") {
+            if (jQuery("#ChooseView").is(":visible")) {
+                // Click the gear icon again so the "Choose View", "Mass Edit", and "CSV Export"
+                //  buttons are no longer visible
+                jQuery("#ODRPageSelectSettings").click();
             }
-            if(!jQuery("#ODRPagePopup").is(":visible")) {
+            if (!jQuery("#ODRPagePopup").is(":visible")) {
                 jQuery(elem).click();
             }
         }
-        if(jQuery(elem).hasClass("ODRShortResultsHeader")) {
+        if (jQuery(elem).hasClass("ODRShortResultsHeader")) {
             if (jQuery("#ODRPagePopup").is(":visible")) {
                 jQuery("#ODRPageSelect").click()
             }
         }
+    }
+
+    function introJsExitHandler() {
     }
 </script>
 {% endspaceless %}
