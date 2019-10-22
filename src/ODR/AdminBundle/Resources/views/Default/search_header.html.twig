@@ -96,8 +96,8 @@
             url += '/' + offset;
 
         // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
+        showSearchOverlay();    {# defined in Default::common_js.html.twig #}
         UpdateURL(url);
-
     }
 
     function changeResult(direction) {

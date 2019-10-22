@@ -96,6 +96,8 @@ $(function() {
 
 var SaveTimeout = 1000;
 function initPage() {
+    // Shouldn't be needed, but shouldn't hurt
+    hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
 
     // Attach click handlers to tags
     setupTagTree();

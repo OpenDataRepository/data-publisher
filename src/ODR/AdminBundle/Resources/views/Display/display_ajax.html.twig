@@ -58,6 +58,8 @@
 {% else %}
         enableSearchSidebar('{{ search_key }}');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 {% endif %}
+
+        hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
     }
 
     function setupFileDownloader() {

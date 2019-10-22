@@ -122,7 +122,7 @@
             // Grab necessary attributes
             var file_id = $(this).attr('rel');
 
-            handleFileDownload(event, file_id);    // defined in Default::file_handling.html.twig
+            handleFileDownload(event, file_id);    {# defined in Default::file_handling.html.twig #}
         });
 
         {% if scroll_target != '' %}
@@ -136,6 +136,7 @@
         }
         {% endif %}
 
+        hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
     }
 </script>
 

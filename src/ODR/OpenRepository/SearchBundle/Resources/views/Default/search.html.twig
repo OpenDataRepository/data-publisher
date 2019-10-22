@@ -275,7 +275,7 @@
 
                     // UpdateURL() will end up forcing a hashchange event one way or another
                     UpdateURL(url);
-                    hideSearchOverlay();
+                    // hideSearchOverlay();    // Don't hide search overlay here, rendering takes longer than searching
                 }
                 else if ( $("#ODRSearchIntent").val() === 'linking' ) {
                     var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': '1', 'intent': 'linking' } ) }}';
