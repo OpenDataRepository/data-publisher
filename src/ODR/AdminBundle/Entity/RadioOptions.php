@@ -81,6 +81,7 @@ class RadioOptions
     {
         $this->radioOptionMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->radioSelections = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->userCreated = 0;
     }
 
     /**

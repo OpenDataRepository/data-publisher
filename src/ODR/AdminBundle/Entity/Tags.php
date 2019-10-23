@@ -75,6 +75,7 @@ class Tags
     {
         $this->tagMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->tagSelections = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->userCreated = 0;
     }
 
     /**
