@@ -89,7 +89,7 @@
             },
 
             // https://datatables.net/manual/server-side
-            "processing": true,   // only displays a little "processing..." blurb
+            // "processing": true,   // only displays a little "processing..." blurb
             "serverSide": true,
 
             "stateSave": true,
@@ -225,8 +225,15 @@
         });
     });
 
+    // Datatable's little "processing" blurb isn't sufficient, need to use ODR's search overlay
+    $("#TextResults").on('preXhr.dt', function(e, settings, data) {
+        showSearchOverlay('loading');    {# defined in Default::common_js.html.twig #}
+    });
+
     // Because this table is dynamic, it needs to check for potential changes in the number of columns that it loads via ajax...
     $("#TextResults").on('xhr.dt', function(e, settings, json, xhr) {
+
+        hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
 
         if ( xhr.status !== 200 || json === undefined || json === null ) {
             // Don't need to actually "do" something here...just need to prevent dataTables from continuing to execute

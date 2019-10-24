@@ -216,11 +216,12 @@
             });
 
             if ( $("#UpdateThemeForm_isTableTheme").is(':checked') ) {
-                // Table themes can't use anything from child/linked datatypes at the moment
-                // Hide all theme elements containing them so that the "Show Hidden Elements"
-                //  checkbox can't show them
-                $(".ODRChildDatatype").parent().parent().addClass('ODRHidden');
+                // Table themes can't use anything from child/linked datatypes that allow multiple
+                //  child/linked datarecords...hide all theme elements containing them so that the
+                //  "Show Hidden Elements" checkbox can't show them
+                $(".ODRChildDatatype.ODRMultipleAllowed").parent().parent().addClass('ODRHidden');
             }
+
 {#
             $("#ODRCheckSourceTheme").unbind('click').click(function() {
                 var theme_id = $(this).attr('rel');

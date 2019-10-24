@@ -1341,7 +1341,7 @@ function SaveRecordData(form_id, interval) {
                 if ( $('#' + input_id + '-error').length === 0 ) {
                     $(form_id).addClass('ODRInputError');
                     var label = $("<label>", {
-                        // "id": input_id + '-error',
+                        "id": input_id + '-error',
                         // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
                         "for": input_id,
                         "html": "This value is a duplicate in a field that requires unique values"

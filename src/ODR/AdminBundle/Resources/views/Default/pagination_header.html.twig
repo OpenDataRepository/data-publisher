@@ -1,12 +1,20 @@
 {% spaceless %}
 
+{# Don't let start go below 1 #}
 {% set start = offset - 1 %}
 {% if start < 1 %}
     {% set start = 1 %}
 {% endif %}
 
+{# Don't let end go above number of pages #}
 {% set end = offset + 1 %}
 {% if end > num_pages %}
+    {% set end = num_pages %}
+{% endif %}
+
+{# If there's less than 5 pages, ensure all of them are always visible #}
+{% if num_pages <= 4 %}
+    {% set start = 1 %}
     {% set end = num_pages %}
 {% endif %}
 
@@ -20,6 +28,7 @@
 
     <div class="pure-u-1 pure-u-md-1-2">
         <form id="ODRPageSelectForm" name="ODRPageSelectForm">
+            {% if num_pages > 4 %}
             <span id="ODRPageSelect" class="odr_page_button Pointer">
                 <i class="fa fa-caret-down fa-lg"></i><span class="ODRPaginationLabel">Page&nbsp;</span>
                 <input type="text" id="odr_page_input" value="{{ offset }}" size="3" length="10" autocomplete="off"/>&nbsp;of&nbsp;<b>{{ num_pages }}</b>
@@ -27,35 +36,39 @@
             <span id="ODRPagePopup">Jump to page:
                 <button type="button" id="ODRPageSelectButton" class="pure-button" type="submit">Go</button>
             </span>
-            {% if offset >= 4 %}
-                <button class="ODRPageChooserButton pure-button" onclick="UpdateURL('#{{ path_str }}/1');">
+            {% else %}
+            <span class="ODRPaginationLabel Cursor">Page&nbsp;</span>
+            {% endif %}
+
+            {% if start >= 2 %}
+                <button class="ODRPageChooserButton pure-button" onclick="goToPage(1);">
                     <span>1</span>
                 </button>
             {% endif %}
 
-            {% if offset >= 5 %}
+            {% if num_pages > 4 and start >= 3 %}
                 &nbsp;<i class="fa fa-ellipsis-h"></i>
             {% endif %}
 
             {% for i in start..end %}
-                <button class="ODRPageChooserButton pure-button {% if i == offset %}pure-button-primary{% endif %}"
-                        onclick="UpdateURL('#{{ path_str }}/{{ i }}');">
+                <button class="ODRPageChooserButton pure-button {% if i == offset %}pure-button-primary{% endif %}" onclick="goToPage({{ i }});">
                     <span>{{ i }}</span>
                 </button>
             {% endfor %}
 
-            {% if offset <= num_pages - 4 %}
+            {% if num_pages > 4 and end <= (num_pages - 2) %}
                 &nbsp;<i class="fa fa-ellipsis-h"></i>
             {% endif %}
 
-            {% if offset <= num_pages - 3 %}
-                <button class="ODRPageChooserButton pure-button" onclick="UpdateURL('#{{ path_str }}/{{ num_pages }}');">
+            {% if end <= (num_pages - 1) %}
+                {#<button class="ODRPageChooserButton pure-button" onclick="UpdateURL('#{{ path_str }}/{{ num_pages }}');">#}
+                <button class="ODRPageChooserButton pure-button" onclick="goToPage({{ num_pages }});">
                     <span>{{ num_pages }}</span>
                 </button>
             {% endif %}
 
             {% if num_datarecords > 0 %}
-                <span class="ODRResultsNumRecords"><b>{{ num_datarecords }}</b>&nbsp;<span class="ODRPaginationLabel">records</span></span>
+                <span class="ODRResultsNumRecords Cursor"><b>{{ num_datarecords }}</b>&nbsp;<span class="ODRPaginationLabel">records</span></span>
             {% endif %}
 
         </form>
@@ -63,12 +76,12 @@
 
     <div class="pure-u-1 pure-u-md-3-8">
         <span>
-            <span class="ODRPaginationLabel">Show:</span>
+            <span class="ODRPaginationLabel Cursor">Show:&nbsp;</span>
             <button type="button" class="ODRPageLength pure-button {% if page_length == 10 %}pure-button-primary{% endif %}" rel="10">10</button>
             <button type="button" class="ODRPageLength pure-button {% if page_length == 25 %}pure-button-primary{% endif %}" rel="25">25</button>
             <button type="button" class="ODRPageLength pure-button {% if page_length == 50 %}pure-button-primary{% endif %}" rel="50">50</button>
             <button type="button" class="ODRPageLength pure-button {% if page_length == 100 %}pure-button-primary{% endif %}" rel="100">100</button>
-            <span class="ODRPaginationLabel hidden"> records/page</span>
+            <span class="ODRPaginationLabel Cursor">&nbsp;records/page</span>
         </span>
     </div>
 
@@ -166,7 +179,7 @@
                 data: data,
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
-                    var url = "{{ path_str }}" + "/" + "{{ offset }}?odr_tab_id=" + window.sessionStorage.getItem('odr_tab_id');
+                    var url = "{{ path_str }}" + "/" + "{{ offset }}";
                     UpdateURL(url);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
@@ -229,17 +242,22 @@
         });
     });
 
-    function goToPage() {
-        var page = parseInt( $("#odr_page_input").val() );
-        if ( isNaN(page) ) {
-            $("#odr_page_input").val('');
-            return;
+    function goToPage(page) {
+
+        if ( page === undefined ) {
+            page = parseInt($("#odr_page_input").val());
+            if (isNaN(page)) {
+                $("#odr_page_input").val('');
+                return;
+            }
         }
 
         if (page < 1)
             page = 1;
         if (page > {{ num_pages }})
             page = {{ num_pages }};
+
+        showSearchOverlay('loading');    {# defined in Default::common_js.html.twig #}
 
         var url = "{{ path_str }}" + '/' + page;
         UpdateURL(url);

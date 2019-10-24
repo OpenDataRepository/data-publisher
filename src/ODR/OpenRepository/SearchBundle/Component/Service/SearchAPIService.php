@@ -819,13 +819,25 @@ class SearchAPIService
         }
 
 
-        // Sort the resulting array
+        // Sort the resulting array if any results were found
         $sorted_datarecord_list = array();
         if ( !empty($grandparent_ids) ) {
-            if ($sort_df_id === 0)
-                $sorted_datarecord_list = $this->sort_service->getSortedDatarecordList($datatype->getId(), implode(',', $grandparent_ids));
-            else
-                $sorted_datarecord_list = $this->sort_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, implode(',', $grandparent_ids));
+            $source_dt_id = $datatype->getId();
+            $grandparent_ids_for_sorting = implode(',', $grandparent_ids);
+
+            if ($sort_df_id === 0) {
+                // No sort datafield defined for this request, use datarecord_id order
+                $sorted_datarecord_list = $this->sort_service->getSortedDatarecordList($source_dt_id, $grandparent_ids_for_sorting);
+            }
+            else if ( isset($searchable_datafields[$source_dt_id][$sort_df_id]) ) {
+                // The sort datafield belongs to the datatype being searched on
+                $sorted_datarecord_list = $this->sort_service->sortDatarecordsByDatafield($sort_df_id, $sort_ascending, $grandparent_ids_for_sorting);
+            }
+
+            else {
+                // The sort datafield belongs to some linked datatype TODO - ...or child, eventually?
+                $sorted_datarecord_list = $this->sort_service->sortDatarecordsByLinkedDatafield($source_dt_id, $sort_df_id, $sort_ascending, $grandparent_ids_for_sorting);
+            }
 
             // Convert from ($dr_id => $sort_value) into ($num => $dr_id)
             $sorted_datarecord_list = array_keys($sorted_datarecord_list);
