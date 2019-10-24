@@ -152,6 +152,7 @@ class SortService
         if ( $datarecord_list == false || count($datarecord_list) == 0 ) {
             // Going to need the datatype's sorting datafield, if it exists
             $sortfield = $datatype->getSortField();
+            $cache_result = true;
 
             $datarecord_list = array();
             if ($sortfield == null) {
@@ -174,13 +175,23 @@ class SortService
                 // Don't need a natural sort because the ids are guaranteed to just be numeric
                 asort($datarecord_list);
             }
-            else {
+            else if ( $sortfield->getDataType()->getId() === $datatype->getId() ) {
                 // Want to store all datarecords, not just a subset if it was passed in
                 $datarecord_list = self::sortDatarecordsByDatafield($sortfield->getId());
             }
+            else {
+                // If the datatype's sort field belongs to another datatype, then a different sort
+                //  function is needed...
+                $datarecord_list = self::sortDatarecordsByLinkedDatafield($datatype->getId(), $sortfield->getId());
 
-            // Store the sorted datarecord list back in the cache
-            $this->cache_service->set('datatype_'.$datatype_id.'_record_order', $datarecord_list);
+                // Can't cache a datarecord list from this function call...
+                $cache_result = false;
+            }
+
+            if ( $cache_result ) {
+                // Store the sorted datarecord list back in the cache
+                $this->cache_service->set('datatype_'.$datatype_id.'_record_order', $datarecord_list);
+            }
         }
 
 
