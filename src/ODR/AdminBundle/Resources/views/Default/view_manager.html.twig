@@ -348,6 +348,11 @@
         var url = '{{ path('odr_clone_theme', { 'theme_id': 0 }) }}';
         url = url.substr(0, (url.length - 1)) + theme_id;
 
+        {# requests to copy a theme from a search results page should create a search_results theme #}
+        {% if title == 'Search Result' %}
+        url += '/search_results';
+        {% endif %}
+
         setModalMessage("Copying selected theme, please wait...");
 
         $.ajax({

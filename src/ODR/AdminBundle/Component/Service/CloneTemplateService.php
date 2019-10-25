@@ -522,11 +522,13 @@ class CloneTemplateService
                         // This datafield got deleted out of the template datatype...create a "fake"
                         //  entry so that syncDatatype() can figure out it needs to delete the
                         //  relevant derived datafield
-                        $template_array[$t_dt_id]['dataFields'][$master_df_id] = array(
-                            'id' => $master_df_id,
-                            'masterDataField' => null,
-                            'deleted' => true,
-                        );
+
+                        // TODO - revisit, disabled again because deleting a derived field will likely cause data loss
+//                        $template_array[$t_dt_id]['dataFields'][$master_df_id] = array(
+//                            'id' => $master_df_id,
+//                            'masterDataField' => null,
+//                            'deleted' => true,
+//                        );
                     }
                     else {
                         // Field exists
@@ -1445,10 +1447,11 @@ class CloneTemplateService
 
                 if ( !isset($this->template_datafields[$df_id]) ) {
                     // This datafield got deleted out of the template datatype
-                    // TODO - move into an entity deletion service or something?
-                    self::deleteDatafield($derived_df, $user);
 
-                    $this->logger->debug('CloneTemplateService:'.$indent_text.' -- deleted datafield '.$df_id.' "'.$derived_df->getFieldName().'" (derived_dt: '.$derived_datatype->getId().')');
+                    // TODO - revisit, disabled again because deleting a derived field will likely cause data loss
+//                    self::deleteDatafield($derived_df, $user);
+//
+//                    $this->logger->debug('CloneTemplateService:'.$indent_text.' -- deleted datafield '.$df_id.' "'.$derived_df->getFieldName().'" (derived_dt: '.$derived_datatype->getId().')');
 
                     // Skip the rest of this loop and move on to the next datafield
                     continue;
@@ -1992,6 +1995,9 @@ class CloneTemplateService
         // Going to need this in a bit
         $derived_dt = $derived_df->getDataType();
 
+        // Delete any relevant search cache entries before the datafield gets deleted
+        $this->search_cache_service->onDatafieldDelete($derived_df);
+
         // Mark the datafield and its meta entry as deleted
         $derived_df_meta = $derived_df->getDataFieldMeta();
         $derived_df->setDeletedAt(new \DateTime());
@@ -2050,6 +2056,8 @@ class CloneTemplateService
         else
             unset( $properties['nameField'] );
 
+
+        // TODO - doesn't handle sortfields in different datatypes
         // Ensure that the datatype doesn't continue to think this datafield is its sort field
         if ( !is_null($properties['sortField']) && $properties['sortField']->getId() === $derived_df->getId() ) {
             $properties['sortField'] = null;

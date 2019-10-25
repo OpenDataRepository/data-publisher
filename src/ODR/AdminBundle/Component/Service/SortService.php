@@ -154,6 +154,9 @@ class SortService
             $sortfield = $datatype->getSortField();
             $cache_result = true;
 
+            // NOTE - $sortfield->getDataType() IS NOT GUARANTEED to be the same as $datatype...it's
+            //  possible that $datatype is using a field from one of its linked descendants
+
             $datarecord_list = array();
             if ($sortfield == null) {
                 // Need a list of all datarecords for this datatype
@@ -184,7 +187,8 @@ class SortService
                 //  function is needed...
                 $datarecord_list = self::sortDatarecordsByLinkedDatafield($datatype->getId(), $sortfield->getId());
 
-                // Can't cache a datarecord list from this function call...
+                // Can't cache a datarecord list returned by this function call...there's too many
+                //  events that can require it to be rebuilt
                 $cache_result = false;
             }
 

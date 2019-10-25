@@ -2183,11 +2183,12 @@ class ValidationController extends ODRCustomController
             $conn = $em->getConnection();
             $conn->beginTransaction();
 
+            // ----------------------------------------
             // If a datatype has
             $relationships = array(
                 'externalIdField',
                 'nameField',
-                'sortField',
+//                'sortField',
                 'backgroundImageField'
             );
 
@@ -2226,6 +2227,90 @@ class ValidationController extends ODRCustomController
                 print '<pre>updated '.$rows.' rows</pre>';
             }
 
+
+            // ----------------------------------------
+            // Sortfields can technically belong to another datatype, but only if the ancestor
+            //  datatype doesn't allow multiple records of the descendant datatype
+
+            // Find all instances where datatype A's sortfield belongs to datatype B...
+            $query = $em->createQuery(
+               'SELECT dt_1.id AS dt_1_id, dtm_1.shortName AS dt_1_name, df.id AS df_id, dfm.fieldName AS df_name, dt_2.id AS dt_2_id, dtm_2.shortName AS dt_2_name
+                FROM ODRAdminBundle:DataType AS dt_1
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm_1 WITH dtm_1.dataType = dt_1
+                JOIN ODRAdminBundle:DataFields AS df WITH dtm_1.sortField = df
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                JOIN ODRAdminBundle:DataType AS dt_2 WITH df.dataType = dt_2
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm_2 WITH dtm_2.dataType = dt_2
+                WHERE dt_1.id != dt_2.id
+                AND dt_1.deletedAt IS NULL AND dtm_1.deletedAt IS NULL
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
+                AND dt_2.deletedAt IS NULL AND dtm_2.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+            print_r( '<pre>Datatypes claiming a sortField datafield that belongs to another Datatype: '.print_r($results, true).'</pre>' );
+
+            // If there are any instances of datatype A's sortfield belonging to datatype B...
+            $affected_datatypes = array();
+            foreach ($results as $result) {
+                // ...check whether datatype A links to datatype B
+                $ancestor_id = $result['dt_1_id'];
+                $descendant_id = $result['dt_2_id'];
+
+                $df_id = $result['df_id'];
+                $df_name = $result['df_name'];
+                $ancestor_name = $result['dt_1_name'];
+                $descendant_name = $result['dt_2_name'];
+
+                $query = $em->createQuery(
+                   'SELECT dtm.is_link, dtm.multiple_allowed
+                    FROM ODRAdminBundle:DataTree AS dt
+                    JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+                    WHERE dt.ancestor = :ancestor_id AND dt.descendant = :descendant_id
+                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+                )->setParameters(
+                    array(
+                        'ancestor_id' => $ancestor_id,
+                        'descendant_id' => $descendant_id
+                    )
+                );
+                $sub_results = $query->getArrayResult();
+
+                if ( empty($sub_results) ) {
+                    // Datatype A isn't even related to Datatype B
+                    $affected_datatypes[] = $ancestor_id;
+                }
+                else {
+                    $is_link = $sub_results[0]['is_link'];
+                    $multiple_allowed = $sub_results[0]['multiple_allowed'];
+
+                    if ( $is_link == 0 ) {
+                        // Datatype B is a child of Datatype A
+                        $affected_datatypes[] = $ancestor_id;
+                    }
+                    else if ( $multiple_allowed == 1 ) {
+                        // Datatype A can link to multiple datarecords of Datatype B...sorting will
+                        //  be nonsense
+                        $affected_datatypes[] = $ancestor_id;
+                    }
+                    else {
+                        print '<pre><b>Datatype '.$ancestor_id.' ("'.$ancestor_name.'") is allowed to sort with the field '.$df_id.' ("'.$df_name.'"), belonging to Datatype '.$descendant_id.' ("'.$descendant_name.'")</b></pre>';
+                    }
+                }
+            }
+
+            print_r( '<pre>clearing sortField for datatypes: '.print_r($affected_datatypes, true).'</pre>' );
+
+            $update_query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataTypeMeta AS dtm
+                SET dtm.sortField = NULL
+                WHERE dtm.deletedAt IS NULL AND dtm.dataType IN (:datatype_ids)'
+            )->setParameters( array('datatype_ids' => $datatype_ids) );
+            $rows = $update_query->execute();
+            print '<pre>updated '.$rows.' rows</pre>';
+
+
+            // ----------------------------------------
             if (!$save)
                 $conn->rollBack();
             else

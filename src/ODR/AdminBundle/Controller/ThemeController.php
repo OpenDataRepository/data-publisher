@@ -506,11 +506,12 @@ class ThemeController extends ODRCustomController
      * Allows users to clone themes for creating customized views.
      *
      * @param int $theme_id
+     * @param string $new_theme_type
      * @param Request $request
      *
      * @return Response
      */
-    public function clonethemeAction($theme_id, Request $request)
+    public function clonethemeAction($theme_id, $new_theme_type, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -569,12 +570,24 @@ class ThemeController extends ODRCustomController
             if ($theme->getId() !== $theme->getParentTheme()->getId())
                 throw new ODRBadRequestException('Not allowed to clone a Theme for a child Datatype');
 
+            // If a destination theme type was given, ensure it's valid first
+            if ( $new_theme_type !== '' && !in_array($new_theme_type, ThemeInfoService::VALID_THEMETYPES) )
+                throw new ODRBadRequestException('Invalid ThemeType');
+            if ( $new_theme_type === 'master' )
+                throw new ODRBadRequestException('Invalid ThemeType');
 
-            // For now, just directly clone the theme...'master' themes get cloned to 'custom_view'
-            // Everything else retains the theme_type it was previously
-            $dest_theme_type = $theme->getThemeType();
-            if ($dest_theme_type == 'master')
-                $dest_theme_type = 'custom_view';
+
+            // If a destination theme type wasn't given...
+            if ( $new_theme_type === '' ) {
+                // ...then directly clone the theme.  Master' themes get cloned to 'custom_view'
+                $dest_theme_type = $theme->getThemeType();
+                if ($dest_theme_type == 'master')
+                    $dest_theme_type = 'custom_view';
+            }
+            else {
+                // ...otherwise, use the requested theme type
+                $dest_theme_type = $new_theme_type;
+            }
 
 
             // This actually seems to be fast enough that it doesn't need the TrackedJobService...

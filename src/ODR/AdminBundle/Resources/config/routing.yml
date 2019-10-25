@@ -366,10 +366,11 @@ odr_modify_theme:
         search_key: '[a-zA-Z0-9\-\_]*'
 
 odr_clone_theme:
-    path:  /design/copy_view/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Theme:clonetheme }
+    path:  /design/copy_view/{theme_id}/{new_theme_type}
+    defaults: { _controller: ODRAdminBundle:Theme:clonetheme, new_theme_type: '' }
     requirements:
         theme_id:  \d+
+        new_theme_type: '[a-z\-\_]*'
 
 odr_theme_reload_theme_element:
     path: /design/theme/themeelementreload/{source_datatype_id}/{theme_element_id}

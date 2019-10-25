@@ -32,7 +32,6 @@ use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\RenderPluginMap;
-use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
@@ -52,6 +51,7 @@ use ODR\AdminBundle\Form\UpdateThemeDatatypeForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneTemplateService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityDeletionService;
@@ -91,20 +91,8 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-            /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
-            /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
-            /** @var SearchService $search_service */
-            $search_service = $this->container->get('odr.search_service');
 
 
             /** @var DataFields $datafield */
@@ -155,153 +143,10 @@ class DisplaytemplateController extends ODRCustomController
 
 
 
-            // TODO - replace with EntityDeletionService::deleteDatafield()
-
             // ----------------------------------------
-            // Save which themes are going to get theme_datafield entries deleted
-            $query = $em->createQuery(
-               'SELECT t
-                FROM ODRAdminBundle:ThemeDataField AS tdf
-                JOIN ODRAdminBundle:ThemeElement AS te WITH tdf.themeElement = te
-                JOIN ODRAdminBundle:Theme AS t WITH te.theme = t
-                WHERE tdf.dataField = :datafield
-                AND tdf.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield->getId()) );
-            $all_datafield_themes = $query->getResult();
-            /** @var Theme[] $all_datafield_themes */
-
-            // Save which users and groups need to delete their permission entries for this datafield
-            $query = $em->createQuery(
-               'SELECT g.id AS group_id
-                FROM ODRAdminBundle:GroupDatafieldPermissions AS gdfp
-                JOIN ODRAdminBundle:Group AS g WITH gdfp.group = g
-                WHERE gdfp.dataField = :datafield
-                AND gdfp.deletedAt IS NULL AND g.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield->getId()) );
-            $all_affected_groups = $query->getArrayResult();
-
-//print '<pre>'.print_r($all_affected_groups, true).'</pre>';  //exit();
-
-            $query = $em->createQuery(
-               'SELECT u.id AS user_id
-                FROM ODRAdminBundle:Group AS g
-                JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
-                JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
-                WHERE g.id IN (:groups)
-                AND g.deletedAt IS NULL AND ug.deletedAt IS NULL'
-            )->setParameters( array('groups' => $all_affected_groups) );
-            $all_affected_users = $query->getArrayResult();
-
-//print '<pre>'.print_r($all_affected_users, true).'</pre>'; exit();
-
-
-            // ----------------------------------------
-            // Perform a series of DQL mass updates to immediately remove everything that could break if it wasn't deleted...
-/*
-            // ...datarecordfield entries
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecordFields AS drf
-                SET drf.deletedAt = :now
-                WHERE drf.dataField = :datafield AND drf.deletedAt IS NULL'
-            )->setParameters( array('now' => new \DateTime(), 'datafield' => $datafield->getId()) );
-            $rows = $query->execute();
-*/
-            // ...theme_datafield entries
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:ThemeDataField AS tdf
-                SET tdf.deletedAt = :now, tdf.deletedBy = :deleted_by
-                WHERE tdf.dataField = :datafield AND tdf.deletedAt IS NULL'
-            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datafield' => $datafield->getId()) );
-            $rows = $query->execute();
-
-            // ...datafield permissions
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
-                SET gdfp.deletedAt = :now
-                WHERE gdfp.dataField = :datafield AND gdfp.deletedAt IS NULL'
-            )->setParameters( array('now' => new \DateTime(), 'datafield' => $datafield->getId()) );
-            $rows = $query->execute();
-
-
-            // ----------------------------------------
-            // If this datafield was an external_id/name/sort/background_image datafield, then its
-            //  datatype needs an update so it doesn't inadvertently point to a deleted datafield...
-            $properties = array();
-            // Ensure that the datatype doesn't continue to think this datafield is its external id field
-            if ( !is_null($datatype->getExternalIdField()) && $datatype->getExternalIdField()->getId() === $datafield->getId() )
-                $properties['externalIdField'] = null;
-
-            // Ensure that the datatype doesn't continue to think this datafield is its name field
-            if ( !is_null($datatype->getNameField()) && $datatype->getNameField()->getId() === $datafield->getId() )
-                $properties['nameField'] = null;
-
-            // Ensure that the datatype doesn't continue to think this datafield is its sort field
-            if ( !is_null($datatype->getSortField()) && $datatype->getSortField()->getId() === $datafield->getId() ) {
-                $properties['sortField'] = null;
-
-                // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
-                $dti_service->resetDatatypeSortOrder($datatype->getId());
-            }
-
-            // Ensure that the datatype doesn't continue to think this datafield is its background image field
-            if ( !is_null($datatype->getBackgroundImageField()) && $datatype->getBackgroundImageField()->getId() === $datafield->getId() )
-                $properties['backgroundImageField'] = null;
-
-            if ( count($properties) > 0 )
-                $emm_service->updateDatatypeMeta($user, $datatype, $properties);
-
-            // ----------------------------------------
-            // Delete any cached search results that use this soon-to-be-deleted datafield
-            $search_cache_service->onDatafieldDelete($datafield);
-
-
-            // ----------------------------------------
-            // Save who deleted this datafield
-            $datafield->setDeletedBy($user);
-            $em->persist($datafield);
-            $em->flush();
-
-            // Done cleaning up after the datafield, delete it and its metadata
-            $datafield_meta = $datafield->getDataFieldMeta();
-            $em->remove($datafield_meta);
-            $em->remove($datafield);
-
-            // Save changes
-            $em->flush();
-
-
-            // ----------------------------------------
-            // Mark this datatype as updated
-            $dti_service->updateDatatypeCacheEntry($datatype, $user);
-
-            // Rebuild all cached theme entries the datafield belonged to
-            foreach ($all_datafield_themes as $t)
-                $theme_service->updateThemeCacheEntry($t->getParentTheme(), $user);
-
-
-            // ----------------------------------------
-            // Ensure that the cached tag hierarchy doesn't reference this datafield
-            $cache_service->delete('cached_tag_tree_'.$grandparent_datatype_id);
-            $cache_service->delete('cached_template_tag_tree_'.$grandparent_datatype_id);
-
-            // Wipe cached data for all the datatype's datarecords
-            $dr_list = $search_service->getCachedSearchDatarecordList($grandparent_datatype->getId());
-            foreach ($dr_list as $dr_id => $parent_dr_id) {
-                $cache_service->delete('cached_datarecord_'.$dr_id);
-                $cache_service->delete('cached_table_data_'.$dr_id);
-            }
-
-
-            // Wipe cached entries for Group and User permissions involving this datafield
-            foreach ($all_affected_groups as $group) {
-                $group_id = $group['group_id'];
-                $cache_service->delete('group_'.$group_id.'_permissions');
-            }
-
-            foreach ($all_affected_users as $user) {
-                $user_id = $user['user_id'];
-                $cache_service->delete('user_'.$user_id.'_permissions');
-            }
+            /** @var EntityDeletionService $ed_service */
+            $ed_service = $this->container->get('odr.entity_deletion_service');
+            $ed_service->deleteDatafield($datafield, $user);
 
         }
         catch (\Exception $e) {
@@ -903,7 +748,6 @@ class DisplaytemplateController extends ODRCustomController
                     $tmp[$ancestor_id] = 1;
                 }
             }
-
 
             // Populate new Datatree form
             $submitted_data = new DataTreeMeta();
@@ -2433,7 +2277,6 @@ class DisplaytemplateController extends ODRCustomController
             if ( !is_null($old_sortfield) )
                 $old_sortfield = $old_sortfield->getId();
 
-
             // Create the form for the Datatype
             $submitted_data = new DataTypeMeta();
 
@@ -2445,13 +2288,17 @@ class DisplaytemplateController extends ODRCustomController
             if ($datatree != null && $datatree->getIsLink() == true)
                 $is_link = true;
 
+            $sortfield_datatypes = self::getSortfieldDatatypes($datatype);
+
             $datatype_form = $this->createForm(
                 UpdateDataTypeForm::class,
                 $submitted_data,
                 array(
                     'datatype_id' => $datatype->getId(),
                     'is_top_level' => $is_top_level,
-                    'is_link' => $is_link
+                    'is_link' => $is_link,
+
+                    'sortfield_datatypes' => $sortfield_datatypes,
                 )
             );
             $datatype_form->handleRequest($request);
@@ -2603,6 +2450,8 @@ class DisplaytemplateController extends ODRCustomController
                 }
             }
             else {
+                $sortfield_datatypes = self::getSortfieldDatatypes($datatype);
+
                 // This is a GET request...need to create the required form objects
                 $datatype_meta = $datatype->getDataTypeMeta();
                 $datatype_form = $this->createForm(
@@ -2611,7 +2460,9 @@ class DisplaytemplateController extends ODRCustomController
                     array(
                         'datatype_id' => $datatype->getId(),
                         'is_top_level' => $is_top_level,
-                        'is_link' => $is_link
+                        'is_link' => $is_link,
+
+                        'sortfield_datatypes' => $sortfield_datatypes
                     )
                 );
 
@@ -2732,6 +2583,47 @@ class DisplaytemplateController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Datatypes are also allowed to pull datafields for sorting from linked datatypes, provided
+     * they only allow a single linked datarecord.
+     *
+     * @param DataType $datatype
+     *
+     * @return int[]
+     */
+    private function getSortfieldDatatypes($datatype)
+    {
+        /** @var DatatreeInfoService $$dti_service */
+        $dti_service = $this->container->get('odr.datatree_info_service');
+
+        // Locate the ids of all datatypes that the given parent datatype links to
+        $datatree_array = $dti_service->getDatatreeArray();
+        $linked_descendents = $dti_service->getLinkedDescendants( array($datatype->getId()), $datatree_array );
+
+        // The parent datatype should always be in here, otherwise no fields will get listed as
+        //  candidates for a sortfield
+        $sortfield_datatypes = array();
+        $sortfield_datatypes[] = $datatype->getId();
+
+        foreach ($linked_descendents as $num => $ldt_id) {
+            if ( !isset($datatree_array['multiple_allowed'][$ldt_id]) ) {
+                // If the linked datatype isn't in the 'multiple allowed' section, then everything
+                //  that links to it only permits a single linked record
+                $sortfield_datatypes[] = $ldt_id;
+            }
+            else {
+                $parents = $datatree_array['multiple_allowed'][$ldt_id];
+                if ( !in_array($datatype->getId(), $parents) ) {
+                    // The parent datatype only allows at most one linked record
+                    $sortfield_datatypes[] = $ldt_id;
+                }
+            }
+        }
+
+        return $sortfield_datatypes;
     }
 
 
@@ -3224,16 +3116,34 @@ class DisplaytemplateController extends ODRCustomController
             );
         }
 
+
         // TODO - without this, the user can change to unsortable fieldtypes...fix the rest of the logic so this isn't needed
-        // TODO - also ensure the cache entries for sort order get cleared
-        // Also prevent a fieldtype change if the datafield is the datatype's sort field
-        $sort_field = $datafield->getDataType()->getSortField();
-        if ( !is_null($sort_field) && $sort_field->getId() === $datafield->getId() ) {
-            $ret = array(
-                'prevent_change' => true,
-                'prevent_change_message' => "The Fieldtype can't be changed because the Datafield is being used as the Datatype's sort Datafield.",
-            );
+        // Also prevent a fieldtype change if the datafield is being used as the sort field by any datatype
+        $query = $em->createQuery(
+           'SELECT dtm.shortName
+            FROM ODRAdminBundle:DataFields AS df
+            JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.sortField = df
+            JOIN ODRAdminBundle:DataType AS dt WITH dtm.dataType = dt
+            WHERE df.id = :datafield_id
+            AND df.deletedAt IS NULL AND dtm.deletedAt IS NULL AND dt.deletedAt IS NULL'
+        )->setParameters( array('datafield_id' => $datafield->getId()) );
+        $results = $query->getArrayResult();
+
+        if ( !empty($results) ) {
+            if (count($results) == 1) {
+                $ret = array(
+                    'prevent_change' => true,
+                    'prevent_change_message' => "The Fieldtype can't be changed because the Datafield is being used to sort the ".$results[0]['shortName']." Datatype.",
+                );
+            }
+            else {
+                $ret = array(
+                    'prevent_change' => true,
+                    'prevent_change_message' => "The Fieldtype can't be changed because the Datafield is being used to sort multiple Datatypes",
+                );
+            }
         }
+
 
         // Prevent a datafield's fieldtype from changing if it's derived from a template
         if ( !is_null($datafield->getMasterDataField()) ) {

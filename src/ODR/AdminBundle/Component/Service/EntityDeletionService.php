@@ -127,7 +127,7 @@ class EntityDeletionService
 
 
     /**
-     * TODO - test this
+     * Deletes a datafield
      *
      * @param DataFields $datafield
      * @param ODRUser $user
@@ -136,14 +136,19 @@ class EntityDeletionService
      */
     public function deleteDatafield($datafield, $user)
     {
-        throw new ODRNotImplementedException();
-
         $conn = null;
 
         try {
             // Going to need these later...
             $datatype = $datafield->getDataType();
             $grandparent_datatype = $datatype->getGrandparent();
+
+            // --------------------
+            // Ensure user has permissions to be doing this
+            if (!$this->pm_service->isDatatypeAdmin($user, $datatype))
+                throw new ODRForbiddenException();
+            // --------------------
+
 
             // ----------------------------------------
             // Save which themes are going to get theme_datafield entries deleted
@@ -158,7 +163,7 @@ class EntityDeletionService
             $all_datafield_themes = $query->getResult();
             /** @var Theme[] $all_datafield_themes */
 
-            // Save which users and groups need to delete their permission entries for this datafield
+            // Save which groups need to delete their permission entries for this datafield
             $query = $this->em->createQuery(
                'SELECT g.id AS group_id
                 FROM ODRAdminBundle:GroupDatafieldPermissions AS gdfp
@@ -167,9 +172,10 @@ class EntityDeletionService
                 AND gdfp.deletedAt IS NULL AND g.deletedAt IS NULL'
             )->setParameters(array('datafield' => $datafield->getId()));
             $all_affected_groups = $query->getArrayResult();
-
 //print '<pre>'.print_r($all_affected_groups, true).'</pre>';  //exit();
 
+            // Save which users will need to have their permissions entries cleared since the
+            //  groups got modified
             $query = $this->em->createQuery(
                'SELECT u.id AS user_id
                 FROM ODRAdminBundle:Group AS g
@@ -179,9 +185,13 @@ class EntityDeletionService
                 AND g.deletedAt IS NULL AND ug.deletedAt IS NULL'
             )->setParameters(array('groups' => $all_affected_groups));
             $all_affected_users = $query->getArrayResult();
-
 //print '<pre>'.print_r($all_affected_users, true).'</pre>'; exit();
 
+
+            // ----------------------------------------
+            // Since this needs to make updates to multiple tables, use a transaction
+            $conn = $this->em->getConnection();
+            $conn->beginTransaction();
 
             // ----------------------------------------
             // Perform a series of DQL mass updates to immediately remove everything that could break if it wasn't deleted...
@@ -227,21 +237,62 @@ class EntityDeletionService
             );
             $rows = $query->execute();
 
+            // ...render plugin instances
+            $query = $this->em->createQuery(
+               'UPDATE ODRAdminBundle:RenderPluginInstance AS rpi
+                SET rpi.deletedAt = :now
+                WHERE rpi.dataField = :datafield AND rpi.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'datafield' => $datafield->getId()
+                )
+            );
+            $rows = $query->execute();
+
+            // ...render plugin maps
+            $query = $this->em->createQuery(
+               'UPDATE ODRAdminBundle:RenderPluginMap AS rpm
+                SET rpm.deletedAt = :now
+                WHERE rpm.dataField = :datafield AND rpm.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'datafield' => $datafield->getId()
+                )
+            );
+            $rows = $query->execute();
+
 
             // ----------------------------------------
-            // If this datafield was an external_id/name/sort/background_image datafield, then its
-            //  datatype to be updated so it doesn't continue to point to a deleted datafield...
+            // Ensure that the datatype no longer thinks this datafield has a special purpose...
             $properties = array();
-            // Ensure that the datatype doesn't continue to think this datafield is its external id field
-            if (!is_null($datatype->getExternalIdField()) && $datatype->getExternalIdField()->getId() === $datafield->getId())
+
+            // ...external id field
+            if ( !is_null($datatype->getExternalIdField())
+                && $datatype->getExternalIdField()->getId() === $datafield->getId()
+            ) {
                 $properties['externalIdField'] = null;
+            }
 
-            // Ensure that the datatype doesn't continue to think this datafield is its name field
-            if (!is_null($datatype->getNameField()) && $datatype->getNameField()->getId() === $datafield->getId())
+            // ...name field
+            if ( !is_null($datatype->getNameField())
+                && $datatype->getNameField()->getId() === $datafield->getId()
+            ) {
                 $properties['nameField'] = null;
+            }
 
-            // Ensure that the datatype doesn't continue to think this datafield is its sort field
-            if (!is_null($datatype->getSortField()) && $datatype->getSortField()->getId() === $datafield->getId()) {
+            // ...background image field
+            if ( !is_null($datatype->getBackgroundImageField())
+                && $datatype->getBackgroundImageField()->getId() === $datafield->getId()
+            ) {
+                $properties['backgroundImageField'] = null;
+            }
+
+            // ...sort field
+            if ( !is_null($datatype->getSortField())
+                && $datatype->getSortField()->getId() === $datafield->getId()
+            ) {
                 $properties['sortField'] = null;
 
                 // TODO - shouldn't this technically be in SortService?
@@ -249,40 +300,80 @@ class EntityDeletionService
                 $this->dti_service->resetDatatypeSortOrder($datatype->getId());
             }
 
-            // Ensure that the datatype doesn't continue to think this datafield is its background image field
-            if (!is_null($datatype->getBackgroundImageField()) && $datatype->getBackgroundImageField()->getId() === $datafield->getId())
-                $properties['backgroundImageField'] = null;
+            // Save any required changes
+            $need_flush = false;
+            if ( count($properties) > 0 ) {
+                $need_flush = true;
+                $this->emm_service->updateDatatypeMeta($user, $datatype, $properties, true);    // don't flush
+            }
 
-            if (count($properties) > 0)
-                $this->emm_service->updateDatatypeMeta($user, $datatype, $properties);
+
+            // ----------------------------------------
+            // Also need to check whether any other datatypes are using this datafield for sorting...
+            $query = $this->em->createQuery(
+               'SELECT dt
+                FROM ODRAdminBundle:DataTypeMeta AS dtm
+                JOIN ODRAdminBundle:DataType AS dt WITH dtm.dataType = dt
+                WHERE dtm.sortField = :datafield_id AND dt.id != :datatype_id
+                AND dtm.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datafield_id' => $datafield->getId(),
+                    'datatype_id' => $datatype->getId()    // don't want the datafield's datatype, it's already been taken care of
+                )
+            );
+            $results = $query->getResult();
+
+            foreach ($results as $result) {
+                /** @var DataType $dt */
+                $dt = $result;
+
+                $props['sortField'] = null;
+                $this->emm_service->updateDatatypeMeta($user, $dt, $props, true);    // don't flush
+
+                // Shouldn't need to clear cache entries as a result of this...
+                $need_flush = true;
+            }
+
 
             // ----------------------------------------
             // Delete any cached search results that use this soon-to-be-deleted datafield
             $this->search_cache_service->onDatafieldDelete($datafield);
 
+            // Now that nothing references the datafield, and no other action requires it to still
+            //  exist, delete the meta entry...
+            $query = $this->em->createQuery(
+               'UPDATE ODRAdminBundle:DataFieldsMeta AS dfm
+                SET dfm.deletedAt = :now
+                WHERE dfm.dataField = :datafield AND dfm.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'datafield' => $datafield->getId()
+                )
+            );
+            $rows = $query->execute();
 
-            // ----------------------------------------
-            // Save who deleted this datafield
-            $datafield->setDeletedBy($user);
-            $this->em->persist($datafield);
-            $this->em->flush();
+            // ...and finally the datafield entry
+            $query = $this->em->createQuery(
+               'UPDATE ODRAdminBundle:DataFields AS df
+                SET df.deletedAt = :now, df.deletedBy = :deleted_by
+                WHERE df = :datafield AND df.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'now' => new \DateTime(),
+                    'deleted_by' => $user->getId(),
+                    'datafield' => $datafield->getId()
+                )
+            );
+            $rows = $query->execute();
 
-            // Done cleaning up after the datafield, delete it and its metadata
-            $datafield_meta = $datafield->getDataFieldMeta();
-            $this->em->remove($datafield_meta);
-            $this->em->remove($datafield);
+            // No error encountered, commit changes
+            $conn->commit();
 
-            // Save changes
-            $this->em->flush();
-
-
-            // ----------------------------------------
-            // Mark this datatype as updated
-            $this->dti_service->updateDatatypeCacheEntry($datatype, $user);
-
-            // Rebuild all cached theme entries the datafield belonged to
-            foreach ($all_datafield_themes as $t)
-                $this->ti_service->updateThemeCacheEntry($t->getParentTheme(), $user);
+            // Flushing needs to happen after committing the other queries
+            if ( $need_flush )
+                $this->em->flush();
 
 
             // ----------------------------------------
@@ -297,17 +388,23 @@ class EntityDeletionService
                 $this->cache_service->delete('cached_table_data_'.$dr_id);
             }
 
-
             // Wipe cached entries for Group and User permissions involving this datafield
             foreach ($all_affected_groups as $group) {
                 $group_id = $group['group_id'];
                 $this->cache_service->delete('group_'.$group_id.'_permissions');
             }
 
-            foreach ($all_affected_users as $user) {
-                $user_id = $user['user_id'];
+            foreach ($all_affected_users as $u) {
+                $user_id = $u['user_id'];
                 $this->cache_service->delete('user_'.$user_id.'_permissions');
             }
+
+            // Mark this datatype as updated
+            $this->dti_service->updateDatatypeCacheEntry($datatype, $user);
+
+            // Rebuild all cached theme entries the datafield belonged to
+            foreach ($all_datafield_themes as $t)
+                $this->ti_service->updateThemeCacheEntry($t->getParentTheme(), $user);
 
         }
         catch (\Exception $e) {
