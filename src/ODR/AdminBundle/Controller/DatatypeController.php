@@ -42,6 +42,7 @@ use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 // Symfony
+use Doctrine\ORM\EntityManager;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -545,6 +546,16 @@ class DatatypeController extends ODRCustomController
                 $datatype_ids = array_keys($datatypes);
                 $related_metadata = self::getDatarecordCounts($em, $datatype_ids, $datatype_permissions);
 
+                // Only want to display recent changes for the top-level datatypes...
+                $datatype_names = array();
+                foreach ($datatypes as $dt_id => $dt) {
+                    if ( $dt['id'] === $dt['grandparent']['id'] )
+                        $datatype_names[$dt_id] = $dt['dataTypeMeta']['shortName'];
+                }
+
+                // Build the graphs for each of the top-level datatypes
+                $dashboard_graphs = self::getDashboardGraphs($em, $datatype_names, $datatype_permissions);
+
 
                 // ----------------------------------------
                 // Render the required version of the page
@@ -557,7 +568,9 @@ class DatatypeController extends ODRCustomController
                         'initial_datatype_id' => $datatype->getId(),
                         'datatype_permissions' => $datatype_permissions,
                         'related_datatypes' => $datatypes,
-                        'related_metadata' => $related_metadata
+                        'related_metadata' => $related_metadata,
+
+                        'dashboard_graphs' => $dashboard_graphs,
                     )
                 );
 
@@ -578,6 +591,133 @@ class DatatypeController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Recalculates the dashboard blurb for a specified datatype.  Caching barely speeds this up.
+     *
+     * @param EntityManager $em
+     * @param array $datatype_ids
+     * @param array $datatype_permissions
+     *
+     * @return string
+     */
+    private function getDashboardGraphs($em, $graph_datatypes, $datatype_permissions)
+    {
+        /** @var CacheService $cache_service */
+        $cache_service = $this->container->get('odr.cache_service');
+        $templating = $this->get('templating');
+
+        $conn = $em->getConnection();
+
+        $graph_str = '';
+        foreach ($graph_datatypes as $dt_id => $dt_name) {
+            $str = $cache_service->get('dashboard_'.$dt_id);
+            if ( $str === false || $str === ''  ) {
+                // Going to need to run queries to figure out these values...
+                $created = array();
+                $total_created = 0;
+                $updated = array();
+                $total_updated = 0;
+
+                // Going to need to know whether the user can view non-public datarecords in order
+                //  to calculate the correct values...
+                $can_view_datarecord = false;
+                if ( isset($datatype_permissions[$dt_id])
+                    && isset($datatype_permissions[$dt_id]['dr_view'])
+                ) {
+                    $can_view_datarecord = true;
+                }
+
+                for ($i = 1; $i <= 6; $i++) {
+                    // Created...
+                    $query_str = '';
+                    if ( $can_view_datarecord ) {
+                        $query_str =
+                           'SELECT COUNT(*) AS dr_count
+                            FROM odr_data_record dr
+                            WHERE dr.data_type_id = '.$dt_id.'
+                            AND dr.created >= DATE_SUB(NOW(), INTERVAL '.($i).'*7 DAY)
+                            AND dr.created < DATE_SUB(NOW(), INTERVAL '.($i - 1).'*7 DAY)
+                            AND dr.deletedAt IS NULL';
+                    }
+                    else {
+                        $query_str =
+                           'SELECT COUNT(*) AS dr_count
+                            FROM odr_data_record dr
+                            JOIN odr_data_record_meta drm ON drm.data_record_id = dr.id
+                            WHERE dr.data_type_id = '.$dt_id.' AND drm.public_date != "2200-01-01 00:00:00"
+                            AND dr.created >= DATE_SUB(NOW(), INTERVAL '.($i).'*7 DAY)
+                            AND dr.created < DATE_SUB(NOW(), INTERVAL '.($i - 1).'*7 DAY)
+                            AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
+                    }
+
+                    $result = $conn->executeQuery($query_str);
+                    $results = $result->fetchAll();
+
+                    $num = $results[0]['dr_count'];
+                    $total_created += $num;
+                    $created[] = $num;
+
+                    // Updated...
+                    if ( $can_view_datarecord ) {
+                        $query_str =
+                           'SELECT COUNT(*) AS dr_count
+                            FROM odr_data_record dr
+                            WHERE dr.data_type_id = '.$dt_id.'
+                            AND dr.updated >= DATE_SUB(NOW(), INTERVAL '.($i).'*7 DAY)
+                            AND dr.updated < DATE_SUB(NOW(), INTERVAL '.($i - 1).'*7 DAY)
+                            AND dr.deletedAt IS NULL';
+                    }
+                    else {
+                        $query_str =
+                           'SELECT COUNT(*) AS dr_count
+                            FROM odr_data_record dr
+                            JOIN odr_data_record_meta drm ON drm.data_record_id = dr.id
+                            WHERE dr.data_type_id = '.$dt_id.' AND drm.public_date != "2200-01-01 00:00:00"
+                            AND dr.updated >= DATE_SUB(NOW(), INTERVAL '.($i).'*7 DAY)
+                            AND dr.updated < DATE_SUB(NOW(), INTERVAL '.($i - 1).'*7 DAY)
+                            AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
+                    }
+
+                    $result = $conn->executeQuery($query_str);
+                    $results = $result->fetchAll();
+
+                    $num = $results[0]['dr_count'];
+                    $total_updated += $num;
+                    $updated[] = $num;
+                }
+
+                $created_str = $total_created.' created';
+                $updated_str = $total_updated.' modified';
+
+                $value_str = '';
+                for ($i = 5; $i >= 0; $i--)
+                    $value_str .= $created[$i].':'.$updated[$i].',';
+                $value_str = substr($value_str, 0, -1);
+
+                $graph = $templating->render(
+                    'ODRAdminBundle:Default:dashboard_graph.html.twig',
+                    array(
+                        'datatype_name' => $dt_name,
+                        'created_str' => $created_str,
+                        'updated_str' => $updated_str,
+                        'value_str' => $value_str,
+                    )
+                );
+
+                $cache_service->set('dashboard_'.$dt_id, $graph);
+                $cache_service->expire('dashboard_'.$dt_id, 1*24*60*60);    // Cache this dashboard entry for upwards of one day
+
+                $graph_str .= $graph;
+            }
+            else {
+                $graph_str .= $str;
+            }
+        }
+
+        return $graph_str;
     }
 
 

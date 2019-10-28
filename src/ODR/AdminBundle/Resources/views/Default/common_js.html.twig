@@ -13,7 +13,7 @@
 {% if logged_in == true %}
         else {
             // console.log( 'window.onload: LoadContentFullAjax("<<dashboard>>")' );
-            LoadContentFullAjax('{{ path('odr_dashboard') }}');
+            UpdateURL('{{ path('odr_list_types', {'section': 'databases'}) }}');
         }
 {% endif %}
     });

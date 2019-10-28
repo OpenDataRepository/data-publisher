@@ -2736,42 +2736,6 @@ form .row {
     /*margin-top: 30px;*/
 }
 
-.ODRDashboardHeader {
-    background: url("../img/elements/stats/bg.png") repeat-x scroll 0 0 #3a4454;
-    border-bottom: 1px solid #08192e;
-    box-sizing: border-box;
-    display: table;
-    margin: 30px 0 0;
-    padding: 22px 15px 24px;
-    table-layout: fixed;
-}
-
-.ODRDashboardHeader > div {
-    display: table-cell;
-    text-align: center;
-}
-
-.ODRDashboardHeader > div > strong {
-    color: #fff;
-    font-size: 25px;
-    font-weight: bold;
-    text-shadow: 0 1px 0 #000;
-
-    display: block;
-}
-
-.ODRDashboardHeader > div > small {
-    color: #7a828d;
-    font-size: 12px;
-    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
-
-    display: block;
-}
-
-
-
-
-
 
 /* Multi-select Dropdown */
 

@@ -7,10 +7,6 @@ odr_admin_homepage:
 odr_logout:
     path:  /logout
 
-odr_dashboard:
-    defaults: { _controller: ODRAdminBundle:Default:dashboard }
-    path:  /admin/dashboard
-
 #-----------------------------------------
 
 #-----------------------------------------
