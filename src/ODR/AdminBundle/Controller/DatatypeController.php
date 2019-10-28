@@ -698,7 +698,7 @@ class DatatypeController extends ODRCustomController
                 $value_str = substr($value_str, 0, -1);
 
                 $graph = $templating->render(
-                    'ODRAdminBundle:Default:dashboard_graph.html.twig',
+                    'ODRAdminBundle:Datatype:dashboard_graphs.html.twig',
                     array(
                         'datatype_name' => $dt_name,
                         'created_str' => $created_str,
