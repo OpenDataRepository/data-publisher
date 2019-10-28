@@ -707,6 +707,7 @@ class DisplaytemplateController extends ODRCustomController
             // --------------------
 
 
+            // ----------------------------------------
             // Ensure that the datatree isn't set to only allow single child/linked datarecords when it already is supporting multiple child/linked datarecords
             $parent_datatype_id = $datatree->getAncestor()->getId();
             $child_datatype_id = $datatree->getDescendant()->getId();
@@ -749,6 +750,20 @@ class DisplaytemplateController extends ODRCustomController
                 }
             }
 
+            // Determine whether the ancestor datatype is using a sortfield from the
+            //  descendant datatype
+            $ancestor_datatype = $datatree->getAncestor();
+            $descendant_datatype = $datatree->getDescendant();
+
+            $affects_sortfield = false;
+            if ( !is_null($ancestor_datatype->getSortField()) ) {
+                $sortfield = $ancestor_datatype->getSortField();
+                if ( $sortfield->getDataType()->getId() === $descendant_datatype->getId() )
+                    $affects_sortfield = true;
+            }
+
+
+            // ----------------------------------------
             // Populate new Datatree form
             $submitted_data = new DataTreeMeta();
             $datatree_form = $this->createForm(UpdateDataTreeForm::class, $submitted_data);
@@ -770,6 +785,16 @@ class DisplaytemplateController extends ODRCustomController
 
                     // Need to delete the cached version of the datatree array
                     $cache_service->delete('cached_datatree_array');
+
+
+                    // If the ancestor datatype's sortfield belongs to the descendant datatype, and
+                    //  the user is now permitting multiple links/children between ancestor and
+                    //  descendant...
+                    if ( $affects_sortfield && $submitted_data->getMultipleAllowed() == true ) {
+                        // ...then clear the ancestor datatype's sortfield
+                        $props = array('sortField' => null);
+                        $emm_service->updateDatatypeMeta($user, $ancestor_datatype, $props);
+                    }
 
                     // Then delete the cached version of the affected datatype
                     $dti_service->updateDatatypeCacheEntry($ancestor_datatype, $user);
@@ -2394,7 +2419,7 @@ class DisplaytemplateController extends ODRCustomController
                     $properties = array(
                         'renderPlugin' => $datatype->getRenderPlugin()->getId(),
 
-                        'externalIdField' => null,
+                        'externalIdField' => null,    // TODO - changing a field so it's no longer the external id field doesn't update the frontend to permit deletion
                         'nameField' => null,
                         'sortField' => null,
                         'backgroundImageField' => null,
@@ -2468,9 +2493,26 @@ class DisplaytemplateController extends ODRCustomController
 
                 // Create the form for the Datatree entity (stores whether the parent datatype is allowed to have multiple datarecords of the child datatype)
                 $force_multiple = false;
+                $affects_sortfield = false;
+
                 $datatree_form = null;
                 if ($datatree_meta !== null) {
-                    $datatree_form = $this->createForm(UpdateDataTreeForm::class, $datatree_meta)->createView();
+                    // Determine whether the ancestor datatype is using a sortfield from the
+                    //  descendant datatype
+                    $ancestor_datatype = $datatree->getAncestor();
+                    $descendant_datatype = $datatree->getDescendant();
+
+                    if ( !is_null($ancestor_datatype->getSortField()) ) {
+                        $sortfield = $ancestor_datatype->getSortField();
+                        if ( $sortfield->getDataType()->getId() === $descendant_datatype->getId() )
+                            $affects_sortfield = true;
+                    }
+
+                    // Create the form itself
+                    $datatree_form = $this->createForm(
+                        UpdateDataTreeForm::class,
+                        $datatree_meta
+                    )->createView();
 
                     $results = array();
                     if ($datatree_meta->getIsLink() == 0) {
@@ -2565,6 +2607,7 @@ class DisplaytemplateController extends ODRCustomController
                         'datatree' => $datatree,
                         'datatree_form' => $datatree_form,              // not creating view here because form could be legitimately null
                         'force_multiple' => $force_multiple,
+                        'affects_sortfield' => $affects_sortfield,
 
                         'theme_datatype' => $theme_datatype,
                         'theme_datatype_form' => $theme_datatype_form,  // not creating view here because form could be legitimately null

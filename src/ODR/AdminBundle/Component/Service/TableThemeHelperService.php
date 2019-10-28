@@ -573,7 +573,7 @@ class TableThemeHelperService
                     $df_array[] = $df;
                 }
             }
-            else {
+            else if ( isset($te['themeDataType']) ) {
                 // Need to recursively check for usable datafields in the child/linked datatype
                 $tdt = $te['themeDataType'][0];
                 $child_theme_id = $tdt['childTheme']['id'];

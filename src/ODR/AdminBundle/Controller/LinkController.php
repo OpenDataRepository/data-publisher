@@ -1000,8 +1000,24 @@ class LinkController extends ODRCustomController
                 // Mark all Datarecords that used to link to the remote datatype as updated
                 self::updateDatarecordEntries($em, $user, $datarecords_to_update);
 
+                // If the local datatype's sortfield belongs to remote datatype, update that
+                $needs_flush = false;
+                if ( !is_null($local_datatype->getSortField()) ) {
+                    $sortfield = $local_datatype->getSortField();
+                    if ( $sortfield->getDataType()->getId() == $previous_remote_datatype_id ) {
+                        $props = array('sortField' => null);
+                        $emm_service->updateDatatypeMeta($user, $local_datatype, $props, true);  // delay flush
+                        $needs_flush = true;
+                    }
+                }
+
+
                 // Done making mass updates, commit everything
                 $conn->commit();
+
+                // Only flush if needed, and only after the previous transaction is committed
+                if ($needs_flush)
+                    $em->flush();
 
 
                 // ----------------------------------------
@@ -1221,6 +1237,8 @@ class LinkController extends ODRCustomController
 
 
         // ----------------------------------------
+        // TODO - move parts of this into the EntityDeletionService?
+
         // There are six different entities to mark as deleted based on the prior criteria...
         // ...theme entries
         $query = $em->createQuery(

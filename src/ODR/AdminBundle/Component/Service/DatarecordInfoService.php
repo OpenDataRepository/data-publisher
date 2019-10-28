@@ -118,6 +118,8 @@ class DatarecordInfoService
             if ($datarecord_data == false)
                 $datarecord_data = self::buildDatarecordData($dr_id);
 
+            // TODO - if sortfield belongs to a linked datatype, then sortfieldValue doesn't contain the value used for sorting
+
             foreach ($datarecord_data as $dr_id => $data)
                 $datarecord_array[$dr_id] = $data;
         }

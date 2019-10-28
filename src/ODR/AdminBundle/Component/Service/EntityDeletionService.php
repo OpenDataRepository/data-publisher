@@ -808,6 +808,32 @@ class EntityDeletionService
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 */
 
+            // Ensure no datatypes attempt to use datafields from these soon-to-be-deleted datatypes
+            //  as their sortfield
+            $query = $this->em->createQuery(
+               'SELECT dt
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                JOIN ODRAdminBundle:DataFields AS df WITH dtm.sortField = df
+                WHERE df.dataType IN (:a) AND dt.id NOT IN (:b)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND df.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'a' => $datatypes_to_delete,
+                    'b' => $datatypes_to_delete
+                )
+            );
+            $sub_results = $query->getResult();
+
+            $needs_flush = false;
+            foreach ($sub_results as $dt) {
+                /** @var DataType $dt */
+                $props = array('sortField' => null);
+                $this->emm_service->updateDatatypeMeta($user, $dt, $props, true);    // don't flush immediately
+                $needs_flush = true;
+            }
+
+
             // ----------------------------------------
 /*
             // Delete all ThemeDatatype entries
@@ -1009,8 +1035,14 @@ class EntityDeletionService
             $this->cache_service->delete('top_level_themes');
             $this->cache_service->delete('cached_datatree_array');
 
+
+            // ----------------------------------------
             // No error encountered, commit changes
             $conn->commit();
+
+            // If a flush is needed, then only do it after the transaction is finished
+            if ( $needs_flush )
+                $this->em->flush();
         }
         catch (\Exception $e) {
             // Don't commit changes if any error was encountered...
