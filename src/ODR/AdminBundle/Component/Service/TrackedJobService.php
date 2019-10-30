@@ -107,29 +107,30 @@ class TrackedJobService
     {
         // Ensure the tracked job exists first
         /** @var TrackedJob $tracked_job */
-        $tracked_jobs = $this->em->getRepository('ODRAdminBundle:TrackedJob')->findBy(
-            array(
-                'createdBy' => $user_id,
-                'deletedAt' => null,
-                'job_type' => array(
-                    'csv_export',
-                    'csv_import',
-                    'csv_import_validate',
-                    'mass_edit',
-                    'migrate'
-                )
-            )
-        );
+        $qb = $this->em->createQueryBuilder();
+
+        $qb->select('tj')
+            ->from('ODRAdminBundle:TrackedJob', 'tj')
+            ->where($qb->expr()->isNotNull('tj.completed'))
+            ->andWhere('tj.createdBy = :user_id')
+            ->andWhere($qb->expr()->isNull('tj.deletedAt'))
+            ->andWhere($qb->expr()->in('tj.job_type', ':jobs_array'))
+            ->orderBy('tj.created', 'DESC');
+
+        $qb->setParameter('user_id', $user_id);
+        $qb->setParameter('jobs_array', array(
+            'csv_export',
+            'csv_import',
+            'csv_import_validate',
+            'mass_edit',
+            'migrate'
+        ));
+        $tracked_jobs = $qb->getQuery()->getArrayResult();
+
         if ($tracked_jobs == null)
             return array();
 
-        // Convert objects to arrays
-        $jobs_array = array();
-        foreach($tracked_jobs as $job) {
-            array_push($jobs_array, $job->toArray());
-        }
-
-        return $jobs_array;
+        return $tracked_jobs;
     }
 
     /**

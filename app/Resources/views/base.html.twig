@@ -446,8 +446,17 @@
         }
     }
 
-    function showMessageList() {
+    function fadeAfterDownload(elem) {
+        $.when($(elem).parent().parent().fadeOut('slow').remove()).then(
+           function() {
+               if($("#ODRMessageList").html() == '') {
+                   $("#ODRMessageList").html('<li><h3>No messages</h3></li>');
+               }
+           }
+        );
+    }
 
+    function showMessageList() {
         if($("#ODRMessageList").is(':visible')) {
             $("#ODRMessageList").fadeOut();
         }
@@ -462,7 +471,7 @@
                         var jobs = data.d;
                         console.log('Jobs: ', jobs);
 
-                        // Determine unviewed number
+                        $('#ODRMessageList').html('');
                         var list_elements = '';
                         for(var x in jobs) {
 
@@ -489,7 +498,7 @@
                                     url = url.substr(0, url.length-1);
                                     url += jobs[x].id;
 
-                                    var download_html = '<div class="JobDownloadLink"><a onclick="deleteJob(this)" class="pure-button pure-button-primary" href="' + url + '">Download</a></div>';
+                                    var download_html = '<div class="JobDownloadLink"><a onclick="fadeAfterDownload(this)" class="pure-button pure-button-primary" href="' + url + '">Download</a></div>';
 
                                     if(jobs[x].viewed !== null) {
                                         var html = '<li class="ODRTrackedJob viewed" rel="' + jobs[x].id + '">' +
@@ -564,7 +573,7 @@
                         }
 
                         if(list_elements === '') {
-                            list_elements = '<p><h3>No messages</h3></p>';
+                            list_elements = '<li><h3>No messages</h3></li>';
                         }
 
                         $('#ODRMessageList').html(
