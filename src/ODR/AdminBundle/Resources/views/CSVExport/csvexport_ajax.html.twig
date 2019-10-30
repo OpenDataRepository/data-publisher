@@ -6,119 +6,151 @@
     <span>CSV Export &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
 </h1>
 
-<form id="csvexport_form" style="margin:10px;{#display:none;#}" action="{{ path('odr_csv_export_start') }}">
-    <input type="hidden" value="{{ odr_tab_id }}" name="odr_tab_id"/>
-    <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
+    <div id="CSVExportForm">
 
-    <table><tbody>
-    <tr>
-        <td>Column delimiter: </td>
-        <td>
-            <select class="DelimiterSelect">
-                {#<option>Select a delimiter...</option>#}
-                <option rel=",">{comma}</option>
-                <option rel="tab">{tab}</option>
-                <option rel="">{other}</option>
-            </select>
-        </td>
-        <td>
-            <input type="text" name="delimiter" id="delimiter_field" class="ODRDelimiterField" maxlength="1" size="3" />
-        </td>
-        <td>
-            <span class="ODRInputError ODRWarnWrapper"><i class="fa fa-warning"></i><span id="delimiter_warn"></span></span>
-        </td>
-    </tr>
-    <tr class="ODRFileImageDelimiter">
-        <td>File/Image delimiter: </td>
-        <td>
-            <select class="FileImageDelimiterSelect">
-                {#<option>Select a delimiter...</option>#}
-                <option rel="|">{pipe}</option>
-                <option rel=",">{comma}</option>
-{#                <option rel="">{other}</option>#}
-            </select>
-        </td>
-        <td>
-            <input type="text" name="file_image_delimiter" id="file_image_delimiter_field" class="ODRDelimiterField" maxlength="3" size="4" />
-        </td>
-        <td>
-            <span class="ODRInputError ODRFileImageWarnWrapper"><i class="fa fa-warning"></i><span id="file_image_delimiter_warn"></span></span>
-        </td>
-    </tr>
-    <tr class="ODRRadioDelimiter">
-        <td>Multiple Radio/Select delimiter: </td>
-        <td>
-            <select class="RadioDelimiterSelect">
-                {#<option>Select a delimiter...</option>#}
-                <option rel="|">{pipe}</option>
-                <option rel=",">{comma}</option>
-                <option rel="space">{space}</option>
-                <option rel="">{other}</option>
-            </select>
-        </td>
-        <td>
-            <input type="text" name="radio_delimiter" id="radio_delimiter_field" class="ODRDelimiterField" maxlength="3" size="4" />
-        </td>
-        <td>
-            <span class="ODRInputError ODRRadioWarnWrapper"><i class="fa fa-warning"></i><span id="radio_delimiter_warn"></span></span>
-        </td>
-    </tr>
-    <tr class="ODRTagDelimiter">
-        <td>Tags delimiter: </td>
-        <td>
-            <select class="TagDelimiterSelect">
-                {#<option>Select a delimiter...</option>#}
-                <option rel="|">{pipe}</option>
-                <option rel=",">{comma}</option>
-                <option rel="">{other}</option>
-            </select>
-        </td>
-        <td>
-            <input type="text" name="tag_delimiter" id="tag_delimiter_field" class="ODRDelimiterField" maxlength="3" size="4" />
-        </td>
-        <td>
-            <span class="ODRInputError ODRTagWarnWrapper"><i class="fa fa-warning"></i><span id="tag_delimiter_warn"></span></span>
-        </td>
-    </tr>
-    <tr class="ODRTagHierarchyDelimiter">
-        <td>Tag Hierarchy delimiter: </td>
-        <td>
-            <select class="TagHierarchyDelimiterSelect">
-                {#<option>Select a delimiter...</option>#}
-                <option rel=">>">&gt;&gt;</option>
-                <option rel="">{other}</option>
-            </select>
-        </td>
-        <td>
-            <input type="text" name="tag_hierarchy_delimiter" id="tag_hierarchy_delimiter_field" class="ODRDelimiterField" maxlength="3" size="4" />
-        </td>
-        <td>
-            <span class="ODRInputError ODRTagHierarchyWarnWrapper"><i class="fa fa-warning"></i><span id="tag_hierarchy_delimiter_warn"></span></span>
-        </td>
-    </tr>
-    </tbody></table>
+        <form id="csvexport_form" style="margin:10px;{#display:none;#}" action="{{ path('odr_csv_export_start') }}">
+            <input type="hidden" value="{{ odr_tab_id }}" name="odr_tab_id"/>
+            <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
 
-</form>
+            <table>
+                <tbody>
+                <tr>
+                    <td>Column delimiter:</td>
+                    <td>
+                        <select class="DelimiterSelect">
+                            {#<option>Select a delimiter...</option>#}
+                            <option rel=",">{comma}</option>
+                            <option rel="tab">{tab}</option>
+                            <option rel="">{other}</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" name="delimiter" id="delimiter_field" class="ODRDelimiterField" maxlength="1"
+                               size="3"/>
+                    </td>
+                    <td>
+                        <span class="ODRInputError ODRWarnWrapper"><i class="fa fa-warning"></i><span
+                                    id="delimiter_warn"></span></span>
+                    </td>
+                </tr>
+                <tr class="ODRFileImageDelimiter">
+                    <td>File/Image delimiter:</td>
+                    <td>
+                        <select class="FileImageDelimiterSelect">
+                            {#<option>Select a delimiter...</option>#}
+                            <option rel="|">{pipe}</option>
+                            <option rel=",">{comma}</option>
+                            {#                <option rel="">{other}</option>#}
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" name="file_image_delimiter" id="file_image_delimiter_field"
+                               class="ODRDelimiterField" maxlength="3" size="4"/>
+                    </td>
+                    <td>
+                        <span class="ODRInputError ODRFileImageWarnWrapper"><i class="fa fa-warning"></i><span
+                                    id="file_image_delimiter_warn"></span></span>
+                    </td>
+                </tr>
+                <tr class="ODRRadioDelimiter">
+                    <td>Multiple Radio/Select delimiter:</td>
+                    <td>
+                        <select class="RadioDelimiterSelect">
+                            {#<option>Select a delimiter...</option>#}
+                            <option rel="|">{pipe}</option>
+                            <option rel=",">{comma}</option>
+                            <option rel="space">{space}</option>
+                            <option rel="">{other}</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" name="radio_delimiter" id="radio_delimiter_field" class="ODRDelimiterField"
+                               maxlength="3" size="4"/>
+                    </td>
+                    <td>
+                        <span class="ODRInputError ODRRadioWarnWrapper"><i class="fa fa-warning"></i><span
+                                    id="radio_delimiter_warn"></span></span>
+                    </td>
+                </tr>
+                <tr class="ODRTagDelimiter">
+                    <td>Tags delimiter:</td>
+                    <td>
+                        <select class="TagDelimiterSelect">
+                            {#<option>Select a delimiter...</option>#}
+                            <option rel="|">{pipe}</option>
+                            <option rel=",">{comma}</option>
+                            <option rel="">{other}</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" name="tag_delimiter" id="tag_delimiter_field" class="ODRDelimiterField"
+                               maxlength="3" size="4"/>
+                    </td>
+                    <td>
+                        <span class="ODRInputError ODRTagWarnWrapper"><i class="fa fa-warning"></i><span
+                                    id="tag_delimiter_warn"></span></span>
+                    </td>
+                </tr>
+                <tr class="ODRTagHierarchyDelimiter">
+                    <td>Tag Hierarchy delimiter:</td>
+                    <td>
+                        <select class="TagHierarchyDelimiterSelect">
+                            {#<option>Select a delimiter...</option>#}
+                            <option rel=">>">&gt;&gt;</option>
+                            <option rel="">{other}</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" name="tag_hierarchy_delimiter" id="tag_hierarchy_delimiter_field"
+                               class="ODRDelimiterField" maxlength="3" size="4"/>
+                    </td>
+                    <td>
+                        <span class="ODRInputError ODRTagHierarchyWarnWrapper"><i class="fa fa-warning"></i><span
+                                    id="tag_hierarchy_delimiter_warn"></span></span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
 
-<div style="margin: 10px;">
-    <button class="pure-button" type="button" onclick="selectAll();">Select All</button>
-    &nbsp;
-    <button class="pure-button" type="button" onclick="deselectAll();">Deselect All</button>
-    &nbsp;
-    <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Export</button>
-</div>
+        </form>
 
-{% include 'ODRAdminBundle:CSVExport:csvexport_area.html.twig' with {
-    'datatype_array': datatype_array,
-    'theme_array': theme_array,
+        <div style="margin: 10px;">
+            <button class="pure-button" type="button" onclick="selectAll();">Select All</button>
+            &nbsp;
+            <button class="pure-button" type="button" onclick="deselectAll();">Deselect All</button>
+            &nbsp;
+            <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Export</button>
+        </div>
 
-    'initial_datatype_id': initial_datatype_id,
-    'initial_theme_id': initial_theme_id
-} %}
+        {% include 'ODRAdminBundle:CSVExport:csvexport_area.html.twig' with {
+            'datatype_array': datatype_array,
+            'theme_array': theme_array,
 
-<div style="margin: 15px;">
-    <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Export</button>
-</div>
+            'initial_datatype_id': initial_datatype_id,
+            'initial_theme_id': initial_theme_id
+        } %}
+
+        <div style="margin: 15px;">
+            <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Export</button>
+        </div>
+    </div>
+
+    <div id="LoadingBlock" class="ODRHidden">
+        <div class="ODRRemodalLoading pure-u-1">
+            <div class="JobStatusWrapper">
+                <div class="JobComplete ODRHidden">Export Complete</div>
+                <div class="loading-container">
+                    <div class="loading"></div>
+                    <div class="loading-text">exporting</div>
+                </div>
+            </div>
+            <div id="JobTracker"></div>
+            <div class="CSVExportMessage">Your download will be ready momentarily. If you don't want to wait, feel free
+                to continue to use the site and a message will inform you when the download is ready.
+            </div>
+        </div>
+    </div>
+
 
 {% endspaceless %}
 
@@ -327,6 +359,8 @@ function initPage() {
 
         updateWarnings();
     });
+
+    selectAll();
 }
 
 function updateWarnings() {
@@ -536,10 +570,6 @@ function doCSVExport() {
         return;
     }
 
-    if ( !confirm('Are you sure you want to export?') )
-        return;
-
-
     var data = $("#csvexport_form").serialize();
     var url = $("#csvexport_form").attr('action');
 
@@ -552,14 +582,14 @@ function doCSVExport() {
         data: data,
         dataType: 'json',
         success: function(data, textStatus, jqXHR) {
-            if ( data.r == 0 ) {
-                // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
-                alert( 'CSV Export in progress' );
-                var url = '{{ path('odr_job_list', {'section': 'csv_export'}) }}';
-                UpdateURL(url);
-            }
-            else {
-                alert( data.d );
+            if (data.r == 0) {
+                // Replace this with loading message/checker directly
+                $('#CSVExportForm').hide();
+                $('#LoadingBlock').fadeIn('fast');
+                // Get CSV Exports from Jobs Page - add messaging
+
+                // data.d.tracked_job_id
+                getJobProgress('csv_export', data.d.tracked_job_id);
             }
         },
         complete: function(jqXHR, textStatus) {
@@ -579,3 +609,5 @@ function doCSVExport() {
 
 }
 </script>
+
+{% include 'ODRAdminBundle:Job:job_progress.html.twig' %}

@@ -2972,10 +2972,10 @@ form .row {
 
 .ODRProgressBarLabel {
     position: absolute;
-    left: 45%;
     top: 4px;
     font-weight: bold;
-    text-shadow: 1px 1px 0 #fff;
+    text-align: center;
+    width: 100%;
 }
 
 .ODRMenuWrapper {
@@ -4104,4 +4104,112 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 #ODRPageSelect_header {
     margin-top: 15px;
     text-align: left;
+}
+
+.CSVExportMessage {
+    color: #3b8bba;
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 52px;
+    opacity: 1;
+    text-align: center;
+}
+
+.JobDownloadLink {
+    font-size: 14px;
+    text-align: center;
+    width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 16px;
+}
+
+#LoadingBlock .ODRProgressBar {
+    width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+    border: 2px solid #3b8bba;
+}
+
+.JobStatusWrapper {
+    height: 177px;
+}
+
+.JobComplete {
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: #3b8bba;
+    margin-top: 60px;
+}
+i {
+    position: relative;
+}
+.badge:after{
+    content:"";
+    position: absolute;
+    /* background: #f6ffa8; */
+    background: white;
+    color: #3b8bba;
+    text-align: center;
+    font-size: 12px;
+    line-height: 16px;
+    top: -7px;
+    right: -3px;
+    height:16px;
+    width: 16px;
+    border-radius: 50%;
+    border:1px solid white;
+}
+
+#ODRMessageList {
+    position: absolute;
+    z-index: 1000;
+    right: 10px;
+    width: 400px;
+    height: 400px;
+    overflow-y: scroll;
+    background: white;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border: 1px solid blue;
+    border-radius: 6px;
+    list-style-type: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: #3b8bba;
+}
+
+#ODRMessageList i {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+    color: red;
+}
+
+#ODRMessageList li {
+    position: relative;
+    background: rgba(0,0,255, 0.04);
+    padding: 8px;
+    margin-left: -30px;
+    margin-right: 8px;
+    margin-top: 6px;
+    border-radius: 6px;
+}
+
+#ODRMessageList h3 {
+    color: #3b8bba;
+}
+
+#ODRMessageList .viewed,
+#ODRMessageList .viewed h3 {
+    font-weight: normal;
+    color: black;
+}
+
+#ODRMessageList .JobDownloadLink {
+    position: absolute;
+    top: 25px;
+    right: 10px;
+    width: 137px;
 }

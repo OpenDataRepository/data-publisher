@@ -214,24 +214,46 @@
         </ul>
     </div>
 
-    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-can-transform odr-menu-center pure-u-1 pure-u-md-10-24">
+    {% if header_right_title != '' %}
+    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-can-transform odr-menu-center pure-u-1 pure-u-md-8-24">
         {#<ul class="pure-menu-list"></ul>#}
     </div>
+    {% else %}
+    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-can-transform odr-menu-center pure-u-1 pure-u-md-9-24">
+        {#<ul class="pure-menu-list"></ul>#}
+    </div>
+    {% endif %}
 
     <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-6-24">
         <ul class="pure-menu-list">
             {% if current_user != '' %}
                 <li id="ODRProfileLink" class="pure-menu-item">
-                    <a class="pure-hidden-sm pure-hidden-xs pure-menu-link" href="#{{ path('odr_self_profile_edit') }}">{{ user.firstName }} {{ user.lastName }}</a>
-                    <a class="pure-hidden-xl pure-hidden-lg pure-hidden-md pure-menu-link" href="#{{ path('odr_self_profile_edit') }}">Profile</a>
+                    <div class="pure-hidden-sm pure-hidden-xs" href="#{{ path('odr_self_profile_edit') }}">
+                        <a class="pure-menu-link" href="#{{ path('odr_self_profile_edit') }}">
+                            {{ user.firstName }} {{ user.lastName }}
+                        </a>
+                    </div>
+                    <a class="pure-menu-link pure-hidden-xl pure-hidden-lg pure-hidden-md" href="#{{ path('odr_self_profile_edit') }}">Profile</a>
                 </li>
-            {% endif %}
-            {% if header_right_title != '' %}
-                <li id="ODRLoginLink" class="pure-menu-item"><a class="pure-menu-link" {% if header_right_path != '' %}href="{{ header_right_path }}"{% endif %} {% if header_right_js != '' %}onclick="{{ header_right_js }}"{% endif %}>{{ header_right_title }}</a></li>
             {% endif %}
         </ul>
     </div>
-
+    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-1-24">
+        <ul class="pure-menu-list">
+            <li class="pure-menu-item">
+                <span class="pure-menu-heading">
+                    <i id="ODRMessages" class="Pointer fa fa-lg fa-bell-o"></i>
+                </span>
+            </li>
+        </ul>
+    </div>
+    {% if header_right_title != '' %}
+    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-1-24">
+        <ul class="pure-menu-list">
+            <li id="ODRLoginLink" class="pure-menu-item"><a class="pure-menu-link" {% if header_right_path != '' %}href="{{ header_right_path }}"{% endif %} {% if header_right_js != '' %}onclick="{{ header_right_js }}"{% endif %}>{{ header_right_title }}</a></li>
+        </ul>
+    </div>
+    {% endif %}
     <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-1-24">
         <ul class="pure-menu-list">
             <li class="pure-menu-item">
@@ -242,6 +264,7 @@
         </ul>
     </div>
 </div>
+<ul id="ODRMessageList" class="ODRHidden"></ul>
 <!-- End of #ODRMainMenu -->
 
 <script>
@@ -323,8 +346,318 @@
 
 
         window.addEventListener(WINDOW_CHANGE_EVENT, closeMenu);
+
+        $('#ODRMessages').unbind('click');
+        $('#ODRMessages').click(function() {
+            showMessageList()
+        });
+        checkMyJobs();
+
+
+        /*
+        $('#ODRMessageList').on('wheel', function(e) {
+            var d = e.originalEvent.deltaY,
+                dir = d < 0 ? 'up' : 'down',
+                stop = (dir == 'up' && this.scrollTop == 0) ||
+                    (dir == 'down' && this.scrollTop == this.scrollHeight-this.offsetHeight);
+            stop && e.preventDefault();
+        });
+         */
+
+
+
     })(this, this.document);
 
+    function deleteJob(elem) {
+
+        var job_id = $(elem).parent().attr('rel');
+        if($(elem).parent().hasClass('JobDownloadLink')) {
+            job_id = $(elem).parent().parent().attr('rel');
+        }
+
+        var url = "{{ path('odr_delete_user_job', {'job_id': 0} ) }}";
+         url = url.substr(0, url.length-1) + job_id;
+
+        $.ajax({
+            type: 'GET',
+            url: url,
+            dataType: 'json',
+            success: function (data) {
+                if (data.r == 0) {
+                    $(elem).parent().fadeOut();
+                }
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    function markViewed() {
+        // Mark visible jobs as viewed
+        var job_ids = '';
+
+        $("#ODRMessageList .ODRTrackedJob").each(function(i, obj) {
+            if(!$(obj).hasClass('viewed')) {
+                job_ids += $(obj).attr('rel') + ',';
+            }
+        });
+        if(job_ids.match(/,$/)) {
+            job_ids = job_ids.substr(0, job_ids.length - 1);
+
+            var url = "{{ path('odr_job_viewed', {'job_ids': 0} ) }}";
+            url = url.substr(0, url.length-1) + job_ids;
+
+            $.ajax({
+                type: 'GET',
+                url: url,
+                dataType: 'json',
+                success: function (data) {
+                    if (data.r == 0) {
+                        $("#ODRMessageList .ODRTrackedJob").each(function(i, obj) {
+                            $(obj).addClass('viewed');
+                        });
+                    }
+                },
+                complete: function (jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        }
+    }
+
+    function showMessageList() {
+
+        if($("#ODRMessageList").is(':visible')) {
+            $("#ODRMessageList").fadeOut();
+        }
+        else {
+            var url = "{{ path('odr_my_jobs') }}";
+            $.ajax({
+                type: 'GET',
+                url: url,
+                dataType: 'json',
+                success: function (data) {
+                    if (data.r == 0) {
+                        var jobs = data.d;
+                        console.log('Jobs: ', jobs);
+
+                        // Determine unviewed number
+                        var list_elements = '';
+                        for(var x in jobs) {
+
+                            switch(jobs[x].job_type) {
+                                case 'mass_edit':
+                                    if(jobs[x].viewed !== null) {
+                                        var html = '<li class="ODRTrackedJob viewed" rel="' + jobs[x].id + '">' +
+                                            '<h3>Mass Edit</h3>' +
+                                            '<p>Your edits have been completed.</p>' +
+                                            '<i class="fa fa-2x fa-times" onclick="deleteJob(this)"></i>' +
+                                            '</li>';
+                                    }
+                                    else {
+                                        var html = '<li class="ODRTrackedJob" rel="' + jobs[x].id + '">' +
+                                            '<h3>Mass Edit</h3>' +
+                                            '<p>Your edits have been completed.</p>' +
+                                            '<i class="fa fa-2x fa-times" onclick="deleteJob(this)"></i>' +
+                                            '</li>';
+                                    }
+                                    break;
+
+                                case 'csv_export':
+                                    var url = "{{ path('odr_csv_download', {'user_id': 0, 'tracked_job_id': 0}) }}";
+                                    url = url.substr(0, url.length-1);
+                                    url += jobs[x].id;
+
+                                    var download_html = '<div class="JobDownloadLink"><a onclick="deleteJob(this)" class="pure-button pure-button-primary" href="' + url + '">Download</a></div>';
+
+                                    if(jobs[x].viewed !== null) {
+                                        var html = '<li class="ODRTrackedJob viewed" rel="' + jobs[x].id + '">' +
+                                            '<h3>CSV Export</h3>' +
+                                            '<p>Your export is ready.</p>' + download_html +
+                                            '<i class="fa fa-2x fa-times" onclick="deleteJob(this)"></i>' +
+                                            '</li>';
+                                    }
+                                    else {
+                                        var html = '<li class="ODRTrackedJob" rel="' + jobs[x].id + '">' +
+                                            '<h3>CSV Export</h3>' +
+                                            '<p>Your export is ready.</p>' + download_html +
+                                            '<i class="fa fa-2x fa-times" onclick="deleteJob(this)"></i>' +
+                                            '</li>';
+                                    }
+                                    break;
+
+                                case 'csv_import_validation':
+                                    if(jobs[x].viewed !== null) {
+                                        var html = '<li class="ODRTrackedJob viewed" rel="' + jobs[x].id + '">' +
+                                            '<h3>CSV Import Validation</h3>' +
+                                            '<p>Your CSV import validation is ready for review.</p>' +
+                                            '<i class="fa fa-2x fa-times" onclick="deleteJob(this)"></i>' +
+                                            '</li>';
+                                    }
+                                    else {
+                                        var html = '<li class="ODRTrackedJob" rel="' + jobs[x].id + '">' +
+                                            '<h3>CSV Import Validation</h3>' +
+                                            '<p>Your CSV import validation is ready for review.</p>' +
+                                            '<i class="fa fa-2x fa-times" onclick="deleteJob(this)"></i>' +
+                                            '</li>';
+                                    }
+                                    break;
+
+                                case 'csv_import':
+                                    if(jobs[x].viewed !== null) {
+                                        var html = '<li class="ODRTrackedJob viewed" rel="' + jobs[x].id + '">' +
+                                            '<h3>CSV Import</h3>' +
+                                            '<p>Your CSV Import is complete.</p>' +
+                                            '<i class="fa fa-2x fa-times" onclick="deleteJob(this)"></i>' +
+                                            '</li>';
+                                    }
+                                    else {
+                                        var html = '<li class="ODRTrackedJob" rel="' + jobs[x].id + '">' +
+                                            '<h3>CSV Import</h3>' +
+                                            '<p>Your CSV Import is complete.</p>' +
+                                            '<i class="fa fa-2x fa-times" onclick="deleteJob(this)"></i>' +
+                                            '</li>';
+                                    }
+                                    break;
+
+                                case 'migrate':
+                                    if(jobs[x].viewed !== null) {
+                                        var html = '<li class="ODRTrackedJob viewed" rel="' + jobs[x].id + '">' +
+                                            '<h3>Migration Complete</h3>' +
+                                            '<p>Your field migration has been completed.</p>' +
+                                            '<i class="fa fa-2x fa-times" onclick="deleteJob(this)"></i>' +
+                                            '</li>';
+                                    }
+                                    else {
+                                        var html = '<li class="ODRTrackedJob" rel="' + jobs[x].id + '">' +
+                                            '<h3>Migration Complete</h3>' +
+                                            '<p>Your field migration has been completed.</p>' +
+                                            '<i class="fa fa-2x fa-times" onclick="deleteJob(this)"></i>' +
+                                            '</li>';
+                                    }
+                                    break;
+                            }
+
+                            list_elements += html;
+
+                        }
+
+                        if(list_elements === '') {
+                            list_elements = '<p><h3>No messages</h3></p>';
+                        }
+
+                        $('#ODRMessageList').html(
+                            list_elements
+                        ).fadeIn('fast');
+
+                        setTimeout(markViewed, 1500);
+
+                        // Click outside to close
+                        $('body').mouseup(function(e)
+                        {
+                            var container = $("#ODRMessageList");
+                            // if the target of the click isn't the container nor a descendant of the container
+                            if (!container.is(e.target) && container.has(e.target).length === 0)
+                            {
+                                container.fadeOut();
+                                $('body').unbind('mouseup');
+                            }
+                        });
+
+                    } else {
+                        // TODO Alerts need to use the overlay
+                        alert(data.d);
+                    }
+                },
+                complete: function (jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        }
+    }
+
+    function checkMyJobs() {
+        var url = "{{ path('odr_my_jobs') }}";
+        $.ajax({
+            type: 'GET',
+            url: url,
+            dataType: 'json',
+            success: function (data) {
+                if (data.r == 0) {
+
+                    // Determine unviewed number
+                    var badge_num = 0;
+                    var jobs = data.d;
+                    for(var x in jobs) {
+                        if(jobs[x].viewed !== undefined && jobs[x].viewed === null) {
+                            // Unviewed Job
+                            badge_num++;
+                        }
+                    }
+                    var messages = $("#ODRMessages");
+
+                    messages.removeClass('badge');
+                    if(badge_num > 0) {
+                        messages.addClass('badge');
+
+                        if(badge_num > 9) {
+                            badge_num = '9+';
+                        }
+                        messages.append('<style>.badge:after{content: \'' + badge_num + '\' !important;}</style>');
+                    }
+
+                    setTimeout(checkMyJobs, 5000);
+                } else {
+                    // TODO Alerts need to use the overlay
+                    alert(data.d);
+                }
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
 </script>
 
 

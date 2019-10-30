@@ -7,47 +7,70 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-<div class="grid_12 no-margin-top-phone">
-    <h1 style="display: inline;">
-        <span>Mass Update &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
-    </h1>
-    {% if is_datatype_admin %}
-    <span>
+    <div id="MassEditForm">
+        <div class="grid_12 no-margin-top-phone">
+            <h1 style="display: inline;">
+                <span>Mass Update &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+            </h1>
+            {% if is_datatype_admin %}
+                <span>
         <select class="ODRPublicSelect" style="margin-left: 15px;" rel="{{ datatype.id }}">
             <option value="-1">Make all Datarecords non-public</option>
             <option value="0" selected>Don't change public status</option>
             <option value="1">Make all Datarecords public</option>
         </select>
     </span>
-    {% endif %}
-</div>
+            {% endif %}
+        </div>
 
-<form id="massedit_form" style="display:none;" action="{{ path('odr_mass_update_start') }}">
-    <input type="hidden" value="{{ odr_tab_id }}" name="odr_tab_id"/>
-    <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
-</form>
+        <form id="massedit_form" style="display:none;" action="{{ path('odr_mass_update_start') }}">
+            <input type="hidden" value="{{ odr_tab_id }}" name="odr_tab_id"/>
+            <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
+        </form>
 
-<div>
-    <button class="pure-button pure-button-primary" type="button" onclick="doMassUpdate();">Save Changes</button>
-    {% if is_datatype_admin %}
-        &nbsp;
-        <button class="pure-button" type="button" onclick="doMassDelete();"><i class="fa fa-warning"></i>&nbsp;Mass Delete</button>
-    {% endif %}
-</div>
+        <div>
+            <button class="pure-button pure-button-primary" type="button" onclick="doMassUpdate();">Save Changes
+            </button>
+            {% if is_datatype_admin %}
+                &nbsp;
+                <button class="pure-button" type="button" onclick="doMassDelete();"><i class="fa fa-warning"></i>&nbsp;Mass
+                    Delete
+                </button>
+            {% endif %}
+        </div>
 
-</br></br>
+        </br></br>
 
-{% include 'ODRAdminBundle:MassEdit:massedit_area.html.twig' with {
-    'datatype_array': datatype_array,
-    'theme_array': theme_array,
+        {% include 'ODRAdminBundle:MassEdit:massedit_area.html.twig' with {
+            'datatype_array': datatype_array,
+            'theme_array': theme_array,
 
-    'initial_datatype_id': initial_datatype_id,
-    'initial_theme_id': initial_theme_id,
+            'initial_datatype_id': initial_datatype_id,
+            'initial_theme_id': initial_theme_id,
 
-    'datatype_permissions': datatype_permissions,
-    'datafield_permissions': datafield_permissions,
-} %}
+            'datatype_permissions': datatype_permissions,
+            'datafield_permissions': datafield_permissions,
+        } %}
 
+    </div>
+
+
+
+    <div id="LoadingBlock" class="ODRHidden">
+        <div class="ODRRemodalLoading pure-u-1">
+            <div class="JobStatusWrapper">
+                <div class="JobComplete ODRHidden">Mass Edit Complete</div>
+                <div class="loading-container">
+                    <div class="loading"></div>
+                    <div class="loading-text">editing</div>
+                </div>
+            </div>
+            <div id="JobTracker"></div>
+            <div class="CSVExportMessage">Your edits will run in the background. If you don't want to wait, feel free
+                to continue to use the site and a message will inform you when mass edit is complete.
+            </div>
+        </div>
+    </div>
 {% endspaceless %}
 
 <script>
@@ -233,10 +256,10 @@ function doMassUpdate() {
         return;
 
     // Remove any already-existing input elements added by this function
-    $(".massedit_form_input").remove();
+    $("#MassEditForm .massedit_form_input").remove();
 
     // Public status
-    $(".ODRPublicSelect").each(function() {
+    $("#MassEditForm .ODRPublicSelect").each(function() {
         // Grab the ID of the datatype
         var datatype_id = $(this).attr('rel');
 
@@ -253,7 +276,7 @@ function doMassUpdate() {
     });
 
     // Checkboxes
-    $(".ODRBoolean").each(function() {
+    $("#MassEditForm .ODRBoolean").each(function() {
         // Grab the ID of the field
         var datafield_id_data = $(this).attr('id').split('_');
         var datafield_id = datafield_id_data[1];
@@ -271,7 +294,7 @@ function doMassUpdate() {
     });
 
     // Files/Images
-    $(".ODRFile").each(function() {
+    $("#MassEditForm .ODRFile").each(function() {
         // Grab the ID of the field
         var datafield_id_data = $(this).attr('id').split('_');
         var datafield_id = datafield_id_data[1];
@@ -289,7 +312,7 @@ function doMassUpdate() {
     });
 
     // Single Selects
-    $(".ODRSingleSelect").each(function() {
+    $("#MassEditForm .ODRSingleSelect").each(function() {
         // Grab the datafield id
         var datafield_id = $(this).attr('rel');
 
@@ -306,7 +329,7 @@ function doMassUpdate() {
     });
 
     // Multiple Radio/Select and Tags
-    $(".ODRTristateCheckbox > input").each(function() {
+    $("#MassEditForm .ODRTristateCheckbox > input").each(function() {
         // Grab the ID of the field
         var datafield_id = $(this).attr('name');
         var item_id = $(this).attr('rel');
@@ -327,7 +350,7 @@ function doMassUpdate() {
     });
 
     // Single Radio
-    $(".ODRSingleRadio").each(function() {
+    $("#MassEditForm .ODRSingleRadio").each(function() {
         // Grab the datafield id
         var datafield_id = $(this).attr('rel');
 
@@ -349,7 +372,7 @@ function doMassUpdate() {
     });
 
     // Datetime fields
-    $(".ODRDatePicker").each(function() {
+    $("#MassEditForm .ODRDatePicker").each(function() {
         // Grab the ID of the field
         var datafield_id_data = $(this).parent().attr('id').split('_');
         var datafield_id = datafield_id_data[1];
@@ -371,7 +394,7 @@ function doMassUpdate() {
     });
 
     // Paragraph fields
-    $(".ODRParagraphField").each(function() {
+    $("#MassEditForm .ODRParagraphField").each(function() {
         // Grab the ID of the field
         var datafield_id_data = $(this).parent().attr('id').split('_');
         var datafield_id = datafield_id_data[1];
@@ -389,7 +412,7 @@ function doMassUpdate() {
     });
 
     // Everything else
-    $(".ODRField").each(function() {
+    $("#MassEditForm .ODRField").each(function() {
         // Grab the ID of the field
         var datafield_id_data = $(this).parent().attr('id').split('_');
         var datafield_id = datafield_id_data[1];
@@ -418,19 +441,21 @@ function doMassUpdate() {
     var data = $("#massedit_form").serialize();
     var url = $("#massedit_form").attr('action');
 
-   // console.log( $("#massedit_form") );
-// alert(url);
-// return;
-
     $.ajax({
         type: 'POST',
         url: url,
         data: data,
         dataType: 'json',
-        success: function(data, textStatus, jqXHR) {
-            alert( 'Mass Update in progress' );
-            var url = '{{ path('odr_job_list', {'section': 'mass_edit'}) }}';
-            UpdateURL(url);
+        success: function(data) {
+            if(data.d.tracked_job_id !== undefined) {
+                // Replace this with loading message/checker directly
+                $('#MassEditForm').hide();
+                $('#LoadingBlock').fadeIn('fast');
+                // Get CSV Exports from Jobs Page - add messaging
+
+                // data.d.tracked_job_id
+                getJobProgress('mass_edit', data.d.tracked_job_id);
+            }
         },
         error: function (jqXHR, textStatus, errorThrown) {
             alert('Error encountered, no changes made');
@@ -451,6 +476,7 @@ function doMassUpdate() {
     });
 
 }
+
 
 function doMassDelete() {
     var str = 'This will delete ALL records listed in the search result.  Are you absolutely sure you want to do this?';
@@ -484,3 +510,5 @@ function doMassDelete() {
     }
 }
 </script>
+
+{% include 'ODRAdminBundle:Job:job_progress.html.twig' %}

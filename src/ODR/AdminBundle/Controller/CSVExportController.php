@@ -449,6 +449,7 @@ class CSVExportController extends ODRCustomController
 
             $tracked_job_id = $tracked_job->getId();
 
+            $return['d'] = array("tracked_job_id" => $tracked_job_id);
 
             // ----------------------------------------
             // Create a beanstalk job for each of these datarecords
@@ -1224,8 +1225,6 @@ class CSVExportController extends ODRCustomController
                     $random_key_hash .= $result['random_key'];
                 }
                 $random_key_hash = md5($random_key_hash);
-//print $random_key_hash."\n";
-
 
                 // Attempt to insert this hash back into the database...
                 // NOTE: this uses the same random_key field as the previous INSERT WHERE NOT EXISTS query...the first time it had an 8 character string inserted into it, this time it's taking a 32 character string
@@ -1238,8 +1237,6 @@ class CSVExportController extends ODRCustomController
                 $params = array('random_key_hash' => $random_key_hash, 'tj_id' => $tracked_job_id, 'finalize' => 1);
                 $conn = $em->getConnection();
                 $rowsAffected = $conn->executeUpdate($query, $params);
-
-//print 'rows affected: '.$rowsAffected."\n";
 
                 if ($rowsAffected == 1) {
                     // This is the first process to attempt to insert this key...it will be in charge of creating the information used to concatenate the temporary files together
@@ -1273,8 +1270,6 @@ class CSVExportController extends ODRCustomController
 
                 // Sort by datafield id so order of header columns matches order of data
                 ksort($header_line);
-
-//print_r($header_line);
 
                 // Make a "final" file for the export, and insert the header line
                 $final_filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
@@ -1315,7 +1310,6 @@ class CSVExportController extends ODRCustomController
                     )
                 );
 
-//print_r($payload);
 
                 $delay = 1; // one second
                 $pheanstalk->useTube('csv_export_finalize')->put($payload, $priority, $delay);
@@ -1477,7 +1471,7 @@ class CSVExportController extends ODRCustomController
     /**
      * Sidesteps symfony to set up an CSV file download...
      *
-     * @param integer $user_id The user requesting the download
+     * @param integer $user_id The user requesting the download (Why????)
      * @param integer $tracked_job_id The tracked job that stored the progress of the csv export
      * @param Request $request
      *
@@ -1529,9 +1523,16 @@ class CSVExportController extends ODRCustomController
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to export from a master template');
 
+            // TODO Is there some reason user_id is passed rather than retrieved from the user object?
+            $user_id = $user->getId();
 
             $csv_export_path = $this->getParameter('odr_web_directory').'/uploads/csv_export/';
             $filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
+
+
+            // Mark the job deleted
+            $em->remove($tracked_job);
+            $em->flush();
 
             $handle = fopen($csv_export_path.$filename, 'r');
             if ($handle !== false) {

@@ -589,7 +589,7 @@ footer ul li:first-child {
 .NavSlideOut,
 .ODRDatatypeProperties {
     /* background: #7fb9d8 none; */
-    padding-bottom: 0px;
+    padding-bottom: 0;
     cursor: pointer;
 }
 
@@ -1628,3 +1628,5 @@ input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
 .jqstooltip > div {
     color: #000000 !important;
 }
+
+

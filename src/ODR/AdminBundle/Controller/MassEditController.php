@@ -571,6 +571,9 @@ exit();
             $tracked_job->setTotal($job_count);
             $em->persist($tracked_job);
             $em->flush();
+
+            $return['d'] = array('tracked_job_id' => $tracked_job_id);
+
         }
         catch (\Exception $e) {
             $source = 0xf0de8b70;

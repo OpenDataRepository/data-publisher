@@ -1239,6 +1239,10 @@ odr_job_list:
     requirements:
         section: '|migrate|mass_edit|csv_import_validate|csv_import|csv_export'
 
+odr_my_jobs:
+    path:  /jobs/my
+    defaults: { _controller: ODRAdminBundle:Job:myjobs }
+
 odr_job_refresh:
     path:  /jobs/refresh/{job_type}/{job_id}
     defaults: { _controller: ODRAdminBundle:Job:refresh, job_id: 0 }
@@ -1258,6 +1262,19 @@ odr_job_refresh:
 #    requirements:
 #        job_id: \d+
 
+odr_job_viewed:
+    path:  /jobs/viewed/{job_ids}
+    defaults: { _controller: ODRAdminBundle:Job:viewed }
+    requirements:
+        job_ids: '[\d\,]+'
+
+odr_delete_user_job:
+    path:  /jobs/delete/{job_id}
+    defaults: { _controller: ODRAdminBundle:Job:delete }
+    requirements:
+        job_id: \d+
+
+#-----------------------------------------
 odr_delete_tracked_job:
     path:  /jobs/delete_job/{job_id}
     defaults: { _controller: ODRAdminBundle:Job:deletejob }
