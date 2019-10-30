@@ -508,6 +508,17 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
 
         $errors = array();
 
+        /*
+         * TODO
+         * web/js/mylibs/odr_plotly_graphs.js is currently written so it ignores lines with fewer
+         *  columns than expected, and also ignores extra values in each line...having php throw an
+         *  error here on either condition doesn't really make sense...
+         *
+         * It would make sense if there was some sort of a "strict" option...but that would require
+         *  the ability to "validate files before saving", and/or also require users being able to
+         *  edit/replace existing files...
+         */
+/*
         // Currently, this only makes sense on a couple graph types
         $graph_type = $options['graph_type'];
         if ( $graph_type === 'xy' || $graph_type === 'bar' || $graph_type === 'stackedarea' ) {
@@ -544,7 +555,7 @@ class GraphPlugin implements DatatypePluginInterface, GraphPluginInterface
 
             } while ( !feof($handle) );
         }
-
+*/
         fclose($handle);
         return $errors;
     }

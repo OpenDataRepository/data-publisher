@@ -205,7 +205,7 @@
             data: tdf.serialize(),
             dataType: 'json',
             success: function(data) {
-                console.log(data);
+                console.log('SubmitThemeDesignForm() success:', data);
             }
         });
     }
@@ -780,8 +780,6 @@
                 props = datatype_properties[id];
                 console.log('Dataset Props: ', props);
 
-
-
                 // Render Plugin
                 tools.render.removeClass('faded');
                 if(props.render_plugin_id !== 1) {
@@ -1101,7 +1099,7 @@
 
                 console.log('datafield id: ', id);
                 props = datafield_properties[id];
-                console.log(props);
+                console.log('Datafield props:', props);
 
                 // Render Plugin
                 tools.render.removeClass('faded');
@@ -1225,9 +1223,8 @@
             url: url,
             dataType: "json",
             success: function() {
-                // ReloadThemeElement() forces a re-render of the theme element,
-                // so the 'Add Datafield', 'Add Childtype', 'Link DataType', and
-                // 'Delete ThemeElement' icons get muted automatically
+                // The <script> tags in design_fieldarea.html.twig will update the
+                //  theme_element_properties array
                 ReloadThemeElement(theme_element_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -1264,11 +1261,10 @@
             url: url,
             dataType: "json",
             success: function () {
+                // TODO - don't need to update the javascript array used to cache properties?
+
                 // Remove theme element from page
                 $("#ThemeElement_" + theme_element_id).fadeOut('slow').remove();
-
-                // No need to update theme element property icons, since it no longer exists
-                // Also don't need to update order of theme elements
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -1335,8 +1331,8 @@
                         // Clear object properties panel
                         $("#ThemeDesignForm").html("");
 
-                        // ReloadThemeElement() forces a re-render of the theme element,
-                        // so the 'Add Childtype', 'Link DataType', and 'Delete ThemeElement' icons get muted automatically
+                        // The <script> tags in design_fieldarea.html.twig will update the
+                        //  theme_element_properties and datafield_properties arrays
                         ReloadThemeElement(id);
                     },
                     error: function(jqXHR, textStatus, errorThrown) {
@@ -1384,11 +1380,11 @@
                         // Grab ID of new theme element
                         var theme_element_id = data.d.theme_element_id;
 
-                        // Let's get back the actual stuff here.....
-
-                        // Create a fake theme element and force a save of theme element order
+                        // The server has returned HTML for a blank theme_element...when appended,
+                        //  the theme_element_properties array will be updated
                         $("#FieldArea_" + datatype_id).append(data.d.html);
 
+                        // Ensure the theme thinks the new theme_element is at the end of the list
                         SaveThemeElementOrder("#FieldArea_" + datatype_id);
 
                         // Init the page
@@ -1396,6 +1392,8 @@
 
                         // Show the element
                         ScrollHighlight("#ThemeElement_" + theme_element_id);
+
+                        console.log('after adding theme_element:', theme_element_properties);
 
                         // Run the callback
                         callback(theme_element_id)
@@ -1429,9 +1427,7 @@
             container = $('html, body');
 
             // Only Scroll to element if it is not visible
-            if (
-                !obj.isInViewport()
-            ) {
+            if ( !obj.isInViewport() ) {
                 container.animate({
                     scrollTop: obj.offset().top + obj.height()
                 }, 1000)
@@ -1445,7 +1441,6 @@
         // Highlight
         console.log('highlighting.....');
         obj.effect("highlight", {}, 3000);
-
     }
 
     $.fn.isOverflowHiddenY = function(container) {
@@ -1590,14 +1585,8 @@
                 // Delete the datatype from the page
                 $("#DataType_" + datatype_id).remove();
 
-                // Reset the containing theme element's icons
-                // var icons = {"ODRAddDatafield": 1, "ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
-                // setThemeElementIcons(theme_element_id, icons);
-
                 // Resets the sidebar tool set
                 ResetToolSet();
-
-
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -1631,7 +1620,6 @@
             $(this).prepend(handle_ne);
         });
 
-
         // Initialize the handle
         $(".ODRThemeElementHandle").unbind('click').click(function() {
             // Highlight and setup element properties
@@ -1647,9 +1635,6 @@
 
         // Disable text selection
         $(".ODRFieldArea").disableSelection();
-
-
-
 
         // Binding for clicking a datatype header
         $(".ODRDatatypeProperties").unbind('click').click(function() {
@@ -2353,7 +2338,21 @@
             url: url,
             data: form_data,
             dataType: "json",
-            success: function() {
+            success: function(data) {
+                // May need to update the datafield properties array if the external id field got
+                //  changed
+                if ( data.d.old_field_deletion_message.prevent_deletion !== undefined ) {
+                    var old_field_id = data.d.old_external_id_field;
+                    datafield_properties[old_field_id].can_delete = !data.d.old_field_deletion_message.prevent_deletion;
+                    datafield_properties[old_field_id].delete_message = data.d.old_field_deletion_message.prevent_deletion_message;
+                }
+
+                if ( data.d.new_field_deletion_message.prevent_deletion !== undefined ) {
+                    var new_field_id = data.d.new_external_id_field;
+                    datafield_properties[new_field_id].can_delete = !data.d.new_field_deletion_message.prevent_deletion;
+                    datafield_properties[new_field_id].delete_message = data.d.new_field_deletion_message.prevent_deletion_message;
+                }
+
                 notifySaved();
             },
             error: function() {
@@ -2529,6 +2528,7 @@
                     if ( te_id_length === 0 ) {
                         ReloadThemeElement(initial_theme_element_id);
 
+                        // TODO - what is this still doing in here?
                         icons = {"ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
                         setThemeElementIcons(initial_theme_element_id, icons);
                     }
@@ -2636,7 +2636,7 @@
                 $(this).unbind('paste');
                 $(this).on('keyup paste', function() {
                     // If the short_name field got changed, grab the new value
-                    if ( $(this).hasClass("ODRDatatypeShortName") ) {
+                    if ( $(this).hasClass("ODRDatasetName") ) {
                         var short_name = $(this).val();
                         $("#Datatype_" + datatype_id + "_ShortName").html(short_name);
                     }
@@ -2695,7 +2695,8 @@
                 $("#ThemeDesignForm").html("");
                 ResetToolSet();
 
-                // Reload the theme element because of the brand-new datafield
+                // The <script> tags in design_fieldarea.html.twig will update the
+                //  theme_element_properties array
                 ReloadThemeElement(theme_element_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -2729,10 +2730,20 @@
             url: url,
             dataType: "json",
             success: function() {
+                // Save the theme_element.....
+                var theme_element = $("#Field_" + datafield_id).closest('.ODRThemeElement');
+                var id_data = $(theme_element).attr('id').split(/_/);
+                theme_element_id = id_data[1];
 
                 // Don't want the datafield or its associated properties panel html anymore
                 $("#Field_" + datafield_id).remove();
                 $("#ThemeDesignForm").html('');
+
+                // Need to see whether the theme_element that used to contain this datafield needs
+                //  its 'has_datafields' property set to false
+                var datafields = $(theme_element).find(".ODRDataField");
+                if ( datafields.length === 0 )
+                    theme_element_properties[theme_element_id]['has_datafields'] = 0;
 
                 ResetToolSet();
             },
@@ -2976,7 +2987,6 @@
             }
         });
     }
-
 
     function AddOption(datafield_id) {
         var url = '{{ path('odr_design_add_radio_option', { 'datafield_id': 0 }) }}';

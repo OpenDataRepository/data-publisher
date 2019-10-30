@@ -114,23 +114,20 @@ function initPage() {
         // Grab necessary attributes
         var file_id = $(this).attr('rel');
 
-        handleFileDownload(event, file_id);    // defined in Default::file_handling.html.twig
+        handleFileDownload(event, file_id);    {# defined in Default::file_handling.html.twig #}
     });
 
     $(".ODRDownloadAllFiles").unbind('click').click(function() {
-
         if ( $(this).hasClass('fa-muted') )
             return;
 
-        // Grab necessary attributes
-        var element = $(this);
-
+        // Locate necessary attributes
         var id_data = $(this).closest(".ODRDataField").first().attr('id').split(/_/);
         var datarecord_id = id_data[1];
         var datafield_id = id_data[2];
 
-        $("#dialog_file_downloads").dialog( "open" );
-        locateFileIds({{ initial_datarecord_id }}, datarecord_id, datafield_id);      // defined in ODRAdminBundle:Default:file_download_dialog.html.twig
+        {# defined in ODRAdminBundle:Default:file_download_dialog.html.twig #}
+        openFileDownloadDialog({{ initial_datarecord_id }}, datarecord_id, datafield_id);
     });
 
 {% if is_datatype_admin %}
@@ -167,8 +164,21 @@ function initPage() {
                 url: url,
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
+                    // Going to need this
+                    var anchor = $("#File_" + file_id).parent();
+
                     // Remove file data from table area
                     $("#File_" + file_id).remove();
+
+                    // If that was the last file, re-add the "no files uploaded" div
+                    if ( $(anchor).children(".ODRFileDatafield_file").length === 0 ) {
+                        var html =
+                            '<div class="ODRFileDatafield_empty pure-u-1">\n' +
+                            '    <span class="ODRFileSpacer_empty">&nbsp;</span>\n' +
+                            '    <a class="Cursor">No Files Uploaded</a>\n' +
+                            '</div>';
+                        $(anchor).append(html);
+                    }
 
                     if (data.d.need_reload == true)
                         $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id).parent().show();

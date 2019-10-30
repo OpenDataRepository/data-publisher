@@ -2302,6 +2302,10 @@ class DisplaytemplateController extends ODRCustomController
             if ( !is_null($old_sortfield) )
                 $old_sortfield = $old_sortfield->getId();
 
+            /** @var int|null $old_external_id_field */
+            /** @var int|null $old_namefield */
+            /** @var int|null $old_sortfield */
+
             // Create the form for the Datatype
             $submitted_data = new DataTypeMeta();
 
@@ -2383,6 +2387,10 @@ class DisplaytemplateController extends ODRCustomController
                     $new_sortfield = $submitted_data->getSortField();
                     if ( !is_null($new_sortfield) )
                         $new_sortfield = $new_sortfield->getId();
+
+                    /** @var int|null $new_external_id_field */
+                    /** @var int|null $new_namefield */
+                    /** @var int|null $new_sortfield */
 
 
                     $update_sort_order = false;
@@ -2467,6 +2475,30 @@ class DisplaytemplateController extends ODRCustomController
 
                     // Cached search results don't need to be cleared here...none of them care about
                     // any of the properties being changed here
+
+
+                    // ----------------------------------------
+                    // If the external id field got changed, then the frontend needs to update
+                    //  whether the old and new fields can get deleted or not...
+                    $return['d'] = array(
+                        'old_external_id_field' => $old_external_id_field,
+                        'old_field_deletion_message' => array(),
+                        'new_external_id_field' => $new_external_id_field,
+                        'new_field_deletion_message' => array(),
+                    );
+
+                    if ( $old_external_id_field !== $new_external_id_field ) {
+                        if ( !is_null($old_external_id_field) ) {
+                            /** @var DataFields $field */
+                            $field = $em->getRepository('ODRAdminBundle:DataFields')->find($old_external_id_field);
+                            $return['d']['old_field_deletion_message'] = self::canDeleteDatafield($em, $field);
+                        }
+                        if ( !is_null($new_external_id_field) ) {
+                            /** @var DataFields $field */
+                            $field = $em->getRepository('ODRAdminBundle:DataFields')->find($new_external_id_field);
+                            $return['d']['new_field_deletion_message'] = self::canDeleteDatafield($em, $field);
+                        }
+                    }
                 }
                 else {
                     // Form validation failed

@@ -53,6 +53,11 @@
             </script>
         {% endif %}
     </div>
+    {% else %}
+    <div class="ODRFileDatafield_empty pure-u-1">
+        <span class="ODRFileSpacer_empty">&nbsp;</span>
+        <a class="Cursor">No Files Uploaded</a>
+    </div>
     {% endfor %}
 
 {% endspaceless %}

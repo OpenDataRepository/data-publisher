@@ -2,6 +2,9 @@
 
 {% set datarecord = datarecord_array[datarecord_id] %}
 
+{% if datarecord is null %}
+<h1 style="margin-left: 15px">No files are available to download</h1>
+{% else %}
 {#{% if not is_top_level %}#}
 <ul id="FileList_{{ datarecord_id }}">
     <li><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ datarecord['nameField_value'] }}
@@ -63,5 +66,6 @@
     </li>
 </ul>
 {#{% endif %}#}
+{% endif %}
 
 {% endspaceless %}
