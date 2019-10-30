@@ -1135,27 +1135,23 @@ class DisplayController extends ODRCustomController
 //print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
 
             $ret = self::locateFilesforDownloadAll($stacked_datarecord_array, $grandparent_datarecord->getId());
-            if ( is_null($ret) ) {
-                $return['d'] = 'No files are available to download';
-            }
-            else {
-                $stacked_datarecord_array = array($grandparent_datarecord->getId() => $ret);
+            $stacked_datarecord_array = array($grandparent_datarecord->getId() => $ret);
 //print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
 
-                $templating = $this->get('templating');
-                $return['d'] = $templating->render(
-                    'ODRAdminBundle:Default:file_download_dialog_form.html.twig',
-                    array(
-                        'datarecord_id' => $grandparent_datarecord_id,
+            $templating = $this->get('templating');
+            $return['d'] = $templating->render(
+                'ODRAdminBundle:Default:file_download_dialog_form.html.twig',
+                array(
+                    'datarecord_id' => $grandparent_datarecord_id,
 
-                        'datarecord_array' => $stacked_datarecord_array,
-                        'datafield_names' => $datafield_names,
-                        'datatype_names' => $datatype_names,
+                    'datarecord_array' => $stacked_datarecord_array,
+                    'datafield_names' => $datafield_names,
+                    'datatype_names' => $datatype_names,
 
-                        'is_top_level' => true,
-                    )
-                );
-            }
+                    'is_top_level' => true,
+                )
+            );
+
         }
         catch (\Exception $e) {
             $source = 0xce2c6ae9;

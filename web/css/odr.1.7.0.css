@@ -3186,7 +3186,7 @@ form .row {
 }
 
 .ODRFileDatafield {
-    margin-bottom: 4px;
+    margin: 4px;
 }
 
 .ODRFileDatafield_header {
@@ -3197,8 +3197,9 @@ form .row {
     color: white;
     padding: 4px 0 4px 8px;
     font-size: 0.8em;
+    border-radius: 5px 5px 0px 0px;
 }
-.ODRFileDatafield_file {
+.ODRFileDatafield_file, .ODRFileDatafield_empty {
     font-size: 0.8em;
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box; /* 2 */
@@ -3237,6 +3238,13 @@ form .row {
 }
 .ODRFileSpacer_nonpublic {
     background: red none repeat scroll 0 0;
+}
+.ODRFileSpacer_empty {
+    flex: 0 0 auto;
+
+    width: 8px;
+    display: inline-block;
+    cursor: default;
 }
 
 .ODRFileInfoDiv {
