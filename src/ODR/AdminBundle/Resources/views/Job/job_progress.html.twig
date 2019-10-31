@@ -16,6 +16,7 @@
                     var html = '<div class="ODRProgressBar" max_value="' + job_data.total + '" current_value="' + job_data.current + '"><div class="ODRProgressBarLabel"></div></div>';
 
 
+                    // Job Complete
                     if (job_data.total == job_data.current) {
 
                         if(job_type == 'csv_export') {
@@ -26,8 +27,23 @@
                             html += '<div class="JobDownloadLink"><a onclick="backToSearch()" class="pure-button pure-button-primary" target="_blank" href="' + url + '">Download</a></div>';
                         }
                         else if(job_type == 'mass_edit') {
-
                             html += '<div class="JobDownloadLink"><button onclick="backToSearch()" class="pure-button pure-button-primary">Return to Search Results</button></div>';
+                        }
+                        else if(job_type == 'csv_import_validate') {
+
+                            var url = "{{ path('odr_csv_import_validate_results', {'tracked_job_id': 0}) }}";
+                            url = url.substr(0, url.length-1);
+                            url += tracked_job_id;
+
+                            // html += '<div class="JobDownloadLink"><a class="pure-button pure-button-primary" href="#' + url + '">Continue</a></div>';
+                            setTimeout(function() {
+                                UpdateURL(url)
+                            }, 1000);
+
+                        }
+                        else if(job_type == 'csv_import') {
+                            var url = location.protocol + '//' + location.host + location.pathname
+                            html += '<div class="JobDownloadLink"><a href="' + url + '" class="pure-button pure-button-primary">Open Search</a></div>';
                         }
 
                         $('.loading-container').fadeOut('fast');
@@ -40,7 +56,7 @@
                         }, 300);
                     }
 
-                    $('#JobTracker').html(html);
+                    $('.JobTracker').html(html);
 
                     if (typeof doProgressBars == 'function')
                         doProgressBars();

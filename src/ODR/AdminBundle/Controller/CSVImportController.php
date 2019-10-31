@@ -2874,13 +2874,13 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Load the data from the finished validation job
-            /** @var TrackedJob $tracked_job */
-            $tracked_job = $repo_tracked_job->find($job_id);
-            if ($tracked_job->getCompleted() == null)
+            /** @var TrackedJob $validate_tracked_job */
+            $validate_tracked_job = $repo_tracked_job->find($job_id);
+            if ($validate_tracked_job->getCompleted() == null)
                 throw new ODRException('Invalid job');
 
-            $job_data = $tracked_job->getAdditionalData();
-            $target_entity = $tracked_job->getTargetEntity();
+            $job_data = $validate_tracked_job->getAdditionalData();
+            $target_entity = $validate_tracked_job->getTargetEntity();
             $tmp = explode('_', $target_entity);
             $datatype_id = $tmp[1];
 
@@ -2910,6 +2910,7 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // TODO - better way of handling this, if possible
             // Block csv imports if there's already one in progress for this datatype
+            /** @var TrackedJob $tracked_job */
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
                 throw new ODRException('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
@@ -2952,7 +2953,13 @@ class CSVImportController extends ODRCustomController
             $restrictions = '';
             $total = $reader->count();
             $reuse_existing = false;
-//$reuse_existing = true;
+
+
+            // Delete the original tracked Job (CSV Import Validate)
+            $em->remove($validate_tracked_job);
+            // TODO Not sure if the other flush will fire every time.  Probably should flush all at the end.
+            $em->flush();
+
 
             $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
             $tracked_job_id = $tracked_job->getId();
@@ -3104,6 +3111,7 @@ class CSVImportController extends ODRCustomController
                 }
 
                 // Save all changes
+                // TODO Is this needed here?
                 $em->flush();
 
                 // Update cached versions of datatype and master theme since new datafields were added
@@ -3280,6 +3288,8 @@ print_r($new_mapping);
                 $delay = 5;
                 $pheanstalk->useTube('csv_import_worker')->put($payload, $priority, $delay);
             }
+
+            $return['d'] = array("tracked_job_id" => $tracked_job_id);
 
         }
         catch (\Exception $e) {

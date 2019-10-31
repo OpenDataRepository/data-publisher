@@ -4132,6 +4132,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     margin-top: 16px;
 }
 
+#ImportLoadingBlock .ODRProgressBar,
 #LoadingBlock .ODRProgressBar {
     width: 300px;
     margin-left: auto;
@@ -4171,8 +4172,9 @@ i {
 }
 
 #ODRMessageList {
-    position: absolute;
+    position: fixed;
     z-index: 1000;
+    top: 40px;
     right: 10px;
     width: 400px;
     height: 400px;
