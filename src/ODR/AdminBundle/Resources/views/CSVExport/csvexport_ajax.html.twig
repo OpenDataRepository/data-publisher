@@ -161,6 +161,7 @@ $(function() {
     disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
     // The overlay divs need this transition to finish before they can get the correct width
     setTimeout("resizeOverlayDivs()", 375);
+    setTimeout("selectAll()", 375);
 
     initPage();
     window.scrollTo(0,0);
@@ -359,8 +360,6 @@ function initPage() {
 
         updateWarnings();
     });
-
-    selectAll();
 }
 
 function updateWarnings() {

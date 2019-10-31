@@ -378,6 +378,32 @@
     }
 
     function doCancel() {
+    {% if tracked_job_id is defined %}
+        {# Delete existing tracked job when cancelling an import after validating it #}
+        var delete_url = "{{ path('odr_delete_user_job', {'job_id': tracked_job_id} ) }}";
+
+        $.ajax({
+            type: 'GET',
+            url: delete_url,
+            dataType: 'json',
+            success: function (data) {
+            },
+            complete: function (jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    {% endif %}
+
         var url = '{{ path('odr_csv_cancel_import') }}';
 
         $.ajax({

@@ -68,6 +68,11 @@ class TrackedJob
     private $completed;
 
     /**
+     * @var \DateTime|null
+     */
+    private $viewed;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -296,6 +301,30 @@ class TrackedJob
     }
 
     /**
+     * Set viewed.
+     *
+     * @param \DateTime|null $viewed
+     *
+     * @return TrackedJob
+     */
+    public function setViewed($viewed = null)
+    {
+        $this->viewed = $viewed;
+
+        return $this;
+    }
+
+    /**
+     * Get viewed.
+     *
+     * @return \DateTime|null
+     */
+    public function getViewed()
+    {
+        return $this->viewed;
+    }
+
+    /**
      * Set created
      *
      * @param \DateTime $created
@@ -492,34 +521,5 @@ class TrackedJob
         }
 
         return $curr_value;
-    }
-    /**
-     * @var \DateTime|null
-     */
-    private $viewed;
-
-
-    /**
-     * Set viewed.
-     *
-     * @param \DateTime|null $viewed
-     *
-     * @return TrackedJob
-     */
-    public function setViewed($viewed = null)
-    {
-        $this->viewed = $viewed;
-
-        return $this;
-    }
-
-    /**
-     * Get viewed.
-     *
-     * @return \DateTime|null
-     */
-    public function getViewed()
-    {
-        return $this->viewed;
     }
 }

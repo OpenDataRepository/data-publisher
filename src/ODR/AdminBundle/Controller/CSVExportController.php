@@ -373,11 +373,12 @@ class CSVExportController extends ODRCustomController
 
                         $df = $dt['dataFields'][$df_id];
                         $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                        $typename = $df['dataFieldMeta']['fieldType']['typeName'];
 
                         // Require the relevant delimiter to be set if exporting File/Image/Radio/Tag typeclasses
                         if ( ($typeclass === 'File' || $typeclass === 'Image') && is_null($file_image_delimiter) )
                             throw new ODRBadRequestException('File/Image delimiter not set');
-                        if ($typeclass === 'Radio' && is_null($radio_delimiter) )
+                        if ( ($typename === 'Multiple Radio' || $typename === 'Multiple Select') && is_null($radio_delimiter) )
                             throw new ODRBadRequestException('Radio delimiter not set');
                         if ($typeclass === 'Tag' && is_null($tag_delimiter) )
                             throw new ODRBadRequestException('Tag delimiter not set');
