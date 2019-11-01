@@ -16,18 +16,13 @@ namespace ODR\AdminBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\TrackedError;
 // Exceptions
-use ODR\AdminBundle\Exception\ODRBadRequestException;
-use ODR\AdminBundle\Exception\ODRException;
-use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Other
 use Doctrine\ORM\EntityManager;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
 use Symfony\Bridge\Monolog\Logger;
-
 
 class TrackedJobService
 {
@@ -60,6 +55,7 @@ class TrackedJobService
 //        'xml_import_validate',
         'mass_edit',
         'migrate',
+        'clone_and_link',
 //        'rebuild_thumbnails',
     );
 
@@ -96,10 +92,46 @@ class TrackedJobService
             return null;
 
         // If it exists, convert its data into an array and return that
-        $job_data = self::getJobData( array($job_id), $datatype_permissions );
+        $job_data = self::getJobData( array($tracked_job), $datatype_permissions );
         return $job_data;
     }
 
+
+    /**
+     * Returns jobs for users that users may need to acknowledge.
+     *
+     * @param $user_id
+     * @return array
+     */
+    public function getJobDataByUserId($user_id)
+    {
+        // Ensure the tracked job exists first
+        /** @var TrackedJob $tracked_job */
+        $qb = $this->em->createQueryBuilder();
+
+        $qb->select('tj')
+            ->from('ODRAdminBundle:TrackedJob', 'tj')
+            ->where($qb->expr()->isNotNull('tj.completed'))
+            ->andWhere('tj.createdBy = :user_id')
+            ->andWhere($qb->expr()->isNull('tj.deletedAt'))
+            ->andWhere($qb->expr()->in('tj.job_type', ':jobs_array'))
+            ->orderBy('tj.created', 'DESC');
+
+        $qb->setParameter('user_id', $user_id);
+        $qb->setParameter('jobs_array', array(
+            'csv_export',
+            'csv_import',
+            'csv_import_validate',
+            'mass_edit',
+            'migrate'
+        ));
+        $tracked_jobs = $qb->getQuery()->getArrayResult();
+
+        if ($tracked_jobs == null)
+            return array();
+
+        return $tracked_jobs;
+    }
 
     /**
      * Returns a formatted array of useful data about all tracked jobs of the given job type
@@ -175,7 +207,7 @@ class TrackedJobService
             $job['tracked_job_id'] = $tracked_job->getId();
             $job['eta'] = '...';
 
-            $additional_data = json_decode( $tracked_job->getAdditionalData(), true );
+            $additional_data = $tracked_job->getAdditionalData();
             $job['description'] = $additional_data['description'];
             $job['can_delete'] = false;
 
@@ -402,7 +434,7 @@ class TrackedJobService
 
         $tracked_job->setStarted(null);
 
-        $tracked_job->setAdditionalData( json_encode($additional_data) );
+        $tracked_job->setAdditionalData($additional_data);
         $tracked_job->setRestrictions($restrictions);
 
         $tracked_job->setCompleted(null);

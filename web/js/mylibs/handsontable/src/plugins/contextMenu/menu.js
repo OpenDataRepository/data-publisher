@@ -7,16 +7,19 @@ import {
   isChildOf,
   removeClass,
 } from './../../helpers/dom/element';
-import {arrayEach, arrayFilter, arrayReduce} from './../../helpers/array';
+import { arrayEach, arrayFilter, arrayReduce } from './../../helpers/array';
 import Cursor from './cursor';
 import EventManager from './../../eventManager';
-import {mixin, hasOwnProperty} from './../../helpers/object';
-import {debounce} from './../../helpers/function';
-import {filterSeparators, hasSubMenu, isDisabled, isItemHidden, isSeparator, isSelectionDisabled, normalizeSelection} from './utils';
-import {KEY_CODES} from './../../helpers/unicode';
+import { mixin, hasOwnProperty } from './../../helpers/object';
+import { isUndefined, isDefined } from './../../helpers/mixed';
+import { debounce, isFunction } from './../../helpers/function';
+import { filterSeparators, hasSubMenu, isDisabled, isItemHidden, isSeparator, isSelectionDisabled, normalizeSelection } from './utils';
+import { KEY_CODES } from './../../helpers/unicode';
 import localHooks from './../../mixins/localHooks';
-import {SEPARATOR} from './predefinedItems';
-import {stopImmediatePropagation} from './../../helpers/dom/event';
+import { SEPARATOR, NO_ITEMS, predefinedItems } from './predefinedItems';
+import { stopImmediatePropagation } from './../../helpers/dom/event';
+
+const MIN_WIDTH = 215;
 
 /**
  * @class Menu
@@ -30,7 +33,8 @@ class Menu {
       name: null,
       className: '',
       keepInViewport: true,
-      standalone: false
+      standalone: false,
+      minWidth: MIN_WIDTH,
     };
     this.eventManager = new EventManager(this);
     this.container = this.createContainer(this.options.name);
@@ -58,7 +62,7 @@ class Menu {
    * @private
    */
   registerEvents() {
-    this.eventManager.addEventListener(document.documentElement, 'mousedown', (event) => this.onDocumentMouseDown(event));
+    this.eventManager.addEventListener(this.hot.rootDocument.documentElement, 'mousedown', event => this.onDocumentMouseDown(event));
   }
 
   /**
@@ -91,21 +95,48 @@ class Menu {
 
   /**
    * Open menu.
+   *
+   * @fires Hooks#beforeContextMenuShow
+   * @fires Hooks#afterContextMenuShow
    */
   open() {
+    this.runLocalHooks('beforeOpen');
+
     this.container.removeAttribute('style');
     this.container.style.display = 'block';
 
-    const delayedOpenSubMenu = debounce((row) => this.openSubMenu(row), 300);
+    const delayedOpenSubMenu = debounce(row => this.openSubMenu(row), 300);
+    const minWidthOfMenu = this.options.minWidth || MIN_WIDTH;
+    let noItemsDefined = false;
 
-    let filteredItems = arrayFilter(this.menuItems, (item) => isItemHidden(item, this.hot));
+    let filteredItems = arrayFilter(this.menuItems, (item) => {
+      if (item.key === NO_ITEMS) {
+        noItemsDefined = true;
+      }
+
+      return isItemHidden(item, this.hot);
+    });
+
+    if (filteredItems.length < 1 && !noItemsDefined) {
+      filteredItems.push(predefinedItems()[NO_ITEMS]);
+
+    } else if (filteredItems.length === 0) {
+      return;
+    }
 
     filteredItems = filterSeparators(filteredItems, SEPARATOR);
 
-    let settings = {
+    const settings = {
       data: filteredItems,
       colHeaders: false,
-      colWidths: [200],
+      autoColumnSize: true,
+      modifyColWidth(width) {
+        if (isDefined(width) && width < minWidthOfMenu) {
+          return minWidthOfMenu;
+        }
+
+        return width;
+      },
       autoRowSize: false,
       readOnly: true,
       copyPaste: false,
@@ -116,21 +147,21 @@ class Menu {
       renderAllRows: true,
       fragmentSelection: 'cell',
       disableVisualSelection: 'area',
-      beforeKeyDown: (event) => this.onBeforeKeyDown(event),
-      afterOnCellMouseOver: (event, coords, TD) => {
+      beforeKeyDown: event => this.onBeforeKeyDown(event),
+      afterOnCellMouseOver: (event, coords) => {
         if (this.isAllSubMenusClosed()) {
           delayedOpenSubMenu(coords.row);
         } else {
           this.openSubMenu(coords.row);
         }
       },
-      rowHeights: (row) => (filteredItems[row].name === SEPARATOR ? 1 : 23)
+      rowHeights: row => (filteredItems[row].name === SEPARATOR ? 1 : 23)
     };
     this.origOutsideClickDeselects = this.hot.getSettings().outsideClickDeselects;
     this.hot.getSettings().outsideClickDeselects = false;
     this.hotMenu = new Core(this.container, settings);
     this.hotMenu.addHook('afterInit', () => this.onAfterInit());
-    this.hotMenu.addHook('afterSelection', (r, c, r2, c2, preventScrolling) => this.onAfterSelection(r, c, r2, c2, preventScrolling));
+    this.hotMenu.addHook('afterSelection', (...args) => this.onAfterSelection(...args));
     this.hotMenu.init();
     this.hotMenu.listen();
     this.blockMainTableCallbacks();
@@ -173,15 +204,15 @@ class Menu {
     if (!this.hotMenu) {
       return false;
     }
-    let cell = this.hotMenu.getCell(row, 0);
+    const cell = this.hotMenu.getCell(row, 0);
 
     this.closeAllSubMenus();
 
     if (!cell || !hasSubMenu(cell)) {
       return false;
     }
-    let dataItem = this.hotMenu.getSourceDataAtRow(row);
-    let subMenu = new Menu(this.hot, {
+    const dataItem = this.hotMenu.getSourceDataAtRow(row);
+    const subMenu = new Menu(this.hot, {
       parent: this,
       name: dataItem.name,
       className: this.options.className,
@@ -201,8 +232,8 @@ class Menu {
    * @param {Number} row Row index.
    */
   closeSubMenu(row) {
-    let dataItem = this.hotMenu.getSourceDataAtRow(row);
-    let menus = this.hotSubMenus[dataItem.key];
+    const dataItem = this.hotMenu.getSourceDataAtRow(row);
+    const menus = this.hotSubMenus[dataItem.key];
 
     if (menus) {
       menus.destroy();
@@ -230,10 +261,16 @@ class Menu {
    * Destroy instance.
    */
   destroy() {
+    const menuContainerParentElement = this.container.parentNode;
+
     this.clearLocalHooks();
     this.close();
     this.parentMenu = null;
     this.eventManager.destroy();
+
+    if (menuContainerParentElement) {
+      menuContainerParentElement.removeChild(this.container);
+    }
   }
 
   /**
@@ -251,18 +288,18 @@ class Menu {
    * @param {Event} [event]
    */
   executeCommand(event) {
-    if (!this.isOpened() || !this.hotMenu.getSelected()) {
+    if (!this.isOpened() || !this.hotMenu.getSelectedLast()) {
       return;
     }
-    const selectedItem = this.hotMenu.getSourceDataAtRow(this.hotMenu.getSelected()[0]);
+    const selectedItem = this.hotMenu.getSourceDataAtRow(this.hotMenu.getSelectedLast()[0]);
 
     this.runLocalHooks('select', selectedItem, event);
 
     if (selectedItem.isCommand === false || selectedItem.name === SEPARATOR) {
       return;
     }
-    const selRange = this.hot.getSelectedRange();
-    const normalizedSelection = selRange ? normalizeSelection(selRange) : {};
+    const selRanges = this.hot.getSelectedRange();
+    const normalizedSelection = selRanges ? normalizeSelection(selRanges) : [];
     let autoClose = true;
 
     // Don't close context menu if item is disabled or it has submenu
@@ -289,7 +326,7 @@ class Menu {
    * @param {Event|Object} coords Event or literal Object with coordinates.
    */
   setPosition(coords) {
-    const cursor = new Cursor(coords);
+    const cursor = new Cursor(coords, this.hot.rootWindow);
 
     if (this.options.keepInViewport) {
       if (cursor.fitsBelow(this.container)) {
@@ -363,7 +400,7 @@ class Menu {
    * @param {Cursor} cursor `Cursor` object.
    */
   setPositionOnLeftOfCursor(cursor) {
-    let left = this.offset.left + cursor.left - this.container.offsetWidth + getScrollbarWidth() + 4;
+    const left = this.offset.left + cursor.left - this.container.offsetWidth + getScrollbarWidth(this.hot.rootDocument) + 4;
 
     this.container.style.left = `${left}px`;
   }
@@ -372,7 +409,7 @@ class Menu {
    * Select first cell in opened menu.
    */
   selectFirstCell() {
-    let cell = this.hotMenu.getCell(0, 0);
+    const cell = this.hotMenu.getCell(0, 0);
 
     if (isSeparator(cell) || isDisabled(cell) || isSelectionDisabled(cell)) {
       this.selectNextCell(0, 0);
@@ -385,8 +422,8 @@ class Menu {
    * Select last cell in opened menu.
    */
   selectLastCell() {
-    let lastRow = this.hotMenu.countRows() - 1;
-    let cell = this.hotMenu.getCell(lastRow, 0);
+    const lastRow = this.hotMenu.countRows() - 1;
+    const cell = this.hotMenu.getCell(lastRow, 0);
 
     if (isSeparator(cell) || isDisabled(cell) || isSelectionDisabled(cell)) {
       this.selectPrevCell(lastRow, 0);
@@ -402,8 +439,8 @@ class Menu {
    * @param {Number} col Column index.
    */
   selectNextCell(row, col) {
-    let nextRow = row + 1;
-    let cell = nextRow < this.hotMenu.countRows() ? this.hotMenu.getCell(nextRow, col) : null;
+    const nextRow = row + 1;
+    const cell = nextRow < this.hotMenu.countRows() ? this.hotMenu.getCell(nextRow, col) : null;
 
     if (!cell) {
       return;
@@ -422,8 +459,8 @@ class Menu {
    * @param {Number} col Column index.
    */
   selectPrevCell(row, col) {
-    let prevRow = row - 1;
-    let cell = prevRow >= 0 ? this.hotMenu.getCell(prevRow, col) : null;
+    const prevRow = row - 1;
+    const cell = prevRow >= 0 ? this.hotMenu.getCell(prevRow, col) : null;
 
     if (!cell) {
       return;
@@ -441,16 +478,17 @@ class Menu {
    * @private
    */
   menuItemRenderer(hot, TD, row, col, prop, value) {
-    let item = hot.getSourceDataAtRow(row);
-    let wrapper = document.createElement('div');
+    const item = hot.getSourceDataAtRow(row);
+    const wrapper = this.hot.rootDocument.createElement('div');
 
-    let isSubMenu = (item) => hasOwnProperty(item, 'submenu');
-    let itemIsSeparator = (item) => new RegExp(SEPARATOR, 'i').test(item.name);
-    let itemIsDisabled = (item) => item.disabled === true || (typeof item.disabled == 'function' && item.disabled.call(this.hot) === true);
-    let itemIsSelectionDisabled = (item) => item.disableSelection;
+    const isSubMenu = itemToTest => hasOwnProperty(itemToTest, 'submenu');
+    const itemIsSeparator = itemToTest => new RegExp(SEPARATOR, 'i').test(itemToTest.name);
+    const itemIsDisabled = itemToTest => itemToTest.disabled === true || (typeof itemToTest.disabled === 'function' && itemToTest.disabled.call(this.hot) === true);
+    const itemIsSelectionDisabled = itemToTest => itemToTest.disableSelection;
+    let itemValue = value;
 
-    if (typeof value === 'function') {
-      value = value.call(this.hot);
+    if (typeof itemValue === 'function') {
+      itemValue = itemValue.call(this.hot);
     }
     empty(TD);
     addClass(wrapper, 'htItemWrapper');
@@ -461,10 +499,10 @@ class Menu {
 
     } else if (typeof item.renderer === 'function') {
       addClass(TD, 'htCustomMenuRenderer');
-      TD.appendChild(item.renderer(hot, wrapper, row, col, prop, value));
+      TD.appendChild(item.renderer(hot, wrapper, row, col, prop, itemValue));
 
     } else {
-      fastInnerHTML(wrapper, value);
+      fastInnerHTML(wrapper, itemValue);
     }
     if (itemIsDisabled(item)) {
       addClass(TD, 'htDisabled');
@@ -502,25 +540,37 @@ class Menu {
    * @returns {HTMLElement}
    */
   createContainer(name = null) {
-    if (name) {
-      name = name.replace(/[^A-z0-9]/g, '_');
-      name = `${this.options.className}Sub_${name}`;
-    }
+    const { rootDocument } = this.hot;
+    let className = name;
     let container;
 
-    if (name) {
-      container = document.querySelector(`.${this.options.className}.${name}`);
-    } else {
-      container = document.querySelector(`.${this.options.className}`);
+    if (className) {
+      if (isFunction(className)) {
+        className = className.call(this.hot);
+
+        if (className === null || isUndefined(className)) {
+          className = '';
+
+        } else {
+          className = className.toString();
+        }
+      }
+
+      className = className.replace(/[^A-z0-9]/g, '_');
+      className = `${this.options.className}Sub_${className}`;
+
+      container = rootDocument.querySelector(`.${this.options.className}.${className}`);
     }
+
     if (!container) {
-      container = document.createElement('div');
+      container = rootDocument.createElement('div');
+
       addClass(container, `htMenu ${this.options.className}`);
 
-      if (name) {
-        addClass(container, name);
+      if (className) {
+        addClass(container, className);
       }
-      document.getElementsByTagName('body')[0].appendChild(container);
+      rootDocument.getElementsByTagName('body')[0].appendChild(container);
     }
 
     return container;
@@ -553,7 +603,7 @@ class Menu {
    * @param {Event} event
    */
   onBeforeKeyDown(event) {
-    let selection = this.hotMenu.getSelected();
+    const selection = this.hotMenu.getSelectedLast();
     let stopEvent = false;
     this.keyEvent = true;
 
@@ -594,7 +644,7 @@ class Menu {
 
       case KEY_CODES.ARROW_RIGHT:
         if (selection) {
-          let menu = this.openSubMenu(selection[0]);
+          const menu = this.openSubMenu(selection[0]);
 
           if (menu) {
             menu.selectFirstCell();
@@ -631,12 +681,13 @@ class Menu {
    * @private
    */
   onAfterInit() {
+    const { wtTable } = this.hotMenu.view.wt;
     const data = this.hotMenu.getSettings().data;
-    const hiderStyle = this.hotMenu.view.wt.wtTable.hider.style;
-    const holderStyle = this.hotMenu.view.wt.wtTable.holder.style;
-    let currentHiderWidth = parseInt(hiderStyle.width, 10);
+    const hiderStyle = wtTable.hider.style;
+    const holderStyle = wtTable.holder.style;
+    const currentHiderWidth = parseInt(hiderStyle.width, 10);
 
-    let realHeight = arrayReduce(data, (accumulator, value) => accumulator + (value.name === SEPARATOR ? 1 : 26), 0);
+    const realHeight = arrayReduce(data, (accumulator, value) => accumulator + (value.name === SEPARATOR ? 1 : 26), 0);
 
     holderStyle.width = `${currentHiderWidth + 22}px`;
     holderStyle.height = `${realHeight + 4}px`;
@@ -651,6 +702,7 @@ class Menu {
    * @param {Number} r2 Selection end row index.
    * @param {Number} c2 Selection end column index.
    * @param {Object} preventScrolling Object with `value` property where its value change will be observed.
+   * @param {Number} selectionLayerLevel The number which indicates what selection layer is currently modified.
    */
   onAfterSelection(r, c, r2, c2, preventScrolling) {
     if (this.keyEvent === false) {
@@ -677,7 +729,7 @@ class Menu {
 
     // Automatically close menu when clicked element is not belongs to menu or submenu (not necessarily to itself)
     } else if ((this.isAllSubMenusClosed() || this.isSubMenu()) &&
-        (!isChildOf(event.target, '.htMenu') && isChildOf(event.target, document))) {
+        (!isChildOf(event.target, '.htMenu') && isChildOf(event.target, this.hot.rootDocument))) {
       this.close(true);
     }
   }

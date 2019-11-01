@@ -1,0 +1,35 @@
+{% set tag_meta = tag.tagMeta %}
+
+{# Store whether this tag has any child tags #}
+{% set has_children = false %}
+{% if tag.children is defined and tag.children is not empty %}
+    {% set has_children = true %}
+{% endif %}
+
+{# each tag is its own JSON object...required because "value" is an array #}
+{
+    {% if version == 'v1' %}
+    "tag_{{ tag.id }}": {
+        "name": "{{ tag_meta.tagName }}",
+    {% elseif version == 'v2' %}
+    "{{ tag_meta.tagName }}": {
+    {% endif %}
+
+        "name": "{{ tag_meta.tagName }}",
+        "template_tag_uuid": {{ tag.tagUuid|json_encode|raw }},
+        "updated_at": "{{ tag_meta.updated|date('Y-m-d H:i:s') }}",    {# TODO - should this be controlled by using_metadata? #}
+    {% if has_children %}
+        "children": [
+        {% for child_tag_id, child_tag in tag.children %}
+            {% include 'ODRAdminBundle:XMLExport:datatype_tag.json.twig' with {
+                'tag': child_tag,
+            } %}
+        {% endfor %}
+        ]
+    {% endif %}
+    {% if version == 'v1' or version == 'v2' %}
+    }
+    {% endif %}
+
+{# each tag is its own JSON object #}
+},

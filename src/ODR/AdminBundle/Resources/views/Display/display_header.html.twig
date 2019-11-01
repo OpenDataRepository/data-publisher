@@ -14,7 +14,12 @@
     <div class="pure-u-1 pure-u-md-1-3 pure-u-xl-1-3">
     {% if can_edit_datarecord %}
         <button id="ODREditButton" type="button" class="pure-button pure-button-primary"
-                onclick="loadDataRecord({{ datarecord.id }}, 'edit', {{ offset }});">Edit DataRecord</button>
+                onclick="loadDataRecord({{ datarecord.id }}, 'edit', '{{ offset }}');">Edit DataRecord</button>
+    {% endif %}
+
+    {% if can_add_datarecord %}
+        <button id="ODRAddButton" type="button" class="pure-button pure-button-primary"
+                onclick="addDataRecord({{ datatype.id }});">Add New Record</button>
     {% endif %}
 
         <button id="ODRDownloadAllFilesButton" type="button" class="pure-button pure-button-primary"
@@ -45,6 +50,55 @@
         if ( !window.sessionStorage.getItem('odr_tab_id') )
             window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
     });
+
+{% if can_add_datarecord == 1 and datatype.isMasterType == 0 %}
+    function addDataRecord(datatype_id) {
+        if ( confirm('Are you sure you want to create a new record?') ) {
+            var url = '{{ path('odr_record_add', { 'datatype_id': 0 }) }}';
+            url = url.substring(0, (url.length - 1));
+            url += datatype_id;
+
+            // The tab id should always exist at this point...need to pass it to the controller
+            //  action so any lists of datarecords stored for this tab are deleted
+            data = {'odr_tab_id': window.sessionStorage.getItem('odr_tab_id')};
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                data: data,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    // Reload this area of the page
+                    var datarecord_id = data.d.datarecord_id;
+
+                    var url = '{{ path('odr_record_edit', { 'datarecord_id': 0 }) }}';
+                    url = url.substring(0, (url.length-1));
+                    url += datarecord_id;
+
+                    UpdateURL(url);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        }
+    }
+{% endif %}
+
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}

@@ -6,6 +6,10 @@ var debug = require('debug')('test')
 var globals = require('../../modules/globals.js')
 var conf = require('../../conf/local.conf.js')
 var _ = require('lodash')
+const moment = require('moment')
+const fs = require('fs')
+var path = require('path');
+var mkpath = require('mkpath');
 
 var session_id = "";
 module.exports = function() {
@@ -19,7 +23,6 @@ module.exports = function() {
 
   this.Then(/^We should store the BrowserStack session id$/, function (next) {
 
-    var self = this;
     this.driver.session_
       .then(function(session) {
         globals.browserstack_session = session.id_;
@@ -138,7 +141,7 @@ module.exports = function() {
 
 
   /*
-// hover over element....
+    // hover over element....
 	var webdriver = require('selenium-webdriver');
 	var driver = new webdriver.Builder().usingServer().withCapabilities({'browserName': 'chrome' }).build();
 
@@ -164,6 +167,41 @@ module.exports = function() {
       })
       .catch(function(error) {
         return testerror.handleError(error, session_id)
+      });
+  });
+
+  this.Then(/^We should take a screenshot of the "([^"]*)"$/, function (sourceMatch, next) {
+      this.driver.takeScreenshot().then(function (data) {
+          debug('Screenshot');
+          next()
+          /*
+          var base64Data = data.replace(/^data:image\/png;base64,/, "")
+
+          var ss_path = 'screenshots/' + moment().format('YYYY-MM-DD-HH')
+          debug('path start');
+          return mkpath(ss_path, function(fs_error) {
+              debug('path function');
+              if(fs_error) {
+                  debug('path fail');
+                  debug(fs_err);
+                  return testerror.handleError(error, session_id)
+              }
+              else {
+                  debug('path success');
+                  fs.writeFile(ss_path + '/' + sourceMatch + ".png", base64Data, 'base64', function (err) {
+                      if (err) {
+                          debug(err);
+                          return testerror.handleError(error, session_id)
+                      }
+                      next()
+                  });
+              }
+          })
+          */
+      })
+      .catch(function(error) {
+          debug(error);
+          return testerror.handleError(error, session_id)
       });
   });
 

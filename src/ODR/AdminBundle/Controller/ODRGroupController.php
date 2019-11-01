@@ -15,6 +15,7 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\AdminBundle\Component\Service\EntityCreationService;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -24,8 +25,6 @@ use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\GroupMeta;
 use ODR\AdminBundle\Entity\GroupDatafieldPermissions;
 use ODR\AdminBundle\Entity\GroupDatatypePermissions;
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\UserGroup;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -33,14 +32,14 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
-use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Forms
 use ODR\AdminBundle\Form\UpdateGroupForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
+use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
-use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
@@ -80,8 +79,15 @@ class ODRGroupController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-            if ($datatype->getIsMasterType())
-                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
+            // if ($datatype->getIsMasterType())
+                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+
+            // Groups should only be attached to top-level datatypes...child datatypes inherit groups
+            //  from their parent
+            if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Child Datatypes are not allowed to have groups of their own.');
+
 
             // --------------------
             // Determine user privileges
@@ -107,7 +113,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4996d75a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -146,8 +152,9 @@ class ODRGroupController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-            if ($datatype->getIsMasterType())
-                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
+            // if ($datatype->getIsMasterType())
+                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -193,7 +200,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xe68cb492;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -224,6 +231,8 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -232,8 +241,9 @@ class ODRGroupController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-            if ($datatype->getIsMasterType())
-                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
+            // if ($datatype->getIsMasterType())
+                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -248,15 +258,17 @@ class ODRGroupController extends ODRCustomController
 
 
             // Create a new group
-            $pm_service->createGroup($user, $datatype);
+            $ec_service->createGroup($user, $datatype);
 
-            // Don't need to delete any cached entries since this is a new non-default group...nobody will immediately have/need membership in it
+            // Don't need to delete any user's cached permissions entries since this is a new
+            //  non-default group...nobody immediately needs or has membership in it
+
             // permissions_wrapper.html.twig will reload the list of groups automatically
         }
         catch (\Exception $e) {
             $source = 0xf78fc1d5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -301,8 +313,9 @@ class ODRGroupController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            if ($datatype->getIsMasterType())
-                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
+            // if ($datatype->getIsMasterType())
+                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -380,7 +393,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8f1ef340;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -411,6 +424,8 @@ class ODRGroupController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -423,8 +438,9 @@ class ODRGroupController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            if ($datatype->getIsMasterType())
-                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
+            // if ($datatype->getIsMasterType())
+                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -461,7 +477,7 @@ class ODRGroupController extends ODRCustomController
                         'groupName' => $submitted_data->getGroupName(),
                         'groupDescription' => $submitted_data->getGroupDescription(),
                     );
-                    parent::ODR_copyGroupMeta($em, $user, $group, $properties);
+                    $emm_service->updateGroupMeta($user, $group, $properties);
 
                     // TODO - Delete cached versions of group/user permissions once datarecord_restriction is added
                 }
@@ -472,7 +488,7 @@ class ODRGroupController extends ODRCustomController
                 }
             }
             else {
-                // GET request...load the actual ThemeMeta entity
+                // GET request...load the actual GroupMeta entity
                 $group_meta = $group->getGroupMeta();
                 $group_form = $this->createForm(UpdateGroupForm::class, $group_meta);
 
@@ -495,7 +511,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1f79b99c;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -537,8 +553,9 @@ class ODRGroupController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            if ($datatype->getIsMasterType())
-                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
+            // if ($datatype->getIsMasterType())
+                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -588,7 +605,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xb66e0e95;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -626,8 +643,9 @@ class ODRGroupController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-            if ($datatype->getIsMasterType())
-                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
+            // if ($datatype->getIsMasterType())
+                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -695,7 +713,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1a83c7b1;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -839,7 +857,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x09f55927;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -874,6 +892,8 @@ class ODRGroupController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -892,8 +912,9 @@ class ODRGroupController extends ODRCustomController
             if ($datatype->getDeletedAt() !== null)
                 throw new ODRNotFoundException('Datatype');
 
-            if ($datatype->getIsMasterType())
-                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
+            // if ($datatype->getIsMasterType())
+                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -920,45 +941,64 @@ class ODRGroupController extends ODRCustomController
             if ($value == 1) {
                 // If user is supposed to be added to a default group...
                 if ($group->getPurpose() !== '') {
-                    // ...remove them from all other default groups for this datatype since they should only ever be a member of a single group at a time
+                    // ...remove them from all other default groups for this datatype since users
+                    //  are only supposed to be a member of a single default group per datatype
                     $query = $em->createQuery(
-                       'SELECT ug.id AS ug_id
+                       'SELECT ug
                         FROM ODRAdminBundle:Group AS g
                         JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
                         WHERE ug.user = :user_id AND g.purpose != :purpose AND g.dataType = :datatype_id
                         AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
                     )->setParameters( array('user_id' => $user->getId(), 'purpose' => '', 'datatype_id' => $datatype->getId()) );
-                    $results = $query->getArrayResult();
+                    $results = $query->getResult();
 
-                    foreach ($results as $result) {
-                        $user_group_id = $result['ug_id'];
+                    // Only supposed to be in a single default group, but use foreach incase the
+                    //  database got messed up somehow...
+                    $changes_made = false;
+                    foreach ($results as $ug) {
+                        // Can't just call $em->remove($ug)...that won't set deletedBy
 
-                        /** @var UserGroup $user_group */
-                        $user_group = $repo_user_group->find($user_group_id);
-                        $user_group->setDeletedBy($admin_user);
-                        $em->persist($user_group);
-                        $em->remove($user_group);
+                        /** @var UserGroup $ug */
+                        $ug->setDeletedBy($admin_user);
+                        $ug->setDeletedAt(new \DateTime());
+                        $em->persist($ug);
+
+                        $changes_made = true;
                     }
 
-                    $em->flush();
+                    // Flush now that all the updates have been made
+                    if ($changes_made)
+                        $em->flush();
+
+                    // Calling $em->remove($ug) on a $ug that's already soft-deleted completely
+                    //  deletes the $ug out of the backend database
                 }
 
                 // Add this user to the desired group
-                $pm_service->createUserGroup($user, $group, $admin_user);
+                $ec_service->createUserGroup($user, $group, $admin_user);
             }
             else {
                 // Otherwise, user is supposed to be removed from the indicated group
                 /** @var UserGroup $user_group */
-                $user_group = $repo_user_group->findOneBy( array('user' => $user->getId(), 'group' => $group->getId()) );
+                $user_group = $repo_user_group->findOneBy(
+                    array(
+                        'user' => $user->getId(),
+                        'group' => $group->getId()
+                    )
+                );
                 if ($user_group == null) {
                     /* user already doesn't belong to this group, do nothing */
                 }
                 else {
                     // Delete the UserGroup entity so the user is no longer linked to the group
                     $user_group->setDeletedBy($admin_user);
+                    $user_group->setDeletedAt(new \DateTime());
                     $em->persist($user_group);
-                    $em->remove($user_group);
+//                    $em->remove($user_group);
                     $em->flush();
+
+                    // Can't just setDeletedBy() then remove()...doctrine only commits the remove()
+                    $em->detach($user_group);
                 }
             }
 
@@ -991,7 +1031,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xbee40f81;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1028,16 +1068,19 @@ class ODRGroupController extends ODRCustomController
             $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
             if ($group == null)
                 throw new ODRNotFoundException('Group');
+
+            // While not allowed to modify permissions for a default Group, the user should still
+            //  have a way to view what the group can do...which is why this is commented out here
 //            if ($group->getPurpose() !== '')
 //                throw new ODRBadRequestException('Unable to modify permissions for a default Group');
 
             $datatype = $group->getDataType();
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
-            $datatype_id = $datatype->getId();
 
-            if ($datatype->getIsMasterType())
-                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
+            // if ($datatype->getIsMasterType())
+                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -1056,14 +1099,18 @@ class ODRGroupController extends ODRCustomController
 
 
             // Get the html for assigning datafield permissions
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->get('odr.render_service');
+            $page_html = $odr_render_service->getGroupHTML($user, $group);
+
             $return['d'] = array(
-                'html' => self::GetDisplayData($group, $datatype_id, 'default', $datatype_id, $request)
+                'html' => $page_html
             );
         }
         catch (\Exception $e) {
             $source = 0xf41ca927;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1071,109 +1118,6 @@ class ODRGroupController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * Renders the HTML required to display/reload a portion of the Group Permissions changer UI
-     *
-     * @param Group $group                 The group being modified
-     * @param integer $source_datatype_id  The top-level datatype that $user is having permissions modified for
-     * @param string $template_name        One of 'default', 'child_datatype', 'theme_element'
-     * @param integer $target_id           If $template_name == 'default', then $target_id should be a top-level datatype id
-     *                                     If $template_name == 'child_datatype', then $target_id should be a child/linked datatype id
-     *                                     If $template_name == 'theme_element', then $target_id should be a theme_element id
-     * @param Request $request
-     *
-     * @return string
-     */
-    private function GetDisplayData($group, $source_datatype_id, $template_name, $target_id, $request)
-    {
-        // Required objects
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-        $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-
-        /** @var CacheService $cache_service */
-        $cache_service = $this->container->get('odr.cache_service');
-        /** @var DatatypeInfoService $dti_service */
-        $dti_service = $this->container->get('odr.datatype_info_service');
-        /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
-        /** @var ThemeInfoService $theme_service */
-        $theme_service = $this->container->get('odr.theme_info_service');
-
-        /** @var ODRUser $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-        // Load permissions for the specified group
-        $permissions = $cache_service->get('group_'.$group->getId().'_permissions');
-        if ($permissions == false) {
-            $permissions = $pm_service->rebuildGroupPermissionsArray($group->getId());
-            $cache_service->set('group_'.$group->getId().'_permissions', $permissions);
-        }
-//print '<pre>'.print_r($permissions, true).'</pre>';  exit();
-
-        $datatype_permissions = $permissions['datatypes'];
-        $datafield_permissions = $permissions['datafields'];
-
-
-        $prevent_all_changes = false;
-        if ($group->getPurpose() !== '')
-            $prevent_all_changes = true;
-
-
-        // ----------------------------------------
-        // Load required objects based on parameters
-        /** @var DataType $datatype */
-        $datatype = null;
-        /** @var Theme $theme */
-        $theme = null;
-
-        /** @var DataType|null $child_datatype */
-        $child_datatype = null;
-        /** @var ThemeElement|null $theme_element */
-        $theme_element = null;
-
-
-        // Don't need to check whether these entities are deleted or not
-        $datatype = $repo_datatype->find($target_id);
-        $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-
-
-        // ----------------------------------------
-        // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $include_links = false;
-        $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
-//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
-
-        $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user, 'master', $include_links);
-
-
-        // ----------------------------------------
-        // No need to filter display by user permissions...the only people who can currently access this functionality already have permissions to view/edit everything
-
-
-        // ----------------------------------------
-        // Render the required version of the page
-        $templating = $this->get('templating');
-        $html = $templating->render(
-            'ODRAdminBundle:ODRGroup:permissions_ajax.html.twig',
-            array(
-                'group' => $group,
-                'datatype_permissions' => $datatype_permissions,
-                'datafield_permissions' => $datafield_permissions,
-
-                'datatype_array' => $datatype_array,
-                'initial_datatype_id' => $source_datatype_id,
-                'theme_array' => $theme_array,
-
-                'prevent_all_changes' => $prevent_all_changes,
-            )
-        );
-
-        return $html;
     }
 
 
@@ -1203,6 +1147,8 @@ class ODRGroupController extends ODRCustomController
             $cache_service = $this->container->get('odr.cache_service');
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1223,8 +1169,9 @@ class ODRGroupController extends ODRCustomController
             if ($gdtp == null)
                 throw new ODRNotFoundException('Permissions Entity');
 
-            if ($datatype->getIsMasterType())
-                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
+            // if ($datatype->getIsMasterType())
+                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -1232,6 +1179,7 @@ class ODRGroupController extends ODRCustomController
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            // TODO - why did a user have to have the admin role to do this?
             if ( !$admin_user->hasRole('ROLE_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -1255,12 +1203,12 @@ class ODRGroupController extends ODRCustomController
 
             if ($permission == 'dt_admin') {
                 if ($value == 1) {
-                    // Due to the INSERT INTO query for datafields later on, don't continue if the group already has the "is_datatype_admin" permission
+                    // Don't continue if the group already has the "is_datatype_admin" permission
                     if ( $gdtp->getIsDatatypeAdmin() )
-                        throw new ODRException('Already have the "is_datatype_admin" permission');
+                        throw new ODRBadRequestException('Already have the "is_datatype_admin" permission');
 
                     // ----------------------------------------
-                    // Set all datatypes affected by this group to have the "is_datatype_admin" permission
+                    // Ensure all datatypes affected by this group have all the permissions
                     $query = $em->createQuery(
                        'SELECT gdtp
                         FROM ODRAdminBundle:GroupDatatypePermissions AS gdtp
@@ -1274,62 +1222,38 @@ class ODRGroupController extends ODRCustomController
                         'can_view_datarecord' => 1,
                         'can_add_datarecord' => 1,
                         'can_delete_datarecord' => 1,
+                        'can_design_datatype' => 1,    // TODO - implement this permission
                         'is_datatype_admin' => 1,
                     );
 
                     foreach ($results as $gdtp)
-                        parent::ODR_copyGroupDatatypePermission($em, $admin_user, $gdtp, $properties);
+                        $emm_service->updateGroupDatatypePermission($admin_user, $gdtp, $properties, true);    // Don't flush immediately
 
 
                     // ----------------------------------------
                     // Ensure all datafields are set to can-view/can-edit to avoid edge-cases
                     $query = $em->createQuery(
-                       'SELECT gdfp.id AS gdfp_id, df.id AS df_id, df.deletedAt AS df_deletedAt
+                       'SELECT gdfp
                         FROM ODRAdminBundle:GroupDatafieldPermissions AS gdfp
                         JOIN ODRAdminBundle:DataFields AS df WITH gdfp.dataField = df
-                        WHERE gdfp.group = :group_id AND (gdfp.can_view_datafield = 0 OR gdfp.can_edit_datafield = 0)
+                        WHERE gdfp.group = :group_id
+                        AND (gdfp.can_view_datafield = 0 OR gdfp.can_edit_datafield = 0)
                         AND gdfp.deletedAt IS NULL AND df.deletedAt IS NULL'
                     )->setParameters( array('group_id' => $group->getId()) );
-                    $results = $query->getArrayResult();
+                    $results = $query->getResult();
 
-                    $permission_list = array();
-                    $datafield_list = array();
-                    foreach ($results as $result) {
-                        $permission_list[] = $result['gdfp_id'];
+                    $properties = array(
+                        'can_view_datafield' => 1,
+                        'can_edit_datafield' => 1,
+                    );
 
-                        $df_deletedAt = "NULL";
-                        if ( !is_null($result['df_deletedAt']) )
-                            $df_deletedAt = '"'.$df_deletedAt->format('Y-m-d H:i:s').'"';
-                        $datafield_list[ $result['df_id'] ] = $df_deletedAt;
-                    }
-
-                    // Delete the specified GroupDatafieldPermissions entities
-                    $query = $em->createQuery(
-                       'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
-                        SET gdfp.deletedAt = :now
-                        WHERE gdfp.id IN (:permission_list) AND gdfp.deletedAt IS NULL'
-                    )->setParameters( array('now' => new \DateTime(), 'permission_list' => $permission_list) );
-                    $rows = $query->execute();
-
-                    // Build a single INSERT INTO query to add GroupDatafieldPermissions entries for all datafields of this top-level datatype and its children
-                    $query_str = '
-                        INSERT INTO odr_group_datafield_permissions (
-                            group_id, data_field_id,
-                            can_view_datafield, can_edit_datafield,
-                            created, createdBy, updated, updatedBy, deletedAt
-                        )
-                        VALUES ';
-
-                    foreach ($datafield_list as $df_id => $df_deletedAt)
-                        $query_str .= '("'.$group->getId().'", "'.$df_id.'", "1", "1", NOW(), "'.$admin_user->getId().'", NOW(), "'.$admin_user->getId().'", '.$df_deletedAt.'),'."\n";
-
-                    // Get rid of the trailing comma and replace with a semicolon
-                    $query_str = substr($query_str, 0, -2).';';
-                    $conn = $em->getConnection();
-                    $rowsAffected = $conn->executeUpdate($query_str);
+                    foreach ($results as $gdfp)
+                        $emm_service->updateGroupDatafieldPermission($admin_user, $gdfp, $properties, true);    // Don't flush immediately...
+                    $em->flush();
                 }
                 else {
-                    // Set all datatypes affected by this group to not have the "is_datatype_admin" permission
+                    // Ensure all datatypes affected by this group do not have the
+                    //  "is_datatype_admin" permission
                     $query = $em->createQuery(
                        'SELECT gdtp
                         FROM ODRAdminBundle:GroupDatatypePermissions AS gdtp
@@ -1338,9 +1262,13 @@ class ODRGroupController extends ODRCustomController
                     )->setParameters( array('group_id' => $group->getId()) );
                     $results = $query->getResult();
 
-                    $properties['is_datatype_admin'] = 0;
+                    $properties = array(
+                        'can_design_datatype' => 0,    // TODO - implement this permission
+                        'is_datatype_admin' => 0,
+                    );
                     foreach ($results as $gdtp)
-                        parent::ODR_copyGroupDatatypePermission($em, $admin_user, $gdtp, $properties);
+                        $emm_service->updateGroupDatatypePermission($admin_user, $gdtp, $properties, true);    // Don't flush immediately...
+                    $em->flush();
                 }
             }
             else {
@@ -1362,12 +1290,14 @@ class ODRGroupController extends ODRCustomController
                 }
 
                 if ($permission != 'dt_view' && $value == 1) {
-                    // If any permission is selected, ensure the "can_view_datatype" permission is selected as well
+                    // If any permission is selected, ensure the "can_view_datatype" permission is
+                    //  selected as well
                     $properties['can_view_datatype'] = 1;
                 }
                 else if ($permission == 'dt_view' && $value == 0) {
-                    // If the "can_view_datatype" permission is deselected, ensure all other permissions are deselected as well
-                    // Don't need to worry about the 'is_datatype_admin' permission...if it's set to 1, then this line of code can't be reached
+                    // If the "can_view_datatype" permission is deselected, ensure all other
+                    //  permissions are deselected as well...if the 'is_datatype_admin' permission
+                    //  was set to 1, then this block of code can't be reached
                     $properties = array(
                         'can_view_datatype' => 0,
                         'can_view_datarecord' => 0,
@@ -1377,12 +1307,13 @@ class ODRGroupController extends ODRCustomController
                 }
 
                 // Update the database
-                parent::ODR_copyGroupDatatypePermission($em, $admin_user, $gdtp, $properties);
+                $emm_service->updateGroupDatatypePermission($admin_user, $gdtp, $properties);
             }
 
 
             // ----------------------------------------
-            // Load the list of users this will have been affected by this
+            // Now that the database is up to date, load the list of users that have had their
+            //  permissions affected by this change
             $query = $em->createQuery(
                'SELECT DISTINCT(u.id) AS user_id
                 FROM ODRAdminBundle:UserGroup AS ug
@@ -1400,8 +1331,9 @@ class ODRGroupController extends ODRCustomController
             // Could be quite a few changes to the cached group array...just delete it
             $cache_service->delete('group_'.$group_id.'_permissions');
 
-            // Clear cached version of permissions for all users of this group
-            // Not updating cached entry because it's a combination of all group permissions, and would take as much work to figure out what all to change as it would to just rebuild it
+            // Clear cached version of permissions for all users in this group
+            // Not updating the cache entry because it's a combination of all group permissions,
+            //  and figuring out what all to change is more work than just rebuilding it
             foreach ($user_list as $user_id)
                 $cache_service->delete('user_'.$user_id.'_permissions');
 
@@ -1409,7 +1341,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x87b4186b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1443,6 +1375,8 @@ class ODRGroupController extends ODRCustomController
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -1468,8 +1402,9 @@ class ODRGroupController extends ODRCustomController
             if ($gdfp == null)
                 throw new ODRNotFoundException('Permissions Entity');
 
-            if ($datatype->getIsMasterType())
-                throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
+            // TODO - Was there a reason for this beyond trying to enforce that a "master template" was different than a "datatype"?
+            // if ($datatype->getIsMasterType())
+                // throw new ODRBadRequestException('Master Templates are not allowed to have Groups');
 
 
             // --------------------
@@ -1522,7 +1457,7 @@ class ODRGroupController extends ODRCustomController
 
                 /* no need to update the cache entry with this */
             }
-            parent::ODR_copyGroupDatafieldPermission($em, $admin_user, $gdfp, $properties);
+            $emm_service->updateGroupDatafieldPermission($admin_user, $gdfp, $properties);
 
 
             // ----------------------------------------
@@ -1551,7 +1486,8 @@ class ODRGroupController extends ODRCustomController
             }
 
             // Clear cached version of permissions for all users of this group
-            // Not updating cached entry because it's a combination of all group permissions, and would take as much work to figure out what all to change as it would to just rebuild it
+            // Not updating cached entry because it's a combination of all group permissions, and
+            //  is easier to just rebuild it
             foreach ($user_list as $user_id)
                 $cache_service->delete('user_'.$user_id.'_permissions');
 
@@ -1559,7 +1495,7 @@ class ODRGroupController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xaf7407e0;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

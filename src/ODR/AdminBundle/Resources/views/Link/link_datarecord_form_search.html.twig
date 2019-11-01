@@ -1,6 +1,6 @@
 {% spaceless %}
 
-{% set theme = theme_array[datatype.id] %}
+{% set theme = theme_array[initial_theme_id] %}
 
 {# Page/View Options #}
 {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
@@ -10,21 +10,9 @@
     'search_key': '',
 } %}
 
-<div>
-    <table id="TextResults_search" class="display {#pure-table pure-table-striped#}"></table>
+<div class="ODRTableOuterWrap">
+    <table id="TextResults_search" class="display"></table>
 </div>
-</br></br>
-<div id="TextResults_link_div">
-    <button class="pure-button" type="button" onclick="selectAll();">Select All</button>
-    &nbsp;
-    <button class="pure-button" type="button" onclick="deselectAll();">Deselect All</button>
-</div>
-
-<style>
-    #TextResults_search_paginate > a {
-        margin: 5px;
-    }
-</style>
 
 <script>
     // Need to be able to store all datarecords returned from the search incase "Select All" is clicked
@@ -35,8 +23,10 @@
 
         var allow_multiple_links = $("#LinkDataRecordForm").children('input[name="allow_multiple_links"]').val();
         var local_datarecord_is_ancestor = $("#LinkDataRecordForm").children('input[name="local_datarecord_is_ancestor"]').val();
-        if (allow_multiple_links == 0)
-            $("#TextResults_link_div").remove();
+        if (allow_multiple_links === 0)
+            $("#ODRLinkSelection").remove();
+        else
+            $("#ODRLinkSelection").show();
 
         // Initialize the datatables object
         var search_table = $("#TextResults_search").dataTable({
@@ -66,8 +56,7 @@
                     $(row).prepend('<td><input type="checkbox" class="ODRLinkCheckbox dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
                 else
                     $(row).prepend('<td><input type="radio" name="radio_group" class="ODRLinkCheckbox dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
-            },
-
+            }
         });
 
         // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...
@@ -112,46 +101,6 @@
         // Prepend a header for the checkbox column
         $("#TextResults_search").children('thead').children('tr').prepend('<th rowspan="1" colspan="1">Linked?</th>');
     });
-
-    function selectAll() {
-        // Add hidden input elements for all currently unselected datarecords
-        jQuery.each(all_datarecords, function(index, dr_id) {
-            var dr = "#dr_" + dr_id;
-
-            if ( $(dr).length > 0 ) {
-                // hidden input exists, do nothing
-            }
-            else if ( $(dr).length == 0 ) {
-                // hidden input does not exist, create it
-                $("#LinkDataRecordForm").append('<input type="hidden" id="dr_' + dr_id + '" name="datarecords[' + dr_id + ']" value="1" />');
-            }
-        });
-
-        // Update state of all checkboxes
-        linked_datarecords = all_datarecords;
-        initCheckboxes("#TextResults_current", true);
-        initCheckboxes("#TextResults_search", false);
-    }
-
-    function deselectAll() {
-        // Remove hidden input elements for all currently selected datarecords
-        jQuery.each(linked_datarecords, function(index, dr_id) {
-            var dr = "#dr_" + dr_id;
-
-            if ( $(dr).length > 0 ) {
-                // hidden input exists, remove it
-                $(dr).remove();
-            }
-            else if ( $(dr).length == 0 ) {
-                // hidden input does not exist, do nothing
-            }
-        });
-
-        // Update state of all checkboxes
-        linked_datarecords = [];
-        initCheckboxes("#TextResults_current", true);
-        initCheckboxes("#TextResults_search", false);
-    }
 </script>
 
 {% endspaceless %}

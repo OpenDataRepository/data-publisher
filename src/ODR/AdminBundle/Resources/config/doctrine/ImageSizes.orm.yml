@@ -73,11 +73,11 @@ ODR\AdminBundle\Entity\ImageSizes:
             nullable: true
 
     manyToOne:
-        dataFields:
+        dataField:
             targetEntity: DataFields
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: imageSizes
             joinColumns:
                 data_fields_id:
                     referencedColumnName: id

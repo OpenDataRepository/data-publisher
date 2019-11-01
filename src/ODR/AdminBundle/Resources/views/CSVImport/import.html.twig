@@ -4,148 +4,204 @@
     <h2>CSV Import for <span id="target_datatype_name">{{ datatype.shortname }}</span></h2>
 </div>
 
-{% if presets != null %}
-<div class="ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer">
-    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-        <span style="float: right;"><i class="fa fa-lg fa-caret-up"></i></span>
-        <a>Field Layout</a>
-    </h3>
-</div>
-{% endif %}
 
-<div class="content" style="margin: 10px;">
-    <button class="pure-button" onclick="cancelCSVUpload(false);">Cancel CSV Import...</button>
-    </br></br>
+    <div id="FullCSVImportForm">
+        {% if presets != null %}
+            <div class="ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer">
+                <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                    <span style="float: right;"><i class="fa fa-lg fa-caret-up"></i></span>
+                    <a>Field Layout</a>
+                </h3>
+            </div>
+        {% endif %}
 
-    <form id="csvUploadForm" class="pure-form pure-form-aligned">
-        <fieldset>
-            <div class="pure-control-group">
-                <label for="target_datatype" style="width:13em;">Datatype to import into:</label>
-                <input type="hidden" name="source_datatype" id="source_datatype" value="{{ datatype.id }}" />
-                <select name="target_datatype" id="target_datatype" {% if upload_type == '' %}disabled{% endif %}>
-                    <option value="{{ datatype.id }}">{{ datatype.shortname }}</option>
-                {% if childtypes != null and datatype.externalIdField != null %}
-                    {% for childtype in childtypes %}
-                        {% set multiple_allowed = false %}
-                        {% if datatree_array['multiple_allowed'][childtype.id] is defined %}
-                            {% set multiple_allowed = true %}
-                        {% endif %}
+        <div class="content" style="margin: 10px;">
+            <button class="pure-button" onclick="cancelCSVUpload(false);">Cancel CSV Import...</button>
+            </br></br>
 
-                        <option value="{{ childtype.id }}" class="child{% if childtype.getexternalidfield == null %} warn{% endif %}{% if multiple_allowed %} multiple{% else %} single{% endif %}">|-- {{ childtype.shortname }} (child)</option>
-                    {% endfor %}
-                {% endif %}
-                {% if linked_types != null and datatype.externalIdField != null %}
-                    {% for linked_type in linked_types %}
-                        <option value="{{ linked_type.id }}" class="{% if linked_type.getexternalidfield == null %}invalid {% endif %}link">|-- {{ linked_type.shortname }} ({% if linked_type.getexternalidfield == null %}invalid {% endif %}link)</option>
-                    {% endfor %}
-                {%  endif %}
-                </select>
+            <form id="csvUploadForm" class="pure-form pure-form-aligned">
+                <fieldset>
+                    <div class="pure-control-group">
+                        <label for="target_datatype" style="width:13em;">Datatype to import into:</label>
+                        <input type="hidden" name="source_datatype" id="source_datatype" value="{{ datatype.id }}" />
+                        <select name="target_datatype" id="target_datatype" {% if upload_type == '' %}disabled{% endif %}>
+                            <option value="{{ datatype.id }}">{{ datatype.shortname }}</option>
+                            {% if childtypes != null and datatype.externalIdField != null %}
+                                {% for childtype in childtypes %}
+                                    {% set multiple_allowed = false %}
+                                    {% if datatree_array['multiple_allowed'][childtype.id] is defined %}
+                                        {% set multiple_allowed = true %}
+                                    {% endif %}
 
-                <span id="childtype_multiple_import_warning" style="margin-left:15px;">
+                                    <option value="{{ childtype.id }}" class="child{% if childtype.getexternalidfield == null %} warn{% endif %}{% if multiple_allowed %} multiple{% else %} single{% endif %}">|-- {{ childtype.shortname }} (child)</option>
+                                {% endfor %}
+                            {% endif %}
+                            {% if linked_types != null and datatype.externalIdField != null %}
+                                {% for linked_type in linked_types %}
+                                    <option value="{{ linked_type.id }}" class="{% if linked_type.getexternalidfield == null %}invalid {% endif %}link">|-- {{ linked_type.shortname }} ({% if linked_type.getexternalidfield == null %}invalid {% endif %}link)</option>
+                                {% endfor %}
+                            {%  endif %}
+                        </select>
+
+                        <span id="childtype_multiple_import_warning" style="margin-left:15px;">
                     <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                     <span>&nbsp;This child Datatype doesn't have an "External ID" Datafield...every row in the CSV file WILL become a new child Datarecord.</span>
                 </span>
 
-                <span id="childtype_single_import_warning" style="margin-left:15px;">
+                        <span id="childtype_single_import_warning" style="margin-left:15px;">
                     <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                     <span>&nbsp;This child Datatype doesn't have an "External ID" Datafield...if a parent Datarecord in the CSV file already has a child Datarecord, then the contents of the child Datarecord WILL be overwritten.</span>
                 </span>
 
-                <span id="invalid_linked_datatype_warning" style="margin-left:15px;">
+                        <span id="invalid_linked_datatype_warning" style="margin-left:15px;">
                     <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                     <span>&nbsp;This linked Datatype doesn't have an "External ID" Datafield...CSV Importing can't continue because it's impossible to determine which Datarecords to link to.</span>
                 </span>
 
-            {% if datatype.externalIdField == null and (childtypes != null or linked_types != null) %}
-                <span style="margin-left:15px;">
+                        {% if datatype.externalIdField == null and (childtypes != null or linked_types != null) %}
+                            <span style="margin-left:15px;">
                     <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                     <span>&nbsp;This Datatype doesn't have an "External ID" Datafield...CSV Importing can't be performed on any children or linked Datatypes.</span>
                 </span>
-            {% endif %}
-            </div>
+                        {% endif %}
+                    </div>
 
-            <div class="pure-control-group">
-                <label for="delimiter_select" style="width:13em;">Delimiter for CSV File:</label>
-                <select name="csv_delimiter" id="delimiter_select" {% if upload_type == '' %}disabled{% endif %}>
-                    <option value="">Select a delimiter...</option>
-                    <option value="tab">{tab}</option>
-                    <option value="space">{space}</option>
-                    <option value="comma">{comma}</option>
-                    <option value="semicolon">{semicolon}</option>
-                    <option value="colon">{colon}</option>
-                    <option value="pipe">{pipe}</option>
-                </select>
-            </div>
-        </fieldset>
+                    <div class="pure-control-group">
+                        <label for="delimiter_select" style="width:13em;">Delimiter for CSV File:</label>
+                        <select id="delimiter_select" {% if upload_type == '' %}disabled{% endif %}>
+                            <option rel="">Select a delimiter...</option>
+                            <option rel=",">{comma}</option>
+                            <option rel="tab">{tab}</option>
+                            <option rel="">{other}</option>
+                        </select>
+                        &nbsp;
+                        <input type="text" name="csv_delimiter" id="delimiter_field" class="ODRDelimiterField" maxlength="1" size="3" />
+                    </div>
+                </fieldset>
 
-        {% if upload_type == 'csv' %}
-        <div id="file_upload_div">
-            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {
-                'target': 'csv_import',
-                'single_file': true,
-                'upload_type': 'csv',
-                'datatype_id': datatype.id,
-                'datarecord_id': 0,
-                'datafield_id': 0,
-                'callback': 'loadLayout();'
-            } %}
+                {% if upload_type == 'csv' %}
+                    <div id="file_upload_div">
+                        {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {
+                            'target': 'csv_import',
+                            'single_file': true,
+                            'upload_type': 'csv',
+                            'datatype_id': datatype.id,
+                            'datarecord_id': 0,
+                            'datafield_id': 0,
+                            'callback': 'loadLayout();'
+                        } %}
+                    </div>
+                {% endif %}
+            </form>
+
+            <div id="layout_content">
+                {% if presets != null %}
+                    {% include 'ODRAdminBundle:CSVImport:layout.html.twig' with {
+                        'columns': columns,
+                        'datatype': datatype,
+                        'datafields': datafields,
+                        'datatree_array': datatree_array,
+                        'fieldtypes': fieldtypes,
+                        'allowed_fieldtypes': allowed_fieldtypes,
+                        'presets': presets,
+                        'file_encoding_converted': file_encoding_converted,
+                        'tracked_job_id': tracked_job_id
+                    } %}
+                {% endif %}
+            </div>
         </div>
+
+        {% if presets != null and resulting_tag_arrays|length > 0 %}
+            <div class="ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer" style="margin-top:15px;">
+                <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                    <span style="float: right;"><i class="fa fa-lg fa-caret-down"></i></span>
+                    <a>Resulting Tag structure</a>
+                </h3>
+            </div>
+            <div class="content ODRContentWrapper" style="margin: 10px;">
+                <div class="ODRThemeElement pure-u-1">
+                    <div class="ODRInnerBox">
+                        {% for col_num, stacked_tag_array in resulting_tag_arrays %}
+                            <div class="ODRDataField pure-u-1-2">
+                                <fieldset>
+                                    <label id="Label_{{ col_num }}" class="ODRFieldLabel pure-u-1">
+                                        <span id="ODRDatafield_{{ col_num }}_name" style="margin-left:10px; font-weight: bold;">{{ columns[col_num] }}</span>
+                                    </label>
+                                    {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
+                                        'stacked_tags': stacked_tag_array,
+                                    } %}
+                                </fieldset>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         {% endif %}
-    </form>
 
-    <div id="layout_content">
-    {% if presets != null %}
-        {% include 'ODRAdminBundle:CSVImport:layout.html.twig' with {
-            'columns': columns,
-            'datatype': datatype,
-            'datafields': datafields,
-            'datatree_array': datatree_array,
-            'fieldtypes': fieldtypes,
-            'allowed_fieldtypes': allowed_fieldtypes,
-            'presets': presets,
-            'file_encoding_converted': file_encoding_converted
-        } %}
-    {% endif %}
+        {% if presets != null %}
+            <div class="ODRValidationSystem ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer" style="margin-top:15px;">
+                <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                    <span style="float: right;"><i class="fa fa-lg fa-caret-down"></i></span>
+                    <a>Validation Errors</a>
+                </h3>
+            </div>
+
+            <div class="ODRValidationSystem content" style="margin: 10px;">
+                {% if errors != null and errors|length > 0 %}
+                    {% include 'ODRAdminBundle:CSVImport:errors.html.twig' with {'error_messages': errors} %}
+                {% else %}
+                    <span>No errors found</span>
+                {% endif %}
+
+                {% if allow_import == true %}
+                    <div>
+                        <button id="import_button" class="pure-button pure-button-primary" onclick="doImport();">Start Import</button>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+
     </div>
-</div>
 
-{% if presets != null %}
-<div class="ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer" style="margin-top:15px;">
-    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-        <span style="float: right;"><i class="fa fa-lg fa-caret-down"></i></span>
-        <a>Validation Errors</a>
-    </h3>
-</div>
 
-<div class="content" style="margin: 10px;">
-    {% if errors != null and errors|length > 0 %}
-        {% include 'ODRAdminBundle:CSVImport:errors.html.twig' with {'error_messages': errors} %}
-    {% else %}
-        <span>No errors found</span>
-    {% endif %}
 
-    {% if allow_import == true %}
-    <div>
-        <button id="import_button" class="pure-button pure-button-primary" onclick="doImport();">Start Import</button>
+    <div id="ImportLoadingBlock" class="ODRHidden">
+        <div class="ODRRemodalLoading pure-u-1">
+            <div class="JobStatusWrapper">
+                <div class="JobComplete ODRHidden">Import Validation Complete</div>
+                <div class="loading-container">
+                    <div class="loading"></div>
+                    <div class="loading-text">validating</div>
+                </div>
+            </div>
+            <div class="JobTracker"></div>
+            <div class="CSVExportMessage">Import validation will be ready momentarily. If you don't want to wait, feel free
+                to continue to use the site and a message will inform you when your import is ready for the next step in the process.
+            </div>
+        </div>
     </div>
-    {% endif %}
-</div>
-{% endif %}
+
 
 <script>
     $(function() {
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
         $("#file_upload_div").hide();
         $("#childtype_single_import_warning").hide();
         $("#childtype_multiple_import_warning").hide();
         $("#invalid_linked_datatype_warning").hide();
+        $("#delimiter_field").hide();
 
     {% if presets == null %}
         $("#delimiter_select").unbind('change').change(function() {
-            delimiterChanged( $(this).val() );
-            if ( $(this).val() == "" || $("#target_datatype").children(':selected').attr('rel') == 'invalid link' )
-                $("#file_upload_div").hide();
-            else
-                $("#file_upload_div").show();
+            var char = $(this).children(':selected').first().attr('rel');
+            $("#delimiter_field").val(char);
+            delimiterChanged(char);
+        });
+
+        $("#delimiter_field").unbind('keyup paste').on('keyup paste', function() {
+            var char = $(this).val();
+            delimiterChanged(char);
         });
 
         $("#target_datatype").unbind('change').change(function() {
@@ -187,32 +243,29 @@
         }
         {% endif %}
 
-        var delimiter = "{{ presets.delimiter }}";
-        switch (delimiter) {
-            case "\t":
-                delimiter = "tab";
-                break;
-            case " ":
-                delimiter = "space";
-                break;
-            case ",":
-                delimiter = "comma";
-                break;
-            case ";":
-                delimiter = "semicolon";
-                break;
-            case ":":
-                delimiter = "colon";
-                break;
-            case "|":
-                delimiter = "pipe";
-                break;
-        }
 
-        $("#delimiter_select").val(delimiter);
+        var delimiter = "{{ presets.delimiter }}";
+        if (delimiter === ',') {
+            $("#delimiter_select").children('option').each(function() {
+                if ( $(this).attr('rel') === ',')
+                    $(this).prop('selected', true);
+            });
+        }
+        else if (delimiter === "\t") {
+            delimiter = "tab";
+            $("#delimiter_select").children('option').each(function() {
+                if ( $(this).attr('rel') === 'tab')
+                    $(this).prop('selected', true);
+            });
+        }
+        else {
+            $("#delimiter_select").children('option').last().prop('selected', true);
+            $("#delimiter_field").show();
+        }
+        $("#delimiter_field").val(delimiter);
+
 
         $(".ODRCSVImportHeader").next().hide();
-
         $(".ODRCSVImportHeader").unbind('click').click(function() {
             if ( $(this).next().is(':hidden') ) {
                 $(this).next().show();
@@ -278,13 +331,24 @@
 
     function delimiterChanged(delimiter) {
 
-        var url = '{{ path('odr_csv_import_delimiter_changed', {'delimiter': ''}) }}';
-        url += delimiter;
+        if ( delimiter === "" || $("#target_datatype").children(':selected').attr('rel') === 'invalid link' )
+            $("#file_upload_div").hide();
+        else
+            $("#file_upload_div").show();
+
+        if ( $("#delimiter_select").children(':selected').html() === '{other}' )
+            $("#delimiter_field").show();
+        else
+            $("#delimiter_field").hide();
+
+        var url = '{{ path('odr_csv_import_delimiter_changed') }}';
+        var data = $("#delimiter_field").serialize();
 
         $.ajax({
             cache: false,
-            type: 'GET',
+            type: 'POST',
             url: url,
+            data: data,
             dataType: 'json',
             success: function(data, textStatus, jqXHR) {
                 // Don't need to do anything specific on success
@@ -310,16 +374,36 @@
 {% endif %} {# if upload_type == 'csv' #}
 
     function cancelCSVUpload(force) {
-
-        if (force) {
-            doCancel();
-        }
-        else if ( confirm('are you sure?') ) {
-            doCancel();
-        }
+        doCancel();
     }
 
     function doCancel() {
+    {% if tracked_job_id is defined %}
+        {# Delete existing tracked job when cancelling an import after validating it #}
+        var delete_url = "{{ path('odr_delete_user_job', {'job_id': tracked_job_id} ) }}";
+
+        $.ajax({
+            type: 'GET',
+            url: delete_url,
+            dataType: 'json',
+            success: function (data) {
+            },
+            complete: function (jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    {% endif %}
+
         var url = '{{ path('odr_csv_cancel_import') }}';
 
         $.ajax({
@@ -354,8 +438,6 @@
     function doImport() {
 
         var url = '{{ path('odr_csv_import_start_worker', {'job_id': tracked_job_id}) }}';
-//alert(url);
-//return;
 
         // Attempt to prevent the browser from starting this import twice in a row...
         $("#import_button").attr('disabled', 'disabled');
@@ -366,11 +448,11 @@
             type: 'GET',
             url: url,
             dataType: 'json',
-            success: function(data, textStatus, jqXHR) {
-                alert('Beginning CSV Import...');
-
-                var url = '{{ path('odr_job_list', {'section': 'csv_import'}) }}';
-                UpdateURL(url);
+            success: function(data) {
+                // Replace this with loading message/checker directly
+                $('#FullCSVImportForm').hide();
+                $('#ImportLoadingBlock').fadeIn('fast');
+                getJobProgress('csv_import', data.d.tracked_job_id);
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

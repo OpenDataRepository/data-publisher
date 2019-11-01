@@ -9,9 +9,7 @@
     {% set remote_datatype = ancestor_datatype %}
 {% endif %}
 
-<div class="link_datarecord_spacer">
-</div>
-<div>
+<div class="ODRFormWrap">
     <form action="{{ path('odr_link_datarecords') }}" method="post" class="full validate" id="LinkDataRecordForm">
         <input type="hidden" name="local_datarecord_id" value="{{ local_datarecord.id }}" />
         <input type="hidden" name="ancestor_datatype_id" value="{{ ancestor_datatype.id }}" />
@@ -19,45 +17,54 @@
         <input type="hidden" name="allow_multiple_links" value="{% if allow_multiple_links %}1{% else %}0{% endif %}" />
         <input type="hidden" name="local_datarecord_is_ancestor" value="{% if local_datarecord_is_ancestor %}1{% else %}0{% endif %}" />
 
-        {% for dr_id,val in linked_datarecords %}
+    {% for dr_id,val in linked_datarecords %}
         <input type="hidden" id="dr_{{ dr_id }}" name="datarecords[{{ dr_id }}]" value="1" />
-        {% endfor %}
+    {% endfor %}
     </form>
 
-    <h2>Currently Linked Datarecords - {{ remote_datatype.shortname }}</h2>
-    <button class="pure-button pure-button-primary" type="button" onclick="submitForm();">Save Changes</button>
-    <button class="pure-button pure-button-primary" type="button" onclick="returnToDatarecord();">Return to Datarecord</button>
-
-    <table id="TextResults_current" class="display {#pure-table pure-table-striped#}"></table>
+    <div class="pure-u-1">
+        <button class="pure-button pure-button-primary" type="button" onclick="submitForm();">Save Changes</button>
+        <button class="pure-button pure-button-primary" type="button" onclick="returnToDatarecord();">Return to Datarecord</button>
     {% if not allow_multiple_links and local_datarecord_is_ancestor %}
         <button class="pure-button" type="button" onclick="unlinkCurrentDatarecord();">Unlink current Datarecord</button>
     {% endif %}
-</div>
+    </div>
 
-</br></br></br>
-<button type="button" id="search_button" class="pure-button pure-button-primary" onclick="startSearch();">Search for {{ remote_datatype.shortname }} Datarecords to Link</button>
-</br></br>
+    <div class="ODRLinkHeaderWrapper">
+        <div class="ODRLinkHeader ODRAccordionWrapper ODRAccordionSelected pure-u-1">
+            <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                <i class="ODRLinkHeader_caret fa fa-caret-down"></i>
+                <a>Currently Linked Datarecords - {{ remote_datatype.shortname }}</a>
+            </h3>
+        </div>
 
-<div class="search_content pure-u-1"></div>
+        <div id="TextResults_wrapper" class="ODRTableOuterWrap">
+            <table id="TextResults_current" class="display"></table>
+        </div>
+    </div>
 
-</br></br>
+    <div id="ODRLinkSelection" class="pure-u-1">
+        <button class="pure-button" type="button" onclick="selectAllRecords();">Select All</button>
+        <button class="pure-button" type="button" onclick="deselectAllRecords();">Deselect All</button>
+    </div>
+</div> <!-- end of .ODRFormWrap -->
 
-<style>
-    #TextResults_current_paginate > a {
-        margin: 5px;
-    }
-</style>
+<div id="ODRSearchBoxContent" class="pure-u-1"></div>
 
 <script>
     var linked_datarecords = [{% for dr,value in linked_datarecords %}{{ dr }},{% endfor %}];
     var illegal_datarecords = [{% for dr,value in illegal_datarecords %}{{ dr }},{% endfor %}];
 
     $(function() {
+        $("#ODRLinkSelection").hide();
+        enableSearchSidebar('{{ remote_datatype_search_key }}', true, 'linking');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
         var dataset = {{ table_html | raw }};
 
         var table = $("#TextResults_current").dataTable({
             "data": dataset,
             "columns": [{{ column_names | raw }}],
+            "order": [[1, 'asc']],
             "searching": false,
             "autoWidth": false,
             "orderMulti": false,    // disabled because ODR can't multi-sort server-side yet
@@ -69,13 +76,12 @@
             "processing": true,   // only displays a little "processing..." blurb
             "deferRender": true,
             "createdRow": function( row, data, index ) {
-{% if allow_multiple_links or not local_datarecord_is_ancestor %}
+            {% if allow_multiple_links or not local_datarecord_is_ancestor %}
                 $(row).prepend('<td><input type="checkbox" class="ODRCurrentLink ODRLinkCheckbox dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');" /></td>');
-{% else %}
+            {% else %}
                 $(row).prepend('<td><input type="radio" name="radio_group_orig" id="hidden_radio" style="display:none;"/><input type="radio" name="radio_group_orig" class="ODRCurrentLink ODRLinkCheckbox dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');" /></td>');
-{% endif %}
-            },
-
+            {% endif %}
+            }
         });
 
         // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...
@@ -96,13 +102,25 @@
 
         // Initial checking of linked checkboxes
         initCheckboxes("#TextResults_current", true);
+
+        $(".ODRLinkHeader").unbind('click').click(function() {
+            if ( $(this).hasClass('ODRAccordionSelected') ) {
+                $(this).removeClass('ODRAccordionSelected');
+                $("#TextResults_wrapper").hide();
+                $(".ODRLinkHeader_caret").removeClass('fa-caret-down').addClass('fa-caret-right');
+            }
+            else {
+                $(this).addClass('ODRAccordionSelected');
+                $("#TextResults_wrapper").show();
+                $(".ODRLinkHeader_caret").removeClass('fa-caret-right').addClass('fa-caret-down');
+            }
+        });
     });
 
     // For the current page of the given table, update state of all checkboxes
     function initCheckboxes(table, force_enabled) {
-
         $(table).find('.ODRLinkCheckbox').each(function() {
-            var dr_id = parseInt($(this).attr('rel'));
+            var dr_id = parseInt( $(this).attr('rel') );
 
             if ( linked_datarecords.indexOf(dr_id) !== -1 )
                 $('.dr_' + dr_id).prop('checked', true);
@@ -110,15 +128,15 @@
                 $('.dr_' + dr_id).prop('checked', false);
 
             if ( illegal_datarecords.indexOf(dr_id) !== -1 && !force_enabled )
-                $('.dr_' + dr_id).not('.ODRCurrentLink').attr('disabled', 'disabled').attr('title', 'This remote Datarecord already has a link to some other Datarecord');
+                $('.dr_' + dr_id).not('.ODRCurrentLink').prop('disabled', true).attr('title', 'This remote Datarecord already has a link to some other Datarecord');
             else
-                $('.dr_' + dr_id).removeAttr('disabled');
+                $('.dr_' + dr_id).prop('disabled', false);
         });
     }
 
     // Handles check events from checkboxes
     function LinkRecord(dr_id) {
-        var dr = "#dr_" + dr_id;
+        var dr = "#dr_" + dr_id;    // This references the hidden input
 
 {% if allow_multiple_links or not local_datarecord_is_ancestor %}
         if ( $(dr).length > 0 ) {
@@ -126,9 +144,9 @@
             $(dr).remove();
             // update internal javascript and html to reflect change
             linked_datarecords.splice( linked_datarecords.indexOf(dr_id), 1 );  // remove single element
-            $('.dr_' + dr_id).removeAttr('checked');
+            $('.dr_' + dr_id).prop('checked', false);
         }
-        else if ( $(dr).length == 0 ) {
+        else if ( $(dr).length === 0 ) {
             // hidden input element does not exist, add it
             $("#LinkDataRecordForm").append('<input type="hidden" id="dr_' + dr_id + '" name="datarecords[' + dr_id + ']" value="1" />');
             // update internal javascript and html to reflect change
@@ -162,7 +180,7 @@
 
         // Uncheck the radio checkbox
         var dr_id = $(".ODRCurrentLink").attr('rel');
-        $('.dr_' + dr_id).removeAttr('checked');
+        $('.dr_' + dr_id).prop('checked', false);
     }
 {% endif %}
 
@@ -212,45 +230,50 @@
         });
     }
 
-    function startSearch() {
-{% if local_datarecord_is_ancestor %}
-        // Grab datarecords from descendant side
-        var url = '{{ path('odr_search_box', {'target_datatype_id': descendant_datatype.id } ) }}';
-{% else %}
-        // Grab datarecords from ancestor side
-        var url = '{{ path('odr_search_box', {'target_datatype_id': ancestor_datatype.id } ) }}';
-{% endif %}
+    function selectAllRecords() {
+        // Add hidden input elements for all currently unselected datarecords
+        jQuery.each(all_datarecords, function(index, dr_id) {
+            var dr = "#dr_" + dr_id;
+            var boxes = ".dr_" + dr_id;
 
-//alert(url);  return;
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                $("#search_button").html('Reset Search');
-                $(".search_content").html( data.d.html );
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                // Don't need to do anything specific on an error
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
+            if ( $(dr).length > 0 ) {
+                // hidden input exists, do nothing
+            }
+            else if ( $(dr).length === 0 ) {
+                // hidden input does not exist, create it
+                $("#LinkDataRecordForm").append('<input type="hidden" id="dr_' + dr_id + '" name="datarecords[' + dr_id + ']" value="1" />');
+                $(boxes).each(function() {
+                    $(this).prop('checked', true);
+                });
             }
         });
+
+        // All possible datarecord are now linked...need to use slice() instead of '=' to avoid
+        //  assign by ref
+        linked_datarecords = all_datarecords.slice();
     }
 
+    function deselectAllRecords() {
+        // Remove hidden input elements for all currently selected datarecords
+        jQuery.each(linked_datarecords, function(index, dr_id) {
+            var dr = "#dr_" + dr_id;
+            var boxes = ".dr_" + dr_id;
+
+            if ( $(dr).length > 0 ) {
+                // hidden input exists, remove it
+                $(dr).remove();
+                $(boxes).each(function() {
+                    $(this).prop('checked', false);
+                });
+            }
+            else if ( $(dr).length === 0 ) {
+                // hidden input does not exist, do nothing
+            }
+        });
+
+        // All possible datarecords are now unlinked
+        linked_datarecords = [];
+    }
 </script>
 
 {% endspaceless %}

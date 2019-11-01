@@ -2,7 +2,43 @@
 
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set field_typename = datafield_meta.fieldType.typeName %}
-    
+{% set typeclass = datafield_meta.fieldType.typeClass %}
+
+<script>
+
+    if (datafield_properties === undefined) {
+        var datafield_properties = [];
+    }
+
+    datafield_properties[{{ datafield.id }}] = {};
+    datafield_properties[{{ datafield.id }}].render_plugin_id = {{ datafield_meta.renderPlugin.id }};
+    datafield_properties[{{ datafield.id }}].render_plugin_name = '{{ datafield_meta.renderPlugin.pluginName }}';
+    {% if typeclass != "Radio" %}
+        datafield_properties[{{ datafield.id }}].can_copy = 1;
+    {% else %}
+        datafield_properties[{{ datafield.id }}].can_copy = 0;
+    {% endif %}
+    {% if datafield_meta.publicDate|is_public %}
+        datafield_properties[{{ datafield.id }}].is_public = 1;
+    {% else %}
+        datafield_properties[{{ datafield.id }}].is_public = 0;
+    {% endif %}
+
+    {% if is_external_id_field %}
+        datafield_properties[{{ datafield.id }}].can_delete = 0;
+        datafield_properties[{{ datafield.id }}].delete_message = "This datafield is currently in use as the Datatype's external ID field...unable to delete";
+    {% elseif is_master_template_field %}
+        datafield_properties[{{ datafield.id }}].can_delete = 0;
+        datafield_properties[{{ datafield.id }}].delete_message = "This datafield is currently required by the Datatype's master template...unable to delete";
+    {% elseif is_datatype_render_plugin_field %}
+        datafield_properties[{{ datafield.id }}].can_delete = 0;
+        datafield_properties[{{ datafield.id }}].delete_message = "This Datafield is currently required by the Datatype's Render Plugin...unable to delete";
+    {% else %}
+        datafield_properties[{{ datafield.id }}].can_delete = 1;
+        datafield_properties[{{ datafield.id }}].delete_message = '';
+    {% endif %}
+</script>
+
 <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }} {% if not is_datatype_admin %}ODRForbidden{% endif %}" id="Field_{{ datafield.id }}" >
 
 <form id="Form_DataField_{{ datafield.id }}" class="pure-u-1">
@@ -47,7 +83,7 @@
                             </div>
                             <div>
                                 <i class="fa fa-calendar"></i>&nbsp;
-                                Uploaded 1900-01-01 by John Q. Public
+                                Uploaded Unknown Date by Unknown
                             </div>
                             <div>
                                 <i class="fa fa-file-o"></i>&nbsp;
@@ -99,7 +135,7 @@
             </label>
 
             {% if is_datatype_admin %}
-            <span style="margin-left: 10px;">
+            <span style="margin-left: 10px; display: none;">
                 <i id="Field_{{ datafield.id }}_radio_options" class="ODRRadioOptions Pointer fa fa-lg fa-cog" title="Edit Options" rel="{{ datafield.id }}"></i>
             </span>
             <span style="margin-left: 10px;">
@@ -117,8 +153,11 @@
                 {% else %}
                     <input id="Option_object_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="MultipleRadioGroup" disabled />
                 {% endif %}
-
+                {% if radio_option.radioOptionMeta is defined %}
                 <span id="Option_{{ radio_option.id }}_name">{{ radio_option.radioOptionMeta.optionName }}</span>
+                    {% else %}
+                    invalid option
+                {% endif %}
                 </label>
             {% endfor %}
         {% endif %}
@@ -126,21 +165,19 @@
 
     {% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}
     <fieldset>
-        <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel{% if is_datatype_admin %} Pointer{% endif %}">
-                <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
-            </label>
-
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1{% if is_datatype_admin %} Pointer{% endif %}">
             {% if is_datatype_admin %}
-            <span style="margin-left: 10px;">
-                <i id="Field_{{ datafield.id }}_radio_options" class="ODRRadioOptions Pointer fa fa-lg fa-cog" title="Edit Options" rel="{{ datafield.id }}"></i>
-            </span>
-            <span style="margin-left: 10px;">
-                <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
-            </span>
+                <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="ODRPublicStatusIndicator Pointer fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
             {% endif %}
-        </span>
-        <select id="SelectGroup_{{ datafield.id }}" class="{% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
+            <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+            {% if is_datatype_admin %}
+                <span style="margin-left: 10px; display: none;">
+                    <i id="Field_{{ datafield.id }}_radio_options" class="ODRRadioOptions Pointer fa fa-lg fa-cog" title="Edit Options" rel="{{ datafield.id }}"></i>
+                </span>
+            {% endif %}
+        </label>
+
+        <select disabled="disabled" id="SelectGroup_{{ datafield.id }}" class="{% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
 
         {% if datafield.radioOptions is defined %}
             {% if field_typename == "Single Select" %}
@@ -148,10 +185,32 @@
             {% endif %}
 
             {% for radio_option in datafield.radioOptions %}
-                <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionMeta.optionName }}</option>
+                {% if radio_option.radioOptionMeta is defined %}
+                    <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionMeta.optionName }}</option>
+                {% else %}
+                    <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">Invalid Option Name</option>
+                {% endif %}
             {% endfor %}
         {% endif %}
         </select>
+    </fieldset>
+
+    {% elseif field_typename == "Tags" %}
+    <fieldset>
+        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1{% if is_datatype_admin %} Pointer{% endif %}">
+            {% if is_datatype_admin %}
+                <span style="margin-left: 10px;">
+                <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield_meta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield_meta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+            </span>
+            {% endif %}
+
+            <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+        </label>
+        {% if datafield.tags is defined %}
+            {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
+                'stacked_tags': datafield.tags,
+            } %}
+        {% endif %}
     </fieldset>
 
     {% elseif field_typename == "DateTime" %}

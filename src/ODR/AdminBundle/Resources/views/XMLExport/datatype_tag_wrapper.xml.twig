@@ -1,0 +1,9 @@
+<value>
+{% if datafield.tags is defined %}
+    {% for tag in datafield.tags %}
+        {% include 'ODRAdminBundle:XMLExport:datatype_tag.xml.twig' with {
+            'tag': tag,
+        } %}
+    {% endfor %}
+{% endif %}
+</value>

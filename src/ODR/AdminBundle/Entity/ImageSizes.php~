@@ -88,7 +88,7 @@ class ImageSizes
     /**
      * @var \ODR\AdminBundle\Entity\DataFields
      */
-    private $dataFields;
+    private $dataField;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -388,26 +388,27 @@ class ImageSizes
     }
 
     /**
-     * Set dataFields
+     * Set dataField
      *
-     * @param \ODR\AdminBundle\Entity\DataFields $dataFields
+     * @param \ODR\AdminBundle\Entity\DataFields $dataField
+     *
      * @return ImageSizes
      */
-    public function setDataFields(\ODR\AdminBundle\Entity\DataFields $dataFields = null)
+    public function setDataField(\ODR\AdminBundle\Entity\DataFields $dataField = null)
     {
-        $this->dataFields = $dataFields;
+        $this->dataField = $dataField;
 
         return $this;
     }
 
     /**
-     * Get dataFields
+     * Get dataField
      *
-     * @return \ODR\AdminBundle\Entity\DataFields 
+     * @return \ODR\AdminBundle\Entity\DataFields
      */
-    public function getDataFields()
+    public function getDataField()
     {
-        return $this->dataFields;
+        return $this->dataField;
     }
 
     /**

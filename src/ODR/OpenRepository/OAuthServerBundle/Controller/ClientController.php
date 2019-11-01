@@ -18,6 +18,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\OpenRepository\OAuthServerBundle\Entity\Client;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRConflictException;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
@@ -61,7 +62,7 @@ class ClientController extends \Symfony\Bundle\FrameworkBundle\Controller\Contro
 
             // Don't allow if the user already has a client
             if (count($owned_clients) != 0)
-                throw new ODRException('Conflict', 409);
+                throw new ODRConflictException();
             // --------------------
 
             $site_baseurl = $this->getParameter('site_baseurl');

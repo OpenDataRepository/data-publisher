@@ -1,95 +1,109 @@
 {% spaceless %}
 
-    <!-- Link DataType Dialog Form -->
-    <form class="pure-form pure-form-aligned" id="ODRLinkDatatypeForm" action="{{ path('odr_design_link_datatype') }}" method="post">
+<!-- Link DataType Dialog Form -->
+<form class="pure-form pure-form-aligned" id="ODRLinkDatatypeForm" action="{{ path('odr_design_link_datatype') }}" method="post">
 
-        <input type="hidden" name="theme_element_id" value="{{ theme_element.id }}" />
-        <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
-        <input type="hidden" id="ODRLinkDatatypeForm_previous" name="previous_remote_datatype" value="{% if remote_datatype != null %}{{ remote_datatype.id }}{% endif %}" />
+    <input type="hidden" name="theme_element_id" value="{{ theme_element.id }}" />
+    <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
+    <input type="hidden" id="ODRLinkDatatypeForm_previous" name="previous_remote_datatype" value="{% if remote_datatype != null %}{{ remote_datatype.id }}{% endif %}" />
 
 {% if remote_datatype != null and has_linked_datarecords %}
-        <div id="ODRRemoteDatatypeHasLinks" class="pure-u-1">
-            <div>
-                <i class="fa fa-lg fa-exclamation-triangle Cursor"></i>&nbsp;&nbsp;
-                <span>Several Datarecords of the local Datatype "{{ local_datatype.getShortName }}" are currently connected to Datarecords of the remote Datatype "{{ remote_datatype.getShortName }}".</span>
-            </div>
-            <div>
-                <i class="fa fa-lg fa-cog Pointer ODRLinkDatatypeAnalyze"></i>&nbsp;&nbsp;
-                <span>Click the gear icon to see which connections would be deleted if the local Datatype is unlinked from the remote Datatype.</span>
-            </div>
+    <div id="ODRRemoteDatatypeHasLinks" class="pure-u-1">
+        <div>
+            <i class="fa fa-lg fa-exclamation-triangle Cursor"></i>&nbsp;&nbsp;
+            <span>Several Datarecords of the local Datatype "{{ local_datatype.getShortName }}" are currently connected to Datarecords of the remote Datatype "{{ remote_datatype.getShortName }}".</span>
         </div>
+        <div>
+            <i class="fa fa-lg fa-cog Pointer ODRLinkDatatypeAnalyze"></i>&nbsp;&nbsp;
+            <span>Click the gear icon to see which connections would be deleted if the local Datatype is unlinked from the remote Datatype.</span>
+        </div>
+    </div>
 {% endif %}
 
-        <fieldset style="margin-top: 5px;">
-            <div class="pure-control-group">
-                <label for="selected_datatype">
-                    <strong>DataType Name:</strong>
-                </label>
-                <select name="selected_datatype" id="selected_datatype">
-                    <option value=""></option>
-                {% for datatype in linkable_datatypes %}
-                    {% set is_selected = false %}
-                    {% if remote_datatype != null and remote_datatype.id == datatype.id %}
-                        {% set is_selected = true %}
-                    {% endif %}
+    <fieldset>
+        <div class="pure-control-group">
+            <label for="selected_datatype">
+            {% if local_datatype.isMasterType %}
+                <strong>Template Name:</strong>
+            {% else %}
+                <strong>DataType Name:</strong>
+            {% endif %}
+            </label>
 
-                    {% set no_table_theme = false %}
-                    {% if datatypes_with_table_themes[datatype.id] is not defined %}
-                        {% set no_table_theme = true %}
-                    {% endif %}
+            <select name="selected_datatype" id="selected_datatype">
+            {% if remote_datatype == null %}
+                <option value=""></option>
+            {% endif %}
+            {% for dt in linkable_datatypes %}
+                {% set is_selected = false %}
+                {% if remote_datatype != null and remote_datatype.id == dt.id %}
+                    {% set is_selected = true %}
+                {% endif %}
 
-                    <option value="{{ datatype.id }}" rel="{% if no_table_theme %}warn{% endif %}" {% if is_selected %}selected{% endif %}>{{ datatype.shortname }}</option>
-                {% endfor %}
-                </select>
-            </div>
-        </fieldset>
-
-        <div id="ODRRemoteDatatypeLacksTableTheme" class="pure-u-1" {% if remote_datatype != null and datatypes_with_table_themes[remote_datatype.id] is not defined %}{% else %}style="display: none;"{% endif %}>
-            <div>
-                <i class="fa fa-lg fa-exclamation-triangle Cursor"></i>&nbsp;&nbsp;
-                <span>This remote Datatype does not currently have a Search Results theme.<br>Users won't be able to create links to Datarecords of this remote Datatype until it has at least one Search Results theme.</span>
-            </div>
+                <option value="{{ dt.id }}" {% if is_selected %}selected{% endif %}>{{ dt.dataTypeMeta.shortName }}</option>
+            {% endfor %}
+            </select>
         </div>
-    </form>
+    </fieldset>
+</form>
 
-    <script>
-        $(function() {
-{% if remote_datatype != null and has_linked_datarecords %}
-            $(".ODRLinkDatatypeAnalyze").unbind('click').click(function() {
-                var url = "#{{ path( 'odr_design_analyze_datarecord_links', {'local_datatype_id': local_datatype.id, 'remote_datatype_id': remote_datatype.id }) }}";
+<div class="pure-u-md-1-6 pure-u-2-24"></div>
+<div id="ODRLinkDetails_wrapper" class="pure-u-md-2-3 pure-u-20-24">
+{% for dt in linkable_datatypes %}
+    <div id="ODRLinkDetails_{{ dt.id }}" class="ODRLinkDetails pure-control-group">
+        <div>
+            <label class="ODRLinkDetailsHeader" for="created_by_{{ dt.id }}">Created By:</label>
+            <div class="ODRLinkDetailsContent" id="created_by_{{ dt.id }}">{{ dt.createdBy|user_string }}</div>
+        </div>
 
-                window.open(url, "_blank");
-            });
-{% endif %}
+        <div>
+            <label class="ODRLinkDetailsHeader" for="desc_{{ dt.id }}">Description:</label>
+            <div class="ODRLinkDetailsContent" id="desc_{{ dt.id }}">{{ dt.dataTypeMeta.description }}</div>
+        </div>
+    </div>
+{% endfor %}
+</div>
+<div class="pure-u-md-1-6 pure-u-2-24"></div>
 
-            $("#selected_datatype").unbind('change').change(function() {
-                // Disable submission if already linked to current selection
-                var current_remote_datatype = $("#ODRLinkDatatypeForm_previous").val();
-                console.log( $(this).val() );
-                console.log( current_remote_datatype );
+<script>
+    $(function() {
+        $(".ODRLinkDetails").hide();
+        var current_remote_datatype = $("#ODRLinkDatatypeForm_previous").val();
+        if ( current_remote_datatype !== '' ) {
+            $("#ODRLinkDetails_" + current_remote_datatype).show();
+            $("#ODRLinkDatatypeFormSubmit").html('Unlink from Selected {% if local_datatype.isMasterType %}Template{% else %}Database{% endif %}');
+            $("#ODRLinkDatatypeFormSubmit").prop('disabled', false);
+        }
 
-                if ( $(this).val() == current_remote_datatype )
-                    $("#ODRLinkDatatypeFormSubmit").attr('disabled', 'disabled');
-                else
-                    $("#ODRLinkDatatypeFormSubmit").removeAttr('disabled');
+    {% if remote_datatype != null and has_linked_datarecords %}
+        $(".ODRLinkDatatypeAnalyze").unbind('click').click(function() {
+            var url = "#{{ path( 'odr_design_analyze_datarecord_links', {'local_datatype_id': local_datatype.id, 'remote_datatype_id': remote_datatype.id }) }}";
 
-                // Change button text if selecting the "empty" option
-                if ( $(this).val() == '' && current_remote_datatype != '' )
-                    $("#ODRLinkDatatypeFormSubmit").html('Unlink Current Database');
-                else
-                    $("#ODRLinkDatatypeFormSubmit").html('Link Database');
-
-                // Warn about missing table theme if necessary
-                if ( $(this).children('option:selected').first().attr('rel') == 'warn' ) {
-                    $("#ODRRemoteDatatypeLacksTableTheme").show();
-                    resetRemodalInnerHeight();
-                }
-                else {
-                    $("#ODRRemoteDatatypeLacksTableTheme").hide();
-                    resetRemodalInnerHeight();
-                }
-            });
+            window.open(url, "_blank");
         });
-    </script>
+    {% endif %}
+
+        $("#selected_datatype").unbind('change').change(function() {
+            // Disable submission if already linked to current selection
+            var current_remote_datatype = $("#ODRLinkDatatypeForm_previous").val();
+            var selected_id = $(this).val();
+
+            $(".ODRLinkDetails").hide();
+            $("#ODRLinkDetails_" + selected_id).show();
+
+            if ( selected_id === '' ) {
+                $("#ODRLinkDatatypeFormSubmit").prop('disabled', true);
+            }
+            else {
+                $("#ODRLinkDatatypeFormSubmit").prop('disabled', false);
+
+                if ( selected_id === current_remote_datatype )
+                    $("#ODRLinkDatatypeFormSubmit").html('Unlink from Selected {% if local_datatype.isMasterType %}Template{% else %}Database{% endif %}');
+                else
+                    $("#ODRLinkDatatypeFormSubmit").html('Link to Selected {% if local_datatype.isMasterType %}Template{% else %}Database{% endif %}');
+            }
+        });
+    });
+</script>
 
 {% endspaceless %}

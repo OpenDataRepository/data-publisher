@@ -574,18 +574,17 @@ class Theme
     }
 
     /**
-     * Get sourceSyncCheck
+     * Get sourceSyncVersion
      *
-     * @return \DateTime
+     * @return int
      */
-    public function getSourceSyncCheck()
+    public function getSourceSyncVersion()
     {
-        return $this->getThemeMeta()->getSourceSyncCheck();
+        return $this->getThemeMeta()->getSourceSyncVersion();
     }
 
     /**
      * Get isTableTheme
-     * @deprecated
      *
      * @return bool
      */

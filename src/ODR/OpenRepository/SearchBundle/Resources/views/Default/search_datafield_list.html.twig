@@ -1,45 +1,54 @@
 {% spaceless %}
 
+{% set datatype = datatype_array[target_datatype.id] %}
+
+{% set can_search_target_datatype = false %}
+{% for datafield in datatype['dataFields'] %}
+    {% set searchable = datafield['dataFieldMeta']['searchable'] %}
+    {% if searchable == 1 or searchable == 2 %}
+        {% set can_search_target_datatype = true %}
+    {% endif %}
+{% endfor %}
+
 <div class="ODRTableWrap">
     <div class="pure-u-1" style="font-weight: bold;">List of Datafields that will be searched:</div>
 
     {# primary datatype #}
-    {% if searchable_datafields[ target_datatype.id ] is defined %}
+    {% if can_search_target_datatype %}
         <div class="pure-u-1" style="font-weight: bold;">{{ target_datatype.getshortname }}</div>
 
-        {% for datafield in searchable_datafields[ target_datatype.id ] %}
-            {% if datafield.getsearchable == 1 or datafield.getsearchable == 2 %}
-                <div class="pure-u-1-3">{{ datafield.getfieldname }}</div>
+        {% for datafield in datatype['dataFields'] %}
+            {% set searchable = datafield['dataFieldMeta']['searchable'] %}
+            {% if searchable == 1 or searchable == 2 %}
+                <div class="pure-u-1">&nbsp;&nbsp;&nbsp;{{ datafield['dataFieldMeta']['fieldName'] }}</div>
             {% endif %}
         {% endfor %}
     {% endif %}
 
     {# child datatypes #}
-    {% for child_datatype_id, datafield_list in related_datatypes['child_datatypes'] %}
-        {% if target_datatype.id != child_datatype_id and (searchable_datafields[child_datatype_id] is defined or logged_in == true) %}
+    {% for child_datatype_id in datatype_relations['child_datatypes'] %}
 
-            {% set has_datafields = false %}
-            {% if searchable_datafields[child_datatype_id] is defined %}
-                {% for datafield in searchable_datafields[child_datatype_id] %}
-                    {% if datafield.getsearchable == 1 or datafield.getsearchable == 2 %}
-                        {% set has_datafields = true %}
+        {% set child_datatype = datatype_array[child_datatype_id] %}
+
+        {% set can_search_child_datatype = false %}
+        {% for datafield in child_datatype['dataFields']  %}
+            {% set searchable = datafield['dataFieldMeta']['searchable'] %}
+            {% if searchable == 1 or searchable == 2 %}
+                {% set can_search_child_datatype = true %}
+            {% endif %}
+        {% endfor %}
+
+        {% if can_search_child_datatype %}
+            <div class="pure-u-1" style="font-weight: bold;">{{ child_datatype['dataTypeMeta']['shortName'] }}</div>
+
+            {% for datafield in child_datatype['dataFields']  %}
+                {% set searchable = datafield['dataFieldMeta']['searchable'] %}
+                    {% if searchable == 1 or searchable == 2 %}
+                        <div class="pure-u-1">&nbsp;&nbsp;&nbsp;{{ datafield['dataFieldMeta']['fieldName'] }}</div>
                     {% endif %}
-                {% endfor %}
-            {% endif %}
-
-            {% if has_datafields %}
-                <div class="pure-u-1" style="font-weight: bold;">{{ related_datatypes['datatype_names'][ child_datatype_id ] }}</div>
-
-                {% if searchable_datafields[child_datatype_id] is defined %}
-                    {% for datafield in searchable_datafields[child_datatype_id] %}
-                        {% if datafield.getsearchable == 1 or datafield.getsearchable == 2 %}
-                            <div class="pure-u-1-3">{{ datafield.getfieldname }}</div>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-            {% endif %}
-
+            {% endfor %}
         {% endif %}
+
     {% endfor %}
 </div>
 

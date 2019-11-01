@@ -1,0 +1,21 @@
+odr_plugins.chemin.chemineds:
+    name: Chemin EDS Plugin
+    datatype: true
+    version: 1.00
+    override_fields: false
+    override_child: true
+    description: Plugin to display Chemin EDS Data
+    required_fields:
+        eds_raw_tiff_file:
+            name: EDS Raw Tiff File
+            description:
+            type: File
+        eds_lbl_file:
+            name: EDS LBL File
+            description:
+            type: File
+        eds_dat_file:
+            name: EDS DAT File
+            description:
+            type: File
+    config_options:

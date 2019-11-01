@@ -1,40 +1,74 @@
 {% spaceless %}
 
-    {% if is_top_level == 0 and (display_type == 0 or display_type == 3) %}     {# accordion or list display_type #}
-        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-            <span class="ui-icon ui-icon-triangle-1-s"></span>
+{% if is_top_level == 0 and (display_type == 0 or display_type == 3) %}     {# accordion or list display_type #}
+    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <span class="ui-icon ui-icon-triangle-1-s"></span>
 
-        {% if datarecord.nameField_value != datarecord.id %}
-            <a>{{ datarecord.nameField_value }}</a>
-        {% else %}
-            <a>{{ datatype.dataTypeMeta.shortName }}</a>
-        {% endif %}
-
-            <span class="DatatypeTools">
-                {% if is_link == 1 %}
-                    <span style="margin-left: 15px;" title="This is a linked Datatype">
-                        <i class="fa fa-link Cursor"></i>
-                    </span>
-                {% endif %}
-
-                {% if datarecord.id != datarecord.grandparent.id %}
-                    <span rel="{{ datatype.id }}">
-                        <i id="datarecord_{{ datarecord.id }}_public" class="tooltip fa fa-globe {% if datarecord.dataRecordMeta.publicDate|is_public %}ODRActiveIcon{% endif %} {% if is_link == 0 and can_edit_record == 1 %}Pointer ODRPublicChildRecord{% endif %}" title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}"></i>
-
-                        {% if is_link == 0 and can_delete_record == 1 %}
-                            <i class="Pointer tooltip fa fa-times ODRDeleteChildRecord" title="Delete Child Record" rel="{{ datarecord.id }}"></i>
-                        {% endif %}
-
-                        {% if is_link == 1 and can_edit_record == 1 %}
-                            <a target="_blank" class="Pointer" onclick="UpdateURL('#{{ path('odr_record_edit', {'datarecord_id': datarecord.id}) }}');" style="margin-left: 5px;"><strong>Edit</strong></a>
-                        {% endif %}
-                    </span>
-                {% endif %}
-            </span>
-
-        </h3>
+    {% set datarecord_is_fake = false %}
+    {% if datarecord.is_fake is defined and datarecord.is_fake == true %}
+        {% set datarecord_is_fake = true %}
     {% endif %}
 
-    {# tabbed and dropdown display_type have already been handled in Default::fieldarea_header.html.twig #}
+    {% if datarecord_is_fake %}
+    <i
+        class="fa fa-lg fa-hourglass-half Pointer tooltip"
+        title="This is a temporary record..."
+    ></i>
+    &nbsp;
+    {% endif %}
+
+    {% if datarecord.nameField_value != datarecord.id %}
+        <a>{{ datarecord.nameField_value }}</a>
+    {% else %}
+        <a>{{ datatype.dataTypeMeta.shortName }}</a>
+    {% endif %}
+
+    {% if not datarecord_is_fake %}
+        <span class="DatatypeTools">
+        {% if is_link == 1 %}
+            {% if can_edit_parent_record %}
+            <i
+                class="fa fa-link Pointer tooltip ODRUnlinkRecord"
+                title="This is a linked record.  Click to unlink."
+                rel="{{ datarecord.id }}"
+            ></i>
+            {% endif %}
+            {% if can_delete_record %}
+            <i
+                class="Pointer tooltip fa fa-times ODRDeleteLinkedRecord"
+                title="Delete this Linked Record"
+                rel="{{ datarecord.id }}"
+            ></i>
+            {% endif %}
+        {% endif %}
+
+        {% if datarecord.id != datarecord.grandparent.id %}
+            {% set class_str = "tooltip fa fa-globe" %}
+            {% if datarecord.dataRecordMeta.publicDate|is_public %}
+                {% set class_str = class_str ~ " ODRActiveIcon" %}
+            {% endif %}
+            {% if is_link == 0 and can_edit_record == 1 %}
+                {% set class_str = class_str ~ " Pointer ODRPublicChildRecord" %}
+            {% endif %}
+
+            <span rel="{{ datatype.id }}">
+                <i id="datarecord_{{ datarecord.id }}_public"
+                    class="{{ class_str }}"
+                    title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public"
+                    rel="{{ datarecord.id }}"
+                ></i>
+
+            {% if is_link == 0 and can_delete_record == 1 %}
+                <i class="Pointer tooltip fa fa-times ODRDeleteChildRecord" title="Delete Record" rel="{{ datarecord.id }}"></i>
+            {% endif %}
+            </span>
+        {% endif %}
+        </span>    {# END span.DatatypeTools #}
+    {% endif %}
+
+    </h3>
+{% endif %}
+
+{# tabbed and dropdown display_type have already been handled in Default::fieldarea_header.html.twig #}
 
 {% endspaceless %}

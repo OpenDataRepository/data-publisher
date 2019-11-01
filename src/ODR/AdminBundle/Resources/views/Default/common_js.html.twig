@@ -1,5 +1,22 @@
-{% macro write(logged_in) %}
+	{% macro write(logged_in) %}
 <script>
+    {# This is intentionally placed outside the $(function() {...} block #}
+    {# jquery3 modified how the 'load' event was handled, and firefox wouldn't trigger this reliably #}
+    $(window).on('load', function() {
+        if ( window.location.hash !== '') {
+            // window.location.hash doesn't preserve url encoding...
+            var tmp = window.location.href.split('#');
+            var url = tmp[1];
+            // console.log( 'window.onload: LoadContentFullAjax("' + url + '")' );
+            LoadContentFullAjax( url );
+        }
+{% if logged_in == true %}
+        else {
+            // console.log( 'window.onload: LoadContentFullAjax("<<dashboard>>")' );
+            UpdateURL('{{ path('odr_list_types', {'section': 'databases'}) }}');
+        }
+{% endif %}
+    });
 
     $(function() {
         // Define a global error handler for ajax calls
@@ -12,42 +29,20 @@
 
                 default:    {# 400, 403, 404, 405, 500, etc #}
                     var response = $.parseJSON( jqxhr.responseText );
-//                    console.log( response );
                     createJGrowlError(response);
                     break;
             }
         });
 
-
-        // Detect refresh of page?
-        $(window).on('load', function() {
-            if ( window.location.hash != '') {
-                // window.location.hash doesn't preserve url encoding...
-                var tmp = window.location.href.split('#');
-                var url = tmp[1];
-                LoadContentFullAjax( url );
-            }
-            else {
-                {% if logged_in == true %}
-                    LoadContentFullAjax('{{ path('odr_dashboard') }}');
-                {% endif %}
-            }
-        });
-
-
         // Custom AJAX history stuff
         $(window).off("hashchange");
         $(window).on("hashchange", function(event) {
-            // Needed?
+            // Needed, unfortunately...
             event.preventDefault();
-//            console.log('hashchange event'); console.log(event);
 
             // Close Menu
             $("#ODRNav").hide();
             $(".overhang").remove();
-
-            // always scroll to the top of the page?
-//            window.scrollTo(0,0);
 
             // If the hashchange event is manually triggered, event.originalEvent won't be defined...
             var url = '';
@@ -57,11 +52,13 @@
                 url = new_url[1];
                 if ( url !== undefined ) {
                     // Load the URL as usual
+                    // console.log( 'window.hashchange: LoadContentFullAjax("' + url + '")' );
                     LoadContentFullAjax( url );
                 }
                 else {
                     // Attempt to move back/forward to the homepage...just refresh
-//                    location.replace("{{ path('odr_admin_homepage') }}");
+                    {#location.replace("{{ path('odr_admin_homepage') }}");#}
+                    // console.log( 'window.hashchange: location.replace("' + new_url[0] + '")' );
                     location.replace( new_url[0] );
                 }
             }
@@ -70,10 +67,12 @@
                 url = window.location.hash.substr(1);
                 if ( url !== '' ) {
                     // Load the URL as usual
+                    // console.log( 'window.hashchange (event undefined): LoadContentFullAjax("' + url + '")' );
                     LoadContentFullAjax( url );
                 }
                 else {
                     // Attempt to move back/forward to the homepage...just refresh
+                    // console.log( 'window.hashchange (event undefined): location.replace("<<dashboard>>")' );
                     location.replace("{{ path('odr_admin_homepage') }}");
                 }
             }
@@ -105,6 +104,7 @@
             url = url.replace('#', '');
 
             // Update the URL and hash
+            // console.log( 'a.address: UpdateUrl("' + url + '")' );
             UpdateURL(url);
         });
 
@@ -159,15 +159,23 @@
         });
     }
 
+    function reloadPage() {
+        // TODO - should check if URL has hash value...
+        var url = window.location.hash.substr(1);
+        LoadContentFullAjax( url );
+    }
+
     function UpdateURL(url) {
         // Update the URL and hash
         var current_hash = window.location.hash.substr(1);
-        if ( current_hash != url ) {
+        if ( current_hash !== url ) {
             // Just change the hash to the desired link
+            // console.log( 'UpdateUrl("' + url + '")' );
             window.location.hash = url;
         }
         else {
             // Force a hashchange event because we want the AJAX to fire again
+            // console.log( 'UpdateUrl(): forced hashchange' );
             $(window).hashchange();
         }
     }
@@ -175,11 +183,11 @@
     var xhr = null;
     var timer = null;
     function LoadContentFullAjax(url, use_fade) {
-        if (timer) {
-            window.clearTimeout(timer)
-        }
+        if (timer)
+            window.clearTimeout(timer);
+
         // Default use_fade to 1
-        if (undefined == use_fade)
+        if (use_fade === undefined)
             use_fade = true;
 
         // TODO Determine if this HACK is needed
@@ -187,18 +195,16 @@
  	    jQuery(window).unbind('scroll');
  	    jQuery('.fixedHeader-floating').remove();
 
-
         var faded_opacity = 0.15;
-        if(!use_fade) {
+        if (!use_fade)
             faded_opacity = 1;
-        }
 
-        // Hide the properties menu
-        // $("#ODRNavRightWrapper").fadeOut('fast');
+        // console.log( 'LoadContentFullAjax("' + url + '")' );
+
         // Disable scroll handlers
         $(window).off('scroll');
-        $("#content").fadeTo(200, faded_opacity, function() {
-            // TODO Document what this is doing.
+        $("#ODRSearchContent").fadeTo(200, faded_opacity, function() {
+            // Abort any LoadContentFullAjax() call that's currently in progress
             if (xhr != null)
                 xhr.abort();
 
@@ -215,18 +221,14 @@
                 dataType: "json",
                 data: data,
                 success: function(data, textStatus, jqXHR) {
+                    xhr = null;
 
                     if ( data.r == 2 ) {   // for redirects to another url
-                        xhr = null;
                         UpdateURL( data.d.url );
                     }
                     else {
-                        $("#content").html(data.d.html);
-                        $("#content").fadeTo(200, 1.0);
-
-                        xhr = null;
+                        $("#ODRSearchContent").html(data.d.html).fadeTo(200, 1.0);
                     }
-
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     // Don't need to do anything specific on an error
@@ -241,11 +243,145 @@
                         var currentElement = $('.sf-toolbar')[0];
 
                         // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
                     }
                 }
             });
         });
+    }
+
+
+    function disableSearchSidebar() {
+        $("#ODRSearchContent").addClass("ODRSearchResultsWide");
+        $("#ODRSearchSidebar").addClass("ODRHidden");
+    }
+
+    function enableSearchSidebar(search_key, force_visible, intent) {
+        var sidebar = $("#ODRSearchSidebar");
+        var content = $("#ODRSearchContent");
+
+        $(sidebar).removeClass("ODRHidden");
+
+        if (force_visible === undefined || force_visible === null)
+            force_visible = false;
+
+        if ( !force_visible ) {
+            if ($(sidebar).hasClass("ODRSearchVisible"))
+                $(content).removeClass("ODRSearchResultsWide");
+            else
+                $(content).addClass("ODRSearchResultsWide");
+        }
+        else {
+            $(sidebar).removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
+            $(".ODRSearchToggle").children(".fa-arrow-circle-left").removeClass('hidden');
+            $(".ODRSearchToggle").children(".fa-arrow-circle-right").addClass('hidden');
+            $(content).removeClass("ODRSearchResultsWide");
+        }
+
+        if (intent === undefined || intent === null)
+            intent = 'searching';
+
+        updateSearchSidebar(search_key, intent);
+    }
+
+    function updateSearchSidebar(search_key, intent) {
+        var force_rebuild = false;
+        if ( $("#ODRSidebarSearchKey").val() !== search_key || $("#ODRSearchSidebar").html() === '' )
+            force_rebuild = true;
+
+        if ( search_key !== '' && search_key !== undefined && $("#ODRSidebarSearchKey").val() !== search_key ) {
+            var url = '{{ path('odr_reload_search_sidebar', {'force_rebuild': 0, 'search_key': '', 'intent': ''}) }}';
+            url = url.substr(0, url.length - 3);
+
+            if ( force_rebuild ) {
+                // TODO - this doesn't solve the problem of not having the search javascript...
+                 url += '1/';
+            }
+            else {
+                url += '0/';
+            }
+
+            url += search_key + '/' + intent;
+
+            $.ajax({
+                type: 'GET',
+                url: url,
+                dataType: 'json',
+                success: function (data) {
+                    if ( data.d.html !== '' ) {
+                        $("#ODRSearchSidebar").html(data.d.html);
+                        InitSearchSidebar();
+
+                        if ( data.d.num_params <= 1 ) {
+                            // Close all accordions, then re-open the first one (target datatype)
+                            $(".ODRAdvSearch_header").trigger('click');
+                            $(".ODRAdvSearch_default").prev().trigger('click');
+                            // Default to not-advanced search
+                            $(".ODRAdvSearch_header").parent().hide();
+                        }
+                        else {
+                            // Close all accordions...those with search params will remain partially open
+                            $(".ODRAdvSearch_header").trigger('click');
+                            // Hide the advanced search div...
+                            $(".ODRAdvSearch_header").parent().hide();
+                            // ...then switch back to advanced search
+                            changeSearch();
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    $("#ODRSearchSidebar").on("click", ".ODRSearchToggle", function() {
+        searchToggle();
+    });
+
+    function searchToggle() {
+        var search = $(".ODRContentWrapper");
+        var searchToggle = $(".ODRSearchToggle");
+
+        if (search.hasClass("ODRSearchVisible")) {
+            search.removeClass("ODRSearchVisible").addClass("ODRSearchHidden");
+
+            searchToggle.find(".fa-arrow-circle-left").addClass('hidden');
+            searchToggle.find(".fa-arrow-circle-right").removeClass('hidden');
+
+            $("#ODRSearchContent").addClass("ODRSearchResultsWide");
+        }
+        else {
+            search.removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
+
+            searchToggle.find(".fa-arrow-circle-right").addClass('hidden');
+            searchToggle.find(".fa-arrow-circle-left").removeClass('hidden');
+
+            $("#ODRSearchContent").removeClass("ODRSearchResultsWide");
+        }
+    }
+
+    function showSearchOverlay(intent) {
+        $("#loading-overlay").fadeIn('fast');
+        $("#loading").html('<span>Searching...</span>');
+        $("#loading").fadeIn('fast');
+
+        if (intent === undefined || intent === null)
+            intent = 'searching';
+
+        if ( intent === 'searching' )
+            $("#ODRSearchContent").html('');
+    }
+
+    function hideSearchOverlay() {
+        $("#loading-overlay").fadeOut('fast');
+        $("#loading").html('<span>Loading...</span>');
+        $("#loading").fadeOut('fast');
+    }
+
+    function setupAccordionHighlights() {
+         $("#content > #ODRSearchContent > .ODRFormWrap > .ODRDataType > .ODRAccordionWrapper > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3")
+            .alternateNestedBgColor(".ODRThemeElement > .ODRInnerBox > .ODRChildDatatype > .ODRDataType > .ODRAccordionWrapper > h3", ['ODRAccordionPrimary', 'ODRAccordionSecondary']);
+
+        // console.log('accordion highlight')
     }
 
     function setupAccordions() {
@@ -263,10 +399,12 @@
                 {#ODR_scrollIntoView( $(this).next() );#}
                 $(this).addClass('ODRAccordionSelected');
 
+                setupAccordionHighlights();
                 // Resize any elements that were revealed
                 onWindowResize();
             });
         });
+
         // Hide all the content blocks
         var prev_selection = false;
         $(".ODRFormAccordion").children("h3").each(function() {
@@ -301,6 +439,7 @@
                         $("#FieldArea_" + id).fadeIn();
                         {#ODR_scrollIntoView( $("#FieldArea_" + id) )#}
 
+                        setupAccordionHighlights();
                         // Resize any elements that were revealed
                         onWindowResize();
                     });
@@ -332,32 +471,12 @@
                 });
 
                 // Resize any elements that were revealed
+                setupAccordionHighlights();
                 onWindowResize();
             });
         });
     }
 
-{#
-    // Modified from http://stackoverflow.com/a/18151491
-    function ODR_scrollIntoView(element) {
-        var element_top = $(element).offset().top;
-        var element_height = $(element).height();
-        // Leave a margin of 100px at the top
-        var window_height = $(window).height() - 100;
-        var offset = 0;
-        if (element_height < window_height) {
-            offset = element_top - ((window_height / 2) - (element_height / 2));
-        }
-        else {
-            offset = element_top-175;   // scroll a bit higher on the page than otherwise to allow for the menubar across the top
-        }
-
-        if (offset < 0)
-            offset = 0;
-
-        $('html, body').scrollTo(offset);
-    }
-#}
 
     var WindowResizeInterval = "";
     function onWindowResize() {
@@ -365,7 +484,7 @@
         if (WindowResizeInterval != "")
             WindowResizeInterval = window.clearInterval(WindowResizeInterval);
 
-        //Resize all textarea elements
+        // Resize all textarea elements
         $("textarea").not(":hidden").each(function() {
             var el = $(this);
 
@@ -440,10 +559,21 @@
         });
     }
 
-    function reloadPage() {
-        // TODO - should check if URL has hash value...
-        var url = window.location.hash.substr(1);
-        LoadContentFullAjax( url );
+    function setupTagTree() {
+        $(".ODRTagParent").unbind('click').click(function(event) {
+            event.stopImmediatePropagation();
+
+            if ( $(this).hasClass('ODRTagCollapsed') ) {
+                $(this).next().next().show();
+                $(this).children(".fa").first().removeClass("fa-caret-right").addClass("fa-caret-down");
+            }
+            else {
+                $(this).next().next().hide();
+                $(this).children(".fa").first().removeClass("fa-caret-down").addClass("fa-caret-right");
+            }
+
+            $(this).toggleClass('ODRTagCollapsed');
+        });
     }
 
     function resetRemodalInnerHeight() {
@@ -453,7 +583,7 @@
 
         // Get Scroll height of inner
         var content_height = modal_inner_content.prop('scrollHeight');
-//console.log('h1: ' + content_height);
+// console.log('h1: ' + content_height);
 
         var modal_height =  $(window).height()
             - modal.find(".ODRRemodalButtons").height()
@@ -461,15 +591,15 @@
 
         if ( $(window).width() >= 568 )
             modal_height -= 30;
-//console.log('mh0: ' + modal_height);
+// console.log('mh0: ' + modal_height);
 
         // Just show content if smaller than window height
         if (content_height < modal_height)
             modal_height = content_height;
-//console.log('mh1: ' + modal_height);
+// console.log('mh1: ' + modal_height);
 
         // Ensure it looks okay
-        modal_height += 20;
+        modal_height -= 20;
         if (modal_height < 100)
             modal_height = 100;
 
@@ -480,9 +610,11 @@
                 easing: "swing"
             }
         );
+
+        return modal_height;
     }
 
-    // Define waitForFinalEvent
+    {# This is apparently only used in ODROpenRepositoryGraphBundle:Base:Graph/graph.html.twig #}
     var waitForFinalEvent = (function () {
         var timers = {};
         return function (callback, ms, uniqueId) {
@@ -496,44 +628,29 @@
         };
     })();
 
-{#
-    var scrollTop = '';
-    var newHeight = '100';
-    function initODRDialog(elem) {
-        /*
-        $(window).bind('scroll', function() {
-            scrollTop = $( window ).scrollTop();
-            newHeight = scrollTop + 100;
+    $.fn.alternateNestedBgColor = function(subselect, colors) {
+        var l = colors.length;
+
+        // Itterate over all element in possible array
+        // jQuery best practice to handle initializing multiple elements at once
+        return this.each(function() {
+            var $sub = $(this), i = 0;
+
+            // Executes code, at least once
+            do {
+                // Set bg color for current $sub element
+                $sub.addClass(colors[i++ % l]);
+                // console.log($sub.next().attr('id'))
+                // Set $sub to direct children matching given selector
+                $sub = $sub.next().find(subselect);
+                // console.log('Found subs: ', $sub.length);
+
+                // Will repeat the do section if the condition returns true
+                // console.log('Repeat sub: ', i)
+            } while ($sub.length > 0);
         });
+    };
 
-        if($(window).width() < 767) {
-            $(elem).show().addClass('odr-popup-mobile').css('top', 0);
-            $('html, body').animate({
-                scrollTop: $(elem).offset().top
-            }, 500);
-        } else {
-            $(elem).hide();
-            $(elem).removeClass('odr-popup-mobile').css('top', newHeight).toggle();
-        };
-
-        $(elem).append('<span class="odr-popup-btn-close">close</span>');
-
-        $('html').unbind('click')
-        .click(function() {
-            $('.odr-popup').hide();
-        });
-
-        $('.odr-popup-btn-close').unbind('click')
-        .click(function(e){
-            $(this).parent().hide();
-        });
-
-        $('.odr-popup').unbind('click')
-        .click(function(e){
-            e.stopPropagation();
-        });
-     }
-#}
 </script>
 
 {% include 'ODRAdminBundle:Default:file_handling.html.twig' %}

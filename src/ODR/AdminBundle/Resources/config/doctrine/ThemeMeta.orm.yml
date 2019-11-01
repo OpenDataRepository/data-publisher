@@ -41,11 +41,11 @@ ODR\AdminBundle\Entity\ThemeMeta:
             nullable: false
             default: false
 
-        sourceSyncCheck:
-            type: datetime
+        sourceSyncVersion:
+            type: integer
+            unsigned: true
             nullable: true
-            default: '1980-01-01 01:01:01'
-            column: source_sync_check
+            column: source_sync_version
 
         isTableTheme:
             type: boolean
@@ -69,7 +69,7 @@ ODR\AdminBundle\Entity\ThemeMeta:
     manyToOne:
         theme:
             targetEntity: Theme
-            cascade: {  }
+            cascade: ["persist"]
             mappedBy: null
             inversedBy: themeMeta
             joinColumns:

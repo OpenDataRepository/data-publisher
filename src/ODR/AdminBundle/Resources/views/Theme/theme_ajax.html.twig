@@ -71,11 +71,6 @@
                             </label>
                             <input type="checkbox" value="0" id="ODRThemeShowHidden" name="ODRThemeShowHidden">
                         </div>
-                        <div>
-                            <button id="ODRCheckSourceTheme" class="pure-button pure-button-active" rel="{{ theme.id }}">
-                                Sync with Source Theme
-                            </button>
-                        </div>
                     </div>
                     <div class="pure-u-1"></div>
 
@@ -134,8 +129,10 @@
         <div id="ThemeDesignArea">
             {% include 'ODRAdminBundle:Theme:theme_area.html.twig' with {
                 'datatype_array': datatype_array,
-                'initial_datatype_id': initial_datatype_id,
                 'theme_array': theme_array,
+
+                'initial_datatype_id': initial_datatype_id,
+                'initial_theme_id': theme.id,
 
                 'datatype_permissions': datatype_permissions,
                 'is_datatype_admin': is_datatype_admin,
@@ -149,7 +146,8 @@
         }
 
         // After DOM Ready
-        jQuery(function() {
+        $(function() {
+            disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
             initDesignScrollHandler($("#ThemeLeftColumn").offset().top);
 
@@ -193,34 +191,38 @@
             });
 
             $("#ThemePropertiesForm input:text").unbind('keyup').keyup(function() {
-                window.clearInterval(interval);
-                interval = window.setInterval(
+                // Only want to execute this save once
+                clearTimeout(theme_properties_change);
+                theme_properties_change = setTimeout(
                     "saveThemeMeta()",
-                    3000
+                    1500
                 );
             });
             $("#ThemePropertiesForm textarea").unbind('keyup').keyup(function() {
-                window.clearInterval(interval);
-                interval = window.setInterval(
+                // Only want to execute this save once
+                clearTimeout(theme_properties_change);
+                theme_properties_change = setTimeout(
                     "saveThemeMeta()",
-                    3000
+                    1500
                 );
             });
             $("#ThemePropertiesForm input:checkbox").unbind('change').change(function() {
-                window.clearInterval(interval);
-                interval = window.setInterval(
+                // Only want to execute this save once
+                clearTimeout(theme_properties_change);
+                theme_properties_change = setTimeout(
                     "saveThemeMeta()",
-                    1000
+                    1500
                 );
             });
 
             if ( $("#UpdateThemeForm_isTableTheme").is(':checked') ) {
-                // Table themes can't use anything from child/linked datatypes at the moment
-                // Hide all theme elements containing them so that the "Show Hidden Elements"
-                //  checkbox can't show them
-                $(".ODRChildDatatype").parent().parent().addClass('ODRHidden');
+                // Table themes can't use anything from child/linked datatypes that allow multiple
+                //  child/linked datarecords...hide all theme elements containing them so that the
+                //  "Show Hidden Elements" checkbox can't show them
+                $(".ODRChildDatatype.ODRMultipleAllowed").parent().parent().addClass('ODRHidden');
             }
 
+{#
             $("#ODRCheckSourceTheme").unbind('click').click(function() {
                 var theme_id = $(this).attr('rel');
 
@@ -256,7 +258,7 @@
                     }
                 });
             });
-
+#}
             $(".ODRReturn").unbind('click').click(function() {
 {% if not is_short_form %}
                 {# Don't need to change any value in the URL #}
@@ -522,7 +524,7 @@
                 });
             });
 
-            // Don't want to call disabledSelection() on the object properties panel
+            // Don't want to be able to highlight everything...
             $("#content").find(".ODRInnerBox").disableSelection();
 
             $(".ODRDeleteThemeElement").unbind('click').click(function() {
@@ -533,7 +535,7 @@
                 var theme_element_id_data = $(this).parent().parent().parent().parent().attr('id').split(/_/);
                 var theme_element_id = theme_element_id_data[1];
 
-                if (confirm("Are you sure you want to delete this theme element?")) {
+                if (confirm("Are you sure you want to delete this group box?")) {
                     var url = '{{ path('odr_design_delete_theme_element', { 'theme_element_id': 0 } ) }}';
                     url = url.substring(0, (url.length - 1));
                     url += theme_element_id;
@@ -819,10 +821,10 @@
         }
 
 
-        var interval = "";
+        var theme_properties_change = null;
         function saveThemeMeta() {
-            // Clear the save interval for this specific datafield...interval itself is defined by the variable "SaveTimeout" in this file
-            window.clearInterval(interval);
+            // Clear the save timeout for this action
+            window.clearInterval(theme_properties_change);
 
             var prop_form = $("#ThemePropertiesForm");
             jQuery.ajax({

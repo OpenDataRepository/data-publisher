@@ -1,0 +1,73 @@
+odr_plugins.ahed.site:
+    name: Site Identifier Plugin
+    datatype: true
+    version: 1.00
+    override_fields: false
+    override_child: false
+    description: The Site Identifier Plugin characterizes a site or location where a sample was collected.
+    required_fields:
+        site_name:
+            name: Site Name
+            description: A colloquial identifier for the site or location.
+            type: MediumVarchar
+        country:
+            name: Country
+            description: The country name of the site.
+            type: MediumVarchar
+        state_prov:
+            name: State/Province/Canton/District
+            description: The state/provice/canton/district of the site.
+            type: MediumVarchar
+        common_name:
+            name: Common geographic region name.
+            description: An identifier commonly used to identify a region or geographic location.
+            type: MediumVarchar
+        latitude:
+            name: Latitude
+            description: The latitude of the site.
+            type: DecimalValue
+        longitude:
+            name: Longitude
+            description: The longitude of the site.
+            type: DecimalValue
+        radius_in_meters:
+            name: Radius in meters.
+            description: The radius encapsulating the site in meters from the latitude and longitude point.
+            type: DecimalValue
+        boundary_polygon:
+            name: Boundary Polygon
+            description: A string of decimal latitude and longitude points that create a polygon.  The last lat/lon point will be connected back to the first.  List in order for automatic polygon creation.
+            type: LongVarchar
+        site_elevation:
+            name: Elevation
+            description: Elevation in meters relative to sea level.
+            type: DecimalValue
+        geologic_age:
+            name: Geologic Age
+            description: The geologic age of the site.
+            type: MediumVarchar
+        domain:
+            name: Domain
+            description: The geologic age of the site.
+            type: MediumVarchar
+        environment_keywords:
+            name: Environment Keywords
+            description: A descriptor that characterizes the site environment.
+            type: MediumVarchar
+        geologic_characterization:
+            name: Geologic Characterization
+            description: A descriptor that best characterizes the site geology.
+            type: MediumVarchar
+        biological_characterization:
+            name: Biological Characterization
+            description: A descriptor that best characterizes the site biology.
+            type: MediumVarchar
+        physical_characterization:
+            name: Physical Characterization
+            description: A descriptor that best characterizes the physical attributes of the site.
+            type: MediumVarchar
+        chemical_characterization:
+            name: Chemical Characterization
+            description: A descriptor that best characterizes the chemical attributes of the site.
+            type: MediumVarchar
+    config_options:

@@ -1,0 +1,47 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set allow_multiple_levels = datafield_meta.tags_allow_multiple_levels %}
+{% set sort_by_name = datafield_meta.radio_option_name_sort %}
+
+{% set has_children = false %}
+{% if tag.children is defined and tag.children is not empty %}
+    {% set has_children = true %}
+{% endif %}
+    
+<li class="ODRTagItem" rel="{{ tag.id }}">
+    <div class="ODRTagUnit">
+        <span class="ODRDeleteTag" rel="{{ tag.id }}"><i class="fa fa-trash Pointer"></i></span>
+
+    {% if allow_multiple_levels == false and sort_by_name == true %}
+        {# Don't allow re-ordering if only a single level of tags is permitted, and they're sorted by name #}
+    {% else %}
+        <span class="ODRTagAnchor"><i class="fa fa-arrows Pointer"></i></span>
+    {% endif %}
+
+        <input id="ODRTag_{{ tag.id }}_name"
+           class="ODRTagLabel"
+           type="text"
+           name="tag_name"
+           value="{{ tag.tagMeta.tagName }}"
+           data-old-value="{{ tag.tagMeta.tagName }}"
+           size="100"
+           maxlength="255"
+        />
+
+        <span class="ODRInputError">&nbsp;&nbsp;<i class="fa fa-warning"></i><span>Duplicate Tag name</span></span>
+    </div>
+
+    {% if tag.children is defined and tag.children|length > 0 %}
+    <ul class="ODRTagGroup">
+        {% for child_tag_id, child_tag in tag.children %}
+            {% include 'ODRAdminBundle:Tags:tag.html.twig' with {
+                'datafield': datafield,
+                'tag': child_tag,
+            } %}
+        {% endfor %}
+    </ul>
+    {% endif %}
+</li>
+
+{% endspaceless %}

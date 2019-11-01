@@ -1,9 +1,13 @@
+{# This is an override of the default FOS login form #}
+
 {% extends "ODROpenRepositoryUserBundle::layout.html.twig" %}
+
+{% set render_type = 'login' %}
 
 {% block fos_user_content %}
 
 {% if error %}
-    <div>{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+    <div class="ODRInputError">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
 {% endif %}
 
 {% set form_path = path("fos_user_security_check") %}
@@ -17,10 +21,10 @@
 
     <fieldset>
         <div class="pure-control-group">
-            <input id="username" name="_username" type="email" placeholder="{{ 'security.login.username'|trans({}, 'FOSUserBundle') }}" required="required" />
+            <input id="username" name="_username" type="email" placeholder="{{ 'security.login.username'|trans({}, 'FOSUserBundle') }}" required="required" size="25"/>
         </div>
         <div class="pure-control-group">
-            <input id="password" name="_password" type="password" placeholder="{{ 'security.login.password'|trans({}, 'FOSUserBundle') }}" required="required" />
+            <input id="password" name="_password" type="password" placeholder="{{ 'security.login.password'|trans({}, 'FOSUserBundle') }}" required="required" size="25"/>
         </div>
     </fieldset>
 

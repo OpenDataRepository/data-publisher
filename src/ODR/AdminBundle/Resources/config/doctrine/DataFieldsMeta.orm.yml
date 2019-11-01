@@ -31,6 +31,13 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             nullable: false
             column: xml_field_name
 
+        internal_reference_name:
+            type: string
+            length: 64
+            fixed: false
+            nullable: true
+            column: internal_reference_name
+
 
         # This column tracks the latest revision of
         # the data field (when field is a master field).
@@ -88,35 +95,53 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             default: false
             column: is_unique
 
+        # These three apply to both files and images
         allow_multiple_uploads:
             type: boolean
             nullable: false
             default: false
             column: allow_multiple_uploads
-
         shorten_filename:
             type: boolean
             nullable: false
             default: true
             column: shorten_filename
+        newFilesArePublic:
+            type: boolean
+            nullable: false
+            default: false
+            column: new_files_are_public
 
+        # This one only applies to radio options
         children_per_row:
             type: integer
             nullable: false
             default: 1
             column: children_per_row
 
+        # These two apply to both radio options and tags
         radio_option_name_sort:
             type: boolean
             nullable: false
             default: true
             column: radio_option_name_sort
-
         radio_option_display_unselected:
             type: boolean
             nullable: false
             default: false
             column: radio_option_display_unselected
+
+        # These two only apply to tags
+        tags_allow_multiple_levels:
+            type: boolean
+            nullable: false
+            default: false
+            column: tags_allow_multiple_levels
+        tags_allow_non_admin_edit:
+            type: boolean
+            nullable: false
+            default: false
+            column: tags_allow_non_admin_edit
 
         searchable:
             type: integer

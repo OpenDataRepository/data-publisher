@@ -1,3 +1,5 @@
+{# This is an override of the default FOS layout.html.twig file #}
+
 {% extends '::base.html.twig' %}
 {% set current_user = '' %}
 
@@ -18,20 +20,8 @@
 {% block body %}
     <section id="content" class="container_12 clearfix">
 
-        <div id="login_wrapper" style="text-align:center; margin-top:10px;">
-            <div>
-                {% if is_granted("IS_AUTHENTICATED_REMEMBERED") %}
-                    {{ 'layout.logged_in_as'|trans({'%username%': app.user.username}, 'FOSUserBundle') }} |
-                    <a href="{{ path('fos_user_security_logout') }}">
-                        {{ 'layout.logout'|trans({}, 'FOSUserBundle') }}
-                    </a>
-                {% else %}
-                    {# Don't display a link to log in here #}
-                    {#<a href="{{ path('fos_user_security_login') }}">{{ 'layout.login'|trans({}, 'FOSUserBundle') }}</a>#}
-                {% endif %}
-            </div>
-
-            {# Doesn't seem to really do anything #}
+        <div id="login_wrapper">
+            {# Doesn't seem to really do anything... #}
             {% if app.request.hasPreviousSession %}
                 {% for type, messages in app.session.flashbag.all() %}
                     {% for message in messages %}
@@ -45,7 +35,7 @@
             <div class="ODRContentWrapper pure-u-1 pure-u-sm-1-2 pure-u-lg-1-3">
                 <div class="ODRThemeElement pure-u-1">
                     <div class="ODRInnerBox pure-u-1">
-                        <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i>
+                        <h3 class="ODRHeader" style="padding-left: 0px;"><i class="fa fa-md fa-user fa-fw"></i>
                         {% if is_granted("IS_AUTHENTICATED_REMEMBERED") %}
                             {{ 'layout.logged_in_as'|trans({'%username%': app.user.username}, 'FOSUserBundle') }} |
                             <a href="{{ path('fos_user_security_logout') }}">
@@ -59,13 +49,16 @@
                             {% block fos_user_content %}
                             {% endblock fos_user_content %}
                         </div>
+
+                        {# only display the oauth provider list on the actual login page #}
+                        {% if render_type is defined and render_type == 'login' %}
                         <div class="ODROAuthProviderList">
                             {% include "ODROpenRepositoryOAuthClientBundle:Connect:login.html.twig" %}
                         </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-
         </div>
 
     </section>

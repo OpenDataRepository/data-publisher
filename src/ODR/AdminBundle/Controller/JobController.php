@@ -17,19 +17,18 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
-use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 // Symfony
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -58,15 +57,11 @@ class JobController extends ODRCustomController
             $jobs = array(
                 'migrate' => 'DataField Migration',
                 'mass_edit' => 'Mass Updates',
-//                'rebuild_thumbnails'
                 'csv_import_validate' => 'CSV Validation',
                 'csv_import' => 'CSV Imports',
                 'csv_export' => 'CSV Exports',
-//                'xml_import'
-//                'xml_export'
             );
 
-            // 
             $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
@@ -81,7 +76,7 @@ class JobController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x070b08bb;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -91,6 +86,133 @@ class JobController extends ODRCustomController
         return $response;
     }
 
+    public function viewedAction($job_ids, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            $jobs = preg_split('/,/',$job_ids);
+            foreach($jobs as $job_id) {
+                /** @var TrackedJob $tracked_job */
+                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')
+                    ->findOneBy( array(
+                            'id' => $job_id,
+                            'createdBy' => $user
+                        )
+                    );
+
+                if($tracked_job) {
+                    $tracked_job->setViewed(new \DateTime());
+                    $em->persist($tracked_job);
+                }
+            }
+            $em->flush();
+        }
+        catch (\Exception $e) {
+            $source = 0xfed3dade;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new JsonResponse($return);
+        return $response;
+    }
+
+    /**
+     * Delete a job after completeion or user aknowledgement.
+     *
+     * @param $job_id
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function deleteAction($job_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')
+                ->findOneBy( array(
+                    'id' => $job_id,
+                    'createdBy' => $user
+                )
+            );
+
+            if($tracked_job) {
+                $em->remove($tracked_job);
+                $em->flush();
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x81adf3ad;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new JsonResponse($return); return $response;
+    }
+
+
+    /**
+     * Get a user's jobs for tracking and messaging purposes.
+     *
+     * @param $tracked_job_id
+     * @param Request $request
+     * @return Response
+     */
+    public function myjobsAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var TrackedJobService $tj_service */
+            $tj_service = $this->container->get('odr.tracked_job_service');
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $tracked_jobs = array();
+            if ($user !== 'anon.') {
+                // Get Jobs as array and pass to interface
+                $tracked_jobs = $tj_service->getJobDataByUserId($user->getId());
+            }
+
+            $return['d'] = $tracked_jobs;
+        }
+        catch (\Exception $e) {
+            $source = 0x070b08bb;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new JsonResponse($return);
+        return $response;
+    }
 
     /**
      * Reloads job data...either for all active jobs of a given type, or for a specific job.
@@ -121,7 +243,8 @@ class JobController extends ODRCustomController
 
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
-            if ($job_type !== '')
+            // if ($job_type !== '')
+            if ($job_id < 1)
                 $return['d'] = $tj_service->getJobDataByType($job_type, $datatype_permissions);
             else
                 $return['d'] = $tj_service->getJobDataById(intval($job_id), $datatype_permissions);
@@ -129,7 +252,7 @@ class JobController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xbafc9425;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -216,7 +339,7 @@ class JobController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8501ab5c;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

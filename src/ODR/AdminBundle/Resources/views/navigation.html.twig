@@ -25,29 +25,26 @@
     {% endif %}
 
     <ul class="ODR-pure-submenu">
-        <li class="pure-menu-item">
-            <a class="pure-menu-link" href="{{ path('odr_admin_homepage') }}">
-                <i class="fa fa-md fa-dashboard fa-fw"></i>Dashboard
-            </a>
-        </li>
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_self_profile_edit') }}">&nbsp;<i class="fa fa-md fa-user fa-fw"></i>Profile</a></li>
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_job_list') }}">&nbsp;<i class="fa fa-md fa-cogs fa-fw"></i>Active Jobs</a></li>
 
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_list_types', { 'section': 'databases' } ) }}" title="List Records">&nbsp;<i class="fa fa-md fa-fw fa-list"></i>Databases</a></li>
 
-    {% if level == 3 or level == 7 %}
+    {% if level >= 3 %}    {# ROLE_ADMIN or above #}
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_list_types', { 'section': 'templates' } ) }}" title="List Master Templates">&nbsp;<i class="fa fa-md fa-fw fa-cog"></i>Templates</a></li>
     {% endif %}
 
-    {% if is_datatype_admin == true %}
+    {% if level == 7 %}    {# ROLE_SUPER_ADMIN or above #}
+        <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_render_plugin_list') }}" title="List Render Plugins">&nbsp;<i class="fa fa-md fa-fw fa-edit"></i>Render Plugins</a></li>
+    {% endif %}
+
+    {% if level >= 3 %}    {# ROLE_ADMIN or above #}
         <li class="pure-menu-item">
             <span class="pure-menu-heading">User Management&nbsp;<i class="fa fa-md fa-plus-square"></i></span>
             <ul class="ODR-pure-submenu">
                 <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_user_list') }}" title="List Users">&nbsp;<i class="fa fa-md fa-fw fa-cog"></i>List Users</a></li>
-            {% if level == 3 or level == 7 %}
                 <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_admin_new_user_create') }}" title="Add User">&nbsp;<i class="fa fa-md fa-fw fa-cog"></i>Add User</a></li>
-            {% endif %}
-            {% if level == 7 %}
+            {% if level == 7 %}    {# ROLE_SUPER_ADMIN or above #}
                 <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_manage_user_roles') }}" title="Manage Roles">&nbsp;<i class="fa fa-md fa-fw fa-cog"></i>Manage Roles</a></li>
             {% endif %}
             </ul>
@@ -55,6 +52,59 @@
     {% endif %}
     </ul>
 
+    {% if is_datatype_admin == true %}
+    <script>
+        $(function() {
+            // Initialize the help button
+            jQuery('#ODRDatabaseLanding').unbind('click').click(function() {
+                // Extract unique id
+                var current_url = window.location.href;
+
+                // Split based on hash
+                var url_data = current_url.split('#');
+
+                // Split based on slash
+                var url_bits = url_data[0].split('/');
+
+                // Unique ID is the last bit
+                var unique_id = url_bits[(url_bits.length - 1)];
+
+                // NOTE - despite being named as unique_ids, this also works with search slugs
+                var url = '{{ path('odr_datatype_find_landing', { 'datatype_unique_id': 0 }) }}';
+                url = url.substring(0, (url.length - 1));
+                url += unique_id;
+
+                $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: "json",
+                    success: function(data, textStatus, jqXHR) {
+                        // Get new URL and replace
+                        window.location = data.d
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Don't need to do anything specific on an error
+                        console.log(errorThrown);
+                    },
+                    complete: function(jqXHR, textStatus) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+                    }
+                });
+            });
+        })
+    </script>
+    {% endif %}
 {% endspaceless %}
 
 {% endblock %}

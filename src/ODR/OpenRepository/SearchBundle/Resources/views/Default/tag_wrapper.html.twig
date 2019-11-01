@@ -1,0 +1,16 @@
+{% spaceless %}
+
+<div class="ODRTagWrapper_search">
+    <ul class="ODRTagGroup">
+        {% for tag_id, tag in stacked_tags %}
+            {% include 'ODROpenRepositorySearchBundle:Default:tag.html.twig' with {
+                'tag': tag,
+
+                'selected_tags': selected_tags,
+                'unselected_tags': unselected_tags,
+            } %}
+        {% endfor %}
+    </ul>
+</div>
+
+{% endspaceless %}

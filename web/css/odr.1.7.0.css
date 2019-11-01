@@ -1510,18 +1510,25 @@ pre .support.value  {
     .ODRRadioLabel {
         margin: 0.5em 0;
     }
+    .ODRTagSearchDiv {
+        max-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
 
     .fa {
         padding: 0px;
     }
     .ODRTristateCheckbox > .fa-ban {
+        margin-top: -1px;
+        margin-left: 1.5px;
         color: red;
     }
     .ODRTristateCheckbox > .fa-check {
         color: green;
     }
-    .ODRTristateCheckbox > .fa-check.partial {
-        color: grey;
+    .ODRTristateCheckbox > .partial {
+        color: grey !important;
     }
     .ODRTristateCheckbox {
         cursor: pointer;
@@ -1542,8 +1549,15 @@ pre .support.value  {
 
     .ODRSelectAll,.ODRDeselectAll,.ODRClearAll {
         cursor: pointer;
-        font-size: 90%;
+        /* font-size: 90%; */
     }
+
+    .ODRSelectAllOption {
+        display: inline;
+        margin-left: 6px;
+    }
+
+
 
 /* END Search Template Customizations */
 footer {
@@ -1621,7 +1635,7 @@ footer .ODRLogoImage img {
     }
 }
 /* pure-hidden-lg */
-@media screen and (min-width:1024px) and (max-width:1279px) {
+@media screen and (min-width:1024px) and (max-width:1439px) {
     .pure-visible-xs{display:none}
     .pure-visible-sm{display:none}
     .pure-visible-md{display:none}
@@ -1638,7 +1652,7 @@ footer .ODRLogoImage img {
     }
 }
 /* pure-hidden-xl */
-@media screen and (min-width:1280px) {
+@media screen and (min-width:1440px) {
     .pure-visible-xs{display:none}
     .pure-visible-sm{display:none}
     .pure-visible-md{display:none}
@@ -2245,7 +2259,7 @@ h3 .DatatypeTools,
     border-radius: 6px;
 }
 
-.ODRResults select.AccordionSelect {
+.ODRResults .AccordionSelect {
     float: right;
     margin-right: 38px !important;
     max-width: 350px;
@@ -2254,19 +2268,22 @@ h3 .DatatypeTools,
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    border-radius: 6px;
+    border-radius: 4px;
 }
 
-.ODRRecord select.AccordionSelect {
+.ODRRecord .AccordionSelect {
     float: right;
     margin-right: 58px !important;
     max-width: 350px;
-    padding: 4px 4px 2px 4px !important;
+    padding: 0 0 0 0 !important;
     height: 32px !important;
+    /*
+    padding: 4px 4px 2px 4px !important;
+    border-radius: 6px;
+    */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    border-radius: 6px;
 }
 
 .DataTypeToolsAccordion {
@@ -2453,7 +2470,34 @@ form .row {
 }
 
 #pagination_header {
+    position: sticky;
+    position: -webkit-sticky;
+    position: -moz-sticky;
+    position: -ms-sticky;
+    position: -o-sticky;
+    top: 0;
+    z-index: 990;
+    background: white;
     margin-bottom: 3px;
+    padding-bottom: 8px;
+    text-align: center;
+    -webkit-box-shadow: 0 8px 6px -6px rgba(0,0,0,0.1);
+    -moz-box-shadow: 0 8px 6px -6px rgba(0,0,0,0.1);
+    box-shadow: 0 8px 6px -6px rgba(0,0,0,0.1);
+}
+
+#pagination_header button {
+    min-width: 3em;
+}
+
+#pagination_header input {
+    font-size: 1.1em;
+    font-weight: bold;
+    text-align: center;
+    padding: 0.3em;
+}
+.ODRResultsNumRecords {
+    padding-left: 12px;
 }
 
 #ODRPageSelect {
@@ -2496,13 +2540,15 @@ form .row {
 .ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
 .ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
+.ODRResults > .ODRDataType > .ODRGraphSpacer > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,  /* rollup graph */
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRGraphSpacer > .ODRThemeElement > .ODRInnerBox,  /* not-rollup graph */
 .ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox {
     /* background-color: rgba(0,0,0,0.045); */
     box-sizing:border-box;
     -moz-box-sizing:border-box;
     -webkit-box-sizing:border-box; 
     padding: 0.3em;
-    border: 2px solid rgba(185, 186, 246, 0.25); 
+    /* border: 2px solid rgba(185, 186, 246, 0.25);  */
     border-radius: 4px;
 }
 .ODRContentWrapper > .ODRThemeElement > .ODRInnerBox,
@@ -2510,7 +2556,9 @@ form .row {
 .ODRShortResult > .ODRShortResults > .DataRecordShort,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement,
 .ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,
-.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement  {
+.ODRResults > .ODRDataType > .ODRGraphSpacer > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,  /* rollup graph */
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRGraphSpacer > .ODRThemeElement,  /* not-rollup graph */
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement {
     box-sizing:border-box;
     -moz-box-sizing:border-box;
     -webkit-box-sizing:border-box; 
@@ -2565,6 +2613,19 @@ form .row {
 
 .ODRShortResults .ODRFieldLabel {
     font-weight: bold;
+}
+
+.ODRRecord .ODRFieldLabel {
+    font-weight: bold;
+}
+.ODRRecord label.ODRRadioField {
+    font-size: 100%;
+}
+
+.ODRRadioOptionsEdit {
+    max-height: 400px;
+    overflow-y: scroll;
+    margin-left: 20px;
 }
 
 .ODRPseudoField {
@@ -2675,42 +2736,6 @@ form .row {
     /*margin-top: 30px;*/
 }
 
-.ODRDashboardHeader {
-    background: url("../img/elements/stats/bg.png") repeat-x scroll 0 0 #3a4454;
-    border-bottom: 1px solid #08192e;
-    box-sizing: border-box;
-    display: table;
-    margin: 30px 0 0;
-    padding: 22px 15px 24px;
-    table-layout: fixed;
-}
-
-.ODRDashboardHeader > div {
-    display: table-cell;
-    text-align: center;
-}
-
-.ODRDashboardHeader > div > strong {
-    color: #fff;
-    font-size: 25px;
-    font-weight: bold;
-    text-shadow: 0 1px 0 #000;
-
-    display: block;
-}
-
-.ODRDashboardHeader > div > small {
-    color: #7a828d;
-    font-size: 12px;
-    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
-
-    display: block;
-}
-
-
-
-
-
 
 /* Multi-select Dropdown */
 
@@ -2767,8 +2792,10 @@ form .row {
 }
 
 .ODRReloadDiv {
-    background-color: #cccccc;
-    opacity: 0.8;
+    background-color: #fff;
+    opacity: 0.9;
+    color: #999;
+    font-size: 24px;
 }
 .ODROverlayDiv {
     position: absolute;
@@ -2778,7 +2805,8 @@ form .row {
 }
 
 .fa-globe {
-    color: #aaf;
+    /* color: #aaf; */
+    color: red;
 }
 
 .IconRed {
@@ -2944,10 +2972,10 @@ form .row {
 
 .ODRProgressBarLabel {
     position: absolute;
-    left: 45%;
     top: 4px;
     font-weight: bold;
-    text-shadow: 1px 1px 0 #fff;
+    text-align: center;
+    width: 100%;
 }
 
 .ODRMenuWrapper {
@@ -3158,7 +3186,7 @@ form .row {
 }
 
 .ODRFileDatafield {
-    margin-bottom: 4px;
+    margin: 4px;
 }
 
 .ODRFileDatafield_header {
@@ -3169,8 +3197,9 @@ form .row {
     color: white;
     padding: 4px 0 4px 8px;
     font-size: 0.8em;
+    border-radius: 5px 5px 0px 0px;
 }
-.ODRFileDatafield_file {
+.ODRFileDatafield_file, .ODRFileDatafield_empty {
     font-size: 0.8em;
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box; /* 2 */
@@ -3209,6 +3238,13 @@ form .row {
 }
 .ODRFileSpacer_nonpublic {
     background: red none repeat scroll 0 0;
+}
+.ODRFileSpacer_empty {
+    flex: 0 0 auto;
+
+    width: 8px;
+    display: inline-block;
+    cursor: default;
 }
 
 .ODRFileInfoDiv {
@@ -3276,6 +3312,10 @@ form .row {
     display: block;
 }
 
+#login_wrapper {
+    text-align:center;
+    margin-top:10px;
+}
 
 .ODROAuthProviderList {
     text-align: center;
@@ -3289,7 +3329,8 @@ form .row {
 .ODRActiveIcon {
     /*border: 1px solid #00FF00;
     border-radius: 8px; */
-    color: gold;
+    /* color: darkolivegreen; */
+    color: darkseagreen;
 }
 
 /*
@@ -3694,8 +3735,9 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 
-#ODRSearchBoxWrapper {
-    padding-top: 8px;
+.ODRSearchBoxWrapper {
+    padding-top: 8px !important;
+    padding-bottom: 10px !important;
 }
 
 #ODRReturnToSearchResults {
@@ -3715,6 +3757,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 .ODRSearchPageNotes_wrapper {
     box-sizing: border-box;
     padding: 4px 4px 4px 8px;
+    margin-top: 10px;
 }
 
 .ODRSearchPageNotes_wrapper p {
@@ -3745,4 +3788,438 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     width: 75%;
     text-align: left;
     color: #2b2e38;
+}
+
+
+.ODRPluginErrorDiv {
+    margin: 0.5em;
+}
+
+
+#ODRTagPositionForm {
+    display: none;
+}
+
+.ODRTagWrapper_design {
+    text-align: left;
+    color: #555;
+}
+.ODRTagWrapper_design li {
+    list-style-type: none;
+}
+.ODRTagWrapper_design .ODRTagGroup {
+    padding-left: 30px;
+}
+.ODRTagGroupContainer {
+    padding-left: 0px;
+}
+
+.ODRTagWrapper_view {
+    /*max-height: 200px;*/
+    /*overflow-y: scroll;*/
+}
+.ODRTagWrapper_view li {
+    list-style-type: none;
+}
+.ODRTagWrapper_view .ODRTagGroup {
+    padding-left: 15px;
+}
+.ODRTagWrapper_search li {
+    list-style-type: none;
+}
+.ODRTagWrapper_search .ODRTagGroup {
+    padding-left: 15px;
+    margin-top: 0px;
+}
+.ODRTagWrapper_import li {
+    list-style-type: none;
+}
+.ODRTagWrapper_import .ODRTagGroup {
+    padding-left: 15px;
+}
+
+.ODRTagWrapper_edit {
+    /*max-height: 200px;*/
+    /*overflow-y: scroll;*/
+}
+.ODRTagWrapper_edit li {
+    list-style-type: none;
+}
+.ODRTagWrapper_edit .ODRTagGroup {
+    padding-left: 15px;
+}
+
+.ODRTagWrapper_view .ODRTagLabel {
+    cursor: default;
+}
+.ODRTagWrapper_search .ODRTagLabel {
+    cursor: default;
+}
+.ODRTagWrapper_import .ODRTagLabel {
+    cursor: default;
+}
+.ODRTagWrapper_edit .ODRTagLabel {
+    cursor: default;
+}
+.ODRTagSpacer {
+    width: 20px;
+    display: inline-block;
+}
+.ODRTagAnchor, .ODRTagDelete {
+    min-width: 22px;
+    display: inline-block;
+}
+
+.ODRTagItem {
+    /*border: 1px solid transparent;*/
+    /*border-radius: 5px;*/
+    margin: 5px;
+}
+.ODRNeighborTag {
+    border: 1px solid #1c81d0 !important;
+    border-radius: 5px;
+}
+.ODRTagHighlight {
+    -webkit-box-shadow: /*inset*/ 0 0 0 6px rgba(54, 187, 114, 0.40);
+    -moz-box-shadow: /*inset*/ 0 0 0 6px rgba(54, 187, 114, 0.40);
+    box-shadow: /*inset*/ 0 0 0 6px rgba(54, 187, 114, 0.40);
+    border-radius: 3px;
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}
+
+
+#csvexport_form td {
+    padding: 2px 5px;
+}
+.ODRDelimiterField {
+    text-align: center;
+    font-weight: bold;
+}
+.ODRUnselectedDatafield {
+    background-color: #ff0000;
+    opacity: 0.4;
+}
+.ODRSelectedDatafield {
+    background-color: #00ff00;
+    opacity: 0.4;
+}
+
+
+#ODRGroupListHeader {
+    margin-left: 20px;
+    margin-bottom: 10px;
+}
+.ODRDatatypePermissionIcons {
+    position: relative;
+    top: -5px;
+    float: right;
+}
+.fa-ban {
+    color: #e9322d;
+}
+.fa-stack-1x {
+    color: #000000;
+}
+.ODRBlockedDatafield {
+    background-color: #000000;
+    opacity: 0.3;
+}
+.ODRVisibleDatafield {
+    background-color: #00ffff;
+    opacity: 0.2;
+}
+/* .ODREditableDatafield {} */
+
+#ODRTagForm {
+    /*max-height: 700px;*/
+    overflow-y: scroll;
+}
+.ODRTagImport_wrapper {
+    padding-left: 20px;
+    text-align: left;
+}
+.ODRTagImport_header {
+    padding-top: 50px;
+    text-align: center;
+}
+.ODRTagImport_content {
+    height: 500px;
+    overflow-y: scroll;
+    overflow-x: scroll;
+    white-space: nowrap;
+}
+
+#ODRTagMoveHelpDiv {
+    margin-left: 25px;
+    /*vertical-align: middle;*/
+    padding-top: 10px;
+}
+
+.ODRSearchToggle {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    cursor: pointer;
+    color: #999999;
+}
+
+.ODRSearchVisible {
+    max-height: 96vh;
+    overflow: auto;
+    position: sticky;
+    position: -webkit-sticky;
+    position: -moz-sticky;
+    position: -ms-sticky;
+    position: -o-sticky;
+    top: 0;
+}
+.ODRSearchHidden {
+    position: absolute;
+    top: 48px;
+    right: 96vw;
+}
+.ODRSearchHidden > .ODRThemeElement {
+    position: sticky !important;
+    top: 48px;
+}
+.ODRSearchResultsWide {
+    width: 100% !important;
+    -webkit-transition: width 0.3s; /* Safari */
+    transition: width 0.3s;
+}
+@media only screen and (max-width : 740px) {
+    .ODRSearchVisible {
+        position: relative;
+    }
+    .ODRSearchHidden {
+        position: relative !important;
+        right: 0;
+    }
+    .ODRSearchToggle {
+        display: none;
+    }
+}
+
+.ODRShortResults_empty {
+    text-align: center;
+    padding-top: 50px;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.csvimport_header {
+    margin: 10px 10px 10px 0px;
+}
+.csvimport_inline_warning {
+    position: relative;
+    top: -3px;
+}
+
+#csv_import_table {
+    font-size: 1.25em;
+}
+
+#ODRCSVImport_files button.pure-button {
+    margin: 5px;
+}
+
+#ODRFieldHistoryDialogTable {
+    padding-left: 25px;
+    text-align: left;
+    /*overflow: auto;*/
+
+    color: #555;
+    line-height: 1.6;
+}
+
+.ODRLinkHeaderWrapper {
+    margin-top: 25px;
+
+    border: 1px solid #7fb9d8;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    padding-top: 0px;
+    padding-left: 0px;
+    padding-right: 0px;
+    border-radius: 4px;
+    background-color: white;
+}
+.ODRLinkHeader_caret {
+    margin-right: 10px;
+    font-size: 1.5em;
+}
+
+#ODRSearchBoxContent {
+    margin-top: 25px;
+}
+
+.SearchResults_link_box {
+    line-height: 1.1em;
+    margin: 0.5em;
+    font-size: 1.2em;
+}
+#TextResults_current_paginate > a {
+    margin: 5px;
+}
+
+#ODRLinkDetails_wrapper {
+    text-align: left;
+    min-height: 250px;
+}
+.ODRLinkDetailsHeader {
+    color: black;
+    text-align: right;
+    width: 10em;
+    margin-right: 1em;
+}
+.ODRLinkDetailsContent {
+    display: inline-block;
+}
+
+
+.ODRManageGroupsHeader {
+    border-bottom: 1px solid #111111;
+    font-weight: bold;
+    padding: 10px 18px;
+    margin-top: 15px;
+}
+.ODRGrayIcon {
+    opacity: 0.4;
+}
+.ODRGroupListCheckbox {
+    left: 35%;
+    position: relative;
+}
+
+.ODRGroupCheckbox {
+    cursor: pointer;
+}
+.ODRGroupName {
+    margin-left: 10px;
+}
+
+#ODRPageSelectSettings {
+    text-align: left;
+}
+
+#ODRPageSelectForm {
+    text-align: left;
+}
+
+#ODRPageSelect_header {
+    margin-top: 15px;
+    text-align: left;
+}
+
+.CSVExportMessage {
+    color: #3b8bba;
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 52px;
+    opacity: 1;
+    text-align: center;
+}
+
+.JobDownloadLink {
+    font-size: 14px;
+    text-align: center;
+    width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 16px;
+}
+
+#ImportLoadingBlock .ODRProgressBar,
+#LoadingBlock .ODRProgressBar {
+    width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+    border: 2px solid #3b8bba;
+}
+
+.JobStatusWrapper {
+    height: 177px;
+}
+
+.JobComplete {
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: #3b8bba;
+    margin-top: 60px;
+}
+i {
+    position: relative;
+}
+.badge:after{
+    content:"";
+    position: absolute;
+    /* background: #f6ffa8; */
+    background: white;
+    color: #3b8bba;
+    text-align: center;
+    font-size: 12px;
+    line-height: 16px;
+    top: -7px;
+    right: -3px;
+    height:16px;
+    width: 16px;
+    border-radius: 50%;
+    border:1px solid white;
+}
+
+#ODRMessageList {
+    position: fixed;
+    z-index: 1000;
+    top: 40px;
+    right: 10px;
+    width: 400px;
+    height: 400px;
+    overflow-y: scroll;
+    background: white;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border: 1px solid blue;
+    border-radius: 6px;
+    list-style-type: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: #3b8bba;
+}
+
+#ODRMessageList i {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+    color: red;
+}
+
+#ODRMessageList li {
+    position: relative;
+    background: rgba(0,0,255, 0.04);
+    padding: 8px;
+    margin-left: -30px;
+    margin-right: 8px;
+    margin-top: 6px;
+    border-radius: 6px;
+}
+
+#ODRMessageList h3 {
+    color: #3b8bba;
+}
+
+#ODRMessageList .viewed,
+#ODRMessageList .viewed h3 {
+    font-weight: normal;
+    color: black;
+}
+
+#ODRMessageList .JobDownloadLink {
+    position: absolute;
+    top: 25px;
+    right: 10px;
+    width: 137px;
 }

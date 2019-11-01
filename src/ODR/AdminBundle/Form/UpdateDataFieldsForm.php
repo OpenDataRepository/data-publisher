@@ -37,6 +37,7 @@ class UpdateDataFieldsForm extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
         $allowed_fieldtypes = array_values($options['allowed_fieldtypes']);
+        $current_typename = $options['current_typename'];
 
         $builder->add(
             'field_type',
@@ -75,9 +76,17 @@ class UpdateDataFieldsForm extends AbstractType
             )
         );
 */
+        $builder->add(
+            'internal_reference_name',
+            TextType::class,
+            array(
+                'required' => true,
+                'label'  => 'Internal Reference Name',
+            )
+        );
 
         $builder->add(
-            'field_name', 
+            'field_name',
             TextType::class,
             array(
                 'required' => true,
@@ -87,7 +96,7 @@ class UpdateDataFieldsForm extends AbstractType
 
         $builder->add(
             'description', 
-            TextType::class,
+            TextareaType::class,
             array(
                 'required' => true,
                 'label'  => 'Description',
@@ -164,7 +173,6 @@ class UpdateDataFieldsForm extends AbstractType
                 'required' => false
             )
         );
-
         $builder->add(
             'shorten_filename',
             CheckboxType::class,
@@ -173,12 +181,28 @@ class UpdateDataFieldsForm extends AbstractType
                 'required' => false
             )
         );
+        $builder->add(
+            'newFilesArePublic',
+            CheckboxType::class,
+            array(
+                'label'  => 'Uploaded Files default to Public',
+                'required' => false
+            )
+        );
+
+        // Radio options and Tags have slightly different labels for these values
+        $name_sort_label = 'Sort Options Alphabetically';
+        $display_unselected_label = 'Display Unselected Options';
+        if ($current_typename === 'Tags') {
+            $name_sort_label = 'Sort Tags Alphabetically';
+            $display_unselected_label = 'Display Unselected Tags';
+        }
 
         $builder->add(
             'radio_option_name_sort',
             CheckboxType::class,
             array(
-                'label'  => 'Sort Options Alphabetically',
+                'label'  => $name_sort_label,
                 'required' => false
             )
         );
@@ -186,7 +210,7 @@ class UpdateDataFieldsForm extends AbstractType
             'radio_option_display_unselected',
             CheckboxType::class,
             array(
-                'label'  => 'Display Unselected Options',
+                'label'  => $display_unselected_label,
                 'required' => false
             )
         );
@@ -212,6 +236,22 @@ class UpdateDataFieldsForm extends AbstractType
             )
         );
 
+        $builder->add(
+            'tags_allow_multiple_levels',
+            CheckboxType::class,
+            array(
+                'label'  => 'Allow multiple levels of tags',
+                'required' => false
+            )
+        );
+        $builder->add(
+            'tags_allow_non_admin_edit',
+            CheckboxType::class,
+            array(
+                'label'  => 'Non-admins can add/move/delete tags',
+                'required' => false
+            )
+        );
     }
 
 
@@ -247,6 +287,7 @@ class UpdateDataFieldsForm extends AbstractType
         $resolver->setDefaults(array(
             'data_class' => 'ODR\AdminBundle\Entity\DataFieldsMeta',
             'allowed_fieldtypes' => null,
+            'current_typename' => null,
         ));
 
         $resolver->setRequired('allowed_fieldtypes');

@@ -1,16 +1,16 @@
 describe('manualRowMove', () => {
-  var id = 'testContainer';
-  var arrayOfObjects = [
-    {id: 1, name: 'Ted', lastName: 'Right'},
-    {id: 2, name: 'Frank', lastName: 'Honest'},
-    {id: 3, name: 'Joan', lastName: 'Well'},
-    {id: 4, name: 'Sid', lastName: 'Strong'},
-    {id: 5, name: 'Jane', lastName: 'Neat'},
-    {id: 6, name: 'Chuck', lastName: 'Jackson'},
-    {id: 7, name: 'Meg', lastName: 'Jansen'},
-    {id: 8, name: 'Rob', lastName: 'Norris'},
-    {id: 9, name: 'Sean', lastName: 'O\'Hara'},
-    {id: 10, name: 'Eve', lastName: 'Branson'}
+  const id = 'testContainer';
+  const arrayOfObjects = [
+    { id: 1, name: 'Ted', lastName: 'Right' },
+    { id: 2, name: 'Frank', lastName: 'Honest' },
+    { id: 3, name: 'Joan', lastName: 'Well' },
+    { id: 4, name: 'Sid', lastName: 'Strong' },
+    { id: 5, name: 'Jane', lastName: 'Neat' },
+    { id: 6, name: 'Chuck', lastName: 'Jackson' },
+    { id: 7, name: 'Meg', lastName: 'Jansen' },
+    { id: 8, name: 'Rob', lastName: 'Norris' },
+    { id: 9, name: 'Sean', lastName: 'O\'Hara' },
+    { id: 10, name: 'Eve', lastName: 'Branson' }
   ];
 
   beforeEach(function() {
@@ -25,20 +25,20 @@ describe('manualRowMove', () => {
   });
 
   describe('init', () => {
-    it('should change row order at init', function() {
+    it('should change row order at init', () => {
       handsontable({
         data: arrayOfObjects,
         manualRowMove: [1, 2, 0]
       });
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('3');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('1');
     });
   });
 
   describe('updateSettings', () => {
-    it('should be enabled after specifying it in updateSettings config', function() {
+    it('should be enabled after specifying it in updateSettings config', () => {
       handsontable({
         data: arrayOfObjects,
         rowHeaders: true
@@ -48,92 +48,92 @@ describe('manualRowMove', () => {
         manualRowMove: true
       });
 
-      this.$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
-      this.$container.find('tbody tr:eq(0) th:eq(0)').simulate('mouseup');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mouseup');
 
-      expect(this.$container.hasClass('after-selection--rows')).toBeGreaterThan(0);
+      expect(spec().$container.hasClass('after-selection--rows')).toBeGreaterThan(0);
     });
 
-    it('should change the default row order with updateSettings', function() {
+    it('should change the default row order with updateSettings', () => {
       handsontable({
         data: arrayOfObjects,
         manualRowMove: true
       });
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
 
       updateSettings({
         manualRowMove: [2, 1, 0]
       });
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('3');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('1');
     });
 
-    it('should change row order with updateSettings', function() {
+    it('should change row order with updateSettings', () => {
       handsontable({
         data: arrayOfObjects,
         manualRowMove: [1, 2, 0]
       });
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('3');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('1');
 
       updateSettings({
         manualRowMove: [2, 1, 0]
       });
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('3');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('1');
     });
 
-    it('should reset row order with updateSettings when undefined is passed', function() {
+    it('should reset row order with updateSettings when undefined is passed', () => {
       handsontable({
         data: arrayOfObjects,
         manualRowMove: [1, 2, 0]
       });
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('3');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('1');
 
       updateSettings({
         manualRowMove: void 0
       });
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
     });
 
-    it('should not change row order with updateSettings when `true` is passed', function() {
+    it('should not change row order with updateSettings when `true` is passed', () => {
       handsontable({
         data: arrayOfObjects,
         manualRowMove: [1, 2, 0]
       });
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('3');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('1');
 
       updateSettings({
         manualRowMove: true
       });
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('3');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('1');
     });
   });
 
   describe('loadData', () => {
     it('should increase numbers of rows if it is necessary', () => {
-      var hot = handsontable({
+      const hot = handsontable({
         data: Handsontable.helper.createSpreadsheetData(5, 5),
         manualRowMove: true
       });
@@ -144,7 +144,7 @@ describe('manualRowMove', () => {
       expect(hot.getPlugin('manualRowMove').rowsMapper.__arrayMap.length).toEqual(10);
     });
     it('should decrease numbers of rows if it is necessary', () => {
-      var hot = handsontable({
+      const hot = handsontable({
         data: Handsontable.helper.createSpreadsheetData(5, 5),
         manualRowMove: true
       });
@@ -157,106 +157,292 @@ describe('manualRowMove', () => {
   });
 
   describe('moving', () => {
-    it('should move row by API', function() {
-      var hot = handsontable({
+    it('should move row by API', () => {
+      const hot = handsontable({
         data: arrayOfObjects,
         rowHeaders: true,
         manualRowMove: true
       });
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
 
       hot.getPlugin('manualRowMove').moveRow(2, 0);
       hot.render();
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('3');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('1');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('2');
     });
 
-    it('should move many rows by API', function() {
-      var hot = handsontable({
+    it('should move many rows by API', () => {
+      const hot = handsontable({
         data: arrayOfObjects,
         rowHeaders: true,
         manualRowMove: true
       });
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
 
       hot.getPlugin('manualRowMove').moveRows([7, 9, 8], 0);
       hot.render();
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('8');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('10');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('9');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('8');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('10');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('9');
     });
 
-    it('should trigger an beforeRowMove event before row move', function() {
-      var beforeMoveRowCallback = jasmine.createSpy('beforeMoveRowCallback');
+    it('should trigger the `beforeRowMove` hook before row move with visual indexes as parameters', () => {
+      const beforeMoveRowCallback = jasmine.createSpy('beforeMoveRowCallback');
 
-      var hot = handsontable({
+      const hot = handsontable({
         data: arrayOfObjects,
         rowHeaders: true,
         manualRowMove: true,
-        beforeRowMove: beforeMoveRowCallback
+        beforeRowMove: beforeMoveRowCallback,
+        modifyRow(row) {
+          return row + 10;
+        }
       });
-
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
 
       hot.getPlugin('manualRowMove').moveRows([8, 9, 7], 0);
       hot.render();
-
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('9');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('10');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('8');
 
       expect(beforeMoveRowCallback).toHaveBeenCalledWith([8, 9, 7], 0, void 0, void 0, void 0, void 0);
     });
 
-    it('should trigger an afterRowMove event after row move', function() {
-      var afterMoveRowCallback = jasmine.createSpy('afterMoveRowCallback');
+    it('should trigger the `afterRowMove` hook after row move with visual indexes as parameters', () => {
+      const afterMoveRowCallback = jasmine.createSpy('afterMoveRowCallback');
 
-      this.$container.height(150);
-
-      var hot = handsontable({
+      const hot = handsontable({
         data: arrayOfObjects,
         rowHeaders: true,
         manualRowMove: true,
-        afterRowMove: afterMoveRowCallback
+        afterRowMove: afterMoveRowCallback,
+        modifyRow(row) {
+          return row + 10;
+        }
       });
-
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
 
       hot.getPlugin('manualRowMove').moveRows([8, 9, 7], 0);
       hot.render();
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('9');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('10');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('8');
-
       expect(afterMoveRowCallback).toHaveBeenCalledWith([8, 9, 7], 0, void 0, void 0, void 0, void 0);
     });
 
-    it('should move the second row to the first row', function() {
-      var hot = handsontable({
+    it('should run `beforeRowMove` with proper `target` parameter (moving row above first header)', () => {
+      let targetParameterInsideCallback;
+
+      handsontable({
+        data: Handsontable.helper.createSpreadsheetData(30, 30),
+        rowHeaders: true,
+        colHeaders: true,
+        manualRowMove: true,
+        beforeRowMove: (rows, target) => {
+          targetParameterInsideCallback = target;
+        }
+      });
+      const $fistHeader = spec().$container.find('tbody tr:eq(0) th:eq(0)');
+
+      spec().$container.find('tbody tr:eq(1) th:eq(0)').simulate('mousedown');
+      spec().$container.find('tbody tr:eq(1) th:eq(0)').simulate('mouseup');
+      spec().$container.find('tbody tr:eq(1) th:eq(0)').simulate('mousedown');
+
+      $fistHeader.simulate('mouseover');
+      $fistHeader.simulate('mousemove', {
+        clientY: $fistHeader.offset().bottom - $fistHeader.height() - 50
+      });
+      $fistHeader.simulate('mouseup');
+
+      expect(targetParameterInsideCallback).toEqual(0);
+    });
+
+    it('should run `beforeRowMove` with proper `target` parameter (moving row to the top of first header)', () => {
+      let targetParameterInsideCallback;
+
+      handsontable({
+        data: Handsontable.helper.createSpreadsheetData(30, 30),
+        rowHeaders: true,
+        manualRowMove: true,
+        colHeaders: true,
+        beforeRowMove: (rows, target) => {
+          targetParameterInsideCallback = target;
+        }
+      });
+      const $fistHeader = spec().$container.find('tbody tr:eq(0) th:eq(0)');
+
+      spec().$container.find('tbody tr:eq(1) th:eq(0)').simulate('mousedown');
+      spec().$container.find('tbody tr:eq(1) th:eq(0)').simulate('mouseup');
+      spec().$container.find('tbody tr:eq(1) th:eq(0)').simulate('mousedown');
+
+      $fistHeader.simulate('mouseover');
+      $fistHeader.simulate('mousemove', {
+        clientY: $fistHeader.offset().bottom - $fistHeader.height()
+      });
+      $fistHeader.simulate('mouseup');
+
+      expect(targetParameterInsideCallback).toEqual(0);
+    });
+
+    it('should run `beforeRowMove` with proper `target` parameter (moving row to the middle of the table)', () => {
+      let targetParameterInsideCallback;
+
+      handsontable({
+        data: Handsontable.helper.createSpreadsheetData(30, 30),
+        rowHeaders: true,
+        manualRowMove: true,
+        beforeRowMove: (rows, target) => {
+          targetParameterInsideCallback = target;
+        }
+      });
+
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mouseup');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+
+      spec().$container.find('tbody tr:eq(2) th:eq(0)').simulate('mouseover');
+      spec().$container.find('tbody tr:eq(2) th:eq(0)').simulate('mousemove');
+      spec().$container.find('tbody tr:eq(2) th:eq(0)').simulate('mouseup');
+
+      expect(targetParameterInsideCallback).toEqual(2);
+    });
+
+    it('should run `beforeRowMove` with proper `target` parameter (moving row to the top of last header)', () => {
+      let targetParameterInsideCallback;
+
+      handsontable({
+        data: Handsontable.helper.createSpreadsheetData(30, 30),
+        rowHeaders: true,
+        manualRowMove: true,
+        beforeRowMove: (rows, target) => {
+          targetParameterInsideCallback = target;
+        }
+      });
+
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mouseup');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+
+      spec().$container.find('tbody tr:eq(29) th:eq(0)').simulate('mouseover');
+      spec().$container.find('tbody tr:eq(29) th:eq(0)').simulate('mousemove');
+      spec().$container.find('tbody tr:eq(29) th:eq(0)').simulate('mouseup');
+
+      expect(targetParameterInsideCallback).toEqual(29);
+    });
+
+    it('should run `beforeRowMove` with proper `target` parameter (moving row to the bottom of last header)', () => {
+      let targetParameterInsideCallback;
+
+      handsontable({
+        data: Handsontable.helper.createSpreadsheetData(30, 30),
+        rowHeaders: true,
+        manualRowMove: true,
+        beforeRowMove: (rows, target) => {
+          targetParameterInsideCallback = target;
+        }
+      });
+      const $lastHeader = spec().$container.find('tbody tr:eq(29) th:eq(0)');
+
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mouseup');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+
+      $lastHeader.simulate('mouseover');
+      $lastHeader.simulate('mousemove', {
+        clientY: $lastHeader.offset().top + $lastHeader.height()
+      });
+      $lastHeader.simulate('mouseup');
+
+      expect(targetParameterInsideCallback).toEqual(30);
+    });
+
+    it('should run `beforeRowMove` with proper `target` parameter (moving row below last header)', () => {
+      let targetParameterInsideCallback;
+
+      handsontable({
+        data: Handsontable.helper.createSpreadsheetData(30, 30),
+        rowHeaders: true,
+        manualRowMove: true,
+        beforeRowMove: (rows, target) => {
+          targetParameterInsideCallback = target;
+        }
+      });
+      const $lastHeader = spec().$container.find('tbody tr:eq(29) th:eq(0)');
+
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mouseup');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+
+      $lastHeader.simulate('mouseover');
+      $lastHeader.simulate('mousemove', {
+        clientY: $lastHeader.offset().top + $lastHeader.height() + 200
+      });
+      $lastHeader.simulate('mouseup');
+
+      expect(targetParameterInsideCallback).toEqual(30);
+    });
+
+    it('should run `beforeRowMove` with proper visual `target` parameter', () => {
+      let targetParameterInsideCallback;
+
+      handsontable({
+        data: Handsontable.helper.createSpreadsheetData(30, 30),
+        rowHeaders: true,
+        manualRowMove: [1, 2, 0],
+        beforeRowMove: (rows, target) => {
+          targetParameterInsideCallback = target;
+        }
+      });
+
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mouseup');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+
+      spec().$container.find('tbody tr:eq(2) th:eq(0)').simulate('mouseover');
+      spec().$container.find('tbody tr:eq(2) th:eq(0)').simulate('mousemove');
+      spec().$container.find('tbody tr:eq(2) th:eq(0)').simulate('mouseup');
+
+      expect(targetParameterInsideCallback).toEqual(2);
+    });
+
+    it('should run `afterRowMove` with proper visual `target` parameter', () => {
+      let targetParameterInsideCallback;
+
+      handsontable({
+        data: Handsontable.helper.createSpreadsheetData(30, 30),
+        rowHeaders: true,
+        manualRowMove: [1, 2, 0],
+        afterRowMove: (rows, target) => {
+          targetParameterInsideCallback = target;
+        }
+      });
+
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mouseup');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+
+      spec().$container.find('tbody tr:eq(2) th:eq(0)').simulate('mouseover');
+      spec().$container.find('tbody tr:eq(2) th:eq(0)').simulate('mousemove');
+      spec().$container.find('tbody tr:eq(2) th:eq(0)').simulate('mouseup');
+
+      expect(targetParameterInsideCallback).toEqual(2);
+    });
+
+    it('should move the second row to the first row', () => {
+      handsontable({
         data: arrayOfObjects,
         rowHeaders: true,
         manualRowMove: true
       });
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
 
-      var $rowsHeaders = this.$container.find('.ht_clone_left tr th');
+      const $rowsHeaders = spec().$container.find('.ht_clone_left tr th');
 
       $rowsHeaders.eq(1).simulate('mousedown');
       $rowsHeaders.eq(1).simulate('mouseup');
@@ -265,23 +451,23 @@ describe('manualRowMove', () => {
       $rowsHeaders.eq(0).simulate('mousemove');
       $rowsHeaders.eq(0).simulate('mouseup');
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('1');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
     });
 
-    it('should move the second row to the third row', function() {
+    it('should move the second row to the third row', () => {
       handsontable({
         data: arrayOfObjects,
         rowHeaders: true,
         manualRowMove: true
       });
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('3');
 
-      var $rowsHeaders = this.$container.find('.ht_clone_left tr th');
+      const $rowsHeaders = spec().$container.find('.ht_clone_left tr th');
 
       $rowsHeaders.eq(1).simulate('mousedown');
       $rowsHeaders.eq(1).simulate('mouseup');
@@ -290,24 +476,24 @@ describe('manualRowMove', () => {
       $rowsHeaders.eq(3).simulate('mousemove');
       $rowsHeaders.eq(3).simulate('mouseup');
 
-      expect(this.$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
-      expect(this.$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('3');
-      expect(this.$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('2');
+      expect(spec().$container.find('tbody tr:eq(0) td:eq(0)').text()).toEqual('1');
+      expect(spec().$container.find('tbody tr:eq(1) td:eq(0)').text()).toEqual('3');
+      expect(spec().$container.find('tbody tr:eq(2) td:eq(0)').text()).toEqual('2');
     });
 
-    it('should not move row if it\'s not needed', function() {
-      var cache = [];
+    it('should not move row if it\'s not needed', () => {
+      const cache = [];
 
       handsontable({
         data: arrayOfObjects,
         rowHeaders: true,
         manualRowMove: true,
-        afterRowMove(rows, target) {
+        afterRowMove(rows) {
           cache.push(rows);
         }
       });
 
-      var $rowsHeaders = this.$container.find('.ht_clone_left tr th');
+      const $rowsHeaders = spec().$container.find('.ht_clone_left tr th');
 
       $rowsHeaders.eq(1).simulate('mousedown');
       $rowsHeaders.eq(1).simulate('mouseup');
@@ -318,7 +504,7 @@ describe('manualRowMove', () => {
     });
 
     it('should properly scrolling viewport if mouse is over part-visible cell', (done) => {
-      var hot = handsontable({
+      const hot = handsontable({
         data: Handsontable.helper.createSpreadsheetData(20, 20),
         colHeaders: true,
         rowHeaders: true,
@@ -328,14 +514,12 @@ describe('manualRowMove', () => {
         rowHeights: 47
       });
 
-      var ev = {};
-
       hot.selectCell(19, 0);
 
       setTimeout(() => {
         expect(hot.view.wt.wtTable.getFirstVisibleRow()).toBeGreaterThan(8);
 
-        var $rowsHeaders = spec().$container.find('.ht_clone_left tr th');
+        const $rowsHeaders = spec().$container.find('.ht_clone_left tr th');
 
         $rowsHeaders.eq(10).simulate('mousedown');
         $rowsHeaders.eq(10).simulate('mouseup');
@@ -352,18 +536,18 @@ describe('manualRowMove', () => {
     });
 
     it('moving row should keep cell meta created using cells function', () => {
-      var hot = handsontable({
+      const hot = handsontable({
         data: arrayOfObjects,
         rowHeaders: true,
         manualRowMove: true,
         cells(row, col) {
-          if (row == 1 && col == 0) {
+          if (row === 1 && col === 0) {
             this.readOnly = true;
           }
         }
       });
 
-      var htCore = getHtCore();
+      const htCore = getHtCore();
 
       expect(htCore.find('tbody tr:eq(1) td:eq(0)')[0].className.indexOf('htDimmed')).toBeGreaterThan(-1);
 
@@ -374,16 +558,16 @@ describe('manualRowMove', () => {
     });
 
     it('moving row should keep cell meta created using cell array', () => {
-      var hot = handsontable({
+      const hot = handsontable({
         data: arrayOfObjects,
         rowHeaders: true,
         manualRowMove: true,
         cell: [
-          {row: 1, col: 0, readOnly: true}
+          { row: 1, col: 0, readOnly: true }
         ]
       });
 
-      var htCore = getHtCore();
+      const htCore = getHtCore();
 
       expect(htCore.find('tbody tr:eq(1) td:eq(0)')[0].className.indexOf('htDimmed')).toBeGreaterThan(-1);
 
@@ -394,9 +578,68 @@ describe('manualRowMove', () => {
     });
   });
 
+  describe('callbacks', () => {
+    it('should run `beforeRowMove` and `afterRowMove` with proper visual `target` parameter', () => {
+      let targetParameterInsideBeforeRowMoveCallback;
+      let targetParameterInsideAfterRowMoveCallback;
+
+      handsontable({
+        data: Handsontable.helper.createSpreadsheetData(3, 3),
+        rowHeaders: true,
+        manualRowMove: true,
+        beforeRowMove: (rows, target) => {
+          targetParameterInsideBeforeRowMoveCallback = target;
+        },
+        afterRowMove: (rows, target) => {
+          targetParameterInsideAfterRowMoveCallback = target;
+        }
+      });
+
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mouseup');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+      spec().$container.find('tbody tr:eq(0) th:eq(0)').simulate('mousedown');
+
+      spec().$container.find('tbody tr:eq(2) th:eq(0)').simulate('mouseover');
+      spec().$container.find('tbody tr:eq(2) th:eq(0)').simulate('mousemove');
+      spec().$container.find('tbody tr:eq(2) th:eq(0)').simulate('mouseup');
+
+      expect(targetParameterInsideBeforeRowMoveCallback).toEqual(2);
+      expect(targetParameterInsideAfterRowMoveCallback).toEqual(2);
+    });
+
+    it('should run `beforeRowMove` and `afterRowMove` with proper visual `rows` parameter', () => {
+      let rowsParameterInsideBeforeRowMoveCallback;
+      let rowsParameterInsideAfterRowMoveCallback;
+
+      const hot = handsontable({
+        data: Handsontable.helper.createSpreadsheetData(10, 10),
+        rowHeaders: true,
+        manualRowMove: true,
+        beforeRowMove: (rows) => {
+          rowsParameterInsideBeforeRowMoveCallback = rows;
+        },
+        afterRowMove: (rows) => {
+          rowsParameterInsideAfterRowMoveCallback = rows;
+        }
+      });
+
+      hot.getPlugin('manualRowMove').moveRow(2, 0);
+
+      expect(rowsParameterInsideBeforeRowMoveCallback).toEqual([2]);
+      expect(rowsParameterInsideAfterRowMoveCallback).toEqual([2]);
+      expect(rowsParameterInsideBeforeRowMoveCallback).toEqual(rowsParameterInsideAfterRowMoveCallback);
+
+      hot.getPlugin('manualRowMove').moveRow(2, 0);
+
+      expect(rowsParameterInsideBeforeRowMoveCallback).toEqual([2]);
+      expect(rowsParameterInsideAfterRowMoveCallback).toEqual([2]);
+      expect(rowsParameterInsideBeforeRowMoveCallback).toEqual(rowsParameterInsideAfterRowMoveCallback);
+    });
+  });
+
   describe('undoRedo', () => {
     it('should back changes', () => {
-      var hot = handsontable({
+      const hot = handsontable({
         data: Handsontable.helper.createSpreadsheetData(10, 10),
         rowHeaders: true,
         manualRowMove: true,
@@ -412,7 +655,7 @@ describe('manualRowMove', () => {
     });
 
     it('should revert changes', () => {
-      var hot = handsontable({
+      const hot = handsontable({
         data: Handsontable.helper.createSpreadsheetData(10, 10),
         rowHeaders: true,
         manualRowMove: true,

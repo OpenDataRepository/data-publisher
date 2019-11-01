@@ -32,6 +32,7 @@ use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -66,6 +67,9 @@ class XSDController extends ODRCustomController
             $dti_service = $this->container->get('odr.datatype_info_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var ThemeInfoService $theme_service */
+            $theme_service = $this->container->get('odr.theme_info_service');
+
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -78,10 +82,8 @@ class XSDController extends ODRCustomController
             if ( !in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('Unable to generate an XML Schema Document for a Datatype that is not top level');
 
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-            if ($theme == null)
-                throw new ODRNotFoundException('Theme');
+            $theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
+
 
             // ----------------------------------------
             // Determine user privileges
@@ -134,12 +136,13 @@ class XSDController extends ODRCustomController
 
         /** @var PermissionsManagementService $pm_service */
         $pm_service = $this->container->get('odr.permissions_management_service');
+        /** @var ThemeInfoService $theme_service */
+        $theme_service = $this->container->get('odr.theme_info_service');
 
-        // All of these should already exist
+        // These should already exist
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-        /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy(array('dataType' => $datatype->getId(), 'themeType' => 'master'));
+        $theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
 
         $redis = $this->container->get('snc_redis.default');;
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);

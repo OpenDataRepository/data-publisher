@@ -111,6 +111,14 @@ ODR\AdminBundle\Entity\DataRecordFields:
             fetch: LAZY
             orphanRemoval: false
 
+        tagSelection:
+            targetEntity: TagSelection
+            cascade: {  }
+            mappedBy: dataRecordFields
+            inversedBy: null
+            fetch: LAZY
+            orphanRemoval: false
+
     manyToOne:
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User

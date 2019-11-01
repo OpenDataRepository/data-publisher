@@ -25,8 +25,9 @@ class TopLeftCornerOverlay extends Overlay {
    * @returns {Boolean}
    */
   shouldBeRendered() {
-    return !!((this.wot.getSetting('fixedRowsTop') || this.wot.getSetting('columnHeaders').length) &&
-        (this.wot.getSetting('fixedColumnsLeft') || this.wot.getSetting('rowHeaders').length));
+    const { wot } = this;
+    return !!((wot.getSetting('fixedRowsTop') || wot.getSetting('columnHeaders').length) &&
+        (wot.getSetting('fixedColumnsLeft') || wot.getSetting('rowHeaders').length));
   }
 
   /**
@@ -39,17 +40,15 @@ class TopLeftCornerOverlay extends Overlay {
       // removed from DOM
       return;
     }
-    let overlayRoot = this.clone.wtTable.holder.parentNode;
-    let tableHeight = outerHeight(this.clone.wtTable.TABLE);
-    let tableWidth = outerWidth(this.clone.wtTable.TABLE);
-    let preventOverflow = this.wot.getSetting('preventOverflow');
+    const overlayRoot = this.clone.wtTable.holder.parentNode;
+    const preventOverflow = this.wot.getSetting('preventOverflow');
 
-    if (this.trimmingContainer === window) {
-      let box = this.wot.wtTable.hider.getBoundingClientRect();
-      let top = Math.ceil(box.top);
-      let left = Math.ceil(box.left);
-      let bottom = Math.ceil(box.bottom);
-      let right = Math.ceil(box.right);
+    if (this.trimmingContainer === this.wot.rootWindow) {
+      const box = this.wot.wtTable.hider.getBoundingClientRect();
+      const top = Math.ceil(box.top);
+      const left = Math.ceil(box.left);
+      const bottom = Math.ceil(box.bottom);
+      const right = Math.ceil(box.right);
       let finalLeft = '0';
       let finalTop = '0';
 
@@ -68,6 +67,14 @@ class TopLeftCornerOverlay extends Overlay {
     } else {
       resetCssTransform(overlayRoot);
     }
+
+    let tableHeight = outerHeight(this.clone.wtTable.TABLE);
+    const tableWidth = outerWidth(this.clone.wtTable.TABLE);
+
+    if (!this.wot.wtTable.hasDefinedSize()) {
+      tableHeight = 0;
+    }
+
     overlayRoot.style.height = `${tableHeight === 0 ? tableHeight : tableHeight + 4}px`;
     overlayRoot.style.width = `${tableWidth === 0 ? tableWidth : tableWidth + 4}px`;
   }

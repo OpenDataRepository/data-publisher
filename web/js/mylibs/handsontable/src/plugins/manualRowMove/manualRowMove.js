@@ -1,14 +1,13 @@
-import BasePlugin from './../_base.js';
+import BasePlugin from './../_base';
 import Hooks from './../../pluginHooks';
-import {arrayEach} from './../../helpers/array';
-import {addClass, removeClass, offset} from './../../helpers/dom/element';
-import {rangeEach} from './../../helpers/number';
+import { arrayEach } from './../../helpers/array';
+import { addClass, removeClass, offset } from './../../helpers/dom/element';
+import { rangeEach } from './../../helpers/number';
 import EventManager from './../../eventManager';
-import {registerPlugin} from './../../plugins';
+import { registerPlugin } from './../../plugins';
 import RowsMapper from './rowsMapper';
 import BacklightUI from './ui/backlight';
 import GuidelineUI from './ui/guideline';
-import {CellCoords} from './../../3rdparty/walkontable/src';
 
 import './manualRowMove.css';
 
@@ -26,7 +25,8 @@ const CSS_AFTER_SELECTION = 'after-selection--rows';
  * @plugin ManualRowMove
  *
  * @description
- * This plugin allows to change rows order.
+ * This plugin allows to change rows order. To make rows order persistent the {@link Options#persistentState}
+ * plugin should be enabled.
  *
  * API:
  * - moveRow - move single row to the new position.
@@ -34,7 +34,7 @@ const CSS_AFTER_SELECTION = 'after-selection--rows';
  *
  * If you want apply visual changes, you have to call manually the render() method on the instance of handsontable.
  *
- * UI components:
+ * The plugin creates additional components to make moving possibly using user interface:
  * - backlight - highlight of selected rows.
  * - guideline - line which shows where rows has been moved.
  *
@@ -63,37 +63,43 @@ class ManualRowMove extends BasePlugin {
     /**
      * List of last removed row indexes.
      *
+     * @private
      * @type {Array}
      */
     this.removedRows = [];
     /**
      * Object containing visual row indexes mapped to data source indexes.
      *
+     * @private
      * @type {RowsMapper}
      */
     this.rowsMapper = new RowsMapper(this);
     /**
      * Event Manager object.
      *
+     * @private
      * @type {Object}
      */
     this.eventManager = new EventManager(this);
     /**
      * Backlight UI object.
      *
+     * @private
      * @type {Object}
      */
     this.backlight = new BacklightUI(hotInstance);
     /**
      * Guideline UI object.
      *
+     * @private
      * @type {Object}
      */
     this.guideline = new GuidelineUI(hotInstance);
   }
 
   /**
-   * Check if plugin is enabled.
+   * Checks if the plugin is enabled in the handsontable settings. This method is executed in {@link Hooks#beforeInit}
+   * hook and if it returns `true` than the {@link ManualRowMove#enablePlugin} method is called.
    *
    * @returns {Boolean}
    */
@@ -102,7 +108,7 @@ class ManualRowMove extends BasePlugin {
   }
 
   /**
-   * Enable the plugin.
+   * Enables the plugin functionality for this Handsontable instance.
    */
   enablePlugin() {
     if (this.enabled) {
@@ -114,11 +120,11 @@ class ManualRowMove extends BasePlugin {
     this.addHook('afterScrollHorizontally', () => this.onAfterScrollHorizontally());
     this.addHook('modifyRow', (row, source) => this.onModifyRow(row, source));
     this.addHook('beforeRemoveRow', (index, amount) => this.onBeforeRemoveRow(index, amount));
-    this.addHook('afterRemoveRow', (index, amount) => this.onAfterRemoveRow(index, amount));
+    this.addHook('afterRemoveRow', () => this.onAfterRemoveRow());
     this.addHook('afterCreateRow', (index, amount) => this.onAfterCreateRow(index, amount));
-    this.addHook('afterLoadData', (firstTime) => this.onAfterLoadData(firstTime));
+    this.addHook('afterLoadData', () => this.onAfterLoadData());
     this.addHook('beforeColumnSort', (column, order) => this.onBeforeColumnSort(column, order));
-    this.addHook('unmodifyRow', (row) => this.onUnmodifyRow(row));
+    this.addHook('unmodifyRow', row => this.onUnmodifyRow(row));
 
     this.registerEvents();
 
@@ -129,7 +135,7 @@ class ManualRowMove extends BasePlugin {
   }
 
   /**
-   * Updates the plugin to use the latest options you have specified.
+   * Updates the plugin state. This method is executed when {@link Core#updateSettings} is invoked.
    */
   updatePlugin() {
     this.disablePlugin();
@@ -141,10 +147,10 @@ class ManualRowMove extends BasePlugin {
   }
 
   /**
-   * Disable plugin for this Handsontable instance.
+   * Disables the plugin functionality for this Handsontable instance.
    */
   disablePlugin() {
-    let pluginSettings = this.hot.getSettings().manualRowMove;
+    const pluginSettings = this.hot.getSettings().manualRowMove;
 
     if (Array.isArray(pluginSettings)) {
       this.rowsMapper.clearMap();
@@ -160,36 +166,41 @@ class ManualRowMove extends BasePlugin {
   }
 
   /**
-   * Move a single row.
+   * Moves a single row.
    *
    * @param {Number} row Visual row index to be moved.
    * @param {Number} target Visual row index being a target for the moved row.
+   * @fires Hooks#beforeRowMove
+   * @fires Hooks#afterRowMove
    */
   moveRow(row, target) {
     this.moveRows([row], target);
   }
 
   /**
-   * Move multiple rows.
+   * Moves a multiple rows.
    *
    * @param {Array} rows Array of visual row indexes to be moved.
    * @param {Number} target Visual row index being a target for the moved rows.
+   * @fires Hooks#beforeRowMove
+   * @fires Hooks#afterRowMove
    */
   moveRows(rows, target) {
-    let priv = privatePool.get(this);
-    let beforeMoveHook = this.hot.runHooks('beforeRowMove', rows, target);
+    const visualRows = [...rows];
+    const priv = privatePool.get(this);
+    const beforeMoveHook = this.hot.runHooks('beforeRowMove', visualRows, target);
 
     priv.disallowMoving = beforeMoveHook === false;
 
     if (!priv.disallowMoving) {
-      // first we need to rewrite an visual indexes to logical for save reference after move
+      // first we need to rewrite an visual indexes to physical for save reference after move
       arrayEach(rows, (row, index, array) => {
         array[index] = this.rowsMapper.getValueByIndex(row);
       });
 
-      // next, when we have got an logical indexes, we can move rows
+      // next, when we have got an physical indexes, we can move rows
       arrayEach(rows, (row, index) => {
-        let actualPosition = this.rowsMapper.getIndexByValue(row);
+        const actualPosition = this.rowsMapper.getIndexByValue(row);
 
         if (actualPosition !== target) {
           this.rowsMapper.moveRow(actualPosition, target + index);
@@ -200,7 +211,7 @@ class ManualRowMove extends BasePlugin {
       this.rowsMapper.clearNull();
     }
 
-    this.hot.runHooks('afterRowMove', rows, target);
+    this.hot.runHooks('afterRowMove', visualRows, target);
   }
 
   /**
@@ -212,15 +223,11 @@ class ManualRowMove extends BasePlugin {
    * @param {Number} endRow Visual row index for the end of the selection.
    */
   changeSelection(startRow, endRow) {
-    let selection = this.hot.selection;
-    let lastColIndex = this.hot.countCols() - 1;
-
-    selection.setRangeStartOnly(new CellCoords(startRow, 0));
-    selection.setRangeEnd(new CellCoords(endRow, lastColIndex), false);
+    this.hot.selectRows(startRow, endRow);
   }
 
   /**
-   * Get the sum of the heights of rows in the provided range.
+   * Gets the sum of the heights of rows in the provided range.
    *
    * @private
    * @param {Number} from Visual row index.
@@ -231,7 +238,7 @@ class ManualRowMove extends BasePlugin {
     let height = 0;
 
     for (let i = from; i < to; i++) {
-      let rowHeight = this.hot.view.wt.wtTable.getRowHeight(i) || 23;
+      const rowHeight = this.hot.view.wt.wtTable.getRowHeight(i) || 23;
 
       height += rowHeight;
     }
@@ -240,18 +247,18 @@ class ManualRowMove extends BasePlugin {
   }
 
   /**
-   * Load initial settings when persistent state is saved or when plugin was initialized as an array.
+   * Loads initial settings when persistent state is saved or when plugin was initialized as an array.
    *
    * @private
    */
   initialSettings() {
-    let pluginSettings = this.hot.getSettings().manualRowMove;
+    const pluginSettings = this.hot.getSettings().manualRowMove;
 
     if (Array.isArray(pluginSettings)) {
       this.moveRows(pluginSettings, 0);
 
     } else if (pluginSettings !== void 0) {
-      let persistentState = this.persistentStateLoad();
+      const persistentState = this.persistentStateLoad();
 
       if (persistentState.length) {
         this.moveRows(persistentState, 0);
@@ -260,7 +267,7 @@ class ManualRowMove extends BasePlugin {
   }
 
   /**
-   * Check if the provided row is in the fixedRowsTop section.
+   * Checks if the provided row is in the fixedRowsTop section.
    *
    * @private
    * @param {Number} row Visual row index to check.
@@ -271,7 +278,7 @@ class ManualRowMove extends BasePlugin {
   }
 
   /**
-   * Check if the provided row is in the fixedRowsBottom section.
+   * Checks if the provided row is in the fixedRowsBottom section.
    *
    * @private
    * @param {Number} row Visual row index to check.
@@ -282,22 +289,25 @@ class ManualRowMove extends BasePlugin {
   }
 
   /**
-   * Save the manual row positions to the persistent state.
+   * Saves the manual row positions to the persistent state (the {@link Options#persistentState} option has to be enabled).
    *
-   * @private
+   * @fires Hooks#persistentStateSave
+   * @fires Hooks#manualRowMove
    */
   persistentStateSave() {
     this.hot.runHooks('persistentStateSave', 'manualRowMove', this.rowsMapper._arrayMap);
   }
 
   /**
-   * Load the manual row positions from the persistent state.
+   * Loads the manual row positions from the persistent state (the {@link Options#persistentState} option has to be enabled).
    *
-   * @private
    * @returns {Array} Stored state.
+   *
+   * @fires Hooks#persistentStateLoad
+   * @fires Hooks#manualRowMove
    */
   persistentStateLoad() {
-    let storedState = {};
+    const storedState = {};
 
     this.hot.runHooks('persistentStateLoad', 'manualRowMove', storedState);
 
@@ -311,16 +321,16 @@ class ManualRowMove extends BasePlugin {
    * @returns {Array}
    */
   prepareRowsToMoving() {
-    let selection = this.hot.getSelectedRange();
-    let selectedRows = [];
+    const selection = this.hot.getSelectedRangeLast();
+    const selectedRows = [];
 
     if (!selection) {
       return selectedRows;
     }
 
-    let {from, to} = selection;
-    let start = Math.min(from.row, to.row);
-    let end = Math.max(from.row, to.row);
+    const { from, to } = selection;
+    const start = Math.min(from.row, to.row);
+    const end = Math.max(from.row, to.row);
 
     rangeEach(start, end, (i) => {
       selectedRows.push(i);
@@ -335,12 +345,12 @@ class ManualRowMove extends BasePlugin {
    * @private
    */
   refreshPositions() {
-    let priv = privatePool.get(this);
-    let coords = priv.target.coords;
-    let firstVisible = this.hot.view.wt.wtTable.getFirstVisibleRow();
-    let lastVisible = this.hot.view.wt.wtTable.getLastVisibleRow();
-    let fixedRows = this.hot.getSettings().fixedRowsTop;
-    let countRows = this.hot.countRows();
+    const priv = privatePool.get(this);
+    const coords = priv.target.coords;
+    const firstVisible = this.hot.view.wt.wtTable.getFirstVisibleRow();
+    const lastVisible = this.hot.view.wt.wtTable.getLastVisibleRow();
+    const fixedRows = this.hot.getSettings().fixedRowsTop;
+    const countRows = this.hot.countRows();
 
     if (coords.row < fixedRows && firstVisible > 0) {
       this.hot.scrollViewportTo(firstVisible - 1);
@@ -349,19 +359,15 @@ class ManualRowMove extends BasePlugin {
       this.hot.scrollViewportTo(lastVisible + 1, undefined, true);
     }
 
-    let wtTable = this.hot.view.wt.wtTable;
-    let TD = priv.target.TD;
-    let rootElementOffset = offset(this.hot.rootElement);
+    const wtTable = this.hot.view.wt.wtTable;
+    const TD = priv.target.TD;
+    const rootElementOffset = offset(this.hot.rootElement);
     let tdOffsetTop = this.hot.view.THEAD.offsetHeight + this.getRowsHeight(0, coords.row);
-    let mouseOffsetTop = priv.target.eventPageY - rootElementOffset.top + wtTable.holder.scrollTop;
-    let hiderHeight = wtTable.hider.offsetHeight;
-    let tbodyOffsetTop = wtTable.TBODY.offsetTop;
-    let backlightElemMarginTop = this.backlight.getOffset().top;
-    let backlightElemHeight = this.backlight.getSize().height;
-
-    if ((rootElementOffset.top + wtTable.holder.offsetHeight) < priv.target.eventPageY) {
-      priv.target.coords.row++;
-    }
+    const mouseOffsetTop = priv.target.eventPageY - rootElementOffset.top + wtTable.holder.scrollTop;
+    const hiderHeight = wtTable.hider.offsetHeight;
+    const tbodyOffsetTop = wtTable.TBODY.offsetTop;
+    const backlightElemMarginTop = this.backlight.getOffset().top;
+    const backlightElemHeight = this.backlight.getSize().height;
 
     if (this.isFixedRowTop(coords.row)) {
       tdOffsetTop += wtTable.holder.scrollTop;
@@ -375,7 +381,6 @@ class ManualRowMove extends BasePlugin {
     if (coords.row < 0) {
       // if hover on colHeader
       priv.target.row = firstVisible > 0 ? firstVisible - 1 : firstVisible;
-
     } else if ((TD.offsetHeight / 2) + tdOffsetTop <= mouseOffsetTop) {
       // if hover on lower part of TD
       priv.target.row = coords.row + 1;
@@ -423,22 +428,22 @@ class ManualRowMove extends BasePlugin {
    * @private
    */
   updateRowsMapper() {
-    let countRows = this.hot.countSourceRows();
-    let rowsMapperLen = this.rowsMapper._arrayMap.length;
+    const countRows = this.hot.countSourceRows();
+    const rowsMapperLen = this.rowsMapper._arrayMap.length;
 
     if (rowsMapperLen === 0) {
       this.rowsMapper.createMap(countRows || this.hot.getSettings().startRows);
 
     } else if (rowsMapperLen < countRows) {
-      let diff = countRows - rowsMapperLen;
+      const diff = countRows - rowsMapperLen;
 
       this.rowsMapper.insertItems(rowsMapperLen, diff);
 
     } else if (rowsMapperLen > countRows) {
-      let maxIndex = countRows - 1;
-      let rowsToRemove = [];
+      const maxIndex = countRows - 1;
+      const rowsToRemove = [];
 
-      arrayEach(this.rowsMapper._arrayMap, (value, index, array) => {
+      arrayEach(this.rowsMapper._arrayMap, (value, index) => {
         if (value > maxIndex) {
           rowsToRemove.push(index);
         }
@@ -449,17 +454,19 @@ class ManualRowMove extends BasePlugin {
   }
 
   /**
-   * Bind the events used by the plugin.
+   * Binds the events used by the plugin.
    *
    * @private
    */
   registerEvents() {
-    this.eventManager.addEventListener(document.documentElement, 'mousemove', (event) => this.onMouseMove(event));
-    this.eventManager.addEventListener(document.documentElement, 'mouseup', () => this.onMouseUp());
+    const { documentElement } = this.hot.rootDocument;
+
+    this.eventManager.addEventListener(documentElement, 'mousemove', event => this.onMouseMove(event));
+    this.eventManager.addEventListener(documentElement, 'mouseup', () => this.onMouseUp());
   }
 
   /**
-   * Unbind the events used by the plugin.
+   * Unbinds the events used by the plugin.
    *
    * @private
    */
@@ -475,25 +482,25 @@ class ManualRowMove extends BasePlugin {
    * @param {*} order State of sorting. ASC/DESC/None
    */
   onBeforeColumnSort(column, order) {
-    let priv = privatePool.get(this);
+    const priv = privatePool.get(this);
 
     priv.disallowMoving = order !== void 0;
   }
 
   /**
-   * Change the behavior of selection / dragging.
+   * Changes the behavior of selection / dragging.
    *
    * @private
    * @param {MouseEvent} event
-   * @param {CellCoords} coords
+   * @param {CellCoords} coords Visual coordinates.
    * @param {HTMLElement} TD
    * @param {Object} blockCalculations
    */
   onBeforeOnCellMouseDown(event, coords, TD, blockCalculations) {
-    let wtTable = this.hot.view.wt.wtTable;
-    let isHeaderSelection = this.hot.selection.selectedHeader.rows;
-    let selection = this.hot.getSelectedRange();
-    let priv = privatePool.get(this);
+    const { wtTable, wtViewport } = this.hot.view.wt;
+    const isHeaderSelection = this.hot.selection.isSelectedByRowHeader();
+    const selection = this.hot.getSelectedRangeLast();
+    const priv = privatePool.get(this);
 
     if (!selection || !isHeaderSelection || priv.pressed || event.button !== 0) {
       priv.pressed = false;
@@ -502,17 +509,17 @@ class ManualRowMove extends BasePlugin {
       return;
     }
 
-    let guidelineIsNotReady = this.guideline.isBuilt() && !this.guideline.isAppended();
-    let backlightIsNotReady = this.backlight.isBuilt() && !this.backlight.isAppended();
+    const guidelineIsNotReady = this.guideline.isBuilt() && !this.guideline.isAppended();
+    const backlightIsNotReady = this.backlight.isBuilt() && !this.backlight.isAppended();
 
     if (guidelineIsNotReady && backlightIsNotReady) {
       this.guideline.appendTo(wtTable.hider);
       this.backlight.appendTo(wtTable.hider);
     }
 
-    let {from, to} = selection;
-    let start = Math.min(from.row, to.row);
-    let end = Math.max(from.row, to.row);
+    const { from, to } = selection;
+    const start = Math.min(from.row, to.row);
+    const end = Math.max(from.row, to.row);
 
     if (coords.col < 0 && (coords.row >= start && coords.row <= end)) {
       blockCalculations.row = true;
@@ -522,7 +529,7 @@ class ManualRowMove extends BasePlugin {
       priv.target.TD = TD;
       priv.rowsToMove = this.prepareRowsToMoving();
 
-      let leftPos = wtTable.holder.scrollLeft + wtTable.getColumnWidth(-1);
+      const leftPos = wtTable.holder.scrollLeft + wtViewport.getRowHeaderWidth();
 
       this.backlight.setPosition(null, leftPos);
       this.backlight.setSize(wtTable.hider.offsetWidth - leftPos, this.getRowsHeight(start, end + 1));
@@ -546,7 +553,7 @@ class ManualRowMove extends BasePlugin {
    * @param {MouseEvent} event `mousemove` event properties.
    */
   onMouseMove(event) {
-    let priv = privatePool.get(this);
+    const priv = privatePool.get(this);
 
     if (!priv.pressed) {
       return;
@@ -554,7 +561,7 @@ class ManualRowMove extends BasePlugin {
 
     // callback for browser which doesn't supports CSS pointer-event: none
     if (event.realTarget === this.backlight.element) {
-      let height = this.backlight.getSize().height;
+      const height = this.backlight.getSize().height;
       this.backlight.setSize(null, 0);
 
       setTimeout(function() {
@@ -571,13 +578,13 @@ class ManualRowMove extends BasePlugin {
    *
    * @private
    * @param {MouseEvent} event `mouseover` event properties.
-   * @param {CellCoords} coords Cell coordinates where was fired event.
+   * @param {CellCoords} coords Visual cell coordinates where was fired event.
    * @param {HTMLElement} TD Cell represented as HTMLElement.
    * @param {Object} blockCalculations Object which contains information about blockCalculation for row, column or cells.
    */
   onBeforeOnCellMouseOver(event, coords, TD, blockCalculations) {
-    let selectedRange = this.hot.getSelectedRange();
-    let priv = privatePool.get(this);
+    const selectedRange = this.hot.getSelectedRangeLast();
+    const priv = privatePool.get(this);
 
     if (!selectedRange || !priv.pressed) {
       return;
@@ -603,16 +610,16 @@ class ManualRowMove extends BasePlugin {
    * @private
    */
   onMouseUp() {
-    let priv = privatePool.get(this);
-    let target = priv.target.row;
-    let rowsLen = priv.rowsToMove.length;
+    const priv = privatePool.get(this);
+    const target = priv.target.row;
+    const rowsLen = priv.rowsToMove.length;
 
     priv.pressed = false;
     priv.backlightHeight = 0;
 
     removeClass(this.hot.rootElement, [CSS_ON_MOVING, CSS_SHOW_UI, CSS_AFTER_SELECTION]);
 
-    if (this.hot.selection.selectedHeader.rows) {
+    if (this.hot.selection.isSelectedByRowHeader()) {
       addClass(this.hot.rootElement, CSS_AFTER_SELECTION);
     }
 
@@ -627,8 +634,8 @@ class ManualRowMove extends BasePlugin {
     this.hot.render();
 
     if (!priv.disallowMoving) {
-      let selectionStart = this.rowsMapper.getIndexByValue(priv.rowsToMove[0]);
-      let selectionEnd = this.rowsMapper.getIndexByValue(priv.rowsToMove[rowsLen - 1]);
+      const selectionStart = this.rowsMapper.getIndexByValue(priv.rowsToMove[0]);
+      const selectionEnd = this.rowsMapper.getIndexByValue(priv.rowsToMove[rowsLen - 1]);
       this.changeSelection(selectionStart, selectionEnd);
     }
 
@@ -641,10 +648,10 @@ class ManualRowMove extends BasePlugin {
    * @private
    */
   onAfterScrollHorizontally() {
-    let wtTable = this.hot.view.wt.wtTable;
-    let headerWidth = wtTable.getColumnWidth(-1);
-    let scrollLeft = wtTable.holder.scrollLeft;
-    let posLeft = headerWidth + scrollLeft;
+    const wtTable = this.hot.view.wt.wtTable;
+    const headerWidth = this.hot.view.wt.wtViewport.getRowHeaderWidth();
+    const scrollLeft = wtTable.holder.scrollLeft;
+    const posLeft = headerWidth + scrollLeft;
 
     this.backlight.setPosition(null, posLeft);
     this.backlight.setSize(wtTable.hider.offsetWidth - posLeft);
@@ -654,7 +661,7 @@ class ManualRowMove extends BasePlugin {
    * `afterCreateRow` hook callback.
    *
    * @private
-   * @param {Number} index Index of the created row.
+   * @param {Number} index Visual index of the created row.
    * @param {Number} amount Amount of created rows.
    */
   onAfterCreateRow(index, amount) {
@@ -665,7 +672,7 @@ class ManualRowMove extends BasePlugin {
    * On before remove row listener.
    *
    * @private
-   * @param {Number} index Row index.
+   * @param {Number} index Visual row index.
    * @param {Number} amount Defines how many rows removed.
    */
   onBeforeRemoveRow(index, amount) {
@@ -683,10 +690,8 @@ class ManualRowMove extends BasePlugin {
    * `afterRemoveRow` hook callback.
    *
    * @private
-   * @param {Number} index Index of the removed row.
-   * @param {Number} amount Amount of removed rows.
    */
-  onAfterRemoveRow(index, amount) {
+  onAfterRemoveRow() {
     this.rowsMapper.unshiftItems(this.removedRows);
   }
 
@@ -694,9 +699,8 @@ class ManualRowMove extends BasePlugin {
    * `afterLoadData` hook callback.
    *
    * @private
-   * @param {Boolean} firstTime True if that was loading data during the initialization.
    */
-  onAfterLoadData(firstTime) {
+  onAfterLoadData() {
     this.updateRowsMapper();
   }
 
@@ -705,26 +709,28 @@ class ManualRowMove extends BasePlugin {
    *
    * @private
    * @param {Number} row Visual Row index.
-   * @returns {Number} Modified row index.
+   * @returns {Number} Physical row index.
    */
   onModifyRow(row, source) {
+    let physicalRow = row;
+
     if (source !== this.pluginName) {
-      let rowInMapper = this.rowsMapper.getValueByIndex(row);
-      row = rowInMapper === null ? row : rowInMapper;
+      const rowInMapper = this.rowsMapper.getValueByIndex(physicalRow);
+      physicalRow = rowInMapper === null ? physicalRow : rowInMapper;
     }
 
-    return row;
+    return physicalRow;
   }
 
   /**
    * 'unmodifyRow' hook callback.
    *
    * @private
-   * @param {Number} row Visual row index.
-   * @returns {Number} Logical row index.
+   * @param {Number} row Physical row index.
+   * @returns {Number} Visual row index.
    */
   onUnmodifyRow(row) {
-    let indexInMapper = this.rowsMapper.getIndexByValue(row);
+    const indexInMapper = this.rowsMapper.getIndexByValue(row);
 
     return indexInMapper === null ? row : indexInMapper;
   }
@@ -742,11 +748,12 @@ class ManualRowMove extends BasePlugin {
   }
 
   /**
-   * Destroy plugin instance.
+   * Destroys the plugin instance.
    */
   destroy() {
     this.backlight.destroy();
     this.guideline.destroy();
+    this.rowsMapper.destroy();
 
     super.destroy();
   }

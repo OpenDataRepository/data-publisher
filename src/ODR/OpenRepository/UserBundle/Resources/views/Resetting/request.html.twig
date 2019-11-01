@@ -1,5 +1,8 @@
-{#{% extends "FOSUserBundle::layout.html.twig" %}#}
+{# This is an override of the default FOS password request form...the one that works by sending a link in an email #}
+
 {% extends "ODROpenRepositoryUserBundle::layout.html.twig" %}
+
+{% set render_type = 'request' %}
 
 {% block fos_user_content %}
 {% include "FOSUserBundle:Resetting:request_content.html.twig" %}

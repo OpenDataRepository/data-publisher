@@ -1,13 +1,35 @@
 {% spaceless %}
 
-{% set datatype = datatype_array[initial_datatype_id] %}
 {% set is_top_level = 1 %}
-{% set is_link = 0 %}
+{#{% set is_link = 0 %}#}
 
 <?xml version="1.0" encoding="UTF-8"?>
 
 {# using macro on purpose #}
 {% import "ODRAdminBundle:XMLExport:datarecord_childtype.xml.twig" as mychildform %}
-{{ mychildform.input(datatype_array, datarecord_array, theme_array, initial_datatype_id, initial_datarecord_id, is_top_level, is_link, using_metadata, baseurl, version) }}
+
+<records>
+{% for initial_datarecord_id in sorted_datarecord_ids %}
+    {% set data = lookup_array[initial_datarecord_id] %}
+
+    {% set initial_datatype_id = data['datatype'] %}
+
+    {% set datarecord_array_subset = datarecord_array[initial_datarecord_id] %}
+    {% set datatype_array_subset = datatype_array[initial_datatype_id] %}
+
+    {{ mychildform.input(
+        datatype_array_subset,
+        datarecord_array_subset,
+        initial_datatype_id,
+        initial_datarecord_id,
+        is_top_level,
+        using_metadata,
+        baseurl,
+        version,
+        show_records)
+    }}
+
+{% endfor %}
+</records>
 
 {% endspaceless %}

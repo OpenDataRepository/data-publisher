@@ -25,12 +25,12 @@ class DataType
     // Datatypes in these states are usually still being copied from a master template, and shouldn't be displayed/used elsewhere
     const STATE_INITIAL = "initial";
     // Datatypes in this state are technically viewable, but lack a search results theme
-    const STATE_INCOMPLETE = "incomplete";
-    // Datatypes in this state have *everything* they need
+//    const STATE_INCOMPLETE = "incomplete";
+    // Datatypes in this state have all the theme and permission entries required to be viewable
     const STATE_OPERATIONAL = "operational";
 
     // Convenience state so controllers can filter out datatypes that aren't ready for general use yet
-    const STATE_VIEWABLE = array(self::STATE_INCOMPLETE, self::STATE_OPERATIONAL);
+    const STATE_VIEWABLE = array(/*self::STATE_INCOMPLETE,*/ self::STATE_OPERATIONAL);
 
 
     /**
@@ -46,12 +46,32 @@ class DataType
     /**
      * @var string
      */
+    private $unique_id;
+
+    /**
+     * @var string
+     */
     private $setup_step;
+
+    /**
+     * @var string|null
+     */
+    private $preload_status;
 
     /**
      * @var boolean
      */
     private $is_master_type;
+
+    /**
+     * @var string
+     */
+    private $template_group;
+
+    /**
+     * @var string
+     */
+    private $datatype_type;
 
     /**
      * @var \DateTime
@@ -121,6 +141,16 @@ class DataType
     /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
+    private $metadata_datatype;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $metadata_for;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
     private $parent;
 
     /**
@@ -174,7 +204,7 @@ class DataType
     /**
      * Get id
      *
-     * @return integer 
+     * @return integer
      */
     public function getId()
     {
@@ -197,11 +227,35 @@ class DataType
     /**
      * Get revision
      *
-     * @return integer 
+     * @return integer
      */
     public function getRevision()
     {
         return $this->revision;
+    }
+
+    /**
+     * Set uniqueId
+     *
+     * @param string $uniqueId
+     *
+     * @return DataType
+     */
+    public function setUniqueId($uniqueId)
+    {
+        $this->unique_id = $uniqueId;
+
+        return $this;
+    }
+
+    /**
+     * Get uniqueId
+     *
+     * @return string
+     */
+    public function getUniqueId()
+    {
+        return $this->unique_id;
     }
 
     /**
@@ -229,6 +283,30 @@ class DataType
     }
 
     /**
+     * Set preloadStatus.
+     *
+     * @param string|null $preloadStatus
+     *
+     * @return DataType
+     */
+    public function setPreloadStatus($preloadStatus = null)
+    {
+        $this->preload_status = $preloadStatus;
+
+        return $this;
+    }
+
+    /**
+     * Get preloadStatus.
+     *
+     * @return string|null
+     */
+    public function getPreloadStatus()
+    {
+        return $this->preload_status;
+    }
+
+    /**
      * Set isMasterType
      *
      * @param boolean $isMasterType
@@ -253,6 +331,54 @@ class DataType
     }
 
     /**
+     * Set templateGroup
+     *
+     * @param string $templateGroup
+     *
+     * @return DataType
+     */
+    public function setTemplateGroup($templateGroup)
+    {
+        $this->template_group = $templateGroup;
+
+        return $this;
+    }
+
+    /**
+     * Get templateGroup
+     *
+     * @return string
+     */
+    public function getTemplateGroup()
+    {
+        return $this->template_group;
+    }
+
+    /**
+     * Set datatypeType
+     *
+     * @param string $datatypeType
+     *
+     * @return DataType
+     */
+    public function setDatatypeType($datatypeType)
+    {
+        $this->datatype_type = $datatypeType;
+
+        return $this;
+    }
+
+    /**
+     * Get datatypeType
+     *
+     * @return string
+     */
+    public function getDatatypeType()
+    {
+        return $this->datatype_type;
+    }
+
+    /**
      * Set created
      *
      * @param \DateTime $created
@@ -268,7 +394,7 @@ class DataType
     /**
      * Get created
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getCreated()
     {
@@ -291,7 +417,7 @@ class DataType
     /**
      * Get updated
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getUpdated()
     {
@@ -314,7 +440,7 @@ class DataType
     /**
      * Get deletedAt
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getDeletedAt()
     {
@@ -482,7 +608,7 @@ class DataType
     /**
      * Get themeDataType
      *
-     * @return \Doctrine\Common\Collections\Collection 
+     * @return \Doctrine\Common\Collections\Collection
      */
     public function getThemeDataType()
     {
@@ -515,7 +641,7 @@ class DataType
     /**
      * Get dataFields
      *
-     * @return \Doctrine\Common\Collections\Collection 
+     * @return \Doctrine\Common\Collections\Collection
      */
     public function getDataFields()
     {
@@ -548,7 +674,7 @@ class DataType
     /**
      * Get themes
      *
-     * @return \Doctrine\Common\Collections\Collection 
+     * @return \Doctrine\Common\Collections\Collection
      */
     public function getThemes()
     {
@@ -623,6 +749,54 @@ class DataType
     public function getGroupDatatypePermissions()
     {
         return $this->groupDatatypePermissions;
+    }
+
+    /**
+     * Set metadata_datatype
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $metadata_datatype
+     *
+     * @return DataType
+     */
+    public function setMetadataDatatype(\ODR\AdminBundle\Entity\DataType $metadata_datatype = null)
+    {
+        $this->metadata_datatype = $metadata_datatype;
+
+        return $this;
+    }
+
+    /**
+     * Get metadata_datatype
+     *
+     * @return \ODR\AdminBundle\Entity\DataType
+     */
+    public function getMetadataDatatype()
+    {
+        return $this->metadata_datatype;
+    }
+
+    /**
+     * Set metadata_for
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $metadata_for
+     *
+     * @return DataType
+     */
+    public function setMetadataFor(\ODR\AdminBundle\Entity\DataType $metadata_for = null)
+    {
+        $this->metadata_for = $metadata_for;
+
+        return $this;
+    }
+
+    /**
+     * Get metadata_for
+     *
+     * @return \ODR\AdminBundle\Entity\DataType
+     */
+    public function getMetadataFor()
+    {
+        return $this->metadata_for;
     }
 
     /**
@@ -726,7 +900,7 @@ class DataType
     /**
      * Get createdBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getCreatedBy()
     {
@@ -749,7 +923,7 @@ class DataType
     /**
      * Get updatedBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getUpdatedBy()
     {
@@ -772,7 +946,7 @@ class DataType
     /**
      * Get deletedBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getDeletedBy()
     {
@@ -901,6 +1075,16 @@ class DataType
     public function getPublicDate()
     {
         return $this->getDataTypeMeta()->getPublicDate();
+    }
+
+    /**
+     * Get newRecordsArePublic
+     *
+     * @return bool
+     */
+    public function getNewRecordsArePublic()
+    {
+        return $this->getDataTypeMeta()->getNewRecordsArePublic();
     }
 
     /**

@@ -63,6 +63,11 @@ class Image
     private $imageHeight;
 
     /**
+     * @var string|null
+     */
+    private $unique_id;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -307,6 +312,30 @@ class Image
     public function getImageHeight()
     {
         return $this->imageHeight;
+    }
+
+    /**
+     * Set uniqueId.
+     *
+     * @param string|null $uniqueId
+     *
+     * @return Image
+     */
+    public function setUniqueId($uniqueId = null)
+    {
+        $this->unique_id = $uniqueId;
+
+        return $this;
+    }
+
+    /**
+     * Get uniqueId.
+     *
+     * @return string|null
+     */
+    public function getUniqueId()
+    {
+        return $this->unique_id;
     }
 
     /**

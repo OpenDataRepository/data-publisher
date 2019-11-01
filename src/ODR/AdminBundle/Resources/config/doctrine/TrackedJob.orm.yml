@@ -55,6 +55,11 @@ ODR\AdminBundle\Entity\TrackedJob:
             default: null
             nullable: true
 
+        viewed:
+            type: datetime
+            default: null
+            nullable: true
+
         created:
             type: datetime
             gedmo:

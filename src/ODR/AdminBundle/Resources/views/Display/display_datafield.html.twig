@@ -1,8 +1,10 @@
 {% spaceless %}
 
-{% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
-{% set field_typeclass = datafield.dataFieldMeta.fieldType.typeClass %}
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
+{% set datarecordfield = '' %}
 {% set valuefield = '' %}
 {% set valuefield_value = '' %}
 {% if datarecord.dataRecordFields[ datafield.id ] is defined %}
@@ -17,7 +19,7 @@
         {% set valuefield = datarecordfield.image %}
     {% elseif field_typename == "Decimal" and datarecordfield.decimalValue[0] is defined %}
         {% set valuefield = datarecordfield.decimalValue[0] %}
-        {% set valuefield_value = valuefield.value %}
+        {% set valuefield_value = valuefield.original_value %}
     {% elseif field_typename == "Integer" and datarecordfield.integerValue[0] is defined %}
         {% set valuefield = datarecordfield.integerValue[0] %}
         {% set valuefield_value = valuefield.value %}
@@ -32,6 +34,8 @@
         {% set valuefield_value = valuefield.value %}
     {% elseif field_typeclass == "Radio" %}
         {% set valuefield = datarecordfield.radioSelection %}
+    {% elseif field_typeclass == "Tag" %}
+        {% set valuefield = datarecordfield.tagSelection %}
     {% elseif field_typename == "Short Text" and datarecordfield.shortVarchar[0] is defined %}
         {% set valuefield = datarecordfield.shortVarchar[0] %}
         {% set valuefield_value = valuefield.value %}
@@ -53,18 +57,18 @@
 
     {% set render_plugin_id = 1 %}
     {% if bypass_render_plugin is not defined or not bypass_render_plugin %}
-        {% set render_plugin_id = datafield.dataFieldMeta.renderPlugin.id %}
+        {% set render_plugin_id = datafield_meta.renderPlugin.id %}
     {%  endif %}
 
     {% if render_plugin_id != 1 %}
-        {{ datafield|datafield_plugin(datarecord, datafield.dataFieldMeta.renderPlugin)|raw }}
+        {{ datafield|datafield_plugin(datarecord, datafield_meta.renderPlugin)|raw }}
 
     {% elseif field_typename == "Boolean" %}
         <fieldset>
-            <label for="Input_{{ unique_id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield.dataFieldMeta.description }}">
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield_meta.description }}">
                 <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                     <input type="checkbox" value="1" {% if valuefield_value == 1 %}checked{% endif %} disabled />
-                    {{ datafield.dataFieldMeta.fieldName }}
+                    {{ datafield_meta.fieldName }}
                 </div>
             </label>
         </fieldset>
@@ -74,7 +78,7 @@
             <div class="ODRFileDatafield">
                 <div class="ODRFileDatafield_header pure-u-1">
                     <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
-                    <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
+                    <span title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
                 </div>
                 {% for file in valuefield %}
                     <div id="File_{{ file.id }}" class="ODRFileDatafield_file pure-u-1">
@@ -118,20 +122,25 @@
                             </script>
                         {% endif %}
                     </div>
+                {% else %}
+                    <div class="ODRFileDatafield_empty pure-u-1">
+                        <span class="ODRFileSpacer_empty">&nbsp;</span>
+                        <a class="Cursor">No Files Uploaded</a>
+                    </div>
                 {% endfor %}
             </div>
         {#</fieldset>#}
 
     {% elseif field_typename == "Image" %}
         {#<fieldset>#}
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}" style="text-align: center;">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}" style="text-align: center;">{{ datafield_meta.fieldName }}</label>
             <div id="imagegallery_{{ datafield.id }}_{{ datarecord.id }}" class="ODRImageGallery pure-u-1">
-                {#<label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>#}
+                {#<label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>#}
                 <i id="ODRImageLeft_{{ datafield.id }}_{{ datarecord.id }}" class="ODRGalleryLeftArrow Pointer fa fa-2x fa-chevron-left" rel="{{ datafield.id }}_{{ datarecord.id }}"></i>
                 <i id="ODRImageRight_{{ datafield.id }}_{{ datarecord.id }}" class="ODRGalleryRightArrow Pointer fa fa-2x fa-chevron-right" rel="{{ datafield.id }}_{{ datarecord.id }}"></i>
                 <div class="ODRImageGalleryImage pure-u-1"></div>
             </div>
-            <div id="imagestorage_{{ datafield.id }}_{{ datarecord.id }}" style="display: none;" rel="{{ datafield.dataFieldMeta.children_per_row }}">
+            <div id="imagestorage_{{ datafield.id }}_{{ datarecord.id }}" style="display: none;" rel="{{ datafield_meta.children_per_row }}">
 
                 {% for image in valuefield %}
                     {% set oimage = image.parent %}
@@ -139,7 +148,7 @@
                     {% set image_caption = oimage.imageMeta.caption %}
                     {% set image_filename = oimage.imageMeta.originalFileName %}
 
-                    <div id="Image_{{ oimage.id }}" class="ODRImage pure-u-1-{{ datafield.dataFieldMeta.children_per_row }}"  rel="{{ image.id }}">    {# rel is the id of the thumbnail, id attr is the id of the full-size image #}
+                    <div id="Image_{{ oimage.id }}" class="ODRImage pure-u-1-{{ datafield_meta.children_per_row }}"  rel="{{ image.id }}">    {# rel is the id of the thumbnail, id attr is the id of the full-size image #}
                     {% if image_thumbnails_only == false %}
                         <a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ image_caption }}">
                             <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
@@ -154,7 +163,7 @@
 
     {% elseif field_typename == "Paragraph Text" %}
         <fieldset>
-            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <textarea class="pure-u-1 Cursor" readonly="readonly">{{ valuefield_value }}</textarea>
             </div>
@@ -162,7 +171,7 @@
 
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
         <fieldset>
-            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <input class="pure-u-1 Cursor" type="text" value="{{ valuefield_value }}" readonly="readonly"/>
             </div>
@@ -170,7 +179,7 @@
 
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
         <fieldset>
-            <label class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
 
             {% if datafield.radioOptions is defined %}
                 {% for radio_option in datafield.radioOptions %}
@@ -179,8 +188,8 @@
                         {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
                     {% endif %}
 
-                    {% if datafield.dataFieldMeta.radio_option_display_unselected == 1 or is_selected == 1 %}
-                        <label for="Input_{{ unique_id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
+                    {% if datafield_meta.radio_option_display_unselected == 1 or is_selected == 1 %}
+                        <label for="Input_{{ unique_id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield_meta.children_per_row }}" style="margin: 0.5em 0;">
 
                         {% if field_typename == "Single Radio" or field_typename == "Single Select" %}
                             <input id="Input_{{ unique_id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ unique_id }}" {% if is_selected == 1 %}checked{% endif %} disabled class="SingleRadioGroup" />
@@ -195,9 +204,23 @@
             {% endif %}
         </fieldset>
 
+    {% elseif field_typename == "Tags" %}
+        <fieldset>
+            <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            {% if datafield.tags is defined %}
+                {% include 'ODRAdminBundle:Display:tag_wrapper.html.twig' with {
+                    'datafield': datafield,
+                    'stacked_tags': datafield.tags,
+
+                    'drf': datarecordfield,
+                    'unique_id': unique_id,
+                } %}
+            {% endif %}
+        </fieldset>
+
     {% elseif field_typename == "DateTime" %}
         <fieldset>
-            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <input type="text" class="pure-u-1 Cursor" value="{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != "9999-12-31" %}{{ valuefield_value|date('Y-m-d') }}{% endif %}" readonly="readonly" />
             </div>

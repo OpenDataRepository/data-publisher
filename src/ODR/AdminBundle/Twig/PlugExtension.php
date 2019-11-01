@@ -13,6 +13,10 @@
 
 namespace ODR\AdminBundle\Twig;
 
+use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
+
+
 class PlugExtension extends \Twig_Extension
 {
 
@@ -43,11 +47,13 @@ class PlugExtension extends \Twig_Extension
         return array(
             new \Twig_SimpleFilter('datafield_plugin', array($this, 'datafieldPluginFilter')),
             new \Twig_SimpleFilter('datatype_plugin', array($this, 'datatypePluginFilter')),
+            new \Twig_SimpleFilter('comma', array($this, 'commaFilter')),
             new \Twig_SimpleFilter('xml', array($this, 'xmlFilter')),
             new \Twig_SimpleFilter('is_public', array($this, 'isPublicFilter')),
             new \Twig_SimpleFilter('user_string', array($this, 'userStringFilter')),
             new \Twig_SimpleFilter('filesize', array($this, 'filesizeFilter')),
             new \Twig_SimpleFilter('is_empty', array($this, 'isEmptyFilter')),
+            new \Twig_SimpleFilter('is_filtered', array($this, 'isFilteredDivFilter')),
         );
     }
 
@@ -68,11 +74,12 @@ class PlugExtension extends \Twig_Extension
     {
         try {
             // Load and execute the render plugin
+            /** @var DatatypePluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
             return $svc->execute($datarecords, $datatype, $render_plugin, $theme_array, $rendering_options);
         }
         catch (\Exception $e) {
-            return 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage();
+            return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage().'</div>';
         }
     }
 
@@ -108,14 +115,27 @@ class PlugExtension extends \Twig_Extension
 
 
             // Load and execute the render plugin
+            /** @var DatafieldPluginInterface $svc */
             $svc = $this->container->get($render_plugin['pluginClassName']);
             return $svc->execute($datafield, $datarecord, $render_plugin, $themeType);
         }
         catch (\Exception $e) {
-            return 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].' Datarecord '.$datarecord['id'].': '.$e->getMessage();
+            return '<div class="ODRPluginErrorDiv">Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].' Datarecord '.$datarecord['id'].': '.$e->getMessage().'</div>';
         }
     }
 
+
+    public function commaFilter($str)
+    {
+        try {
+            // Super hacky - detect pos of last } and remove remainder
+            $pos = strripos($str, "}");
+            return substr($str, 0, $pos + 1);
+        }
+        catch (\Exception $e) {
+            throw new \Exception("Error executing COMMA filter: [[[" . $str . "]]]");
+        }
+    }
 
     /**
      * Converts invalid XML characters to their XML-safe format.
@@ -239,7 +259,8 @@ class PlugExtension extends \Twig_Extension
 
 
     /**
-     * Returns whether the provided theme_element should be considered "empty", and therefore not displayed.
+     * For Display or Edit mode, returns whether the provided theme_element should be considered
+     *  "empty", and therefore not displayed.
      *
      * @param array $theme_element
      * @param array $datarecord
@@ -308,6 +329,63 @@ class PlugExtension extends \Twig_Extension
         }
         catch (\Exception $e) {
             throw new \Exception( "Error executing is_empty filter: ".$e->getMessage() );
+        }
+    }
+
+
+    /**
+     * Returns true if the given theme_element only contains datafields/datatypes that are filtered
+     *  from the user's view because of permissions reasons.  If true, then this theme_element can't
+     *  really be manipulated by the user at all, so it should be hidden.
+     *
+     * @param array $theme_element
+     * @param array $datatype
+     *
+     * @return bool
+     * @throws \Exception
+     */
+    public function isFilteredDivFilter($theme_element, $datatype)
+    {
+        try {
+            if ( !isset($theme_element['themeElementMeta']) )
+                throw new \Exception('Array does not describe a theme_element');
+
+            if ( isset($theme_element['themeDataFields']) && count($theme_element['themeDataFields']) > 0 ) {
+                // If the theme element has datafield entries...
+                foreach ($theme_element['themeDataFields'] as $num => $tdf) {
+                    $df_id = $tdf['dataField']['id'];
+
+                    // ...it shouldn't be filtered out if at least one of the datafield entries are viewable
+                    if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$df_id]) )
+                        return false;
+                }
+
+                // All of the datafield entries are filtered...so the theme element should be filtered as well
+                return true;
+            }
+            else if ( isset($theme_element['themeDataType']) && count($theme_element['themeDataType']) > 0 ) {
+                // If the theme element has a child/linked datatype entry...
+                foreach ($theme_element['themeDataType'] as $num => $tdt) {
+                    if ( isset($tdt['dataType']) && count($tdt['dataType']) > 0 ) {
+
+                        $child_datatype_id = $tdt['dataType']['id'];
+
+                        // ...it shouldn't be filtered out if at least one of the datatype entries are viewable
+                        if ( isset($datatype['descendants'][$child_datatype_id]) && count($datatype['descendants'][$child_datatype_id]['datatype']) > 0 )
+                            return false;
+                    }
+                }
+
+                // All of the datatype entries are filtered...so the theme element should be filtered as well
+                return true;
+            }
+            else {
+                // Otherwise, the theme element is empty, and should be displayed
+                return false;
+            }
+        }
+        catch (\Exception $e) {
+            throw new \Exception( "Error executing is_empty_theme filter: ".$e->getMessage() );
         }
     }
 

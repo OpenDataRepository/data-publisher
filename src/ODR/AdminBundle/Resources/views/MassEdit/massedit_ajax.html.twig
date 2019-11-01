@@ -7,78 +7,87 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-<div class="grid_12 no-margin-top-phone">
-    <h1 style="display: inline;">
-        <span>Mass Update &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
-    </h1>
-    {% if is_datatype_admin %}
-    <span>
+    <div id="MassEditForm">
+        <div class="grid_12 no-margin-top-phone">
+            <h1 style="display: inline;">
+                <span>Mass Update &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+            </h1>
+            {% if is_datatype_admin %}
+                <span>
         <select class="ODRPublicSelect" style="margin-left: 15px;" rel="{{ datatype.id }}">
             <option value="-1">Make all Datarecords non-public</option>
             <option value="0" selected>Don't change public status</option>
             <option value="1">Make all Datarecords public</option>
         </select>
     </span>
-    {% endif %}
-</div>
+            {% endif %}
+        </div>
 
-<form id="massedit_form" style="display:none;" action="{{ path('odr_mass_update_start') }}">
-    <input type="hidden" value="{{ odr_tab_id }}" name="odr_tab_id"/>
-    <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
-</form>
+        <form id="massedit_form" style="display:none;" action="{{ path('odr_mass_update_start') }}">
+            <input type="hidden" value="{{ odr_tab_id }}" name="odr_tab_id"/>
+            <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
+        </form>
 
-<div>
-    <button class="pure-button pure-button-primary" type="button" onclick="doMassUpdate();">Save Changes</button>
-</div>
+        <div>
+            <button class="pure-button pure-button-primary" type="button" onclick="doMassUpdate();">Save Changes
+            </button>
+            {% if is_datatype_admin %}
+                &nbsp;
+                <button class="pure-button" type="button" onclick="doMassDelete();"><i class="fa fa-warning"></i>&nbsp;Mass
+                    Delete
+                </button>
+            {% endif %}
+        </div>
 
-</br></br>
+        </br></br>
 
-{% include 'ODRAdminBundle:MassEdit:massedit_area.html.twig' with {
-    'datatype_array': datatype_array,
-    'initial_datatype_id': initial_datatype_id,
-    'theme_array': theme_array,
+        {% include 'ODRAdminBundle:MassEdit:massedit_area.html.twig' with {
+            'datatype_array': datatype_array,
+            'theme_array': theme_array,
 
-    'datatype_permissions': datatype_permissions,
-    'datafield_permissions': datafield_permissions,
-} %}
+            'initial_datatype_id': initial_datatype_id,
+            'initial_theme_id': initial_theme_id,
 
+            'datatype_permissions': datatype_permissions,
+            'datafield_permissions': datafield_permissions,
+        } %}
+
+    </div>
+
+
+
+    <div id="LoadingBlock" class="ODRHidden">
+        <div class="ODRRemodalLoading pure-u-1">
+            <div class="JobStatusWrapper">
+                <div class="JobComplete ODRHidden">Mass Edit Complete</div>
+                <div class="loading-container">
+                    <div class="loading"></div>
+                    <div class="loading-text">editing</div>
+                </div>
+            </div>
+            <div class="JobTracker"></div>
+            <div class="CSVExportMessage">Your edits will run in the background. If you don't want to wait, feel free
+                to continue to use the site and a message will inform you when mass edit is complete.
+            </div>
+        </div>
+    </div>
 {% endspaceless %}
-
-<style>
-    .fa {
-        padding: 0px;
-    }
-    .ODRTristateCheckbox > .fa-ban {
-        color: red;
-    }
-    .ODRTristateCheckbox > .fa-check {
-        color: green;
-    }
-    .ODRTristateCheckbox {
-        cursor: pointer;
-        border: 2px solid #666;
-        border-radius: 5px;
-        height: 1.5em;
-        width: 1.5em;
-        display: inline-block;
-    }
-    .ODRTristateCheckbox > .fa {
-        line-height: 1.25em;
-        margin-left: 0.25em;
-    }
-    .ODRTristateCheckbox:hover, .ODRTristateCheckbox:active, .ODRTristateCheckbox:focus {
-        background: #9cd4d4;
-    }
-</style>
 
 <script>
 
 $(function() {
-    initPage();
+    disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
     window.scrollTo(0,0);
 
+    // The overlay divs need this transition to finish before they can get the correct width
+    setTimeout("initPage()", 375);
+
+    // Need a tab id in html5 sessionStorage if one doesn't exist
+    if ( !window.sessionStorage.getItem('odr_tab_id') )
+        window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
+
     // Tristate checkbox
-    $(".ODRTristateCheckbox").unbind('click').click(function() {
+    $(".ODRRadioLabel > .ODRTristateCheckbox").unbind('click').click(function() {
         // Grab data about the option being clicked
         var icon = $(this).children('i').first();
         var input = $(this).children('input').first();
@@ -112,7 +121,88 @@ $(function() {
             $(input).val(1);
         }
     });
+
+    // tag Tristate checkbox
+    $(".ODRTagLabel > .ODRTristateCheckbox").unbind('click').click(function () {
+        // Grab data about the tag being clicked
+        var tag_item = $(this).parent().parent();
+
+        // If any item is clicked, it'll set all children to selected/unselected...so immediately
+        //  remove the partial class
+        $(this).children('i').first().removeClass('partial');
+
+        if ( $(this).children('i').first().hasClass('fa-check') ) {
+            // Currently selected, change this tag and all its children to deselected
+            $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                // Don't change title attribute of a non-leaf tag
+                if ( !$(element).hasClass('ODRSearchParentTag') )
+                    $(element).attr('title', 'Search for Datarecords where this tag is unselected');
+
+                $(element).children('i').first().removeClass('fa-check').addClass('fa-ban');
+                $(element).children('input').first().val(0);
+            });
+        }
+        else if ( $(this).children('i').first().hasClass('fa-ban') ) {
+            // Currently deselected, change this tag and all its children to blank
+            $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                $(element).removeAttr('title');
+
+                $(element).children('i').first().removeClass('fa-ban');
+                $(element).children('input').first().val('');
+            });
+        }
+        else {
+            // Currently blank, change this tag and all its children to selected
+            $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                // Don't change title attribute of a non-leaf tag
+                if ( !$(element).hasClass('ODRSearchParentTag') )
+                    $(element).attr('title', 'Search for Datarecords where this tag is selected');
+
+                $(element).children('i').first().addClass('fa-check');
+                $(element).children('input').first().val(1);
+            });
+        }
+
+        applyToTagParents( $(tag_item) );
+    });
 });
+
+function applyToTagParents(source_element) {
+    var parent_tag = $(source_element).parent().parent().not('div');
+    if ( $(parent_tag).length === 0)
+        return;
+
+    // $(parent_tag) should be a <li class="ODRTagItem"> element
+    var parent_checkbox_icon = $(parent_tag).children('label').children('.ODRTristateCheckbox').first().children('i');
+
+    var selected_count = $(parent_tag).children('ul').find('.fa-check').length;
+    var unselected_count = $(parent_tag).children('ul').find('.fa-ban').length;
+    var total_count = $(parent_tag).children('ul').find('.fa').length;
+
+    if (selected_count === 0 && unselected_count === 0) {
+        // No children selected, so this one should be unselected too
+        $(parent_checkbox_icon).removeClass('fa-check fa-ban partial');
+    }
+    else if (selected_count === total_count) {
+        // All children selected, so this one should be selected too
+        $(parent_checkbox_icon).removeClass('fa-ban partial').addClass('fa-check');
+    }
+    else if (unselected_count === total_count) {
+        // All children selected, so this one should be selected too
+        $(parent_checkbox_icon).removeClass('fa-check partial').addClass('fa-ban');
+    }
+    else if (selected_count > 0) {
+        // Some children selected, so this one should be partially selected
+        $(parent_checkbox_icon).removeClass('fa-ban').addClass('fa-check partial');
+    }
+    else if (unselected_count > 0) {
+        // No children are selected, but at least one child is unselected...so this one
+        //  should be partially unselected
+        $(parent_checkbox_icon).removeClass('fa-check').addClass('fa-ban partial');
+    }
+
+    applyToTagParents( $(parent_tag) );
+}
 
 
 function initPage() {
@@ -162,14 +252,14 @@ function initPage() {
 
 function doMassUpdate() {
 
-    if ( !confirm('Are you sure you want to make these edits to multiple datarecords?') )
+    if ( !confirm('Are you sure you want to make these edits to multiple records?') )
         return;
 
     // Remove any already-existing input elements added by this function
-    $(".massedit_form_input").remove();
+    $("#MassEditForm .massedit_form_input").remove();
 
     // Public status
-    $(".ODRPublicSelect").each(function() {
+    $("#MassEditForm .ODRPublicSelect").each(function() {
         // Grab the ID of the datatype
         var datatype_id = $(this).attr('rel');
 
@@ -180,13 +270,13 @@ function doMassUpdate() {
         // Save any value currently in this field
         var val = $(this).val();
         if (val == '-1' || val == '1') {
-            var element = $("<input>", {id: "PublicStatus_" + datatype_id, class: "massedit_form_input", type: "hidden", value: val, name: "public_status[" + datatype_id + "]"});
+            var element = $("<input>", {"id": "PublicStatus_" + datatype_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "public_status[" + datatype_id + "]"});
             $("#massedit_form").append(element);
         }
     });
 
     // Checkboxes
-    $(".ODRBoolean").each(function() {
+    $("#MassEditForm .ODRBoolean").each(function() {
         // Grab the ID of the field
         var datafield_id_data = $(this).attr('id').split('_');
         var datafield_id = datafield_id_data[1];
@@ -198,13 +288,13 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val();
         if (val !== '' && val !== '-1') {
-            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
 
     // Files/Images
-    $(".ODRFile").each(function() {
+    $("#MassEditForm .ODRFile").each(function() {
         // Grab the ID of the field
         var datafield_id_data = $(this).attr('id').split('_');
         var datafield_id = datafield_id_data[1];
@@ -216,16 +306,15 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val();
         if (val !== '' && val !== '0') {
-            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
 
     // Single Selects
-    $(".ODRSingleSelect").each(function() {
-        // Grab the ID of the field
-        var datafield_id_data = $(this).attr('id').split('_');
-        var datafield_id = datafield_id_data[1];
+    $("#MassEditForm .ODRSingleSelect").each(function() {
+        // Grab the datafield id
+        var datafield_id = $(this).attr('rel');
 
         // Remove any value for this datafield currently stored in the form
         if ( $("#Value_" + datafield_id) !== null )
@@ -234,34 +323,35 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val();
         if (val !== '' && val !== '0') {
-            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: 1, name: "datafields[" + datafield_id + "][" + val + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": 1, "name": "datafields[" + datafield_id + "][" + val + "]"});
             $("#massedit_form").append(element);
         }
     });
 
-
-    // TODO - Multiple Radio/Select
-    $(".ODRTristateCheckbox > input").each(function() {
+    // Multiple Radio/Select and Tags
+    $("#MassEditForm .ODRTristateCheckbox > input").each(function() {
         // Grab the ID of the field
         var datafield_id = $(this).attr('name');
-        var radio_option_id = $(this).attr('rel');
+        var item_id = $(this).attr('rel');
+
+        if ( $(this).is(':disabled') || $(this).hasClass('ODRSearchParentTag') )
+            return;
 
         // Remove any value for this datafield currently stored in the form
-        if ( $("#Value_" + datafield_id + "_" + radio_option_id) !== null )
-            $("#Value_" + datafield_id + "_" + radio_option_id).remove();
+        if ( $("#Value_" + datafield_id + "_" + item_id) !== null )
+            $("#Value_" + datafield_id + "_" + item_id).remove();
 
         // Save any value currently in this datafield
         var val = $(this).val().trim();
         if (val !== '') {
-            var element = $("<input>", {id: "Value_" + datafield_id + "_" + radio_option_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "][" + radio_option_id + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id + "_" + item_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "][" + item_id + "]"});
             $("#massedit_form").append(element);
         }
     });
 
-
     // Single Radio
-    $(".ODRSingleRadio").each(function() {
-        // Grab the ID of the field
+    $("#MassEditForm .ODRSingleRadio").each(function() {
+        // Grab the datafield id
         var datafield_id = $(this).attr('rel');
 
         // Save any value currently in this datafield
@@ -273,8 +363,8 @@ function doMassUpdate() {
                     $("#Value_" + datafield_id).remove();
 
                 var radio_option_id = $(this).attr('rel');
-                if ( radio_option_id != 0 ) {
-                    var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: 1, name: "datafields[" + datafield_id + "][" + radio_option_id + "]"});
+                if ( radio_option_id !== '0' ) {
+                    var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": 1, "name": "datafields[" + datafield_id + "][" + radio_option_id + "]"});
                     $("#massedit_form").append(element);
                 }
             }
@@ -282,7 +372,7 @@ function doMassUpdate() {
     });
 
     // Datetime fields
-    $(".ODRDatePicker").each(function() {
+    $("#MassEditForm .ODRDatePicker").each(function() {
         // Grab the ID of the field
         var datafield_id_data = $(this).parent().attr('id').split('_');
         var datafield_id = datafield_id_data[1];
@@ -295,17 +385,16 @@ function doMassUpdate() {
         var clear_all = $(this).parent().parent().find('input.ODRDatePicker_clearAll').prop('checked');
         var val = $(this).val().trim();
         if (val !== '') {
-            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         } else if (clear_all == true) {
-            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: '', name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": '', "name": "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
-
 
     // Paragraph fields
-    $(".ODRParagraphField").each(function() {
+    $("#MassEditForm .ODRParagraphField").each(function() {
         // Grab the ID of the field
         var datafield_id_data = $(this).parent().attr('id').split('_');
         var datafield_id = datafield_id_data[1];
@@ -317,14 +406,13 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val().trim();
         if (val !== '') {
-            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
 
-
     // Everything else
-    $(".ODRField").each(function() {
+    $("#MassEditForm .ODRField").each(function() {
         // Grab the ID of the field
         var datafield_id_data = $(this).parent().attr('id').split('_');
         var datafield_id = datafield_id_data[1];
@@ -336,7 +424,7 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val().trim();
         if (val !== '') {
-            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
@@ -353,19 +441,21 @@ function doMassUpdate() {
     var data = $("#massedit_form").serialize();
     var url = $("#massedit_form").attr('action');
 
-//    console.log( $("#massedit_form") );
-//alert(url);
-//return;
-
     $.ajax({
         type: 'POST',
         url: url,
         data: data,
         dataType: 'json',
-        success: function(data, textStatus, jqXHR) {
-            alert( 'Mass Update in progress' );
-            var url = '{{ path('odr_job_list', {'section': 'mass_edit'}) }}';
-            UpdateURL(url);
+        success: function(data) {
+            if(data.d.tracked_job_id !== undefined) {
+                // Replace this with loading message/checker directly
+                $('#MassEditForm').hide();
+                $('#LoadingBlock').fadeIn('fast');
+                // Get CSV Exports from Jobs Page - add messaging
+
+                // data.d.tracked_job_id
+                getJobProgress('mass_edit', data.d.tracked_job_id);
+            }
         },
         error: function (jqXHR, textStatus, errorThrown) {
             alert('Error encountered, no changes made');
@@ -386,4 +476,39 @@ function doMassUpdate() {
     });
 
 }
+
+
+function doMassDelete() {
+    var str = 'This will delete ALL records listed in the search result.  Are you absolutely sure you want to do this?';
+    if ( confirm(str) ) {
+        var url = '{{ path('odr_mass_delete', {'datatype_id': datatype.id, 'odr_tab_id': odr_tab_id}) }}';
+
+        $.ajax({
+            type: 'GET',
+            url: url,
+            dataType: 'json',
+            success: function(data, textStatus, jqXHR) {
+                LoadContentFullAjax( data.d.redirect_url );
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                alert('Error encountered, no changes made');
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+}
 </script>
+
+{% include 'ODRAdminBundle:Job:job_progress.html.twig' %}

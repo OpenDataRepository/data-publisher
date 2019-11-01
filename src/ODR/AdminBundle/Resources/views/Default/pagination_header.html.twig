@@ -1,102 +1,163 @@
 {% spaceless %}
 
-{% set start = offset - 2 %}
+{# Don't let start go below 1 #}
+{% set start = offset - 1 %}
 {% if start < 1 %}
     {% set start = 1 %}
 {% endif %}
 
-{% set end = offset + 2 %}
+{# Don't let end go above number of pages #}
+{% set end = offset + 1 %}
 {% if end > num_pages %}
     {% set end = num_pages %}
 {% endif %}
 
-<div id="pagination_header" style="text-align: center;">
+{# If there's less than 5 pages, ensure all of them are always visible #}
+{% if num_pages <= 4 %}
+    {% set start = 1 %}
+    {% set end = num_pages %}
+{% endif %}
 
-    <div>
-    {% if num_datarecords > 0 %}
-        <span>{{ num_datarecords }} records found.</span>
-        
-    {% endif %}
+<div id="pagination_header" class="pure-u-1">
+    <div id="ODRPageSelect_header" class="pure-u-1 pure-u-md-1-8">
+        <a id="ODRPageSelectSettings">
+            <i class="fa fa-lg fa-fw fa-cog"></i>
+            <span class="ODRPaginationLabel">&nbsp;Tools</span>
+        </a>
+    </div>
+
+    <div class="pure-u-1 pure-u-md-1-2">
+        <form id="ODRPageSelectForm" name="ODRPageSelectForm">
+            {% if num_pages > 4 %}
+            <span id="ODRPageSelect" class="odr_page_button Pointer">
+                <i class="fa fa-caret-down fa-lg"></i><span class="ODRPaginationLabel">Page&nbsp;</span>
+                <input type="text" id="odr_page_input" value="{{ offset }}" size="3" length="10" autocomplete="off"/>&nbsp;of&nbsp;<b>{{ num_pages }}</b>
+            </span>
+            <span id="ODRPagePopup">Jump to page:
+                <button type="button" id="ODRPageSelectButton" class="pure-button" type="submit">Go</button>
+            </span>
+            {% else %}
+            <span class="ODRPaginationLabel Cursor">Page&nbsp;</span>
+            {% endif %}
+
+            {% if start >= 2 %}
+                <button class="ODRPageChooserButton pure-button" onclick="goToPage(1);">
+                    <span>1</span>
+                </button>
+            {% endif %}
+
+            {% if num_pages > 4 and start >= 3 %}
+                &nbsp;<i class="fa fa-ellipsis-h"></i>
+            {% endif %}
+
+            {% for i in start..end %}
+                <button class="ODRPageChooserButton pure-button {% if i == offset %}pure-button-primary{% endif %}" onclick="goToPage({{ i }});">
+                    <span>{{ i }}</span>
+                </button>
+            {% endfor %}
+
+            {% if num_pages > 4 and end <= (num_pages - 2) %}
+                &nbsp;<i class="fa fa-ellipsis-h"></i>
+            {% endif %}
+
+            {% if end <= (num_pages - 1) %}
+                {#<button class="ODRPageChooserButton pure-button" onclick="UpdateURL('#{{ path_str }}/{{ num_pages }}');">#}
+                <button class="ODRPageChooserButton pure-button" onclick="goToPage({{ num_pages }});">
+                    <span>{{ num_pages }}</span>
+                </button>
+            {% endif %}
+
+            {% if num_datarecords > 0 %}
+                <span class="ODRResultsNumRecords Cursor"><b>{{ num_datarecords }}</b>&nbsp;<span class="ODRPaginationLabel">records</span></span>
+            {% endif %}
+
+        </form>
+    </div>
+
+    <div class="pure-u-1 pure-u-md-3-8">
         <span>
-            Show:
+            <span class="ODRPaginationLabel Cursor">Show:&nbsp;</span>
             <button type="button" class="ODRPageLength pure-button {% if page_length == 10 %}pure-button-primary{% endif %}" rel="10">10</button>
             <button type="button" class="ODRPageLength pure-button {% if page_length == 25 %}pure-button-primary{% endif %}" rel="25">25</button>
             <button type="button" class="ODRPageLength pure-button {% if page_length == 50 %}pure-button-primary{% endif %}" rel="50">50</button>
             <button type="button" class="ODRPageLength pure-button {% if page_length == 100 %}pure-button-primary{% endif %}" rel="100">100</button>
-            Records per page
+            <span class="ODRPaginationLabel Cursor">&nbsp;records/page</span>
         </span>
     </div>
 
-    <fieldset></fieldset>
+    {% set is_datatype_admin = false %}
+    {% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+        {% set is_datatype_admin = true %}
+    {% endif %}
 
-    <div>
-
-        <span id="ODRPageSelect" class="odr_page_button Pointer">
-            <i class="fa fa-caret-down fa-lg"></i>Page {{ offset }} of {{ num_pages }}
-        </span>
-        <span id="ODRPagePopup">Jump to page: <input type="text" id="odr_page_input" size="10" length="10" />&nbsp;&nbsp;<button type="button" id="ODRPageSelectButton" class="pure-button">Go</button></span>
-
-        {% if offset >= 4 %}
-            <button class="pure-button" onclick="UpdateURL('#{{ path_str }}/1');">
-                <span>1</span>
-            </button>
-        {% endif %}
-
-        {% if offset >= 5 %}
-            <i class="fa fa-ellipsis-h"></i>
-        {% endif %}
-
-        {% for i in start..end %}
-            <button class="pure-button {% if i == offset %}pure-button-primary{% endif %}" onclick="UpdateURL('#{{ path_str }}/{{ i }}');">
-                <span>{{ i }}</span>
-            </button>
+    {% set user_role = '' %}
+    {% if user != 'anon.' %}
+        {% for role in user.getroles %}
+            {% if role == 'ROLE_ADMIN' %}
+                {% set user_role = 'ROLE_ADMIN' %}
+            {% endif %}
         {% endfor %}
+    {% endif %}
 
-        {% if offset <= num_pages - 4 %}
-            <i class="fa fa-ellipsis-h"></i>
-        {% endif %}
 
-        {% if offset <= num_pages - 3 %}
-            <button class="pure-button" onclick="UpdateURL('#{{ path_str }}/{{ num_pages }}');">
-                <span>{{ num_pages }}</span>
-            </button>
-        {% endif %}
+    {# Page/View Options #}
+    {% set page_type = 'search_results' %}
+    {% if intent == 'linking' %}
+        {% set page_type = 'linking' %}
+    {% endif %}
 
-    </div>
+    {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
+        'datatype': datatype,
+        'theme': theme,
+        'page_type': page_type,
+        'search_key': search_key,
 
+        'display_export_options': true,
+        'intent': intent,
+        'user_role': user_role,
+        'has_datarecords': has_datarecords,
+
+        'notitle': true,
+        'has_search_restriction': has_search_restriction,
+        'editable_only': editable_only,
+    } %}
 </div>
 
 <script>
     $(function() {
 
+        $("#ODRPageSelectForm input[type='text']").on("click", function () {
+            $(this).select();
+        });
+
+        $("#ODRPageSelectForm").unbind('submit').submit(function (event) {
+            event.preventDefault();
+            goToPage();
+        });
+
+        $(".ODRPageChooserButton").unbind('click').click(function (event) {
+            // Prevent form submission when clicking buttons
+            event.preventDefault();
+        });
+
         $("#ODRPageSelect").unbind('click').click(function() {
             if ( $("#ODRPagePopup").is(':hidden') )
-                $("#ODRPagePopup").fadeIn();
+                $("#ODRPagePopup").fadeIn('fast');
             else
-                $("#ODRPagePopup").fadeOut();
+                $("#ODRPagePopup").fadeOut('fast');
 
             // Calculate where the popup should go
             var selector_offset = $("#ODRPageSelect").offset();
             var selector_height = $("#ODRPageSelect").height();
 
-            var new_offset = {top: selector_offset.top + selector_height + 20, left: selector_offset.left};
+            var new_offset = {top: selector_offset.top + selector_height + 24, left: selector_offset.left + 20};
             $("#ODRPagePopup").offset( new_offset );
         });
 
+
+
         $("#ODRPageSelectButton").unbind('click').click(function() {
-            var page = parseInt( $("#odr_page_input").val() );
-            if ( isNaN(page) ) {
-                $("#odr_page_input").val('');
-                return;
-            }
-
-            if (page < 1)
-                page = 1;
-            if (page > {{ num_pages }})
-                page = {{ num_pages }};
-
-            var url = "{{ path_str }}" + '/' + page;
-            UpdateURL(url);
+            goToPage();
         });
 
         $(".ODRPageLength").unbind('click').click(function() {
@@ -146,27 +207,27 @@
         jQuery('#ODRHelpButton')
             .attr('data-step', '1')
             .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br /><br />  For quicker navigation, use your left and right arrow keys to go through the tutorial.');
-        jQuery('#page_settings')
+        jQuery('#ODRPageSelectSettings')
             .attr('data-step', '2')
             .attr('data-intro', 'The settings gear contains customizable settings for this page (search results).');
         jQuery('#ChooseView')
             .attr('data-step', '3')
             .attr('data-intro', 'Clicking "Choose View" brings up a menu of options for selecting alternate search views or creating your own.');
-        jQuery('#ODRPageSelect')
-            .attr('data-step', '4')
-            .attr('data-intro', 'You may jump to a specific results page by using the "Jump to page" option.');
-        jQuery('.ODRShortResultsHeader:first')
-            .attr('data-step', '5')
-            .attr('data-intro', 'Click the left side of a result header to view the record.');
-        jQuery('.ODRShortResultsHeader_edit:first')
-            .attr('data-step', '6')
-            .attr('data-intro', 'Click this right side of a result header to enter the edit page for that record.');
         jQuery('#ODRMassEdit')
-            .attr('data-step', '7')
+            .attr('data-step', '4')
             .attr('data-intro', 'Mass edit allows users with appropriate permissions to edit all records in the result list at once.');
         jQuery('#ODRCSVExport')
-            .attr('data-step', '8')
+            .attr('data-step', '5')
             .attr('data-intro', 'CSV Export lets users create CSV downloads of the data in the result list.');
+        jQuery('#ODRPageSelect')
+            .attr('data-step', '6')
+            .attr('data-intro', 'You may jump to a specific results page by using the "Jump to page" option.');
+        jQuery('.ODRShortResultsHeader:first')
+            .attr('data-step', '7')
+            .attr('data-intro', 'Click the left side of a result header to view the record.');
+        jQuery('.ODRShortResultsHeader_edit:first')
+            .attr('data-step', '8')
+            .attr('data-intro', 'Click this right side of a result header to enter the edit page for that record.');
         jQuery('#ODRRunApp')
             .attr('data-step', '9')
             .attr('data-intro', 'If this button is visible, one or more JupyterHub apps will be available in the select box to the left.   ');
@@ -181,30 +242,53 @@
         });
     });
 
-    function introJsExitHandler() {
+    function goToPage(page) {
+
+        if ( page === undefined ) {
+            page = parseInt($("#odr_page_input").val());
+            if (isNaN(page)) {
+                $("#odr_page_input").val('');
+                return;
+            }
+        }
+
+        if (page < 1)
+            page = 1;
+        if (page > {{ num_pages }})
+            page = {{ num_pages }};
+
+        showSearchOverlay('loading');    {# defined in Default::common_js.html.twig #}
+
+        var url = "{{ path_str }}" + '/' + page;
+        UpdateURL(url);
     }
 
     function introJsStepBeforeChangeHandler(elem) {
-        if(jQuery(elem).attr("id") === "page_settings") {
-            if(!jQuery("#page_settings_menu").is(":visible")) {
+        if (jQuery(elem).attr("id") === "ODRPageSelectSettings") {
+            if (!jQuery("#page_settings_menu").is(":visible")) {
+                // Click the gear icon so the "Choose View", "Mass Edit", and "CSV Export" buttons
+                //  are visible
                 jQuery(elem).click();
             }
         }
-        if(jQuery(elem).attr("id") === "ChooseView") {
-        }
-        if(jQuery(elem).attr("id") === "ODRPageSelect") {
-            if(jQuery("#ChooseView").is(":visible")) {
-                jQuery("#page_settings").click();
+        if (jQuery(elem).attr("id") === "ODRPageSelect") {
+            if (jQuery("#ChooseView").is(":visible")) {
+                // Click the gear icon again so the "Choose View", "Mass Edit", and "CSV Export"
+                //  buttons are no longer visible
+                jQuery("#ODRPageSelectSettings").click();
             }
-            if(!jQuery("#ODRPagePopup").is(":visible")) {
+            if (!jQuery("#ODRPagePopup").is(":visible")) {
                 jQuery(elem).click();
             }
         }
-        if(jQuery(elem).hasClass("ODRShortResultsHeader")) {
+        if (jQuery(elem).hasClass("ODRShortResultsHeader")) {
             if (jQuery("#ODRPagePopup").is(":visible")) {
                 jQuery("#ODRPageSelect").click()
             }
         }
+    }
+
+    function introJsExitHandler() {
     }
 </script>
 {% endspaceless %}

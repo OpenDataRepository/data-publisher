@@ -1,9 +1,8 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
-{% set theme = theme_array[datatype.id] %}
+{% set theme = theme_array[target_theme_id] %}
 
-{#{% for data in datatype_tree.theme_elements %}#}
 {% for theme_element in theme.themeElements %}
 
     <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
@@ -26,7 +25,34 @@
                 {% endif %}
             {% endfor %}
         {% elseif theme_element.themeDataType is defined %}
-            {# do not render child/linked datatype for CSVExport #}
+
+            {# should only ever going to be a single child datatype, but keep the loop incase that changes in the future #}
+            {% for theme_datatype in theme_element.themeDataType %}
+                {% set child_datatype_id = theme_datatype.dataType.id %}
+                {% set child_theme_id = theme_datatype.childTheme.id %}
+
+                {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
+                {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
+                    {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
+                    {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
+
+                    {% set multiple_allowed = datatype['descendants'][child_datatype_id]['multiple_allowed'] %}
+                    {% set is_link = datatype['descendants'][child_datatype_id]['is_link'] %}
+
+                    {% include 'ODRAdminBundle:CSVExport:csvexport_childtype.html.twig' with {
+                        'datatype_array': child_datatype,
+                        'theme_array': child_theme,
+
+                        'target_datatype_id': child_datatype_id,
+                        'target_theme_id': child_theme_id,
+
+                        'is_top_level': 0,
+                        'multiple_allowed': multiple_allowed,
+                        'is_link': is_link,
+                    } %}
+                {% endif %}
+            {% endfor %}
+
         {% endif %}
 
         </div><!-- End of .ODRInnerBox -->

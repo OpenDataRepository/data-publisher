@@ -16,7 +16,7 @@ namespace ODR\AdminBundle\Command;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 
 // Services
-use ODR\AdminBundle\Component\Service\CloneDatatypeService;
+use ODR\AdminBundle\Component\Service\CloneMasterDatatypeService;
 // Symfony
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -35,7 +35,7 @@ class CloneDatatypeCommand extends ContainerAwareCommand
         parent::configure();
 
         $this
-            ->setName('odr_datatype:clone')
+            ->setName('odr_datatype:clone_master')
             ->setDescription('Clones a datatype from a pre-existing master template.');
     }
 
@@ -50,52 +50,83 @@ class CloneDatatypeCommand extends ContainerAwareCommand
         $logger = $container->get('logger');
         $pheanstalk = $container->get('pheanstalk');
 
+        $current_time = new \DateTime();
+        $msg = $current_time->format('Y-m-d H:i:s').' (UTC-5)';
+        $msg .= ' :: Clone Master Startup.';
+        $output->writeln($msg);
+
+        $count = 0;
         while (true) {
             // Run command until manually stopped
             $job = null;
             try {
                 // Watch for a job
                 /** @var Job $job */
-                $job = $pheanstalk->watch('create_datatype')->ignore('default')->reserve();
+                $job = $pheanstalk->watch('create_datatype_from_master')->ignore('default')->reserve();
                 $data = json_decode($job->getData());
 
-                $current_time = new \DateTime();
-                $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
-                $output->writeln('Beginning cloning process for datatype '.$data->datatype_id.', requested by user '.$data->user_id.'...');
+                // Dealt with the job
+                // Just need to clear things....
+                // $pheanstalk->delete($job);
 
-                /** @var CloneDatatypeService $clone_datatype_service */
-                $clone_datatype_service = $this->getContainer()->get('odr.clone_datatype_service');
-                $result = $clone_datatype_service->createDatatypeFromMaster($data->datatype_id, $data->user_id);
 
                 $current_time = new \DateTime();
-                $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
-                $output->writeln('Cloning process for datatype '.$data->datatype_id.' '.$result);
+                $msg = $current_time->format('Y-m-d H:i:s').' (UTC-5)';
+                $msg .= ' :: Beginning cloning process for datatype '.$data->datatype_id.', requested by user '.$data->user_id.'...';
+                $output->writeln($msg);
 
-/*
-                // Do things with the response returned by the controller?
-                $result = json_decode($ret);
-                if ( isset($result->r) && isset($result->d) ) {
-                    if ( $result->r == 0 && $data->crypto_type == 'encrypt' )
-                        $output->writeln( $result->d );
-                    else
-                        throw new \Exception( $result->d );
-                }
-                else {
-                    // Should always be a json return...
-                    throw new \Exception( print_r($ret, true) );
-                }
-*/
+                /** @var CloneMasterDatatypeService $clone_datatype_service */
+                $clone_datatype_service = $this->getContainer()->get('odr.clone_master_datatype_service');
+                $result = $clone_datatype_service->createDatatypeFromMaster(
+                    $data->datatype_id,
+                    $data->user_id,
+                    $data->template_group
+                );
+
+                $current_time = new \DateTime();
+                $msg = $current_time->format('Y-m-d H:i:s').' (UTC-5)';
+                $msg .= ' :: Cloning process for datatype '.$data->datatype_id.' '.$result;
+                $output->writeln($msg);
 
                 // Dealt with the job
                 $pheanstalk->delete($job);
 
-                // Sleep for a bit 200ms
-                usleep(200000);
+
+                $count++;
+                // Only run twice.  Monitor restarts process...
+                if($count > 1 || $data->clone_and_link) {
+                    $msg = $current_time->format('Y-m-d H:i:s').' (UTC-5)';
+                    $msg .= ' :: Exiting Clone Datatype Command';
+                    $output->writeln($msg);
+                    exit();
+                }
+
+                // Sleep for a bit 10ms
+                usleep(10000);
+            }
+            catch (\Throwable $e) {
+                if ($e->getMessage() == 'retry') {
+                    $output->writeln('Could not resolve host, releasing job to try again');
+                    $logger->error('CloneDatatypeCommand.php: ' . $e->getMessage());
+
+                    // Release the job back into the ready queue to try again
+                    $pheanstalk->release($job);
+
+                    // Sleep for a bit
+                    usleep(1000000);     // sleep for 1 second
+                } else {
+                    $output->writeln($e->getMessage());
+
+                    $logger->error('CloneDatatypeCommand.php: ' . $e->getMessage());
+
+                    // Delete the job so the queue doesn't hang, in theory
+                    $pheanstalk->delete($job);
+                }
             }
             catch (\Exception $e) {
                 if ( $e->getMessage() == 'retry' ) {
                     $output->writeln( 'Could not resolve host, releasing job to try again' );
-                    $logger->err('CloneDatatypeCommand.php: '.$e->getMessage());
+                    $logger->error('CloneDatatypeCommand.php: '.$e->getMessage());
 
                     // Release the job back into the ready queue to try again
                     $pheanstalk->release($job);
@@ -106,7 +137,7 @@ class CloneDatatypeCommand extends ContainerAwareCommand
                 else {
                     $output->writeln($e->getMessage());
 
-                    $logger->err('CloneDatatypeCommand.php: '.$e->getMessage());
+                    $logger->error('CloneDatatypeCommand.php: '.$e->getMessage());
 
                     // Delete the job so the queue doesn't hang, in theory
                     $pheanstalk->delete($job);

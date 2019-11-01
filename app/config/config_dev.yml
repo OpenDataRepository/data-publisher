@@ -12,34 +12,39 @@ web_profiler:
 monolog:
     # Changes made to configuration here typically need to be made in config_prod.yml as well
     # https://symfony.com/doc/2.8/logging/channels_handlers.html
-    channels: ['clone_datatype', 'clone_theme']
+    channels: ['clone_datatype', 'clone_template', 'clone_theme']
 
     handlers:
         # ideally stuff shouldn't write to this channel
         app:
             type:  stream
-            path:  %kernel.logs_dir%/app.log
+            path:  "%kernel.logs_dir%/app.log"
             level: debug
             channels: [app]
 
         clone_datatype:
             type:  stream
-            path:  %kernel.logs_dir%/clone_datatype.log
+            path:  "%kernel.logs_dir%/clone_datatype.log"
             level: debug
             channels: [clone_datatype]
+        clone_template:
+            type:  stream
+            path:  "%kernel.logs_dir%/clone_template.log"
+            level: debug
+            channels: [clone_template]
         clone_theme:
             type:  stream
-            path:  %kernel.logs_dir%/clone_theme.log
+            path:  "%kernel.logs_dir%/clone_theme.log"
             level: debug
             channels: [clone_theme]
 
         main:
             type:  stream
-            path:  %kernel.logs_dir%/%kernel.environment%.log
+            path:  "%kernel.logs_dir%/%kernel.environment%.log"
             level: debug
         firephp:
             type:  firephp
             level: info
 
-assetic:
-    use_controller: true
+#assetic:
+#    use_controller: true

@@ -95,14 +95,10 @@
             
 </div><!-- End of .content -->
 
-<style>
-    .ODRHidden {
-        display: none;
-    }
-</style>
-
 <script>
     $(function() {
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
         $("#ODRUserList").dataTable({
             "columnDefs": [
                 {
@@ -131,7 +127,7 @@
         $("#ODRUserList tbody tr").each(function() {
             if ( !$(this).hasClass('ODRHidden') ) {
                 count++;
-                if ( count % 2 == 0 )
+                if ( count % 2 === 1 )
                     $(this).removeClass('odd').addClass('even');
                 else
                     $(this).removeClass('even').addClass('odd');
@@ -179,7 +175,7 @@
                 success: function(data, textStatus, jqXHR) {
                     if (data.r == 0) {
                         alert("User Deleted");
-                        $('#content').html(data.d.html);
+                        UpdateURL(data.d.url);
                     }
                     else {
                         // TODO - no error message ability?
@@ -215,7 +211,7 @@
             success: function(data, textStatus, jqXHR) {
                 if (data.r == 0) {
                     alert("User Reinstated");
-                    $('#content').html(data.d.html);
+                    UpdateURL(data.d.url);
                 }
                 else {
                     // TODO - no error message ability?

@@ -1,6 +1,7 @@
 {% spaceless %}
 
-{% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
 
 {% set can_view_datafield = false %}
 {% if datafield_permissions[ datafield.id ] is defined and datafield_permissions[ datafield.id ][ 'view' ] is defined %}
@@ -15,7 +16,7 @@
 {% if theme.themeType == 'master' %}
     {% if can_view_datafield and can_edit_datafield %}
         <div id="Field_{{ datafield.id }}_overlay" class="ODRDataFieldPermission ODROverlayDiv ODREditableDatafield Cursor" title="This User is allowed to both view and edit this datafield" rel="{{ datafield.id }}"></div>
-    {% elseif can_view_datafield or datafield.dataFieldMeta.publicDate|is_public %}
+    {% elseif can_view_datafield or datafield_meta.publicDate|is_public %}
         <div id="Field_{{ datafield.id }}_overlay" class="ODRDataFieldPermission ODROverlayDiv ODRVisibleDatafield Cursor" title="This User is allowed to view this datafield, but not edit it" rel="{{ datafield.id }}"></div>
     {% else %}
         <div id="Field_{{ datafield.id }}_overlay" class="ODRDataFieldPermission ODROverlayDiv ODRBlockedDatafield Cursor" title="This User is not allowed to view or edit this datafield" rel="{{ datafield.id }}"></div>
@@ -26,113 +27,134 @@
 <form id="Form_DataField_{{ datafield.id }}" class="pure-u-1">
 
     {% if field_typename == "Boolean" %}
-        <fieldset>
-            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;">
-                <input type="checkbox" name="">
-                {{ datafield.dataFieldMeta.fieldName }}
-            </label>
-        </fieldset>
+    <fieldset>
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;">
+            <input type="checkbox" name="">&nbsp;
+
+            <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+        </label>
+    </fieldset>
 
     {% elseif field_typename == "File" %}
-        <fieldset>
-            <div class="pure-u-1">
-                <table class="ODRTable pure-u-1">
-                    <thead class="pure-u-1">
-                    <tr class="pure-u-1">
-                        <th class="pure-u-20-24">
-                            {{ datafield.dataFieldMeta.fieldName }}
-                        </th>
-                        <th class="pure-u-1-24"></th>
-                    </tr>
-                    </thead>
-                    <tbody class="pure-u-1">
-                    <tr class="pure-u-1">
-                        <td class="pure-u-20-24">file_name_here</td>
-                        <td class="pure-u-4-24">
-                            {#<i class="Cursor tooltip fa fa-globe fa-lg" title="Public since [YYYY-MM-DD]"></i>#}
-                            <i class="Cursor tooltip fa fa-calendar fa-lg" title="Uploaded [YYYY-MM-DD] by John Doe"></i>
-                            <i class="Cursor tooltip fa fa-trash-o fa-lg" title="Delete File"></i>
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
+        <div class="ODRFileDatafield">
+            <div class="ODRFileDatafield_header pure-u-1">
+                <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
+
+                <span id="ODRDataField_{{ datafield.id }}" title="{{ datafield_meta.description }}">
+                    <span id="ODRDatafield_{{ datafield.id }}_name" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</span>
+                </span>
             </div>
-        </fieldset>
+            <div class="ODRFileDatafield_file pure-u-1">
+                <span class="ODRFileSpacer ODRFileSpacer_nonpublic">&nbsp;</span>
+
+                <span class="ODRTruncateFilename">
+
+                    <span class="ODRFileInfoDiv">
+                        <i class="fa fa-lg fa-info-circle"></i>
+                        <span class="ODRFileInfo">
+                            <div>
+                                <i class="fa fa-globe ODRPublicFile"></i>&nbsp;
+                            </div>
+                            <div>
+                                <i class="fa fa-calendar"></i>&nbsp;
+                                Uploaded Unknown Date by Unknown
+                            </div>
+                            <div>
+                                <i class="fa fa-file-o"></i>&nbsp;
+                                0 bytes
+                            </div>
+                        </span>
+                    </span>
+                    <a class="ODRFileDownload" title="File Name Here" rel="-1">File Name Here</a>
+                </span>
+            </div>
+        </div>
 
     {% elseif field_typename == "Image" %}
-        <fieldset>
+    <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <h3 id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">
+                <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield_meta.fieldName }}</span>
+            </h3>
         </span>
             <div class="pure-u-1">
-                <div class="pure-u-1">&nbsp;<i class="ODRDeleteImage Pointer fa fa-lg fa-trash-o" title="Delete Image"></i>&nbsp;<i class="PublicImage Pointer fa fa-lg fa-globe"></i>&nbsp;</div>
-                <div class="pure-u-1">
-                    <img class="pure-img" src="/img/_demo/_tmb/1.jpg" />
-                </div>
+                <img class="pure-img" src="/img/blank.jpg" />
             </div>
-        </fieldset>
+    </fieldset>
 
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Paragraph Text" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
-        <fieldset>
-        <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
-        </span>
-            <div class="ODRPseudoField" id="Input_{{ datafield.id }}"></div>
-        </fieldset>
+    <fieldset>
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
+            <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+        </label>
+        <div class="ODRPseudoField" id="Input_{{ datafield.id }}"></div>
+    </fieldset>
 
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}
-        <fieldset>
+    <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel">
+                <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+            </label>
         </span>
 
-            {% if datafield.radioOptions is defined %}
-                {% for radio_option in datafield.radioOptions %}
-                    <label id="Option_{{ radio_option.id }}" for="Option_object_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
+        {% if datafield.radioOptions is defined %}
+            {% for radio_option in datafield.radioOptions %}
+                <label id="Option_{{ radio_option.id }}" for="Option_object_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield_meta.children_per_row }}" style="margin: 0.5em 0;">
 
-                        {% if field_typename == "Single Radio" %}
-                            <input id="Option_object_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datafield.id }}" class="SingleRadioGroup" disabled />
-                        {% else %}
-                            <input id="Option_object_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="MultipleRadioGroup" disabled />
-                        {% endif %}
-
-                        <span id="Option_{{ radio_option.id }}_name">{{ radio_option.radioOptionMeta.optionName }}</span>
-                    </label>
-                {% endfor %}
-            {% endif %}
-        </fieldset>
-
-    {% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}
-        <fieldset>
-        <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
-        </span>
-
-            <select id="SelectGroup_{{ datafield.id }}" class="{% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
-
-                {% if datafield.radioOptions is defined %}
-                    {% if field_typename == "Single Select" %}
-                        <option id="Option_0" value="0">Select an Option</option>
+                    {% if field_typename == "Single Radio" %}
+                        <input id="Option_object_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datafield.id }}" class="SingleRadioGroup" disabled />
+                    {% else %}
+                        <input id="Option_object_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="MultipleRadioGroup" disabled />
                     {% endif %}
 
-                    {% for radio_option in datafield.radioOptions %}
-                        <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionMeta.optionName }}</option>
-                    {% endfor %}
-                {% endif %}
-            </select>
-        </fieldset>
+                    <span id="Option_{{ radio_option.id }}_name">{{ radio_option.radioOptionMeta.optionName }}</span>
+                </label>
+            {% endfor %}
+        {% endif %}
+    </fieldset>
 
-    {% elseif field_typename == "DateTime" %}
-        <fieldset>
+    {% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}
+    <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel">
+                <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+            </label>
         </span>
 
-            <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
-                <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly />
-            </div>
-            <div style="margin-bottom:5px;"><label class="ODRDatePicker_clear"><u>Clear Date</u></label></div>
-        </fieldset>
+        <select id="SelectGroup_{{ datafield.id }}" class="{% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
+            {% if datafield.radioOptions is defined %}
+                {% if field_typename == "Single Select" %}
+                    <option id="Option_0" value="0">Select an Option</option>
+                {% endif %}
+
+                {% for radio_option in datafield.radioOptions %}
+                    <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionMeta.optionName }}</option>
+                {% endfor %}
+            {% endif %}
+        </select>
+    </fieldset>
+
+    {% elseif field_typename == "Tags" %}
+    <fieldset>
+        <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+        {% if datafield.tags is defined %}
+            {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
+                'stacked_tags': datafield.tags,
+            } %}
+        {% endif %}
+    </fieldset>
+
+    {% elseif field_typename == "DateTime" %}
+    <fieldset>
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
+            <span id="ODRDatafield_{{ datafield.id }}_name" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</span>
+        </label>
+        <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
+            <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly />
+        </div>
+        <div style="margin-bottom:5px;"><label class="ODRDatePicker_clear"><u>Clear Date</u></label></div>
+    </fieldset>
 
     {% endif %}
 

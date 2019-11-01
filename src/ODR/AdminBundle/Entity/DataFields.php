@@ -33,6 +33,16 @@ class DataFields
     private $is_master_field;
 
     /**
+     * @var string
+     */
+    private $fieldUuid;
+
+    /**
+     * @var string
+     */
+    private $templateFieldUuid;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -65,12 +75,22 @@ class DataFields
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
+    private $tags;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
     private $dataFieldMeta;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
     private $groupDatafieldPermissions;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $imageSizes;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataFields
@@ -109,6 +129,7 @@ class DataFields
         $this->radioOptions = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataFieldMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->groupDatafieldPermissions = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->imageSizes = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -156,6 +177,54 @@ class DataFields
         $this->created = $created;
 
         return $this;
+    }
+
+    /**
+     * Set fieldUuid
+     *
+     * @param string $fieldUuid
+     *
+     * @return DataFields
+     */
+    public function setFieldUuid($fieldUuid)
+    {
+        $this->fieldUuid = $fieldUuid;
+
+        return $this;
+    }
+
+    /**
+     * Get fieldUuid
+     *
+     * @return string
+     */
+    public function getFieldUuid()
+    {
+        return $this->fieldUuid;
+    }
+
+    /**
+     * Set templateFieldUuid
+     *
+     * @param string $templateFieldUuid
+     *
+     * @return DataFields
+     */
+    public function setTemplateFieldUuid($templateFieldUuid)
+    {
+        $this->templateFieldUuid = $templateFieldUuid;
+
+        return $this;
+    }
+
+    /**
+     * Get templateFieldUuid
+     *
+     * @return string
+     */
+    public function getTemplateFieldUuid()
+    {
+        return $this->templateFieldUuid;
     }
 
     /**
@@ -343,6 +412,58 @@ class DataFields
     }
 
     /**
+     * Add tag
+     *
+     * @param \ODR\AdminBundle\Entity\Tags $tag
+     *
+     * @return DataFields
+     */
+    public function addTag(\ODR\AdminBundle\Entity\Tags $tag)
+    {
+        $this->tags[] = $tag;
+
+        return $this;
+    }
+
+    /**
+     * Remove tag
+     *
+     * @param \ODR\AdminBundle\Entity\Tags $tag
+     */
+    public function removeTag(\ODR\AdminBundle\Entity\Tags $tag)
+    {
+        $this->tags->removeElement($tag);
+    }
+
+    /**
+     * Get tags
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getTags()
+    {
+//        return $this->tags;
+
+        // Adapted from http://stackoverflow.com/a/16707694
+        $iterator = $this->tags->getIterator();
+        $iterator->uasort(function ($a, $b) {
+            // Sort by display order first if possible
+            /** @var Tags $a */
+            /** @var Tags $b */
+            $a_display_order = $a->getDisplayOrder();
+            $b_display_order = $b->getDisplayOrder();
+            if ($a_display_order < $b_display_order)
+                return -1;
+            else if ($a_display_order > $b_display_order)
+                return 1;
+            else
+                // otherwise, sort by tag_id
+                return ($a->getId() < $b->getId()) ? -1 : 1;
+        });
+        return new ArrayCollection(iterator_to_array($iterator));
+    }
+
+    /**
      * Add dataFieldMeta
      *
      * @param \ODR\AdminBundle\Entity\DataFieldsMeta $dataFieldMeta
@@ -406,6 +527,40 @@ class DataFields
     public function getGroupDatafieldPermissions()
     {
         return $this->groupDatafieldPermissions;
+    }
+
+    /**
+     * Add imageSize
+     *
+     * @param \ODR\AdminBundle\Entity\ImageSizes $imageSize
+     *
+     * @return DataFields
+     */
+    public function addImageSize(\ODR\AdminBundle\Entity\ImageSizes $imageSize)
+    {
+        $this->imageSizes[] = $imageSize;
+
+        return $this;
+    }
+
+    /**
+     * Remove imageSize
+     *
+     * @param \ODR\AdminBundle\Entity\ImageSizes $imageSize
+     */
+    public function removeImageSize(\ODR\AdminBundle\Entity\ImageSizes $imageSize)
+    {
+        $this->imageSizes->removeElement($imageSize);
+    }
+
+    /**
+     * Get imageSizes
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getImageSizes()
+    {
+        return $this->imageSizes;
     }
 
     /**
@@ -559,6 +714,46 @@ class DataFields
     }
 
     /**
+     * Get internalReferenceName
+     *
+     * @return string
+     */
+    public function getInternalReferenceName()
+    {
+        return $this->getDataFieldMeta()->getInternalReferenceName();
+    }
+
+    /**
+     * Get master_published_revision
+     *
+     * @return int
+     */
+    public function getMasterPublishedRevision()
+    {
+        return $this->getDataFieldMeta()->getMasterPublishedRevision();
+    }
+
+    /**
+     * Get master_revision
+     *
+     * @return int
+     */
+    public function getMasterRevision()
+    {
+        return $this->getDataFieldMeta()->getMasterRevision();
+    }
+
+    /**
+     * Get tracking_master_revision
+     *
+     * @return int
+     */
+    public function getTrackingMasterRevision()
+    {
+        return $this->getDataFieldMeta()->getTrackingMasterRevision();
+    }
+
+    /**
      * Get markdownText
      *
      * @return string
@@ -629,6 +824,16 @@ class DataFields
     }
 
     /**
+     * Get newFilesArePublic
+     *
+     * @return bool
+     */
+    public function getNewFilesArePublic()
+    {
+        return $this->getDataFieldMeta()->getNewFilesArePublic();
+    }
+
+    /**
      * Get children_per_row
      *
      * @return integer
@@ -656,6 +861,26 @@ class DataFields
     public function getRadioOptionDisplayUnselected()
     {
         return $this->getDataFieldMeta()->getRadioOptionDisplayUnselected();
+    }
+
+    /**
+     * Get tagsAllowMultipleLevels
+     *
+     * @return boolean
+     */
+    public function getTagsAllowMultipleLevels()
+    {
+        return $this->getDataFieldMeta()->getTagsAllowMultipleLevels();
+    }
+
+    /**
+     * Get tagsAllowNonAdminEdit
+     *
+     * @return boolean
+     */
+    public function getTagsAllowNonAdminEdit()
+    {
+        return $this->getDataFieldMeta()->getTagsAllowNonAdminEdit();
     }
 
     /**
@@ -696,35 +921,5 @@ class DataFields
     public function getRenderPlugin()
     {
         return $this->getDataFieldMeta()->getRenderPlugin();
-    }
-
-    /**
-     * Get master_published_revision
-     *
-     * @return int
-     */
-    public function getMasterPublishedRevision()
-    {
-        return $this->getDataFieldMeta()->getMasterPublishedRevision();
-    }
-
-    /**
-     * Get master_revision
-     *
-     * @return int
-     */
-    public function getMasterRevision()
-    {
-        return $this->getDataFieldMeta()->getMasterRevision();
-    }
-
-    /**
-     * Get tracking_master_revision
-     *
-     * @return int
-     */
-    public function getTrackingMasterRevision()
-    {
-        return $this->getDataFieldMeta()->getTrackingMasterRevision();
     }
 }

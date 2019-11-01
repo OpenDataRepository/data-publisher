@@ -1,0 +1,19 @@
+
+$("#ODRMainMenu").overhang({
+    type: "confirm",
+    message: "This layout has been synchronized with its source.",
+    overlay: true,
+{# primary: "", #}
+
+    yesMessage: "Go to design page",
+{# yesColor: "", #}
+    noMessage: "Continue",
+{# noColor: "", #}
+
+    callback: function(selection) {
+        if (selection === true) {
+            var url = '{{ path('odr_modify_theme', {'datatype_id': datatype_id, 'theme_id': theme_id, 'search_key': search_key}) }}'
+            UpdateURL(url);
+        }
+    }
+});

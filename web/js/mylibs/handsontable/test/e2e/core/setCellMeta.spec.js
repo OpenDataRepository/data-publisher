@@ -22,14 +22,28 @@ describe('Core.setCellMeta', () => {
       }
     });
 
-    let cellMeta = getCellMeta(0, 0);
+    const cellMeta = getCellMeta(0, 0);
 
     expect(cellMeta.className).not.toBeUndefined();
     expect(cellMeta.className).toEqual(className);
   });
 
-  it('should set correct meta className for non existed cell', () => {
+  it('should set proper cell meta when indexes was modified', () => {
+    handsontable({
+      modifyRow(row) {
+        return row + 10;
+      },
+      modifyCol(col) {
+        return col + 10;
+      }
+    });
 
+    setCellMeta(0, 1, 'key', 'value');
+
+    expect(getCellMeta(0, 1).key).toEqual('value');
+  });
+
+  it('should set correct meta className for non existed cell', () => {
     const className = 'htCenter htMiddle';
 
     handsontable({
@@ -39,13 +53,13 @@ describe('Core.setCellMeta', () => {
       }
     });
 
-    let cellMeta = getCellMeta(100, 100);
+    const cellMeta = getCellMeta(100, 100);
 
     expect(cellMeta.className).not.toBeUndefined();
     expect(cellMeta.className).toEqual(className);
   });
 
-  it('should set correct meta classNames for cells using cell in configuration', function() {
+  it('should set correct meta classNames for cells using cell in configuration', () => {
     const classNames = [
       'htCenter htTop',
       'htRight htBottom'
@@ -53,16 +67,16 @@ describe('Core.setCellMeta', () => {
 
     handsontable({
       cell: [
-        {row: 0, col: 0, className: classNames[0] },
-        {row: 1, col: 1, className: classNames[1] }
+        { row: 0, col: 0, className: classNames[0] },
+        { row: 1, col: 1, className: classNames[1] }
       ]
     });
 
-    expect(this.$container.find('tbody tr:eq(0) td:eq(0)')[0].className).toEqual(classNames[0]);
-    expect(this.$container.find('tbody tr:eq(1) td:eq(1)')[0].className).toEqual(classNames[1]);
+    expect(spec().$container.find('tbody tr:eq(0) td:eq(0)')[0].className).toEqual(classNames[0]);
+    expect(spec().$container.find('tbody tr:eq(1) td:eq(1)')[0].className).toEqual(classNames[1]);
   });
 
-  it('should change cell meta data with updateSettings when the cell option is defined', function() {
+  it('should change cell meta data with updateSettings when the cell option is defined', () => {
     const classNames = [
       'htCenter htTop',
       'htRight htBottom'
@@ -70,51 +84,48 @@ describe('Core.setCellMeta', () => {
 
     handsontable({
       cell: [
-        {row: 0, col: 0, className: classNames[0] },
-        {row: 1, col: 1, className: classNames[1] }
+        { row: 0, col: 0, className: classNames[0] },
+        { row: 1, col: 1, className: classNames[1] }
       ]
     });
 
-    expect(this.$container.find('tbody tr:eq(0) td:eq(0)')[0].className).toEqual(classNames[0]);
-    expect(this.$container.find('tbody tr:eq(1) td:eq(1)')[0].className).toEqual(classNames[1]);
+    expect(spec().$container.find('tbody tr:eq(0) td:eq(0)')[0].className).toEqual(classNames[0]);
+    expect(spec().$container.find('tbody tr:eq(1) td:eq(1)')[0].className).toEqual(classNames[1]);
 
     updateSettings({
       cell: []
     });
 
-    expect(this.$container.find('tbody tr:eq(0) td:eq(0)')[0].className).toEqual('');
-    expect(this.$container.find('tbody tr:eq(1) td:eq(1)')[0].className).toEqual('');
+    expect(spec().$container.find('tbody tr:eq(0) td:eq(0)')[0].className).toEqual('');
+    expect(spec().$container.find('tbody tr:eq(1) td:eq(1)')[0].className).toEqual('');
 
     updateSettings({
       cell: [
-        {row: 0, col: 0, className: classNames[1] },
-        {row: 1, col: 1, className: classNames[0] }
+        { row: 0, col: 0, className: classNames[1] },
+        { row: 1, col: 1, className: classNames[0] }
       ]
     });
 
-    expect(this.$container.find('tbody tr:eq(0) td:eq(0)')[0].className).toEqual(classNames[1]);
-    expect(this.$container.find('tbody tr:eq(1) td:eq(1)')[0].className).toEqual(classNames[0]);
+    expect(spec().$container.find('tbody tr:eq(0) td:eq(0)')[0].className).toEqual(classNames[1]);
+    expect(spec().$container.find('tbody tr:eq(1) td:eq(1)')[0].className).toEqual(classNames[0]);
   });
 
-  it('should call afterSetCellMeta plugin hook', () => {
+  it('should call `afterSetCellMeta` plugin hook with visual indexes as parameters', () => {
     const className = 'htCenter htMiddle';
-    let res = {};
+    const afterSetCellMeta = jasmine.createSpy('afterSetCellMeta');
 
-    handsontable({
-      afterCellMetaReset() {
-        this.setCellMeta(0, 1, 'className', className);
+    const hot = handsontable({
+      afterSetCellMeta,
+      modifyRow(row) {
+        return row + 10;
       },
-      afterSetCellMeta(row, col, key, val) {
-        res.row = row;
-        res.col = col;
-        res.key = key;
-        res.val = val;
+      modifyCol(col) {
+        return col + 10;
       }
     });
 
-    expect(res.row).toEqual(0);
-    expect(res.col).toEqual(1);
-    expect(res.key).toEqual('className');
-    expect(res.val).toEqual(className);
+    hot.setCellMeta(0, 1, 'className', className);
+
+    expect(afterSetCellMeta).toHaveBeenCalledWith(0, 1, 'className', className, undefined, undefined);
   });
 });

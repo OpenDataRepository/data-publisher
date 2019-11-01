@@ -1,0 +1,8 @@
+{% spaceless %}
+    <fieldset>
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
+            <div class="ODRRenderPluginField">{{ value|raw }}{% if value|raw|length > 0 %}&nbsp;<i class="fa fa-external-link"></i>{% endif %}</div>
+        </div>
+    </fieldset>
+{% endspaceless %}
