@@ -31,6 +31,7 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Services
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -130,6 +131,8 @@ class FlowController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
 
@@ -174,7 +177,11 @@ class FlowController extends ODRCustomController
             $user_id = $user->getId();
 
             // Ensure user has permissions to be doing this
-            if ($upload_type == 'csv' || $upload_type == 'xml') {
+            if ( $upload_type == 'csv'
+                || $upload_type == 'xml'
+                || $upload_type == 'csv_import_file_storage'
+                || $upload_type == 'xml_import_file_storage'
+            ) {
                 if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                     return self::flowAbort('Not allowed to upload csv/xml files for importing');
             }
@@ -192,13 +199,15 @@ class FlowController extends ODRCustomController
                     // ...ensure the datafield doesn't already have a file/image uploaded
                     if ($upload_type == 'file') {
                         $files = $em->getRepository('ODRAdminBundle:File')->findBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
-                        if ( count($files) > 0 )
-                            return self::flowAbort('This Datafield already has a file uploaded to it');
+                        if ( count($files) > 0 ) {
+                            // return self::flowAbort('This Datafield already has a file uploaded to it');
+                        }
                     }
                     else if ($upload_type == 'image') {
                         $images = $em->getRepository('ODRAdminBundle:Image')->findBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId(), 'original' => 1) );
-                        if ( count($images) > 0 )
-                            return self::flowAbort('This Datafield already has an image uploaded to it');
+                        if ( count($images) > 0 ){
+                           // return self::flowAbort('This Datafield already has an image uploaded to it');
+                        }
                     }
                 }
             }
@@ -268,13 +277,18 @@ class FlowController extends ODRCustomController
                 $expected_size = intval( $post->get('flowTotalSize') );
                 $current_chunk_size = intval( $post->get('flowCurrentChunkSize') );
                 $identifier = $post->get('flowIdentifier');
-                $original_filename = $post->get('flowFilename');
+                $original_filename = trim( $post->get('flowFilename') );
 
                 $allowed_filesize = intval( $validation_params['maxSize'] );
 
                 if ( $expected_size > ($allowed_filesize * 1024 * 1024) ) {
                     // Expected filesize is too big, don't continue to upload
                     return self::flowAbort( $validation_params['maxSizeErrorMessage'] );
+                }
+                else if ( strlen($original_filename) > 128 || strlen($original_filename) == 0 ) {
+                    // Filename is either too large, or empty...don't continue
+                    // Filename length defined in FileMeta:originalFileName
+                    return self::flowAbort('Filenames are not allowed to exceed 128 characters');
                 }
                 else if ( self::validateChunk($uploaded_file, $current_chunk_size) ) {
                     // ...no errors found, move uploaded chunk to storage directory
@@ -321,7 +335,7 @@ class FlowController extends ODRCustomController
                 }
                 else if ($datarecord_id != 0 && $datafield_id != 0) {
                     // Upload meant for a file/image datafield...finish moving the uploaded file and store it properly
-                    $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
+                    $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
                     parent::finishUpload($em, $destination_folder, $original_filename, $user_id, $drf->getId());
 
                     // Mark this datarecord as updated

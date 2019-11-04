@@ -30,7 +30,7 @@
         jQuery('#ODRHelpButton')
             .attr('data-step', '1')
             .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br /><br />  For quicker navigation, use your left and right arrow keys to go through the tutorial.');
-        jQuery('#page_settings')
+        jQuery('#ODRPageSelectSettings')
             .attr('data-step', '2')
             .attr('data-intro', 'The settings gear contains customizable settings for this page (search results).');
         jQuery('#ChooseView')
@@ -65,30 +65,32 @@
         });
     });
 
-    function introJsExitHandler() {
-    }
-
     function introJsStepBeforeChangeHandler(elem) {
-        if(jQuery(elem).attr("id") === "page_settings") {
-            if(!jQuery("#page_settings_menu").is(":visible")) {
+        if (jQuery(elem).attr("id") === "ODRPageSelectSettings") {
+            if (!jQuery("#page_settings_menu").is(":visible")) {
+                // Click the gear icon so the "Choose View" button is visible
                 jQuery(elem).click();
             }
         }
-        if(
-            jQuery(elem).attr("id") !== "page_settings"
+        if (
+            jQuery(elem).attr("id") !== "ODRPageSelectSettings"
             && jQuery(elem).attr("id") !== "ChooseView"
         ) {
-            if(jQuery("#ChooseView").is(":visible")) {
-                jQuery("#page_settings").click();
+            if (jQuery("#ChooseView").is(":visible")) {
+                // Ensure the "Choose View" button is not visible
+                jQuery("#ODRPageSelectSettings").click();
             }
         }
+    }
+
+    function introJsExitHandler() {
     }
 
     function returnToSearchResults() {
         var offset = "{{ offset }}";
 
         // Ensure offset exists
-        if ( offset === '' || offset === '0' || offset === 0 )
+        if ( offset === '' || offset === '0' || offset == 0 )
             offset = Math.floor( ({{ search_result_current }}-1) / {{ page_length }} ) + 1;
 
         var url = '{{ path('odr_search_render', { 'search_theme_id': search_theme_id, 'search_key': search_key } ) }}';
@@ -96,6 +98,7 @@
             url += '/' + offset;
 
         // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
+        showSearchOverlay();    {# defined in Default::common_js.html.twig #}
         UpdateURL(url);
     }
 
@@ -110,8 +113,6 @@
         // Ensure offset exists
         if ( offset == '' )
             offset = Math.floor( (current-1) / page_length ) + 1;
-
-//alert( 'offset: ' + offset + ' page_length: ' + page_length + ' current: ' + current + ' count: ' + count );
 
         if (direction == 'prev') {
             data_record_id = "{{ prev_datarecord }}";

@@ -40,13 +40,18 @@ function setThemeElementIcons(id, icons) {
     $.each(icons, function(key, value) {
         var icon = $("#ThemeElementTools_" + id).find("." + key);
 
-        //
-        if (key == "ODRAddDatafield" || key == "ODRAddChildtype" || key == "ODRLinkDatatype" || key == "ODRDeleteThemeElement") {
+        /*
+        if (key == "ODRAddDatafield"
+            || key == "ODRAddChildtype"
+            || key == "ODRLinkDatatype"
+            || key == "ODRDeleteThemeElement"
+        ) {
             if (value == 1)
                 $(icon).removeClass('fa-muted').removeClass('ODRActiveIcon');
             else if (value == 0)
                 $(icon).addClass('fa-muted').removeClass('ODRActiveIcon');
         }
+        */
     });
 }
 

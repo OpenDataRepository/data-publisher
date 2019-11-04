@@ -35,6 +35,11 @@ class DataRecord
     private $provisioned;
 
     /**
+     * @var string
+     */
+    private $unique_id;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -120,7 +125,7 @@ class DataRecord
     /**
      * Get id
      *
-     * @return integer 
+     * @return integer
      */
     public function getId()
     {
@@ -143,11 +148,35 @@ class DataRecord
     /**
      * Get provisioned
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getProvisioned()
     {
         return $this->provisioned;
+    }
+
+    /**
+     * Set uniqueId
+     *
+     * @param string $uniqueId
+     *
+     * @return DataRecord
+     */
+    public function setUniqueId($uniqueId)
+    {
+        $this->unique_id = $uniqueId;
+
+        return $this;
+    }
+
+    /**
+     * Get uniqueId
+     *
+     * @return string
+     */
+    public function getUniqueId()
+    {
+        return $this->unique_id;
     }
 
     /**
@@ -189,7 +218,7 @@ class DataRecord
     /**
      * Get updated
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getUpdated()
     {
@@ -245,7 +274,7 @@ class DataRecord
     /**
      * Get dataRecordFields
      *
-     * @return \Doctrine\Common\Collections\Collection 
+     * @return \Doctrine\Common\Collections\Collection
      */
     public function getDataRecordFields()
     {
@@ -278,7 +307,7 @@ class DataRecord
     /**
      * Get grandchildren
      *
-     * @return \Doctrine\Common\Collections\Collection 
+     * @return \Doctrine\Common\Collections\Collection
      */
     public function getGrandchildren()
     {
@@ -311,7 +340,7 @@ class DataRecord
     /**
      * Get children
      *
-     * @return \Doctrine\Common\Collections\Collection 
+     * @return \Doctrine\Common\Collections\Collection
      */
     public function getChildren()
     {
@@ -401,7 +430,7 @@ class DataRecord
     /**
      * Get parent
      *
-     * @return \ODR\AdminBundle\Entity\DataRecord 
+     * @return \ODR\AdminBundle\Entity\DataRecord
      */
     public function getParent()
     {
@@ -424,7 +453,7 @@ class DataRecord
     /**
      * Get grandparent
      *
-     * @return \ODR\AdminBundle\Entity\DataRecord 
+     * @return \ODR\AdminBundle\Entity\DataRecord
      */
     public function getGrandparent()
     {
@@ -447,7 +476,7 @@ class DataRecord
     /**
      * Get createdBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getCreatedBy()
     {
@@ -493,7 +522,7 @@ class DataRecord
     /**
      * Get deletedBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getDeletedBy()
     {
@@ -516,95 +545,11 @@ class DataRecord
     /**
      * Get dataType
      *
-     * @return \ODR\AdminBundle\Entity\DataType 
+     * @return \ODR\AdminBundle\Entity\DataType
      */
     public function getDataType()
     {
         return $this->dataType;
-    }
-
-    /**
-     * Get external_id
-     * @deprecated
-     *
-     * @return string
-     */
-    public function getExternalId()
-    {
-        $external_id_datafield = $this->getDataType()->getExternalIdField();
-        if ($external_id_datafield !== null) {
-            $typename = $external_id_datafield->getFieldType()->getTypeName();
-
-            foreach ($this->getDataRecordFields() as $drf) {
-                if ($drf->getDataField()->getId() == $external_id_datafield->getId()) {
-                    $value = $drf->getAssociatedEntity()->getValue();
-
-                    if ($typename == 'DateTime')
-                        return $value->format('Y-m-d H:i:s');
-                    else
-                        return $value;
-                }
-            }
-        }
-
-        // Otherwise, return empty string for external id
-        return '';
-    }
-
-    /**
-     * Get namefield_value
-     * @deprecated
-     *
-     * @return string|integer
-     */
-    public function getNamefieldValue()
-    {
-        $name_datafield = $this->getDataType()->getNameField();
-        if ($name_datafield !== null) {
-            $typename = $name_datafield->getFieldType()->getTypeName();
-
-            foreach ($this->getDataRecordFields() as $drf) {
-                if ($drf->getDataField()->getId() == $name_datafield->getId()) {
-                    $value = $drf->getAssociatedEntity()->getValue();
-
-                    if ($typename == 'DateTime')
-                        return $value->format('Y-m-d H:i:s');
-                    else
-                        return $value;
-                }
-            }
-        }
-
-        // Otherwise, return id of datarecord?
-        return $this->getId();
-    }
-
-    /**
-     * Get sortfield_value
-     * @deprecated
-     *
-     * @return string|integer
-     */
-    public function getSortfieldValue()
-    {
-        $sort_datafield = $this->getDataType()->getSortField();
-        if ($sort_datafield !== null) {
-            $typename = $sort_datafield->getFieldType()->getTypeName();
-
-            foreach ($this->getDataRecordFields() as $drf) {
-                if ($drf->getDataField()->getId() == $sort_datafield->getId()) {
-                    $value = $drf->getAssociatedEntity()->getValue();
-
-                    if ($typename == 'DateTime')
-                        return $value->format('Y-m-d H:i:s');
-                    else
-                        return $value;
-                }
-            }
-        }
-
-        // Otherwise, return id of datarecord
-        return $this->getId();
     }
 
     /**
@@ -614,6 +559,7 @@ class DataRecord
      */
     public function isPublic()
     {
+        // TODO - This function is not correct...... Public should regard today's date.
         if ($this->getPublicDate()->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
             return false;
         else

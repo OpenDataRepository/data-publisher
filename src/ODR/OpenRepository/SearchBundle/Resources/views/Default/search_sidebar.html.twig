@@ -1,0 +1,609 @@
+{% spaceless %}
+
+{% set is_datatype_admin = false %}
+{% if datatype_permissions[target_datatype.id] is defined and datatype_permissions[target_datatype.id]['dt_admin'] is defined %}
+    {% set is_datatype_admin = true %}
+{% endif %}
+
+{% set datatype = datatype_array[target_datatype.id] %}
+
+{% set can_use_general_search = false %}
+{% for df_id, datafield in datatype['dataFields'] %}
+    {% set searchable = datafield['dataFieldMeta']['searchable'] %}
+    {% if searchable == 1 or searchable == 2 %}
+        {% set can_use_general_search = true %}
+    {% endif %}
+{% endfor %}
+
+    <div class="ODRThemeElement">
+        <input id="ODRSidebarSearchKey" type="hidden" value="{% if search_key is defined and search_key != '' %}{{ search_key }}{% endif %}" />
+        <input id="ODRSearchIntent" type="hidden" value="{{ intent }}" />
+
+        <div class="ODRInnerBox">
+            <span class="ODRSearchToggle">
+                <i class="fa fa-lg fa-arrow-circle-left hidden"></i>
+                <i class="fa fa-lg fa-arrow-circle-right"></i>
+            </span>
+            {% if intent == 'searching' %}
+                {% include 'ODROpenRepositorySearchBundle:Default:searchpage_markdown.html.twig' with {
+                    'datatype': target_datatype,
+                    'position': 'upper',
+                    'is_datatype_admin': is_datatype_admin,
+                } %}
+            {% endif %}
+
+            <form id="search_form" class="pure-form pure-u-23-24 pure-form-stacked">
+                <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}"/>
+                <input type="hidden" id="selected_theme_id" value="{{ preferred_theme_id }}"/>
+
+                <fieldset id="search_top">
+                    <div>
+                        <div class="pure-u-1">
+                            <a class="ODRSearchHelper Pointer pure-u-1" onclick="changeSearch();">
+                                Open Advanced Search
+                            </a>
+                        </div>
+                        <div class="pure-u-1">
+                            <button class="pure-button pure-button ODRResetButton" type="button" onclick="doReset();">Reset</button>
+                            <button class="pure-button pure-button-primary ODRSearchButton" type="submit">Search{% if intent == 'linking' %} for records to Link{% endif %}</button>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="ODRSearchBoxWrapper">
+                    <div class="pure-u-1">
+                        <label for="textbox_general" class="pure-u-1 ODRPrimarySearchLabel">
+                            Search for:
+                            <i class="fa fa-lg fa-question-circle Pointer ODRSearchHelp"
+                               style="padding-left:5px;" title="Search Help"></i>
+                            <i class="fa fa-lg fa-info-circle Pointer ODRGeneralSearchList"
+                               style="padding-left:5px;" title="Fields searched when using general search:"></i>
+                            {% if is_datatype_admin %}
+                                <i class="fa fa-lg fa-edit Pointer ODREditSearchNotes"
+                                   style="padding-left:5px;" title="Edit the search page notes."></i>
+                            {% endif %}
+                        </label>
+                        <input id="textbox_general" class="pure-u-1" type="text" name="gen"
+                           {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %}
+                           {% if not can_use_general_search %}disabled="disabled" title="This datatype has no searchable datafields"{% endif %}
+                        />
+                        <input type="hidden" id="search_type" value="basic" />
+                    </div>
+
+                    <div class="pure-u-1" id="ODRSearchHelp_div" style="display:none;">
+                        {% include 'ODROpenRepositorySearchBundle:Default:search_help.html.twig' %}
+                    </div>
+                    <div class="pure-u-1" id="ODRGeneralSearchList_div" class="ODRTableWrap" style="display:none;">
+                        {% include 'ODROpenRepositorySearchBundle:Default:search_datafield_list.html.twig' with {
+                            'target_datatype': target_datatype,
+                            'datatype_array': datatype_array,
+                            'datatype_relations': datatype_relations,
+                            'logged_in': logged_in,
+                        } %}
+                    </div>
+                </fieldset>
+
+                {# render target datatype first #}
+                <fieldset>
+                    {% set datatype = datatype_array[target_datatype.id] %}
+                    <div class="ODRAdvSearch_header">
+                        <span>{{ datatype['dataTypeMeta']['shortName'] }}</span>
+                        <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
+                    </div>
+                    <div class="ODRAdvSearch_default">
+                        {% for datafield in datatype['dataFields'] %}
+                            {% set searchable = datafield['dataFieldMeta']['searchable'] %}
+                            {% if searchable == 2 or searchable == 3 %}
+                                <div class="ODRAdvSearch_datafield pure-u-1">
+                                    {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
+                                        'search_params': search_params,
+
+                                        'datatype_id': datatype['id'],
+                                        'datafield': datafield
+                                    } %}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+
+                        {# created/modified by, created/modified date, public status of child datarecord #}
+                        {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
+                            'search_params': search_params,
+
+                            'datatype_id': datatype.id,
+                            'user_list': user_list,
+                            'datatype_permissions': datatype_permissions,
+                            'is_top_level': 1
+                        } %}
+                    </div>
+                </fieldset>
+
+                {# render children of target datatype next #}
+                {% for child_datatype_id in datatype_relations['child_datatypes'] %}
+                    {% set child_datatype = datatype_array[child_datatype_id] %}
+
+                    {% set can_search_child_datatype = false %}
+                    {% for datafield in child_datatype['dataFields'] %}
+                        {% set searchable = datafield['dataFieldMeta']['searchable'] %}
+                        {% if searchable == 2 or searchable == 3 %}
+                            {% set can_search_child_datatype = true %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if can_search_child_datatype %}
+                        <fieldset>
+                            <div class="ODRAdvSearch_header">
+                                <span>{{ child_datatype['dataTypeMeta']['shortName'] }}</span>
+                                <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
+                            </div>
+                            <div class="ODRAdvSearch_content pure-u-1">
+                                {% for datafield in child_datatype['dataFields'] %}
+                                    {% set searchable = datafield['dataFieldMeta']['searchable'] %}
+                                    {% if searchable == 2 or searchable == 3 %}
+                                        <div class="ODRAdvSearch_datafield pure-u-1">
+                                            {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
+                                                'search_params': search_params,
+
+                                                'datatype_id': child_datatype['id'],
+                                                'datafield': datafield
+                                            } %}
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {# created/modified by, created/modified date, public status of child datarecord #}
+                                {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
+                                    'search_params': search_params,
+
+                                    'datatype_id': child_datatype.id,
+                                    'user_list': user_list,
+                                    'datatype_permissions': datatype_permissions,
+                                    'is_top_level': 0
+                                } %}
+                            </div>
+                        </fieldset>
+                    {% endif %}
+                {% endfor %}
+
+                {# render linked datatypes last #}
+                {% for linked_datatype_id in datatype_relations['linked_datatypes'] %}
+                    {% set linked_datatype = datatype_array[linked_datatype_id] %}
+
+                    {% set can_search_linked_datatype = false %}
+                    {% for datafield in linked_datatype['dataFields'] %}
+                        {% set searchable = datafield['dataFieldMeta']['searchable'] %}
+                        {% if searchable == 2 or searchable == 3 %}
+                            {% set can_search_linked_datatype = true %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if can_search_linked_datatype %}
+                        <fieldset>
+                            <div class="ODRAdvSearch_header">
+                                <span>{{ linked_datatype['dataTypeMeta']['shortName'] }}</span>
+                                <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
+                            </div>
+                            <div class="ODRAdvSearch_content pure-u-1">
+                                {% for datafield in linked_datatype['dataFields'] %}
+                                    {% set searchable = datafield['dataFieldMeta']['searchable'] %}
+                                    {% if searchable == 2 or searchable == 3 %}
+                                        <div class="ODRAdvSearch_datafield pure-u-1">
+                                            {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
+                                                'search_params': search_params,
+
+                                                'datatype_id': linked_datatype['id'],
+                                                'datafield': datafield
+                                            } %}
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {# created/modified by, created/modified date, public status of datarecord #}
+                                {# don't display metadata for linked datatypes...for now... #}
+                            </div>
+                        </fieldset>
+                    {% endif %}
+                {% endfor %}
+
+                <fieldset>
+                    <div class="pure-u-1">
+                        <a class="ODRSearchHelper Pointer pure-u-1" onclick="changeSearch();">Open Advanced
+                            Search</a>
+                    </div>
+                    <div class="pure-u-1">
+                        <button class="pure-button pure-button ODRResetButton" type="button" onclick="doReset();">Reset</button>
+                        <button class="pure-button pure-button-primary ODRSearchButton" type="submit">Search{% if intent == 'linking' %} for records to Link{% endif %}</button>
+                    </div>
+                </fieldset>
+            </form>
+
+            {% if intent == 'searching' %}
+                {% include 'ODROpenRepositorySearchBundle:Default:searchpage_markdown.html.twig' with {
+                    'datatype': target_datatype,
+                    'position': 'lower',
+                    'is_datatype_admin': is_datatype_admin,
+                } %}
+            {% endif %}
+        </div>
+    </div>
+
+<script>
+    function InitSearchSidebar() {
+        $("#search_top").hide();
+        $(".ODRInput").prop("disabled", true);
+
+        // Prevent normal form behavior
+        $("#search_form").unbind('submit').submit(function (event) {
+            event.preventDefault();
+            doSearch();
+        });
+
+        // Setup accordions
+        $(".ODRAdvSearch_header").unbind('click').click(function () {
+            var content_div = $(this).next();
+
+            if ($(content_div).hasClass('ODRCollapse')) {
+                // Show all textfields
+                $(content_div).removeClass('ODRCollapse');
+                $(content_div).children().each(function () {
+                    $(this).slideDown(200);
+                });
+
+                $(this).find('i').removeClass('fa-caret-down').addClass('fa-caret-up');
+            }
+            else {
+                // Hide all empty textfields
+                $(content_div).addClass('ODRCollapse');
+                $(content_div).find('.ODRInput').not('.ODRDatePicker').each(function () {
+                    if ($(this).val() == '')
+                        $(this).parent().slideUp(200);
+                });
+
+                // Datepickers need special treatment...
+                $(content_div).find(".ODRDatePicker[name$='_s']").each(function () {
+                    var id = $(this).attr('id');
+                    var id_data = id.split('_');
+
+                    var end_id = '';
+                    if (id_data.length == 3)
+                        end_id = '#' + id_data[0] + '_' + id_data[1] + '_end';
+                    else if (id_data.length == 4)
+                        end_id = '#' + id_data[0] + '_' + id_data[1] + '_' + id_data[2] + '_end';
+
+                    // If nothing in start and nothing in end, hide this datafield
+                    if ($(this).val() == '' && $(end_id).val() == '')
+                        $(this).parent().slideUp(200);
+                });
+
+                // Radio fields also need special treatment...
+                $(content_div).find('.ODRRadioSearchDiv').each(function () {
+                    // Search for a selection made in this radio field
+                    var selected = false;
+                    $(this).find('i').each(function () {
+                        if ($(this).hasClass('fa-check') || $(this).hasClass('fa-ban')) {
+                            selected = true;
+                            return false;
+                        }
+                    });
+
+                    // If nothing selected, hide this datafield
+                    if (!selected)
+                        $(this).parent().slideUp(200);
+                });
+
+                // Tag fields also need special treatment...
+                $(content_div).find('.ODRTagSearchDiv').each(function () {
+                    // Search for a selection made in this radio field
+                    var selected = false;
+                    $(this).find('i').each(function () {
+                        if ($(this).hasClass('fa-check') || $(this).hasClass('fa-ban')) {
+                            selected = true;
+                            return false;
+                        }
+                    });
+
+                    // If nothing selected, hide this datafield
+                    if (!selected)
+                        $(this).parent().slideUp(200);
+                });
+
+                $(this).find('i').removeClass('fa-caret-up').addClass('fa-caret-down');
+            }
+        });
+
+        // File/Image stuff
+        $(".ODRFileDatafieldName").unbind('change keyup paste').on('keyup paste', function () {
+            var datafield_id_data = $(this).attr('id').split(/_/);
+            var datafield_id = datafield_id_data[1];
+
+            var value = $(this).val();
+            if (value != '')
+                $("#datafield_" + datafield_id + "_ex").prop('selectedIndex', '1').change();
+        });
+
+        $(".ODRFileDatafieldExist").unbind('change').change(function () {
+            var datafield_id_data = $(this).attr('id').split(/_/);
+            var datafield_id = datafield_id_data[1];
+
+            var value = $(this).val();
+            if (value != 1)
+                $("#datafield_" + datafield_id + "_fn").val('');
+        });
+
+        // radio Tristate checkbox
+        $("#ODRSearchSidebar .ODRRadioLabel > .ODRTristateCheckbox").unbind('click').click(function () {
+            // Grab data about the option being clicked
+            var icon = $(this).children('i').first();
+            var input = $(this).children('input').first();
+            var radio_option_id = $(input).attr('rel');
+
+            if ($(this).parent().hasClass("ODRSelectAllOption"))
+                return;
+
+            if ($(icon).hasClass('fa-check')) {
+                // Currently selected, change to deselected
+                $(this).attr('title', 'Search for Datarecords where this option is unselected');
+                $(icon).removeClass('fa-check').addClass('fa-ban');
+                $(input).val('-' + radio_option_id);
+            }
+            else if ($(icon).hasClass('fa-ban')) {
+                // Currently deselected, change to blank
+                $(this).removeAttr('title');
+                $(icon).removeClass('fa-ban');
+                $(input).val('');
+            }
+            else {
+                // Currently blank, change to selected
+                $(this).attr('title', 'Search for Datarecords where this option is selected');
+                $(icon).addClass('fa-check');
+                $(input).val(radio_option_id);
+            }
+        });
+
+        // tag Tristate checkbox
+        $("#ODRSearchSidebar .ODRTagLabel > .ODRTristateCheckbox").unbind('click').click(function () {
+            // Grab data about the tag being clicked
+            var tag_item = $(this).parent().parent();
+
+            // If any item is clicked, it'll set all children to selected/unselected...so
+            //  immediately remove the partial class
+            $(this).children('i').first().removeClass('partial');
+
+            if ( $(this).children('i').first().hasClass('fa-check') ) {
+                // Currently selected, change this tag and all its children to deselected
+                $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                    // Don't change title attribute of a non-leaf tag
+                    if ( !$(element).hasClass('ODRSearchParentTag') )
+                        $(element).attr('title', 'Search for Datarecords where this tag is unselected');
+
+                    $(element).children('i').first().removeClass('fa-check').addClass('fa-ban');
+
+                    var tag_id = $(element).children('input').first().attr('rel');
+                    $(element).children('input').first().val('-' + tag_id);
+                });
+            }
+            else if ( $(this).children('i').first().hasClass('fa-ban') ) {
+                // Currently deselected, change this tag and all its children to blank
+                $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                    $(element).removeAttr('title');
+                    $(element).children('i').first().removeClass('fa-ban');
+
+                    var tag_id = $(element).children('input').first().attr('rel');
+                    $(element).children('input').first().val('');
+                });
+            }
+            else {
+                // Currently blank, change this tag and all its children to selected
+                $(tag_item).find(".ODRTristateCheckbox").each(function (index, element) {
+                    // Don't change title attribute of a non-leaf tag
+                    if ( !$(element).hasClass('ODRSearchParentTag') )
+                        $(element).attr('title', 'Search for Datarecords where this tag is selected');
+
+                    $(element).children('i').first().addClass('fa-check');
+
+                    var tag_id = $(element).children('input').first().attr('rel');
+                    $(element).children('input').first().val(tag_id);
+                });
+            }
+
+            applyToTagParents( $(tag_item) );
+        });
+
+
+        // Shortcut to select all options of a Multiple Radio/Select datafield
+        $(".ODRSelectAll").unbind('click').click(function () {
+            var datafield_id = $(this).attr('rel');
+
+            $("#Input_" + datafield_id).find('i.fa').each(function () {
+                if (!$(this).hasClass('fa-check')) {
+                    $(this).parent().attr('title', 'Search for Datarecords where this option is selected');
+                    $(this).removeClass('fa-ban').addClass('fa-check');
+                    $(this).next().val($(this).next().attr('rel'));
+                }
+            });
+        });
+
+        // Shortcut to deselect all options of a Radio/Select datafield
+        $(".ODRDeselectAll").unbind('click').click(function () {
+            var datafield_id = $(this).attr('rel');
+
+            $("#Input_" + datafield_id).find('i.fa').each(function () {
+                if (!$(this).hasClass('fa-ban')) {
+                    $(this).parent().attr('title', 'Search for Datarecords where this option is unselected');
+                    $(this).removeClass('fa-check').addClass('fa-ban');
+                    $(this).next().val('-' + $(this).next().attr('rel'));
+                }
+            });
+        });
+
+        // Shortcut to clear all options of a Radio/Select datafield
+        $(".ODRClearAll").unbind('click').click(function () {
+            var datafield_id = $(this).attr('rel');
+
+            $("#Input_" + datafield_id).find('i.fa').each(function () {
+                if ($(this).hasClass('fa-check') || $(this).hasClass('fa-ban')) {
+                    $(this).parent().removeAttr('title');
+                    $(this).removeClass('fa-ban fa-check');
+                    $(this).next().val('');
+                }
+            });
+        });
+
+        $("#textbox_general").focus();
+
+        // Set up datepicker datafields
+        $(".ODRDatePicker").datepicker({
+            showOtherMonths: true,
+            selectOtherMonths: true,
+            changeMonth: true,
+            changeYear: true,
+            dateFormat: 'yy-mm-dd',
+            yearRange: '1800:+10',
+
+            onSelect: function (dateText, inst) {
+
+                var field_id = $(this).attr('rel');
+                var start_date = $("#" + field_id + "_start");
+                var end_date = $("#" + field_id + "_end");
+
+                var start_date_value = $(start_date).val();
+                var end_date_value = $(end_date).val();
+
+                if (end_date_value !== '' && start_date_value !== '') {
+                    if (start_date_value > end_date_value)
+                        $(end_date).datepicker("setDate", start_date_value);
+                    else if (end_date_value < start_date_value)
+                        $(start_date).datepicker("setDate", end_date_value);
+
+                    $(start_date).datepicker("option", "maxDate", end_date_value);
+                    $(end_date).datepicker("option", "minDate", start_date_value);
+                }
+                else if (start_date_value === '') {
+                    $(start_date).datepicker("option", "maxDate", end_date_value);
+                    $(end_date).datepicker("option", "minDate", null);
+                }
+                else if (end_date_value === '') {
+                    $(start_date).datepicker("option", "maxDate", null);
+                    $(end_date).datepicker("option", "minDate", start_date_value);
+                }
+
+            },
+            onClose: function () {
+                $(this).blur();
+            },
+            beforeShow: function (input, inst) {
+            }
+        });
+
+        // Slide out the help menu
+        $(".ODRSearchHelp").unbind('click').click(function () {
+            $("#ODRSearchHelp_div").slideToggle();
+        });
+
+        $(".ODRGeneralSearchList").unbind('click').click(function () {
+            $("#ODRGeneralSearchList_div").slideToggle();
+        });
+
+{% if is_datatype_admin %}
+        $(".ODRMarkdownHelp_open").unbind('click').click(function(event) {
+            event.preventDefault();
+
+            {# defined in ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig #}
+            openMarkdownHelpDialog();
+        });
+
+        function toggleEditMode() {
+            var edit = $(".ODRSearchPageNotes_edit");
+            var rendered = $(".ODRSearchPageNotes_rendered");
+            var wrapper_upper = $("#ODRSearchPageNotes_upper");
+            var wrapper_lower = $("#ODRSearchPageNotes_lower");
+            var upper = $('#upper_rendered');
+            var lower = $('#lower_rendered');
+
+            if(edit.hasClass('ODRHidden')) {
+                // Hide rendered divs
+                rendered.addClass('ODRHidden');
+
+                // Show wrapper and editor
+                wrapper_upper.removeClass('ODRHidden');
+                wrapper_lower.removeClass('ODRHidden');
+                edit.removeClass('ODRHidden')
+            }
+            else {
+                // Show portions with data
+                if(lower.html() !== "") {
+                    lower.removeClass('ODRHidden');
+                }
+                else {
+                    wrapper_lower.addClass('ODRHidden')
+                }
+                if(upper.html() !== "") {
+                    upper.removeClass('ODRHidden');
+                }
+                else {
+                    wrapper_upper.addClass('ODRHidden')
+                }
+                edit.addClass('ODRHidden')
+            }
+        }
+        $(".ODREditSearchNotes").unbind('click').click(function () {
+            toggleEditMode();
+        });
+
+        $(".ODRSearchPageNotes_save").unbind('click').click(function () {
+
+            var url = '{{ path('odr_save_search_notes', {'datatype_id': target_datatype.id}) }}';
+
+            $("#upper_value").val($("#upper_raw").val());
+            $("#lower_value").val($("#lower_raw").val());
+
+            $.ajax({
+                type: 'POST',
+                url: url,
+                dataType: 'json',
+                data: $("#ODRSearchPageNotes_form").serialize(),
+                success: function (data, textStatus, jqXHR) {
+                    // Initialize markdown-it plugin
+                    var md = window.markdownit();
+                    md.disable(['table', 'strikethrough', 'blockquote']);
+
+                    // Update the display divs with the new text
+                    var markdown_text = '';
+                    markdown_text = md.render($("#upper_raw").val());
+                    $("#upper_rendered").html(markdown_text);
+                    markdown_text = md.render($("#lower_raw").val());
+                    $("#lower_rendered").html(markdown_text);
+
+                    // Show display divs again
+                    toggleEditMode();
+
+                    // Update previous values in case there's an error later on...
+                    $("#upper_old").val($("#upper_raw").val());
+                    $("#lower_old").val($("#lower_raw").val());
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // Revert back to previous values on an error
+                    $("#upper_raw").val($("#upper_old").val());
+                    $("#upper_value").val($("#upper_old").val());
+
+                    $("#lower_raw").val($("#lower_old").val());
+                    $("#lower_value").val($("#lower_old").val());
+                },
+                complete: function (jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        });
+{% endif %}
+    }
+</script>
+{% endspaceless %}

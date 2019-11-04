@@ -23,6 +23,36 @@ security:
 #            id: odr.openrepository.oauthclient.oauth_user_provider
 
     firewalls:
+        login:
+            pattern:  ^/api/v3/token
+            stateless: true
+            anonymous: true
+            provider: fos_userbundle
+            json_login:
+                check_path:               api_login_check
+                success_handler:          lexik_jwt_authentication.handler.authentication_success
+                failure_handler:          lexik_jwt_authentication.handler.authentication_failure
+                #require_previous_session: false
+                #username_parameter: email
+                #password_parameter: password
+            context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
+
+        api:
+            pattern:   ^/api
+            stateless: true
+            provider: fos_userbundle
+            #lexik_jwt:
+            #    authorization_header:
+            #        enabled: true
+            #        prefix:  Bearer
+            #    query_parameter:
+            #        enabled: true
+            #        name:    bearer
+            guard:
+                authenticators:
+                    - lexik_jwt_authentication.jwt_token_authenticator
+            context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
+
         oauth_token:
             pattern:    ^/oauth/v2/token
             security:   false
@@ -42,11 +72,12 @@ security:
 
             context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
 
-        api:
-            pattern:    ^/api
-            fos_oauth:  true
-            stateless:  true
-            anonymous:  true
+        # currently disabled because there's no route using this...
+#        api:
+#            pattern:    ^/oauth_api
+#            fos_oauth:  true
+#            stateless:  true
+#            anonymous:  true
 
         main:
             pattern: ^/
@@ -76,7 +107,7 @@ security:
                 always_use_default_target_path: true
 
             remember_me:
-                key:      [[ ENTER RANDOM KEY HERE - Text String ]]
+                secret:   [[ ENTER RANDOM KEY HERE - Text String ]]
                 lifetime: 1209600
                 path:     /
                 domain:   ~
@@ -91,7 +122,14 @@ security:
     access_control:
 ##########
 # API control
-        - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
+
+        - { path: ^/api/v3/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/api,       role: [IS_AUTHENTICATED_FULLY, ROLE_ADMIN] }
+#        - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
+
+#        - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
+#        - { path: ^/admin/datatype_export, role: IS_AUTHENTICATED_ANONYMOUSLY }   # allows json/xml download of datatype specs, controller restricts access as needed
+#        - { path: ^/admin/datarecord_export, role: IS_AUTHENTICATED_ANONYMOUSLY } # allows json/xml download of datarecords, controller restricts access as needed
 
 ##########
 # These need to stay anonymous, otherwise users are unable to log in
@@ -109,43 +147,53 @@ security:
 
 ##########
 # Regular use of site for logged-in users
-        - { path: ^/redirect, role: ROLE_USER }                   # redirects after logging in
-        - { path: ^/admin/oauth, role: ROLE_USER }                # ability to connect/disconnect OAuth provider accounts
+        - { path: ^/redirect, role: ROLE_USER }                    # redirects after logging in
+        - { path: ^/admin/oauth, role: ROLE_USER }                 # ability to connect/disconnect OAuth provider accounts
 
-        - { path: ^/admin$, role: ROLE_USER }                     # front page
-        - { path: ^/admin/dashboard, role: ROLE_USER }            # dashboard
-        - { path: ^/profile, role: ROLE_USER }                    # ability to edit own profile
+        - { path: ^/profile_edit, role: ROLE_USER }                # ability to edit own profile
+        - { path: ^/profile_save, role: ROLE_USER }                # ability to save changes to own profile
 
-        - { path: ^/admin/type/list/databases, role: ROLE_USER }  # can see page that provides links to manage datatypes
-        - { path: ^/edit, role: ROLE_USER }                       # Editing and CSV Import
-        - { path: ^/jobs, role: ROLE_USER }                       # Active Jobs page
+        - { path: ^/admin$, role: ROLE_USER }                      # front page
+        - { path: ^/admin/dashboard, role: ROLE_USER }             # main dashboard
+        - { path: ^/admin/type/landing, role: ROLE_USER }          # datatype-specific dashboard
+        - { path: ^/admin/find/landing, role: ROLE_USER }          # locating a datatype-specific dashboard
+        - { path: ^/admin/user/change_password, role: ROLE_USER }  # ability to change passwords, controller restricts further
 
-        - { path: ^/admin/type/list/templates, role: ROLE_ADMIN } # can see page that provides links to modify master templates
+        - { path: ^/admin/type/list/databases, role: ROLE_USER }   # can see page that provides links to manage datatypes
+        - { path: ^/edit, role: ROLE_USER }                        # Editing
+        - { path: ^/csvimport, role: ROLE_USER }                   # CSV Import
+        - { path: ^/jobs, role: ROLE_USER }                        # Active Jobs page
 
-        - { path: ^/admin/type/add, role: ROLE_ADMIN }            # Creating a new datatype, somehow different from below
-        - { path: ^/admin/type/create, role: ROLE_ADMIN }         # Creating a new datatype, somehow different from above
-
-        - { path: ^/design, role: ROLE_USER }                     # ability to design results/records and shortresults layouts
-#        - { path: ^/plugin, role: ROLE_USER }                     # ability to modify render plugin settings
+        - { path: ^/design, role: ROLE_USER }                      # ability to design results/records and shortresults layouts
+#        - { path: ^/plugin, role: ROLE_USER }                      # ability to modify render plugin settings
 
 ##########
-# These need to eventually get changed to "ROLE_USER"...
-        - { path: ^/admin/user/list, role: ROLE_ADMIN }           # View user list
-        - { path: ^/admin/group, role: ROLE_ADMIN }               # View/Add/Modify/Delete groups for a datatype
-        - { path: ^/admin/user/managegroups, role: ROLE_ADMIN }   # View user membership in groups
-        - { path: ^/admin/user/changegroup, role: ROLE_ADMIN }    # Change user membership in groups
+# These need to eventually get changed to "ROLE_USER"?
+        - { path: ^/admin/user/list, role: ROLE_ADMIN }            # View user list
+        - { path: ^/admin/group, role: ROLE_ADMIN }                # View/Add/Modify/Delete groups for a datatype
+        - { path: ^/admin/user/managegroups, role: ROLE_ADMIN }    # View user membership in groups
+        - { path: ^/admin/user/changegroup, role: ROLE_ADMIN }     # Change user membership in groups
 
-        - { path: ^/admin/user/view_as, role: ROLE_ADMIN }        # View effective permissions for a user
+        - { path: ^/admin/user/view_as, role: ROLE_ADMIN }         # View effective permissions for a user
         - { path: ^/admin/user/view_theme, role: ROLE_ADMIN }
 
-        - { path: ^/admin/massedit, role: ROLE_ADMIN }            # Mass Edit
-        - { path: ^/admin/csvexport, role: ROLE_ADMIN }           # CSV Download
+        - { path: ^/admin/massedit, role: ROLE_ADMIN }             # Mass Edit
+        - { path: ^/admin/csvexport, role: ROLE_ADMIN }            # CSV Download
 
 ##########
-        - { path: ^/admin/new_user, role: ROLE_ADMIN }            # Create new user
-#        - { path: ^/admin/user/change_password, role: ROLE_ADMIN }
-        - { path: ^/admin/user/edit, role: ROLE_ADMIN }           # View other users' profiles
-        - { path: ^/admin/user/save, role: ROLE_ADMIN }           # Make changes to other users' profiles
+        - { path: ^/admin/type/list/templates, role: ROLE_ADMIN }  # can see page that provides links to modify master templates
+
+        - { path: ^/admin/type/add, role: ROLE_ADMIN }             # Creating a new datatype, somehow different from below
+        - { path: ^/admin/type/create, role: ROLE_ADMIN }          # Creating a new datatype, somehow different from above
+
+        - { path: ^/admin/type/properties, role: ROLE_ADMIN }      # Doing stuff with metadata dataypes...
+        - { path: ^/admin/type/addmeta, role: ROLE_ADMIN }         # ...
+        - { path: ^/admin/type/addmetadata, role: ROLE_ADMIN }     # ...
+        - { path: ^/admin/type/addblankmetadata, role: ROLE_ADMIN } # ...
+
+        - { path: ^/admin/new_user, role: ROLE_ADMIN }             # Create new user
+        - { path: ^/admin/user/edit, role: ROLE_ADMIN }            # View other users' profiles
+        - { path: ^/admin/user/save, role: ROLE_ADMIN }            # Make changes to other users' profiles
 
 ##########
         - { path: ^/admin/user/manage/roles, role: ROLE_SUPER_ADMIN }   # View roles of other users

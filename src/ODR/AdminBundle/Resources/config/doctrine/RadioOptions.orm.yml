@@ -4,6 +4,10 @@ ODR\AdminBundle\Entity\RadioOptions:
     gedmo:
         soft_deleteable:
             field_name: deletedAt
+    indexes:
+        uuid_index:
+            columns: [ radio_option_uuid ]
+
     fields:
         id:
             id: true
@@ -16,10 +20,20 @@ ODR\AdminBundle\Entity\RadioOptions:
         # This property MUST exist and be kept up to date, otherwise CSV/XML importing are unable to concurrently check whether a RadioOption exists
         optionName:
             type: string
-            length: 64
+            length: 255
             fixed: false
             nullable: false
             column: option_name
+
+        # Option Unique ID is the related option id from the master template if the field template
+        # derived.  If not template derived, the radio option is custom made and has it's own unique
+        # id.
+        radioOptionUuid:
+            type: string
+            length: 32
+            nullable: true
+            default: ''
+            column: radio_option_uuid
 
         created:
             type: datetime

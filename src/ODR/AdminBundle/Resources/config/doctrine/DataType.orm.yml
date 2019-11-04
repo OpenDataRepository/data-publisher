@@ -4,6 +4,10 @@ ODR\AdminBundle\Entity\DataType:
     gedmo:
         soft_deleteable:
             field_name: deletedAt
+    indexes:
+        uuid_index:
+            columns: [ unique_id ]
+
     fields:
         id:
             id: true
@@ -22,6 +26,13 @@ ODR\AdminBundle\Entity\DataType:
             default: 0
             column: revision
 
+        unique_id:
+            type: string
+            length: 32
+            nullable: true
+            default: ''
+            column: unique_id
+
         setup_step:
             type: string
             length: 32
@@ -30,12 +41,32 @@ ODR\AdminBundle\Entity\DataType:
             default: ''
             column: setup_step
 
+        preload_status:
+            type: string
+            length: 32
+            nullable: true
+            default: ''
+            column: preload_status
+
         is_master_type:
             type: boolean
             nullable: false
             default: false
             column: is_master_type
 
+        template_group:
+            type: string
+            length: 32
+            default: ''
+            nullable: true
+            column: template_group
+
+        datatype_type:
+            type: string
+            length: 32
+            default: ''
+            nullable: true
+            column: datatype_type
 
         created:
             type: datetime
@@ -114,6 +145,15 @@ ODR\AdminBundle\Entity\DataType:
             inversedBy: null
             orphanRemoval: false
 
+    oneToOne:
+        metadata_datatype:
+            targetEntity: DataType
+#            inversedBy: metadata_for
+
+        metadata_for:
+            targetEntity: DataType
+#            inversedBy: metadata_datatype
+
     manyToOne:
         parent:
             targetEntity: DataType
@@ -135,6 +175,8 @@ ODR\AdminBundle\Entity\DataType:
                 master_datatype_id:
                     referencedColumnName: id
 
+        # This property is required by docrine, but isn't used...
+        # The "renderPlugin" relationship in DataTypeMeta is used instead
         renderPlugin:
             targetEntity: RenderPlugin
             cascade: {  }

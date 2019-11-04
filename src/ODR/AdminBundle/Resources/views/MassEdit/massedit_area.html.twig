@@ -4,8 +4,10 @@
 
     {% include 'ODRAdminBundle:MassEdit:massedit_childtype.html.twig' with {
         'datatype_array': datatype_array,
-        'target_datatype_id': initial_datatype_id,
         'theme_array': theme_array,
+
+        'target_datatype_id': initial_datatype_id,
+        'target_theme_id': initial_theme_id,
 
         'datatype_permissions': datatype_permissions,
         'datafield_permissions': datafield_permissions,

@@ -4,6 +4,12 @@ ODR\AdminBundle\Entity\DataFields:
     gedmo:
         soft_deleteable:
             field_name: deletedAt
+    indexes:
+        field_uuid_index:
+            columns: [ field_uuid ]
+        template_uuid_index:
+            columns: [ template_field_uuid ]
+
     fields:
         id:
             id: true
@@ -17,6 +23,20 @@ ODR\AdminBundle\Entity\DataFields:
             type: boolean
             nullable: false
             default: false
+
+        # Unique id of this field.
+        fieldUuid:
+            type: string
+            length: 36
+            nullable: true
+            column: field_uuid
+
+        # Unique ID of field from related master if cloned.
+        templateFieldUuid:
+            type: string
+            length: 36
+            nullable: true
+            column: template_field_uuid
 
         created:
             type: datetime
@@ -59,6 +79,13 @@ ODR\AdminBundle\Entity\DataFields:
             inversedBy: null
             orphanRemoval: false
 
+        tags:
+            targetEntity: Tags
+            cascade: {  }
+            mappedBy: dataField
+            inversedBy: null
+            orphanRemoval: false
+
         dataFieldMeta:
             targetEntity: DataFieldsMeta
             cascade: {  }
@@ -68,6 +95,13 @@ ODR\AdminBundle\Entity\DataFields:
 
         groupDatafieldPermissions:
             targetEntity: GroupDatafieldPermissions
+            cascade: {  }
+            mappedBy: dataField
+            inversedBy: null
+            orphanRemoval: false
+
+        imageSizes:
+            targetEntity: ImageSizes
             cascade: {  }
             mappedBy: dataField
             inversedBy: null

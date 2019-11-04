@@ -43,6 +43,11 @@ class DataFieldsMeta
     private $xml_fieldName;
 
     /**
+     * @var string
+     */
+    private $internal_reference_name;
+
+    /**
      * @var integer
      */
     private $master_published_revision;
@@ -93,6 +98,11 @@ class DataFieldsMeta
     private $shorten_filename;
 
     /**
+     * @var bool
+     */
+    private $newFilesArePublic;
+
+    /**
      * @var integer
      */
     private $children_per_row;
@@ -106,6 +116,16 @@ class DataFieldsMeta
      * @var boolean
      */
     private $radio_option_display_unselected;
+
+    /**
+     * @var boolean
+     */
+    private $tags_allow_multiple_levels;
+
+    /**
+     * @var boolean
+     */
+    private $tags_allow_non_admin_edit;
 
     /**
      * @var integer
@@ -161,7 +181,7 @@ class DataFieldsMeta
     /**
      * Get id
      *
-     * @return integer 
+     * @return integer
      */
     public function getId()
     {
@@ -184,7 +204,7 @@ class DataFieldsMeta
     /**
      * Get fieldName
      *
-     * @return string 
+     * @return string
      */
     public function getFieldName()
     {
@@ -207,7 +227,7 @@ class DataFieldsMeta
     /**
      * Get description
      *
-     * @return string 
+     * @return string
      */
     public function getDescription()
     {
@@ -230,11 +250,35 @@ class DataFieldsMeta
     /**
      * Get xml_fieldName
      *
-     * @return string 
+     * @return string
      */
     public function getXmlFieldName()
     {
         return $this->xml_fieldName;
+    }
+
+    /**
+     * Set internalReferenceName
+     *
+     * @param string $internalReferenceName
+     *
+     * @return DataFieldsMeta
+     */
+    public function setInternalReferenceName($internalReferenceName)
+    {
+        $this->internal_reference_name = $internalReferenceName;
+
+        return $this;
+    }
+
+    /**
+     * Get internalReferenceName
+     *
+     * @return string
+     */
+    public function getInternalReferenceName()
+    {
+        return $this->internal_reference_name;
     }
 
     /**
@@ -325,7 +369,7 @@ class DataFieldsMeta
     /**
      * Get markdownText
      *
-     * @return string 
+     * @return string
      */
     public function getMarkdownText()
     {
@@ -348,7 +392,7 @@ class DataFieldsMeta
     /**
      * Get regexValidator
      *
-     * @return string 
+     * @return string
      */
     public function getRegexValidator()
     {
@@ -371,7 +415,7 @@ class DataFieldsMeta
     /**
      * Get phpValidator
      *
-     * @return string 
+     * @return string
      */
     public function getPhpValidator()
     {
@@ -394,7 +438,7 @@ class DataFieldsMeta
     /**
      * Get required
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getRequired()
     {
@@ -417,7 +461,7 @@ class DataFieldsMeta
     /**
      * Get is_unique
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getIsUnique()
     {
@@ -440,7 +484,7 @@ class DataFieldsMeta
     /**
      * Get allow_multiple_uploads
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getAllowMultipleUploads()
     {
@@ -463,11 +507,35 @@ class DataFieldsMeta
     /**
      * Get shorten_filename
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getShortenFilename()
     {
         return $this->shorten_filename;
+    }
+
+    /**
+     * Set newFilesArePublic.
+     *
+     * @param bool $newFilesArePublic
+     *
+     * @return DataFieldsMeta
+     */
+    public function setNewFilesArePublic($newFilesArePublic)
+    {
+        $this->newFilesArePublic = $newFilesArePublic;
+
+        return $this;
+    }
+
+    /**
+     * Get newFilesArePublic.
+     *
+     * @return bool
+     */
+    public function getNewFilesArePublic()
+    {
+        return $this->newFilesArePublic;
     }
 
     /**
@@ -486,7 +554,7 @@ class DataFieldsMeta
     /**
      * Get children_per_row
      *
-     * @return integer 
+     * @return integer
      */
     public function getChildrenPerRow()
     {
@@ -509,7 +577,7 @@ class DataFieldsMeta
     /**
      * Get radio_option_name_sort
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getRadioOptionNameSort()
     {
@@ -532,11 +600,59 @@ class DataFieldsMeta
     /**
      * Get radio_option_display_unselected
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getRadioOptionDisplayUnselected()
     {
         return $this->radio_option_display_unselected;
+    }
+
+    /**
+     * Set tagsAllowMultipleLevels
+     *
+     * @param boolean $tagsAllowMultipleLevels
+     *
+     * @return DataFieldsMeta
+     */
+    public function setTagsAllowMultipleLevels($tagsAllowMultipleLevels)
+    {
+        $this->tags_allow_multiple_levels = $tagsAllowMultipleLevels;
+
+        return $this;
+    }
+
+    /**
+     * Get tagsAllowMultipleLevels
+     *
+     * @return boolean
+     */
+    public function getTagsAllowMultipleLevels()
+    {
+        return $this->tags_allow_multiple_levels;
+    }
+
+    /**
+     * Set tagsAllowNonAdminEdit
+     *
+     * @param boolean $tagsAllowNonAdminEdit
+     *
+     * @return DataFieldsMeta
+     */
+    public function setTagsAllowNonAdminEdit($tagsAllowNonAdminEdit)
+    {
+        $this->tags_allow_non_admin_edit = $tagsAllowNonAdminEdit;
+
+        return $this;
+    }
+
+    /**
+     * Get tagsAllowNonAdminEdit
+     *
+     * @return boolean
+     */
+    public function getTagsAllowNonAdminEdit()
+    {
+        return $this->tags_allow_non_admin_edit;
     }
 
     /**
@@ -555,7 +671,7 @@ class DataFieldsMeta
     /**
      * Get searchable
      *
-     * @return integer 
+     * @return integer
      */
     public function getSearchable()
     {
@@ -601,7 +717,7 @@ class DataFieldsMeta
     /**
      * Get created
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getCreated()
     {
@@ -630,7 +746,7 @@ class DataFieldsMeta
     {
         return $this->updated;
     }
-    
+
     /**
      * Set deletedAt
      *
@@ -647,7 +763,7 @@ class DataFieldsMeta
     /**
      * Get deletedAt
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getDeletedAt()
     {
@@ -693,7 +809,7 @@ class DataFieldsMeta
     /**
      * Get fieldType
      *
-     * @return \ODR\AdminBundle\Entity\FieldType 
+     * @return \ODR\AdminBundle\Entity\FieldType
      */
     public function getFieldType()
     {
@@ -716,7 +832,7 @@ class DataFieldsMeta
     /**
      * Get renderPlugin
      *
-     * @return \ODR\AdminBundle\Entity\RenderPlugin 
+     * @return \ODR\AdminBundle\Entity\RenderPlugin
      */
     public function getRenderPlugin()
     {
@@ -739,7 +855,7 @@ class DataFieldsMeta
     /**
      * Get createdBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getCreatedBy()
     {
@@ -762,7 +878,7 @@ class DataFieldsMeta
     /**
      * Get updatedBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getUpdatedBy()
     {

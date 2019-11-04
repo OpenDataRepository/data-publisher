@@ -5,6 +5,7 @@
 {% for num, datarecord in datarecord_list.records %}
     <record>
         <internal_id>{{ datarecord.internal_id }}</internal_id>
+        <unique_id>{{ datarecord.unique_id }}</unique_id>
         <external_id>{{ datarecord.external_id }}</external_id>
         <record_name>{{ datarecord.record_name }}</record_name>
     </record>

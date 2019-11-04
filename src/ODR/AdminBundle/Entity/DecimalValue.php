@@ -157,14 +157,15 @@ class DecimalValue
             $right = substr($value, $period+1);
 
             // Strip trailing zeros from right side
-            $trailing = 0;
-            for ($i = strlen($right)-1; $i > 0; $i--) {
-                if ( substr($right, $i, 1) == '0' )
-                    $trailing++;
-                else
-                    break;
-            }
-            $right = substr($right, 0, strlen($right)-$trailing);
+            // Actually, don't want to do this..."4.500" is valid, indicating confidence out to thousandths
+//            $trailing = 0;
+//            for ($i = strlen($right)-1; $i > 0; $i--) {
+//                if ( substr($right, $i, 1) == '0' )
+//                    $trailing++;
+//                else
+//                    break;
+//            }
+//            $right = substr($right, 0, strlen($right)-$trailing);
 
             // If nothing remaining on the left side, default to 0
             if ($left == '')

@@ -1,9 +1,25 @@
-{% macro input(datatype_array, theme_array, target_datatype_id, is_top_level, is_link, using_metadata, baseurl, version) %}
+{% macro input(
+    datatype_array,
+    theme_array,
+    target_datatype_id,
+    target_theme_id,
+    is_top_level,
+    is_link,
+    using_metadata,
+    baseurl,
+    version,
+    show_records
+    ) %}
+
 
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set datatype_meta = datatype.dataTypeMeta %}
 
-{% if version == 'v1' %}
+{% if version == 'v3' %}
+    {% if show_records == 1 %}
+    {
+    {% endif %}
+{% elseif version == 'v1' %}
     "database_{{ datatype.id }}": {
 {% elseif version == 'v2' %}
     "{{ datatype_meta.xml_fieldName }}": {
@@ -12,10 +28,18 @@
     "internal_id": {{ datatype.id }},
     "name": {{ datatype_meta.shortName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
     "description": {{ datatype_meta.description|json_encode|raw }},
+    "template_uuid": {{ datatype.unique_id|json_encode|raw }},
+    "updated_at": "{{ datatype_meta.created|date('Y-m-d H:i:s') }}",
 
     {% if datatype_meta.renderPlugin.id != 1 %}
         "render_plugin": {{ datatype_meta.renderPlugin.pluginName|json_encode|raw }},
     {% endif %}
+
+        {% if datatype.metadata_for %}
+        "metadata_for_uuid": "{{ datatype.metadata_for.unique_id }}",
+        {% else %}
+        "metadata_for_uuid": "",
+        {% endif %}
 
 {% if using_metadata == true %}
     "_database_metadata": {
@@ -29,13 +53,14 @@
     },
 {% endif %}
 
-    {% if is_link == 0 %}
+    {% if is_link != -1 %}
         {# only detail datafields if this is not a linked datatype #}
         {% include 'ODRAdminBundle:XMLExport:datatype_fieldarea.json.twig' with {
             'datatype_array': datatype_array,
+            'theme_array': theme_array,
 
             'target_datatype_id': target_datatype_id,
-            'theme_array': theme_array,
+            'target_theme_id': target_theme_id,
 
             'is_top_level': is_top_level,
             'is_link': is_link,
@@ -46,6 +71,12 @@
         } %}
     {% endif %}
 
-},   {# end of datatype #}
+{% if version == 'v3' %}
+    {% if show_records == 1 %}
+        },   {# end of datatype #}
+    {% endif %}
+{% else %}
+    },   {# end of datatype #}
+{% endif %}
 
 {% endmacro %}

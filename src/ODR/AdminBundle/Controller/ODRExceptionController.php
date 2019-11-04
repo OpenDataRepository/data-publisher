@@ -19,9 +19,9 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\TwigBundle\Controller\ExceptionController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\FlattenException;
 use Symfony\Component\HttpKernel\Log\DebugLoggerInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
+use Symfony\Component\Debug\Exception\FlattenException;
 //? Twig
 use Twig\Environment;
 

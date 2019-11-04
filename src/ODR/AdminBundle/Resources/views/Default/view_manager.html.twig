@@ -1,36 +1,119 @@
 {% spaceless %}
 
+{% set title = "Search Result" %}
+{% if page_type == "display" %}
+    {% set title = "View Record" %}
+{% elseif page_type == "edit" %}
+    {% set title = "Edit Record" %}
+{% endif %}
+
+{% if notitle is defined  %}
+{% else %}
     <h1 class="no-margin-top-phone">
-        <span>Search Result &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
-        <a id="page_settings" name="page_settings"><i class="fa fa-md fa-fw fa-cog"></i></a>
+        <span>{{ title }} &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+        <a id="ODRPageSelectSettings"><i class="fa fa-md fa-fw fa-cog"></i></a>
     </h1>
+{% endif %}
 
     {# Record View Menu #}
-    <div id="page_settings_menu" class="pure-menu pure-menu-horizontal" style="display:none;">
+    <div id="page_settings_menu" class="pure-u-1 pure-menu-horizontal" style="display:none;">
         <ul class="pure-menu-list">
-            <li class="pure-menu-item">
-                <label id="ChooseView" class="pure-button">
-                    Choose View
-                </label>
-            </li>
-
-            {% if (has_search_restriction is defined and has_search_restriction)
-                and (page_type == 'search_results' or page_type == 'table') %}
-                &nbsp;
-            <li class="pure-menu-item">
+        {% if (has_search_restriction is defined and has_search_restriction)
+            and (page_type == 'search_results' or page_type == 'table') %}
+            <li class="pure-menu-item SpacerRight">
                 <label for="display_only_editable_toggle" class="pure-button">
                     <input type="checkbox" id="display_only_editable_toggle" class="ODRDisplayOnlyEditable" style="margin-right: 5px;" />
                     Only show editable records
                 </label>
             </li>
+        {% endif %}
+
+            <li class="pure-menu-item SpacerRight">
+                <label id="ChooseView" class="pure-button">
+                    Choose View
+                </label>
+            </li>
+
+        {% if display_export_options is defined and display_export_options == true
+            and intent == 'searching' and user_role == 'ROLE_ADMIN' and has_datarecords %}
+
+            {% if can_edit_datatype or is_datatype_admin %}
+            <li class="pure-menu-item SpacerRight">
+                <label id="ODRMassEdit" class="pure-button">
+                    Mass Edit Records
+                </label>
+            </li>
             {% endif %}
+
+            <li class="pure-menu-item SpacerRight">
+                <label id="ODRCSVExport" class="pure-button">
+                    Export Records (CSV)
+                </label>
+            </li>
+
+        {% endif %}
         </ul>
+{#
+    {% if display_export_options is defined and display_export_options == true and intent == 'searching' and user_role == 'ROLE_ADMIN' and has_datarecords %}
+        {% if use_jupyterhub %}
+            <div style="float:right;">
+                <span id="jupyterhub_app_list" style="padding-right: 10px;"></span>
+
+                <form target="_blank" action="{{ path('odr_jupyterhub_export') }}" method="post" style="display: inline;">
+                    <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />
+                    <input type="hidden" name="search_key" value="{{ search_key }}" />
+                    <input type="hidden" name="app_id" id="jupyterhub_app_id" />
+
+                    <button id="ODRRunApp" type="submit" class="pure-button">Run this Jupyterhub app on these search results</button>
+                </form>
+            </div>
+        {% endif %}
+    {% endif %}
+#}
     </div>
 
 <script>
 
     $(function() {
         initViewManager();
+
+{% if display_export_options is defined and display_export_options == true
+    and intent == 'searching' and user_role == 'ROLE_ADMIN' and has_datarecords %}
+        $("#ODRMassEdit").unbind('click').click(function() {
+            var url = '{{ path('odr_mass_edit_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
+            UpdateURL(url);
+        });
+
+        $("#ODRCSVExport").unbind('click').click(function() {
+            var url = '{{ path('odr_csv_export_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
+            UpdateURL(url);
+        });
+
+{#
+    {% if user_role == 'ROLE_ADMIN' and has_datarecords and use_jupyterhub %}
+        // Get the app list to display on the page
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: "{{ path('odr_jupyterhub_app_list', {'datatype_id': datatype.id}) }}",
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if ( parseInt(jqXHR.status) === 200 ) {
+                    $("#jupyterhub_app_list").html(data.html);
+
+                    $("#jupyterhub_app_selector").unbind('change').change(function() {
+                        var selected = $(this).val();
+                        $("#jupyterhub_app_id").val(selected);
+                    });
+
+                    // Store the value of the first option in the form
+                    $("#jupyterhub_app_id").val( $("#jupyterhub_app_selector option:first").val() );
+                }
+            }
+        });
+    {% endif %}
+#}
+{% endif %}
 
 {% if (has_search_restriction is defined and has_search_restriction)
     and (page_type == 'search_results' or page_type == 'table') %}
@@ -83,7 +166,7 @@
         // Setup Theme System
         setupThemeSystem();
 
-        $("#page_settings").unbind('click').click(function(event) {
+        $("#ODRPageSelectSettings").unbind('click').click(function(event) {
             $("#page_settings_menu").toggle('fast');
         });
     }
@@ -214,16 +297,22 @@
             success: function (data, textStatus, jqXHR) {
                 if (redirect) {
                     closeODRRemodal();
-{% if page_type == 'display' or page_type == 'linking' %}
-                    {# Don't change the URL when viewing a single datarecord #}
+{% if page_type == 'display' or page_type == 'edit' or page_type == 'linking' %}
+                    // If viewing a single datarecord, reload the search content...the correct theme
+                    //  will be pulled from the user's session
                     reloadPage();
 {% else %}
-                    {# Need to extract the offset, then redirect to a URL with the desired theme id #}
+                    // Need to extract the offset, then redirect to a URL with the desired theme id
                     var hash = window.location.hash;
                     var offset = hash.substr(hash.lastIndexOf('/') + 1);
                     if ( isNaN(offset) )
                         offset = '1';
 
+                    // Ensure the search sidebar doesn't revert back to the previous theme if the
+                    //  Search button is clicked
+                    $("#selected_theme_id").val(theme_id);
+
+                    // Reload the search results list with the newly selected theme
                     var url = '{{ path('odr_search_render', { 'search_theme_id': 0, 'search_key': '', 'offset': 0 }) }}';
                     url = url.substr(0, url.length-4);
                     url += theme_id + '/' + '{{ search_key }}' + '/' + offset;
@@ -258,6 +347,11 @@
     function copyAndModifyView(theme_id) {
         var url = '{{ path('odr_clone_theme', { 'theme_id': 0 }) }}';
         url = url.substr(0, (url.length - 1)) + theme_id;
+
+        {# requests to copy a theme from a search results page should create a search_results theme #}
+        {% if title == 'Search Result' %}
+        url += '/search_results';
+        {% endif %}
 
         setModalMessage("Copying selected theme, please wait...");
 
@@ -301,7 +395,7 @@
         closeODRRemodal();
 
         // Open View Editor
-{% if page_type == 'display' %}
+{% if page_type == 'display' or page_type == 'edit' %}
         var url = '{{ path('odr_modify_theme', { 'datatype_id': datatype.id, 'theme_id': 0 }) }}';
         url = url.substr(0, url.length-1);
         url += theme_id;
@@ -401,9 +495,11 @@
 
                 // Close modal and reload page
                 closeODRRemodal();
-{% if page_type == 'display' or page_type == 'linking' %}
+{% if page_type == 'display' or page_type == 'edit' or page_type == 'linking' %}
+                {# Don't change the URL when viewing a single datarecord #}
                 reloadPage();
 {% else %}
+                {# Need to extract the offset, then redirect to a URL with the desired theme id #}
                 var hash = window.location.hash;
                 var offset = hash.substr(hash.lastIndexOf('/') + 1);
                 if ( isNaN(offset) )

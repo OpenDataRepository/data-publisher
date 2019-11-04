@@ -2,10 +2,10 @@
     {# This twig file is never called when "importing into" a linked datatype #}
     {% set external_id_field = datatype.getexternalidfield %}
 
-    <div class="csv_import_header pure-u-2-3">
+    <div class="csvimport_header pure-u-2-3">
         {% if file_encoding_converted %}
             {# notify that the file's encoding got changed #}
-            <div id="external_id_field_warning" class="pure-u-1" style="margin-bottom:20px;">
+            <div class="pure-u-1" style="margin-bottom:20px;">
                 <span><i class="fa fa-lg fa-info-circle Cursor"></i></span>
                 <span>The uploaded CSV file had a number of invalid UTF-8 characters..as such, the server attempted to rewrite the file to convert it into valid UTF-8.  The modified file is available for download <a href="{{ path('odr_csv_file_redownload') }}" style="text-decoration: underline;">HERE</a> if you wish to verify that the automatic conversion worked properly.</span>
             </div>
@@ -46,11 +46,12 @@
         {% endif %}
 
         {# every other unique datafield needs a warning too #}
-        {% for df in datafields %}
-            {% if df.getisunique == 1 and external_id_field != df %}
-            <div id="datafield_{{ df.id }}_unique_notice" class="pure-u-1">
+        {% for df_id, df in datafields %}
+            {% set df_meta = df.dataFieldMeta %}
+            {% if df_meta.is_unique == 1 and external_id_field.id != df_id %}
+            <div id="datafield_{{ df_id }}_unique_notice" class="pure-u-1">
                 <span><i class="fa fa-lg fa-exclamation-circle Cursor"></i></span>
-                <span>&nbsp;The unique Datafield "{{ df.getfieldname }}" is currently not mapped to a column of the CSV File...if any new Datarecords are created as a result of this import, this datafield will have multiple blank values.</span>
+                <span>&nbsp;The unique Datafield "{{ df_meta.fieldName }}" is currently not mapped to a column of the CSV File...if any new Datarecords are created as a result of this import, this datafield will have multiple blank values.</span>
             </div>
             {% endif %}
         {% endfor %}
@@ -65,7 +66,7 @@
         var selected = false;
         $(".datafield_mapping:enabled").each(function() {
             var selected_df = $(this).children('option:selected').val();
-            if ( selected_df == "{{ external_id_field.id }}" )
+            if ( selected_df === "{{ external_id_field.id }}" )
                 selected = true;
         });
 
@@ -79,7 +80,7 @@
 
         // Deal with unique datafields that aren't external id/name datafields
         var datafield_usage = {};
-{% for df in datafields %}{% if df.getisunique == 1 %}
+{% for df_id, df in datafields %}{% if df.dataFieldMeta.is_unique == 1 %}
         datafield_usage["{{ df.id }}"] = 0;
 {% endif %}{% endfor %}
 
@@ -90,7 +91,7 @@
         });
 
         jQuery.each(datafield_usage, function(key,value) {
-            if (value == 1)
+            if (value === 1)
                 $("#datafield_" + key + "_unique_notice").hide();
             else
                 $("#datafield_" + key + "_unique_notice").show();

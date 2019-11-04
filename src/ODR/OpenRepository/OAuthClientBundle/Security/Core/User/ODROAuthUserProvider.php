@@ -71,14 +71,14 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
      */
     public function loadUserByUsername($username)
     {
-        throw new \Exception("ODROAuthUserProvider is not usable as a regular user provider");
+        throw new \Exception("ODROAuthUserProvider is not usable as a regular user provider", 0xd92a78ec);
 
-        $user = $this->findUser(array('username' => $username));
-        if (!$user) {
-            throw new UsernameNotFoundException(sprintf("User '%s' not found.", $username));
-        }
-
-        return $user;
+//        $user = $this->findUser(array('username' => $username));
+//        if (!$user) {
+//            throw new UsernameNotFoundException(sprintf("User '%s' not found.", $username));
+//        }
+//
+//        return $user;
     }
 
     /**
@@ -89,7 +89,7 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
         // Locate the OAuth Resource owner behind this login request
         $resourceOwnerName = $response->getResourceOwner()->getName();
         if (!isset($this->properties[$resourceOwnerName])) {
-            throw new \RuntimeException(sprintf("No property defined for entity for resource owner '%s'.", $resourceOwnerName));
+            throw new \RuntimeException(sprintf("No property defined for entity for resource owner '%s'.", $resourceOwnerName), 0xd92a78ec);
         }
 
         $username = $response->getUsername();
@@ -110,7 +110,7 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
 
         // Attempt to load an ODR user using the available OAuth criteria
         if (null === $user = $this->findUser($criteria)) {
-            throw new UsernameNotFoundException(sprintf("User '%s' not found.", $username));
+            throw new UsernameNotFoundException(sprintf("User '%s' not found.", $username), 0xd92a78ec);
         }
 
         return $user;
@@ -124,12 +124,12 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
         $accessor = PropertyAccess::createPropertyAccessor();
         $identifier = $this->properties['identifier'];
         if (!$this->supportsClass(get_class($user)) || !$accessor->isReadable($user, $identifier)) {
-            throw new UnsupportedUserException(sprintf('Instances of "%s" are not supported.', get_class($user)));
+            throw new UnsupportedUserException(sprintf('Instances of "%s" are not supported.', get_class($user)), 0xd92a78ec);
         }
 
         $userId = $accessor->getValue($user, $identifier);
         if (null === $user = $this->findUser(array($identifier => $userId))) {
-            throw new UsernameNotFoundException(sprintf('User with ID "%d" could not be reloaded.', $userId));
+            throw new UsernameNotFoundException(sprintf('User with ID "%d" could not be reloaded.', $userId), 0xd92a78ec);
         }
 
         return $user;
@@ -199,13 +199,13 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
         // TODO - do something more comphrehensive than just refusing to connect?
         $user_link = $this->em->getRepository("ODROpenRepositoryOAuthClientBundle:UserLink")->findOneBy( array('providerName' => $provider_name, 'providerId' => $provider_id) );
         if ($user_link)
-            throw new \RuntimeException("Unable to connect account");
+            throw new \RuntimeException("Unable to connect account", 0xd92a78ec);
 
         /** @var ODRUser $user */
         // Load the user and its associated UserLink entry
         $user = $this->em->getRepository("ODROpenRepositoryUserBundle:User")->find($user_id);
         if (!$user)
-            throw new \RuntimeException("Invalid User");
+            throw new \RuntimeException("Invalid User", 0xd92a78ec);
 
 
         // Locate an unused UserLink entity for this user if possible

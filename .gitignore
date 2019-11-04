@@ -35,6 +35,8 @@
 /app/phpunit.xml
 /phpunit.xml
 /test-browser/node_modules/
+/test-browser/screenshots/*
+!/test-browser/screenshots/.gitkeep 
 /test-browser/conf/*.conf.js
 
 # Composer PHAR

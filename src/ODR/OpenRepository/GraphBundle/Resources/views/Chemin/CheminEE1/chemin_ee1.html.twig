@@ -1,0 +1,89 @@
+{% spaceless %}
+
+<style>
+    .CheminEE1Table thead {
+        color: white;
+        font-weight: bold;
+    }
+    .CheminEE1Table tbody tr,
+    .CheminEE1Table tbody .ODRFileDatafield,
+    .CheminEE1Table tbody .ODRFileDatafield_file,
+    .CheminEE1Table tbody td {
+        background: rgba(222, 235, 246, 1.0);
+    }
+    .CheminEE1Table thead tr,
+    .CheminEE1Table thead .ODRFileDatafield,
+    .CheminEE1Table thead .ODRFileDatafield_file,
+    .CheminEE1Table thead td {
+        background: rgba(158, 195, 228, 1.0);
+    }
+    tr.CheminEE1Sum .ODRFileDatafield,
+    tr.CheminEE1Sum .ODRFileDatafield_file,
+    tr.CheminEE1Sum td {
+        background: rgba(190, 215, 237, 1.0);
+    }
+    .CheminEE1Table i {
+        color: rgba(190,215,237,1.0);
+    }
+    tr.CheminEE1Sum td i {
+        color: rgba(158, 195, 228, 1.0);
+    }
+</style>
+
+<div class="ODRThemeElement" style="margin-bottom: 0px;">
+    <div class="ODRInnerBox">
+        <table id="{{ chemin_ee1_table }}" class="dataTable CheminEE1Table">
+            <thead>
+            <tr>
+                <td>EE1 Products</td>
+                <td colspan="2">Histograms</td>
+                <td colspan="3">DAT, Label & Text Files</td>
+            </tr>
+            </thead>
+
+            <tbody>
+{% if file_data|length > 0 %}
+    {% for key, files in file_data %}
+
+        {% set is_sum_block = false %}
+        {% if key matches '{SUM}' %}
+            {% set is_sum_block = true %}
+        {% endif %}
+
+        <tr {% if is_sum_block %}class="CheminEE1Sum"{% endif %}>
+            <td>
+                {{ key }}
+            </td>
+            <td>
+                {% if files['ee1_raw_csv'] is defined %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['ee1_raw_csv'], 'display_name': 'dn'} %}
+                {% endif %}
+            </td>
+            <td>
+                {% if files['ee1_processed_csv'] is defined %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['ee1_processed_csv'], 'display_name': 'kev'} %}
+                {% endif %}
+            </td>
+            <td>
+                {% if files['ee1_raw_dat_file'] is defined %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['ee1_raw_dat_file'], 'display_name': 'DAT'} %}
+                {% endif %}
+            </td>
+            <td>
+                {% if files['ee1_raw_lbl_file'] is defined %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['ee1_raw_lbl_file'], 'display_name': 'LBL'} %}
+                {% endif %}
+            </td>
+            <td>
+                {% if files['ee1_processing_description'] is defined %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['ee1_processing_description'], 'display_name': 'Processing description'} %}
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+{% endif %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endspaceless %}

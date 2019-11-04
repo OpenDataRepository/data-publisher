@@ -18,8 +18,6 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
-// Controllers/Classes
-use ODR\OpenRepository\SearchBundle\Controller\DefaultController as SearchController;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
@@ -39,10 +37,13 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
-use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Component\HttpFoundation\Cookie;
@@ -75,8 +76,11 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            /** @var SearchCacheService $search_cache_service */
-            $search_cache_service = $this->container->get('odr.search_cache_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var SearchRedirectService $search_redirect_service */
+            $search_redirect_service = $this->container->get('odr.search_redirect_service');
+
 
             $search_theme_id = 0;
             // Need to reformat to create proper search key and forward internally to view controller
@@ -87,9 +91,11 @@ class DisplayController extends ODRCustomController
                 $search_param_data = preg_split("/\=/",$search_param_element);
                 $search_params[$search_param_data[0]] = $search_param_data[1];
             }
-            $new_search_key = $search_cache_service->encodeSearchKey($search_params);
+            $new_search_key = $search_key_service->encodeSearchKey($search_params);
 
             // Generate new style search key from passed search key
+            return $search_redirect_service->redirectToViewPage($datarecord_id, $search_theme_id, $new_search_key, $offset);
+            /*
             return $this->redirectToRoute(
                 "odr_display_view",
                 array(
@@ -99,11 +105,12 @@ class DisplayController extends ODRCustomController
                     'offset' => $offset
                 )
             );
+            */
         }
         catch (\Exception $e) {
             $source = 0x9c453393;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -112,13 +119,13 @@ class DisplayController extends ODRCustomController
 
     /**
      * Returns the "Results" version of the given DataRecord.
-     * 
+     *
      * @param integer $datarecord_id The database id of the datarecord to return.
      * @param integer $search_theme_id
      * @param string $search_key     Used for search header, an optional string describing which search result list $datarecord_id is a part of
      * @param integer $offset        Used for search header, an optional integer indicating which page of the search result list $datarecord_id is on
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function viewAction($datarecord_id, $search_theme_id, $search_key, $offset, Request $request)
@@ -135,16 +142,19 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $session = $request->getSession();
 
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var ThemeInfoService $theme_service */
             $theme_service = $this->container->get('odr.theme_info_service');
-            /** @var ODRTabHelperService $odr_tab_service */
-            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var SearchRedirectService $search_redirect_service */
+            $search_redirect_service = $this->container->get('odr.search_redirect_service');
+
 
             $router = $this->get('router');
             $templating = $this->get('templating');
@@ -160,29 +170,16 @@ class DisplayController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            // Save in case the user requested a child datarecord
-            $requested_datarecord = $datarecord;
-            $requested_datatype = $datatype;
+            // TODO - allow rendering of child datarecords?
+            if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() )
+                throw new ODRBadRequestException('Not allowed to directly render child datarecords');
 
-            // Want the grandparent datarecord and datatype for everything else
-            $is_top_level = 1;
-            if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() ) {
-                // This is a child datatype
-                $is_top_level = 0;
-                $datarecord = $datarecord->getGrandparent();
-                if ($datarecord->getDeletedAt() != null)
-                    throw new ODRNotFoundException('Datarecord');
-
-                $datatype = $datarecord->getDataType();
-                if ($datatype->getDeletedAt() != null)
-                    throw new ODRNotFoundException('Datatype');
-            }
 
             // If $search_theme_id is set...
             if ($search_theme_id != 0) {
                 // ...require a search key to also be set
                 if ($search_key == '')
-                    throw new ODRBadRequestException();
+                    throw new ODRBadRequestException('Search theme set without search key');
 
                 // ...require the referenced theme to exist
                 /** @var Theme $search_theme */
@@ -202,19 +199,16 @@ class DisplayController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $pm_service->getUserPermissionsArray($user);
-            $datatype_permissions = $pm_service->getDatatypePermissions($user);
-            $datafield_permissions = $pm_service->getDatafieldPermissions($user);
 
             // Store whether the user is permitted to edit at least one datarecord for this datatype
             $can_edit_datatype = $pm_service->canEditDatatype($user, $datatype);
             // Store whether the user is permitted to edit this specific datarecord
             $can_edit_datarecord = $pm_service->canEditDatarecord($user, $datarecord);
+            // Store whether the user is permitted to create new datarecords for this datatype
+            $can_add_datarecord = $pm_service->canAddDatarecord($user, $datatype);
 
             if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canViewDatarecord($user, $datarecord) )
                 throw new ODRForbiddenException();
-
-            // Going to need this later...
-            $restricted_datarecord_list = $pm_service->getDatarecordRestrictionList($user, $datatype);
             // ----------------------------------------
 
 
@@ -227,98 +221,82 @@ class DisplayController extends ODRCustomController
             else
                 $odr_tab_id = $odr_tab_service->createTabId();
 
+
+            // Determine whether the user has a restriction on which datarecords they can edit
+            $restricted_datarecord_list = $pm_service->getDatarecordRestrictionList($user, $datatype);
+
             // Determine which list of datarecords to pull from the user's session
             $cookies = $request->cookies;
             $only_display_editable_datarecords = true;
             if ( $cookies->has('datatype_'.$datatype->getId().'_editable_only') )
                 $only_display_editable_datarecords = $cookies->get('datatype_'.$datatype->getId().'_editable_only');
 
-            $editable_only = true;
-            if ( !is_null($restricted_datarecord_list) && !$only_display_editable_datarecords )
-                $editable_only = false;
+            // If a datarecord restriction exists, and the user only wants to display editable datarecords...
+            $editable_only = false;
+            if ( $can_edit_datatype && !is_null($restricted_datarecord_list) && $only_display_editable_datarecords )
+                $editable_only = true;
 
 
             // If this datarecord is being viewed from a search result list...
             $datarecord_list = '';
-            $encoded_search_key = '';
             if ($search_key !== '') {
-                // ...attempt to grab the list of datarecords from that search result
-                $data = parent::getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype->getId(), $search_key, $request);
-                $encoded_search_key = $data['encoded_search_key'];
-                $datarecord_list = $data['datarecord_list'];
-
-                if (!$data['redirect'] && $encoded_search_key !== '' && $datarecord_list === '') {
-                    // Some sort of error encounted...bad search query, invalid permissions, or empty datarecord list
-                    /** @var SearchController $search_controller */
-                    $search_controller = $this->get('odr_search_controller', $request);
-                    return $search_controller->renderAction($search_theme_id, $encoded_search_key, 1, 'searching', $request);
-                }
-                else if ($data['redirect']) {
-                    $url = $this->generateUrl(
-                        'odr_display_view',
-                        array(
-                            'datarecord_id' => $datarecord_id,
-                            'search_key' => $encoded_search_key,
-                            'offset' => 1
-                        )
-                    );
-                    return parent::searchPageRedirect($user, $url);
+                // Ensure the search key is valid first
+                $search_key_service->validateSearchKey($search_key);
+                // Determine whether the user is allowed to view this search key
+                $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
+                if ($filtered_search_key !== $search_key) {
+                    // User can't view the results of this search key, redirect to the one they can view
+                    return $search_redirect_service->redirectToViewPage($datarecord_id, $search_theme_id, $filtered_search_key, $offset);
                 }
 
+                // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
+                //  will display stuff in a different order
+                $sort_df_id = 0;
+                $sort_ascending = true;
 
-                // ----------------------------------------
-                // TODO - move this segment into the tab helper service once searching is a service
-                // Ensure viewable/editable datarecord lists exist in user's session
-                if ( is_null($odr_tab_service->getViewableDatarecordList($odr_tab_id)) ) {
-                    $odr_tab_service->setViewableDatarecordList($odr_tab_id, $datarecord_list);
-
-                    // Since searching isn't filtered (yet)...
-                    if ( is_null($datatype->getSortField()) ) {
-                        // ...this datarecord list is just ordered by id
-                        $odr_tab_service->setSortCriteria($odr_tab_id, 0, 'ASC');
+                $sort_criteria = $odr_tab_service->getSortCriteria($odr_tab_id);
+                if ( is_null($sort_criteria) ) {
+                    if (is_null($datatype->getSortField())) {
+                        // ...this datarecord list is currently ordered by id
+                        $odr_tab_service->setSortCriteria($odr_tab_id, 0, 'asc');
                     }
                     else {
                         // ...this datarecord list is ordered by whatever the sort datafield for this datatype is
-                        $odr_tab_service->setSortCriteria($odr_tab_id, $datatype->getSortField()->getId(), 'ASC');
+                        $sort_df_id = $datatype->getSortField()->getId();
+                        $odr_tab_service->setSortCriteria($odr_tab_id, $sort_df_id, 'asc');
                     }
                 }
-
-                if ( $pm_service->canEditDatatype($user, $datatype) && is_null($odr_tab_service->getEditableDatarecordList($odr_tab_id)) ) {
-                    if ( !is_null($restricted_datarecord_list) ) {
-                        // Ensure the restricted list is sorted
-                        $dr_list = $dti_service->getSortedDatarecordList($datatype->getId(), $restricted_datarecord_list);
-
-                        // At the point, $datarecord_list is a $num => $dr_id array of what matches search result
-                        // $dr_list is a $dr_id => $sort_value array of the datarecords the user can edit
-
-                        // Need to compute and store the intersection of those two arrays
-                        $datarecord_list = explode(',', $datarecord_list);
-                        foreach ($datarecord_list as $num => $dr_id) {
-                            if ( !isset($dr_list[$dr_id]) )
-                                unset( $datarecord_list[$num] );
-                        }
-                        $dr_list = implode(',', $datarecord_list);
-
-                        // $dr_list is now the list of datarecords matchnig this search that the user can edit
-                        $odr_tab_service->setEditableDatarecordList($odr_tab_id, $dr_list);
-                    }
-                    else
-                        $odr_tab_service->setEditableDatarecordList($odr_tab_id, $datarecord_list);
+                else {
+                    // Load the criteria from the user's session
+                    $sort_df_id = $sort_criteria['datafield_id'];
+                    if ($sort_criteria['sort_direction'] === 'desc')
+                        $sort_ascending = false;
                 }
+
+                // No problems, so get the datarecords that match the search
+                $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions, $sort_df_id, $sort_ascending);
+                $original_datarecord_list = $search_results['grandparent_datarecord_list'];
 
 
                 // ----------------------------------------
-                // Ensure $offset is pointing to the correct page...
-                $dr_list = '';
-                if ($can_edit_datatype && $editable_only)
-                    $dr_list = $odr_tab_service->getEditableDatarecordList($odr_tab_id);
-                else
-                    $dr_list = $odr_tab_service->getViewableDatarecordList($odr_tab_id);
+                // Determine the correct lists of datarecords to use for rendering...
+                $datarecord_list = $original_datarecord_list;
+                if ($can_edit_datatype && $editable_only) {
+                    // ...user has a restriction list, and only wants to have datarecords in the
+                    //  search header that they can edit
 
+                    // array_flip() + isset() is orders of magnitude faster than repeated calls to in_array()
+                    $editable_datarecord_list = array_flip($restricted_datarecord_list);
+                    foreach ($original_datarecord_list as $num => $dr_id) {
+                        if (!isset($editable_datarecord_list[$dr_id]))
+                            unset($original_datarecord_list[$num]);
+                    }
+
+                    $datarecord_list = array_values($original_datarecord_list);
+                }
 
                 // Compute which page of the search results this datarecord is on
-                $dr_list = explode(',', $dr_list);
-                $key = array_search($datarecord->getId(), $dr_list);
+                $key = array_search($datarecord->getId(), $datarecord_list);
 
                 $page_length = $odr_tab_service->getPageLength($odr_tab_id);
                 $offset = floor($key / $page_length) + 1;
@@ -330,81 +308,58 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // Build an array of values to use for navigating the search result list, if it exists
-            if ($can_edit_datatype && $editable_only)
-                $search_header = $odr_tab_service->getSearchHeaderValues($odr_tab_id, $datarecord->getId(), 'editable');
-            else
-                $search_header = $odr_tab_service->getSearchHeaderValues($odr_tab_id, $datarecord->getId(), 'viewable');
+            $search_header = null;
+            if ($search_key !== '')
+                $search_header = $odr_tab_service->getSearchHeaderValues($odr_tab_id, $datarecord->getId(), $datarecord_list);
 
-
-            $header_html = '';
-            if ( !is_null($search_header) ) {
-                $redirect_path = $router->generate('odr_display_view', array('datarecord_id' => 0));    // blank path
-                $header_html = $templating->render(
-                    'ODRAdminBundle:Display:display_header.html.twig',
-                    array(
-                        'can_edit_datarecord' => $can_edit_datarecord,
-                        'datarecord' => $datarecord,
-                        'datatype' => $datatype,
-
-                        'odr_tab_id' => $odr_tab_id,
-
-                        // values used by search_header.html.twig
-                        'search_theme_id' => $search_theme_id,
-                        'search_key' => $encoded_search_key,
-                        'offset' => $offset,
-                        'page_length' => $search_header['page_length'],
-                        'next_datarecord' => $search_header['next_datarecord_id'],
-                        'prev_datarecord' => $search_header['prev_datarecord_id'],
-                        'search_result_current' => $search_header['search_result_current'],
-                        'search_result_count' => $search_header['search_result_count'],
-                        'redirect_path' => $redirect_path,
-                    )
+            // Need this array to exist right now so the part that's not the search header will display
+            if ( is_null($search_header) ) {
+                $search_header = array(
+                    'page_length' => 0,
+                    'next_datarecord_id' => 0,
+                    'prev_datarecord_id' => 0,
+                    'search_result_current' => 0,
+                    'search_result_count' => 0
                 );
             }
 
-
-            // ----------------------------------------
-            // Load the cached versions of all datarecords, datatypes, and themes that will be
-            //  needed for rendering this datarecord
-            $datarecord_array = $dri_service->getDatarecordArray($datarecord->getId());
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getId());
-            $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $user);
-
-
-            // ----------------------------------------
-            // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            // Intentionally leaving the theme array alone
-            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
-
-            // "Inflate" the currently flattened $datarecord_array and $datatype_array...
-            // This is required so that render plugins for a datatype can also correctly render
-            //  that datatype's child/linked datatypes
-            $stacked_datarecord_array[ $requested_datarecord->getId() ] =
-                $dri_service->stackDatarecordArray($datarecord_array, $requested_datarecord->getId());
-            $stacked_datatype_array[ $requested_datatype->getId() ] =
-                $dti_service->stackDatatypeArray($datatype_array, $requested_datatype->getId());
-
-
-            // ----------------------------------------
-            // Render the DataRecord
-            $templating = $this->get('templating');
-            $page_html = $templating->render(
-                'ODRAdminBundle:Display:display_ajax.html.twig',
+            $redirect_path = $router->generate('odr_display_view', array('datarecord_id' => 0));    // blank path
+            $header_html = $templating->render(
+                'ODRAdminBundle:Display:display_header.html.twig',
                 array(
-                    'datatype_array' => $stacked_datatype_array,
-                    'datarecord_array' => $stacked_datarecord_array,
-                    'theme_array' => $theme_array,
+                    'can_edit_datarecord' => $can_edit_datarecord,
+                    'can_add_datarecord' => $can_add_datarecord,
+                    'datarecord' => $datarecord,
+                    'datatype' => $datatype,
 
-                    'initial_datatype_id' => $requested_datatype->getId(),
-                    'initial_datarecord_id' => $requested_datarecord->getId(),
+                    'odr_tab_id' => $odr_tab_id,
 
-                    'is_top_level' => $is_top_level,
+                    // values used by search_header.html.twig
+                    'search_theme_id' => $search_theme_id,
                     'search_key' => $search_key,
-                    'user' => $user,
-                    'record_display_view' => 'single',
+                    'offset' => $offset,
+
+                    'page_length' => $search_header['page_length'],
+                    'next_datarecord' => $search_header['next_datarecord_id'],
+                    'prev_datarecord' => $search_header['prev_datarecord_id'],
+                    'search_result_current' => $search_header['search_result_current'],
+                    'search_result_count' => $search_header['search_result_count'],
+                    'redirect_path' => $redirect_path,
                 )
             );
+
+
+            // ----------------------------------------
+            // Determine the user's preferred theme
+            $theme_id = $theme_service->getPreferredTheme($user, $datatype->getId(), 'master');
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+
+            // Render the display page for this datarecord
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
+            $page_html = $odr_render_service->getDisplayHTML($user, $datarecord, $search_key, $theme);
+
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
@@ -417,7 +372,7 @@ class DisplayController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8f465413;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -482,12 +437,8 @@ class DisplayController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if (!$pm_service->canViewDatatype($user, $datatype)
-                || !$pm_service->canViewDatarecord($user, $datarecord)
-                || !$pm_service->canViewDatafield($user, $datafield)
-            ) {
+            if ( !$pm_service->canViewFile($user, $file) )
                 throw new ODRForbiddenException();
-            }
             // ----------------------------------------
 
 
@@ -609,9 +560,9 @@ class DisplayController extends ODRCustomController
             return $response;
         }
         catch (\Exception $e) {
-            $source = 0x9afc6f73;
+            $source = 0xcc3f073c;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -671,11 +622,8 @@ class DisplayController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if (!$pm_service->canViewDatarecord($user, $datarecord)
-                || !$pm_service->canViewDatafield($user, $datafield)
-            ) {
+            if ( !$pm_service->canViewFile($user, $file) )
                 throw new ODRForbiddenException();
-            }
             // ----------------------------------------
 
 
@@ -711,7 +659,7 @@ class DisplayController extends ODRCustomController
 
             $source = 0xe3de488a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -823,7 +771,7 @@ class DisplayController extends ODRCustomController
 
             // Files that aren't done encrypting shouldn't be downloaded
             if ($file->getEncryptKey() == '')
-                throw new ODRException('File');
+                throw new ODRException('This File is not ready for download', 503, 0xe8386807);
 
 
             // ----------------------------------------
@@ -860,7 +808,7 @@ class DisplayController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x81bed420;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -923,12 +871,10 @@ class DisplayController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            if (!$pm_service->canViewDatarecord($user, $datarecord)
-                || !$pm_service->canViewDatafield($user, $datafield)
-            ) {
+            if ( !$pm_service->canViewImage($user, $image) )
                 throw new ODRForbiddenException();
-            }
             // ----------------------------------------
+
 
             // Ensure file exists before attempting to download it
             $filename = 'Image_'.$image_id.'.'.$image->getExt();
@@ -944,62 +890,78 @@ class DisplayController extends ODRCustomController
             if ($handle === false)
                 throw new FileNotFoundException($image_path);
 
-            // Have to send image headers first...
-            $response = new Response();
-            $response->setPrivate();
-            switch ( strtolower($image->getExt()) ) {
-                case 'gif':
-                    $response->headers->set('Content-Type', 'image/gif');
-                    break;
-                case 'png':
-                    $response->headers->set('Content-Type', 'image/png');
-                    break;
-                case 'jpg':
-                case 'jpeg':
-                    $response->headers->set('Content-Type', 'image/jpeg');
-                    break;
+
+            if ( $image->isPublic() ) {
+                // Since the image is public, it's expected to continue to exist...so return a
+                //  redirect to its current location instead of streaming its contents
+                $baseurl = $this->container->getParameter('site_baseurl');
+                $upload_dir = $image->getUploadDir();
+
+                $response = new RedirectResponse($baseurl.'/'.$upload_dir.'/'.$filename);
+
+                fclose($handle);
+                return $response;
             }
+            else {
+                // The image is not public...any decrypted version will only briefly exist, so need
+                //  to create/return a Reponse for the user to download it
+                $response = new Response();
+                $response->setPrivate();
+                switch (strtolower($image->getExt())) {
+                    case 'gif':
+                        $response->headers->set('Content-Type', 'image/gif');
+                        break;
+                    case 'png':
+                        $response->headers->set('Content-Type', 'image/png');
+                        break;
+                    case 'jpg':
+                    case 'jpeg':
+                        $response->headers->set('Content-Type', 'image/jpeg');
+                        break;
+                }
 
-            // Attach the image's original name to the headers...
-            $display_filename = $image->getOriginalFileName();
-            if ($display_filename == null)
-                $display_filename = 'Image_'.$image_id.'.'.$image->getExt();
-            $response->headers->set('Content-Disposition', 'inline; filename="'.$display_filename.'";');
+                // Attach the image's original name to the headers...
+                $display_filename = $image->getOriginalFileName();
+                if ($display_filename == null)
+                    $display_filename = 'Image_'.$image_id.'.'.$image->getExt();
+                $response->headers->set('Content-Disposition', 'inline; filename="'.$display_filename.'";');
 
-            $response->sendHeaders();
+                $response->sendHeaders();
 
-            // After headers are sent, send the image itself
-            $im = null;
-            switch ( strtolower($image->getExt()) ) {
-                case 'gif':
-                    $im = imagecreatefromgif($image_path);
-                    imagegif($im);
-                    break;
-                case 'png':
-                    $im = imagecreatefrompng($image_path);
-                    imagepng($im);
-                    break;
-                case 'jpg':
-                case 'jpeg':
-                    $im = imagecreatefromjpeg($image_path);
-                    imagejpeg($im);
-                    break;
+                // After headers are sent, send the image itself
+                $im = null;
+                switch (strtolower($image->getExt())) {
+                    case 'gif':
+                        $im = imagecreatefromgif($image_path);
+                        imagegif($im);
+                        break;
+                    case 'png':
+                        $im = imagecreatefrompng($image_path);
+                        imagepng($im);
+                        break;
+                    case 'jpg':
+                    case 'jpeg':
+                        $im = imagecreatefromjpeg($image_path);
+                        imagejpeg($im);
+                        break;
+                }
+                imagedestroy($im);
+
+                fclose($handle);
+
+                // If the image isn't public, delete the decrypted version so it can't be accessed
+                //  without going through symfony
+                if (!$image->isPublic())
+                    unlink($image_path);
+
+                // Return the previously created response
+                return $response;
             }
-            imagedestroy($im);
-
-            fclose($handle);
-
-            // If the image isn't public, delete the decrypted version so it can't be accessed without going through symfony
-            if ( !$image->isPublic() )
-                unlink($image_path);
-
-            // Return the previously created response
-            return $response;
         }
         catch (\Exception $e) {
             $source = 0xc2fbf062;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1047,7 +1009,7 @@ class DisplayController extends ODRCustomController
                 throw new ODRNotFoundException('Grandparent Datarecord');
 
             if ( ($datarecord_id === 0 && $datafield_id !== 0) || ($datarecord_id !== 0 && $datafield_id === 0) )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Must specify either a datarecord or a datafield id');
 
 
             /** @var DataType $datatype */
@@ -1173,32 +1135,28 @@ class DisplayController extends ODRCustomController
 //print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
 
             $ret = self::locateFilesforDownloadAll($stacked_datarecord_array, $grandparent_datarecord->getId());
-            if ( is_null($ret) ) {
-                $return['d'] = 'No files are available to download';
-            }
-            else {
-                $stacked_datarecord_array = array($grandparent_datarecord->getId() => $ret);
+            $stacked_datarecord_array = array($grandparent_datarecord->getId() => $ret);
 //print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
 
-                $templating = $this->get('templating');
-                $return['d'] = $templating->render(
-                    'ODRAdminBundle:Default:file_download_dialog_form.html.twig',
-                    array(
-                        'datarecord_id' => $grandparent_datarecord_id,
+            $templating = $this->get('templating');
+            $return['d'] = $templating->render(
+                'ODRAdminBundle:Default:file_download_dialog_form.html.twig',
+                array(
+                    'datarecord_id' => $grandparent_datarecord_id,
 
-                        'datarecord_array' => $stacked_datarecord_array,
-                        'datafield_names' => $datafield_names,
-                        'datatype_names' => $datatype_names,
+                    'datarecord_array' => $stacked_datarecord_array,
+                    'datafield_names' => $datafield_names,
+                    'datatype_names' => $datatype_names,
 
-                        'is_top_level' => true,
-                    )
-                );
-            }
+                    'is_top_level' => true,
+                )
+            );
+
         }
         catch (\Exception $e) {
             $source = 0xce2c6ae9;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1260,6 +1218,7 @@ class DisplayController extends ODRCustomController
      * Assuming the user has the correct permissions, adds each file from this datarecord/datafield pair into a zip
      * archive and returns that zip archive for download.
      *
+     * @param int $grandparent_datarecord_id
      * @param Request $request
      *
      * @return Response
@@ -1456,7 +1415,7 @@ exit();
         catch (\Exception $e) {
             $source = 0xc31d45b5;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1544,7 +1503,7 @@ exit();
 
             $source = 0xc953bbf3;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1559,7 +1518,7 @@ exit();
      * TODO - Perhaps should be moved to theme controller and a theme type passed.
      *
      * @param integer $datatype_id
-     * @param string $page_type     'display' or 'search_results'
+     * @param string $page_type     'display', 'edit', 'search_results', 'table', or 'linking'
      * @param Request $request
      *
      * @return Response $response
@@ -1584,7 +1543,7 @@ exit();
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ($datatype == null)
+            if ( is_null($datatype) )
                 throw new ODRNotFoundException('Datatype');
 
             // --------------------
@@ -1593,14 +1552,17 @@ exit();
             $is_datatype_admin = $pm_service->isDatatypeAdmin($user, $datatype);
             // --------------------
 
-
-            // We will eventually use master only for 'edit'
-            if ($page_type == "display")
+            // View/Edit mode pages should use theme_types from ThemeInfoService::LONG_FORM_THEMETYPES
+            if ($page_type == "display" || $page_type == "edit")
                 $page_type = "master";
 
 
             // Get all available themes for this datatype that the user can view
             $themes = $theme_service->getAvailableThemes($user, $datatype, $page_type);
+
+            // If the previous query didn't return anything, then load the master layout instead
+            if ( empty($themes) )
+                $themes = $theme_service->getAvailableThemes($user, $datatype, "master");
 
             // Get the user's default theme for this datatype, if they have one
             $user_default_theme = $theme_service->getUserDefaultTheme($user, $datatype_id, $page_type);
@@ -1624,7 +1586,7 @@ exit();
         catch (\Exception $e) {
             $source = 0x81fad8c3;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

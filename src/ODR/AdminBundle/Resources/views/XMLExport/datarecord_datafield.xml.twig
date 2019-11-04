@@ -5,6 +5,7 @@
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
+{% set datarecordfield = '' %}
 {% set valuefield = '' %}
 {% set valuefield_value = '' %}
 {% if datarecord.dataRecordFields[ datafield.id ] is defined %}
@@ -62,24 +63,18 @@
 {% endif %}
 
 {{ tag_start|raw }}
-    <id>{{ datafield.id }}</id>
+    <field_id>{{ datafield.id }}</field_id>
+    <field_uuid>{{ datafield.fieldUuid }}</field_uuid>
+    <template_field_uuid>{{ datafield.templateFieldUuid }}</template_field_uuid>
+    <field_name>{{ datafield_meta.fieldName|xml|raw }}</field_name>
+{#    <description>{{ datafield_meta.description|xml|raw }}</description>#}
+    <fieldtype>{{ field_typename }}</fieldtype>
 
-{% if field_typename == "Boolean" %}
-
-    <selected>{% if valuefield_value == 1 %}1{% else %}0{% endif %}</selected>
-
-{% elseif field_typename == "File" %}
-
+{% if field_typename == "File" %}
+    <files>
     {% for file in valuefield %}
         {% set file_meta = file.fileMeta %}
-
         <file>
-            <id>{{ file.id }}</id>
-            <original_name>{% if file_meta.originalFileName != null %}{{ file_meta.originalFileName|xml|raw }}{% else %}File_{{ file.id }}{% endif %}</original_name>
-            <href>{{ baseurl ~ path('odr_file_download', {'file_id': file.id}) }}</href>
-            {#<caption></caption>#}
-            {#<checksum>{{ file.getoriginalchecksum }}</checksum>#}
-
             {% if using_metadata == true %}
             <_file_metadata>
                 <_external_id>{{ file_meta.external_id }}</_external_id>
@@ -89,80 +84,84 @@
             </_file_metadata>
             {% endif %}
 
+            <id>{{ file.id }}</id>
+            <file_uuid>{{ file.unique_id }}</file_uuid>
+            <original_name>{% if file_meta.originalFileName != null %}{{ file_meta.originalFileName|xml|raw }}{% else %}File_{{ file.id }}{% endif %}</original_name>
+            <href>{{ baseurl ~ path('odr_file_download', {'file_id': file.id}) }}</href>
         </file>
     {% endfor %}
+    </files>
 
 {% elseif field_typename == "Image" %}
-
+    <files>
     {% for image in valuefield %}
         {% set oimage = image.parent %}
-        {% set image_ext = oimage.ext %}
-
         {% set oimage_meta = oimage.imageMeta %}
-        {% set image_caption = oimage_meta.caption %}
-        {% set image_filename = oimage_meta.originalFileName %}
 
-        <image>
-            <id>{{ oimage.id }}</id>
-            <original_name>{% if image_filename != '' %}{{ image_filename|xml|raw }}{% else %}Image_{{ oimage.id }}{% endif %}</original_name>
-            <href>{{ baseurl ~ path('odr_image_download', {'image_id': oimage.id}) }}</href>
-            <caption>{{ image_caption|xml|raw }}</caption>
-            {#<checksum>{{ oimage.getoriginalchecksum }}</checksum>#}
-
+        {# thumbnail image #}
+        <file>
             {% if using_metadata == true %}
-            <_image_metadata>
+            <_file_metadata>
                 <_external_id>{{ oimage_meta.external_id }}</_external_id>
                 <_create_date>{{ oimage.created|date('Y-m-d H:i:s') }}</_create_date>
                 <_create_auth>{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}</_create_auth>
                 <_public_date>{{ oimage_meta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
                 <_display_order>{{ oimage_meta.displayorder}}</_display_order>
-            </_image_metadata>
+            </_file_metadata>
             {% endif %}
-        </image>
+
+            <id>{{ image.id }}</id>
+            <file_uuid>{{ image.unique_id }}</file_uuid>
+            <original_name>{% if oimage_meta.originalFileName != '' %}{{ oimage_meta.originalFileName|raw }}{% else %}Image_{{ image.id }}{% endif %}</original_name>
+            <href>{{ baseurl ~ path('odr_image_download', {'image_id': image.id}) }}</href>
+            <caption>{{ oimage_meta.caption|xml|raw }}</caption>
+            <width>{{ image.imageWidth }}</width>
+            <height>{{ image.imageHeight }}</height>
+            <derived_from>{{ oimage.unique_id }}</derived_from>
+        </file>
+
+        {# original image #}
+        <file>
+            {% if using_metadata == true %}
+                <_file_metadata>
+                    <_external_id>{{ oimage_meta.external_id }}</_external_id>
+                    <_create_date>{{ oimage.created|date('Y-m-d H:i:s') }}</_create_date>
+                    <_create_auth>{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}</_create_auth>
+                    <_public_date>{{ oimage_meta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
+                    <_display_order>{{ oimage_meta.displayorder}}</_display_order>
+                </_file_metadata>
+            {% endif %}
+
+            <id>{{ oimage.id }}</id>
+            <file_uuid>{{ oimage.unique_id }}</file_uuid>
+            <original_name>{% if oimage_meta.originalFileName != '' %}{{ oimage_meta.originalFileName|raw }}{% else %}Image_{{ image.id }}{% endif %}</original_name>
+            <href>{{ baseurl ~ path('odr_image_download', {'image_id': oimage.id}) }}</href>
+            <caption>{{ oimage_meta.caption|xml|raw }}</caption>
+            <width>{{ oimage.imageWidth }}</width>
+            <height>{{ oimage.imageHeight }}</height>
+            <derived_from>null</derived_from>
+        </file>
     {% endfor %}
-
-{% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Short Text" or field_typename == "Medium Text" or field_typename == "Long Text" or field_typename == "Paragraph Text" %}
-
-    <value>{{ valuefield_value|xml|raw }}</value>
+    </files>
 
 {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
+    {% include 'ODRAdminBundle:XMLExport:datarecord_radio_selections.xml.twig' with {
+        'datafield': datafield,
+        'drf': datarecordfield,
+    } %}
 
-    {% if datafield.radioOptions is defined %}
-        <radio_options>
-        {% for radio_option in datafield.radioOptions %}
-            {% set is_selected = 0 %}
-            {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
-                {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
-            {% endif %}
+{% elseif field_typename == "Tags" %}
+    {% include 'ODRAdminBundle:XMLExport:datarecord_tag_wrapper.xml.twig' with {
+        'datafield': datafield,
+        'drf': datarecordfield,
+    } %}
 
-            {% set radio_option_meta = radio_option.radioOptionMeta %}
-
-            {% if is_selected == 1 %}
-
-                {% set radio_tag_start = '' %}
-                {% set radio_tag_end = '' %}
-                {% if version == 'v1' %}
-                    {% set radio_tag_start = '<radio_option_' ~ radio_option.id ~ '><name>' ~ radio_option_meta.optionName|xml ~'</name>' %}
-                    {% set radio_tag_end = '</radio_option_' ~ radio_option.id ~ '>' %}
-                {% elseif version == 'v2' %}
-                    {% set radio_tag_start = '<' ~ radio_option_meta.xml_fieldName ~ '>' %}
-                    {% set radio_tag_end = '</' ~ radio_option_meta.xml_fieldName ~ '>' %}
-                {% endif %}
-
-                {{ radio_tag_start|raw }}
-                    <id>{{ radio_option.id }}</id>
-                    <selected>1</selected>
-                {{ radio_tag_end|raw }}
-
-            {% endif %}
-        {% endfor %}
-        </radio_options>
-    {% endif %}
-
+{% elseif field_typename == "Boolean" %}
+    <selected>{% if valuefield_value == 1 %}1{% else %}0{% endif %}</selected>
 {% elseif field_typename == "DateTime" %}
-
     <value>{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != '9999-12-31' %}{{ valuefield_value|date('Y-m-d') }}{% endif %}</value>
-
+{% else %}
+    <value>{{ valuefield_value|xml|raw }}</value>
 {% endif %}
 
 {{ tag_end|raw }}   {# end of datafield #}

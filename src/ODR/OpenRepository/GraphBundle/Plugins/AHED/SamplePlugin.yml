@@ -1,0 +1,63 @@
+odr_plugins.ahed.sample:
+    name: Sample Plugin
+    datatype: true
+    version: 1.00
+    override_fields: false
+    override_child: false
+    description: The Sample plugin provides the basic framework for storing metadata about a sample.
+    required_fields:
+        sample_label:
+            name: Sample Label
+            description: The identifier used to identify this sample.
+            type: MediumVarchar
+            attributes: required, data-required
+        external_identifier :
+            name: External Identifier
+            description: An identifier used by external databases to refer to this sample.
+            type: MediumVarchar
+        sample_type:
+            name: Sample Type
+            description: A descriptor identifying the type of sample
+            type: MediumVarchar
+            attributes: required
+        collection_date:
+            name: Collection Date
+            description: The date the sample was collected.
+            type: MediumVarchar
+        collection_time:
+            name: Collection Time
+            description: The time the sample was collected.
+            type: MediumVarchar
+        latitude:
+            name: Latitude
+            description: The latitude at which the sample was collected.
+            type: DecimalValue
+        longitude:
+            name: Longitude
+            description: The longitude at which the sample was collected.
+            type: DecimalValue
+        evation:
+            name: Elevation
+            description: Elevation in meters relative to sea level.
+            type: DecimalValue
+        collection_method:
+            name: Collection Method
+            description: A description of the method or methods used for collecting the sample.
+            type: DecimalValue
+        collection_notes:
+            name: Collection Notes
+            description: Collection notes.
+            type: LongText
+        collection_rationale:
+            name: Collection Rationale
+            description: Collection rationale.
+            type: LongText
+        sample_disposition:
+            name: Sample Disposition
+            description: Disposition of the sample.
+            type: MediumVarchar
+        storage_location:
+            name: Storage Location
+            description: The current storage location of the sample.
+            type: MediumVarchar
+    config_options:

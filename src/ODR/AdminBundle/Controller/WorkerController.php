@@ -20,25 +20,21 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
+use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\OpenRepository\UserBundle\Entity\User;
-
-use ODR\AdminBundle\Entity\DataFieldsMeta;
-use ODR\AdminBundle\Entity\DataRecordMeta;
-use ODR\AdminBundle\Entity\DataTypeMeta;
-use ODR\AdminBundle\Entity\FileMeta;
-use ODR\AdminBundle\Entity\ImageMeta;
-use ODR\AdminBundle\Entity\RadioOptionsMeta;
 use ODR\AdminBundle\Entity\RenderPlugin;
-use ODR\AdminBundle\Entity\ThemeElementMeta;
-use ODR\AdminBundle\Entity\ThemeMeta;
+use ODR\AdminBundle\Entity\Tags;
+use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\ThemeDataType;
+use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -47,11 +43,16 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CloneThemeService;
+use ODR\AdminBundle\Component\Service\CloneTemplateService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
-use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Service\UUIDService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -62,9 +63,9 @@ class WorkerController extends ODRCustomController
 
     /**
      * Called by the migration background process to transfer data from one storage entity to another compatible storage entity.
-     * 
+     *
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function migrateAction(Request $request)
@@ -98,15 +99,18 @@ class WorkerController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
-            $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
-            /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
+
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException('Invalid Form');
@@ -114,12 +118,12 @@ class WorkerController extends ODRCustomController
             $ret = '';
 
             // Grab necessary objects
-            /** @var User $user */
-            $user = $repo_user->find( $user_id );
+            /** @var ODRUser $user */
+            $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find( $user_id );
             /** @var DataRecord $datarecord */
-            $datarecord = $repo_datarecord->find( $datarecord_id );
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find( $datarecord_id );
             /** @var DataFields $datafield */
-            $datafield = $repo_datafield->find( $datafield_id );
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find( $datafield_id );
             $em->refresh($datafield);
 
             /** @var FieldType $old_fieldtype */
@@ -129,7 +133,7 @@ class WorkerController extends ODRCustomController
             $new_fieldtype = $repo_fieldtype->find( $new_fieldtype_id );
             $new_typeclass = $new_fieldtype->getTypeClass();
 
-            // Ensure datarecord/datafield pair exist
+            // Ensure datarecord/datafield pair exist...they should, but have to make sure...
             if ($datarecord == null)
                 throw new ODRException('Datarecord '.$datarecord_id.' is deleted');
             if ($datafield == null)
@@ -144,42 +148,58 @@ class WorkerController extends ODRCustomController
 
             // Need to handle radio options separately...
             if ( ($old_typename == 'Multiple Radio' || $old_typename == 'Multiple Select') && ($new_typename == 'Single Radio' || $new_typename == 'Single Select') ) {
-                // If migrating from multiple radio/select to single radio/select, and more than one radio option selected...then need to deselect all but one option
+                // If migrating from multiple radio/select to single radio/select, and more than one
+                // radio option is selected...then need to deselect all but one option
 
-                // Grab all selected radio options
+                // Migrating from a single radio/select to a multiple radio/select requires no work
+
+                // Load all selected radio options for this datarecord/datafield pair
                 $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id, rs.id AS rs_id, rs.selected AS selected, ro.id AS ro_id, rom.optionName AS option_name
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                    JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.dataRecordFields = drf
-                    JOIN ODRAdminBundle:RadioOptions AS ro WITH rs.radioOption = ro
-                    JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
-                    WHERE drf.dataRecord = :datarecord AND drf.dataField = :datafield AND rs.selected = 1
-                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL
+                   'SELECT drf, rs, ro, rom
+
+                    FROM ODRAdminBundle:DataRecordFields AS drf
+                    JOIN drf.radioSelection AS rs
+                    JOIN rs.radioOption AS ro
+                    JOIN ro.radioOptionMeta AS rom
+
+                    WHERE drf.dataRecord = :datarecord_id AND drf.dataField = :datafield_id AND rs.selected = 1
+                    AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL
+                    AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL
+
                     ORDER BY rom.displayOrder, ro.id'
-                )->setParameters( array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()) );
-                $results = $query->getArrayResult();
+                )->setParameters(
+                    array(
+                        'datarecord_id' => $datarecord->getId(),
+                        'datafield_id' => $datafield->getId(),
+                    )
+                );
+                $results = $query->getResult();
 
-                // If more than one radio option selected...
-                if ( count($results) > 1 ) {
-                    // ...deselect all but the first one in the list
-                    for ($i = 1; $i < count($results); $i++) {
-                        $rs_id = $results[$i]['rs_id'];
-                        $ro_id = $results[$i]['ro_id'];
-                        $option_name = $results[$i]['option_name'];
+                if ( !empty($results) ) {
+                    /** @var DataRecordFields $drf */
+                    $drf = $results[0];
 
-                        /** @var RadioSelection $radio_selection */
-                        $radio_selection = $repo_radio_selection->find($rs_id);
-
-                        if ($radio_selection->getSelected() == 1) {
-                            // Ensure this RadioSelection is unselected
-                            $properties = array('selected' => 0);
-                            parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
-
-                            $ret .= '>> Deselected Radio Option '.$ro_id.' ('.$option_name.')'."\n";
+                    $changes_made = false;
+                    $count = 0;
+                    foreach ($drf->getRadioSelection() as $rs) {
+                        /** @var RadioSelection $rs */
+                        // Leave the first one selected
+                        $count++;
+                        if ($count == 1) {
+//                            $ret .= '>> Skipping RadioOption '.$rs->getRadioOption()->getId().' ('.$rs->getRadioOption()->getOptionName().')'."\n";
+                            continue;
                         }
+
+                        // Otherwise, ensure this RadioSelection is unselected
+                        $properties = array('selected' => 0);
+                        $emm_service->updateRadioSelection($user, $rs, $properties, true);    // don't flush immediately...
+                        $changes_made = true;
+
+                        $ret .= '>> Deselected RadioOption '.$rs->getRadioOption()->getId().' ('.$rs->getRadioOption()->getOptionName().')'."\n";
                     }
-                    $em->flush();
+
+                    if ($changes_made)
+                        $em->flush();
                 }
             }
             else if ( $new_typeclass !== 'Radio' ) {
@@ -249,8 +269,11 @@ class WorkerController extends ODRCustomController
                         $ret .= 'set dest_entity to "'.$value.'"'."\n";
                     $em->remove($src_entity);
 
-                    $new_obj = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                    parent::ODR_copyStorageEntity($em, $user, $new_obj, array('value' => $value));
+
+                    // Create a new storage entity with the correct fieldtype...
+                    $new_obj = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+                    // ...then update it to have the desired value
+                    $emm_service->updateStorageEntity($user, $new_obj, array('value' => $value));
                 }
                 else {
                     $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";
@@ -275,11 +298,13 @@ $ret .= '  Set current to '.$count."\n";
 
 
             // ----------------------------------------
-            // Mark this datarecord as updated
-            $dri_service->updateDatarecordCacheEntry($datarecord, $user);
+            // Do not mark this datarecord as updated
+            // Delete the relevant cached datarecord entries
+            $cache_service->delete('cached_datarecord_'.$datarecord->getGrandparent()->getId());
+            $cache_service->delete('cached_table_data_'.$datarecord->getGrandparent()->getId());
 
-            // TODO - cached search results?
-
+            // Delete all relevant search cache entries
+            $search_cache_service->onDatafieldModify($datafield);
 
             $return['d'] = $ret;
         }
@@ -289,7 +314,78 @@ $ret .= '  Set current to '.$count."\n";
 
             $source = 0x5e17488a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Called by background processes to synchronize a datatype with its master template
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function syncwithtemplateAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+//print_r($post);
+            if ( !isset($post['datatype_id']) || !isset($post['user_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $datatype_id = $post['datatype_id'];
+            $user_id = $post['user_id'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CloneTemplateService $clone_template_service */
+            $clone_template_service = $this->container->get('odr.clone_template_service');
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new ODRBadRequestException('Invalid Form');
+
+            // Grab necessary objects
+            /** @var ODRUser $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+
+            if ($user == null)
+                throw new ODRException('User '.$user_id.' does not exist');
+            if ($datatype == null)
+                throw new ODRException('Datatype '.$datatype_id.' does not exist');
+
+
+            // Perform the synchronization
+            $clone_template_service->syncWithTemplate($user, $datatype);
+
+            $return['d'] = "Synchronization completed\n";
+        }
+        catch (\Exception $e) {
+            // This is only ever called from command-line...
+            $request->setRequestFormat('json');
+
+            $source = 0x7057656e;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -302,7 +398,7 @@ $ret .= '  Set current to '.$count."\n";
 
     /**
      * Begins the process of rebuilding the image thumbnails for a specific datatype.
-     * 
+     *
      * @param integer $datatype_id Which datatype should have all its image thumbnails rebuilt
      * @param Request $request
      *
@@ -335,7 +431,7 @@ $ret .= '  Set current to '.$count."\n";
 
             // --------------------
             // Determine user privileges
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 //            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             // TODO - check for permissions?  restrict rebuild of thumbnails to certain datatypes?
@@ -403,7 +499,7 @@ $ret .= '  Set current to '.$count."\n";
         catch (\Exception $e) {
             $source = 0xb115dc04;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -415,10 +511,10 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
-     * Called by the rebuild_thumbnails worker process to rebuild the thumbnails of one of the uploaded images on the site. 
-     * 
+     * Called by the rebuild_thumbnails worker process to rebuild the thumbnails of one of the uploaded images on the site.
+     *
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function rebuildthumbnailsAction(Request $request)
@@ -455,6 +551,8 @@ $ret .= '  Set current to '.$count."\n";
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
 
 
             /** @var Image $img */
@@ -462,7 +560,7 @@ $ret .= '  Set current to '.$count."\n";
             if ($img == null)
                 throw new \Exception('Image '.$object_id.' has been deleted');
 
-            /** @var User $user */
+            /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find(2);    // TODO - need an actual system user...
 
             // Ensure the full-size image exists on the server
@@ -470,15 +568,15 @@ $ret .= '  Set current to '.$count."\n";
 
             // Ensure an ImageSizes entity exists for this image
             /** @var ImageSizes[] $image_sizes */
-            $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataFields' => $img->getDataField()->getId()) );
+            $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataField' => $img->getDataField()->getId()) );
             if ( count($image_sizes) == 0 ) {
                 // Create missing ImageSizes entities for this datafield
-                parent::ODR_checkImageSizes($em, $user, $img->getDataField());
+                $ec_service->createImageSizes($user, $img->getDataField());
 
                 // Reload the newly created ImageSizes for this datafield
                 while ( count($image_sizes) == 0 ) {
                     sleep(1);   // wait a second so whichever process is creating the ImageSizes entities has time to finish
-                    $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataFields' => $img->getDataField()->getId()) );
+                    $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataField' => $img->getDataField()->getId()) );
                 }
 
                 // Set this image to point to the correct ImageSizes entity, since it didn't exist before
@@ -550,7 +648,9 @@ $ret .= '  Set current to '.$count."\n";
 
     /**
      * Performs an asynchronous encrypt or decrypt on a specified file.  Also has the option
-     * @deprecated
+     *
+     * Ideally this will eventually replaced by the crypto service...but for now file encryption
+     * after uploading still goes through here...
      *
      * @param Request $request
      *
@@ -563,6 +663,7 @@ $ret .= '  Set current to '.$count."\n";
         $return['t'] = "";
         $return['d'] = "";
 
+        $error_prefix = 'Error 0x65384782: ';
         $handle = null;
 
         try {
@@ -579,6 +680,7 @@ $ret .= '  Set current to '.$count."\n";
             $target_filename = $post['target_filename'];
             $api_key = $post['api_key'];
 
+            $error_prefix .= $crypto_type.' for '.$object_type.' '.$object_id.'...';
 
             // These two are only used if the files are being decrypted into a zip archive
             $archive_filepath = '';
@@ -594,8 +696,8 @@ $ret .= '  Set current to '.$count."\n";
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var CryptoService $crypto_service */
-            $crypto_service = $this->container->get('odr.crypto_service');
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
 
@@ -626,13 +728,15 @@ $ret .= '  Set current to '.$count."\n";
 
             // ----------------------------------------
             if ($crypto_type == 'encrypt') {
-                // TODO - move file encryption into the crypto service as well
 
                 // ----------------------------------------
                 // Move file from completed directory to decrypted directory in preparation for encryption...
+                $current_path = $base_obj->getLocalFileName();
+                $current_filename = $current_path.'/'.$base_obj->getOriginalFileName();
+
                 $destination_path = $this->container->getParameter('odr_web_directory');
                 $destination_filename = $base_obj->getUploadDir().'/File_'.$object_id.'.'.$base_obj->getExt();
-                rename( $base_obj->getLocalFileName(), $destination_path.'/'.$destination_filename );
+                rename( $current_filename, $destination_path.'/'.$destination_filename );
 
                 // Update local filename and checksum in database...
                 $base_obj->setLocalFileName($destination_filename);
@@ -656,24 +760,77 @@ $ret .= '  Set current to '.$count."\n";
                 $dri_service->updateDatarecordCacheEntry($datarecord, $base_obj->getCreatedBy());
             }
             else if ($crypto_type == 'decrypt') {
+                // This is (currently) the only request the user has made for this file...begin manually decrypting it because the crypto bundle offers limited control over filenames
+                $crypto = $this->get("dterranova_crypto.crypto_adapter");
+                $crypto_dir = dirname(__FILE__).'/../../../../app/crypto_dir/';     // TODO - load from config file somehow?
+                $crypto_dir .= 'File_'.$object_id;
 
-                if ($archive_filepath !== '' && $desired_filename !== '') {
-                    // This decrypts the specified file and stores it in a zip archive
-                    $crypto_service->decryptFileForArchive($object_id, $target_filename, $desired_filename, $archive_filepath);
+                $base_filepath = dirname(__FILE__).'/../../../../web/'.$base_obj->getUploadDir();
+                $local_filepath = $base_filepath.'/'.$target_filename;
+
+                // Don't decrypt the file if it already exists on the server
+                if ( !file_exists($local_filepath) ) {
+                    // Grab the hex string representation that the file was encrypted with
+                    $key = $base_obj->getEncryptKey();
+                    // Convert the hex string representation to binary...php had a function to go bin->hex, but didn't have a function for hex->bin for at least 7 years?!?
+                    $key = pack("H*", $key);   // don't have hex2bin() in current version of php...this appears to work based on the "if it decrypts to something intelligible, you did it right" theory
+
+                    // Open the target file
+                    $handle = fopen($local_filepath, "wb");
+                    if (!$handle)
+                        throw new \Exception('Unable to open "'.$local_filepath.'" for writing');
+
+                    // Decrypt each chunk and write to target file
+                    $chunk_id = 0;
+                    while (file_exists($crypto_dir.'/'.'enc.'.$chunk_id)) {
+                        if (!file_exists($crypto_dir.'/'.'enc.'.$chunk_id))
+                            throw new \Exception('Encrypted chunk not found: '.$crypto_dir.'/'.'enc.'.$chunk_id);
+
+                        $data = file_get_contents($crypto_dir.'/'.'enc.'.$chunk_id);
+                        fwrite($handle, $crypto->decrypt($data, $key));
+                        $chunk_id++;
+                    }
                 }
-                else if (strtolower($object_type) == 'file') {
-                    // This will probably be the most common use of this command
-                    $crypto_service->decryptFile($object_id, $target_filename);
-                }
-                else if (strtolower($object_type) == 'image') {
-                    // This one will probably not be used much at all...
-                    // Usually, these are decrypted inline for immediate viewing
-                    $crypto_service->decryptImage($object_id, $target_filename);
+
+                if ( $archive_filepath == '' ) {
+
+                    $file_decryptions = $cache_service->get('file_decryptions');
+
+                    if ( isset($file_decryptions[$target_filename]) )
+                        unset($file_decryptions[$target_filename]);
+
+                    $cache_service->set('file_decryptions', $file_decryptions);
                 }
                 else {
-                    throw new \Exception('unrecognized decrypt request');
-                }
+                    // Attempt to open the specified zip archive
+                    $handle = fopen($archive_filepath, 'c');    // create file if it doesn't exist, otherwise do not fail and position pointer at beginning of file
+                    if (!$handle)
+                        throw new \Exception('unable to open "'.$archive_filepath.'" for writing');
 
+                    // Attempt to acquire a lock on the zip archive so only one process is adding to it at a time
+                    $lock = false;
+                    while (!$lock) {
+                        $lock = flock($handle, LOCK_EX);
+                        if (!$lock)
+                            usleep(200000);     // sleep for a fifth of a second to try to acquire a lock...
+                    }
+
+                    // Open the archive for appending, or create if it doesn't exist
+                    $zip_archive = new \ZipArchive();
+                    $zip_archive->open($archive_filepath, \ZipArchive::CREATE);
+
+                    // Add the specified file to the zip archive
+                    $zip_archive->addFile($local_filepath, $desired_filename);
+                    $zip_archive->close();
+
+                    // Delete decrypted version of non-public files off the server
+                    if (!$base_obj->isPublic())
+                        unlink($local_filepath);
+
+                    // Release the lock on the zip archive
+                    flock($handle, LOCK_UN);
+                    fclose($handle);
+                }
             }
             else {
                 throw new \Exception('bad value for $crypto_type, got "'.$crypto_type.'"');
@@ -681,9 +838,9 @@ $ret .= '  Set current to '.$count."\n";
 
         }
         catch (\Exception $e) {
-            // This is only ever called from command-line...
-            // TODO - currently incapable of notifying the user that something went wrong...
-            $request->setRequestFormat('json');
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = $error_prefix.$e->getMessage();
 
             // TODO - delete the partial non-public file if some sort of error during decryption?
 
@@ -691,386 +848,7 @@ $ret .= '  Set current to '.$count."\n";
                 flock($handle, LOCK_UN);
                 fclose($handle);
             }
-
-            $source = 0x65384782;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Debug function...clears existing cached versions of datatypes (optionally for a specific datatype).
-     * Should only be used when changes have been made to the structure of the cached array for datatypes
-     *
-     * @param integer $datatype_id
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function dtclearAction($datatype_id, Request $request)
-    {
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                throw new ODRForbiddenException();
-
-            $results = array();
-            if ($datatype_id == 0) {
-                // Locate all existing datatype ids
-                $query = $em->createQuery(
-                   'SELECT dt.id AS dt_id
-                    FROM ODRAdminBundle:DataType AS dt'
-                );
-
-                $results = $query->getArrayResult();
-            }
-            else {
-                // Locate all child/linked datatypes for the specified datatype
-                $datatype_ids = $dti_service->getAssociatedDatatypes( array($datatype_id) );
-
-                $query = $em->createQuery(
-                   'SELECT dt.id AS dt_id
-                    FROM ODRAdminBundle:DataType AS dt
-                    WHERE dt.id IN (:datatype_ids)'
-                )->setParameters( array('datatype_ids' => $datatype_ids) );
-
-                $results = $query->getArrayResult();
-            }
-
-            $cache_service->delete('cached_datatree_array');
-            $cache_service->delete('top_level_datatypes');
-
-            $keys_to_delete = array();
-            foreach ($results as $result) {
-                $dt_id = $result['dt_id'];
-
-                // All datatypes have these keys
-                $keys_to_delete[] = 'cached_datatype_'.$dt_id;
-                $keys_to_delete[] = 'datatype_'.$dt_id.'_record_order';
-
-                // Child datatypes don't have these keys, but deleting them doesn't hurt anything
-                $keys_to_delete[] = 'dashboard_'.$dt_id;
-                $keys_to_delete[] = 'dashboard_'.$dt_id.'_public_only';
-                $keys_to_delete[] = 'associated_datatypes_for_'.$dt_id;
-            }
-
-            print '<pre>';
-            foreach ($keys_to_delete as $key) {
-                if ($cache_service->exists($key) ) {
-                    $cache_service->delete($key);
-                    print '"'.$key.'" deleted'."\n";
-                }
-            }
-            print '</pre>';
-        }
-        catch (\Exception $e) {
-            $source = 0xaa016ab8;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $return = array(
-            'r' => 0,
-            't' => '',
-            'd' => '',
-        );
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Debug function...clears existing cached versions of themes (optionally for a specific datatype).
-     * Should only be used when changes have been made to the structure of the cached array for themes.
-     *
-     * @param integer $datatype_id
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function themeclearAction($datatype_id, Request $request)
-    {
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
-
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                throw new ODRForbiddenException();
-
-            $results = array();
-            if ($datatype_id == 0) {
-                // Locate all existing theme ids
-                $query = $em->createQuery(
-                   'SELECT t.id AS t_id
-                    FROM ODRAdminBundle:Theme AS t'
-                );
-
-                $results = $query->getArrayResult();
-            }
-            else {
-                // Locate all themes for this datatype, its children, and its linked datatypes (just because)
-                $datatype_ids = $dti_service->getAssociatedDatatypes( array($datatype_id) );
-
-                $query = $em->createQuery(
-                   'SELECT t.id AS t_id
-                    FROM ODRAdminBundle:Theme AS t
-                    WHERE t.dataType IN (:datatype_ids)'
-                )->setParameters( array('datatype_ids' => $datatype_ids) );
-
-                $results = $query->getArrayResult();
-            }
-
-            $keys_to_delete = array();
-            foreach ($results as $result) {
-                $t_id = $result['t_id'];
-                $keys_to_delete[] = 'cached_theme_'.$t_id;
-            }
-
-            print '<pre>';
-            foreach ($keys_to_delete as $key) {
-                if ($cache_service->exists($key) ) {
-                    $cache_service->delete($key);
-                    print '"'.$key.'" deleted'."\n";
-                }
-            }
-            print '</pre>';
-        }
-        catch (\Exception $e) {
-            $source = 0xe4e80e34;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $return = array(
-            'r' => 0,
-            't' => '',
-            'd' => '',
-        );
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Debug function...clears existing cached versions of datarecords (optionally for a given datatype).
-     * Should only be used when changes have been made to the structure of the cached array for datarecords
-     *
-     * @param integer $datatype_id
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function drclearAction($datatype_id, Request $request)
-    {
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                throw new ODRForbiddenException();
-
-
-            $conn = $em->getConnection();
-
-            $query = null;
-            if ($datatype_id == 0) {
-                // Locate all existing datarecord ids
-                $query =
-                   'SELECT dr.id AS dr_id
-                    FROM odr_data_record AS dr
-                    WHERE dr.id = dr.grandparent_id
-                    AND dr.deletedAt IS NULL';
-            }
-            else {
-                // Only want datarecords of the specified datatype
-                $query =
-                   'SELECT dr.id AS dr_id
-                    FROM odr_data_record AS dr
-                    WHERE dr.id = dr.grandparent_id AND dr.data_type_id = '.$datatype_id.'
-                    AND dr.deletedAt IS NULL';
-            }
-            $results = $conn->fetchAll($query);
-
-            $key = 'associated_datarecords_for_';
-            foreach ($results as $result) {
-                if ($cache_service->exists($key.$result['dr_id']))
-                    $cache_service->delete($key.$result['dr_id']);
-            }
-
-            $key = 'cached_datarecord_';
-            foreach ($results as $result) {
-                if ($cache_service->exists($key.$result['dr_id']))
-                    $cache_service->delete($key.$result['dr_id']);
-            }
-
-            $key = 'cached_table_data_';
-            foreach ($results as $result) {
-                if ($cache_service->exists($key.$result['dr_id']))
-                    $cache_service->delete($key.$result['dr_id']);
-            }
-
-        }
-        catch (\Exception $e) {
-            $source = 0xc178ea4b;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $return = array(
-            'r' => 0,
-            't' => '',
-            'd' => '',
-        );
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Debug function...clears all existing cached search result.
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function searchclearAction(Request $request)
-    {
-        try {
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                throw new ODRForbiddenException();
-
-            $cache_service->delete('cached_search_results');
-        }
-        catch (\Exception $e) {
-            $source = 0xcb3e7952;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $return = array(
-            'r' => 0,
-            't' => '',
-            'd' => '',
-        );
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Debug function...clears all existing cached search result.
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function permissionsclearAction(Request $request)
-    {
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                throw new ODRForbiddenException();
-
-            // ----------------------------------------
-            // Clear all cached user permissions
-            $query = $em->createQuery(
-               'SELECT u.id AS user_id
-                FROM ODROpenRepositoryUserBundle:User AS u'
-            );
-            $results = $query->getArrayResult();
-
-            foreach ($results as $result) {
-                $user_id = $result['user_id'];
-                $cache_service->delete('user_'.$user_id.'_permissions');
-            }
-
-
-            // ----------------------------------------
-            // Clear all cached group permissions
-            $query = $em->createQuery(
-               'SELECT g.id AS group_id
-                FROM ODRAdminBundle:Group AS g'
-            );
-            $results = $query->getArrayResult();
-
-            foreach ($results as $result) {
-                $group_id = $result['group_id'];
-                $cache_service->delete('group_'.$group_id.'_permissions');
-            }
-        }
-        catch (\Exception $e) {
-            $source = 0x2afc476b;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $return = array(
-            'r' => 0,
-            't' => '',
-            'd' => '',
-        );
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
@@ -1196,6 +974,7 @@ $ret .= '  Set current to '.$count."\n";
      * @param string $object_type "File" or "Image"...which type of entity to encrypt
      * @param Request $request
      *
+     * @return Response
      */
     public function startdecryptAction($object_type, Request $request)
     {
@@ -1283,946 +1062,386 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
-     * Debug function to force the correct datetime format in the database
+     * Given two datatypes...an "ancestor" datatype that links to a "remote" datatype...the theme
+     * cloner will now end up creating a copy of the remote datatype's master theme and attaching
+     * it to the themes of the ancestor datatype as if it's just another child datatype.
      *
-     * @param Request $request
+     * This isn't really an issue when A isn't linked to, or A links to B...but when A -> B -> C,
+     * then the theme cloner needs B to be complete before it can generate A correctly.  This
+     * function reorders the list of themes used by the migration below so that A won't be done
+     * before B, which won't be done before C, etc.
+     *
+     * @return array
      */
-    public function fixdatabasedatesAction(Request $request)
+    private function computedependencies()
     {
-        /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-        if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-            throw new ODRForbiddenException();
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        // Load all top-level themes
+        $query = $em->createQuery(
+           'SELECT partial t.{id, themeType}, partial dt.{id}, partial dtm.{id, shortName}
+            FROM ODRAdminBundle:Theme AS t
+            JOIN t.dataType AS dt
+            LEFT JOIN dt.dataTypeMeta AS dtm
+            WHERE t = t.parentTheme'
+        );
+        $top_level_themes = $query->getArrayResult();
+
+        // Load all linked datatree entries
+        $query = $em->createQuery(
+           'SELECT dt, partial ancestor.{id}, partial descendant.{id}
+            FROM ODRAdminBundle:DataTree AS dt
+            JOIN dt.dataTreeMeta AS dtm
+            JOIN dt.ancestor AS ancestor
+            JOIN dt.descendant AS descendant
+            WHERE dtm.is_link = 1
+            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+            AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+        );
+        $datatree_array = $query->getArrayResult();
+
+
+        // Going to store which datatypes are linked to/from other datatypes...
+        $all_datatypes = array();
+        foreach ($top_level_themes as $num => $t) {
+            $dt_id = $t['dataType']['id'];
+
+            if ( !isset($all_datatypes[$dt_id]) ) {
+                $all_datatypes[$dt_id] = array(
+                    'ancestors' => array(),
+                    'descendants' => array(),
+                );
+            }
+        }
+
+        foreach ($datatree_array as $num => $dt) {
+            $ancestor_id = $dt['ancestor']['id'];
+            $descendant_id = $dt['descendant']['id'];
+
+            $all_datatypes[$descendant_id]['ancestors'][] = $ancestor_id;
+            $all_datatypes[$ancestor_id]['descendants'][] = $descendant_id;
+        }
+
+        // Apparently the ancestors/descendants parts of the array can be empty?
+        foreach ($all_datatypes as $dt_id => $tmp) {
+            if ( !isset($tmp['ancestors']) )
+                $all_datatypes[$dt_id]['ancestors'] = array();
+            if ( !isset($tmp['descendants']) )
+                $all_datatypes[$dt_id]['descendants'] = array();
+        }
+
+        // While there are still datatypes that need processing...
+        $index = 0;
+        $theme_list = array();
+        while ( count($all_datatypes) > 0 ) {
+            // ...locate the datatypes that don't depend on other linked datatypes to already be processed...
+            foreach ($all_datatypes as $dt_id => $tmp) {
+                if ( empty($tmp['descendants']) ) {
+                    // ...then locate all of this datatype's top-level themes...
+                    foreach ($top_level_themes as $num => $t) {
+                        if ( $t['dataType']['id'] == $dt_id ) {
+                            // ...and store them in array that's going to get returned
+                            $theme_list[$index] = $t;
+                            $index++;
+
+                            unset( $top_level_themes[$num] );
+                        }
+                    }
+
+                    // Also, for each datatype that links to this particular datatype...
+                    foreach ($tmp['ancestors'] as $num => $ancestor_id) {
+                        // ...remove the linked datatype from the list of descendants so
+                        $key = array_search($dt_id, $all_datatypes[$ancestor_id]['descendants']);
+                        if ( $key !== false )
+                            unset( $all_datatypes[$ancestor_id]['descendants'][$key] );
+                    }
+
+                    // All themes for this datatype are scheduled for processing, don't need the entry anymore
+                    unset( $all_datatypes[$dt_id] );
+                }
+            }
+        }
+
+        //
+        return $theme_list;
+    }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function childthememigrateAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
 
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $em->getFilters()->disable('softdeleteable');
-
-        $has_created = $has_updated = $has_deleted = $has_publicdate = array();
-
-        print '<pre>';
-        $filepath = dirname(__FILE__).'/../Entity/';
-        $filelist = scandir($filepath);
-        foreach ($filelist as $num => $filename) {
-
-            if ( strlen($filename) > 3 && strpos($filename, '~') === false && strpos($filename, '.bck') === false ) {
-                $handle = fopen($filepath.$filename, 'r');
-                if (!$handle)
-                    throw new ODRException('Unable to open file');
-
-                $classname = '';
-                while ( !feof($handle) ) {
-                    $line = fgets($handle);
-
-                    $matches = array();
-                    if ( preg_match('/^class ([^\s]+)$/', $line, $matches) == 1 )
-                        $classname = $matches[1];
-                    if ($classname == 'FieldType')
-                        continue;
-
-                    if ( strpos($line, 'private $created;') !== false )
-                        $has_created[] = $classname;
-                    if ( strpos($line, 'private $updated;') !== false )
-                        $has_updated[] = $classname;
-                    if ( strpos($line, 'private $deletedAt;') !== false )
-                        $has_deleted[] = $classname;
-                    if ( strpos($line, 'private $publicDate;') !== false )
-                        $has_publicdate[] = $classname;
-                }
-
-                fclose($handle);
-            }
-        }
-/*
-        print "has created: \n";
-        print_r($has_created);
-        print "has updated: \n";
-        print_r($has_updated);
-        print "has deleted: \n";
-        print_r($has_deleted);
-        print "has publicDate: \n";
-        print_r($has_publicdate);
-*/
-        $bad_created = $bad_updated = $bad_deleted = $bad_publicdate = array();
-        $parameter = array('bad_date' => "0000-00-00%");
-
-        foreach ($has_created as $num => $classname) {
-            $query = $em->createQuery(
-               'SELECT COUNT(e.id)
-                FROM ODRAdminBundle:'.$classname.' AS e
-                WHERE e.created LIKE :bad_date'
-            )->setParameters($parameter);
-            $results = $query->getArrayResult();
-
-            if ( $results[0][1] > 0 )
-                $bad_created[$classname] = $results[0][1];
-        }
-
-        foreach ($has_updated as $num => $classname) {
-            $query = $em->createQuery(
-               'SELECT COUNT(e.id)
-                FROM ODRAdminBundle:'.$classname.' AS e
-                WHERE e.updated LIKE :bad_date'
-            )->setParameters($parameter);
-            $results = $query->getArrayResult();
-
-            if ( $results[0][1] > 0 )
-                $bad_updated[$classname] = $results[0][1];
-        }
-
-        foreach ($has_deleted as $num => $classname) {
-            $query = $em->createQuery(
-               'SELECT COUNT(e.id)
-                FROM ODRAdminBundle:'.$classname.' AS e
-                WHERE e.deletedAt LIKE :bad_date'
-            )->setParameters($parameter);
-            $results = $query->getArrayResult();
-
-            if ( $results[0][1] > 0 )
-                $bad_deleted[$classname] = $results[0][1];
-        }
-
-        foreach ($has_publicdate as $num => $classname) {
-            $query = $em->createQuery(
-               'SELECT COUNT(e.id)
-                FROM ODRAdminBundle:'.$classname.' AS e
-                WHERE e.publicDate LIKE :bad_date'
-            )->setParameters($parameter);
-            $results = $query->getArrayResult();
-
-            if ( $results[0][1] > 0 )
-                $bad_publicdate[$classname] = $results[0][1];
-        }
-
-        print "bad created: \n";
-        print_r($bad_created);
-        print "bad updated: \n";
-        print_r($bad_updated);
-        print "bad deleted: \n";
-        print_r($bad_deleted);
-        print "bad publicDate: \n";
-        print_r($bad_publicdate);
-
-        $save = false;
-//        $save = true;
-
-        foreach ($bad_created as $classname => $num) {
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:'.$classname.' AS e
-                SET e.created = :good_date
-                WHERE e.created < :bad_date'
-            )->setParameters(
-                array(
-                    'good_date' => new \Datetime('2013-01-01 00:00:00'),
-                    'bad_date' => '2000-01-01 00:00:00'
-                )
-            );
-            if ($save)
-                $first = $query->execute();
-        }
-
-        foreach ($bad_updated as $classname => $num) {
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:'.$classname.' AS e
-                SET e.updated = e.deletedAt
-                WHERE e.deletedAt IS NOT NULL'
-            );
-            if ($save)
-                $first = $query->execute();
-
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:'.$classname.' AS e
-                SET e.updated = e.created
-                WHERE e.updated < :good_date'
-            )->setParameters( array('good_date' => '2000-01-01 00:00:00') );
-            if ($save)
-                $second = $query->execute();
-        }
-
-        foreach ($bad_deleted as $classname => $num) {
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:'.$classname.' AS e
-                SET e.deletedAt = NULL
-                WHERE e.deletedAt < :bad_date'
-            )->setParameters(
-                array(
-                    'bad_date' => '2000-01-01 00:00:00'
-                )
-            );
-            if ($save)
-                $first = $query->execute();
-        }
-
-        foreach ($bad_publicdate as $classname => $num) {
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:'.$classname.' AS e
-                SET e.publicDate = :good_date
-                WHERE e.publicDate < :bad_date'
-            )->setParameters(
-                array(
-                    'good_date' => new \DateTime('2200-01-01 00:00:00'),
-                    'bad_date' => '2000-01-01 00:00:00'
-                )
-            );
-            if ($save)
-                $first = $query->execute();
-        }
-
-        $em->getFilters()->enable('softdeleteable');
-        print '</pre>';
-    }
-
-
-    /**
-     * Looks for and creates any missing meta entries
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function fixmissingmetaentriesAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        $save = false;
-//        $save = true;
 
         try {
-            // ----------------------------------------
-            // Load required objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
-            $repo_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin');
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_file = $em->getRepository('ODRAdminBundle:File');
-            $repo_image = $em->getRepository('ODRAdminBundle:Image');
-            $repo_radio_options = $em->getRepository('ODRAdminBundle:RadioOptions');
-            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
-
-            /** @var RenderPlugin $default_render_plugin */
-            $default_render_plugin = $repo_render_plugin->find(1);
-
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
-
-            $batch_size = 100;
-            $count = 0;
-
-            // Load everything regardless of deleted status
-            $em->getFilters()->disable('softdeleteable');
-
-            // Going to run native SQL queries for this, doctrine doesn't do subqueries well
-            $conn = $em->getConnection();
-            print '<pre>';
-
-            // ----------------------------------------
-            // Datafields
-            $query =
-                'SELECT df.id AS df_id
-                 FROM odr_data_fields AS df
-                 WHERE df.id NOT IN (
-                     SELECT DISTINCT(dfm.data_field_id)
-                     FROM odr_data_fields_meta AS dfm
-                 )';
-            $results = $conn->fetchAll($query);
-
-            $missing_datafields = array();
-            foreach ($results as $result)
-                $missing_datafields[] = $result['df_id'];
-
-            print 'missing datafield meta entries: '."\n";
-            print_r($missing_datafields);
-
-            if ($save) {
-                foreach ($missing_datafields as $num => $df_id) {
-                    $df = $repo_datafield->find($df_id);
-
-                    $dfm = new DataFieldsMeta();
-                    $dfm->setDataField($df);
-                    $dfm->setFieldType( $repo_fieldtype->find(9) );     // shortvarchar
-                    $dfm->setRenderPlugin($default_render_plugin);
-
-                    $dfm->setMasterRevision(0);
-                    $dfm->setTrackingMasterRevision(0);
-                    $dfm->setMasterPublishedRevision(0);
-
-                    $dfm->setFieldName('New Field');
-                    $dfm->setDescription('Field description');
-                    $dfm->setXmlFieldName('');
-                    $dfm->setRegexValidator('');
-                    $dfm->setPhpValidator('');
-
-                    $dfm->setMarkdownText('');
-                    $dfm->setIsUnique(false);
-                    $dfm->setRequired(false);
-                    $dfm->setSearchable(0);
-                    $dfm->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
-
-                    $dfm->setChildrenPerRow(1);
-                    $dfm->setRadioOptionNameSort(0);
-                    $dfm->setRadioOptionDisplayUnselected(0);
-                    $dfm->setAllowMultipleUploads(0);
-                    $dfm->setShortenFilename(0);
-
-                    $dfm->setCreatedBy($user);
-                    $dfm->setUpdatedBy($user);
-
-                    $em->persist($dfm);
-
-                    $count++;
-                    if ($count == $batch_size) {
-                        $em->flush();
-                        $count = 0;
-                    }
-                }
-            }
-
-
-            // ----------------------------------------
-            // Datarecords
-            $query =
-                'SELECT dr.id AS dr_id
-                 FROM odr_data_record AS dr
-                 WHERE dr.id NOT IN (
-                     SELECT DISTINCT(drm.data_record_id)
-                     FROM odr_data_record_meta AS drm
-                 )';
-            $results = $conn->fetchAll($query);
-
-            $missing_datarecords = array();
-            foreach ($results as $result)
-                $missing_datarecords[] = $result['dr_id'];
-
-            print 'missing datarecord meta entries: '."\n";
-            print_r($missing_datarecords);
-
-            if ($save) {
-                foreach ($missing_datarecords as $num => $dr_id) {
-                    $dr = $repo_datarecord->find($dr_id);
-
-                    $drm = new DataRecordMeta();
-                    $drm->setDataRecord($dr);
-                    $drm->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
-
-                    $drm->setCreatedBy($user);
-                    $drm->setUpdatedBy($user);
-
-                    $em->persist($drm);
-
-                    $count++;
-                    if ($count == $batch_size) {
-                        $em->flush();
-                        $count = 0;
-                    }
-                }
-            }
-
-
-            // ----------------------------------------
-            // Datatree
-            $query =
-                'SELECT dt.id AS dt_id
-                 FROM odr_data_tree AS dt
-                 WHERE dt.id NOT IN (
-                     SELECT DISTINCT(dtm.data_tree_id)
-                     FROM odr_data_tree_meta AS dtm
-                 )';
-            $results = $conn->fetchAll($query);
-
-            $missing_datatrees = array();
-            foreach ($results as $result)
-                $missing_datatrees[] = $result['dt_id'];
-
-            print 'missing datatree meta entries:  **NO ACTION TAKEN**'."\n";
-            print_r($missing_datatrees);
-
-
-            // ----------------------------------------
-            // Datatypes
-            $query =
-                'SELECT dt.id AS dt_id
-                 FROM odr_data_type AS dt
-                 WHERE dt.id NOT IN (
-                     SELECT DISTINCT(dtm.data_type_id)
-                     FROM odr_data_type_meta AS dtm
-                 )';
-            $results = $conn->fetchAll($query);
-
-            $missing_datatypes = array();
-            foreach ($results as $result)
-                $missing_datatypes[] = $result['dt_id'];
-
-            print 'missing datatype meta entries: '."\n";
-            print_r($missing_datatypes);
-
-            if ($save) {
-                foreach ($missing_datatypes as $num => $dt_id) {
-                    $dt = $repo_datatype->find($dt_id);
-
-                    $dtm = new DataTypeMeta();
-                    $dtm->setDataType($dt);
-                    $dtm->setRenderPlugin($default_render_plugin);
-
-                    $dtm->setSearchSlug($dt_id);
-                    $dtm->setShortName("New Datatype");
-                    $dtm->setLongName("New Datatype");
-                    $dtm->setDescription("New DataType Description");
-                    $dtm->setXmlShortName('');
-
-                    $dtm->setSearchNotesUpper(null);
-                    $dtm->setSearchNotesLower(null);
-
-                    $dtm->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
-
-                    $dtm->setExternalIdField(null);
-                    $dtm->setNameField(null);
-                    $dtm->setSortField(null);
-                    $dtm->setBackgroundImageField(null);
-
-                    $dtm->setMasterPublishedRevision(0);
-                    $dtm->setMasterRevision(0);
-                    $dtm->setTrackingMasterRevision(0);
-
-                    $dtm->setCreatedBy($user);
-                    $dtm->setUpdatedBy($user);
-
-                    $em->persist($dtm);
-
-                    $count++;
-                    if ($count == $batch_size) {
-                        $em->flush();
-                        $count = 0;
-                    }
-                }
-            }
-
-
-            // ----------------------------------------
-            // Files
-            $query =
-                'SELECT f.id AS f_id
-                 FROM odr_file AS f
-                 WHERE f.id NOT IN (
-                     SELECT DISTINCT(fm.file_id)
-                     FROM odr_file_meta AS fm
-                 )';
-            $results = $conn->fetchAll($query);
-
-            $missing_files = array();
-            foreach ($results as $result)
-                $missing_files[] = $result['f_id'];
-
-            print 'missing file meta entries: '."\n";
-            print_r($missing_files);
-
-            if ($save) {
-                foreach ($missing_files as $num => $f_id) {
-                    $file = $repo_file->find($f_id);
-
-                    $fm = new FileMeta();
-                    $fm->setFile($file);
-                    $fm->setOriginalFileName('file_name');
-                    $fm->setExternalId('');
-                    $fm->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
-
-                    $fm->setCreatedBy($user);
-                    $fm->setUpdatedBy($user);
-
-                    $em->persist($fm);
-
-                    $count++;
-                    if ($count == $batch_size) {
-                        $em->flush();
-                        $count = 0;
-                    }
-                }
-            }
-
-
-            // ----------------------------------------
-            // Images
-            $query =
-                'SELECT i.id AS i_id
-                 FROM odr_image AS i
-                 WHERE i.id NOT IN (
-                     SELECT DISTINCT(im.image_id)
-                     FROM odr_image_meta AS im
-                 )';
-            $results = $conn->fetchAll($query);
-
-            $missing_images = array();
-            foreach ($results as $result)
-                $missing_images[] = $result['i_id'];
-
-            print 'missing image meta entries: '."\n";
-            print_r($missing_images);
-
-            if ($save) {
-                foreach ($missing_images as $num => $i_id) {
-                    $image = $repo_image->find($i_id);
-
-                    $im = new ImageMeta();
-                    $im->setImage($image);
-                    $im->setDisplayorder(0);
-                    $im->setOriginalFileName('image name');
-                    $im->setCaption('image caption');
-                    $im->setExternalId('');
-                    $im->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
-
-                    $im->setCreatedBy($user);
-                    $im->setUpdatedBy($user);
-
-                    $em->persist($im);
-
-                    $count++;
-                    if ($count == $batch_size) {
-                        $em->flush();
-                        $count = 0;
-                    }
-                }
-            }
-
-
-            // ----------------------------------------
-            // RadioOptions
-            $query =
-                'SELECT ro.id AS ro_id
-                 FROM odr_radio_options AS ro
-                 WHERE ro.id NOT IN (
-                     SELECT DISTINCT(rom.radio_option_id)
-                     FROM odr_radio_options_meta AS rom
-                 )';
-            $results = $conn->fetchAll($query);
-
-            $missing_radio_options = array();
-            foreach ($results as $result)
-                $missing_radio_options[] = $result['ro_id'];
-
-            print 'missing radio option meta entries: '."\n";
-            print_r($missing_radio_options);
-
-            if ($save) {
-                foreach ($missing_radio_options as $num => $ro_id) {
-                    $ro = $repo_radio_options->find($ro_id);
-
-                    $rom = new RadioOptionsMeta();
-                    $rom->setRadioOption($ro);
-                    $rom->setOptionName('Option Name');
-                    $rom->setXmlOptionName('');
-                    $rom->setDisplayOrder(0);
-                    $rom->setIsDefault(false);
-
-                    $rom->setCreatedBy($user);
-                    $rom->setUpdatedBy($user);
-
-                    $em->persist($rom);
-
-                    $count++;
-                    if ($count == $batch_size) {
-                        $em->flush();
-                        $count = 0;
-                    }
-                }
-            }
-
-
-            // ----------------------------------------
-            // Themes
-            $query =
-                'SELECT t.id AS t_id
-                 FROM odr_theme AS t
-                 WHERE t.id NOT IN (
-                     SELECT DISTINCT(tm.theme_id)
-                     FROM odr_theme_meta AS tm
-                 )';
-            $results = $conn->fetchAll($query);
-
-            $missing_themes = array();
-            foreach ($results as $result)
-                $missing_themes[] = $result['t_id'];
-
-            print 'missing theme meta entries: '."\n";
-            print_r($missing_themes);
-
-            if ($save) {
-                foreach ($missing_themes as $num => $t_id) {
-                    $theme = $repo_theme->find($t_id);
-
-                    $tm = new ThemeMeta();
-                    $tm->setTheme($theme);
-                    $tm->setTemplateName('');
-                    $tm->setTemplateDescription('');
-                    $tm->setIsDefault(false);
-                    $tm->setDisplayOrder(0);
-                    $tm->setShared(false);
-                    $tm->setIsTableTheme(false);
-
-                    $tm->setCreatedBy($user);
-                    $tm->setUpdatedBy($user);
-
-                    $em->persist($tm);
-
-                    $count++;
-                    if ($count == $batch_size) {
-                        $em->flush();
-                        $count = 0;
-                    }
-                }
-            }
-
-
-            // ----------------------------------------
-            // ThemeElements
-            $query =
-                'SELECT te.id AS te_id
-                 FROM odr_theme_element AS te
-                 WHERE te.id NOT IN (
-                     SELECT DISTINCT(tem.theme_element_id)
-                     FROM odr_theme_element_meta AS tem
-                 )';
-            $results = $conn->fetchAll($query);
-
-            $missing_theme_elements = array();
-            foreach ($results as $result)
-                $missing_theme_elements[] = $result['te_id'];
-
-            print 'missing theme element meta entries: '."\n";
-            print_r($missing_theme_elements);
-
-            if ($save) {
-                foreach ($missing_theme_elements as $num => $te_id) {
-                    $te = $repo_theme_element->find($te_id);
-
-                    $tem = new ThemeElementMeta();
-                    $tem->setThemeElement($te);
-                    $tem->setDisplayOrder(999);
-                    $tem->setCssWidthMed('1-1');
-                    $tem->setCssWidthXL('1-1');
-                    $tem->setHidden(0);
-
-                    $tem->setCreatedBy($user);
-                    $tem->setUpdatedBy($user);
-
-                    $em->persist($tem);
-
-                    $count++;
-                    if ($count == $batch_size) {
-                        $em->flush();
-                        $count = 0;
-                    }
-                }
-            }
-
-            // ----------------------------------------
-            if ($save)
-                $em->flush();
-
-            print '</pre>';
-            // Turn the deleted filter back on
-            $em->getFilters()->enable('softdeleteable');
-        }
-        catch (\Exception $e) {
-            $em->getFilters()->enable('softdeleteable');
-
-            $source = 0xabcdef00;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Migration function, fills in parent/grandparent property of the datatype.
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function datatypemigrateAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        $save = false;
-//        $save = true;
-
-        try {
-
-            throw new ODRBadRequestException('NOT NEEDED ANYMORE');
-
-            // ----------------------------------------
-            // Load required objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
-            /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var CloneThemeService $clone_theme_service */
+            $clone_theme_service = $this->container->get('odr.clone_theme_service');
 
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+            $repo_theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDataType');
 
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                throw new ODRForbiddenException();
+            // Get a list of top-level themes ordered so that the theme cloner won't run into
+            //  null pointer exceptions...
+            $top_level_themes = self::computedependencies();
+//exit( '<pre>'.print_r($top_level_themes, true).'</pre>' );
 
+            $count = 0;
 
-            // Load all datatypes, deleted or not
+            // Want to be able to update deleted entities as well
             $em->getFilters()->disable('softdeleteable');
 
-            $query = $em->createQuery(
-               'SELECT dt.id, dt.deletedAt
-                FROM ODRAdminBundle:DataType AS dt
-                ORDER BY dt.id'
-            );
-            $results = $query->getArrayResult();
+            print '<pre>'."\n";
+            foreach ($top_level_themes as $num => $theme) {
+                $theme_id = $theme['id'];
+                $datatype_id = $theme['dataType']['id'];
+                $theme_type = $theme['themeType'];
 
-            print '<pre>';
-            foreach ($results as $num => $dt) {
-                $dt_id = $dt['id'];
-                $cache_service->delete('cached_datatype_'.$dt_id);
+                // Want the most recent name for this datatype
+                $datatype_name = 'ERROR';
+                foreach ($theme['dataType']['dataTypeMeta'] as $num => $dtm)
+                    $datatype_name = $dtm['shortName'];
 
-                if ( $dt['deletedAt'] == null )
-                    print 'datatype '.$dt_id.':'."\n";
-                else
-                    print 'deleted datatype '.$dt_id.':'."\n";
+                $count++;
+                print "\n".$count.') top_level_datatype: '.$datatype_id.' "'.$datatype_name.'" ('.$theme_type.')'."\n";
 
-                $sub_query = $em->createQuery(
-                   'SELECT dt, ancestor, descendant
+                $query = $em->createQuery(
+                   'SELECT
+                        partial t.{id},
+                        partial dt.{id},
+                        partial dtm.{id, shortName},
+                        partial te.{id},
+                        partial tdt.{id, deletedAt},
+                        partial c_dt.{id},
+                        partial c_dtm.{id, shortName},
+                        partial gp_dt.{id},
+                        partial c_t.{id}
 
-                    FROM ODRAdminBundle:DataTree AS dt
-                    JOIN dt.dataTreeMeta AS dtm
-                    JOIN dt.ancestor AS ancestor
-                    JOIN dt.descendant AS descendant
+                    FROM ODRAdminBundle:Theme AS t
+                    JOIN t.dataType AS dt
+                    LEFT JOIN dt.dataTypeMeta AS dtm
+                    JOIN t.themeElements AS te
+                    JOIN te.themeDataType AS tdt
+                    JOIN tdt.dataType AS c_dt
+                    LEFT JOIN c_dt.dataTypeMeta AS c_dtm
+                    JOIN c_dt.grandparent AS gp_dt
+                    LEFT JOIN tdt.childTheme AS c_t
+                    WHERE t.parentTheme = :theme_id'
+                )->setParameters( array('theme_id' => $theme_id) );
+                $results = $query->getArrayResult();
 
-                    WHERE dt.descendant = :dt_id AND dtm.is_link = 0
-                    ORDER BY dt.deletedAt ASC'
-                )->setParameters( array('dt_id' => $dt_id) );
-                $sub_results = $sub_query->getArrayResult();
+                if ( count($results) == 0 )
+                    print ' ~~ no theme_datatype entries'."\n";
 
-                if ( count($sub_results) == 0 ) {
-                    /** @var DataType $datatype */
-                    $datatype = $repo_datatype->find($dt_id);
+                foreach ($results as $num => $t) {
+                    $dt_id = $t['dataType']['id'];
+                    $t_id = $t['id'];
 
-                    $datatype->setParent($datatype);
-                    $datatype->setGrandparent($datatype);
+                    // Want the most recent name for this datatype
+                    $dt_name = 'ERROR';
+                    foreach ($t['dataType']['dataTypeMeta'] as $num => $dtm)
+                        $dt_name = $dtm['shortName'];
 
-                    if ($save) {
-                        $em->persist($datatype);
-                        $em->flush();
-                        $em->refresh($datatype);
-                    }
+                    print ' -- datatype: '.$dt_id.' "'.$dt_name.'" theme: '.$t_id."\n";
 
-                    print "\tsetting parent to datatype ".$dt_id."\n";
-                    print "\tsetting grandparent to datatype ".$dt_id."\n";
-                }
-                else if ( count($sub_results) == 1 ) {
+                    foreach ($t['themeElements'] as $num => $te) {
+                        foreach ($te['themeDataType'] as $num => $tdt) {
 
-                    $dt = $sub_results[0];
-                    /** @var DataType $datatype */
-                    $datatype = $repo_datatype->find($dt_id);
-                    /** @var DataType $ancestor */
-                    $ancestor = $repo_datatype->find($dt['ancestor']['id']);
+                            if ( isset($tdt['childTheme']) && isset($tdt['childTheme']['id']) )
+                                continue;
 
-                    $datatype->setParent($ancestor);
-                    $datatype->setGrandparent($ancestor->getGrandparent());
+                            $tdt_id = $tdt['id'];
+                            $c_dt_id = $tdt['dataType']['id'];
+                            $gp_dt_id = $tdt['dataType']['grandparent']['id'];
 
-                    if ($save) {
-                        $em->persist($datatype);
-                        $em->flush();
-                        $em->refresh($datatype);
-                    }
+                            // Want the most recent name for the targetted datatype
+                            $c_dt_name = 'ERROR';
+                            foreach ($tdt['dataType']['dataTypeMeta'] as $num => $dtm)
+                                $c_dt_name = $dtm['shortName'];
 
-                    print "\tsetting parent to datatype ".$ancestor->getId()."\n";
-                    if ($save)
-                        print "\tsetting grandparent to datatype ".$ancestor->getGrandparent()->getId()."\n";
-                }
-                else {
+                            // Determine whether the child datatype id belongs to a linked datatype
+                            $is_linked_datatype = false;
+                            if ( intval($gp_dt_id) !== intval($datatype_id) )
+                                $is_linked_datatype = true;
 
-                    if ( $sub_results[0]['deletedAt'] == null ) {
-                        // Due to sort ASC, null values should be at the top
-                        // A null value here means this is the current datatree entry, and therefore should be the one used
+                            $is_deleted = false;
+                            if ( !is_null($tdt['deletedAt']) )
+                                $is_deleted = true;
 
-                        $dt = $sub_results[0];
-                        /** @var DataType $datatype */
-                        $datatype = $repo_datatype->find($dt_id);
-                        /** @var DataType $ancestor */
-                        $ancestor = $repo_datatype->find($dt['ancestor']['id']);
+                            if ($is_linked_datatype)
+                                print ' -- -- linked_datatype_id: '.$c_dt_id;
+                            else
+                                print ' -- -- child_datatype_id: '.$c_dt_id;
+                            print ' "'.$c_dt_name.'"';
 
-                        $datatype->setParent($ancestor);
-                        $datatype->setGrandparent($ancestor->getGrandparent());
+                            if ($is_deleted)
+                                print '  DELETED';
+                            print "\n";
 
-                        if ($save) {
-                            $em->persist($datatype);
-                            $em->flush();
-                            $em->refresh($datatype);
+                            // Attempt to locate the correct theme_id to store in the theme_datatype's child_theme_id field
+                            $query = $em->createQuery(
+                               'SELECT t.id
+                                FROM ODRAdminBundle:Theme AS t
+                                WHERE t.dataType = :datatype_id AND t.parentTheme = :theme_id'
+                            )->setParameters( array('datatype_id' => $c_dt_id, 'theme_id' => $theme_id) );
+                            $sub_results = $query->getArrayResult();
+
+                            if ( count($sub_results) > 1 ) {
+                                // Should only ever be one result, in theory?
+                                print '***** query returned '.count($sub_results).' results, should only return 0 or 1 results *****'."\n";
+                            }
+                            else {
+                                if ( $is_linked_datatype || count($sub_results) == 0 ) {
+                                    if (!$is_deleted) {
+                                        // ----------------------------------------
+                                        /** @var ThemeDataType $theme_datatype */
+                                        $theme_datatype = $repo_theme_datatype->find($tdt_id);
+                                        if ( is_null($theme_datatype) )
+                                            print '***** unable to locate theme_datatype '.$tdt_id.' *****'."\n";
+
+                                        $theme_element = $theme_datatype->getThemeElement();
+
+                                        /** @var DataType $linked_datatype */
+                                        $linked_datatype = $repo_datatype->find($c_dt_id);
+                                        if ( is_null($linked_datatype) )
+                                            print '***** unable to locate linked_datatype '.$c_dt_id.' *****'."\n";
+
+                                        // Load the linked datatype's master theme
+                                        $query = $em->createQuery(
+                                           'SELECT t
+                                            FROM ODRAdminBundle:Theme AS t
+                                            WHERE t.dataType = :datatype_id AND t.themeType = :theme_type
+                                            AND t.parentTheme = t.sourceTheme'
+                                        )->setParameters(
+                                            array(
+                                                'datatype_id' => $c_dt_id,
+                                                'theme_type' => 'master',
+                                            )
+                                        );
+                                        $sub_result = $query->getResult();
+                                        if (!$sub_result)
+                                            print '***** unable to locate master theme for linked datatype '.$c_dt_id.' *****'."\n";
+
+                                        /** @var Theme $linked_datatype_master_theme */
+                                        $linked_datatype_master_theme = $sub_result[0];
+
+                                        $query = $em->createQuery(
+                                           'SELECT dt
+                                            FROM ODRAdminBundle:DataTree AS dt
+                                            WHERE dt.ancestor = :ancestor_datatype AND dt.descendant = :descendant_datatype
+                                            ORDER BY dt.created DESC'
+                                        )->setParameters(
+                                            array(
+                                                'ancestor_datatype' => $theme_element->getTheme()->getDataType()->getId(),
+                                                'descendant_datatype' => $linked_datatype->getId(),
+                                            )
+                                        );
+                                        $sub_result = $query->getResult();
+                                        if (!$sub_result)
+                                            print '***** unable to locate datatree entry for ancestor datatype '.$theme_element->getTheme()->getDataType()->getId().', descendant datatype '.$linked_datatype->getId().' *****'."\n";
+
+                                        /** @var DataTree $most_recent_datatree */
+                                        $most_recent_datatree = $sub_result[0];
+                                        $user = $most_recent_datatree->getCreatedBy();
+                                        if ( is_null($user) )
+                                            $user = $most_recent_datatree->getDescendant()->getCreatedBy();
+
+                                        print '       >> cloning source theme '.$linked_datatype_master_theme->getId().' for linked datatype '.$linked_datatype->getId().' (linked by user '.$user->getId().') into theme_element '.$theme_element->getId().' of theme '.$theme_element->getTheme()->getId()."\n";
+
+                                        if ($save) {
+                                            $em->getFilters()->enable('softdeleteable');
+                                            //
+                                            $clone_theme_service->cloneIntoThemeElement(
+                                                $user,                                      // the user that created the link to this linked datatype
+                                                $theme_element,                             // the theme element to clone into
+                                                $linked_datatype_master_theme,              // the master theme of the linked datatype to make a copy of
+                                                $linked_datatype,                           // the linked datatype itself
+                                                $theme_element->getTheme()->getThemeType(), // the type of theme that is getting a copy of the linked datatype's master theme
+                                                $theme_datatype                             // don't create a new themeDatatype entry, attach the newly created theme to this one
+                                            );
+
+                                            // cloneIntoThemeElement() will have created a new theme_datatype entry, so get rid of the old one
+                                            $em->remove($theme_datatype);
+                                            $em->flush();
+                                            print '       >> deleted old theme_datatype entry'."\n";
+
+                                            $em->getFilters()->disable('softdeleteable');
+                                        }
+                                    }
+                                }
+                                else if ( count($sub_results) == 1 ) {
+                                    // Found the child datatype, set it
+                                    if ($save) {
+                                        /** @var Theme $child_theme */
+                                        $child_theme = $repo_theme->find( $sub_results[0]['id'] );
+                                        if ( is_null($child_theme) )
+                                            print '***** unable to locate child theme '.$sub_results[0]['id'].' *****'."\n";
+
+                                        /** @var ThemeDataType $theme_datatype */
+                                        $theme_datatype = $repo_theme_datatype->find($tdt_id);
+                                        if ( is_null($theme_datatype) )
+                                            print '***** unable to locate child theme_datatype '.$tdt_id.' *****'."\n";
+
+                                        $theme_datatype->setChildTheme($child_theme);
+
+                                        $em->persist($theme_datatype);
+                                        $em->flush();
+                                        $em->refresh($theme_datatype);
+                                    }
+
+                                    print '       >> setting child_theme_id to '.$sub_results[0]['id']."\n";
+                                }
+                                else {
+                                    // Should only ever be one result, in theory?
+                                    print '***** SOMETHING WRONG *****'."\n";
+                                }
+                            }
                         }
-
-                        print "\tsetting parent to datatype ".$ancestor->getId()."\n";
-                        if ($save)
-                            print "\tsetting grandparent to datatype ".$ancestor->getGrandparent()->getId()."\n";
-                    }
-                    else {
-                        // ...otherwise, there is no non-deleted datatree entry
-                        // The desired one is at the bottom of the array
-
-                        $dt = $sub_results[ count($sub_results) - 1 ];
-                        /** @var DataType $datatype */
-                        $datatype = $repo_datatype->find($dt_id);
-                        /** @var DataType $ancestor */
-                        $ancestor = $repo_datatype->find($dt['ancestor']['id']);
-
-                        $datatype->setParent($ancestor);
-                        $datatype->setGrandparent($ancestor->getGrandparent());
-
-                        if ($save) {
-                            $em->persist($datatype);
-                            $em->flush();
-                            $em->refresh($datatype);
-                        }
-
-                        print "\tsetting parent to datatype ".$ancestor->getId()."\n";
-                        if ($save)
-                            print "\tsetting grandparent to datatype ".$ancestor->getGrandparent()->getId()."\n";
                     }
                 }
 
-                print "\n";
+                // Wipe cache entry for this theme
+                $cache_service->delete('cached_theme_'.$theme_id);
             }
+            print '</pre>';
 
-
-            // ----------------------------------------
-            // Force all datatypes into a setup_state of "incomplete"
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataType AS dt
-                SET dt.setup_step = :setup_step'
-            )->setParameters( array('setup_step' => DataType::STATE_INCOMPLETE) );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Updated '.$rows.' datatypes to have the "incomplete" setup step'."\n";
-            }
-
-
-            // Locate all datatypes that have a search_results theme
-            $query = $em->createQuery(
-               'SELECT DISTINCT(dt.id) AS dt_id
-                FROM ODRAdminBundle:Theme AS t
-                JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
-                WHERE t.themeType IN (:theme_types)
-                AND t.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters( array('theme_types' => array('search_results', 'table') ) );
-            $results = $query->getArrayResult();
-
-            $datatype_ids = array();
-            foreach ($results as $result)
-                $datatype_ids[] = $result['dt_id'];
-
-
-            // All datatypes that have a "search_results" theme are considered "operational
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataType AS dt
-                SET dt.setup_step = :setup_step
-                WHERE dt.id IN (:datatype_ids)'
-            )->setParameters( array('setup_step' => DataType::STATE_OPERATIONAL, 'datatype_ids' => $datatype_ids) );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Updated '.$rows.' datatypes to have the "operational" setup step'."\n";
-            }
-
-            // Ensure all top-level datatypes have a search abbreviation
-            $top_level_datatypes = $dti_service->getTopLevelDatatypes();
-            $query = $em->createQuery(
-               'SELECT dtm.id AS dtm_id
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                WHERE dt.id IN (:top_level_datatypes)
-                AND (dtm.searchSlug IS NULL OR dtm.searchSlug = :empty_string)'
-            )->setParameters( array('top_level_datatypes' => $top_level_datatypes, 'empty_string' => '') );
-            $results = $query->getArrayResult();
-
-            $dtm_ids = array();
-            foreach ($results as $result)
-                $dtm_ids[] = $result['dtm_id'];
-
-            // Easier to use a native query for this...
-            $conn = $em->getConnection();
-            $query =
-                'UPDATE odr_data_type_meta AS dtm
-                 SET dtm.search_slug = dtm.data_type_id
-                 WHERE dtm.id IN ('.implode(',', $dtm_ids).')';
-            if ($save) {
-                $params = array();
-                $rows = $conn->executeUpdate($query, $params);
-                print 'Fixed '.$rows.' datatype_meta entries to have a search slug'."\n";
-            }
-
+            // Re-enable softdeleteable filter
             $em->getFilters()->enable('softdeleteable');
-            print '</pre>';
 
-
-            // ----------------------------------------
-            $cache_service->delete('cached_datatree_array');
-            $datatree_array = $dti_service->getDatatreeArray();
-
-            $query = $em->createQuery(
-               'SELECT dt, parent
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN dt.parent AS parent'
-            );
-            $results = $query->getArrayResult();
-
-            print '<pre>';
-            foreach ($results as $num => $dt) {
-                $dt_id = $dt['id'];
-                $parent_id = $dt['parent']['id'];
-
-                $cache_service->delete('cached_datatype_'.$dt_id);
-
-                if ( isset($datatree_array['descendant_of'][$dt_id]) ) {
-                    if ( $datatree_array['descendant_of'][$dt_id] == '' ) {
-                        if ( $dt_id == $parent_id ){
-                            print 'datatype '.$dt_id.' is correctly marked as a top-level datatype'."\n";
-                        }
-                    }
-                    else if ( $datatree_array['descendant_of'][$dt_id] == $parent_id ) {
-                        print 'datatype '.$dt_id.' is correctly marked as child of datatype '.$parent_id."\n";
-                    }
-                    else {
-                        print 'error with datatype '.$dt_id.'...marked as having parent datatype '.$parent_id.' but should have '.$datatree_array['descendant_of'][$dt_id]."\n";
-                    }
-                }
-                else {
-                    print 'datatype '.$dt_id.' not found in datatree array'."\n";
-                }
-            }
-            print '</pre>';
+            // Wipe a few more cache entries to be on the safe side
+            $cache_service->delete('top_level_datatypes');
+            $cache_service->delete('top_level_themes');
         }
         catch (\Exception $e) {
-            $em->getFilters()->enable('softdeleteable');
+            print '</pre>';
 
-            $source = 0xabcdef00;
+            // Don't want any changes made being saved to the database
+            $em->getFilters()->enable('softdeleteable');
+            $em->clear();
+
+            $source = 0x0a4b8452;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -2234,9 +1453,13 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
+     * TODO -
+     *
      * @param Request $request
+     *
+     * @return Response
      */
-    public function thememigrateAction(Request $request)
+    public function migratepluginsAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2246,445 +1469,598 @@ $ret .= '  Set current to '.$count."\n";
         $save = false;
 //        $save = true;
 
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
         try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
 
-            throw new ODRBadRequestException('NOT NEEDED ANYMORE');
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
 
-            // ----------------------------------------
-            // Load required objects
-            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+            /** @var RenderPlugin[] $render_plugins */
+            $render_plugins = $em->getRepository('ODRAdminBundle:RenderPlugin')->findAll();
 
+            foreach ($render_plugins as $render_plugin) {
 
-            print '<pre>';
-            // ----------------------------------------
-            // First off, ensure that all themes without a valid "theme_type" are deleted
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:Theme AS t
-                SET t.deletedAt = :new_date
-                WHERE t.themeType = :empty_string
-                AND t.deletedAt IS NULL'
-            )->setParameters( array('new_date' => new \DateTime(), 'empty_string' => '') );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Deleted '.$rows.' themes where theme_type == ""'."\n";
-            }
+                switch ($render_plugin->getPluginName()) {
+                    // Base
+                    case 'Default Render':
+                        $render_plugin->setPluginClassName('odr_plugins.base.default');
+                        break;
+                    case 'GCMassSpec Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.base.gcms');
+                        break;
+                    case 'CSV Table Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.base.csvtable');
+                        break;
+                    case 'Graph Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.base.graph');
+                        break;
+                    case 'Chemistry Field':
+                        $render_plugin->setPluginClassName('odr_plugins.base.chemistry');
+                        break;
+                    case 'References Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.base.references');
+                        break;
+                    case 'Comment Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.base.comment');
+                        break;
+                    case 'Link Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.base.link');
+                        break;
+                    case 'URL Field':
+                        $render_plugin->setPluginClassName('odr_plugins.base.url');
+                        break;
+                    case 'Currency Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.base.currency');
+                        break;
 
-            // Also ensure no "derivative" theme_type exists either...this shouldn't do anything, but making sure
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:Theme AS t
-                SET t.deletedAt = :new_date
-                WHERE t.themeType = :empty_string
-                AND t.deletedAt IS NULL'
-            )->setParameters( array('new_date' => new \DateTime(), 'empty_string' => 'derivative') );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Deleted '.$rows.' themes where theme_type == "derivative"'."\n";
-            }
+                    // Chemin
+                    case 'Chemin ED1 Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.chemined1');
+                        break;
+                    case 'Chemin EDA Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.chemineda');
+                        break;
+                    case 'Chemin EDS Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.chemineds');
+                        break;
+                    case 'Chemin EE1 Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.cheminee1');
+                        break;
+                    case 'Chemin EEA Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.chemineea');
+                        break;
+                    case 'Chemin EES Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.cheminees');
+                        break;
+                    case 'Chemin EFM Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.cheminefm');
+                        break;
+                    case 'Chemin ETR Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.cheminetr');
+                        break;
+                    case 'Qanalyze XRD Analysis':
+                        $render_plugin->setPluginClassName('odr_plugins.chemin.qanalyze');
+                        break;
 
+                    // AHED
+                    case 'Organization Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.ahed.organization');
+                        break;
+                    case 'Person Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.ahed.person');
+                        break;
+                    case 'Sample Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.ahed.sample');
+                        break;
+                    case 'Site Identifier Plugin':
+                        $render_plugin->setPluginClassName('odr_plugins.ahed.site');
+                        break;
 
-            // ----------------------------------------
-            // Get a list of all table themes, even deleted ones
-            $em->getFilters()->disable('softdeleteable');
-
-            $query = $em->createQuery(
-               'SELECT t.id AS id
-                FROM ODRAdminBundle:Theme AS t
-                WHERE t.themeType = :theme_type'
-            )->setParameters( array('theme_type' => 'table') );
-            $results = $query->getArrayResult();
-
-            $table_theme_ids = array();
-            foreach ($results as $num => $theme)
-                $table_theme_ids[] = $theme['id'];
-
-
-            // Store the 'table' flag in the themeMeta entry...
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:ThemeMeta AS tm
-                SET tm.isTableTheme = :is_table_theme
-                WHERE tm.theme IN (:theme_ids)'
-            )->setParameters( array('is_table_theme' => true, 'theme_ids' => $table_theme_ids) );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Updated "isTableTheme" property for '.$rows.' theme meta entries'."\n";
-            }
-
-
-            // Temporarily change all of these themes to be a 'search_results' theme instead
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:Theme AS t
-                SET t.themeType = :new_theme_type
-                WHERE t.themeType = :old_theme_type'
-            )->setParameters( array('old_theme_type' => 'table', 'new_theme_type' => 'search_results') );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Changed themeType property for '.$rows.' theme entries from "table" into "search_results"'."\n";
-            }
-
-            // Set all themes to not be default...
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:ThemeMeta AS tm
-                SET tm.isDefault = :not_default'
-            )->setParameters( array('not_default' => false) );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Set '.$rows.' themes as "not default"'."\n";
-            }
-
-            $em->getFilters()->enable('softdeleteable');
-            print "\n";
-
-            // ----------------------------------------
-            //
-            $query = $em->createQuery(
-               'SELECT t, tm, pt, st, dt, dt_g
-
-                FROM ODRAdminBundle:Theme AS t
-                JOIN t.themeMeta AS tm
-
-                LEFT JOIN t.parentTheme AS pt
-                LEFT JOIN t.sourceTheme AS st
-
-                LEFT JOIN t.dataType AS dt
-                JOIN dt.grandparent AS dt_g
-
-                WHERE t.deletedAt IS NULL AND tm.deletedAt IS NULL
-                AND dt.deletedAt IS NULL AND dt_g.deletedAt IS NULL'
-            );
-            $results = $query->getArrayResult();
-
-//            print_r($results);
-
-            // ----------------------------------------
-            /*
-             * - datatype 1
-             *     - child datatype 2
-             *     - child datatype 3
-             * 	   - link to datatype 4
-             * - datatype 4
-             *
-             * theme 1 is "master" for datatype 1, parent_theme_id == 1, source_theme_id == 1
-             * theme 2 is "master" for datatype 2, parent_theme_id == 1, source_theme_id == 2
-             * theme 3 is "master" for datatype 3, parent_theme_id == 1, source_theme_id == 3
-             * theme 4 is "master" for datatype 4, parent_theme_id == 4, source_theme_id == 4
-             *
-             * creates a "search results" theme for datatype 1
-             * - theme 5 is "search_results" for datatype 1, parent_theme_id == 5, source_theme_id == 1
-             * - theme 6 is "search_results" for datatype 2, parent_theme_id == 5, source_theme_id == 2
-             * - theme 7 is "search_results" for datatype 3, parent_theme_id == 5, source_theme_id == 3
-             *
-             * creates a "search results" theme for datatype 4
-             * - theme 8 is "search_results" for datatype 4, parent_theme_id == 8, source_theme_id == 4
-             *
-             * copies the existing "search results" theme of datatype 1 to make a new one
-             * - theme 9 is "search_results" for datatype 1, parent_theme_id == 9, source_theme_id == 1
-             * - theme 10 is "search_results" for datatype 2, parent_theme_id == 9, source_theme_id == 2
-             * - theme 11 is "search_results" for datatype 3, parent_theme_id == 9, source_theme_id == 3
-             *
-             * No copy made of theme 8, so both theme groups 5 and 9 use theme 8 to display datatype 4?
-             */
-
-            $theme_list = array();
-            foreach ($results as $num => $theme) {
-                $theme_id = $theme['id'];
-                $theme_type = $theme['themeType'];
-
-                $parent_theme_id = -1;
-                if ( isset($theme['parentTheme']) && isset($theme['parentTheme']['id']) )
-                    $parent_theme_id = $theme['parentTheme']['id'];
-                $source_theme_id = -1;
-                if ( isset($theme['sourceTheme']) && isset($theme['sourceTheme']['id']) )
-                    $source_theme_id = $theme['sourceTheme']['id'];
-
-
-                $dt_id = $theme['dataType']['id'];
-                $g_dt_id = $theme['dataType']['grandparent']['id'];
-
-                if ( !isset($theme_list[$dt_id]) )
-                    $theme_list[$dt_id] = array();
-                if ( !isset($theme_list[$dt_id][$theme_type]) )
-                    $theme_list[$dt_id][$theme_type] = array();
-
-                $theme_list[$dt_id][$theme_type][] = array(
-                    'theme_id' => $theme_id,
-                    'parent_theme_id' => $parent_theme_id,
-                    'source_theme_id' => $source_theme_id,
-                    'grandparent_datatype_id' => $g_dt_id
-                );
-            }
-
-            print_r($theme_list);
-
-            foreach ($theme_list as $dt_id => $themes) {
-
-                print 'Updating themes for Datatype '.$dt_id.'...'."\n";
-
-                // ----------------------------------------
-                // Do some sanity checks...
-                if ( !isset($themes['master']) )
-                    throw new ODRException('Datatype '.$dt_id.' lacks a master theme, aborting');
-                if ( count($themes['master']) > 1 )
-                    throw new ODRException('Datatype '.$dt_id.' has more than one master theme, aborting');
-
-                // ----------------------------------------
-                // Deal with the master theme first...
-                $master_theme_data = $themes['master'][0];
-                $master_theme_id = $master_theme_data['theme_id'];
-
-                print ' - master theme '.$master_theme_id.'...'."\n";
-
-                /** @var Theme $master_theme */
-                $master_theme = $repo_theme->find($master_theme_id);
-                if ($master_theme == null)
-                    throw new ODRException('Datatype '.$dt_id.' referenced a non-existent master theme '.$master_theme_id);
-
-                // If source theme id is not set, then set it to this theme's id
-                if ( $master_theme_data['source_theme_id'] == -1 ) {
-                    $master_theme->setSourceTheme($master_theme);
-                    print ' - - set source theme to '.$master_theme_id."\n";
-                }
-                else {
-                    print ' - - source theme is already set to '.$master_theme->getSourceTheme()->getId().', would have set it to '.$master_theme_id."\n";
-                    if ( $master_theme_id != $master_theme->getSourceTheme()->getId() )
-                        print ' - - - MISMATCH'."\n";
-                }
-
-                // If parent theme id is not set, then set it to the datatype's grandparent's master theme
-                $grandparent_datatype_id = $master_theme_data['grandparent_datatype_id'];
-                $parent_theme_id = $theme_list[$grandparent_datatype_id]['master'][0]['theme_id'];
-                if ( $master_theme_data['parent_theme_id'] == -1 ) {
-                    /** @var Theme $parent_theme */
-                    $parent_theme = $repo_theme->find($parent_theme_id);
-                    if ($parent_theme == null)
-                        throw new ODRException('Datatype '.$dt_id.' master theme '.$master_theme_id.' attempted to locate a non-existent grandparent datatype master theme '.$parent_theme_id);
-
-                    $master_theme->setParentTheme($parent_theme);
-                    print ' - - set parent theme to datatype '.$grandparent_datatype_id.' master, theme '.$parent_theme_id."\n";
-                }
-                else {
-                    print ' - - parent theme is already set to '.$master_theme->getParentTheme()->getId().', would have set it to '.$parent_theme_id."\n";
-                    if ( $parent_theme_id != $master_theme->getParentTheme()->getId() )
-                        print ' - - - MISMATCH'."\n";
-                }
-
-                // Save changes to the master theme
-                if ($save)
-                    $em->persist($master_theme);
-
-
-                // ----------------------------------------
-                if ( isset($themes['search_results']) ) {
-                    // Deal with search result themes...
-                    foreach ($themes['search_results'] as $num => $search_results_theme_data) {
-                        $search_results_theme_id = $search_results_theme_data['theme_id'];
-                        $parent_theme_id = $search_results_theme_data['parent_theme_id'];
-                        $source_theme_id = $search_results_theme_data['source_theme_id'];
-                        $grandparent_datatype_id = $search_results_theme_data['grandparent_datatype_id'];
-
-                        print ' - search results theme '.$search_results_theme_id.'...'."\n";
-
-                        /** @var Theme $search_results_theme */
-                        $search_results_theme = $repo_theme->find($search_results_theme_id);
-                        if ($search_results_theme == null)
-                            throw new ODRException('Datatype '.$dt_id.' referenced a non-existent search results theme '.$search_results_theme_id);
-
-
-                        // If source theme id is not set, then set it to the datatype's master theme
-                        $datatype_master_theme_id = $theme_list[$dt_id]['master'][0]['theme_id'];
-                        if ($source_theme_id == -1) {
-                            /** @var Theme $source_theme */
-                            $source_theme = $repo_theme->find($datatype_master_theme_id);
-                            if ($source_theme == null)
-                                throw new ODRException('Datatype '.$dt_id.' search results theme '.$search_results_theme_id.' attempted to locate a non-existent datatype master theme '.$datatype_master_theme_id);
-
-                            $search_results_theme->setSourceTheme($source_theme);
-                            print ' - - set source theme to grandparent datatype '.$grandparent_datatype_id.' master theme '.$datatype_master_theme_id."\n";
-                        }
-                        else {
-                            print ' - - source theme is already set to '.$search_results_theme->getSourceTheme()->getId().', would have set it to '.$datatype_master_theme_id."\n";
-                            if ( $datatype_master_theme_id != $search_results_theme->getSourceTheme()->getId() )
-                                print ' - - - MISMATCH'."\n";
-                        }
-
-                        // If this is a search results theme for a top-level datatype...
-                        if ($dt_id == $grandparent_datatype_id) {
-                            // ...then the parent_theme_id should be set to itself
-                            if ( $parent_theme_id == -1 ) {
-                                $search_results_theme->setParentTheme($search_results_theme);
-                                print ' - - set parent theme to '.$search_results_theme_id."\n";
-                            }
-                            else {
-                                print ' - - parent theme is already set to '.$search_results_theme->getParentTheme()->getId().', would have set it to '.$search_results_theme_id."\n";
-                                if ( $search_results_theme_id != $search_results_theme->getParentTheme()->getId() )
-                                    print ' - - - MISMATCH'."\n";
-                            }
-                        }
-                        else {
-
-                            if ( $source_theme_id == -1 ) {
-                                /*
-                                 * Technically, if there's just one search results theme in both this datatype and its grandparent, i should be able to match them up...
-                                 * but do i have a way to figure out multiples?
-                                 */
-
-                                print ' - - set parent theme to grandparent datatype '.$grandparent_datatype_id.' search results theme ***UNKNOWN***'."\n";
-                                print ' - - - MISMATCH'."\n";
-                            }
-                            else {
-                                print ' - - parent theme is already set to '.$search_results_theme->getParentTheme()->getId().', would have set it to ***UNKNOWN***'."\n";
-                                print ' - - - MISMATCH'."\n";
-                            }
-
-                        }
-
-                        // Save changes to this search results theme
+                    default:
+                        print '<pre>Encountered unrecognized plugin name "'.$render_plugin->getPluginName().'", marked as deleted</pre>';
                         if ($save)
-                            $em->persist($search_results_theme);
-                    }
+                            $render_plugin->setDeletedAt(new \DateTime());
+                        break;
                 }
 
-                print "\n";
+                if ($save)
+                    $em->persist($render_plugin);
             }
 
             if ($save)
                 $em->flush();
-
-
-            // ----------------------------------------
-            // Need to set all master themes as default
-            $em->getFilters()->disable('softdeleteable');
-
-            $query = $em->createQuery(
-               'SELECT t.id AS theme_id
-                FROM ODRAdminBundle:Theme AS t
-                JOIN ODRAdminBundle:Theme AS parent_theme WITH t.parentTheme = parent_theme
-                WHERE t.themeType = :theme_type AND t.id = parent_theme.id'
-            )->setParameters( array('theme_type' => 'master') );
-            $results = $query->getArrayResult();
-
-            $all_master_themes = array();
-            foreach ($results as $result)
-                $all_master_themes[] = $result['theme_id'];
-
-            $em->getFilters()->enable('softdeleteable');
-
-            // Need to set the oldest non-deleted search_results/table theme as default
-            $query = $em->createQuery(
-               'SELECT t.id AS theme_id, t.created AS created, dt.id AS dt_id, t.themeType
-                FROM ODRAdminBundle:Theme AS t
-                JOIN ODRAdminBundle:Theme AS parent_theme WITH t.parentTheme = parent_theme
-                JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
-                WHERE t.themeType IN (:theme_types) AND t.id = parent_theme.id
-                ORDER BY dt.id'
-            )->setParameters( array('theme_types' => ThemeInfoService::SHORT_FORM_THEMETYPES) );
-            $results = $query->getArrayResult();
-
-            $tmp = array();
-            foreach ($results as $result) {
-                $dt_id = $result['dt_id'];
-                $t_id = $result['theme_id'];
-                $created = $result['created']->format('Y-m-d H:i:s');
-
-                if ( !isset($tmp[$dt_id]) ) {
-                    $tmp[$dt_id] = array(
-                        'theme_id' => $t_id,
-                        'created' => $created,
-                    );
-                }
-                else {
-                    $previous_created = $tmp[$dt_id]['created'];
-                    if ($created < $previous_created) {
-                        $tmp[$dt_id] = array(
-                            'theme_id' => $t_id,
-                            'created' => $created,
-                        );
-                    }
-                }
-            }
-
-            $all_default_themes = array();
-            foreach ($tmp as $data)
-                $all_default_themes[] = $data['theme_id'];
-
-            // Set all the themes to be default
-            $all_default_themes = array_merge($all_master_themes, $all_default_themes);
-            $all_default_themes = array_unique($all_default_themes);
-            sort($all_default_themes);
-
-
-            $em->getFilters()->disable('softdeleteable');
-            // Get all theme meta entries that belong to these themes
-            $query = $em->createQuery(
-               'SELECT parent_theme.id AS parent_theme_id, t.id AS theme_id, tm.id AS tm_id
-                FROM ODRAdminBundle:Theme AS parent_theme
-                JOIN ODRAdminBundle:Theme AS t WITH t.parentTheme = parent_theme
-                JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
-                WHERE parent_theme.id IN (:all_default_themes)'
-            )->setParameters( array('all_default_themes' => $all_default_themes) );
-            $results = $query->getArrayResult();
-
-            $theme_meta_ids = array();
-            foreach ($results as $result)
-                $theme_meta_ids[] = $result['tm_id'];
-
-
-            // Set all the themes to be default
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:ThemeMeta AS tm
-                SET tm.isDefault = :is_default
-                WHERE tm.id IN (:theme_meta_ids)'
-            )->setParameters( array('is_default' => true, 'theme_meta_ids' => $theme_meta_ids) );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Changed '.$rows.' themes to be default'."\n";
-            }
-            $em->getFilters()->enable('softdeleteable');
-
-
-            // ----------------------------------------
-            $em->getFilters()->disable('softdeleteable');
-
-            // Change all the themes that used to be "table" themes back into "table" themes
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:Theme AS t
-                SET t.themeType = :new_theme_type
-                WHERE t.id IN (:table_theme_ids)'
-            )->setParameters( array('new_theme_type' => 'table', 'table_theme_ids' => $table_theme_ids) );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Changed '.$rows.' themes back into "table" themes'."\n";
-            }
-
-            // Run one last set of queries to force all themes to be shared by default
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:ThemeMeta AS tm
-                SET tm.shared = :shared'
-            )->setParameters( array('shared' => true) );
-            if ($save) {
-                $rows = $query->execute();
-                print 'Set '.$rows.' themes as "shared"'."\n";
-            }
-
-            $em->getFilters()->enable('softdeleteable');
-
-            print '</pre>';
         }
         catch (\Exception $e) {
-            // Don't want any changes made being saved to the database
-            $em->clear();
-
-            $source = 0xabcdef11;
+            $source = 0x0214889b;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function themeversioninitAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+
+            /** @var CloneThemeService $clone_theme_service */
+            $clone_theme_service = $this->container->get('odr.clone_theme_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+
+
+            print '<pre>';
+            $top_level_themes = $theme_info_service->getTopLevelThemes();
+            foreach ($top_level_themes as $theme_id) {
+                /** @var Theme $theme */
+                $theme = $repo_theme->find($theme_id);
+
+                $diff = $clone_theme_service->getThemeSourceDiff($theme);
+                print 'theme '.$theme_id.' "'.$theme->getThemeType().'" (datatype '.$theme->getDataType()->getId().'):';
+
+                $theme_meta = $theme->getThemeMeta();
+
+                if ( count($diff) > 0 ) {
+                    print ' HAS DIFFERENCES'."\n";
+
+                    $theme_meta->setSourceSyncVersion(0);
+                }
+                else {
+                    print ' has no differences'."\n";
+
+                    $theme_meta->setSourceSyncVersion(1);
+                }
+
+                if ($save)
+                    $em->persist($theme_meta);
+            }
+            print '</pre>';
+
+            if ($save)
+                $em->flush();
+        }
+        catch (\Exception $e) {
+            print '</pre>';
+            $source = 0x675970ad;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * TODO -
+     *
+     * @param string $uuid_type
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function setuniqueidsAction($uuid_type, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        // NOTE - go into the orm files for each of these entities and disable the gedmo timestampable on update first
+        // NOTE - also ensure all datatypes/datarecords/datafields/files/images/radio options/tags have null unique_ids first
+        $save = false;
+//        $save = true;
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var UUIDService $uuid_service */
+            $uuid_service = $this->container->get('odr.uuid_service');
+
+
+            if ($uuid_type === 'datatype') {
+                // Need all datatypes, as well as a list of which ones are top-level...
+                $top_level_datatype_ids = $dti_service->getTopLevelDatatypes();
+
+                /** @var DataType[] $all_datatypes */
+                $all_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
+
+                // Go through all the top-level datatypes first...
+                print '<pre>';
+                foreach ($all_datatypes as $dt) {
+                    if (in_array($dt->getId(), $top_level_datatype_ids)) {
+                        // If the top-level datatype has a unique_id but no template_group, fix that
+                        if ($dt->getUniqueId() !== '' && (is_null($dt->getTemplateGroup() || $dt->getTemplateGroup() === ''))) {
+                            $dt->setTemplateGroup($dt->getUniqueId());
+
+                            print 'set top-level datatype '.$dt->getId().' "'.$dt->getShortName().'" was missing a template_group, set to "'.$dt->getUniqueId().'"'."\n";
+
+                            if ($save) {
+                                $em->persist($dt);
+                                $em->flush();
+                                $em->refresh($dt);
+                            }
+                        }
+
+                        // If the top-level datatype does not have a unique_id, create one
+                        if (is_null($dt->getUniqueId()) || $dt->getUniqueId() === '') {
+                            $unique_id = $uuid_service->generateDatatypeUniqueId();
+
+                            $dt->setUniqueId($unique_id);
+                            $dt->setTemplateGroup($unique_id);
+
+                            print 'set top-level datatype '.$dt->getId().' "'.$dt->getShortName().'" to have unique_id and template_group "'.$unique_id.'"'."\n";
+
+                            if ($save) {
+                                $em->persist($dt);
+                                $em->flush();
+                                $em->refresh($dt);
+                            }
+                        }
+                    }
+                }
+
+                // ...now that the grandparent datatypes have unique_ids and template_groups, the
+                //  child datatypes can be set to use their grandparent's template_group...
+                foreach ($all_datatypes as $dt) {
+                    if (!in_array($dt->getId(), $top_level_datatype_ids)) {
+                        // Child datatypes should always match their grandparent's template_group...
+                        if ( $dt->getTemplateGroup() !== $dt->getGrandparent()->getTemplateGroup() ) {
+                            $dt->setTemplateGroup($dt->getGrandparent()->getTemplateGroup());
+
+                            print 'set child datatype '.$dt->getId().' "'.$dt->getShortName().'" to have template_group "'.$dt->getGrandparent()->getTemplateGroup().'"'."\n";
+                        }
+
+                        // If the child datatype does not have a unique_id, create one
+                        if (is_null($dt->getUniqueId()) || $dt->getUniqueId() === '') {
+                            $unique_id = $uuid_service->generateDatatypeUniqueId();
+                            $dt->setUniqueId($unique_id);
+
+                            print 'set child datatype '.$dt->getId().' "'.$dt->getShortName().'" to have unique_id "'.$unique_id.'"'."\n";
+                        }
+
+                        if ($save) {
+                            $em->persist($dt);
+                            $em->flush();
+                            $em->refresh($dt);
+                        }
+                    }
+                }
+                print '</pre>';
+            }
+            else if ($uuid_type === 'datafield') {
+                print '<pre>';
+                /** @var DataFields[] $datafields */
+                $datafields = $em->getRepository('ODRAdminBundle:DataFields')->findBy(
+                    array('fieldUuid' => null)
+                );
+                // Only ~7k datafields, should work with a single query
+
+                foreach ($datafields as $df) {
+                    $unique_id = $uuid_service->generateDatafieldUniqueId();
+                    $df->setFieldUuid($unique_id);
+
+                    print 'set datafield '.$df->getId().' to have unique id '.$unique_id."\n";
+
+                    if ($save)
+                        $em->persist($df);
+                }
+                print '</pre>';
+            }
+            else if ($uuid_type === 'radio') {
+                print '<pre>';
+                /** @var RadioOptions[] $radio_options */
+                $radio_options = $em->getRepository('ODRAdminBundle:RadioOptions')->findBy(
+                    array('radioOptionUuid' => null)
+                );
+                // Appears to be able to work in a single call
+
+                foreach ($radio_options as $ro) {
+                    $unique_id = $uuid_service->generateRadioOptionUniqueId();
+                    $ro->setRadioOptionUuid($unique_id);
+
+                    print 'set radio option '.$ro->getId().' to have unique id '.$unique_id."\n";
+
+                    if ($save)
+                        $em->persist($ro);
+                }
+                print '</pre>';
+            }
+            else if ($uuid_type === 'tag') {
+                print '<pre>';
+                /** @var Tags[] $tags */
+                $tags = $em->getRepository('ODRAdminBundle:Tags')->findBy(
+                    array('tagUuid' => null)
+                );
+                // Appears to be able to work in a single call
+
+                foreach ($tags as $tag) {
+                    $unique_id = $uuid_service->generateTagUniqueId();
+                    $tag->setTagUuid($unique_id);
+
+                    print 'set tag '.$tag->getId().' to have unique id '.$unique_id."\n";
+
+                    if ($save)
+                        $em->persist($tag);
+                }
+                print '</pre>';
+            }
+            else if ($uuid_type === 'image') {
+                print '<pre>';
+                /** @var Image[] $images */
+                $images = $em->getRepository('ODRAdminBundle:Image')->findBy(
+                    array('unique_id' => null)
+                );
+                // Appears to be able to work in a single call
+
+                foreach ($images as $image) {
+                    $unique_id = $uuid_service->generateImageUniqueId();
+                    $image->setUniqueId($unique_id);
+
+                    print 'set image '.$image->getId().' to have unique id '.$unique_id."\n";
+
+                    if ($save)
+                        $em->persist($image);
+                }
+                print '</pre>';
+            }
+            else if ($uuid_type === 'file') {
+                print '<pre>';
+                /** @var File[] $files */
+                $files = $em->getRepository('ODRAdminBundle:File')->findBy(
+                    array('unique_id' => null)
+                );
+                // Appears to be able to work in a single call
+
+                foreach ($files as $file) {
+                    $unique_id = $uuid_service->generateFileUniqueId();
+                    $file->setUniqueId($unique_id);
+
+                    print 'set file '.$file->getId().' to have unique id '.$unique_id."\n";
+
+                    if ($save)
+                        $em->persist($file);
+                }
+                print '</pre>';
+            }
+            else if ($uuid_type === 'datarecord') {
+                print '<pre>';
+                // Now that we have a list of the existing unique ids, load a pile of datarecords
+                //  that don't have a unique id yet
+                $query = $em->createQuery(
+                   'SELECT dr
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.unique_id IS NULL AND dr.deletedAt IS NULL'
+                );
+                // Unable to load/modify ~300k records at once...
+                $query->setMaxResults(60000);
+
+                /** @var DataRecord[] $datarecords */
+                $datarecords = $query->getResult();
+
+                $count = 0;
+                foreach ($datarecords as $dr) {
+                    $unique_id = $uuid_service->generateDatarecordUniqueId();
+                    $dr->setUniqueId($unique_id);
+
+                    print 'set datarecord '.$dr->getId().' to have unique id '.$unique_id."\n";
+                    $count++;
+
+                    if ($save)
+                        $em->persist($dr);
+
+                    if ($save && ($count % 5000) === 0 )
+                        $em->flush();
+                }
+                print '</pre>';
+            }
+
+            if ($save)
+                $em->flush();
+        }
+        catch (\Exception $e) {
+            print '</pre>';
+
+            $source = 0x74a51771;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function fixsetupstepsAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+
+            /** @var DataType[] $all_datatypes */
+            $all_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
+
+            print '<pre>';
+            foreach ($all_datatypes as $dt) {
+                $current_setup_step = $dt->getSetupStep();
+
+                if ($current_setup_step !== DataType::STATE_INITIAL && $current_setup_step !== DataType::STATE_OPERATIONAL) {
+                    $dt->setSetupStep(DataType::STATE_OPERATIONAL);
+                    $em->persist($dt);
+
+                    print 'set datatype '.$dt->getId().' "'.$dt->getShortName().'" to be "operational" instead of "incomplete"'."\n";
+                }
+            }
+            print '</pre>';
+
+            if ($save)
+                $em->flush();
+        }
+        catch (\Exception $e) {
+            $source = 0x0d6cf8d9;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function updatedatatypenamesAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+
+            /** @var DataType[] $all_datatypes */
+            $all_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
+
+            $use_shortname = array(
+                29, 108, 220, 225, 253,
+                308, 342, 384, 391, 392,
+                397
+            );
+
+            print '<table border="1">';
+            print '<tr><th>ID</th><th>Grandparent ID</th><th>Short Name</th><th>Long Name</th><th>Fix</th>';
+            foreach ($all_datatypes as $dt) {
+                print '<tr>';
+                print '<td>'.$dt->getId().'</td>';
+                print '<td>'.$dt->getGrandparent()->getId().'</td>';
+                print '<td>'.$dt->getShortName().'</td>';
+                print '<td>'.$dt->getLongName().'</td>';
+
+                print '<td>';
+                if ( $dt->getShortName() === $dt->getLongName() ) {
+                    print '';
+                }
+                else if ( $dt->getId() !== $dt->getGrandparent()->getId() && $dt->getLongName() === "New Child" ) {
+                    if ( $save ) {
+                        $dt->getDataTypeMeta()->setLongName( $dt->getShortName() );
+                        $em->persist( $dt->getDataTypeMeta() );
+                    }
+
+                    print '<b>set long_name to "'.$dt->getShortName().'"</b>';
+                }
+                else if ( in_array($dt->getId(), $use_shortname) ) {
+                    if ( $save ) {
+                        $dt->getDataTypeMeta()->setLongName( $dt->getShortName() );
+                        $em->persist( $dt->getDataTypeMeta() );
+                    }
+
+                    print '<b>set long_name to "'.$dt->getShortName().'"</b>';
+                }
+                else {
+                    if ( $save ) {
+                        $dt->getDataTypeMeta()->setShortName( $dt->getLongName() );
+                        $em->persist( $dt->getDataTypeMeta() );
+                    }
+
+                    print '<b>set long_name to "'.$dt->getLongName().'"</b>';
+                }
+                print '</td>';
+            }
+            print '</table>';
+
+            if ($save)
+                $em->flush();
+        }
+        catch (\Exception $e) {
+            $source = 0x2e4e2e42;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
 }

@@ -1,0 +1,143 @@
+{% spaceless %}
+{# Create a dynamic or static graph - either rollup or individual #}
+{% if odr_chart_legend|length %}
+
+    <div class="pure-u-1 DynamicGraphs ODRHidden">
+        <div id="{{ odr_chart_id }}_Dynamic_GraphWrapper">
+            {% if odr_chart_files|length %}
+                <div id='{{ odr_chart_id }}' class="ODRGraph ODRDynamicGraph pure-u-1">
+                    <div id="plotlybars_{{ odr_chart_id }}" class="plotlybars-wrapper">
+                        <div class="plotlybars">
+                            <div class="plotlybars-bar b1"></div>
+                            <div class="plotlybars-bar b2"></div>
+                            <div class="plotlybars-bar b3"></div>
+                            <div class="plotlybars-bar b4"></div>
+                            <div class="plotlybars-bar b5"></div>
+                            <div class="plotlybars-bar b6"></div>
+                            <div class="plotlybars-bar b7"></div>
+                        </div>
+                        <div class="plotlybars-text">Loading graph</div>
+                    </div>
+                    <!-- <svg class="pure-u-1"></svg> -->
+                </div><!-- end of .ODRGraph -->
+            {% endif %}
+        </div><!-- end of .DynamicGraph Wrapper -->
+    </div><!-- end of .DynamicGraphs -->
+
+    <div class="pure-u-1 StaticGraphs">
+        <div id="{{ odr_chart_id }}_Static_GraphWrapper" class="ODRStaticGraphWrapper">
+            {% for dr_id, file_name in odr_chart_output_files %}
+                {% if dr_id == target_datarecord_id or (target_datarecord_id matches '{^rollup}' and dr_id == "rollup") %}
+                    <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1">
+                        <img class="pure-u-1" src="{{ path('odr_plugin_graph_static', { 'plugin_id': render_plugin.id, 'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id } ) }}.svg?nocache=1" />
+                        <div class="ODRChartTrigger"><span>Click to switch to interactive charts.</span></div>
+                    </div><!-- end of .ODRGraph -->
+                {% endif %}
+            {% endfor %}
+        </div><!-- end of #{{ odr_chart_id }}_Static_GraphWrapper -->
+    </div><!-- end of .StaticGraphs -->
+{% endif %}
+
+<script type="text/javascript">
+
+// Used to track active plots for resizing
+// Why is this not cleared every time?
+var page_plots = [];
+jQuery(function() {
+
+    window.onresize = function() {
+        waitForFinalEvent(function() {
+            for(var x in page_plots) {
+                Plotly.Plots.resize(page_plots[x]);
+            }
+        }, 500, "plotly_window_resize")
+    };
+
+    $(".StaticGraphs").unbind('click').click(function() {
+        var parent = $(this).parent();
+        $(this).hide();
+        $(parent).find('.DynamicGraphs').show();
+
+        var chart_id = $(parent).find('.ODRDynamicGraph').attr('id');
+        window['SetupGraphs_' + chart_id]();
+    });
+{#
+    $(".DynamicGraphs").unbind('click').click(function() {
+        var parent = $(this).parent()
+        $(this).hide()
+        $(parent).find('.StaticGraphs').show()
+    });
+#}
+});
+
+if (!window.ODRChart) {
+    function ODRChart(graph_type) {
+        this.chart_id = "";
+
+        this.GraphData = function (chart_obj) {
+            /* These lines are all chart setup.  Pick and choose which chart features you want to utilize. */
+            switch (graph_type) {
+                case "xy":
+                    return lineChartPlotly(chart_obj, clearPlotlyBars);
+                case "bar":
+                    return barChartPlotly(chart_obj, clearPlotlyBars);
+                case "histogram":
+                    return histogramChartPlotly(chart_obj, clearPlotlyBars);
+                case "stackedarea":
+                    return stackedAreaChartPlotly(chart_obj, clearPlotlyBars);
+                case "lineerror":
+                    return lineerrorChartPlotly(chart_obj, clearPlotlyBars);
+                case "piechart":
+                    return pieChartPlotly(chart_obj, clearPlotlyBars);
+                default:
+                    break;
+            }
+        }
+    }
+}
+
+var SetupGraphs_{{ odr_chart_id }} = function() {
+    // Should we just be sending a JSON Object in the first place
+    if (!{{ odr_chart_id }}_initialized) {
+        {{ odr_chart_id }}_initialized = true;
+
+        // If not ODRChart - load class
+        var odr_chart_{{ odr_chart_id }} = new ODRChart('{{ plugin_options.graph_type }}');
+
+        // Set the chart id
+        odr_chart_{{ odr_chart_id }}.chart_id = '{{ odr_chart_id }}';
+        odr_chart_{{ odr_chart_id }}.data_files = [];
+
+        // Set the file download URL
+        var file_url = "{{ path('odr_file_download', {'file_id': '0'}) }}";
+        file_url = file_url.substr(0, file_url.length - 1);
+
+        // Build array of file data
+        {% for dr_id, file in odr_chart_files %}
+            {% if dr_id == target_datarecord_id or target_datarecord_id matches '{^rollup}' %}
+            var file = '{{ file.id }}';
+            if (file != "") {
+                {% for mydr_id, legend in odr_chart_legend %}
+                    {% if mydr_id == dr_id %}
+                        {% set sort_order = datarecord_sortvalues[dr_id] %}
+                        odr_chart_{{ odr_chart_id }}.data_files[{{ sort_order }}] = { "url": file_url + file, "legend": "{{ legend }}", "dr_id": {{ dr_id }} };
+                    {% endif %}
+                {% endfor %}
+            }
+            {% endif %}
+        {% endfor %}
+
+        // Map remaining options to chart
+        {% for o_name, o_value in plugin_options %}
+        odr_chart_{{ odr_chart_id }}['{{ o_name }}'] = '{{ o_value }}';
+        {% endfor %}
+
+        // Plot selected graph
+        odr_chart_{{ odr_chart_id }}.GraphData(odr_chart_{{ odr_chart_id }});
+    }
+};
+
+var {{ odr_chart_id }}_initialized = false;
+
+</script>
+{% endspaceless %}

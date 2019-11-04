@@ -1,7 +1,7 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
-{% set theme = theme_array[datatype.id] %}
+{% set theme = theme_array[target_theme_id] %}
 
 {% set can_view_datatype = false %}
 {% if datatype_permissions[ target_datatype_id ] is defined and datatype_permissions[ target_datatype_id ][ 'dt_view' ] is defined %}
@@ -22,10 +22,12 @@
             {% include 'ODRAdminBundle:ODRUser:view_fieldarea.html.twig' with {
                 'datatype_permissions': datatype_permissions,
                 'datafield_permissions': datafield_permissions,
-                'theme_array': theme_array,
 
                 'datatype_array': datatype_array,
+                'theme_array': theme_array,
+
                 'target_datatype_id': target_datatype_id,
+                'target_theme_id': target_theme_id,
 
                 'is_top_level': is_top_level,
             } %}
@@ -37,10 +39,12 @@
             {% include 'ODRAdminBundle:ODRUser:view_fieldarea.html.twig' with {
                 'datatype_permissions': datatype_permissions,
                 'datafield_permissions': datafield_permissions,
-                'theme_array': theme_array,
 
                 'datatype_array': datatype_array,
+                'theme_array': theme_array,
+
                 'target_datatype_id': target_datatype_id,
+                'target_theme_id': target_theme_id,
 
                 'is_top_level': is_top_level,
             } %}

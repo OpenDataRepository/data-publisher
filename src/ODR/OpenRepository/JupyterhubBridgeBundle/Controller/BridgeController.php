@@ -24,6 +24,8 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -156,6 +158,11 @@ class BridgeController extends ODRCustomController
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+
 
             // Going to need these...
             $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
@@ -190,11 +197,22 @@ class BridgeController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Save which datarecords this search covers
-            $saved_search = parent::getSavedSearch($em, $user, $user_permissions['datatypes'], $user_permissions['datafields'], $datatype_id, $search_key, $request);
+            // Ensure the search key is valid
+            $search_key_service->validateSearchKey($search_key);
+
+            // Determine whether the user is allowed to view this search key
+            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
+            if ($filtered_search_key !== $search_key) {
+                // User can't view the results of this search key, throw an error
+                throw new ODRForbiddenException();
+            }
+
+            // Otherwise, get the results of this search
+            // Don't care about sorting here...correct? TODO
+            $search_results = $search_api_service->performSearch($datatype, $search_key, $user_permissions);
 
             // If no datarecords, then don't continue
-            if ( strlen($saved_search['datarecord_list']) == 0 )
+            if ( empty($search_results['grandparent_datarecord_list']) )
                 throw new ODRNotFoundException('No datarecords found', true);
 
 

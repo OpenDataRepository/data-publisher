@@ -34,9 +34,13 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Forms
 use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
 use ODR\AdminBundle\Form\ODRUserProfileForm;
+// OAuth
+use HWI\Bundle\OAuthBundle\Security\OAuthUtils;
+use ODR\OpenRepository\OAuthServerBundle\OAuth\ClientManager;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
@@ -105,7 +109,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xeaa9d56a;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -164,15 +168,19 @@ class ODRUserController extends ODRCustomController
             $user = $user_manager->findUserByEmail($email);
 
             // If found, return their user id
-            if ($user !== null)
-                $return['d'] = $user->getId();
+            if ($user !== null) {
+                if ( $user->getId() !== $admin_user->getId() && !$user->hasRole('ROLE_SUPER_ADMIN') )
+                    $return['d'] = $user->getId();
+                else
+                    $return['d'] = -1;
+            }
             else
                 $return['d'] = 0;
         }
         catch (\Exception $e) {
             $source = 0x4a78400f;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -283,7 +291,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xc5f96e25;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -327,6 +335,7 @@ class ODRUserController extends ODRCustomController
 
             // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
             if ( $self_edit && $this->has('hwi_oauth.security.oauth_utils') ) {
+                /** @var OAuthUtils $oauth_utils */
                 $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
                 $resource_owners = $oauth_utils->getResourceOwners();
 
@@ -352,6 +361,7 @@ class ODRUserController extends ODRCustomController
             if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
                 $has_oauth_clients = true;
 
+                /** @var ClientManager $client_manager */
                 $client_manager = $this->get('odr.oauth_server.client_manager');
                 $owned_clients = $client_manager->getOwnedClients($user);
             }
@@ -386,7 +396,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x97f688bd;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -430,10 +440,12 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
-
-                // If user lacks super admin and admin roles, not allowed to do this
+            // If the user is a super admin, or doing this action to his own profile for some reason...
+            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
+                // ...then permissions aren't an issue
+            }
+            else {
+                // If user lacks the admin role, then they're not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
                     throw new ODRForbiddenException();
 
@@ -472,6 +484,7 @@ class ODRUserController extends ODRCustomController
 
             // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
             if ( $self_edit && $this->has('hwi_oauth.security.oauth_utils') ) {
+                /** @var OAuthUtils $oauth_utils */
                 $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
                 $resource_owners = $oauth_utils->getResourceOwners();
 
@@ -497,6 +510,7 @@ class ODRUserController extends ODRCustomController
             if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
                 $has_oauth_clients = true;
 
+                /** @var ClientManager $client_manager */
                 $client_manager = $this->get('odr.oauth_server.client_manager');
                 $owned_clients = $client_manager->getOwnedClients($user);
             }
@@ -531,7 +545,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xb6a03520;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -579,7 +593,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4c69f197;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -630,10 +644,12 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
-
-                // If user lacks super admin and admin roles, not allowed to do this
+            // If the user is a super admin, or doing this action to his own profile for some reason...
+            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
+                // ...then permissions aren't an issue
+            }
+            else {
+                // If user lacks the admin role, then they're not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
                     throw new ODRForbiddenException();
 
@@ -665,7 +681,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xc6125a86;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -727,7 +743,7 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Returns the HTML for an admin user to change another user's password
-     * TODO - this is bad practice...the user needs to be able to reset their password via email
+     * TODO - this is bad practice...admins shouldn't be changing other user's passwords
      * 
      * @param integer $user_id The database id of the user to edit.
      * @param Request $request
@@ -759,10 +775,12 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
-
-                // If user lacks super admin and admin roles, not allowed to do this
+            // If the user is a super admin, or doing this action to his own profile for some reason...
+            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
+                // ...then permissions aren't an issue
+            }
+            else {
+                // If user lacks the admin role, then they're not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
                     throw new ODRForbiddenException();
 
@@ -808,7 +826,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x6c1fc667;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -821,7 +839,7 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Saves changes an admin makes to another user's password
-     * TODO - this is bad practice...the user needs to be able to reset their password via email
+     * TODO - this is bad practice...admins shouldn't be changing other user's passwords
      *
      * @param Request $request
      *
@@ -864,10 +882,12 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $target_user_id ) {
-
-                // If user lacks super admin and admin roles, not allowed to do this
+            // If the user is a super admin, or doing this action to his own profile for some reason...
+            if ( $admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $target_user_id ) {
+                // ...then permissions aren't an issue
+            }
+            else {
+                // If user lacks the admin role, then they're not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
                     throw new ODRForbiddenException();
 
@@ -919,7 +939,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x482172cc;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -972,7 +992,7 @@ class ODRUserController extends ODRCustomController
             // Grab all the users
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var ODRUser[] $user_list */
-            $user_list = $user_manager->findUsers();
+            $user_list = $user_manager->findUsers();    // twig filters out disabled users if needed
 
             // If the user is not a super admin, then only show users that have the 'can_view_datatype' permission for datatypes that the calling user has 'is_datatype_admin'
             if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') ) {
@@ -1010,7 +1030,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x4f9fcf8c;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1046,7 +1066,7 @@ class ODRUserController extends ODRCustomController
 
             // Grab all the users
             $user_manager = $this->container->get('fos_user.user_manager');
-            $users = $user_manager->findUsers();
+            $users = $user_manager->findUsers();    // twig filters out disabled users if needed
 
             // Prevent the admin from modifying his own role (potentially removing his own admin role)
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -1076,7 +1096,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xaa351c38;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1213,7 +1233,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xee335a24;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1293,23 +1313,18 @@ class ODRUserController extends ODRCustomController
 
             // ----------------------------------------
             // Update the user list
-            $users = $user_manager->findUsers();
+            $users = $user_manager->findUsers();    // twig filters out disabled users if needed
 
-            $templating = $this->get('templating');
+            // Generate a redirect to the user list
+            $router = $this->get('router');
             $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:user_list.html.twig',
-                    array(
-                        'users' => $users,
-                        'admin_user' => $admin_user
-                    )
-                )
+                'url' => $router->generate('odr_user_list')
             );
         }
         catch (\Exception $e) {
             $source = 0x750059fa;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1360,23 +1375,18 @@ class ODRUserController extends ODRCustomController
 
             // ----------------------------------------
             // Update the user list
-            $users = $user_manager->findUsers();
+            $users = $user_manager->findUsers();    // twig filters out disabled users if needed
 
-            $templating = $this->get('templating');
+            // Generate a redirect to the user list
+            $router = $this->get('router');
             $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:user_list.html.twig',
-                    array(
-                        'users' => $users,
-                        'admin_user' => $admin_user
-                    )
-                )
+                'url' => $router->generate('odr_user_list')
             );
         }
         catch (\Exception $e) {
             $source = 0x79443334;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1425,7 +1435,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1cfad2a4;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1499,7 +1509,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0xbf591415;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1598,7 +1608,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x8f12f6cb;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1657,6 +1667,10 @@ class ODRUserController extends ODRCustomController
             if ( !in_array($datatype_id, $top_level_datatypes) )
                 throw new ODRBadRequestException('Only available for top-level Datatypes');
 
+            $top_level_themes = $theme_service->getTopLevelThemes();
+            if ( !in_array($theme_id, $top_level_themes) )
+                throw new ODRBadRequestException('Only available for top-level Themes');
+
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -1673,44 +1687,19 @@ class ODRUserController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Load permissions for the target user
-            $user_permissions = $pm_service->getUserPermissionsArray($target_user);
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
-
-            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            $include_links = true;
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
-//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
-
-            // Filter by the target user's permissions
-            $datarecord_array = array();
-            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
-
-            $theme_array = $theme_service->getThemesForDatatype($datatype->getId(), $admin_user, $theme->getThemeType(), $include_links);
-
-            // ----------------------------------------
             // Render the datatype from the target user's point of view
-            $templating = $this->get('templating');
-            $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:view_ajax.html.twig',
-                    array(
-                        'datatype_permissions' => $datatype_permissions,
-                        'datafield_permissions' => $datafield_permissions,
-                        'theme_array' => $theme_array,
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->get('odr.render_service');
+            $page_html = $odr_render_service->getViewAsUserHTML($admin_user, $target_user, $theme);
 
-                        'datatype_array' => $datatype_array,
-                        'initial_datatype_id' => $datatype->getId(),
-                    )
-                )
+            $return['d'] = array(
+                'html' => $page_html
             );
         }
         catch (\Exception $e) {
             $source = 0x1206f648;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
@@ -1798,7 +1787,7 @@ class ODRUserController extends ODRCustomController
         catch (\Exception $e) {
             $source = 0x1aeac909;
             if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }

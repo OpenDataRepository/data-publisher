@@ -4,11 +4,20 @@
    ODRCustomController::renderList() renders ODRAdminBundle:Link:link_datarecord_form.html.twig
    when intent == 'linking' #}
 
-{% set theme = theme_array[datatype.id] %}
+{% set theme = theme_array[initial_theme_id] %}
 
 {% set is_datatype_admin = false %}
 {% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
     {% set is_datatype_admin = true %}
+{% endif %}
+
+{% set user_role = '' %}
+{% if user != 'anon.' %}
+    {% for role in user.getroles %}
+        {% if role == 'ROLE_ADMIN' %}
+            {% set user_role = 'ROLE_ADMIN' %}
+        {% endif %}
+    {% endfor %}
 {% endif %}
 
 <div class="ODRFormWrap">
@@ -25,6 +34,11 @@
 
         'has_search_restriction': has_search_restriction,
         'editable_only': editable_only,
+
+        'display_export_options': true,
+        'intent': 'searching',
+        'user_role': user_role,
+        'has_datarecords': has_datarecords,
     } %}
 
     <div id="TextResults_wrapper" class="ODRTableOuterWrap">
@@ -34,45 +48,15 @@
     </div><!-- end of #TextResults_wrapper -->
 </div><!-- End of .ODRFormWrap -->
 
-{% set user_role = '' %}
-{% if user != 'anon.' %}
-    {% for role in user.getroles %}
-        {% if role == 'ROLE_ADMIN' %}
-            {% set user_role = 'ROLE_ADMIN' %}
-        {% endif %}
-    {% endfor %}
-{% endif %}
-
-{% if user_role == 'ROLE_ADMIN' and has_datarecords %}
-<div class="ODRExportButtons Cursor">
-    <div style="float:left;">
-    {% if can_edit_datatype or is_datatype_admin %}
-        <button class="pure-button" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
-    {% endif %}
-        <button class="pure-button" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>
-    </div>
-
-    {% if use_jupyterhub %}
-    <div style="float:right;">
-        <span id="jupyterhub_app_list" style="padding-right: 10px;"></span>
-
-        <form target="_blank" action="{{ path('odr_jupyterhub_export') }}" method="post" style="display: inline;">
-            <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />
-            <input type="hidden" name="search_key" value="{{ search_key }}" />
-            <input type="hidden" name="app_id" id="jupyterhub_app_id" />
-
-            <button type="submit" class="pure-button">Run this Jupyterhub app on these search results</button>
-        </form>
-    </div>
-    {% endif %}
-</div>
-{% endif %}
-
 <script>
     $(function() {
+        enableSearchSidebar('{{ search_key }}');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
         $(".MenuDesignArea").remove();
 
-        var initial_load = true;
+        // Need a tab id in html5 sessionStorage if one doesn't exist
+        if ( !window.sessionStorage.getItem('odr_tab_id') )
+            window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
         var table = $("#TextResults").dataTable({
 
@@ -105,7 +89,7 @@
             },
 
             // https://datatables.net/manual/server-side
-            "processing": true,   // only displays a little "processing..." blurb
+            // "processing": true,   // only displays a little "processing..." blurb
             "serverSide": true,
 
             "stateSave": true,
@@ -179,33 +163,6 @@
 
         });
 
-        // Need a tab id in html5 sessionStorage if one doesn't exist
-        if ( !window.sessionStorage.getItem('odr_tab_id') )
-            window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
-
-{% if user_role == 'ROLE_ADMIN' and has_datarecords and use_jupyterhub %}
-        // Get the app list to display on the page
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: "{{ path('odr_jupyterhub_app_list', {'datatype_id': datatype.id}) }}",
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if ( parseInt(jqXHR.status) === 200 ) {
-                    $("#jupyterhub_app_list").html(data.html);
-
-                    $("#jupyterhub_app_selector").unbind('change').change(function() {
-                        var selected = $(this).val();
-                        $("#jupyterhub_app_id").val(selected);
-                    });
-
-                    // Store the value of the first option in the form
-                    $("#jupyterhub_app_id").val( $("#jupyterhub_app_selector option:first").val() );
-                }
-            }
-        });
-{% endif %}
-
 {% if display_theme_warning %}
         $("#ODRMainMenu").overhang({
             type: "warn",
@@ -213,6 +170,46 @@
             closeConfirm: true
         });
 {% endif %}
+
+        {% if notify_of_sync is defined and notify_of_sync == true %}
+        {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+            'datatype_id': datatype.id,
+            'theme_id': theme.id,
+            'search_key': search_key,
+        }%}
+        {% endif %}
+
+
+        $("#TextResults").on('click', '.ODRTableRecord', function(event) {
+
+{% if can_edit_datatype %}
+            if ( $(event.target).is('span.ODREditLink') ) {
+                // Don't load view mode for Datarecord...
+                event.stopImmediatePropagation();
+
+                // ...load edit mode instead
+                var offset = $("#TextResults").DataTable().page.info().page + 1;
+                loadDataRecord( $(this).attr('rel'), 'edit', offset );
+                return;
+            }
+{% endif %}
+
+            if ( $(event.target).is('a.ODRDownload') ) {
+                // Don't load view mode when clicking on file download links in the table
+                event.stopImmediatePropagation();
+            }
+            else if ( $(this).parent().parent().hasClass('collapsed')
+                && $(event.target).is(":first-child")
+            ) {
+                // If datatables is hiding columns because there's too many of them, then the first
+                //  visible column in the table is where you click to show the hidden columns
+            }
+            else {
+                // A click anywhere else should load view mode of Datarecord
+                var offset = $("#TextResults").DataTable().page.info().page + 1;
+                loadDataRecord( $(this).attr('rel'), 'view', offset );
+            }
+        });
     });
 
     // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...
@@ -226,8 +223,15 @@
         });
     });
 
+    // Datatable's little "processing" blurb isn't sufficient, need to use ODR's search overlay
+    $("#TextResults").on('preXhr.dt', function(e, settings, data) {
+        showSearchOverlay('loading');    {# defined in Default::common_js.html.twig #}
+    });
+
     // Because this table is dynamic, it needs to check for potential changes in the number of columns that it loads via ajax...
     $("#TextResults").on('xhr.dt', function(e, settings, json, xhr) {
+
+        hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
 
         if ( xhr.status !== 200 || json === undefined || json === null ) {
             // Don't need to actually "do" something here...just need to prevent dataTables from continuing to execute
@@ -240,8 +244,17 @@
             var reload_page = false;
             var original_num_columns = {{ num_columns }};
 
-            // If number of columns is different from what's expected, reload the page
-            if ( json.data[0].length !== original_num_columns ) {
+            if ( original_num_columns === 2 ) {
+                // If no columns in the first place, display a warning...without this, the table
+                //  would always set reload_page to true, causing an infinite reload cycle
+                $("#ODRMainMenu").overhang({
+                    type: "warn",
+                    message: "This layout is either empty, or you're unable to view its contents.  You need to switch to a different layout to see any search results.",
+                    closeConfirm: true
+                });
+            }
+            else if ( json.data[0].length !== original_num_columns ) {
+                // If number of columns is different from what's expected, reload the page
                 reload_page = true;
             }
 {% if can_edit_datatype %}
@@ -282,46 +295,7 @@
             $(this).addClass('ODRDownload');
             $(this).attr('target', '_blank');
         });
-
-        $(".ODRTableRecord").unbind('click').click(function(event) {
-            // Shouldn't do anything, but make sure...
-            event.stopImmediatePropagation();
-
-            // Load view mode of Datarecord
-            var offset = $("#TextResults").DataTable().page.info().page + 1;
-            loadDataRecord( $(this).attr('rel'), 'view', offset );
-        });
-
-{% if can_edit_datatype %}
-        $(".ODREditLink").unbind('click').click(function(event) {
-            // Don't load view mode for Datarecord
-            event.stopImmediatePropagation();
-
-            // Load edit mode of Datarecord instead
-            var offset = $("#TextResults").DataTable().page.info().page + 1;
-            loadDataRecord( $(this).parent().parent().attr('rel'), 'edit', offset );
-        });
-{% endif %}
-
-        // Prevent the click handler for <tr> elements from firing if <a> is clicked
-        $("a.ODRDownload").unbind('click').click(function(event) {
-            event.stopImmediatePropagation();
-        });
     });
-
-{% if has_datarecords and user_role == 'ROLE_ADMIN' %}
-    {% if can_edit_datatype or is_datatype_admin %}
-    function doMassEdit() {
-        var url = '{{ path('odr_mass_edit_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
-        UpdateURL(url);
-    }
-    {% endif %}
-
-    function doCSVExport() {
-        var url = '{{ path('odr_csv_export_render', { 'search_theme_id': search_theme_id, 'datatype_id': datatype.id, 'search_key': search_key, 'offset': offset }) }}';
-        UpdateURL(url);
-    }
-{% endif %}
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}

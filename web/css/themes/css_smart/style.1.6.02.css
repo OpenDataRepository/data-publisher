@@ -13,6 +13,7 @@ child header/h1: #6fa5c7
 file_header: #7fb9d8;
  */
 
+
 @font-face {
     font-family: "Lato-Bol";
     src: url("fonts/Lato-Bol.ttf") format("truetype");
@@ -34,10 +35,10 @@ file_header: #7fb9d8;
 }
 
 body {
-    background: url("images/background.png") repeat-y;
-    background-size: 100% auto;
+    background: url("images/subtle_dots.png") repeat;
+    /* background-size: 100% auto;
     background-position: center top;
-    background-attachment: fixed;
+    background-attachment: fixed; */
     font-family: "Lato-Reg", sans-serif;
 }
 
@@ -69,12 +70,16 @@ input,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
 .ODRResults > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
 .ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
+.ODRResults > .ODRDataType > .ODRGraphSpacer > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,  /* rollup graph */
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRGraphSpacer > .ODRThemeElement > .ODRInnerBox,  /* not-rollup graph */
 .ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox {
     border: 1px solid #7fb9d8;
     box-sizing:border-box;
     -moz-box-sizing:border-box;
     -webkit-box-sizing:border-box;
-    padding: 0px;
+    padding-top: 0px;
+    padding-left: 0px;
+    padding-right: 0px;
     border-radius: 4px;
     background-color: white;
 }
@@ -85,13 +90,18 @@ input,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement,
 .ODRResults > .ODRDataType > .ODRFieldArea > .ODRThemeElement,
 .ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,
-.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement  {
+.ODRResults > .ODRDataType > .ODRGraphSpacer > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,  /* rollup graph */
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRGraphSpacer > .ODRThemeElement,  /* not-rollup graph */
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement {
     /* border: 1px solid #7fb9d8; */
     box-sizing:border-box;
     -moz-box-sizing:border-box;
     -webkit-box-sizing:border-box;
 
-    padding: 8px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 8px;
+    padding-right: 8px;
     border-radius: 4px;
     background-color: white;
 }
@@ -241,7 +251,7 @@ h3.ui-accordion-header a {
     box-shadow: none;
     border-radius: 3px;
     /* margin-bottom: 20px; */
-    margin-bottom: 6px;
+    margin-bottom: 0px;
 }
 
 .pure-skin-odr .pure-table,
@@ -369,6 +379,11 @@ footer ul li:first-child {
 #search_form input[type=text] {
     background: white none;
     box-shadow: none;
+    margin-top: 0px !important;
+}
+
+#search_form label {
+    color: #6fa5c7;
 }
 
 .ODRAdvSearch_header {
@@ -383,9 +398,7 @@ footer ul li:first-child {
 
 /* ===============  forms.css =================================*/
 .pure-skin-odr .pure-form button {
-    margin-right: 0.4em;
-    margin-left: 0px;
-    margin-bottom: 0px;
+    margin: 6px 0 0 6px;
 }
 .ODRFormHeader {
     margin-left: 0px;
@@ -432,19 +445,19 @@ footer ul li:first-child {
     height: 24px;
     font-size: 0.8em;
     box-shadow: none;
-    border: 1px solid rgba(184,232,250, 0.7);
     margin: 0 0 0 0;
     border-radius: 4px;
     padding: 0 2px 0 4px;
     background: #ECF7FB none;
+    border: 1px solid rgba(184,232,250, 0.7);
     color: #1c81d0;
     -webkit-appearance: none;
     -moz-appearance: none;
-    display: inline-block;
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
     box-sizing: border-box;
     -webkit-font-smoothing: antialiased;
+    display: inline-block;
 }
 
 /* Select element can't take :before pseudo element
@@ -464,7 +477,7 @@ footer ul li:first-child {
 
 
 .header {
-    padding: 1em 0 0 0;
+    padding: 0.5em 0 0 0;
     color: white;
 }
 
@@ -483,17 +496,23 @@ footer ul li:first-child {
 
 /* jQuery(window).unbind('.FixedHeader'); */
 .ODRTableOuterWrap,
-#ODRDataTypeListWrapper {
-    margin-top: 1.2em;
-    margin-bottom: 2.2em;
+#ODRDataTypeListWrapper,
+#ODRRenderPluginListWrapper {
+    /*margin-top: 1.2em;*/
+    /*margin-bottom: 2.2em;*/
     padding: 12px;
     background: white none;
     border-radius: 4px;
     box-sizing: border-box;
 }
 
+#ODRDatatypeList th {
+    text-align: left !important;
+}
+
 .ODRTableWrap,
-#ODRDatatypeList_wrapper {
+#ODRDatatypeList_wrapper,
+#ODRRenderPluginList_wrapper {
     box-sizing: border-box;
     padding: 8px;
     background: white none;
@@ -570,7 +589,7 @@ footer ul li:first-child {
 .NavSlideOut,
 .ODRDatatypeProperties {
     /* background: #7fb9d8 none; */
-    padding-bottom: 0px;
+    padding-bottom: 0;
     cursor: pointer;
 }
 
@@ -701,9 +720,16 @@ footer ul li:first-child {
 /*  CSS3 Wizard
     https://codepen.io/alexperjescu/pen/Awvgj
  */
+ul#wizardStatus a,
+ul#wizardStatus a:visited,
+ul#wizardStatus a:active,
+ul#wizardStatus a:hover {
+    color: #265778;
+}
+
 ul#wizardStatus{
     list-style:none;
-    margin:15px 0;
+    margin: 15px 0;
     padding:0;
     text-align:center;
 }
@@ -772,7 +798,8 @@ ul#wizardStatus li:last-child:before{
     display:none
 }
 
-ul#wizardStatus li.current{
+ul#wizardStatus li.current,
+ul#wizardStatus li.current a {
     background-color:#0597c5;
     color:#fff;
 }
@@ -801,6 +828,16 @@ ul#wizardStatus li.completed:before{
     }
 }
 
+.ODRWizardLink {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    text-align: right;
+}
+
+/*
+    End Wizard System
+ */
+
 .pure-skin-odr .ODRThemeForm fieldset {
     margin-left: 6px;
 }
@@ -813,8 +850,10 @@ ul#wizardStatus li.completed:before{
 }
 
 .ODRThemeDesignSettings div {
-    margin-top: 6px;
-    margin-left: 6px;
+    margin: 6px 6px 6px 6px;
+}
+.ODRThemeDesignSettings p {
+    padding-left: 10px;
 }
 
 .ThemeDesignArea .ODRDataField {
@@ -832,6 +871,7 @@ ul#wizardStatus li.completed:before{
 #ThemeDesignForm form {
     margin-top: 6px;
     margin-left: 6px;
+    margin-right: 6px;
 }
 
 #ThemeDesignForm form label {
@@ -839,12 +879,39 @@ ul#wizardStatus li.completed:before{
     text-align: left;
 }
 
+#ThemeDesignForm .ODRFloatingCheckbox {
+    margin-top: 6px;
+    margin-right: 8px;
+    float: left !important;
+}
+
+#ThemeDesignForm .ODRCheckboxProperty {
+    margin-top: 2px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px dotted blue;
+}
+
+#ThemeDesignForm .ODRDataInspector {
+    margin-left: 6px;
+    color: #555;
+}
+
+#ThemeDesignForm .ODRRadioOptions {
+    font-size: 80%;
+    cursor: pointer;
+}
+#ThemeDesignForm .ODRTagsEdit {
+    font-size: 80%;
+    cursor: pointer;
+}
+
 #ThemeDesignKey {
     line-height: normal;
 }
 
 #ThemeDesignWrapper {
-    min-width: 1364px;
+    min-width: 1706px;
     overflow: hidden;
 }
 
@@ -852,29 +919,41 @@ ul#wizardStatus li.completed:before{
     background: white;
     border-radius: 4px;
     width: 305px;
-    height: 700px;
-    overflow-y: scroll;
+    height: 1200px;
+    overflow-y: visible;
     float: left;
     /* z-index needed to prevent overlap for some reason */
     z-index: 99;
 }
 
 #ThemeLeftColumn > div.ODRThemeElement:first-of-type > .ODRInnerBox {
-    min-height: 700px;
-    height: 100%;
+    min-height: 1100px;
+    /* height: 100%; */
 }
 
 #ThemeDesignArea {
-    width: 1024px;
+    width: 1366px;
     margin-left: 15px;
     margin-right: 20px;
+    margin-top: 8px;
     float: left;
 }
 
+/*
 #ThemeDesignArea .ui-resizable-se {
     bottom: -4px;
     background-image: none;
     color: #888;
+}
+*/
+
+#ThemeDesignArea #ODRDatatypeDesign,
+#ThemeDesignArea #ODRDatatypeDesign h3:first-child {
+    border-radius: 4px 4px 0 0;
+}
+
+#ThemeDesignArea #ODRDatatypeDesign {
+    border: 1px solid rgba(0,0,255, 0.2);
 }
 
 #ODRThemeShowHidden {
@@ -1030,3 +1109,524 @@ h3.ODRThemeVisibleHiddenElement {
     margin-right: -8px;
 }
 /* END jGrowl Styling */
+
+
+.dataTable th {
+    text-align: left !important;
+}
+
+.dataTable i.fa {
+    padding-left: 10px;
+    cursor: pointer;
+}
+
+
+
+/***
+
+   Design improvements for displaytemplate interface.
+
+ */
+#ThemeDesignArea .ODRDataField label,
+#ThemeDesignArea .ODRDataField {
+    cursor: pointer;
+    padding-bottom: 2px;
+}
+
+
+.ODRThemeElement {
+    position: relative;
+}
+
+.ODRSortHandle {
+    cursor: move;
+    color: rgba(54, 187, 114, 1.00);
+    font-size: 24px;
+    position: absolute;
+    top: calc(50% - 20px);
+    z-index: 200;
+}
+
+.ODRDragHandle {
+    cursor: grab;
+    cursor: -webkit-grab;
+    color: rgba(54, 187, 114, 1.00);
+    font-size: 42px;
+    position: absolute;
+    top: calc(50% - 30px);
+    z-index: 200;
+}
+.ODRDragHandleWest {
+    transform: rotate(90deg);
+    margin-left: 8px;
+}
+.ODRDragHandleEast {
+    transform: rotate(270deg);
+    margin-right: 8px;
+}
+.ODRDragHandleTEWest {
+    transform: rotate(270deg);
+    margin-left: -10px;
+}
+.ODRDragHandleTEEast {
+    transform: rotate(90deg);
+    margin-right: -10px;
+}
+
+.ODRSortHandle,
+.ODRDragHandle {
+    /*
+    top: 12px;
+    // text-shadow: 0px 0px 7px rgba(255, 255, 255, 1);
+    // text-shadow: -3px 0px 12px rgba(150, 150, 150, 1);
+             */
+    text-shadow:
+         -1px -1px 0 #fff,
+         1px -1px 0 #fff,
+         -1px 1px 0 #fff,
+         1px 1px 0 #fff;
+}
+
+h3.ODRFieldSelected .ODRDragHandle {
+    top: calc(50% - 10px);
+}
+
+h3.ODRFieldSelected .ODRSortHandle {
+    top: calc(50% - 14px);
+}
+
+#ODRDatatypeDesign > .ODRDataType > .ODRThemeElement > .ODRInnerBox > h3.ODRFieldSelected .ODRDragHandle {
+    display: none !important;
+    top: calc(50% - 33px);
+}
+#ODRDatatypeDesign > .ODRDataType > .ODRThemeElement > .ODRInnerBox > h3.ODRFieldSelected .ODRSortHandle {
+    display: none;
+    top: calc(50% - 18px);
+}
+
+.ODRThemeElementHandle {
+    cursor: pointer;
+    /* cursor: grab;
+    cursor: -webkit-grab;*/
+    color: rgba(125,125,255,0.6);
+    font-size: 18px;
+    position: absolute;
+    z-index: 200;
+    top: -5px;
+    left: 0px;
+    transform: rotate(90deg);
+}
+
+.ODRFieldSelected > .ODRThemeElementHandle {
+    cursor: grab;
+    cursor: -webkit-grab;
+    color: rgba(54, 187, 114, 1.00);
+    font-size: 24px;
+    text-shadow:
+            -1px -1px 0 #fff,
+            1px -1px 0 #fff,
+            -1px 1px 0 #fff,
+            1px 1px 0 #fff;
+}
+
+.ODRFieldArea > .ODRThemeElement > .ODRThemeElementHandle {
+    top: -11px;
+    left: -3px;
+}
+
+.ODRFieldArea > .ODRFieldSelected > .ODRThemeElementHandle {
+    top: -15px;
+    left: -8px;
+}
+
+#ODRDatatypeDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRThemeElementHandle {
+    top: -11px;
+    left: -3px;
+}
+
+#ODRDatatypeDesign > .ODRDataType > .ODRFieldArea > .ODRFieldSelected > .ODRThemeElementHandle {
+    top: -15px;
+    left: -8px;
+}
+
+#ThemeDesignArea .ODRFieldSelected > a {
+    background: transparent;
+}
+#ThemeDesignArea .ODRDatatypeProperties.ODRFieldSelected {
+    -webkit-box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.80);
+    -moz-box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.80);
+    box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.80);
+    border-radius: 3px;
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}
+#ThemeDesignArea .ODRDataField.ODRFieldSelected {
+    /*
+    background: rgba(54, 187, 114, 0.40);
+    */
+    -webkit-box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.40);
+    -moz-box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.40);
+    box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.40);
+    border-radius: 3px;
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}
+.ODRFieldArea > .ODRThemeElement.ODRFieldSelected {
+    border: 4px solid rgba(54, 187, 114, 0.40);
+    border-radius: 3px;
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}
+.ODRDataType.ODRAccordionWrapper > .ODRFieldArea > .ODRThemeElement.ODRFieldSelected,
+#ODRDatatypeDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement.ODRFieldSelected {
+    -webkit-box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.40);
+    -moz-box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.40);
+    box-shadow: inset 0 0 0 6px rgba(54, 187, 114, 0.40);
+    border: none;
+    border-radius: 3px;
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}
+
+#ThemeDesignArea .ui-resizeable-e {
+    right: -10px;
+}
+#ThemeDesignArea .ui-resizeable-w {
+    cursor: no-drop;
+    left: -10px;
+}
+
+#ThemeDesignForm .ODRRadioOptionName {
+    width: 160px;
+}
+
+#ThemeDesignForm .ODRDeleteRadioOption {
+    margin-left: 12px;
+}
+
+#ThemeDesignForm .ODRFieldWrapper {
+    margin-left: 0;
+}
+
+/* Set Placeholder to Right Side webkit solution */
+/*
+::-webkit-input-placeholder { text-align:right; }
+input:-moz-placeholder { text-align:right; }
+input { font-family: 'Lato-Reg', sans-serif, 'FontAwesome' !important; }
+
+.ODRFieldWrapper input[type="text"] {
+    position: relative;
+}
+
+.ODRFieldWrapper:after {
+    float: left;
+    font-family: 'FontAwesome';
+    color:red;
+    position: relative;
+    left: -30px;
+    content: "\f007";
+}
+*/
+.ODRFieldWrapper {
+    position: relative;
+}
+.ODRSaveIndicator {
+    position: absolute;
+    right: 2px;
+    top: 1px;
+    display: none;
+    color: #1c81d0 !important;
+}
+
+.ODRSelectWrap {
+    overflow: hidden;
+    position: relative;
+    border-radius: 3px;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.ODRSelectWrap:before {
+    content: "▼";
+    padding: 1px 8px;
+    position: absolute;
+    color: #1c81d0 !important;
+    font-size: 12px;
+    left: 0;
+    top: 0;
+    z-index: 1;
+    text-align: center;
+    width: 15px;
+    height: 100%;
+    pointer-events: none;
+}
+
+.ODRSelect {
+    height: 30px !important;
+    width: 150px !important;
+    padding: 0 5px 0 30px !important;
+    outline: none;
+    font-size: 16px;
+    -webkit-appearance: none; /* for webkit browsers */
+    -moz-appearance: none; /* for firefox */
+    appearance: none; /* for modern browsers */
+}
+/* Remove IE Specific Caret */
+.ODRSelect::-ms-expand {
+    display:none;
+}
+
+.pure-skin-odr #ThemeDesignForm .pure-form label {
+    margin-bottom: 2px;
+}
+
+#ThemeDesignArea h3.ui-accordion-header,
+#ThemeDesignArea h3.ODRHeader {
+    padding-left: 8px;
+}
+
+#ThemeDesignArea h3.ODRHeader i {
+    z-index: 1;
+}
+
+#ThemeDesignArea .ODRDataField select {
+    margin-left: 6px !important;
+    width: 90%;
+}
+
+.ODRAddRadioOption {
+    margin-left: 6px !important;
+}
+
+.ODRRadioOptionListWrapper {
+    max-height: 590px;
+    overflow: auto;
+    margin-bottom: 4px;
+    position: relative;
+
+}
+
+#ODRDatatypeToolsBlock a {
+    cursor: pointer;
+}
+
+#ODRDatatypeToolsBlock i {
+    min-width: 20px;
+}
+
+#ODRDatatypeToolsBlock .faded i,
+#ODRDatatypeToolsBlock .faded {
+    opacity: 20%;
+    color: lightgrey;
+}
+
+/* .ODRChildDatatype:last-child { */
+.ODRInnerBox:last-child {
+    padding-bottom: 6px;
+}
+
+.ODRDesignHeader {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+.ODRDesignHeader > .ODRContentWrapper > .ODRThemeElement {
+    padding: 0 0 8px 8px;
+}
+
+@media only screen and (min-height: 1240px) {
+    .ODRDesignHeader > .ODRContentWrapper > .ODRThemeElement {
+        padding: 0;
+    }
+
+    .ODRDesignHeader,
+    #ThemeDesignArea {
+        width: 1366px;
+        margin-left: 315px;
+    }
+
+    #ThemeLeftColumn {
+        position: fixed;
+        top: 45px;
+    }
+
+
+    .ODRMenuWrapper {
+        position: sticky;
+        position: -webkit-sticky;
+        position: -moz-sticky;
+        position: -ms-sticky;
+        position: -o-sticky;
+        top: 0;
+        left: 0;
+        -webkit-box-shadow: 0px 4px 9px -5px rgba(148,146,148,1) !important;
+        -moz-box-shadow: 0px 4px 9px -5px rgba(148,146,148,1) !important;
+        box-shadow: 0px 4px 9px -5px rgba(148,146,148,1) !important;
+    }
+
+    #pagination_header {
+        position: sticky;
+        position: -webkit-sticky;
+        position: -moz-sticky;
+        position: -ms-sticky;
+        position: -o-sticky;
+        top: 40px;
+    }
+
+    .ODRSearchVisible {
+        position: sticky;
+        position: -webkit-sticky;
+        position: -moz-sticky;
+        position: -ms-sticky;
+        position: -o-sticky;
+        top: 40;
+    }
+
+    #jGrowl {
+        margin-top: 40px;
+    }
+}
+
+/***
+
+   End Design improvements for displaytemplate interface.
+
+ */
+
+
+/** Accordion Nesting Colors **/
+.ODRAccordionPrimary {
+    background-color: #6fa5c7 !important;
+}
+.ODRAccordionPrimary a,
+.ODRAccordionPrimary a:active,
+.ODRAccordionPrimary a:visited,
+.ODRAccordionPrimary a:hover,
+.ODRAccordionSecondary a,
+.ODRAccordionSecondary a:active,
+.ODRAccordionSecondary a:visited,
+.ODRAccordionSecondary a:hover {
+    background-color: transparent !important;
+}
+
+.ODRAccordionSecondary {
+    background-color: rgba(111,165,199, 0.6) !important;
+}
+
+.ODRAddRadioOptionList {
+    margin-left: 10px;
+}
+
+.ODRRadioOptionListImport td {
+    width: 100%;
+}
+.ODRRadioOptionListImport textarea {
+    min-width: 250px;
+    min-height: 300px;
+}
+
+#odr_tag_design_modal {
+    height: 675px;
+}
+
+.ODRTagListImport textarea {
+    height: 500px;
+}
+
+.ODRPropertiesWarning {
+    font-size: 12px;
+    color: #049cdb;
+}
+
+#ODRPropertiesPage #ODRPublicExportButtons {
+    float: right;
+    text-align: right;
+}
+
+.ODRCreatedBy {
+    position: absolute;
+    top: 36px;
+    right: 10px;
+}
+
+#ThemeDesignArea .ODRDataField .pure-img {
+    padding: 10px;
+}
+
+#ODRSearchContent {
+    margin-bottom: 20px;
+}
+.ODRPaginationLabel {
+    color: #6fa5c7;
+}
+.ODRPrimarySearchLabel {
+    color: #3b8bba !important;
+    font-weight: 600 !important;
+    font-size: 1.1em !important;
+}
+.ODRSearchButton {
+    min-width: 10em !important;
+}
+.ODRResetButton {
+    max-width: 4em !important;
+    min-width: 4em !important;
+}
+
+
+.ODRSearchScrollbox {
+    padding: 4px;
+    overflow: auto;
+    -moz-box-shadow:    inset 0 0 3px rgba(0,0,0,0.3);
+    -webkit-box-shadow: inset 0 0 3px rgba(0,0,0,0.3);
+    box-shadow:         inset 0 0 3px rgba(0,0,0,0.3);
+    max-width: 97%;
+
+    background:
+        /* Shadow covers */
+            linear-gradient(white 30%, rgba(255,255,255,0)),
+            linear-gradient(rgba(255,255,255,0), white 70%) 0 100%,
+
+                /* Shadows */
+            radial-gradient(50% 0, farthest-side, rgba(0,0,0,.2), rgba(0,0,0,0)),
+            radial-gradient(50% 100%,farthest-side, rgba(0,0,0,.2), rgba(0,0,0,0)) 0 100%;
+    background:
+        /* Shadow covers */
+            linear-gradient(white 30%, rgba(255,255,255,0)),
+            linear-gradient(rgba(255,255,255,0), white 70%) 0 100%,
+
+                /* Shadows */
+            radial-gradient(farthest-side at 50% 0, rgba(0,0,0,.2), rgba(0,0,0,0)),
+            radial-gradient(farthest-side at 50% 100%, rgba(0,0,0,.2), rgba(0,0,0,0)) 0 100%;
+    background-repeat: no-repeat;
+    background-color: white;
+    background-size: 100% 40px, 100% 40px, 100% 14px, 100% 14px;
+
+    /* Opera doesn't support this in the shorthand */
+    background-attachment: local, local, scroll, scroll;
+}
+
+#page_settings_menu {
+    background-color: white;
+    text-align: left;
+}
+
+.ODRSparklineGreen {
+    color: #04710a;
+}
+.ODRSparklineRed {
+    color: #9f1915;
+}
+.jqstooltip {
+    background: #FFFFFF;
+    border: 1px solid #000000;
+}
+.jqstooltip > div {
+    color: #000000 !important;
+}
+
+

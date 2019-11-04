@@ -7,26 +7,28 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Overrides FOSUserBundle's password reset controller so logged-in
- * users get redirected to their profile page instead of getting an
- * email to reset their password.
+ * Overrides FOSUserBundle's password reset controller so logged-in users can't request an email
+ * to reset their password.  Instead, they get redirected to their profile page.
  */
-
 
 namespace ODR\OpenRepository\UserBundle\Controller;
 
-// Symfony
+// FOS
 use FOS\UserBundle\Controller\ResettingController as BaseController;
+// Entities
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+
 
 class ResettingController extends BaseController
 {
 
     /**
-     * Override to default FoSBundle:requestAction(), where logged in users are redirected to their profile
-     * instead of performing the requested action
+     * Overrides FoSBundle:ResettingController:requestAction(), redirecting logged-in users to
+     * their profile
      */
     public function requestAction()
     {
@@ -36,7 +38,7 @@ class ResettingController extends BaseController
             $user = null;
 
         // If user is logged in, redirect to their profile page
-        if ($user !== null) {
+        if ( !is_null($user) ) {
             $site_baseurl = $this->container->getParameter('site_baseurl');
             return new RedirectResponse( $site_baseurl.'#'.$this->generateUrl('odr_self_profile_edit') );
         }
@@ -47,8 +49,8 @@ class ResettingController extends BaseController
 
 
     /**
-     * Override to default FoSBundle:sendEmailAction(), where logged in users are redirected to their profile
-     * instead of performing the requested action
+     * Overrides FoSBundle:ResettingController:sendEmailAction(), redirecting logged-in users to
+     * their profile instead of sending out an email upon a password reset request
      */
     public function sendEmailAction(Request $request)
     {
@@ -58,16 +60,16 @@ class ResettingController extends BaseController
             $user = null;
 
         // If user is logged in, redirect to their profile page
-        if ($user !== null) {
+        if ( !is_null($user) ) {
             $site_baseurl = $this->container->getParameter('site_baseurl');
             return new RedirectResponse( $site_baseurl.'#'.$this->generateUrl('odr_self_profile_edit') );
         }
 
         // ----------------------------------------
-        // Copied from FoSBundle:sendEmailAction()...
+        // Copied from FoSBundle:ResettingController:sendEmailAction()
         $username = $request->request->get('username');
 
-        /** @var $user UserInterface */
+        /** @var ODRUser $user */
         $user = $this->get('fos_user.user_manager')->findUserByUsernameOrEmail($username);
         if (null === $user) {
             return $this->render('FOSUserBundle:Resetting:request.html.twig', array(
@@ -75,7 +77,8 @@ class ResettingController extends BaseController
             ));
         }
 
-        // If this user has already requested a password, pass their email address to the relevant twig file...required if they need to request another email for some reason
+        // If this user has already requested a password, pass their email address to the relevant
+        //  twig file...required if they need to request another email for some reason
         if ($user->isPasswordRequestNonExpired($this->container->getParameter('fos_user.resetting.token_ttl'))) {
             return $this->render(
                 'FOSUserBundle:Resetting:passwordAlreadyRequested.html.twig',
@@ -93,8 +96,8 @@ class ResettingController extends BaseController
 
 
     /**
-     * Override to default FoSBundle:checkEmailAction(), where logged in users are redirected to their profile
-     * instead of performing the requested action
+     * Overrides FoSBundle:ResettingController:checkEmailAction(), redirecting logged-in users to
+     * their profile instead of telling them to check their email after a password reset request
      */
     public function checkEmailAction(Request $request)
     {
@@ -104,7 +107,7 @@ class ResettingController extends BaseController
             $user = null;
 
         // If user is logged in, redirect to their profile page
-        if ($user !== null) {
+        if ( !is_null($user) ) {
             $site_baseurl = $this->container->getParameter('site_baseurl');
             return new RedirectResponse( $site_baseurl.'#'.$this->generateUrl('odr_self_profile_edit') );
         }
@@ -115,8 +118,8 @@ class ResettingController extends BaseController
 
 
     /**
-     * Override to default FoSBundle:resetAction(), where logged in users are redirected to their profile
-     * instead of performing the requested action
+     * Overrides FoSBundle:ResettingController:resetAction(), redirecting logged-in users to their
+     * profile instead of resetting their password after a reset request
      */
     public function resetAction(Request $request, $token)
     {
@@ -126,7 +129,7 @@ class ResettingController extends BaseController
             $user = null;
 
         // If user is logged in, redirect to their profile page
-        if ($user !== null) {
+        if ( !is_null($user) ) {
             $site_baseurl = $this->container->getParameter('site_baseurl');
             return new RedirectResponse( $site_baseurl.'#'.$this->generateUrl('odr_self_profile_edit') );
         }
@@ -137,7 +140,8 @@ class ResettingController extends BaseController
 
 
     /**
-     * Enables the user to request another password reset email be sent to their email address
+     * Allows the user to request another password reset email be sent to their email address.
+     * TODO - time limitation on how often this can get called?  Or change config to allow more than once every 2 hours?
      */
     public function resendAction(Request $request)
     {
@@ -147,7 +151,7 @@ class ResettingController extends BaseController
             $user = null;
 
         // If user is logged in, redirect to their profile page
-        if ($user !== null) {
+        if ( !is_null($user)  ) {
             $site_baseurl = $this->container->getParameter('site_baseurl');
             return new RedirectResponse( $site_baseurl.'#'.$this->generateUrl('odr_self_profile_edit') );
         }
@@ -155,9 +159,10 @@ class ResettingController extends BaseController
         // Need to determine which user wants another password reset email
         $username = $request->request->get('username');
         $user_manager = $this->get('fos_user.user_manager');
-        $user = $user_manager->findUserByUsernameOrEmail($username);
 
-        if (null === $user) {
+        /** @var ODRUser $user */
+        $user = $user_manager->findUserByUsernameOrEmail($username);
+        if ( is_null($user) ) {
             return $this->render('FOSUserBundle:Resetting:request.html.twig', array(
                 'invalid_username' => $username
             ));
@@ -171,4 +176,3 @@ class ResettingController extends BaseController
         return parent::sendEmailAction($request);
     }
 }
-

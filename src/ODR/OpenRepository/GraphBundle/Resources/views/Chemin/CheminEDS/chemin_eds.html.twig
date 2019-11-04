@@ -1,0 +1,79 @@
+{% spaceless %}
+
+<style>
+    .CheminEDSTable thead {
+        color: white;
+        font-weight: bold;
+    }
+    .CheminEDSTable tbody tr,
+    .CheminEDSTable tbody .ODRFileDatafield,
+    .CheminEDSTable tbody .ODRFileDatafield_file,
+    .CheminEDSTable tbody td {
+        background: rgba(222, 235, 246, 1.0);
+    }
+    .CheminEDSTable thead tr,
+    .CheminEDSTable thead .ODRFileDatafield,
+    .CheminEDSTable thead .ODRFileDatafield_file,
+    .CheminEDSTable thead td {
+        background: rgba(158, 195, 228, 1.0);
+    }
+    tr.CheminEDSSum .ODRFileDatafield,
+    tr.CheminEDSSum .ODRFileDatafield_file,
+    tr.CheminEDSSum td {
+        background: rgba(190, 215, 237, 1.0);
+    }
+    .CheminEDSTable i {
+        color: rgba(190,215,237,1.0);
+    }
+    tr.CheminEDSSum td i {
+        color: rgba(158, 195, 228, 1.0);
+    }
+</style>
+
+<div class="ODRThemeElement" style="margin-bottom: 0px;">
+    <div class="ODRInnerBox">
+        <table id="{{ chemin_eds_table }}" class="dataTable CheminEDSTable">
+            <thead>
+            <tr>
+                <td>EDS Products{#&nbsp;&nbsp;<i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>#}</td>
+                <td>Images</td>
+                <td colspan="2">DAT & Label Files</td>
+            </tr>
+            </thead>
+
+            <tbody>
+{% if file_data|length > 0 %}
+    {% for key, files in file_data %}
+
+        {% set is_sum_block = false %}
+        {% if key matches '{SUM}' %}
+            {% set is_sum_block = true %}
+        {% endif %}
+
+        <tr {% if is_sum_block %}class="CheminEDSSum"{% endif %}>
+            <td>
+                {{ key }}
+            </td>
+            <td>
+                {% if files['eds_raw_tiff_file'] is defined %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['eds_raw_tiff_file'], 'display_name': 'raw'} %}
+                {% endif %}
+            </td>
+            <td>
+                {% if files['eds_dat_file'] is defined %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['eds_dat_file'], 'display_name': 'DAT'} %}
+                {% endif %}
+            </td>
+            <td>
+                {% if files['eds_lbl_file'] is defined %}
+                    {% include 'ODROpenRepositoryGraphBundle:Chemin:chemin_file.html.twig' with {'file': files['eds_lbl_file'], 'display_name': 'LBL'} %}
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+{% endif %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endspaceless %}

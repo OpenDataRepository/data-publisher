@@ -1,0 +1,118 @@
+{% spaceless %}
+
+<script>
+    function getJobProgress(job_type, tracked_job_id) {
+        // Setup...
+        var url = "{{ path('odr_job_refresh',{'job_type': ''}) }}" + job_type + "/" + tracked_job_id;
+
+        $.ajax({
+            type: 'GET',
+            url: url,
+            dataType: 'json',
+            success: function(data) {
+                if ( data.r == 0 ) {
+
+                    job_data = data.d[0].progress;
+                    var html = '<div class="ODRProgressBar" max_value="' + job_data.total + '" current_value="' + job_data.current + '"><div class="ODRProgressBarLabel"></div></div>';
+
+
+                    // Job Complete
+                    if (job_data.total == job_data.current) {
+
+                        if(job_type == 'csv_export') {
+                            var url = "{{ path('odr_csv_download', {'user_id': 0, 'tracked_job_id': 0}) }}";
+                            url = url.substr(0, url.length-1);
+                            url += tracked_job_id;
+
+                            html += '<div class="JobDownloadLink"><a onclick="backToSearch()" class="pure-button pure-button-primary" target="_blank" href="' + url + '">Download</a></div>';
+                        }
+                        else if(job_type == 'mass_edit') {
+                            html += '<div class="JobDownloadLink"><button onclick="backToSearch()" class="pure-button pure-button-primary">Return to Search Results</button></div>';
+                        }
+                        else if(job_type == 'csv_import_validate') {
+
+                            var url = "{{ path('odr_csv_import_validate_results', {'tracked_job_id': 0}) }}";
+                            url = url.substr(0, url.length-1);
+                            url += tracked_job_id;
+
+                            // html += '<div class="JobDownloadLink"><a class="pure-button pure-button-primary" href="#' + url + '">Continue</a></div>';
+                            setTimeout(function() {
+                                UpdateURL(url)
+                            }, 1000);
+
+                        }
+                        else if(job_type == 'csv_import') {
+                            var url = location.protocol + '//' + location.host + location.pathname
+                            html += '<div class="JobDownloadLink"><a href="' + url + '" class="pure-button pure-button-primary">Open Search</a></div>';
+                        }
+
+                        $('.loading-container').fadeOut('fast');
+                        $('.JobComplete').fadeIn('fast')
+                        $('.CSVExportMessage').fadeOut('fast');
+                    }
+                    else {
+                        setTimeout(function () {
+                            getJobProgress(job_type, tracked_job_id)
+                        }, 300);
+                    }
+
+                    $('.JobTracker').html(html);
+
+                    if (typeof doProgressBars == 'function')
+                        doProgressBars();
+
+                }
+                else {
+                    // TODO Alerts need to use the overlay
+                    alert( data.d );
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function backToSearch() {
+        $('.JobDownloadLink').fadeOut('fast');
+        setTimeout(returnToSearchResults, 400);
+    }
+
+    function doProgressBars() {
+        $(".ODRProgressBar").each(function() {
+            var current_value = parseInt( $(this).attr('current_value') );
+            var max_value = $(this).attr('max_value');
+
+            var progress_label = $(this).children(".ODRProgressBarLabel").first();
+
+            if ( $(this).progressbar('instance') !== undefined )
+                $(this).progressbar('destroy');
+
+            $(this).progressbar({
+                value: current_value,
+                max: max_value,
+                create: function() {
+                    progress_label.text( current_value + '/' + max_value );
+                    $(this).find('.ui-widget-header').css({'background-color':'#f6ffa8'})
+
+                },
+                change: function() {
+                    progress_label.text( current_value + '/' + max_value );
+                    $(this).find('.ui-widget-header').css({'background-color':'#f6ffa8'})
+                }
+            });
+        });
+    }
+</script>
+
+{% endspaceless %}

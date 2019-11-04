@@ -4,125 +4,84 @@
 
     <!-- Field History Dialog Form -->
     <form action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}" class="pure-u-1" id="DatafieldHistoryForm" method="POST">
-
         <input type="hidden" id="{{ current_typeclass }}Form__token" name="{{ current_typeclass }}Form[_token]" value="{{ csrf_token }}" />
         <input type="hidden" value="" required="required" name="{{ current_typeclass }}Form[value]" id="{{ current_typeclass }}Form_revert" />
-
-        <fieldset>
-            <div class="pure-control-group" id="field_history_table_container" style="overflow: auto; max-height: 500px;">
-                <table class="pure-table pure-table-bordered pure-table-striped">
-                    <thead><tr>
-                        <th>Version</th>
-                        <th>Fieldtype</th>
-                        <th>Updated At</th>
-                        <th>Updated By</th>
-                        <th>Value</th>
-                        <th></th>
-                    </tr></thead>
-                    <tbody>
-                    {% set latest_version = 0 %}
-                    {% for historical_value in historical_values %}
-                        {% if historical_value.version > latest_version %}
-                            {% set latest_version = historical_value.version %}
-                        {% endif %}
-                    {% endfor %}
-
-                    {% for historical_value in historical_values|reverse %}
-                        <tr class="row">
-                            <td class="center">{{ historical_value.version }}</td>
-                            <td class="center">{{ historical_value.typename }}</td>
-                            <td class="center">{{ historical_value.created|date("Y-m-d H:i:s") }}</td>
-                            <td class="center">{{ historical_value.user }}</td>
-                        {% if historical_value.typeclass == "DatetimeValue" %}
-                            <td id="version_{{ historical_value.version }}" class="center">{% if historical_value.value|date('Y-m-d') != '9999-12-31' %}{{ historical_value.value|date('Y-m-d') }}{% endif %}</td>
-                        {% else %}
-                            <td id="version_{{ historical_value.version }}" class="center">{{ historical_value.value }}</td>
-                        {% endif %}
-                            <td id="version_{{ historical_value.version }}_button" rel="{{ historical_value.typeclass }}" class="center"><button class="pure-button pure-button-primary" type="button" onclick="revertTo('version_{{ historical_value.version }}','{{ historical_value.typeclass }}');">Revert</button></td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </fieldset>
-
     </form>
 
-    <button type="button" class="pure-button ODRCancelButton">Cancel</button>
+    <div class="pure-control-group" id="ODRFieldHistoryDialogTable">
+        <table class="display dataTable no-footer">
+            <thead><tr>
+                <th>Version</th>
+                <th>Fieldtype</th>
+                <th>Updated At</th>
+                <th>Change Made By</th>
+                <th>Value</th>
+                <th></th>
+            </tr></thead>
+            <tbody>
+            {% set latest_version = 0 %}
+            {% for historical_value in historical_values %}
+                {% if historical_value.version > latest_version %}
+                    {% set latest_version = historical_value.version %}
+                {% endif %}
+            {% endfor %}
+
+            {% for historical_value in historical_values|reverse %}
+                <tr class="row">
+                    <td>{{ historical_value.version }}{% if historical_value.version == latest_version %} (current){% endif %}</td>
+                    <td>{{ historical_value.typename }}</td>
+                    <td>{{ historical_value.created|date("Y-m-d H:i:s") }}</td>
+                    <td>{{ historical_value.user }}</td>
+                    {% if historical_value.typeclass == "DatetimeValue" %}
+                        <td id="version_{{ historical_value.version }}">{% if historical_value.value|date('Y-m-d') != '9999-12-31' %}{{ historical_value.value|date('Y-m-d') }}{% endif %}</td>
+                    {% else %}
+                        <td id="version_{{ historical_value.version }}">{{ historical_value.value }}</td>
+                    {% endif %}
+                    <td id="version_{{ historical_value.version }}_button" rel="{{ historical_value.typeclass }}">
+                        <input type="button" class="pure-button pure-button-primary ODRFieldHistoryRevertButton" value="Revert">
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
     <script>
         $(function() {
-            $("#dialog_field_history").dialog({
-                autoOpen: false,
-                modal: true,
-                width: 800,
-                open: function() {
-                    $(this).parent().css('overflow', 'visible');
-                    /* $$.utils.forms.resize()*/
-                    $("#field_history_table_container").scrollTop(0);
+            $(".row").each(function(index, value) {
+                //
+                if ( ((index+1) % 2) === 0 )
+                    $(this).addClass('even');
+                else
+                    $(this).addClass('odd');
+
+                //
+                var parent = $(this).find(".pure-button").parent();
+                var target_typeclass = $(parent).attr('rel');
+                var current_typeclass = '{{ current_typeclass }}';
+
+                // Prevent these following reversions...they don't make sense
+                if ( current_typeclass === 'DatetimeValue' && target_typeclass !== 'DatetimeValue'
+                    || current_typeclass !== 'DatetimeValue' && target_typeclass === 'DatetimeValue'
+                    || current_typeclass === 'Boolean' && target_typeclass !== 'Boolean'
+                    || current_typeclass !== 'Boolean' && target_typeclass === 'Boolean'
+                ) {
+                    $(parent).children().first().prop('value', 'Unable to revert').prop('disabled', true);
                 }
             });
-            $("#dialog_field_history").find('.ODRCancelButton').unbind('click').click(function() {
-                var $el = $(this).parents('.ui-dialog-content');
-                $el.find('form')[0].reset();
-                $el.dialog('close');
-            });
-
-            // Init Form
-            DatafieldHistoryFormInit();
-        });
-
-/*
-        $(function() {
-            if(typeof(DatafieldHistoryFormInit) !== "undefined") {
-                DatafieldHistoryFormInit();
-            }
-        });
-*/
-        $(function() {
-{% if current_typeclass == 'DatetimeValue' %}
-            // The field is currently a datetime value...don't permit reversions to non-datetime values
-            $(".row").each(function() {
-                var parent = $(this).find(".pure-button").parent();
-                var target_typeclass = $(parent).attr('rel');
-
-                if ( target_typeclass !== 'DatetimeValue' )
-                    $(parent).children('button').first().attr('title', 'Unable to revert back to this value').attr('disabled', 'disabled');
-            });
-{% else %}
-            // The field is currently not a datetime value...don't permit reversions to datetime values
-            $(".row").each(function() {
-                var parent = $(this).find(".pure-button").parent();
-                var target_typeclass = $(parent).attr('rel');
-
-                if ( target_typeclass == 'DatetimeValue' )
-                    $(parent).children('button').first().attr('title', 'Unable to revert back to this value').attr('disabled', 'disabled');
-            });
-{% endif %}
-
-{% if current_typeclass == 'Boolean' %}
-            // The field is currently a boolean value...don't permit reversions to non-boolean values
-            $(".row").each(function() {
-                var parent = $(this).find(".pure-button").parent();
-                var target_typeclass = $(parent).attr('rel');
-
-                if ( target_typeclass !== 'Boolean' )
-                    $(parent).children('button').first().attr('title', 'Unable to revert back to this value').attr('disabled', 'disabled');
-            });
-{% else %}
-            // The field is currently not a boolean value...don't permit reversions to boolean values
-            $(".row").each(function() {
-                var parent = $(this).find(".pure-button").parent();
-                var target_typeclass = $(parent).attr('rel');
-
-                if ( target_typeclass == 'Boolean' )
-                    $(parent).children('button').first().attr('title', 'Unable to revert back to this value').attr('disabled', 'disabled');
-            });
-{% endif %}
 
             // Doesn't make sense to revert to the current version...remove that option
-            var element = "version_{{ latest_version }}_button";
-            $("#" + element).remove();
+            $("#version_{{ latest_version }}_button").remove();
+
+            // Attach click events to the remaining buttons to revert back to older values
+            $(".ODRFieldHistoryRevertButton").unbind('click').click(function() {
+                var data = $(this).parent().attr('id').split(/_/);
+
+                var version = 'version_' + data[1];
+                var typeclass = $(this).parent().attr('rel');
+
+                revertTo(version, typeclass);
+            });
         });
 
         function revertTo(id, target_typeclass) {
@@ -160,16 +119,16 @@
 
             // Warn the user about potential issues when reverting to values from different fieldtypes
             var confirm_str = '';
-            if ( no_warn[target_typeclass] != undefined && $.inArray(current_typeclass, no_warn[target_typeclass]) == 0 ) {
+            if ( no_warn[target_typeclass] !== undefined && $.inArray(current_typeclass, no_warn[target_typeclass]) === 0 ) {
                 confirm_str = '';
             }
-            else if ( length_warn[target_typeclass] != undefined && $.inArray(current_typeclass, length_warn[target_typeclass]) == 0 ) {
+            else if ( length_warn[target_typeclass] !== undefined && $.inArray(current_typeclass, length_warn[target_typeclass]) === 0 ) {
                 confirm_str = 'WARNING: The value may be truncated...';
             }
-            else if ( number_warn[target_typeclass] != undefined && $.inArray(current_typeclass, number_warn[target_typeclass]) == 0 ) {
+            else if ( number_warn[target_typeclass] !== undefined && $.inArray(current_typeclass, number_warn[target_typeclass]) === 0 ) {
                 confirm_str = 'WARNING: The value will be converted to a number, which may result in nonsensical values...';
             }
-            else if ( precision_warn[target_typeclass] != undefined && $.inArray(current_typeclass, precision_warn[target_typeclass])  == 0 ) {
+            else if ( precision_warn[target_typeclass] !== undefined && $.inArray(current_typeclass, precision_warn[target_typeclass]) === 0 ) {
                 confirm_str = 'WARNING: Any fractional part of the decimal will be dropped...';
             }
             confirm_str += 'Are you certain you want to revert back to this value?';
@@ -179,42 +138,58 @@
                 var previous_value = $("#" + id).html();
 
                 // Transfer the desired previous_value into the datafield history form
-                if ("{{ current_typeclass }}" == "Boolean") {
-                    $("#{{ current_typeclass }}Form_revert").val(1);
+{% if current_typeclass == "Boolean" %}
+                $("#{{ current_typeclass }}Form_revert").val(1);
 
-                    if (previous_value == '')
-                        $("#{{ current_typeclass }}Form_revert").attr('disabled', 'disabled');  // force non-submission of value
-                    else
-                        $("#{{ current_typeclass }}Form_revert").removeAttr('disabled');
-                }
-                else {
-                    $("#{{ current_typeclass }}Form_revert").val(previous_value);
-                }
+                if (previous_value === '')
+                    $("#{{ current_typeclass }}Form_revert").prop('disabled', true);  // force non-submission of value
+                else
+                    $("#{{ current_typeclass }}Form_revert").removeAttr('disabled');
+{% else %}
+                $("#{{ current_typeclass }}Form_revert").val(previous_value);
+{% endif %}
 
-                var $el = $('#dialog_field_history');
-                if ( $el.validate().form() ) {
-                    $("#DatafieldHistoryForm").submit();
+                // Locate the datarecord/datafield ids again
+                var unique_id = '{{ unique_id }}'.split(/_/);
+                var datarecord_id = unique_id[0];
+                var datafield_id = unique_id[1];
 
-                    // If no errors, copy the desired previous_value onto the page itself
-                    if ("{{ current_typeclass }}" == "DatetimeValue") {
-                        $("#EditForm_{{ unique_id }}").find('.ODRDatePicker').datepicker("setDate", previous_value);
-                    }
-                    else if ("{{ current_typeclass }}" == "Boolean") {
-                        if (previous_value == '')
-                            $("#EditForm_{{ unique_id }}").find('input[type="checkbox"]').first().prop('checked', false);
-                        else
-                            $("#EditForm_{{ unique_id }}").find('input[type="checkbox"]').first().prop('checked', true);
-                    }
-                    else if ("{{ current_typeclass }}" == "LongText") {
-                        $("#EditForm_{{ unique_id }}").find('textarea').first().html(previous_value);
-                    }
-                    else {
-                        // All other typeclasses
-                        $("#EditForm_{{ unique_id }}").find('input[type="text"]').first().val(previous_value);
-                    }
+                // Determine save type
+                var post_data = $("#DatafieldHistoryForm").serialize();
+                var url = $("#DatafieldHistoryForm").attr('action');
 
-                    $el.find('form')[0].reset();
-                }
+                console.log('Save Form: #DatafieldHistoryForm, datarecord_id: ' + datarecord_id + ', datafield_id: ' + datafield_id);
+
+                $.ajax({
+                    type: 'POST',
+                    url: url,
+                    dataType: "json",
+                    data: post_data,
+                    success: function(data, textStatus, xhr) {
+                        closeODRRemodal();
+
+                        // Easier to just reload the datafield after the value got reverted
+                        ReloadDatafield(datarecord_id, datafield_id);
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Do nothing on error?
+                        closeODRRemodal();
+                    },
+                    complete: function(jqXHR, textStatus) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+                        $(form_id).find('.ODRSaveIndicator').fadeOut('350');
+                    }
+                });
             }
         }
     </script>

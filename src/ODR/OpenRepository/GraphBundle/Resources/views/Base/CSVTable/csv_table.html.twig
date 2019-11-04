@@ -1,0 +1,30 @@
+{% spaceless %}
+
+{% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
+    'datarecord': datarecord,
+    'datafield': datafield,
+    'image_thumbnails_only': false,
+    'bypass_render_plugin': true,
+} %}
+
+{% if data_array|length > 0 %}
+    <div class="pure-u-1">
+        <div id="hot_{{ datarecord.id }}_{{ datafield.id }}" class="pure-u-1"></div>
+        <script>
+            // Handsontable display
+            var data_{{ datarecord.id }}_{{ datafield.id }} = {% spaceless %}{{ data_array|raw }}{% endspaceless %}
+
+            var hot_container_{{ datarecord.id }}_{{ datafield.id }} = document.getElementById('hot_{{ datarecord.id }}_{{ datafield.id }}');
+            var hot_{{ datarecord.id }}_{{ datafield.id }} = new Handsontable(hot_container_{{ datarecord.id }}_{{ datafield.id }}, {
+                data: data_{{ datarecord.id }}_{{ datafield.id }},
+                rowHeaders: true,
+                colHeaders: true,
+                readOnly: true,
+                height: 300,
+                licenseKey: 'non-commercial-and-evaluation'
+            });
+        </script>
+    </div>
+{% endif %}
+
+{% endspaceless %}

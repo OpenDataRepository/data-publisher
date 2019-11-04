@@ -1,0 +1,21 @@
+{% spaceless %}
+
+{% set tag_selections = [] %}
+{% if drf.tagSelection is defined %}
+    {% set tag_selections = drf.tagSelection %}
+{% endif %}
+
+<div class="ODRTagWrapper_edit">
+    <ul class="ODRTagGroup">
+        {% for tag_id, tag in stacked_tags %}
+            {% include 'ODRAdminBundle:Edit:tag.html.twig' with {
+                'unique_id': unique_id,
+
+                'tag_selections': tag_selections,
+                'tag': tag,
+            } %}
+        {% endfor %}
+    </ul>
+</div>
+
+{% endspaceless %}

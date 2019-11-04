@@ -2,7 +2,7 @@
 
 /**
  * Open Data Repository Data Publisher
- * Datarecord Info Service
+ * Datatype Info Service
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
@@ -14,7 +14,6 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
@@ -42,6 +41,21 @@ class DatatypeInfoService
     private $cache_service;
 
     /**
+     * @var DatatreeInfoService
+     */
+    private $dti_service;
+
+    /**
+     * @var TagHelperService
+     */
+    private $th_service;
+
+    /**
+     * @var string
+     */
+    private $odr_web_dir;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -52,16 +66,53 @@ class DatatypeInfoService
      *
      * @param EntityManager $entity_manager
      * @param CacheService $cache_service
+     * @param DatatreeInfoService $datatree_info_service
+     * @param TagHelperService $tag_helper_service
+     * @param string $odr_web_dir
      * @param Logger $logger
      */
     public function __construct(
         EntityManager $entity_manager,
         CacheService $cache_service,
+        DatatreeInfoService $datatree_info_service,
+        TagHelperService $tag_helper_service,
+        $odr_web_dir,
         Logger $logger
     ) {
         $this->em = $entity_manager;
         $this->cache_service = $cache_service;
+        $this->dti_service = $datatree_info_service;
+        $this->th_service = $tag_helper_service;
+        $this->odr_web_dir = $odr_web_dir;
         $this->logger = $logger;
+    }
+
+
+    /**
+     * Utility function to convert a unique id into a datatype entry...most useful for other
+     * services...
+     *
+     * @throws ODRException
+     *
+     * @param string $unique_id
+     *
+     * @return DataType
+     */
+    public function getDatatypeFromUniqueId($unique_id)
+    {
+        // Ensure it's a valid unique identifier first...
+        $pattern = '/^[a-z0-9]+$/';
+        if ( preg_match($pattern, $unique_id) !== 1 )
+            throw new ODRBadRequestException('Invalid unique_id: "'.$unique_id.'"', 0xaf067bda);
+
+        /** @var DataType $dt */
+        $dt = $this->em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            array('unique_id' => $unique_id)
+        );
+        if ( is_null($dt) )
+            throw new ODRNotFoundException('Datatype', false, 0xaf067bda);
+
+        return $dt;
     }
 
 
@@ -81,6 +132,8 @@ class DatatypeInfoService
 
         // ----------------------------------------
         // Otherwise, rebuild the list of top-level datatypes
+        // TODO - enforce dt.is_master_type = 0  here?
+        // TODO - cut out metadata datatypes from this?
         $query = $this->em->createQuery(
            'SELECT dt.id AS datatype_id
             FROM ODRAdminBundle:DataType AS dt
@@ -90,6 +143,7 @@ class DatatypeInfoService
         )->setParameters( array('setup_steps' => DataType::STATE_VIEWABLE) );
         $results = $query->getArrayResult();
 
+        // AND dt.metadataFor IS NULL
         $top_level_datatypes = array();
         foreach ($results as $result)
             $top_level_datatypes[] = $result['datatype_id'];
@@ -102,17 +156,24 @@ class DatatypeInfoService
     }
 
 
+    // TODO - create something to return top-level templates?
+
+
     /**
-     * Returns the id of the grandparent of the given datatype.
-     * @deprecated
+     * @deprecated replace with DatatreeInfoService::getGrandparentDatatypeId()
      *
-     * @param integer $initial_datatype_id
+     * Traverses the cached version of the datatree array in order to return the grandparent id
+     * of the given datatype id.
      *
-     * @return integer
+     * @param int $initial_datatype_id
+     * @param array|null $datatree_array
+     *
+     * @return int
      */
-    public function getGrandparentDatatypeId($initial_datatype_id)
+    public function getGrandparentDatatypeId($initial_datatype_id, $datatree_array = null)
     {
-        $datatree_array = self::getDatatreeArray();
+        if ( is_null($datatree_array) )
+            $datatree_array = self::getDatatreeArray();
 
         $grandparent_datatype_id = $initial_datatype_id;
         while (
@@ -128,6 +189,8 @@ class DatatypeInfoService
 
 
     /**
+     * @deprecated replace with DatatreeInfoService::getDatatreeArray()
+     *
      * Utility function to returns the DataTree table in array format
      *
      * @return array
@@ -240,6 +303,8 @@ class DatatypeInfoService
 
 
     /**
+     * @deprecated replace with DatatreeInfoService::getAssociatedDatatypes()
+     *
      * This function locates all datatypes whose grandparent id is in $grandparent_datatype_ids,
      * then calls self::getLinkedDatatypes() to locate all datatypes linked to by these datatypes,
      * which calls this function again to locate any datatypes that are linked to by those
@@ -282,6 +347,8 @@ class DatatypeInfoService
 
 
     /**
+     * @deprecated replace with DatatreeInfoService::getLinkedDescendants()
+     *
      * Builds and returns a list of all datatypes linked to from the provided datatype ids.
      *
      * @param int[] $ancestor_ids
@@ -332,23 +399,83 @@ class DatatypeInfoService
      */
     private function buildDatatypeData($grandparent_datatype_id)
     {
-/*
-        $timing = true;
-        $timing = false;
-
-        $t0 = $t1 = $t2 = null;
-        if ($timing)
-            $t0 = microtime(true);
-*/
         // This function is only called when the cache entry doesn't exist
 
         // Going to need the datatree array to rebuild this
         $datatree_array = self::getDatatreeArray();
 
+        // Going to need any tag hierarchy data for this datatype
+        $tag_hierarchy = $this->th_service->getTagHierarchy($grandparent_datatype_id);
+
+
+        // ----------------------------------------
+        // Assume there's two datafields, a "master" df and another df "derived" from the master,
+        //  then delete the "master" datafield.  After that, reload the derived datafield $df...
+
+        // Full hydration will result in  is_null($df->getMasterDatafield()) === false, because
+        //  doctrine returns some sort of proxy object for the deleted master datafield
+        // However, array hydration in the same situation will say  $df['masterDataField'] === null,
+        //  which has a different meaning...so this subquery is required to make array hydration
+        //  have the same behavior as full hydration
+
+        // This is primarily needed so template synchronization can be guaranteed to match a derived
+        //  datafield with its master datafield...same deal with master datatypes
+        $query = $this->em->createQuery(
+           'SELECT
+                partial dt.{id}, partial mdt.{id, unique_id}, partial df.{id}, partial mdf.{id}
+
+                FROM ODRAdminBundle:DataType AS dt
+                LEFT JOIN dt.masterDataType AS mdt
+                LEFT JOIN dt.dataFields AS df
+                LEFT JOIN df.masterDataField AS mdf
+
+                WHERE dt.grandparent = :grandparent_datatype_id'
+        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        // AND dt.deletedAt IS NULL AND df.deletedAt IS NULL'
+
+        // Need to disable the softdeleteable filter so doctrine pulls the id for deleted master
+        //  datafield entries
+        $this->em->getFilters()->disable('softdeleteable');
+        $master_data = $query->getArrayResult();
+        $this->em->getFilters()->enable('softdeleteable');
+
+        $derived_dt_data = array();
+        $derived_df_data = array();
+        foreach ($master_data as $dt_num => $dt) {
+            // Store the potentially deleted master datatype
+            $dt_id = $dt['id'];
+            $mdt_data = null;
+            if ( isset($dt['masterDataType']) && !is_null($dt['masterDataType']) ) {
+                $mdt_data = array(
+                    'id' => $dt['masterDataType']['id'],
+                    'unique_id' => $dt['masterDataType']['unique_id']
+                );
+            }
+            $derived_dt_data[$dt_id] = $mdt_data;
+
+            // Store the potentially deleted master datafield
+            foreach ($dt['dataFields'] as $df_num => $df) {
+                $df_id = $df['id'];
+                $mdf_data = null;
+                if ( isset($df['masterDataField']) && !is_null($df['masterDataField']) ) {
+                    $mdf_data = array(
+                        'id' => $df['masterDataField']['id']
+                    );
+                }
+
+                $derived_df_data[$df_id] = $mdf_data;
+            }
+        }
+
+
+        // ----------------------------------------
         // Get all non-layout data for the requested datatype
         $query = $this->em->createQuery(
            'SELECT
                 dt, dtm,
+                partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id}, partial dt_bif.{id},
+                partial md.{id, unique_id},
+                partial mf.{id, unique_id},
                 partial dt_cb.{id, username, email, firstName, lastName},
                 partial dt_ub.{id, username, email, firstName, lastName},
 
@@ -357,13 +484,20 @@ class DatatypeInfoService
                 df, dfm, ft,
                 partial df_cb.{id, username, email, firstName, lastName},
 
-                ro, rom,
+                ro, rom, t, tm,
                 df_rp, df_rpi, df_rpo, df_rpm
 
             FROM ODRAdminBundle:DataType AS dt
-            LEFT JOIN dt.dataTypeMeta AS dtm
             LEFT JOIN dt.createdBy AS dt_cb
             LEFT JOIN dt.updatedBy AS dt_ub
+            LEFT JOIN dt.metadata_datatype AS md
+            LEFT JOIN dt.metadata_for AS mf
+
+            LEFT JOIN dt.dataTypeMeta AS dtm
+            LEFT JOIN dtm.externalIdField AS dt_eif
+            LEFT JOIN dtm.nameField AS dt_nf
+            LEFT JOIN dtm.sortField AS dt_sf
+            LEFT JOIN dtm.backgroundImageField AS dt_bif
 
             LEFT JOIN dtm.renderPlugin AS dt_rp
             LEFT JOIN dt_rp.renderPluginInstance AS dt_rpi WITH (dt_rpi.dataType = dt)
@@ -373,13 +507,15 @@ class DatatypeInfoService
             LEFT JOIN dt_rpm.dataField AS dt_rpm_df
 
             LEFT JOIN dt.dataFields AS df
-
             LEFT JOIN df.dataFieldMeta AS dfm
             LEFT JOIN df.createdBy AS df_cb
             LEFT JOIN dfm.fieldType AS ft
 
             LEFT JOIN df.radioOptions AS ro
             LEFT JOIN ro.radioOptionMeta AS rom
+
+            LEFT JOIN df.tags AS t
+            LEFT JOIN t.tagMeta AS tm
 
             LEFT JOIN dfm.renderPlugin AS df_rp
             LEFT JOIN df_rp.renderPluginInstance AS df_rpi WITH (df_rpi.dataField = df)
@@ -390,17 +526,16 @@ class DatatypeInfoService
                 dt.grandparent = :grandparent_datatype_id
                 AND dt.deletedAt IS NULL
             ORDER BY dt.id, df.id, rom.displayOrder, ro.id'
-        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        )->setParameters(
+            array(
+                'grandparent_datatype_id' => $grandparent_datatype_id
+            )
+        );
 
         $datatype_data = $query->getArrayResult();
 
-/*
-        if ($timing) {
-            $t1 = microtime(true);
-            $diff = $t1 - $t0;
-            print 'buildDatatypeData('.$datatype_id.')'."\n".'query execution in: '.$diff."\n";
-        }
-*/
+        // TODO - if $datatype_data is empty, then $grandparent_datatype_id was deleted...should this return something special in that case?
+
         // The entity -> entity_metadata relationships have to be one -> many from a database
         // perspective, even though there's only supposed to be a single non-deleted entity_metadata
         // object for each entity.  Therefore, the preceding query generates an array that needs
@@ -409,8 +544,15 @@ class DatatypeInfoService
             $dt_id = $dt['id'];
 
             // Flatten datatype meta
+            if ( count($dt['dataTypeMeta']) == 0 ) {
+                // ...throwing an exception here because this shouldn't ever happen, and also requires
+                //  manual intervention to fix...
+                throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for datatype '.$dt_id);
+            }
+
             $dtm = $dt['dataTypeMeta'][0];
             $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
+            $datatype_data[$dt_num]['masterDataType'] = $derived_dt_data[$dt_id];
 
             // Scrub irrelevant data from the datatype's createdBy and updatedBy properties
             $datatype_data[$dt_num]['createdBy'] = UserUtility::cleanUserData( $dt['createdBy'] );
@@ -422,22 +564,68 @@ class DatatypeInfoService
             $new_datafield_array = array();
             foreach ($dt['dataFields'] as $df_num => $df) {
                 $df_id = $df['id'];
+                $typeclass = $df['dataFieldMeta'][0]['fieldType']['typeClass'];
 
-                // Flatten datafield_meta of each datafield
+                // Flatten datafield_meta and masterDatafield of each datafield
+                if ( count($df['dataFieldMeta']) == 0 ) {
+                    // ...throwing an exception here because this shouldn't ever happen, and also
+                    //  requires manual intervention to fix...
+                    throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for datafield '.$df_id);
+                }
+
                 $dfm = $df['dataFieldMeta'][0];
                 $df['dataFieldMeta'] = $dfm;
 
                 // Scrub irrelevant data from the datafield's createdBy property
                 $df['createdBy'] = UserUtility::cleanUserData( $df['createdBy'] );
 
+                // Attach the id of this datafield's masterDatafield if it exists
+                $df['masterDataField'] = $derived_df_data[$df_id];
+
                 // Flatten radio options if they exist
                 // They're ordered by displayOrder, so preserve $ro_num
                 foreach ($df['radioOptions'] as $ro_num => $ro) {
+                    if ( count($ro['radioOptionMeta']) == 0 ) {
+                        // ...throwing an exception here because this shouldn't ever happen, and
+                        //  also requires manual intervention to fix...
+                        throw new ODRException('Unable to rebuild the cached_datatype_'.$dt_id.' array because of a database error for radio option '.$ro['id']);
+                    }
+
                     $rom = $ro['radioOptionMeta'][0];
                     $df['radioOptions'][$ro_num]['radioOptionMeta'] = $rom;
                 }
                 if ( count($df['radioOptions']) == 0 )
                     unset( $df['radioOptions'] );
+
+                // Flatten tags if they exist
+                $tag_list = array();
+                foreach ($df['tags'] as $t_num => $t) {
+                    $tag_id = $t['id'];
+                    $tag_list[$tag_id] = $t;
+                    $tag_list[$tag_id]['tagMeta'] = $t['tagMeta'][0];
+                }
+                if ($typeclass !== 'Tag') {
+                    unset( $df['tags'] );
+                }
+                else if ( count($tag_list) == 0 ) {
+                    // No tags, ensure blank arrays exist
+                    $df['tags'] = array();
+                    $df['tagTree'] = array();
+                }
+                else {
+                    // Tags exist, attempt to locate any tag hierarchy data
+                    $tag_tree = array();
+                    if ( isset($tag_hierarchy[$dt_id]) && isset($tag_hierarchy[$dt_id][$df_id]) )
+                        $tag_tree = $tag_hierarchy[$dt_id][$df_id];
+
+                    // Stack/order the tags before saving them in the array
+                    $tag_list = $this->th_service->stackTagArray($tag_list, $tag_tree);
+                    $this->th_service->orderStackedTagArray($tag_list);
+
+                    // Also save the tag hierarchy in here for convenience
+                    $df['tags'] = $tag_list;
+                    $df['tagTree'] = $tag_tree;
+                }
 
                 $new_datafield_array[$df_id] = $df;
             }
@@ -448,7 +636,8 @@ class DatatypeInfoService
 
             // ----------------------------------------
             // Build up a list of child/linked datatypes and their basic information
-            // I don't think the 'is_link' and 'multiple_allowed' properties are used, but meh
+            // I think the 'is_link' property is used during rendering, but I'm not sure about the
+            //  'multiple_allowed' property
             $descendants = array();
             foreach ($datatree_array['descendant_of'] as $child_dt_id => $parent_dt_id) {
                 if ($parent_dt_id == $dt_id)
@@ -468,7 +657,7 @@ class DatatypeInfoService
         }
 
 
-        // Organize by datatype id
+        // Organize by datatype id...permissions filtering doesn't work if the array isn't flat
         $formatted_datatype_data = array();
         foreach ($datatype_data as $num => $dt_data) {
             $dt_id = $dt_data['id'];
@@ -476,14 +665,8 @@ class DatatypeInfoService
             $formatted_datatype_data[$dt_id] = $dt_data;
         }
 
-/*
-        if ($timing) {
-            $t1 = microtime(true);
-            $diff = $t2 - $t1;
-            print 'buildDatatypeData('.$datatype_id.')'."\n".'array formatted in: '.$diff."\n";
-        }
-*/
 
+        // ----------------------------------------
         // Save the formatted datarecord data back in the cache, and return it
         $this->cache_service->set('cached_datatype_'.$grandparent_datatype_id, $formatted_datatype_data);
         return $formatted_datatype_data;
@@ -525,290 +708,6 @@ class DatatypeInfoService
 
 
     /**
-     * Returns an array of sorted datarecord ids for the given datatype, optionally filtered to only
-     * include ids that are in a comma-separated list of datarecord ids.
-     *
-     * If the datatype has a sort datafield set, then the contents of that datafield are used to
-     * sort in ascending order.  Otherwise, the list is sorted by datarecord ids.
-     *
-     * TODO - storing a single ordered list probably won't be sufficient for a filtering search system
-     *
-     * @param integer $datatype_id
-     * @param null|string $subset_str   If specified, the returned string will only contain datarecord ids from $subset_str
-     *
-     * @return array An ordered list of datarecord_id => sort_value
-     */
-    public function getSortedDatarecordList($datatype_id, $subset_str = null)
-    {
-        // Attempt to grab the sorted list of datarecords for this datatype from the cache
-        $datarecord_list = $this->cache_service->get('datatype_'.$datatype_id.'_record_order');
-        if ( $datarecord_list == false || count($datarecord_list) == 0 ) {
-            // Going to need the datatype's sorting datafield, if it exists
-            $datarecord_list = array();
-
-            /** @var DataType $datatype */
-            $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            $sortfield = $datatype->getSortField();
-
-            if ($sortfield == null) {
-                // Need a list of all datarecords for this datatype
-                $query = $this->em->createQuery(
-                   'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.dataType = :datatype AND dr.provisioned = false
-                    AND dr.deletedAt IS NULL
-                    ORDER BY dr.id'
-                )->setParameters( array('datatype' => $datatype_id) );
-                $results = $query->getArrayResult();
-
-                // The datatype doesn't have a sortfield, so going to order by datarecord id
-                foreach ($results as $num => $dr) {
-                    $dr_id = $dr['dr_id'];
-                    $datarecord_list[$dr_id] = $dr_id;
-                }
-
-                // Don't need a natural sort because the ids are guaranteed to just be numeric
-                asort($datarecord_list);
-            }
-            else {
-                // Want to store all datarecords, not just a subset if it was passed in
-                $datarecord_list = self::sortDatarecordsByDatafield($sortfield->getId());
-            }
-
-            // Store the sorted datarecord list back in the cache
-            $this->cache_service->set('datatype_'.$datatype_id.'_record_order', $datarecord_list);
-        }
-
-
-        if ( is_null($subset_str) ) {
-            // User just wanted the entire list of sorted datarecords
-            return $datarecord_list;
-        }
-        else if ($subset_str == '') {
-            // User requested a sorted list but didn't specify any datarecords...return an empty array
-            return array();
-        }
-        else {
-            // User specified they only wanted a subset of datarecords sorted...
-            $dr_subset = explode(',', $subset_str);
-            // array_flip() with isset() is considerably faster than repeatedly calling in_array() on larger arrays...
-            $dr_subset = array_flip($dr_subset);
-
-            foreach ($datarecord_list as $dr_id => $sort_value) {
-                // ...then only save the datarecord id if it's in the specified subset
-                if ( !isset($dr_subset[$dr_id]) )
-                    unset( $datarecord_list[$dr_id] );
-            }
-
-            // Return the filtered array of sorted datarecords
-            return $datarecord_list;
-        }
-    }
-
-
-    /**
-     * Uses the values stored in the given datafield to sort all datarecords of that datafield's
-     * datatype.
-     *
-     * @param int $datafield_id
-     * @param bool $sort_ascending
-     * @param null|string $subset_str If specified, the returned array will only contain datarecord ids from $subset_str
-     *
-     * @throws ODRException
-     *
-     * @return array An ordered list of datarecord_id => sort_value
-     */
-    public function sortDatarecordsByDatafield($datafield_id, $sort_ascending = true, $subset_str = null)
-    {
-        /** @var DataFields $datafield */
-        $datafield = $this->em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-        if ($datafield == null)
-            throw new ODRNotFoundException('Datafield', false, 0x55059289);
-
-        $datatype = $datafield->getDataType();
-        if ( !is_null($datatype->getDeletedAt()) )
-            throw new ODRNotFoundException('Datatype', false, 0x55059289);
-
-        // Doesn't make sense to sort some fieldtypes
-        $typename = $datafield->getFieldType()->getTypeName();
-        switch ($typename) {
-            // Can sort these by value
-            case 'Boolean':
-            case 'Integer':
-            case 'Decimal':
-            case 'Short Text':
-            case 'Medium Text':
-            case 'Long Text':
-            case 'Paragraph Text':
-            case 'DateTime':
-                break;
-            // Can sort these by which radio option is currently selected
-            case 'Single Radio':
-            case 'Single Select':
-                break;
-
-            // Can sort these by filename if the only permit a single upload...doesn't make sense
-            //  if there's more than one file/image uploaded to the datafield
-            case 'File':
-            case 'Image':
-                // TODO - implementing this would require the theme system to block multiple-allowed files/images from being put in table themes...
-//                if ($datafield->getAllowMultipleUploads())
-//                    throw new ODRBadRequestException('Unable to sort a "'.$typename.'" that allows multiple uploads', 0x55059289);
-                break;
-
-            case 'Multiple Radio':
-            case 'Multiple Select':
-            case 'Markdown':
-                throw new ODRBadRequestException('Unable to sort a "'.$typename.'" datafield', 0x55059289);
-        }
-
-        // Need a list of all datarecords for this datatype
-        $query = $this->em->createQuery(
-           'SELECT dr.id AS dr_id
-            FROM ODRAdminBundle:DataRecord AS dr
-            WHERE dr.dataType = :datatype AND dr.provisioned = false
-            AND dr.deletedAt IS NULL
-            ORDER BY dr.id'
-        )->setParameters( array('datatype' => $datatype->getId()) );
-        $results = $query->getArrayResult();
-
-        // Due to design decisions, ODR isn't guaranteed to have datarecordfield and/or storage
-        //  entity entries for every datafield.  If either of those entries is missing, the upcoming
-        //  query WILL NOT have an entry for that datarecord in its result set
-        foreach ($results as $num => $dr) {
-            $dr_id = $dr['dr_id'];
-            $datarecord_list[$dr_id] = '';
-        }
-
-        // Locate this datafield's value for each datarecord of this datatype
-        $typeclass = $datafield->getFieldType()->getTypeClass();
-        if ($typeclass == 'File' || $typeclass == 'Image') {
-            // Get the list of file names...have to left join the file table because datarecord id
-            //  is required, but there may not always be a file uploaded
-            $query = $this->em->createQuery(
-               'SELECT em.originalFileName AS file_name, dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                LEFT JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
-                LEFT JOIN ODRAdminBundle:'.$typeclass.'Meta AS em WITH em.'.strtolower($typeclass).' = e
-                WHERE dr.dataType = :datatype AND drf.dataField = :datafield
-                AND e.deletedAt IS NULL AND em.deletedAt IS NULL AND drf.deletedAt IS NULL
-                AND dr.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datatype' => $datatype->getId(),
-                    'datafield' => $datafield->getId(),
-                )
-            );
-            $results = $query->getArrayResult();
-
-            // Store the value of the datafield for each datarecord
-            foreach ($results as $num => $result) {
-                $dr_id = $result['dr_id'];
-                $filename = $result['file_name'];
-
-                $datarecord_list[$dr_id] = $filename;
-            }
-        }
-        else if ($typeclass == 'Single Radio' || $typeclass == 'Single Select') {
-            $query = $this->em->createQuery(
-               'SELECT rom.optionName AS option_name, dr.id AS dr_id
-                FROM ODRAdminBundle:RadioOptions AS ro
-                JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
-                JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
-                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                WHERE dr.dataType = :datatype AND drf.dataField = :datafield AND rs.selected = 1
-                AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL
-                AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datatype' => $datatype->getId(),
-                    'datafield' => $datafield->getId()
-                )
-            );
-            $results = $query->getArrayResult();
-
-            // Store the value of the datafield for each datarecord
-            foreach ($results as $num => $result) {
-                $option_name = $result['option_name'];
-                $dr_id = $result['dr_id'];
-
-                $datarecord_list[$dr_id] = $option_name;
-            }
-        }
-        else {
-            // All other sortable fieldtypes have a value field that should be used
-            $query = $this->em->createQuery(
-               'SELECT dr.id AS dr_id, e.value AS sort_value
-                FROM ODRAdminBundle:DataRecord AS dr
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
-                WHERE dr.dataType = :datatype AND e.dataField = :datafield
-                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
-            )->setParameters(
-                array(
-                    'datatype' => $datatype->getId(),
-                    'datafield' => $datafield->getId()
-                )
-            );
-            $results = $query->getArrayResult();
-
-            // Store the value of the datafield for each datarecord
-            foreach ($results as $num => $result) {
-                $value = $result['sort_value'];
-                $dr_id = $result['dr_id'];
-
-                if ($typeclass == 'IntegerValue') {
-                    $value = intval($value);
-                }
-                else if ($typeclass == 'DecimalValue') {
-                    $value = floatval($value);
-                }
-                else if ($typeclass == 'DatetimeValue') {
-                    $value = $value->format('Y-m-d');
-                    if ($value == '9999-12-31')
-                        $value = '';
-                }
-
-                $datarecord_list[$dr_id] = $value;
-            }
-        }
-
-        // Sort by value
-        if ($sort_ascending)
-            asort($datarecord_list, SORT_NATURAL);
-        else
-            arsort($datarecord_list, SORT_NATURAL);
-
-
-        if ( is_null($subset_str) ) {
-            // User just wanted the entire list of sorted datarecords
-            return $datarecord_list;
-        }
-        else if ($subset_str == '') {
-            // User requested a sorted list but didn't specify any datarecords...return an empty array
-            return array();
-        }
-        else {
-            // User specified they only wanted a subset of datarecords sorted...
-            $dr_subset = explode(',', $subset_str);
-            // array_flip() with isset() is considerably faster than repeatedly calling in_array() on larger arrays...
-            $dr_subset = array_flip($dr_subset);
-
-            foreach ($datarecord_list as $dr_id => $sort_value) {
-                // ...then only save the datarecord id if it's in the specified subset
-                if ( !isset($dr_subset[$dr_id]) )
-                    unset( $datarecord_list[$dr_id] );
-            }
-
-            // Return the filtered array of sorted datarecords
-            return $datarecord_list;
-        }
-    }
-
-
-    /**
      * Marks the specified datatype (and all its parents) as updated by the given user.
      *
      * @param DataType $datatype
@@ -818,28 +717,20 @@ class DatatypeInfoService
     {
         // Whenever an edit is made to a datatype, each of its parents (if it has any) also need
         //  to be marked as updated
-        $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
-        $datatree_array = self::getDatatreeArray();
-
-        $dt = $datatype;
-        while (
-            isset($datatree_array['descendant_of'][$dt->getId()])
-            && $datatree_array['descendant_of'][$dt->getId()] !== ''
-        ) {
+        while ( $datatype->getId() !== $datatype->getParent()->getId() ) {
             // Mark this (non-top-level) datatype as updated by this user
-            $dt->setUpdatedBy($user);
-            $dt->setUpdated(new \DateTime());
-            $this->em->persist($dt);
+            $datatype->setUpdatedBy($user);
+            $datatype->setUpdated(new \DateTime());
+            $this->em->persist($datatype);
 
             // Continue locating parent datatypes...
-            $parent_dt_id = $datatree_array['descendant_of'][$dt->getId()];
-            $dt = $repo_datatype->find($parent_dt_id);
+            $datatype = $datatype->getParent();
         }
 
-        // $dt is now guaranteed to be top-level
-        $dt->setUpdatedBy($user);
-        $dt->setUpdated(new \DateTime());
-        $this->em->persist($dt);
+        // $datatype is now guaranteed to be top-level
+        $datatype->setUpdatedBy($user);
+        $datatype->setUpdated(new \DateTime());
+        $this->em->persist($datatype);
 
         // Save all changes made
         $this->em->flush();
@@ -847,6 +738,70 @@ class DatatypeInfoService
 
         // Child datatypes don't have their own cached entries, it's all contained within the
         //  cache entry for their top-level datatype
-        $this->cache_service->delete('cached_datatype_'.$dt->getId());
+        $this->cache_service->delete('cached_datatype_'.$datatype->getId());
+    }
+
+
+    /**
+     * Because ODR permits an arbitrarily deep hierarchy when it comes to linking datatypes...
+     * e.g.  A links to B links to C links to D links to...etc
+     * ...the cache entry 'associated_datatypes_for_<A>' will then mention (B, C, D, etc.), because
+     *  they all need to be loaded via getDatatypeData() in order to properly render A.
+     *
+     * However, this means that linking/unlinking of datatypes between B/C, C/D, D/etc also affects
+     * which datatypes A needs to load...so any linking/unlinking needs to be propagated upwards...
+     *
+     * TODO - ...create a new CacheClearService and move every single cache clearing function into there instead?
+     * TODO - ...or should this be off in the DatatreeInfoService?
+     *
+     * @param array $datatype_ids array  dt_ids are values in the array, NOT keys
+     */
+    public function deleteCachedDatatypeLinkData($datatype_ids)
+    {
+        // Locate all datatypes that end up needing to load cache entries for the datatypes in
+        //  $datatype_ids...
+        $datatree_array = $this->dti_service->getDatatreeArray();
+        $all_linked_ancestors = $this->dti_service->getLinkedAncestors($datatype_ids, $datatree_array, true);
+
+        // Ensure the datatype that were originally passed in get the cache entry cleared
+        foreach ($datatype_ids as $num => $dt_id)
+            $all_linked_ancestors[] = $dt_id;
+
+        // Clearing this cache entry for each of the ancestor datatypes found ensures that the
+        //  newly linked/unlinked datarecords show up (or not) when they should
+        foreach ($all_linked_ancestors as $num => $dt_id)
+            $this->cache_service->delete('associated_datatypes_for_'.$dt_id);
+    }
+
+
+    /**
+     * TODO - shouldn't this technically be in SortService?
+     * Should be called whenever the default sort order of datarecords within a datatype changes.
+     *
+     * @param int $datatype_id
+     */
+    public function resetDatatypeSortOrder($datatype_id)
+    {
+        // Delete the cached
+        $this->cache_service->delete('datatype_'.$datatype_id.'_record_order');
+
+        // DisplaytemplateController::datatypepropertiesAction() currently handles deleting of cached
+        //  datarecord entries when the sort datafield is changed...
+
+
+        // TODO - this doesn't feel like it belongs here...but putting it in the GraphPluginInterface also doesn't quite make sense...
+        // Also, delete any pre-rendered graph images for this datatype so they'll be rebuilt with
+        //  the legend order matching the new datarecord order
+        $graph_filepath = $this->odr_web_dir.'/uploads/files/graphs/datatype_'.$datatype_id.'/';
+        if ( file_exists($graph_filepath) ) {
+            $files = scandir($graph_filepath);
+            foreach ($files as $filename) {
+                // TODO - assumes linux?
+                if ($filename === '.' || $filename === '..')
+                    continue;
+
+                unlink($graph_filepath.'/'.$filename);
+            }
+        }
     }
 }

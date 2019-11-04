@@ -1,0 +1,13 @@
+odr_plugins.base.csvtable:
+    name: CSV Table Plugin
+    datatype: false
+    version: 1.00
+    override_fields: false
+    override_child: false
+    description: CSV files can be displayed in the page in a spreadsheet format using this plugin.
+    required_fields:
+        csv_file:
+            name: CSV File
+            description: A file field containing CSV-formatted data.
+            type: File
+    config_options:

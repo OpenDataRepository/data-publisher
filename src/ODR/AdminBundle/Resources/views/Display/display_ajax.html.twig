@@ -1,18 +1,15 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[initial_datatype_id] %}
-{% set theme = theme_array[datatype.id] %}
+{% set theme = theme_array[initial_theme_id] %}
 
 {% if record_display_view == "single" %}
-
     {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
         'datatype': datatype,
         'theme': theme,
         'page_type': 'display',
         'search_key': search_key,
     } %}
-
-{# End Record View Menu #}
 {% endif %}
 
 {% include 'ODRAdminBundle:Display:display_area.html.twig' with {
@@ -22,6 +19,7 @@
 
     'initial_datatype_id': initial_datatype_id,
     'initial_datarecord_id': initial_datarecord_id,
+    'initial_theme_id': initial_theme_id,
 
     'is_top_level': is_top_level,
 } %}
@@ -34,17 +32,14 @@
 <script>
 
     function initPage() {
-
-        // TODO What is this for?
         // Resize all elements dependent on window size
         $(window).unbind('resize').resize(function() {
-            // WindowResizeInterval variable defined in common.js
-            // WindowResizeInterval = window.clearInterval(WindowResizeInterval);
-            // WindowResizeInterval = window.setInterval("onWindowResize()", 500);
+            WindowResizeInterval = window.clearInterval(WindowResizeInterval);    // variable WindowResizeInterval defined in common.js
+            WindowResizeInterval = window.setInterval("onWindowResize()", 500);
         });
 
         // Resize everything prior to divs being hidden
-        // onWindowResize();
+        onWindowResize();
 
         // Set up image galleries
         setupImageGalleries();
@@ -54,6 +49,17 @@
 
         // Setup File Downloader
         setupFileDownloader();
+
+        // Attach click handlers to tags
+        setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
+{% if search_key == '' %}
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+{% else %}
+        enableSearchSidebar('{{ search_key }}');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+{% endif %}
+
+        hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
     }
 
     function setupFileDownloader() {
@@ -64,7 +70,7 @@
             // Grab necessary attributes
             var file_id = $(this).attr('rel');
 
-            handleFileDownload(event, file_id);    // defined in Default::file_handling.html.twig
+            handleFileDownload(event, file_id);    {# defined in Default::file_handling.html.twig #}
         });
 
         $(".ODRDownloadAllFiles").unbind('click').click(function() {
@@ -72,14 +78,12 @@
             if ( $(this).hasClass('fa-muted') )
                 return;
 
-            // Grab necessary attributes
-            var element = $(this);
-
+            // Locate necessary attributes
             var id_data = $(this).closest(".ODRDataField").first().attr('id').split(/_/);
             var datarecord_id = id_data[1];
             var datafield_id = id_data[2];
 
-            // defined in ODRAdminBundle:Default:file_download_dialog.html.twig
+            {# defined in ODRAdminBundle:Default:file_download_dialog.html.twig #}
             openFileDownloadDialog({{ initial_datarecord_id }}, datarecord_id, datafield_id);
         });
     }
@@ -89,6 +93,14 @@
 
         // $(".MenuDesignArea").remove();
         window.scrollTo(0,0);
+
+        {% if notify_of_sync is defined and notify_of_sync == true %}
+        {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+            'datatype_id': datatype.id,
+            'theme_id': theme.id,
+            'search_key': search_key,
+        }%}
+        {% endif %}
     });
 {% endif %}
 

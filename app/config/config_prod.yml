@@ -8,7 +8,7 @@ framework:
 monolog:
     # Changes made to configuration here typically need to be made in config_dev.yml as well
     # https://symfony.com/doc/2.8/logging/channels_handlers.html
-    channels: ['clone_datatype', 'clone_theme']
+    channels: ['clone_datatype', 'clone_template', 'clone_theme']
 
     handlers:
         # ideally stuff shouldn't write to this channel
@@ -24,6 +24,11 @@ monolog:
             path:  %kernel.logs_dir%/clone_datatype.log
             level: debug
             channels: [clone_datatype]
+        clone_template:
+            type:  stream
+            path:  %kernel.logs_dir%/clone_template.log
+            level: debug
+            channels: [clone_template]
         clone_theme:
             type:  stream
             path:  %kernel.logs_dir%/clone_theme.log

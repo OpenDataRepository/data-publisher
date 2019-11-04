@@ -25,6 +25,7 @@
                     '</div>';
 
                 var anchor = $("#ODRFileUpload_" + target).parent().prev();
+                $(anchor).find(".ODRFileDatafield_empty").remove();
                 $(anchor).append(html);
             }
             else {

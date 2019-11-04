@@ -1,0 +1,76 @@
+odr_plugins.base.references:
+    name: References Plugin 
+    datatype: true
+    version: 1.00
+    override_fields: true
+    override_child: false
+    description: The References Plugin parses multiple linked DataRecords and returns HTML that looks like something you would expect to see for multiple references... 
+    required_fields:
+        authors:
+            name: Authors
+            description: The authors of this article.
+            type: LongText
+        title:
+            name: Article Title
+            description: The title of this article.
+            type: LongText
+        journal:
+            name: Journal
+            description: The name of the journal in which this article was published.
+            type: LongText
+        year:
+            name: Year
+            description: What year the article was published.
+            type: ShortVarchar
+        month:
+            name: Month
+            description: What month the article was published.
+            type: ShortVarchar
+        volume:
+            name: Volume
+            description: The volume number of the journal the article was published in.
+            type: ShortVarchar
+        issue:
+            name: Issue
+            description: The issue number of the journal the article was published in.
+            type: ShortVarchar
+        booktitle:
+            name: Book Title
+            description: The title of this book.
+            type: LongVarchar
+        publisher:
+            name: Publisher
+            description: The publisher of this book.
+            type: LongVarchar
+        publisher_location:
+            name: Publisher Location
+            description: Where the publisher of this book is located.
+            type: LongVarchar
+        annotation:
+            name: Annotation
+            description: ?
+            type: LongVarchar
+        pages:
+            name: Pages
+            description: The pages the article takes up in the journal.
+            type: ShortVarchar
+        file:
+            name: File
+            description: A file containing a scan of the physical reference.
+            type: File
+        url:
+            name: URL
+            description: A URL that points to an online copy of the reference.
+            type: LongVarchar
+    config_options:
+#        graph_type:
+#            name: Graph Type
+#            type: string
+#            default: xy 
+#            choices: xy||XY Scatter, line||Line, hbar||Horizontal Bar, vbar||Vertical Bar
+#            description: Choose the graph type XY (scatter), Line, Horizontal Bar, or Vertical Bar.
+#        graph_width: 
+#            name: Graph Width
+#            type: string
+#            default: 900 
+#            description: Enter a width in pixels for the graph. 
