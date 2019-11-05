@@ -79,6 +79,31 @@ class CloneDatatypePreloaderCommand extends ContainerAwareCommand
                 /** @var DataType $master_datatype */
                 $master_datatype = $repo_datatype->find(670);
 
+
+                // Try refresh to ensure up to date
+                $em->refresh($master_datatype);
+
+
+                /*
+                // Delete old revisions that are not issued
+                $query = $em->createQuery("
+                        SELECT dt FROM ODRAdminBundle:DataType dt 
+                        WHERE 
+                        dt.masterDatatypeId = :master_datatype_id
+                        and dt.preloadStatus LIKE :preload_term
+                        and dt.preloadStatus IS NOT NULL
+                        and dt.created < :create_date
+                    ")
+                    ->setParameter('master_datatype_id', $master_datatype->getId())
+                    ->setParameter('preload_term', '\d+')
+                    ->setParameter('create_date', (new \DateTime())->modify('-1 day'));
+
+                $to_delete = $query->getArrayResult();
+
+                print_r($to_delete);
+                */
+
+
                 /** @var DataType[] $datatypes */
                 $datatypes = $repo_datatype->findBy([
                     'masterDataType' => 670,
@@ -86,12 +111,14 @@ class CloneDatatypePreloaderCommand extends ContainerAwareCommand
                 ]);
 
 
-                // Delete old revision
                 $output->writeln('Preload revision needed: ' . $master_datatype->getDataTypeMeta()->getMasterRevision());
                 $output->writeln('Found: ' . count($datatypes));
 
+                // Detach this so we can query again on next pass.
+                // $em->detach($master_datatype);
+
                 // Maintain 10 of current revision
-                if (count($datatypes) < 10) {
+                if (count($datatypes) < 2) {
 
                     $user_manager = $container->get('fos_user.user_manager');
 
