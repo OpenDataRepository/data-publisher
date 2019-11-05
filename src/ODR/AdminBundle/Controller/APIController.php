@@ -1469,7 +1469,7 @@ class APIController extends ODRCustomController
                                                 $field['value'][$j]['user_created'] = 1;
                                             }
                                             else {
-                                                $field['value'][$j]['name'] = $tag->getOptionName();
+                                                $field['value'][$j]['name'] = $tag->getTagName();
                                             }
                                         }
                                     }
