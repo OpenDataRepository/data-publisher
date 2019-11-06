@@ -370,7 +370,7 @@ class SearchAPIService
         )->setParameters(array(
             'master_datatype_id' => $master_datatype_id,
             'now' => new \DateTime(),
-            'selected_tag_ids' => $sub_keys;
+            'selected_tag_ids' => $sub_keys
         ));
 
         // print $query->getSQL();exit();
