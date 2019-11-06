@@ -1694,6 +1694,15 @@ odr_api_delete_dataset:
         dataset_uuid: '^[a-z0-9]+$'
         format: 'json'
 
+odr_api_dataset_quota:
+    path:  /api/{version}/dataset/quota/{dataset_uuid}
+    defaults: { _controller: ODRAdminBundle:API:datasetQuotaByUUID, version: 'v3' }
+    methods: [ GET ]
+    requirements:
+        version: 'v\d+'
+        dataset_uuid: '^[a-z0-9]+$'
+        format: 'json'
+
 odr_api_create_dataset_from_template:
     path: /api/{version}/dataset
     defaults: { _controller: ODRAdminBundle:API:createdataset, _format: 'json', version: 'v3'}

@@ -87,6 +87,7 @@
               {
                   "id": {{ file.id }},
                   "file_uuid": "{{ file.unique_id }}",
+                  "file_size": "{{ file.filesize }}",
                   "href": "{{ baseurl ~ path('odr_file_download', {'file_id': file.id}) }}",
                   {% set file_meta = file.fileMeta %}
                   "original_name": "{% if file_meta.originalFileName is defined and file_meta.originalFileName != null %}{{ file_meta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}"

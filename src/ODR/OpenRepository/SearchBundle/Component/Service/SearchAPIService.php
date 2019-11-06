@@ -19,6 +19,7 @@ use ODR\AdminBundle\Entity\DataType;
 // Services
 use ODR\AdminBundle\Component\Service\DatatreeService;
 use ODR\AdminBundle\Component\Service\SortService;
+use ODR\AdminBundle\Component\Service\CacheService;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
@@ -58,6 +59,11 @@ class SearchAPIService
     private $sort_service;
 
     /**
+     * @var CacheService
+     */
+    private $cache_service;
+
+    /**
      * @var Logger
      */
     private $logger;
@@ -72,6 +78,7 @@ class SearchAPIService
      * @param SearchCacheService $search_cache_service
      * @param SearchKeyService $search_key_service
      * @param SortService $sort_service
+     * @param CacheService $cache_service
      * @param Logger $logger
      */
     public function __construct(
@@ -81,6 +88,7 @@ class SearchAPIService
         SearchCacheService $search_cache_service,
         SearchKeyService $search_key_service,
         SortService $sort_service,
+        CacheService $cache_service,
         Logger $logger
     ) {
         $this->em = $entity_manager;
@@ -89,6 +97,7 @@ class SearchAPIService
         $this->search_cache_service = $search_cache_service;
         $this->search_key_service = $search_key_service;
         $this->sort_service = $sort_service;
+        $this->cache_service = $cache_service;
         $this->logger = $logger;
     }
 
@@ -247,164 +256,21 @@ class SearchAPIService
 
     public function fullTemplateSearch($master_datatype_id = 670) {
 
-        // $template_id =
-
-        // Otherwise...get all non-layout data for the requested grandparent datarecord
+        // Determine all datatypes derived from master template including linked data types.
+        // Possibly use unique_id and _template group_ ....
         /*
+         $template_groups = select data_type.unique_id from data_type where master_datatype_id = 670
+         $dt_ids = select data_type.id from data_type where template_group_id in template_groups
+         select distinct dr.unique_id from dr join dr.data_fields where df.dt_id in ($dt_ids);
+         */
+
+        // Get list of fields
+
+        // Get dr.unique_id f
+
         $query = $this->em->createQuery(
             'SELECT
-               dr, partial drm.{id, publicDate}, partial p_dr.{id}, partial gp_dr.{id},
-               partial dr_cb.{id, username, email, firstName, lastName},
-               partial dr_ub.{id, username, email, firstName, lastName},
-
-               dt, partial gp_dt.{id}, partial mdt.{id, unique_id}, partial mf.{id, unique_id}, df_dt, dfm_dt, ft_dt,
-               dtm, partial dt_eif.{id}, partial dt_nf.{id}, partial dt_sf.{id},
-
-               drf, partial df.{id, fieldUuid, templateFieldUuid}, partial dfm.{id, fieldName, xml_fieldName }, partial ft.{id, typeClass, typeName},
-               e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
-               e_i, e_im, e_ip, e_ipm, e_is, partial e_ip_cb.{id, username, email, firstName, lastName},
-
-               e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv, rs, ro, ts, t,
-
-               partial e_b_ub.{id, username, email, firstName, lastName},
-               partial e_iv_ub.{id, username, email, firstName, lastName},
-               partial e_dv_ub.{id, username, email, firstName, lastName},
-               partial e_lt_ub.{id, username, email, firstName, lastName},
-               partial e_lvc_ub.{id, username, email, firstName, lastName},
-               partial e_mvc_ub.{id, username, email, firstName, lastName},
-               partial e_svc_ub.{id, username, email, firstName, lastName},
-               partial e_dtv_ub.{id, username, email, firstName, lastName},
-               partial rs_ub.{id, username, email, firstName, lastName},
-               partial ts_ub.{id, username, email, firstName, lastName},
-
-               partial cdr.{id}, partial cdr_dt.{id},
-               ldt, partial ldr.{id}, partial ldr_dt.{id}
-
-            FROM ODRAdminBundle:DataRecord AS dr
-            LEFT JOIN dr.dataRecordMeta AS drm
-            LEFT JOIN dr.createdBy AS dr_cb
-            LEFT JOIN dr.updatedBy AS dr_ub
-            LEFT JOIN dr.parent AS p_dr
-            LEFT JOIN dr.grandparent AS gp_dr
-
-            LEFT JOIN dr.dataType AS dt
-            LEFT JOIN dt.grandparent AS gp_dt
-            LEFT JOIN dt.dataTypeMeta AS dtm
-            LEFT JOIN dt.dataFields AS df_dt
-            LEFT JOIN df_dt.dataFieldMeta AS dfm_dt
-            LEFT JOIN dfm_dt.fieldType AS ft_dt
-            LEFT JOIN dt.masterDataType AS mdt
-            LEFT JOIN dt.metadata_for AS mf
-            LEFT JOIN dtm.externalIdField AS dt_eif
-            LEFT JOIN dtm.nameField AS dt_nf
-            LEFT JOIN dtm.sortField AS dt_sf
-
-            LEFT JOIN dr.dataRecordFields AS drf
-            LEFT JOIN drf.file AS e_f
-            LEFT JOIN e_f.fileMeta AS e_fm
-            LEFT JOIN e_f.createdBy AS e_f_cb
-
-            LEFT JOIN drf.image AS e_i
-            LEFT JOIN e_i.imageMeta AS e_im
-            LEFT JOIN e_i.parent AS e_ip
-            LEFT JOIN e_ip.imageMeta AS e_ipm
-            LEFT JOIN e_i.imageSize AS e_is
-            LEFT JOIN e_ip.createdBy AS e_ip_cb
-
-            LEFT JOIN drf.boolean AS e_b
-            LEFT JOIN e_b.updatedBy AS e_b_ub
-            LEFT JOIN drf.integerValue AS e_iv
-            LEFT JOIN e_iv.updatedBy AS e_iv_ub
-            LEFT JOIN drf.decimalValue AS e_dv
-            LEFT JOIN e_dv.updatedBy AS e_dv_ub
-            LEFT JOIN drf.longText AS e_lt
-            LEFT JOIN e_lt.updatedBy AS e_lt_ub
-            LEFT JOIN drf.longVarchar AS e_lvc
-            LEFT JOIN e_lvc.updatedBy AS e_lvc_ub
-            LEFT JOIN drf.mediumVarchar AS e_mvc
-            LEFT JOIN e_mvc.updatedBy AS e_mvc_ub
-            LEFT JOIN drf.shortVarchar AS e_svc
-            LEFT JOIN e_svc.updatedBy AS e_svc_ub
-            LEFT JOIN drf.datetimeValue AS e_dtv
-            LEFT JOIN e_dtv.updatedBy AS e_dtv_ub
-            LEFT JOIN drf.radioSelection AS rs
-            LEFT JOIN rs.updatedBy AS rs_ub
-            LEFT JOIN rs.radioOption AS ro
-            LEFT JOIN drf.tagSelection AS ts
-            LEFT JOIN ts.updatedBy AS ts_ub
-            LEFT JOIN ts.tag AS t
-
-            LEFT JOIN drf.dataField AS df
-            LEFT JOIN df.dataFieldMeta AS dfm
-            LEFT JOIN dfm.fieldType AS ft
-
-            LEFT JOIN dr.children AS cdr
-            LEFT JOIN cdr.dataType AS cdr_dt
-
-            LEFT JOIN dr.linkedDatarecords AS ldt
-            LEFT JOIN ldt.descendant AS ldr
-            LEFT JOIN ldr.dataType AS ldr_dt
-
-            WHERE
-                dt.masterDataType = :master_datatype_id
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
-                AND (e_i.id IS NULL OR e_i.original = 0)'
-        )->setParameters(array('master_datatype_id' => $master_datatype_id));
-        */
-
-        // This should get all of the data for all records in databases derived from the template.
-        /*
-        dr,
-               partial drm.{id, publicDate},
-               partial p_dr.{id},
-               partial gp_dr.{id},
-
-               dt,
-               partial gp_dt.{id},
-               partial mdt.{id, unique_id},
-               partial mf.{id, unique_id},
-               df_dt,
-               dfm_dt,
-               ft_dt,
-
-               dtm,
-               partial dt_eif.{id},
-               partial dt_nf.{id},
-               partial dt_sf.{id},
-
-               drf,
-               partial df.{id, fieldUuid, templateFieldUuid},
-               partial dfm.{id, fieldName, xml_fieldName },
-               partial ft.{id, typeClass, typeName},
-
-               e_f,
-               e_fm,
-
-               e_i,
-               e_im,
-               e_ip,
-               e_ipm,
-               e_is,
-
-               e_b,
-               e_iv,
-               e_dv,
-               e_lt,
-               e_lvc,
-               e_mvc,
-               e_svc,
-               e_dtv,
-               rs,
-               ro,
-               ts,
-               t,
-
-               partial cdr.{id}, partial cdr_dt.{id},
-               ldt, partial ldr.{id}, partial ldr_dt.{id}
-        */
-        $query = $this->em->createQuery(
-            'SELECT
-               dr.id 
+               distinct dr.unique_id 
 
             FROM ODRAdminBundle:DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
@@ -463,79 +329,17 @@ class SearchAPIService
                 AND (e_i.id IS NULL OR e_i.original = 0)'
         )->setParameters(array('master_datatype_id' => $master_datatype_id));
 
-        /*
-         *
-         *
-               partial drm.{id, publicDate},
-               partial p_dr.{id},
-               partial gp_dr.{id},
+        // print $query->getSQL();exit();
+        $result = $query->getArrayResult();
 
-               dt,
-               partial gp_dt.{id},
-               partial mdt.{id, unique_id},
-               partial mf.{id, unique_id},
-               df_dt,
-               dfm_dt,
-               ft_dt,
-
-               dtm,
-               partial dt_eif.{id},
-               partial dt_nf.{id},
-               partial dt_sf.{id},
-
-               drf,
-               partial df.{id, fieldUuid, templateFieldUuid},
-               partial dfm.{id, fieldName, xml_fieldName },
-               partial ft.{id, typeClass, typeName},
-
-               e_f,
-               e_fm,
-
-               e_i,
-               e_im,
-               e_ip,
-               e_ipm,
-               e_is,
-
-               e_b,
-               e_iv,
-               e_dv,
-               e_lt,
-               e_lvc,
-               e_mvc,
-               e_svc,
-               e_dtv,
-               rs,
-               ro,
-               ts,
-               t,
-
-               partial cdr.{id}, partial cdr_dt.{id},
-               ldt, partial ldr.{id}, partial ldr_dt.{id}
-         *
-         *
-        e_f.id IS NOT NULL
-        AND e_fm.id IS NOT NULL
-        AND e_i.id IS NOT NULL
-        AND e_im.id IS NOT NULL
-        AND e_ip.id IS NOT NULL
-        AND e_ipm.id IS NOT NULL
-        AND e_is.id IS NOT NULL
-        AND e_b.id IS NOT NULL
-        AND e_iv.id IS NOT NULL
-        AND e_dv.id IS NOT NULL
-        AND e_lt.id IS NOT NULL
-        AND e_lvc.id IS NOT NULL
-        AND e_mvc.id IS NOT NULL
-        AND e_svc.id IS NOT NULL
-        AND e_dtv.id IS NOT NULL
-        AND rs.id IS NOT NULL
-        AND ro.id IS NOT NULL
-        AND ts.id IS NOT NULL
-        AND t.id IS NOT NULL
-
-        */
-
+        // print_r($result);exit();
+        $records = array();
+        foreach($result as $record_uuid) {
+            if($metadata_record = $this->cache_service
+                ->get('json_record_' . $record_uuid['unique_id']) ){
+                array_push($records, json_decode($metadata_record));
+            }
+        }
         // This should get all of the data for all records in databases derived from the template.
 
         // How long does this take to run.
@@ -547,14 +351,11 @@ class SearchAPIService
         // Add order by limit and offset...
 
         // Filter by public private for anon users...
-
-        var_export($query->getSQL()); // print the SQL query - you will need to replace the parameters in the query
-        // var_dump($query->getParams());exit();
-        exit();
         // $datarecord_data = $query->getArrayResult();
 
         // print_r($master_datatype_id);
 
+        return $records;
     }
 
 

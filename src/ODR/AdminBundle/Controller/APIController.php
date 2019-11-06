@@ -3098,6 +3098,78 @@ class APIController extends ODRCustomController
 
     }
 
+
+    public function datasetQuotaByUUIDAction($version, $dataset_uuid, Request $request)
+    {
+        // get user from post body
+        try {
+            /** @var EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            $content = $request->getContent();
+            if (!empty($content)) {
+                $data = json_decode($content, true); // 2nd param to get as array
+                // user
+                /** @var UserManager $user_manager */
+                $user_manager = $this->container->get('fos_user.user_manager');
+
+                /** @var ODRUser $user */
+                $user = $user_manager->findUserBy(array('email' => $data['user_email']));
+                if (is_null($user))
+                    throw new ODRNotFoundException('User');
+
+                /** @var DataType $datatype */
+                $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                    array(
+                        'unique_id' => $dataset_uuid
+                    )
+                );
+
+                // When calling with a metadata datatype, automatically delete the
+                // actual dataset data and the related metadata
+                if($data_datatype = $datatype->getMetadataFor()) {
+                    $datatype = $data_datatype;
+                }
+
+                /** @var PermissionsManagementService $pm_service */
+                $pm_service = $this->container->get('odr.permissions_management_service');
+                // Ensure user has permissions to be doing this
+                if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
+                    throw new ODRForbiddenException();
+
+                // http://office_dev/app_dev.php/v3/dataset/quota/520cd6a
+                // Only check the datatype files
+                $query = $em->createQuery("
+                    SELECT SUM(odrf.filesize) FROM ODRAdminBundle:File AS odrf
+                    join odrf.dataRecord as dr
+                    join dr.dataType as dt
+                    where dt.id = :datatype_id ")
+                    ->setParameter("datatype_id", $datatype->getId()
+                );
+
+                $total = $query->getScalarResult();
+
+                if($total[0][1] === null) {
+                    $total[0][1] = 0;
+                }
+
+                $result = array('total_bytes' => $total[0][1]);
+
+                $response = new JsonResponse($result);
+                return $response;
+            } else {
+                throw new ODRBadRequestException('User must be identified for permissions check.');
+            }
+        } catch (\Exception $e) {
+            $source = 0x19238491;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source));
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
     /**
      * This works with the "data" dataset by default and automatically deletes the related
      * metadata.
@@ -3427,7 +3499,7 @@ class APIController extends ODRCustomController
             /** @var DatarecordInfoService $dri_service */
             $dri_service = $this->container->get('odr.datarecord_info_service');
 
-            /** @var \Doctrine\ORM\EntityManager $em */
+            /** @var EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             $user_manager = $this->container->get('fos_user.user_manager');
@@ -3446,6 +3518,30 @@ class APIController extends ODRCustomController
 
             if (is_null($data_type))
                 throw new ODRNotFoundException('DataType');
+
+            // Permissions Check
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            // Ensure user has permissions to be doing this
+            if ( !$pm_service->isDatatypeAdmin($user, $data_type) )
+                throw new ODRForbiddenException();
+
+            // Quota Check
+            // Only check the datatype files
+            $query = $em->createQuery("
+                    SELECT SUM(odrf.filesize) FROM ODRAdminBundle:File AS odrf
+                    join odrf.dataRecord as dr
+                    join dr.dataType as dt
+                    where dt.id = :datatype_id ")
+                ->setParameter("datatype_id", $data_type->getId()
+            );
+
+            $result = $query->getScalarResult();
+
+            if($result[0][1] > 20000000000) {
+                // 20 GB temporary limit
+                throw new ODRForbiddenException("Quota Exceeded (1mb)");
+            }
 
             /** @var DataRecord $data_record */
             $data_record = null;
@@ -3481,12 +3577,36 @@ class APIController extends ODRCustomController
             if (is_null($data_field))
                 throw new ODRNotFoundException('DataField');
 
-            $files_bag = $request->files->all();
-            if (count($files_bag) < 1)
-                throw new ODRNotFoundException('File');
+            // Check for local file on server (with name & path from data
+            /*
+             * $data['local_files']['0']['local_file_name'] = '92q0fa9klaj340jasfd90j13';
+             * $data['local_files']['0']['original_file_name'] = 'some_file.txt';
+             */
+
+            $using_local_files = false;
+            $file_array = array();
+            if(isset($data['local_files']) && count($data['local_files'] > 0)) {
+                $using_local_files = true;
+
+                $file_array = $data['local_files'];
+            }
+
+
+
+            if(!$using_local_files) {
+                $files_bag = $request->files->all();
+                if (count($files_bag) < 1)
+                    throw new ODRNotFoundException('File');
+
+                foreach($files_bag as $file) {
+                    array_push($file_array, $file);
+                }
+            }
+
+
 
             /** @var \Symfony\Component\HttpFoundation\File\File $file */
-            foreach($files_bag as $file) {
+            foreach($file_array as $file) {
                 // Deal with files and images here
                 if(
                     $data_field->getFieldType()->getId() == 2
@@ -3524,23 +3644,38 @@ class APIController extends ODRCustomController
                     }
 
                     // Move file to web directory (really?)
-                    $tmp_filename = $file->getFileName();
-                    $original_filename = $file->getClientOriginalName();
+                    if($using_local_files) {
+                        $tmp_filename = $file['local_file_name'];
+                        $original_filename = $file['original_file_name'];
+                    }
+                    else {
+                        $tmp_filename = $file->getFileName();
+                        $original_filename = $file->getClientOriginalName();
+                    }
                     // Check whether file is uploaded completely and properly
                     $path_prefix = $this->getParameter('odr_web_directory').'/';
                     $destination_folder = 'uploads/files/chunks/user_'.$user->getId().'/completed';
                     if ( !file_exists($path_prefix.$destination_folder) )
                         mkdir( $path_prefix.$destination_folder, 0777, true );
 
-                    $tmp_file = $path_prefix.$destination_folder.'/'.$tmp_filename;
-                    $destination_file = $path_prefix.$destination_folder.'/'.$original_filename;
 
-                    // Download file to temp folder
-                    $file->move($destination_folder);
+                    if($using_local_files) {
+                        $tmp_path_prefix = $this->getParameter('uploaded_files_path').'/';
+                        $tmp_file = $$tmp_path_prefix.$destination_folder.'/'.$tmp_filename;
+                        $destination_file = $path_prefix.$destination_folder.'/'.$original_filename;
+
+
+                    }
+                    else {
+                        $tmp_file = $path_prefix.$destination_folder.'/'.$tmp_filename;
+                        $destination_file = $path_prefix.$destination_folder.'/'.$original_filename;
+
+                        // Download file to temp folder
+                        $file->move($destination_folder);
+                    }
 
                     // Rename file
                     rename($tmp_file, $destination_file);
-
 
                     switch ($data_field->getFieldType()->getId()) {
                         case '2': // File

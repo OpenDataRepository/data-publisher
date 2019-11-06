@@ -33,10 +33,12 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // use FOS\UserBundle\Model\UserManagerInterface;
 // Symfony
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 // Other
 use FOS\UserBundle\Util\TokenGenerator;
+use Symfony\Component\Intl\Tests\Data\Provider\Json\JsonRegionDataProviderTest;
 
 
 class FacadeController extends Controller
@@ -331,7 +333,9 @@ class FacadeController extends Controller
     public function searchTemplatePostTestAction($version, $limit, $offset, Request $request) {
         /** @var SearchAPIService $search_api_service */
         $search_api_service = $this->container->get('odr.search_api_service');
-        $search_api_service->fullTemplateSearch();
+        $records = $search_api_service->fullTemplateSearch();
+
+        return new JsonResponse($records);
     }
 
     /**
