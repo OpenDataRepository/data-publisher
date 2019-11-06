@@ -344,20 +344,20 @@ class SearchAPIService
                 array_push($records, json_decode($metadata_record));
             }
         }
-        // This should get all of the data for all records in databases derived from the template.
 
-        // How long does this take to run.
+        // Sort by dataset name
+        $sort_array = [];
+        foreach($records as $record) {
+            foreach($record->fields as $field) {
+                if($field->template_field_uuid == '08088a9') {
+                    $sort_array[$field->value] = $record;
+                }
+            }
+        }
 
-        // Need to add list of user permissible field type ids found by permission array for user
+        ksort($sort_array, SORT_STRING);
 
-        // How do we get linked datatypes? Array of master datatypes and linked datatypes?
-
-        // Add order by limit and offset...
-
-        // Filter by public private for anon users...
-        // $datarecord_data = $query->getArrayResult();
-
-        // print_r($master_datatype_id);
+        $records = array_values($sort_array);
 
         return $records;
     }
