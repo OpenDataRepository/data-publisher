@@ -15,7 +15,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\AdminBundle\Component\Service\UUIDService;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -40,12 +39,15 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CloneThemeService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TableThemeHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Service\UUIDService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -271,36 +273,66 @@ class ODRCustomController extends Controller
         // All theme types other than table
         if ( $theme->getThemeType() != 'table' ) {
             // -----------------------------------
-            // Grab the cached versions of all of the datarecords, and store them all at the same level in a single array
-            $include_links = true;
-            $related_datarecord_array = array();
-            foreach ($datarecord_list as $num => $dr_id) {
-                $datarecord_info = $dri_service->getDatarecordArray($dr_id, $include_links);
+            /** @var DatatreeInfoService $dtr_service */
+            $dtr_service = $this->container->get('odr.datatree_info_service');
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
 
-                foreach ($datarecord_info as $local_dr_id => $data)
-                    $related_datarecord_array[$local_dr_id] = $data;
-            }
-
-            $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), $include_links);
+            // -----------------------------------
+            // Load and stack the cached theme data...this can happen now since it's not filtered
             $theme_array = $theme_service->getThemeArray($theme->getId());
-
-            // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            $pm_service->filterByGroupPermissions($datatype_array, $related_datarecord_array, $user_permissions);
-
-            // Stack the datatype and all of its children
-            $stacked_datatype_array[ $datatype->getId() ] =
-                $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
             $stacked_theme_array[ $theme->getId() ] =
                 $theme_service->stackThemeArray($theme_array, $theme->getId());
 
-            // Stack each individual datarecord in the array
-            // TODO - is there a faster way of doing this?  Loading/stacking datarecords is likely the slowest part of rendering a search results list now
+            // Determine which datatypes are going to actually be visible to the user
+            $rendered_dt_ids = array( $datatype->getId() => '' );
+            self::getRenderedDatatypes($stacked_theme_array, $rendered_dt_ids);
+
+            // Locate all datarecords that could potentially be visible on a search results page
+            //  as a result of using this specific theme
+            $acceptable_dr_ids = array();
+            foreach ($rendered_dt_ids as $dt_id => $empty_str) {
+                $dr_ids = $search_service->getCachedSearchDatarecordList($dt_id);
+                foreach ($dr_ids as $dr_id => $num)
+                    $acceptable_dr_ids[$dr_id] = '';
+            }
+
+            // Only want to load datarecord data if it's going to be displayed
+            $related_datarecord_array = array();
+            // So, for each datarecord on this page of the search results...
+            foreach ($datarecord_list as $num => $dr_id) {
+                // ...load the list of any datarecords it links to (this always includes $dr_id)...
+                $associated_dr_ids = $dtr_service->getAssociatedDatarecords($dr_id);
+
+                foreach ($associated_dr_ids as $num => $a_dr_id) {
+                    // If this record is going to be displayed, and it hasn't already been loaded...
+                    if ( isset($acceptable_dr_ids[$a_dr_id]) && !isset($related_datarecord_array[$a_dr_id]) ) {
+                        // ...then load just this record
+                        $dr_data = $dri_service->getDatarecordArray($a_dr_id, false);
+                        // ...then save this record and all its children so they can get stacked
+                        foreach ($dr_data as $local_dr_id => $data)
+                            $related_datarecord_array[$local_dr_id] = $data;
+                    }
+                }
+            }
+
+            // Filter everything that the user isn't allowed to see from the datatype/datarecord arrays
+            $datatype_array = $dti_service->getDatatypeArray($datatype->getId(), true);
+            $pm_service->filterByGroupPermissions($datatype_array, $related_datarecord_array, $user_permissions);
+
+            // Stack what remains of the datatype and datarecord arrays
+            $stacked_datatype_array[ $datatype->getId() ] =
+                $dti_service->stackDatatypeArray($datatype_array, $datatype->getId());
+
             $datarecord_array = array();
             foreach ($related_datarecord_array as $dr_id => $dr) {
+                // Only stack the top-level datarecords of this datatype
                 if ( $dr['dataType']['id'] == $datatype->getId() )
                     $datarecord_array[$dr_id] = $dri_service->stackDatarecordArray($related_datarecord_array, $dr_id);
             }
 
+
+            // -----------------------------------
             // Build the html required for the pagination header
             $pagination_values = $odr_tab_service->getPaginationHeaderValues($odr_tab_id, $offset, $original_datarecord_list);
 
@@ -433,6 +465,49 @@ class ODRCustomController extends Controller
         }
 
         return $final_html;
+    }
+
+
+    /**
+     * Recursively crawls through a stacked theme array to determine which datatypes are getting
+     * displayed to the user.
+     *
+     * @param array $stacked_theme_array
+     * @param array &$rendered_dt_ids
+     */
+    private function getRenderedDatatypes($stacked_theme_array, &$rendered_dt_ids)
+    {
+        foreach ($stacked_theme_array as $t_id => $t) {
+            // For each datatype in this theme that has layout data...
+            $dt_id = $t['dataType']['id'];
+
+            // ...if this theme has theme_elements...
+            if ( isset($t['themeElements']) ) {
+                foreach ($t['themeElements'] as $te_num => $te) {
+                    // ...and the theme_element isn't hidden...
+                    if ( $te['themeElementMeta']['hidden'] === 0 ) {
+                        if ( isset($te['themeDataFields']) ) {
+                            // ...and the theme_element contains at least one datafield...
+                            foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                                // ...then this datatype is rendered only if at least one datafield
+                                //  is not hidden
+                                if ( $tdf['hidden'] === 0 )
+                                    $rendered_dt_ids[$dt_id] = '';
+                            }
+                        }
+                        else if ( isset($te['themeDataType']) ) {
+                            // ...and the theme_element contains a child/linked datatype...
+                            $tdt = $te['themeDataType'][0];
+
+                            // ...then this datatype is rendered only if the child/linked datatype
+                            //  is not hidden
+                            if ( $tdt['hidden'] === 0 )
+                                self::getRenderedDatatypes($tdt['childTheme']['theme'], $rendered_dt_ids);
+                        }
+                    }
+                }
+            }
+        }
     }
 
 

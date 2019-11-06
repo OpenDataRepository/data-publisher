@@ -3976,6 +3976,8 @@ if ($debug)
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchCacheService $search_cache_service */
+            $search_cache_service = $this->container->get('odr.search_cache_service');
 
 
             /** @var DataType $datatype */
@@ -4014,6 +4016,9 @@ if ($debug)
             $dti_service->updateDatatypeCacheEntry($datatype, $user);
 
             // Don't need to update cached datarecords or themes
+
+            // Do need to clear these other cache entries though
+            $search_cache_service->onDatatypePublicStatusChange($datatype);
         }
         catch (\Exception $e) {
             $source = 0xe2231afc;
