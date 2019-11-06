@@ -266,11 +266,49 @@ class SearchAPIService
 
         // Get list of fields
 
-        // Get dr.unique_id f
+        // Test of selecting a keyword tag 'template_tag_uuid' => daefe83
+        $sub_query = $this->em->createQuery(
+            'SELECT
+            distinct t.id 
+            FROM ODRAdminBundle:Tags AS t
+            WHERE t.tagUuid LIKE :tag_uuid'
+        )
+        ->setParameter('tag_uuid', '8cb46e2');
 
+        $sub_result = $sub_query->getArrayResult();
+
+        $sub_keys = array();
+        foreach($sub_result as $sub) {
+            array_push($sub_keys, $sub['id']);
+        }
+
+        /*
+         *
+         * Select tag_id from tags where tag_uuid like '
+         *
+         *
+         // get an ExpressionBuilder instance, so that you
+        $expr = $this->_em->getExpressionBuilder();
+
+        // create a subquery in order to take all address records for a specified user id
+        $sub = $this->_em->createQueryBuilder()
+            ->select('a')
+            ->from($this->_addressEntityName, 'a')
+            ->where('a.user = u.id');
+
+
+        $qb = $this->_em->createQueryBuilder()
+            ->select('u')
+            ->from($this->_userEntityName, 'u')
+            ->where($expr->not($expr->exists($sub->getDQL())));
+
+         return $qb->getQuery()->getResult();
+         */
+
+        // Get dr.unique_id
         $query = $this->em->createQuery(
             'SELECT
-               distinct dr.unique_id 
+            distinct dr.unique_id 
 
             FROM ODRAdminBundle:DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
@@ -327,10 +365,12 @@ class SearchAPIService
                 dt.masterDataType = :master_datatype_id
                 AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND drm.publicDate <= :now
+                AND ts.tag_id IN (:selected_tag_ids)
                 AND (e_i.id IS NULL OR e_i.original = 0)'
         )->setParameters(array(
             'master_datatype_id' => $master_datatype_id,
-            'now' => new \DateTime()
+            'now' => new \DateTime(),
+            'selected_tag_ids' => $sub_keys;
         ));
 
         // print $query->getSQL();exit();
