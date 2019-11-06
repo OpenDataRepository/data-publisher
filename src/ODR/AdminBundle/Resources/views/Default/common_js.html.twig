@@ -338,24 +338,25 @@
     });
 
     function searchToggle() {
-        var search = $(".ODRContentWrapper");
+        var sidebar = $("#ODRSearchSidebar");
         var searchToggle = $(".ODRSearchToggle");
+        var searchContent = $("#ODRSearchContent");
 
-        if (search.hasClass("ODRSearchVisible")) {
-            search.removeClass("ODRSearchVisible").addClass("ODRSearchHidden");
+        if ( $(sidebar).hasClass("ODRSearchVisible") ) {
+            $(sidebar).removeClass("ODRSearchVisible").addClass("ODRSearchHidden");
 
-            searchToggle.find(".fa-arrow-circle-left").addClass('hidden');
-            searchToggle.find(".fa-arrow-circle-right").removeClass('hidden');
+            $(searchToggle).find(".fa-arrow-circle-left").addClass('hidden');
+            $(searchToggle).find(".fa-arrow-circle-right").removeClass('hidden');
 
-            $("#ODRSearchContent").addClass("ODRSearchResultsWide");
+            $(searchContent).addClass("ODRSearchResultsWide");
         }
         else {
-            search.removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
+            $(sidebar).removeClass("ODRSearchHidden").addClass("ODRSearchVisible");
 
-            searchToggle.find(".fa-arrow-circle-right").addClass('hidden');
-            searchToggle.find(".fa-arrow-circle-left").removeClass('hidden');
+            $(searchToggle).find(".fa-arrow-circle-right").addClass('hidden');
+            $(searchToggle).find(".fa-arrow-circle-left").removeClass('hidden');
 
-            $("#ODRSearchContent").removeClass("ODRSearchResultsWide");
+            $(searchContent).removeClass("ODRSearchResultsWide");
         }
     }
 
@@ -422,52 +423,65 @@
 
         // Setup Tabs
         $(".ODRTabAccordion").each(function() {
-            // Locate and attach tab accordion handlers to the buttons
-            $(this).children(".ODRTabButtonHeader").each(function() {
-                $(this).children(".ODRTabButton").each(function() {
-                    $(this).unbind('click').click(function() {
-                        // Hide all tabbed content divs
-                        $(this).parent().parent().find(".accordion-content").hide();
-                        // Attach another (styling?) class to more clearly indicated the selected tab?
-                        $(this).parent().children().each(function() {
-                            $(this).removeClass('pure-button-active');
-                        });
-                        $(this).addClass('pure-button-active');
+            // Hide all content divs except the first
+            var wrapper_div = $(this);
+            $(wrapper_div).children(".accordion-content").each(function() {
+                $(this).hide();
+            });
+            $(wrapper_div).children(".accordion-content").first().show();
 
-                        // Show the div that's linked to the clicked button
-                        var id = $(this).attr('rel');
-                        $("#FieldArea_" + id).fadeIn();
-                        {#ODR_scrollIntoView( $("#FieldArea_" + id) )#}
+            // For each button that could be clicked...
+            var tab_div = $(wrapper_div).children(".ODRTabButtonHeader").first();  // should only be one tab div here
 
-                        setupAccordionHighlights();
-                        // Resize any elements that were revealed
-                        onWindowResize();
+            // Ensure the first button is marked as "active"
+            $(tab_div).children(".ODRTabButton").first().addClass('pure-button-active');
+
+            // Attach click handlers to all the buttons in this tab div
+            $(tab_div).children(".ODRTabButton").each(function() {
+                $(this).unbind('click').click(function() {
+                    // Ensure this button is marked as "active", while all the others are not
+                    $(tab_div).children(".ODRTabButton").removeClass('pure-button-active');
+                    $(this).addClass('pure-button-active');
+
+                    // Store which content div should be selected
+                    var selected_dr = "FieldArea_" + $(this).attr('rel');
+
+                    // Hide all the content divs except the one that was selected
+                    $(wrapper_div).children(".accordion-content").each(function() {
+                        if ( $(this).attr('id') !== selected_dr )
+                            $(this).hide();
+                        else
+                            $(this).show();
                     });
-                });
 
-                // Trigger a click event on the first tab
-                $(this).children(".ODRTabButton:first").trigger('click');
+                    // Resize any elements that were revealed
+                    setupAccordionHighlights();
+                    onWindowResize();
+                });
             });
         });
 
         // Setup Dropdown
-        $(".ODRDropdownAccordion").find("select.accordion").each(function() {
-            $(this).children("option").not(":selected").each(function() {
-                var value = $(this).val();
-                $("#FieldArea_" + value).hide();
+        $(".ODRDropdownAccordion").each(function() {
+            // Hide all content divs except the first
+            var wrapper_div = $(this);
+            $(wrapper_div).children(".accordion-content").each(function() {
+                $(this).hide();
             });
+            $(wrapper_div).children(".accordion-content").first().show();
 
-            $(this).unbind('change').change(function() {
-                $(this).children("option").not(":selected").each(function() {
-                    var value = $(this).val();
-                    $("#FieldArea_" + value).hide();
-                });
+            // Attach the click handler to this dropdown
+            var select = $(wrapper_div).children('h3').children("span.AccordionSelect").children('select');
+            $(select).unbind('change').change(function() {
+                // Store which content div should be selected
+                var selected_dr = "FieldArea_" + $(this).val();
 
-                $(this).children(":selected").each(function() {
-                    // Should only fire once
-                    var value = $(this).val();
-                    $("#FieldArea_" + value).fadeIn();
-                    {#ODR_scrollIntoView( $("#FieldArea_" + value) );#}
+                // Hide all the content divs except the one that was selected
+                $(wrapper_div).children(".accordion-content").each(function() {
+                    if ( $(this).attr('id') !== selected_dr )
+                        $(this).hide();
+                    else
+                        $(this).show();
                 });
 
                 // Resize any elements that were revealed
