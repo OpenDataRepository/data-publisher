@@ -365,7 +365,7 @@ class SearchAPIService
                 dt.masterDataType = :master_datatype_id
                 AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND drm.publicDate <= :now
-                AND t.id IN (:selected_tag_ids)
+                AND ts.tag IN (:selected_tag_ids)
                 AND (e_i.id IS NULL OR e_i.original = 0)'
         )->setParameters(array(
             'master_datatype_id' => $master_datatype_id,
@@ -373,6 +373,8 @@ class SearchAPIService
             'selected_tag_ids' => join(',', $sub_keys)
         ));
 
+        // print $master_datatype_id . " -- ";
+        // print join(',', $sub_keys);
         // print $query->getSQL();exit();
         $result = $query->getArrayResult();
 
