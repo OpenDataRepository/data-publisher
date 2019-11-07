@@ -56,6 +56,7 @@ use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 // Symfony
 use Symfony\Component\HttpFoundation\Cookie;
@@ -2173,32 +2174,28 @@ class CSVImportController extends ODRCustomController
 
                     // TODO - make these use ValidUtility?
                     case "IntegerValue":
-                        if ($value !== '') {
+                        $value = trim($value);
+                        if ( !ValidUtility::isValidInteger($value) ) {
                             // Warn about invalid characters in an integer conversion
-                            $int_value = intval( $value );          // TODO - should this regexp out non-numeric characters first?  TODO - display warnings differently?
-                            if ( strval($int_value) != $value ) {
-                                $errors[] = array(
-                                    'level' => 'Warning',
-                                    'body' => array(
-                                        'line_num' => $line_num,
-                                        'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", but will be converted to the integer value "'.strval($int_value).'"'
-                                    )
-                                );
-                            }
+                            $errors[] = array(  // TODO - display warnings differently?
+                                'level' => 'Warning',
+                                'body' => array(
+                                    'line_num' => $line_num,
+                                    'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a proper integer value, and will be converted to "'.intval($value).'"'
+                                )
+                            );
                         }
                         break;
                     case "DecimalValue":
-                        if ($value !== '') {
-                            $float_value = floatval( $value );      // TODO - floatval() is turning '-' into '0'?  shouldn't it be blank?  TODO - display warnings separately from errors?
-                            if ( strval($float_value) != $value )  {
-                                $errors[] = array(
-                                    'level' => 'Warning',
-                                    'body' => array(
-                                        'line_num' => $line_num,
-                                        'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", but will be converted to the floating-point value "'.strval($float_value).'"',
-                                    ),
-                                );
-                            }
+                        $value = trim($value);
+                        if ( !ValidUtility::isValidDecimal($value) ) {
+                            $errors[] = array(    // TODO - display warnings separately from errors?
+                                'level' => 'Warning',
+                                'body' => array(
+                                    'line_num' => $line_num,
+                                    'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a proper decimal value, and will be converted to "'.floatval($value).'"'
+                                ),
+                            );
                         }
                         break;
 
@@ -3903,8 +3900,10 @@ exit();
                         /** @var IntegerValue $entity */
                         $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
-                        // NOTE - intentionally not using intval() here...self::csvvalidateAction() would've already warned if column data wasn't an integer
-                        // In addition, parent::ODR_copyStorageEntity() has to have values passed as strings, and will convert back to integer before saving
+                        // NOTE - intentionally not using intval() here...self::csvvalidateAction()
+                        //  would've already warned if column data wasn't an integer
+                        // In addition, updateStorageEntity() has to have values passed as strings,
+                        //  and will convert back to integer before saving
                         $value = $column_data;
 
                         // Ensure the value stored in the entity matches the value in the import file
@@ -3917,8 +3916,10 @@ exit();
                         /** @var DecimalValue $entity */
                         $entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
 
-                        // NOTE - intentionally not using floatval() here...self::csvvalidateAction() would've already warned if column data wasn't a float
-                        // In addition, parent::ODR_copyStorageEntity() has to have values passed as strings...DecimalValue::setValue() will deal with any string received
+                        // NOTE - intentionally not using floatval() here...self::csvvalidateAction()
+                        //  would've already warned if column data wasn't a float
+                        // In addition, updateStorageEntity() has to have values passed as strings,
+                        //  and DecimalValue::setValue() will deal with any string received
                         $value = $column_data;
 
                         // Ensure the value stored in the entity matches the value in the import file

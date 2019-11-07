@@ -14,6 +14,7 @@
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 
 
 /**
@@ -133,6 +134,9 @@ class DecimalValue
 
         $value = strval(trim($value));
 
+        // Store whether this was given a valid decimal value or not...
+        $original_value_is_valid = ValidUtility::isValidDecimal($value);
+
         // Preserve negative
         $negative = false;
         if ( substr($value, 0, 1) == '-' ) {
@@ -184,10 +188,15 @@ class DecimalValue
         else if ($negative && $value !== '0')
             $value = '-'.$value;
 
-        // Save the fixed string
-        $this->original_value = $value;
         // Save the approximation for searching purposes
         $this->value = floatval($value);
+
+        // If the original string was a valid decimal value, then store it...otherwise, store
+        //  whatever floatval() ended up returning
+        if ( $original_value_is_valid )
+            $this->original_value = $value;
+        else
+            $this->original_value = strval($this->value);
 
         return $this;
     }
