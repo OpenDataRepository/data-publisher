@@ -200,7 +200,7 @@
 
 <!-- main menu -->
 <div class="ODRMenuWrapper pure-g" id="ODRMainMenu">
-    <div class="pure-menu pure-menu-horizontal odr-custom-can-transform pure-u-1 pure-u-md-7-24">
+    <div class="pure-menu pure-menu-horizontal odr-custom-can-transform pure-u-1 pure-u-md-7-24 pure-u-lg-7-24">
         <span class="odr-custom-toggle" id="toggle"><i class="fa fa-lg fa-bars"></i> Menu</span>
         <ul class="pure-menu-list">
             {% if use_navigation_block == true %}
@@ -217,16 +217,12 @@
     </div>
 
     {% if header_right_title != '' %}
-    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-can-transform odr-menu-center pure-u-1 pure-u-md-8-24">
-        {#<ul class="pure-menu-list"></ul>#}
-    </div>
+    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-can-transform odr-menu-center pure-u-1 pure-u-md-6-24 pure-u-lg-7-24 pure-u-xl-8-24"></div>
     {% else %}
-    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-can-transform odr-menu-center pure-u-1 pure-u-md-9-24">
-        {#<ul class="pure-menu-list"></ul>#}
-    </div>
+    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-can-transform odr-menu-center pure-u-1 pure-u-md-9-24 pure-u-lg-9-24 pure-u-xl-9-24"></div>
     {% endif %}
 
-    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-6-24">
+    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-6-24 pure-u-lg-6-24">
         <ul class="pure-menu-list">
             {% if current_user != '' %}
                 <li id="ODRProfileLink" class="pure-menu-item">
@@ -240,7 +236,8 @@
             {% endif %}
         </ul>
     </div>
-    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-1-24">
+
+    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-1-24 pure-u-lg-1-24">
         <ul class="pure-menu-list">
             <li class="pure-menu-item">
                 <span class="pure-menu-heading">
@@ -249,14 +246,18 @@
             </li>
         </ul>
     </div>
+
     {% if header_right_title != '' %}
-    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-1-24">
+    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-2-24 pure-u-lg-2-24 pure-u-xl-1-24">
         <ul class="pure-menu-list">
-            <li id="ODRLoginLink" class="pure-menu-item"><a class="pure-menu-link" {% if header_right_path != '' %}href="{{ header_right_path }}"{% endif %} {% if header_right_js != '' %}onclick="{{ header_right_js }}"{% endif %}>{{ header_right_title }}</a></li>
+            <li id="ODRLoginLink" class="pure-menu-item">
+                <a class="pure-menu-link" {% if header_right_path != '' %}href="{{ header_right_path }}"{% endif %} {% if header_right_js != '' %}onclick="{{ header_right_js }}"{% endif %}>{{ header_right_title }}</a>
+            </li>
         </ul>
     </div>
     {% endif %}
-    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-1-24">
+
+    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-2-24 pure-u-lg-1-24">
         <ul class="pure-menu-list">
             <li class="pure-menu-item">
                 <span class="pure-menu-heading">

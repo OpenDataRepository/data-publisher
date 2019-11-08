@@ -4223,3 +4223,11 @@ i {
     right: 10px;
     width: 137px;
 }
+
+#ODRMessages {
+    z-index: 99;
+}
+
+#ODRLoginLink {
+    z-index: 99;
+}
