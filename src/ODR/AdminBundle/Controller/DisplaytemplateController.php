@@ -471,6 +471,8 @@ class DisplaytemplateController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            // Permissions are handled inside the deletion service
+
             /** @var EntityDeletionService $ed_service */
             $ed_service = $this->container->get('odr.entity_deletion_service');
             $ed_service->deleteDatatype($datatype, $user);

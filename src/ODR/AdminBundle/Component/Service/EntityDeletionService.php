@@ -18,9 +18,10 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Exception\ODRException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
@@ -632,6 +633,10 @@ class EntityDeletionService
             if (!$this->pm_service->isDatatypeAdmin($user, $datatype))
                 throw new ODRForbiddenException();
             // --------------------
+
+            // Don't directly delete a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to delete a metadata datatype');
 
             // TODO - prevent datatype deletion when called from a linked dataype?  not sure if this is possible...
             // TODO - prevent datatype deletion when jobs are in progress?

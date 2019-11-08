@@ -549,8 +549,11 @@ class DatatypeController extends ODRCustomController
                 // Only want to display recent changes for the top-level datatypes...
                 $datatype_names = array();
                 foreach ($datatypes as $dt_id => $dt) {
-                    if ( $dt['id'] === $dt['grandparent']['id'] )
-                        $datatype_names[$dt_id] = $dt['dataTypeMeta']['shortName'];
+                    if ( $dt['id'] === $dt['grandparent']['id'] ) {
+                        // ...don't want to display changes for the metadata datatypes
+                        if ( is_null($dt['metadata_for']) )
+                            $datatype_names[$dt_id] = $dt['dataTypeMeta']['shortName'];
+                    }
                 }
 
                 // Build the graphs for each of the top-level datatypes
@@ -707,6 +710,7 @@ class DatatypeController extends ODRCustomController
                     )
                 );
 
+                // Not caching since it barely makes a difference
 //                $cache_service->set('dashboard_'.$dt_id, $graph);
 //                $cache_service->expire('dashboard_'.$dt_id, 1*24*60*60);    // Cache this dashboard entry for upwards of one day
 
@@ -722,7 +726,7 @@ class DatatypeController extends ODRCustomController
 
 
     /**
-     * Builds and returns a list of the actions a user can perform to each top-level DataType.
+     * Builds and returns a list of top-level datatypes or master templates.
      *
      * @param string $section Either "databases", "templates", or "datatemplates"
      * @param Request $request
@@ -1040,9 +1044,6 @@ class DatatypeController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-            if ( !is_null($datatype->getMetadataDatatype()) )
-                throw new ODRBadRequestException('This database already has a metadata datatype');
-
 
             // --------------------
             // Grab user privileges to determine what they can do
@@ -1055,7 +1056,13 @@ class DatatypeController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            if ( !is_null($datatype->getMetadataDatatype()) )
+                throw new ODRBadRequestException('This database already has a metadata datatype');
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Metadata datatypes are not allowed to have their own metadata');
 
+
+            // ----------------------------------------
             // Create master == 0
             $create_master = 0;
 
@@ -1243,10 +1250,6 @@ class DatatypeController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
-            if ( !is_null($datatype->getMetadataDatatype()) )
-                throw new ODRBadRequestException('This database already has a metadata datatype');
-
-
             // --------------------
             // Grab user privileges to determine what they can do
             /** @var ODRUser $user */
@@ -1256,6 +1259,11 @@ class DatatypeController extends ODRCustomController
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+            if ( !is_null($datatype->getMetadataDatatype()) )
+                throw new ODRBadRequestException('This database already has a metadata datatype');
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Metadata datatypes are not allowed to have their own metadata');
 
 
             return self::direct_add_datatype($template_choice, $datatype_id);
@@ -1740,6 +1748,8 @@ class DatatypeController extends ODRCustomController
 
             if ( !is_null($datatype->getMetadataDatatype()) )
                 throw new ODRBadRequestException('This database already has a metadata datatype');
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Metadata datatypes are not allowed to have their own metadata');
 
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin

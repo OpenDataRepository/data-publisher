@@ -117,9 +117,12 @@ class CSVImportController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // This doesn't make sense on a master datatype
+            // This doesn't make sense on a master template...
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
+            // ...or a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
 
 
             // ----------------------------------------
@@ -312,11 +315,16 @@ class CSVImportController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // This doesn't make sense on a master datatype
+            // This doesn't make sense on a master template...
             if ( $source_datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
             if ( $target_datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
+            // ...or a metadata datatype
+            if ( !is_null($source_datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
+            if ( !is_null($target_datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
 
 
             // ----------------------------------------
@@ -1162,9 +1170,12 @@ class CSVImportController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // This doesn't make sense on a master datatype
+            // This doesn't make sense on a master template...
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
+            // ...or a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
 
 
             // ----------------------------------------
@@ -2547,9 +2558,12 @@ class CSVImportController extends ODRCustomController
             // TODO - permissions check may need to be more involved than just checking whether the user accessing this can edit the datatype...
             // --------------------
 
-            // This doesn't make sense on a master datatype
+            // This doesn't make sense on a master template...
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
+            // ...or a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
 
 
             // ----------------------------------------
@@ -2899,9 +2913,12 @@ class CSVImportController extends ODRCustomController
             // TODO - permissions check may need to be more involved than just checking whether the user accessing this can edit the datatype...
             // --------------------
 
-            // This doesn't make sense on a master datatype
+            // This doesn't make sense on a master template...
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
+            // ...or a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
 
 
             // ----------------------------------------
@@ -4440,11 +4457,16 @@ exit();
             if ($parent_datatype == null)
                 throw new ODRException('Invalid Form...Parent Datatype is deleted');
 
-            // This doesn't make sense on a master datatype
+            // This doesn't make sense on a master template...
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
             if ( $parent_datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to import into a master template');
+            // ...or a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
+            if ( !is_null($parent_datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
 
 
             // ----------------------------------------
