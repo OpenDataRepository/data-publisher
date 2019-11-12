@@ -1662,6 +1662,9 @@ class EditController extends ODRCustomController
             if ($typeclass !== 'Radio')
                 throw new ODRBadRequestException('Unable to select/deselect a radio option for a '.$typeclass.' field');
 
+            if ( $datatype->getIsMasterType() )
+                throw new ODRBadRequestException('Unable to make selections on a Master Template');
+
 
             // --------------------
             // Determine user privileges

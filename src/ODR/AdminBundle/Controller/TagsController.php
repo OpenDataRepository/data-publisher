@@ -1530,7 +1530,7 @@ class TagsController extends ODRCustomController
             // Doesn't make sense for a master template to do this
             // TODO - ...same for most of the rest of the Edit page stuff?
             if ( $datatype->getIsMasterType() )
-                throw new ODRBadRequestException();
+                throw new ODRBadRequestException('Unable to make selections on a Master Template');
 
 
             // --------------------

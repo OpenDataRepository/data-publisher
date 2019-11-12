@@ -116,7 +116,7 @@
         $(".ODRFileDownloadProgress").hide();
 
         // Attach click handlers to tags
-        setupTagTree();
+        setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
 
         $("a.ODRFileDownload").unbind('click').click(function(event) {
             // Grab necessary attributes
