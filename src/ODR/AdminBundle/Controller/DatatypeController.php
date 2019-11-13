@@ -621,7 +621,12 @@ class DatatypeController extends ODRCustomController
                 dt.id IN (:datatypes)
                 AND dt.is_master_type = (:is_master_type)
                 AND dt.deletedAt IS NULL 
-                AND dtm.deletedAt IS NULL';
+                AND dtm.deletedAt IS NULL
+                AND (
+                        dt.preload_status IS NULL 
+                        OR dt.preload_status LIKE \'issued\'
+                    )
+                ';
 
             if($section == 'databases')
                 $query_sql .= ' AND dt.unique_id = dt.template_group';
