@@ -16,6 +16,7 @@
 /app/config/parameters.yml
 /app/config/parameters.ini
 /app/config/security.yml
+/app/config/jwt/*
 
 # Managed by Composer
 /app/bootstrap.php.cache
