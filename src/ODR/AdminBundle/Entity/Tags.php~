@@ -75,6 +75,7 @@ class Tags
     {
         $this->tagMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->tagSelections = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->userCreated = 0;
     }
 
     /**
@@ -342,5 +343,34 @@ class Tags
     public function getDisplayOrder()
     {
         return $this->getTagMeta()->getDisplayOrder();
+    }
+    /**
+     * @var int
+     */
+    private $userCreated;
+
+
+    /**
+     * Set userCreated.
+     *
+     * @param int $userCreated
+     *
+     * @return Tags
+     */
+    public function setUserCreated($userCreated)
+    {
+        $this->userCreated = $userCreated;
+
+        return $this;
+    }
+
+    /**
+     * Get userCreated.
+     *
+     * @return int
+     */
+    public function getUserCreated()
+    {
+        return $this->userCreated;
     }
 }

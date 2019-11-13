@@ -1,0 +1,31 @@
+# This file is auto-generated during the composer install
+parameters:
+    database_driver: pdo_mysql
+    database_host: localhost
+    database_port: null
+    database_name: odr_gamma_staging
+    database_user: odr_gamma
+    database_password: 929as9df9019jasdf90as
+    mailer_transport: smtp
+    mailer_host: localhost
+    mailer_user: null
+    mailer_password: null
+    locale: en
+    secret: a8910801jwqersjfdk8wfdnsjadflask2093810923809ae9r0af9iau2jlkjwehasdfkjh12
+    site_baseurl: 'http://office_dev'
+    memcached.servers:
+        -
+            host: 127.0.0.1
+            port: 11211
+    memcached_key_prefix: planetary3_office
+    session_memcached_expire: 14400
+    session_memcached_prefix: planetary2_odr_office_sess
+    session_memcached_host: 127.0.0.1
+    session_memcached_port: 11211
+    beanstalk_api_key: DJSjasdjkSDFULSDfjsisskkkKKdsasdfasfdK
+    jupyterhub_config:
+        use_jupyterhub: true
+        jupyterhub_baseurl: 'https://delta-jupyter.odr.io'
+        api_key: 1bfe4fcadcb2a3fc461d921f7cf2c69fd5a8296e9057a181823bc702af787424
+        bridge_token: 84678bbf705a12a97e50c3816331737c138266e4f51f8adabb5be12bbc930eca
+    odr_web_directory: '%kernel.root_dir%/../web'

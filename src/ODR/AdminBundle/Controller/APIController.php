@@ -3540,7 +3540,7 @@ class APIController extends ODRCustomController
 
             if($result[0][1] > 20000000000) {
                 // 20 GB temporary limit
-                throw new ODRForbiddenException("Quota Exceeded (1mb)");
+                throw new ODRForbiddenException("Quota Exceeded (20GB)");
             }
 
             /** @var DataRecord $data_record */
@@ -3605,6 +3605,8 @@ class APIController extends ODRCustomController
 
 
 
+            // TODO Need to also check file size here
+            // Total File Size - Total Quota Calculations
             /** @var \Symfony\Component\HttpFoundation\File\File $file */
             foreach($file_array as $file) {
                 // Deal with files and images here
@@ -3669,11 +3671,11 @@ class APIController extends ODRCustomController
                     else {
                         $tmp_file = $path_prefix.$destination_folder.'/'.$tmp_filename;
                         $destination_file = $path_prefix.$destination_folder.'/'.$original_filename;
-
                         // Download file to temp folder
                         $file->move($destination_folder);
                     }
 
+                    // TODO Need to also check file size here
                     // Rename file
                     rename($tmp_file, $destination_file);
 

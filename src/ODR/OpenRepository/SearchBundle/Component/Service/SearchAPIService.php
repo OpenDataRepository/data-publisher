@@ -257,7 +257,7 @@ class SearchAPIService
     public function fullTemplateSearch($master_datatype_id = 670) {
 
         // Determine all datatypes derived from master template including linked data types.
-        // Possibly use unique_id and _template group_ ....
+        // Possibly use unique_id and _template group_ .... (would not get user-linked)
         /*
          $template_groups = select data_type.unique_id from data_type where master_datatype_id = 670
          $dt_ids = select data_type.id from data_type where template_group_id in template_groups
@@ -312,22 +312,18 @@ class SearchAPIService
 
             FROM ODRAdminBundle:DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
-            LEFT JOIN dr.parent AS p_dr
-            LEFT JOIN dr.grandparent AS gp_dr
-
+            
+            
             LEFT JOIN dr.dataType AS dt
-            LEFT JOIN dt.grandparent AS gp_dt
             LEFT JOIN dt.dataTypeMeta AS dtm
             LEFT JOIN dt.dataFields AS df_dt
             LEFT JOIN df_dt.dataFieldMeta AS dfm_dt
             LEFT JOIN dfm_dt.fieldType AS ft_dt
             LEFT JOIN dt.masterDataType AS mdt
             LEFT JOIN dt.metadata_for AS mf
-            LEFT JOIN dtm.externalIdField AS dt_eif
-            LEFT JOIN dtm.nameField AS dt_nf
-            LEFT JOIN dtm.sortField AS dt_sf
 
             LEFT JOIN dr.dataRecordFields AS drf
+            
             LEFT JOIN drf.file AS e_f
             LEFT JOIN e_f.fileMeta AS e_fm
 
@@ -354,24 +350,37 @@ class SearchAPIService
             LEFT JOIN df.dataFieldMeta AS dfm
             LEFT JOIN dfm.fieldType AS ft
 
+
+            WHERE
+                dt.masterDataType = :master_datatype_id
+                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
+                AND drm.publicDate <= :now
+                AND (e_i.id IS NULL OR e_i.original = 0)'
+        )->setParameters(array(
+            'master_datatype_id' => $master_datatype_id,
+            'now' => new \DateTime()
+        ));
+
+        /*
+                AND ts.tag IN (:selected_tag_ids)
+            'selected_tag_ids' => join(',', $sub_keys),
+
+
+            LEFT JOIN dtm.externalIdField AS dt_eif
+            LEFT JOIN dtm.nameField AS dt_nf
+            LEFT JOIN dtm.sortField AS dt_sf
+
+            LEFT JOIN dr.parent AS p_dr
+            LEFT JOIN dr.grandparent AS gp_dr
+
+            LEFT JOIN dt.grandparent AS gp_dt
             LEFT JOIN dr.children AS cdr
             LEFT JOIN cdr.dataType AS cdr_dt
 
             LEFT JOIN dr.linkedDatarecords AS ldt
             LEFT JOIN ldt.descendant AS ldr
             LEFT JOIN ldr.dataType AS ldr_dt
-
-            WHERE
-                dt.masterDataType = :master_datatype_id
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
-                AND drm.publicDate <= :now
-                AND ts.tag IN (:selected_tag_ids)
-                AND (e_i.id IS NULL OR e_i.original = 0)'
-        )->setParameters(array(
-            'master_datatype_id' => $master_datatype_id,
-            'now' => new \DateTime(),
-            'selected_tag_ids' => join(',', $sub_keys)
-        ));
+         */
 
         // print $master_datatype_id . " -- ";
         // print join(',', $sub_keys);

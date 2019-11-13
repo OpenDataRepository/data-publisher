@@ -619,6 +619,7 @@ class DatatypeController extends ODRCustomController
                 LEFT JOIN dt.updatedBy AS dt_ub
                 WHERE 
                 dt.id IN (:datatypes) 
+                AND dt.unique_id = dt.template_group
                 AND dt.is_master_type = (:is_master_type)
                 AND dt.deletedAt IS NULL 
                 AND dtm.deletedAt IS NULL';
@@ -636,7 +637,9 @@ class DatatypeController extends ODRCustomController
 
             $results = $query->getArrayResult();
 
+            // TODO This whole loop seems superfluous
             $datatypes = array();
+            $metadata_datatype_ids = array();
             foreach ($results as $result) {
                 $dt_id = $result['id'];
 
@@ -645,14 +648,15 @@ class DatatypeController extends ODRCustomController
                 $dt['createdBy'] = UserUtility::cleanUserData($result['createdBy']);
                 $dt['updatedBy'] = UserUtility::cleanUserData($result['updatedBy']);
                 if (isset($result['metadata_datatype']) && count($result['metadata_datatype']) > 0) {
-                    // $dt['metadata_datatype']['dataTypeMeta'] = $result['metadata_datatype']['dataTypeMeta'][0];
                     $dt['metadata_datatype'] = $result['metadata_datatype'];
+                    array_push($metadata_datatype_ids, $dt['metadata_datatype']['id']);
                 }
                 if (isset($result['metadata_for']) && count($result['metadata_for']) > 0) {
                     $dt['metadata_for'] = $result['metadata_for'];
                 }
 
-                $dt['associated_datatypes'] = $dti_service->getAssociatedDatatypes(array($dt_id));
+                // TODO - not needed in current version
+                // $dt['associated_datatypes'] = $dti_service->getAssociatedDatatypes(array($dt_id));
                 $datatypes[$dt_id] = $dt;
             }
 
@@ -661,6 +665,10 @@ class DatatypeController extends ODRCustomController
             // Determine how many datarecords the user has the ability to view for each datatype
             $datatype_ids = array_keys($datatypes);
             $metadata = self::getDatarecordCounts($em, $datatype_ids, $datatype_permissions);
+            $datatypes = self::getCorrectedNames($em, $metadata_datatype_ids, $datatypes);
+
+            // Get corrected names
+
 
             // Render and return the html for the datatype list
             $return['d'] = array(
@@ -693,6 +701,67 @@ class DatatypeController extends ODRCustomController
         return $response;
     }
 
+    private function getCorrectedNames($em, $datatype_ids, $datatypes) {
+        // We need to get true database name for this datatype
+        $query_sql =
+            'SELECT
+                        dt, mf, dr, drm, drf, drf_df, drf_drm, e_lt, e_lvc, e_mvc, e_svc
+                        FROM ODRAdminBundle:DataType dt
+                        LEFT JOIN dt.metadata_for AS mf
+                        LEFT JOIN dt.dataRecords AS dr
+                        LEFT JOIN dr.dataRecordMeta AS drm
+                        LEFT JOIN dr.dataRecordFields AS drf
+                        LEFT JOIN drf.dataField AS drf_df
+                        LEFT JOIN drf_df.dataFieldMeta AS drf_drm
+                        LEFT JOIN drf.longText AS e_lt
+                        LEFT JOIN drf.longVarchar AS e_lvc
+                        LEFT JOIN drf.mediumVarchar AS e_mvc
+                        LEFT JOIN drf.shortVarchar AS e_svc
+                        
+                        WHERE 
+                        dt.id IN (:datatype_ids)
+                        AND dt.deletedAt IS NULL 
+                        AND drf_drm.internal_reference_name LIKE \'datatype_name\'
+                        ';
+
+
+        $query = $em->createQuery($query_sql);
+        $query->setParameters(
+            array(
+                'datatype_ids' => $datatype_ids
+            )
+        );
+
+        $datatype_results = $query->getArrayResult();
+
+        foreach ($datatype_results as $datatype_result) {
+            if (
+                isset($datatype_result['dataRecords'])
+                && isset($datatype_result['dataRecords'][0])
+                && isset($datatype_result['dataRecords'][0]['dataRecordFields'])
+                && isset($datatype_result['dataRecords'][0]['dataRecordFields'][0])
+            ) {
+                $field = $datatype_result['dataRecords'][0]['dataRecordFields'][0];
+                $datatype_id = $datatype_result['metadata_for']['id'];
+                if (count($field['longText']) > 0) {
+                    $datatypes[$datatype_id]['dataTypeMeta']['shortName'] = $field['longText'][0]['value'];
+                    $datatypes[$datatype_id]['dataTypeMeta']['longName'] = $field['longText'][0]['value'];
+                } else if (count($field['longVarchar']) > 0) {
+                    $datatypes[$datatype_id]['dataTypeMeta']['shortName'] = $field['longVarchar'][0]['value'];
+                    $datatypes[$datatype_id]['dataTypeMeta']['longName'] = $field['longVarchar'][0]['value'];
+                } else if (count($field['mediumVarchar']) > 0) {
+                    $datatypes[$datatype_id]['dataTypeMeta']['shortName'] = $field['mediumVarchar'][0]['value'];
+                    $datatypes[$datatype_id]['dataTypeMeta']['longName'] = $field['mediumVarchar'][0]['value'];
+                } else if (count($field['shortVarchar']) > 0) {
+                    $datatypes[$datatype_id]['dataTypeMeta']['shortName'] = $field['shortVarchar'][0]['value'];
+                    $datatypes[$datatype_id]['dataTypeMeta']['longName'] = $field['shortVarchar'][0]['value'];
+                }
+            }
+        }
+
+        return $datatypes;
+
+    }
 
     /**
      * Returns an array with how many datarecords the user is allowed to see for each datatype in

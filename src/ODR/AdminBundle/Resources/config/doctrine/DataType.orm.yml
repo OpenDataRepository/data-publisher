@@ -124,6 +124,14 @@ ODR\AdminBundle\Entity\DataType:
             fetch: EXTRA_LAZY
             orphanRemoval: false
 
+        dataRecords:
+            targetEntity: DataRecord
+            cascade: {  }
+            mappedBy: dataType
+            inversedBy: null
+            fetch: EXTRA_LAZY
+            orphanRemoval: false
+
         themes:
             targetEntity: Theme
             cascade: { }
