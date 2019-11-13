@@ -624,7 +624,7 @@ class DatatypeController extends ODRCustomController
                 AND dtm.deletedAt IS NULL';
 
             if($section == 'databases')
-                $query_sql .= 'AND dt.unique_id = dt.template_group';
+                $query_sql .= ' AND dt.unique_id = dt.template_group';
 
             if ($section == "datatemplates")
                 $query_sql .= ' AND dt.metadata_datatype IS NULL';
