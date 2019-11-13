@@ -618,11 +618,13 @@ class DatatypeController extends ODRCustomController
                 LEFT JOIN dt.createdBy AS dt_cb
                 LEFT JOIN dt.updatedBy AS dt_ub
                 WHERE 
-                dt.id IN (:datatypes) 
-                AND dt.unique_id = dt.template_group
+                dt.id IN (:datatypes)
                 AND dt.is_master_type = (:is_master_type)
                 AND dt.deletedAt IS NULL 
                 AND dtm.deletedAt IS NULL';
+
+            if($section == 'databases')
+                $query_sql .= 'AND dt.unique_id = dt.template_group';
 
             if ($section == "datatemplates")
                 $query_sql .= ' AND dt.metadata_datatype IS NULL';
