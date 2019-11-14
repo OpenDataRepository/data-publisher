@@ -4220,3 +4220,20 @@ i {
 #ODRLoginLink {
     z-index: 99;
 }
+
+#ODRSearchSidebar {
+    margin-left: -30px;
+}
+
+#ODRSearchSidebar > .ODRThemeElement > .ODRInnerBox {
+  background-image:
+    linear-gradient(
+      to right, 
+      RGBA(90, 154, 190, 0.2),
+      #ffffff 5%, 
+      #ffffff
+    );
+    padding-left: 40px;
+    padding-right: 6px;
+}
+
