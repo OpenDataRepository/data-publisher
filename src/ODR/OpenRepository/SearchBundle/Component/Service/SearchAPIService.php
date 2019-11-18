@@ -670,6 +670,7 @@ class SearchAPIService
         foreach ($criteria as $facet => $facet_data) {
             // Need to keep track of the matches for each facet individually
             $facet_dr_list[$facet] = null;
+            $facet_type = $facet_data['facet_type'];
             $merge_type = $facet_data['merge_type'];
             $search_terms = $facet_data['search_terms'];
 
@@ -704,19 +705,19 @@ class SearchAPIService
                         // Only split from the text/number searches to avoid parameter confusion
                         $dr_list = $this->search_service->searchBooleanDatafield($entity, $search_term['value']);
                     }
-                    else if ($typeclass === 'Radio' && $facet === 'general') {
+                    else if ($typeclass === 'Radio' && $facet_type === 'general') {
                         // General search only provides a string, and only wants selected radio options
                         $dr_list = $this->search_service->searchForSelectedRadioOptions($entity, $search_term['value']);
                     }
-                    else if ($typeclass === 'Radio' && $facet !== 'general') {
+                    else if ($typeclass === 'Radio' && $facet_type !== 'general') {
                         // The more specific version of searching a radio datafield provides an array of selected/deselected options
                         $dr_list = $this->search_service->searchRadioDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
                     }
-                    else if ($typeclass === 'Tag' && $facet === 'general') {
+                    else if ($typeclass === 'Tag' && $facet_type === 'general') {
                         // General search only provides a string, and only wants selected tags
                         $dr_list = $this->search_service->searchforSelectedTags($entity, $search_term['value']);
                     }
-                    else if ($typeclass === 'Tag' && $facet !== 'general') {
+                    else if ($typeclass === 'Tag' && $facet_type !== 'general') {
                         // The more specific version of searching a tag datafield provides an array of selected/deselected options
                         $dr_list = $this->search_service->searchTagDatafield($entity, $search_term['selections'], $search_term['combine_by_OR']);
                     }

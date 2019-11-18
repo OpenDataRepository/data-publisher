@@ -120,11 +120,12 @@ class SearchKeyService
         $search_params = array();
         foreach ($post as $key => $value) {
             // Ignore empty entries
+            $value = trim($value);
             if ($value === '')
                 continue;
 
             // Don't care whether the contents of the POST are technically valid or not here
-            $search_params[$key] = $value;
+            $search_params[$key] = self::clean($value);
         }
 
         // The important part is to sort by key, so different orderings result in the same search_key...
@@ -149,11 +150,12 @@ class SearchKeyService
         $search_params = array();
         foreach ($post as $key => $value) {
             // Ignore empty entries
+            $value = trim($value);
             if ($value === '')
                 continue;
 
             // Technically don't care whether the contents of the POST are valid or not here
-            $search_params[$key] = $value;
+            $search_params[$key] = self::clean($value);
         }
 
         // Important to sort the results, so different input orders result in the same key
@@ -165,6 +167,218 @@ class SearchKeyService
     }
 
     // TODO - other conversion functions?
+
+    /**
+     * Strips newlines and extra spaces from search parameters, and also replaces several multibyte
+     * character sequences with ascii equivalents.  Expects a trimmed string as input.
+     *
+     * @param string $str
+     *
+     * @return string
+     */
+    private function clean($str)
+    {
+        // Replace newlines with empty strings, and the unicode "smart quotes" (U+201C and U+201D)
+        //  with a regular doublequote (U+0022)
+        $str = str_replace(array("\n", "\r", "“", "”"), array('','','"', '"'), $str);
+
+        // Read through the string, replacing sequences of multiple spaces with at most one space
+        $cleaned = '';
+        $prev_char = '';
+        $in_quote = false;
+
+        $len = mb_strlen($str);
+        for ($i = 0; $i < $len; $i++) {
+            // Need to use multibyte substr to ensure multibyte characters don't get mangled
+            $char = mb_substr($str, $i, 1);
+
+            switch ($char) {
+                case "\"":
+                    if ( $in_quote ) {
+                        // Found ending quote
+                        $in_quote = false;
+                    }
+                    else {
+                        // Found starting quote
+                        $in_quote = true;
+                    }
+
+                    // Always transcribe this character
+                    $cleaned .= $char;
+                    break;
+                case " ":
+                    // Always want to save this space if in quotes...if not in quotes, then only save
+                    //  when the previous character wasn't a space
+                    if ($in_quote || $prev_char !== " ") {
+                        $cleaned .= $char;
+                    }
+                    break;
+                default:
+                    // Some other character, save it
+                    $cleaned .= $char;
+                    break;
+            }
+
+            $prev_char = $char;
+        }
+
+        // If the quotation marks are unmatched, add one to the end of the string...
+        if ( $in_quote )
+            $cleaned .= '"';
+
+        return $cleaned;
+    }
+
+
+    /**
+     * Splits a string that has been run through clean() into an array of terms that were separated
+     * by logical operators.  e.g.
+     * "Gold" => array("Gold")
+     * "Gold OR Silver" => array("Gold", "||", "Silver")
+     * "Gold || Silver" => array("Gold", "||", "Silver")
+     * "Gold Silver" => array("Gold", "&&", "Silver")
+     * "Gold Silver OR Quartz" => array("Gold", "&&", "Silver", "||", "Quartz")
+     *
+     * Strings that have been run through clean() but aren't entirely logical aren't "fixed"...e.g.
+     * "Gold OR OR Quartz" => array("Gold", "||", "OR", "&&", "Quartz")
+     *
+     * The current implementation is ONLY useful for the current version of general search...in the
+     * future this will need to get completely rewritten to return an expression tree instead.
+     *
+     * @param string $str
+     *
+     * @return array
+     */
+    private function tokenize($str)
+    {
+        $tokens = array();
+        $token = '';
+        $prev_token = '';
+        $in_quote = false;
+
+        // The UTF-8 sequences with special meaning to ODR have already been converted into ascii,
+        //  so the string no longer needs special UTF-8 treatment
+        $len = strlen($str);
+        for ($i = 0; $i < $len; $i++) {
+            $char = $str{$i};
+
+            switch ($char) {
+                case "\"":
+                    if ( $in_quote ) {
+                        // Found ending quote
+                        $in_quote = false;
+
+                        $token .= "\"";
+                        $tokens[] = $token;
+
+                        // Reset for next potential token
+                        $prev_token = $token;
+                        $token = '';
+                    }
+                    else {
+                        // Found starting quote
+                        $in_quote = true;
+                        $token = "\"";
+                    }
+                    break;
+                case " ":
+                    if ($in_quote) {
+                        // Always want to save this space if in quotes...
+                        $token .= $char;
+                    }
+                    else {
+                        // Otherwise, it indicates an AND operator...save the existing string
+                        $tokens[] = $token;
+
+                        // Insert an AND token here
+                        $tokens[] = '&&';
+
+                        // Reset for next potential token
+                        $prev_token = '&&';
+                        $token = '';
+                    }
+                    break;
+                case 'o':
+                case 'O':
+                    if ($in_quote) {
+                        // No special meaning if inside quotes
+                        $token .= $char;
+                    }
+                    else {
+                        // OR operators are only valid if the parser thought the last token was an
+                        //  AND operator and there's a space after the "OR"...
+                        if ( $prev_token === '&&' && ($i+2) < $len ) {
+                            // Determine whether this is an OR operator or not...
+                            $second_char = $str{$i+1};
+                            $third_char = $str{$i+2};
+
+                            if ( ($second_char === 'r' || $second_char === 'R') && $third_char === ' ' ) {
+                                // This is an OR operator...replace the previous token with this one
+                                array_pop($tokens);
+                                $tokens[] = '||';
+                                $prev_token = '||';
+
+                                // Skip over the rest of this operator
+                                $i += 2;
+                            }
+                            else {
+                                // ...not an OR operator, treat it as a regular character
+                                $token .= $char;
+                            }
+                        }
+                        else {
+                            // ...not an OR operator, treat it as a regular character
+                            $token .= $char;
+                        }
+                    }
+                    break;
+                case '|':
+                    if ($in_quote) {
+                        // No special meaning if inside quotes
+                        $token .= $char;
+                    }
+                    else {
+                        // OR operators are only valid if the parser thought the last token was an
+                        //  AND operator and there's a space after the "||"...
+                        if ( $prev_token === '&&' && ($i+2) < $len ) {
+                            // Determine whether this is an OR operator or not...
+                            $second_char = $str{$i+1};
+                            $third_char = $str{$i+2};
+
+                            if ( $second_char === '|' && $third_char === ' ' ) {
+                                // This is an OR operator...replace the previous token with this one
+                                array_pop($tokens);
+                                $tokens[] = '||';
+                                $prev_token = '||';
+
+                                // Skip over the rest of this operator
+                                $i += 2;
+                            }
+                            else {
+                                // ...not an OR operator, treat it as a regular character
+                                $token .= $char;
+                            }
+                        }
+                        else {
+                            // ...not an OR operator, treat it as a regular character
+                            $token .= $char;
+                        }
+                    }
+                    break;
+                default:
+                    // Some other character, save it
+                    $token .= $char;
+                    break;
+            }
+        }
+
+        if ( $token !== '' ) {
+            // Store the last token when the string ends
+            $tokens[] = $token;
+        }
+
+        return $tokens;
+    }
 
 
     /**
@@ -444,6 +658,7 @@ class SearchKeyService
         $criteria = array(
             'search_type' => 'datatype',
             $datatype_id => array(
+                'facet_type' => 'single',
                 'merge_type' => "AND",
                 'search_terms' => array(),
             )
@@ -469,51 +684,129 @@ class SearchKeyService
                 if ($value === '')
                     continue;
 
-                // General search needs to be its own facet
-                $criteria['general'] = array(
-                    'merge_type' => 'OR',
-                    'search_terms' => array()
-                );
+                /**
+                 * So general search is technically a shorthand...a general search for "Gold" needs
+                 * to find all records where at least one of the searchable fields contains "Gold"
+                 * e.g. (field_1 = Gold OR field_2 = Gold OR field_3 = Gold OR ...)
+                 *
+                 * A general search for "Gold OR Quartz" needs to find all records where at least
+                 * one of the searchable fields contains "Gold", OR one of the searchable fields
+                 * contains "Quartz"  e.g.
+                 * (field_1 = "Gold" OR field_2 = "Gold" OR field_3 = "Gold" OR ...)
+                 * OR
+                 * (field_1 = "Quartz" OR field_2 = "Quartz" OR field_3 = "Quartz" OR ...)
+                 *
+                 * Because ORs are associative and commutative, the above is equvalent to
+                 * (field_1 = "Gold OR Quartz" OR field_2 = "Gold OR Quartz" OR ...)
+                 *
+                 *
+                 * However, a general search for "Gold AND Quartz" needs to find all records where
+                 * at least one of the searchable fields contains "Gold", AND at least one field
+                 * IN THE SAME RECORD contains "Quartz"  e.g.
+                 * (field_1 = "Gold" OR field_2 = "Gold" ...) AND (field_1 = "Quartz" OR field_2 = "Quartz" ...)
+                 *
+                 * The above query is already fully simplified, and CAN NOT be simplified further.
+                 * Attempting to distribute the search terms creates an exponentional increase in
+                 * the amount of work that searching has to do to return the correct result.
+                 */
 
-                // Need to find each datafield that qualifies for general search...
-                // 0 - not searchable
-                // 1 - searchable only through general search
-                // 2 - searchable in both general and advanced search
-                // 3 - searchable only in advanced search
-                foreach ($searchable_datafields as $dt_id => $df_list) {
-                    foreach ($df_list as $df_id => $df_data) {
-                        // For general search, both the searchable flag and the typeclass are needed
-                        $searchable = $df_data['searchable'];
-                        $typeclass = $df_data['typeclass'];
+                // Attempt to split the general search string into tokens
+                $tokens = self::tokenize($value);
 
-                        if ($searchable == '1' || $searchable == '2') {
-                            switch ($typeclass) {
-                                case 'Boolean':
-                                    // Excluding because a Boolean's value has a different
-                                    //  meaning than the other fieldtypes
-                                case 'DatetimeValue':
-                                case 'File':
-                                case 'Image':
-                                    // A general search doesn't make sense for Files/Images/Datetime
-                                    //  fields...don't create a criteria entry to be searched on
-                                    break;
+                /**
+                 * The existing implementation of general search can't deal with search queries that
+                 * combine both OR and AND...due to ODR's lack of grouping operators, you're stuck
+                 * with writing ambiguous queries like "Gold OR Silver AND Quartz"...which due to the
+                 * relative precedence of the operators actually means "Gold OR (Silver AND Quartz)"
+                 *
+                 * Unfortunately, ODR needs to have ANDs on the top level for query result merging
+                 * to return the correct answer...so the above would need to get wrapped into a
+                 * multi-level expression structure...which causes a cascade of problems down the
+                 * line.
+                 *
+                 * Rather than undertake a prohibitive amount of work to implement this correctly,
+                 * I'm assuming this is going to be rare enough to just throw an Exception for now.
+                 */
+                $has_or = $has_and = false;
+                foreach ($tokens as $token) {
+                    if ( $token === '||' )
+                        $has_or = true;
+                    else if ( $token === '&&' )
+                        $has_and = true;
+                }
+                if ( $has_or && $has_and )
+                    throw new ODRNotImplementedException("Unable to correctly perform a General Search that combines both OR and AND conditions");
 
-                                case 'IntegerValue':
-                                case 'DecimalValue':
-                                case 'ShortVarchar':
-                                case 'MediumVarchar':
-                                case 'LongVarchar':
-                                case 'LongText':
-                                case 'Radio':
-                                case 'Tag':
-                                    // A general search makes sense for each of these
-                                    $criteria['general']['search_terms'][$df_id] = array(
-                                        'value' => $value,
-                                        'entity_type' => 'datafield',
-                                        'entity_id' => $df_id,
-                                        'datatype_id' => $dt_id,
-                                    );
-                                    break;
+                // Do stuff to the list of tokens so it's in a format useful for general search
+                if ( isset($tokens[1]) ) {
+                    if ( $tokens[1] === '||' ) {
+                        // Since all the tokens are connected by ORs, they can all get merged back
+                        //  into a single string (see above for reasoning)
+                        $tokens = array(0 => implode(' ', $tokens));
+                    }
+                    else {
+                        // Since all the tokens are connected by ANDs, the tokens can be turned
+                        //  directly into separate facets for searching purposes
+                        foreach ($tokens as $token_num => $token) {
+                            // Don't want the '&&' tokens in the array, however
+                            if ( $token === '&&' )
+                                unset( $tokens[$token_num] );
+                        }
+                        $tokens = array_values($tokens);
+                    }
+                }
+
+
+                // ----------------------------------------
+                // For each token in the search string...
+                foreach ($tokens as $token_num => $token) {
+                    // Each token in the search string needs to be its own facet
+                    $criteria['general_'.$token_num] = array(
+                        'facet_type' => 'general',
+                        'merge_type' => 'OR',
+                        'search_terms' => array()
+                    );
+
+                    // Need to find each datafield that qualifies for general search...
+                    // 0 - not searchable
+                    // 1 - searchable only through general search
+                    // 2 - searchable in both general and advanced search
+                    // 3 - searchable only in advanced search
+                    foreach ($searchable_datafields as $dt_id => $df_list) {
+                        foreach ($df_list as $df_id => $df_data) {
+                            // General search needs both the searchable flag and the typeclass
+                            $searchable = $df_data['searchable'];
+                            $typeclass = $df_data['typeclass'];
+
+                            if ($searchable == '1' || $searchable == '2') {
+                                switch ($typeclass) {
+                                    case 'Boolean':
+                                        // Excluding because a Boolean's value has a different
+                                        //  meaning than the other fieldtypes
+                                    case 'DatetimeValue':
+                                    case 'File':
+                                    case 'Image':
+                                        // A general search doesn't make sense for these fieldtypes,
+                                        //  so don't create a criteria entry to be searched on
+                                        break;
+
+                                    case 'IntegerValue':
+                                    case 'DecimalValue':
+                                    case 'ShortVarchar':
+                                    case 'MediumVarchar':
+                                    case 'LongVarchar':
+                                    case 'LongText':
+                                    case 'Radio':
+                                    case 'Tag':
+                                        // A general search makes sense for each of these
+                                        $criteria['general_'.$token_num]['search_terms'][$df_id] = array(
+                                            'value' => $token,
+                                            'entity_type' => 'datafield',
+                                            'entity_id' => $df_id,
+                                            'datatype_id' => $dt_id,
+                                        );
+                                        break;
+                                }
                             }
                         }
                     }
@@ -535,6 +828,7 @@ class SearchKeyService
                 // Every search except for the general search merges by AND
                 if ( !isset($criteria[$dt_id]) ) {
                     $criteria[$dt_id] = array(
+                        'facet_type' => 'single',
                         'merge_type' => 'AND',
                         'search_terms' => array()
                     );
@@ -621,6 +915,7 @@ class SearchKeyService
                     // Every search except for the general search merges by AND
                     if ( !isset($criteria[$dt_id]) ) {
                         $criteria[$dt_id] = array(
+                            'facet_type' => 'single',
                             'merge_type' => 'AND',
                             'search_terms' => array()
                         );
@@ -666,6 +961,7 @@ class SearchKeyService
                     // Every search except for the general search merges by AND
                     if (!isset($criteria[$dt_id])) {
                         $criteria[$dt_id] = array(
+                            'facet_type' => 'single',
                             'merge_type' => 'AND',
                             'search_terms' => array()
                         );
@@ -1083,6 +1379,7 @@ class SearchKeyService
 
                 // General search needs to be its own facet
                 $criteria['general'] = array(
+                    'facet_type' => 'general',
                     'merge_type' => 'OR',
                     'search_terms' => array()
                 );
@@ -1138,6 +1435,7 @@ class SearchKeyService
 
                 if ( !isset($criteria[$template_uuid]) ) {
                     $criteria[$template_uuid] = array(
+                        'facet_type' => 'single',
                         'merge_type' => 'AND',    // TODO - combine_by_AND/combine_by_OR
                         'search_terms' => array()
                     );

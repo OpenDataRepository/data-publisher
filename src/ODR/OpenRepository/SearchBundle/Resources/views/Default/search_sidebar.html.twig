@@ -253,10 +253,12 @@
             else {
                 // Hide all empty textfields
                 $(content_div).addClass('ODRCollapse');
-                $(content_div).find('.ODRInput').not('.ODRDatePicker').each(function () {
+                $(content_div).find('.ODRInput').not('.ODRDatePicker, .ODRFileDatafieldName').each(function () {
                     if ($(this).val() == '')
                         $(this).parent().slideUp(200);
                 });
+                {# The above also apparently hides file/image fields without values... #}
+                {# ...not exactly sure how, since it doesn't look like it's actually selecting them... #}
 
                 // Datepickers need special treatment...
                 $(content_div).find(".ODRDatePicker[name$='_s']").each(function () {
