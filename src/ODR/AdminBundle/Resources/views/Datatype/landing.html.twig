@@ -22,6 +22,11 @@
             {% set datatype_baseurl = path('odr_admin_homepage') %}
         {% endif %}
 
+        {% set is_metadata_datatype = false %}
+        {% if datatype.metadata_for is not null %}
+            {% set is_metadata_datatype = true %}
+        {% endif %}
+
         {# Pre-determine which permissions user has for this datatype... #}
         {% set can_view_datatype = false %}
         {% set can_view_datarecord = false %}
@@ -99,21 +104,26 @@
                     {% endif %}
                 </div>
 
-                {# add/import links for this datatype #}
+                {# add/import links for this datatype...only makes sense for a metadata datatype if
+                   it doesn't already have a record #}
                 <div>
                     {% if can_add_datarecord %}
+                        {% if (is_metadata_datatype and datarecord_count == 0)
+                            or (not is_metadata_datatype)
+                        %}
                         <a id="ODRDatarecordList_{{ datatype.id }}_add"
                            class="Pointer"
                            onclick="addDataRecord('{{ datatype_baseurl }}',{{ datatype.id }});"
                         >
                             <i class="fa fa-lg fa-plus-circle"></i>&nbsp;Add New Record
                         </a>
+                        {% endif %}
                     {% endif %}
                 </div>
 
-                {# CSV import link for this datatype #}
+                {# CSV import link for this datatype...never makes sense for a metadata dataype #}
                 <div>
-                    {% if is_datatype_admin %}
+                    {% if is_datatype_admin and not is_metadata_datatype %}
                         <a class="address"
                            href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"
                         >
@@ -136,8 +146,9 @@
                 </div>
 
                 {# TODO - some way to create a metadata thingy from here if one doesn't exist? #}
-                {# metadata layout designer link #}
+                {# metadata layout designer link...never makes sense for a metadata datatype #}
                 <div>
+                {% if not is_metadata_datatype %}
                     {% if level >= 3 and is_datatype_admin %}    {# ROLE_ADMIN or above #}
                         {% if datatype.metadata_datatype is defined and datatype.metadata_datatype is not null %}
                             <a id="ODRDatatypeList_{{ datatype.id }}_master_layout"
@@ -154,25 +165,26 @@
                                title="Choose a metadata template"
                             >
                                 <i class="fa fa-lg fa-plus-circle"></i>
-                                <span class="pure-visible-xl">&nbsp;Add Properties Page</span>
+                                <span>&nbsp;Add Properties Page</span>
                             </a>
                         {% endif %}
                     {% endif %}
+                {% endif %}
                 </div>
 
                 {# Group management link for this datatype #}
                 <div>
-                    {% if level >= 3 and is_datatype_admin %}    {# ROLE_ADMIN or above #}
-                        <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups"
-                           class="address"
-                           href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"
-                        >
-                            <i class="fa fa-lg fa-cog"></i>&nbsp;Manage Groups
-                        </a>
-                    {% endif %}
+                {% if level >= 3 and is_datatype_admin %}    {# ROLE_ADMIN or above #}
+                    <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups"
+                       class="address"
+                       href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"
+                    >
+                        <i class="fa fa-lg fa-cog"></i>&nbsp;Manage Groups
+                    </a>
+                {% endif %}
                 </div>
 
-            {% if is_datatype_admin %}
+            {% if is_datatype_admin and not is_metadata_datatype %}
                 {# spacer div so deletion is harder to unintentionally click on #}
                 <div>&nbsp;</div>
 

@@ -145,6 +145,13 @@ class MassEditController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
+            // This doesn't make sense on a master template...
+            if ( $datatype->getIsMasterType() )
+                throw new ODRBadRequestException('Unable to mass edit a master template');
+            // ...or a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to mass edit a metadata datatype');
+
 
             // ----------------------------------------
             // Only allow one mass edit job per datatype at a time
@@ -1178,6 +1185,13 @@ $ret .=  "---------------\n";
             if ( !$pm_service->canViewDatatype($user, $datatype) || !$pm_service->canDeleteDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
             // --------------------
+
+            // This doesn't make sense on a master template...
+            if ( $datatype->getIsMasterType() )
+                throw new ODRBadRequestException('Unable to mass edit a master template');
+            // ...or a metadata datatype
+            if ( !is_null($datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to mass edit a metadata datatype');
 
 
             // ----------------------------------------

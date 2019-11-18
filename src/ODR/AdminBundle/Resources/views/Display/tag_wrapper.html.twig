@@ -15,7 +15,7 @@
     {% set child_tag_selections = drf.child_tagSelections %}
 {% endif %}
 
-<div class="ODRTagWrapper_view">
+<div class="ODRTagWrapper ODRTagWrapper_view">
     <ul class="ODRTagGroup">
         {% for tag_id, tag in stacked_tags %}
             {# Store whether this top-level tag is selected #}

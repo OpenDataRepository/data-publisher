@@ -3796,93 +3796,82 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 
 
-#ODRTagPositionForm {
-    display: none;
+/* Base Tag CSS */
+.ODRTagWrapper li {
+    list-style-type: none;
+}
+.ODRTagWrapper .ODRTagLabel {
+    cursor: default;
+}
+.ODRTagGroup {
+    position: relative;
+    padding-left: 15px;
+    margin-top: 5px;
+}
+.ODRTagGroup:before {
+    position: absolute;
+    display: block;
+    width: 3px;
+    height: 100%;
+    content: "";
+    background-color: #808080;
+}
+.ODRTagWrapper > .ODRTagGroup:before {
+    /* no vertical line on left for top-level tags */
+    background-color: inherit;
+}
+.ODRTagItem {
+    margin: 5px;
+}
+.ODRTagSpacer {
+    display: inline-block;
+    padding-left: 9px;
 }
 
+
+/* Specific overrides for tag CSS */
 .ODRTagWrapper_design {
     text-align: left;
     color: #555;
 }
-.ODRTagWrapper_design li {
-    list-style-type: none;
+
+
+/* Expand/Collapse All tags */
+.ODRTagGroup_header {
+// padding-left: 15px;
+    cursor: pointer;
 }
-.ODRTagWrapper_design .ODRTagGroup {
-    padding-left: 30px;
+.ODRTagGroup_headerlabel {
+    cursor: pointer;
+}
+
+/* Tag design modal */
+#ODRTagPositionForm {
+    display: none;
 }
 .ODRTagGroupContainer {
-    padding-left: 0px;
+    padding-left: 0;
+}
+.ODRTagGroupContainer li {
+    list-style-type: none;
+}
+.ODRTopLevelTagGroup:before {
+    /* no vertical line on left for top-level tags */
+    background-color: inherit;
 }
 
-.ODRTagWrapper_view {
-    /*max-height: 200px;*/
-    /*overflow-y: scroll;*/
-}
-.ODRTagWrapper_view li {
-    list-style-type: none;
-}
-.ODRTagWrapper_view .ODRTagGroup {
-    padding-left: 15px;
-}
-.ODRTagWrapper_search li {
-    list-style-type: none;
-}
-.ODRTagWrapper_search .ODRTagGroup {
-    padding-left: 15px;
-    margin-top: 0px;
-}
-.ODRTagWrapper_import li {
-    list-style-type: none;
-}
-.ODRTagWrapper_import .ODRTagGroup {
-    padding-left: 15px;
-}
-
-.ODRTagWrapper_edit {
-    /*max-height: 200px;*/
-    /*overflow-y: scroll;*/
-}
-.ODRTagWrapper_edit li {
-    list-style-type: none;
-}
-.ODRTagWrapper_edit .ODRTagGroup {
-    padding-left: 15px;
-}
-
-.ODRTagWrapper_view .ODRTagLabel {
-    cursor: default;
-}
-.ODRTagWrapper_search .ODRTagLabel {
-    cursor: default;
-}
-.ODRTagWrapper_import .ODRTagLabel {
-    cursor: default;
-}
-.ODRTagWrapper_edit .ODRTagLabel {
-    cursor: default;
-}
-.ODRTagSpacer {
-    width: 20px;
-    display: inline-block;
-}
 .ODRTagAnchor, .ODRTagDelete {
     min-width: 22px;
     display: inline-block;
 }
-
-.ODRTagItem {
-    /*border: 1px solid transparent;*/
-    /*border-radius: 5px;*/
-    margin: 5px;
-}
 .ODRNeighborTag {
-    border: 1px solid #1c81d0 !important;
+    border: 2px solid #1c81d0 !important;
     border-radius: 5px;
 }
 .ODRTagHighlight {
-    -webkit-box-shadow: /*inset*/ 0 0 0 6px rgba(54, 187, 114, 0.40);
-    -moz-box-shadow: /*inset*/ 0 0 0 6px rgba(54, 187, 114, 0.40);
-    box-shadow: /*inset*/ 0 0 0 6px rgba(54, 187, 114, 0.40);
+    -webkit-box-shadow: 0 0 0 6px rgba(54, 187, 114, 0.40);
+    -moz-box-shadow: 0 0 0 6px rgba(54, 187, 114, 0.40);
+    box-shadow: 0 0 0 6px rgba(54, 187, 114, 0.40);
     border-radius: 3px;
     box-sizing: border-box;
     -webkit-box-sizing: border-box;
@@ -3986,8 +3975,8 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 }
 .ODRSearchResultsWide {
     width: 100% !important;
-    -webkit-transition: width 0.3s; /* Safari */
-    transition: width 0.3s;
+    -webkit-transition: width 0.25s; /* Safari */
+    transition: width 0.25s;
 }
 @media only screen and (max-width : 740px) {
     .ODRSearchVisible {
@@ -4223,3 +4212,28 @@ i {
     right: 10px;
     width: 137px;
 }
+
+#ODRMessages {
+    z-index: 99;
+}
+
+#ODRLoginLink {
+    z-index: 99;
+}
+
+#ODRSearchSidebar {
+    margin-left: -30px;
+}
+
+#ODRSearchSidebar > .ODRThemeElement > .ODRInnerBox {
+  background-image:
+    linear-gradient(
+      to right, 
+      RGBA(90, 154, 190, 0.2),
+      #ffffff 5%, 
+      #ffffff
+    );
+    padding-left: 40px;
+    padding-right: 6px;
+}
+

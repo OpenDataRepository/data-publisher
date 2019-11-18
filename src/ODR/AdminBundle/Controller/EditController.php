@@ -136,8 +136,8 @@ class EditController extends ODRCustomController
                 throw new ODRBadRequestException('EditController::adddatarecordAction() called for child datatype');
 
 
-            // If this datatype is a "master template"...
-            if ($datatype->getIsMasterType()) {
+            // If this datatype is a "master template" or a "metadata datatype"...
+            if ( $datatype->getIsMasterType() || !is_null($datatype->getMetadataFor()) ) {
                 // ...then don't create another datarecord if the datatype already has one
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
@@ -147,8 +147,12 @@ class EditController extends ODRCustomController
                 )->setParameters( array('datatype_id' => $datatype->getId()) );
                 $results = $query->getArrayResult();
 
-                if ( count($results) !== 0 )
-                    throw new ODRBadRequestException('This Master Template already has a sample datarecord');
+                if ( count($results) !== 0 ) {
+                    if ( !is_null($datatype->getMetadataFor()) )
+                        throw new ODRBadRequestException('This Metadata Datatype already has a sample datarecord');
+                    else
+                        throw new ODRBadRequestException('This Master Template already has a sample datarecord');
+                }
             }
 
             // Create a new top-level datarecord
@@ -1657,6 +1661,9 @@ class EditController extends ODRCustomController
             $typeclass = $datafield->getFieldType()->getTypeClass();
             if ($typeclass !== 'Radio')
                 throw new ODRBadRequestException('Unable to select/deselect a radio option for a '.$typeclass.' field');
+
+            if ( $datatype->getIsMasterType() )
+                throw new ODRBadRequestException('Unable to make selections on a Master Template');
 
 
             // --------------------

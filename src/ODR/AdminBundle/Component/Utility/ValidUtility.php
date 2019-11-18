@@ -25,6 +25,10 @@ class ValidUtility
      */
     static public function isValidInteger($value)
     {
+        // Empty string and null are valid integer values
+        if ( is_null($value) || $value === '' )
+            return true;
+
         // Regex matches "0"
         // OR
         // an optional minus sign followed by a non-zero integer value
@@ -45,6 +49,10 @@ class ValidUtility
      */
     static public function isValidDecimal($value)
     {
+        // Empty string and null are valid decimal values
+        if ( is_null($value) || $value === '' )
+            return true;
+
         // The main goal is to prevent leading zeros, and values like "-0.00" from being saved
 
         // Regex matches zero, optionally followed by a decimal point then any sequence of digits

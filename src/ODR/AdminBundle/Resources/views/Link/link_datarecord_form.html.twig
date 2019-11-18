@@ -39,7 +39,7 @@
         </div>
 
         <div id="TextResults_wrapper" class="ODRTableOuterWrap">
-            <table id="TextResults_current" class="display"></table>
+            <table id="TextResults_current" class="display ODRDatatableInstance"></table>
         </div>
     </div>
 
@@ -73,7 +73,12 @@
                 "emptyTable": "No Datarecords are currently linked"
             },
 
-            "processing": true,   // only displays a little "processing..." blurb
+            "responsive": true,
+            "fixedHeader": {
+                /* headerOffset: 42 */
+            },
+
+            // "processing": true,   // only displays a little "processing..." blurb
             "deferRender": true,
             "createdRow": function( row, data, index ) {
             {% if allow_multiple_links or not local_datarecord_is_ancestor %}
