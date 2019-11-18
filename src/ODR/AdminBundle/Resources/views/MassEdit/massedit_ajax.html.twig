@@ -79,8 +79,9 @@ $(function() {
     disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
     window.scrollTo(0,0);
 
+    // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
     // The overlay divs need this transition to finish before they can get the correct width
-    setTimeout("initPage()", 375);
+    setTimeout("initPage()", 300);
 
     // Need a tab id in html5 sessionStorage if one doesn't exist
     if ( !window.sessionStorage.getItem('odr_tab_id') )
