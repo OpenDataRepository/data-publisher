@@ -247,14 +247,40 @@ function initPage() {
     });
 
     $(".ODRDatePicker_clear").unbind('click').click(function() {
-        $(this).parent().parent().find(".ODRDatePicker").datepicker('setDate', null);
+        var input = $(this).closest('fieldset').find(".ODRDatePicker");
+        $(input).datepicker('setDate', null);
+
+        // Disable the input if the checkbox says to clear all values
+        if ( $(this).children('input').first().is(':checked') )
+            $(input).prop("disabled", true);
+        else
+            $(input).prop("disabled", false);
+    });
+
+    $(".ODRParagraphField_clear").unbind('click').click(function() {
+        var input = $(this).closest('fieldset').find(".ODRParagraphField");
+        $(input).val('');
+
+        // Disable the input if the checkbox says to clear all values
+        if ( $(this).children('input').first().is(':checked') )
+            $(input).prop("disabled", true);
+        else
+            $(input).prop("disabled", false);
+    });
+
+    $(".ODRField_clear").unbind('click').click(function() {
+        var input = $(this).closest('fieldset').find(".ODRField");
+        $(input).val('');
+
+        // Disable the input if the checkbox says to clear all values
+        if ( $(this).children('input').first().is(':checked') )
+            $(input).prop("disabled", true);
+        else
+            $(input).prop("disabled", false);
     });
 }
 
 function doMassUpdate() {
-
-    if ( !confirm('Are you sure you want to make these edits to multiple records?') )
-        return;
 
     // Remove any already-existing input elements added by this function
     $("#MassEditForm .massedit_form_input").remove();
@@ -405,14 +431,18 @@ function doMassUpdate() {
             $("#Value_" + datafield_id).remove();
 
         // Save any value currently in this datafield
+        var clear_all = $(this).parent().parent().find('input.ODRParagraphField_clearAll').prop('checked');
         var val = $(this).val().trim();
         if (val !== '') {
             var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
+        } else if (clear_all == true) {
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": '', "name": "datafields[" + datafield_id + "]"});
+            $("#massedit_form").append(element);
         }
     });
 
-    // Everything else
+    // Everything else...Short/Medium/Longvarchar and Integer/Decimalvalue
     $("#MassEditForm .ODRField").each(function() {
         // Grab the ID of the field
         var datafield_id_data = $(this).parent().attr('id').split('_');
@@ -423,9 +453,13 @@ function doMassUpdate() {
             $("#Value_" + datafield_id).remove();
 
         // Save any value currently in this datafield
+        var clear_all = $(this).parent().parent().find('input.ODRField_clearAll').prop('checked');
         var val = $(this).val().trim();
         if (val !== '') {
             var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "datafields[" + datafield_id + "]"});
+            $("#massedit_form").append(element);
+        } else if (clear_all == true) {
+            var element = $("<input>", {"id": "Value_" + datafield_id, "class": "massedit_form_input", "type": "hidden", "value": '', "name": "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
@@ -434,6 +468,9 @@ function doMassUpdate() {
         alert('No changes made on page, aborting');
         return;
     }
+
+    if ( !confirm('Are you sure you want to make these edits to multiple records?') )
+        return;
 
     var redirect = false;
     if ( $("#massedit_form").children("[name^='datafields']").length > 0 )

@@ -262,8 +262,9 @@ class MassEditController extends ODRCustomController
             $post = $request->request->all();
 //print_r($post);  exit();
 
-
-            if ( !(isset($post['odr_tab_id']) && (isset($post['datafields']) || isset($post['public_status'])) && isset($post['datatype_id'])) )
+            // Need to have 'odr_tab_id', 'datatype_id', and either 'datafields' or 'public_status'
+            // Otherwise, throw an exception
+            if ( !(isset($post['odr_tab_id']) && isset($post['datatype_id']) && (isset($post['datafields']) || isset($post['public_status'])) ) )
                 throw new ODRBadRequestException();
 
             $odr_tab_id = $post['odr_tab_id'];
@@ -1049,7 +1050,7 @@ exit();
                     $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
                     $old_value = $storage_entity->getStringValue();
 
-                    if ($old_value != $value) {
+                    if ($old_value !== $value) {
                         // Make the change to the value stored in the storage entity
                         $emm_service->updateStorageEntity($user, $storage_entity, array('value' => new \DateTime($value)));
 
@@ -1066,7 +1067,7 @@ exit();
                     $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
                     $old_value = $storage_entity->getValue();
 
-                    if ($old_value != $value) {
+                    if ($old_value !== $value) {
                         // Make the change to the value stored in the storage entity
                         $emm_service->updateStorageEntity($user, $storage_entity, array('value' => $value));
 
