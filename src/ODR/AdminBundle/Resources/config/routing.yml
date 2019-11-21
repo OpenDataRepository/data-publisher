@@ -1627,8 +1627,9 @@ odr_search_api_general_search:
         offset: \d+
         _format: '|json|xml'
 
-odr_search_api_template_post_test:
-    path: /api/{version}/searchtest/{limit}/{offset}.{_format}
+#odr_search_api_template_post_test:
+odr_search_api_template_post:
+    path: /api/{version}/search/{limit}/{offset}.{_format}
     defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePostTest, limit: 0, offset: 0, _format: 'json', version: 'v1'}
     methods: [ POST ]
     requirements:
@@ -1638,15 +1639,15 @@ odr_search_api_template_post_test:
         _format: '|json|xml'
 
 
-odr_search_api_template_post:
-    path: /api/{version}/search/{limit}/{offset}.{_format}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePost, limit: 0, offset: 0, _format: 'json', version: 'v1'}
-    methods: [ POST ]
-    requirements:
-        version: 'v\d+'
-        limit: \d+
-        offset: \d+
-        _format: '|json|xml'
+#odr_search_api_template_post:
+#    path: /api/{version}/search/{limit}/{offset}.{_format}
+#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePost, limit: 0, offset: 0, _format: 'json', version: 'v1'}
+#    methods: [ POST ]
+#    requirements:
+#        version: 'v\d+'
+#        limit: \d+
+#        offset: \d+
+#        _format: '|json|xml'
 
 odr_search_api_general_search_post:
     path: /api/{version}/search/{limit}/{offset}
