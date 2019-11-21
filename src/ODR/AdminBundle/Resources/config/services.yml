@@ -150,12 +150,20 @@ services:
             $odr_web_dir: "%odr_web_directory%"
             $logger: "@logger"
 
+    odr.datatree_info_service:
+        class: ODR\AdminBundle\Component\Service\DatatreeInfoService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $cache_service: "@odr.cache_service"
+            $logger: "@logger"
+
     odr.datatree_service:
         class: ODR\AdminBundle\Component\Service\DatatreeService
         arguments:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $logger: "@logger"
+
 
     odr.datatype_info_service:
         class: ODR\AdminBundle\Component\Service\DatatypeInfoService
@@ -196,7 +204,6 @@ services:
             $theme_info_service: "@odr.theme_info_service"
             $router: "@router"
             $logger: "@logger"
-
 
     odr.entity_creation_service:
         class: ODR\AdminBundle\Component\Service\EntityCreationService

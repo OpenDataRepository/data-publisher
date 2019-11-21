@@ -330,12 +330,86 @@ class FacadeController extends Controller
         }
     }
 
-    public function searchTemplatePostTestAction($version, $limit, $offset, Request $request) {
+    public function searchTemplateGetTestAction($search_key, $version, $limit, $offset, Request $request) {
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        /** @var SearchKeyService $search_key_service */
+        $search_key_service = $this->container->get('odr.search_key_service');
+
+        $search_key = $search_key_service->convertBase64toSearchKey($search_key);
+        // $search_key_service->validateTemplateSearchKey($search_key);
+
+        // Now that the search key is valid, load the datatype being searched on
+        $params = $search_key_service->decodeSearchKey($search_key);
+        $dt_uuid = $params['template_uuid'];
+
+        /** @var DataType $datatype */
+        $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            array(
+                'unique_id' => $dt_uuid
+            )
+        );
+        if ($datatype == null)
+            throw new ODRNotFoundException('Datatype');
+
         /** @var SearchAPIService $search_api_service */
         $search_api_service = $this->container->get('odr.search_api_service');
-        $records = $search_api_service->fullTemplateSearch();
+        $records = $search_api_service->fullTemplateSearch($datatype, $params);
 
-        return new JsonResponse($records);
+        // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
+        // Grab the current user
+        /** @var User $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+        $html = $this->renderView(
+            'ODROpenRepositorySearchBundle:Default:test.html.twig',
+            array(
+                'records' => '<pre>' . var_export($records,true) . '</pre>',
+                'user' => $user,
+                'datatype_permissions' => array()
+            )
+        );
+
+        $response = new Response($html);
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+    public function searchTemplatePostTestAction($version, $limit, $offset, Request $request) {
+
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        /** @var SearchKeyService $search_key_service */
+        $search_key_service = $this->container->get('odr.search_key_service');
+
+        $post = $request->request->all();
+        if ( !isset($post['search_key']) )
+            throw new ODRBadRequestException();
+        $search_key = $post['search_key'];
+
+        $search_key = $search_key_service->convertBase64toSearchKey($search_key);
+        // $search_key_service->validateTemplateSearchKey($search_key);
+
+        // Now that the search key is valid, load the datatype being searched on
+        $params = $search_key_service->decodeSearchKey($search_key);
+        $dt_uuid = $params['template_uuid'];
+
+        /** @var DataType $datatype */
+        $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            array(
+                'unique_id' => $dt_uuid
+            )
+        );
+        if ($datatype == null)
+            throw new ODRNotFoundException('Datatype');
+
+        /** @var SearchAPIService $search_api_service */
+        $search_api_service = $this->container->get('odr.search_api_service');
+        $records = $search_api_service->fullTemplateSearch($datatype, $params);
+
+        $output = array('records' => $records);
+        return new JsonResponse($output);
     }
 
     /**
