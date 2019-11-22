@@ -15,6 +15,7 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Component\Service\DatarecordExportService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
@@ -32,7 +33,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use Symfony\Bridge\Monolog\Logger;
 
 
-class SearchAPIService
+class SearchAPIServiceNoConflict
 {
 
     /**
@@ -49,6 +50,11 @@ class SearchAPIService
      * @var DatatreeInfoService
      */
     private $dti_service;
+
+    /**
+     * @var DatarecordExportService
+     */
+    private $dre_service;
 
     /**
      * @var SearchService
@@ -87,6 +93,7 @@ class SearchAPIService
      * @param EntityManager $entity_manager
      * @param DatatreeService $datatree_service
      * @param DatatreeInfoService $datatree_info_service
+     * @param DatarecordExportService $datarecord_export_service
      * @param SearchService $search_service
      * @param SearchCacheService $search_cache_service
      * @param SearchKeyService $search_key_service
@@ -98,6 +105,7 @@ class SearchAPIService
         EntityManager $entity_manager,
         DatatreeService $datatree_service,
         DatatreeInfoService $datatree_info_service,
+        DatarecordExportService $datarecord_export_service,
         SearchService $search_service,
         SearchCacheService $search_cache_service,
         SearchKeyService $search_key_service,
@@ -108,6 +116,7 @@ class SearchAPIService
         $this->em = $entity_manager;
         $this->dt_service = $datatree_service;
         $this->dti_service = $datatree_info_service;
+        $this->dre_service = $datarecord_export_service;
         $this->search_service = $search_service;
         $this->search_cache_service = $search_cache_service;
         $this->search_key_service = $search_key_service;
@@ -537,6 +546,79 @@ class SearchAPIService
         $result = $query->getArrayResult();
         */
 
+        // Run the raw query
+        $sql = '
+        select 
+            oldt_e.ancestor_id as e, 
+            oldt_d.ancestor_id as d, 
+            oldt_c.ancestor_id as c, 
+            oldt_b.ancestor_id as b, 
+            oldt_a.ancestor_id as a, 
+            oldt_e.descendant_id as orig 
+            from odr_linked_data_tree oldt_e
+            left join odr_linked_data_tree oldt_d on oldt_d.descendant_id = oldt_e.ancestor_id
+            left join odr_linked_data_tree oldt_c on oldt_c.descendant_id = oldt_d.ancestor_id
+            left join odr_linked_data_tree oldt_b on oldt_b.descendant_id = oldt_c.ancestor_id
+            left join odr_linked_data_tree oldt_a on oldt_a.descendant_id = oldt_b.ancestor_id
+            where oldt_e.descendant_id IN (:record_ids)
+        ';
+        // $sql = 'select * from odr_linked_data_tree where descendant_id = 174430';
+        $found_record_ids = array();
+        foreach($result as $record) {
+            array_push($found_record_ids,  $record['id']);
+        }
+        $conn = $this->em->getConnection();
+        $stmt = $conn->executeQuery(
+            $sql,
+            array('record_ids' => $found_record_ids),
+            array('record_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY)
+        );
+        $result = $stmt->fetchAll();
+        // var_dump($stmt->fetchAll());exit();
+
+        $possible_records = array();
+        foreach($result as $record) {
+            if($record['a'] !== null) array_push($possible_records, $record['a']);
+            if($record['b'] !== null) array_push($possible_records, $record['b']);
+            if($record['c'] !== null) array_push($possible_records, $record['c']);
+            if($record['d'] !== null) array_push($possible_records, $record['d']);
+            if($record['e'] !== null) array_push($possible_records, $record['e']);
+            if($record['orig'] !== null) array_push($possible_records, $record['orig']);
+        }
+        // Get only the records that are top level
+
+
+        $qs = 'SELECT
+            distinct dr.unique_id, dr.id, mdt.id 
+
+            FROM ODRAdminBundle:DataRecord AS dr
+            LEFT JOIN dr.dataRecordMeta AS drm
+            
+            LEFT JOIN dr.dataType AS dt
+            LEFT JOIN dt.dataTypeMeta AS dtm
+            LEFT JOIN dt.masterDataType AS mdt
+       
+            WHERE
+                dr.id IN (:possible_records)
+                AND drm.publicDate <= :now
+                AND mdt = :master_datatype_id
+        ';
+
+        $parameters = array();
+        $parameters['possible_records'] = $possible_records;
+        $parameters['now'] = new \DateTime();
+        $parameters['master_datatype_id'] = $master_datatype_id;
+
+        $query = $this->em->createQuery($qs);
+        $query->setParameters($parameters);
+
+        $result = $query->getArrayResult();
+
+        // var_dump($result);exit();
+
+
+
+
         $records = array();
         foreach($result as $record_info) {
                 // Attempt with the default UUID for this datatype
@@ -545,19 +627,29 @@ class SearchAPIService
 
             if(!$metadata_record) {
                 // need to populate record using record builder
+                $metadata_record = self::getRecordData(
+                    'v3',
+                    $record_info['unique_id'],
+                    $baseurl,
+                    'json',
+                    true,
+                    null,
+                    false
+                );
             }
 
             if($metadata_record) {
-                array_push($records, json_decode($metadata_record));
+                array_push($records, json_decode($metadata_record, true));
             }
         }
 
+        // var_dump($records);exit();
         // Sort by dataset name
         $sort_array = [];
         foreach($records as $record) {
-            foreach($record->fields as $field) {
-                if($field->template_field_uuid == $params['sort_by']['0']['template_field_uuid']) {
-                    $sort_array[$field->value] = $record;
+            foreach($record['fields'] as $field) {
+                if($field['template_field_uuid'] == $params['sort_by']['0']['template_field_uuid']) {
+                    $sort_array[$field['value']] = $record;
                 }
             }
         }
@@ -568,6 +660,100 @@ class SearchAPIService
 
         return $records;
     }
+
+    /**
+     * @param $version
+     * @param $datarecord_uuid
+     * @param $baseurl
+     * @param $format
+     * @param bool $display_metadata
+     * @param null $user
+     * @param bool $flush
+     * @return array|bool|string
+     */
+    private function getRecordData(
+        $version,
+        $datarecord_uuid,
+        $baseurl,
+        $format,
+        $display_metadata = false,
+        $user = null,
+        $flush = false
+    )
+    {
+        // ----------------------------------------
+
+        // /** @var PermissionsManagementService $pm_service */
+        // $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+        /** @var DataRecord $datarecord */
+        $datarecord = $this->em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+            array('unique_id' => $datarecord_uuid)
+        );
+        if ($datarecord == null)
+            throw new ODRNotFoundException('Datarecord');
+
+        $datarecord_id = $datarecord->getId();
+
+        $datatype = $datarecord->getDataType();
+        if (!$datatype || $datatype->getDeletedAt() != null)
+            throw new ODRNotFoundException('Datatype');
+
+        if ($datarecord->getId() != $datarecord->getGrandparent()->getId())
+            throw new ODRBadRequestException('Only permitted on top-level datarecords');
+
+
+        // ----------------------------------------
+        // Determine user privileges
+        /** @var ODRUser $user */
+        $user = 'anon.';
+        /*
+        if ($user === null) {
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+        }
+        */
+
+        // If either the datatype or the datarecord is not public, and the user doesn't have
+        //  the correct permissions...then don't allow them to view the datarecord
+        /*
+        if (!$pm_service->canViewDatatype($user, $datatype))
+            throw new ODRForbiddenException();
+
+        if (!$pm_service->canViewDatarecord($user, $datarecord))
+            throw new ODRForbiddenException();
+        */
+
+
+        // TODO - system needs to delete these keys when record is updated elsewhere
+        /** @var CacheService $cache_service */
+        $data = $this->cache_service
+            ->get('json_record_' . $datarecord_uuid);
+
+        if (!$data || $flush) {
+            // Render the requested datarecord
+            $data = $this->dre_service->getData(
+                $version,
+                array($datarecord_id),
+                $format,
+                $display_metadata,
+                $user,
+                $baseurl,
+                0
+            );
+
+            // Cache this data for faster retrieval
+            // TODO work out how to expire this data...
+            /** @var CacheService $cache_service */
+            $this->cache_service->set(
+                'json_record_' . $datarecord_uuid,
+                $data
+            );
+        }
+
+        return $data;
+    }
+
 
     /**
      * Runs a cross-template search specified by the given $search_key.  The end result is filtered

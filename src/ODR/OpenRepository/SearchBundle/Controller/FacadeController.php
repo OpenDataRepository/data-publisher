@@ -342,6 +342,7 @@ class FacadeController extends Controller
 
         // Now that the search key is valid, load the datatype being searched on
         $params = $search_key_service->decodeSearchKey($search_key);
+        print "<pre>";print_r($params);print "</pre>";
         $dt_uuid = $params['template_uuid'];
 
         /** @var DataType $datatype */
@@ -353,9 +354,10 @@ class FacadeController extends Controller
         if ($datatype == null)
             throw new ODRNotFoundException('Datatype');
 
-        /** @var SearchAPIService $search_api_service */
-        $search_api_service = $this->container->get('odr.search_api_service');
-        $records = $search_api_service->fullTemplateSearch($datatype, $params);
+        /** @var SearchAPIServiceNoConflict $search_api_service */
+        $search_api_service = $this->container->get('odr.search_api_service_no_conflict');
+        $baseurl = $this->container->getParameter('site_baseurl');
+        $records = $search_api_service->fullTemplateSearch($datatype, $baseurl, $params);
 
         // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
         // Grab the current user
@@ -405,8 +407,9 @@ class FacadeController extends Controller
             throw new ODRNotFoundException('Datatype');
 
         /** @var SearchAPIService $search_api_service */
-        $search_api_service = $this->container->get('odr.search_api_service');
-        $records = $search_api_service->fullTemplateSearch($datatype, $params);
+        $search_api_service = $this->container->get('odr.search_api_service_no_conflict');
+        $baseurl = $this->container->getParameter('site_baseurl');
+        $records = $search_api_service->fullTemplateSearch($datatype, $baseurl, $params);
 
         $output = array('records' => $records);
         return new JsonResponse($output);

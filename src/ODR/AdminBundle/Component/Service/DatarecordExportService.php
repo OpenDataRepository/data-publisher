@@ -251,47 +251,7 @@ class DatarecordExportService
     private function reformatJson($data)
     {
 
-        return $data;
+        // return $data;
         return json_encode(json_decode($data));
-        // Get rid of all whitespace characters that aren't inside double-quotes
-        $trimmed_str = '';
-        $in_quotes = false;
-
-        for ($i = 0; $i < strlen($data); $i++) {
-            if (!$in_quotes) {
-                if ($data{$i} === "\"") {
-                    // If not in quotes and a quote is encountered, transcribe it and switch modes
-                    $trimmed_str .= $data{$i};
-                    $in_quotes = true;
-                }
-                else if ($data{$i} === '}' && substr($trimmed_str, -1) === ',') {
-                    // If not in quotes and would end up transcribing a closing brace immediately after a comma, replace the last comma with a closing brace instead
-                    $trimmed_str = substr_replace($trimmed_str, '}', -1);
-                }
-                else if ($data{$i} === ']' && substr($trimmed_str, -1) === ',') {
-                    // If not in quotes and would end up transcribing a closing bracket immediately after a comma, replace the last comma with a closing bracket instead
-                    $trimmed_str = substr_replace($trimmed_str, ']', -1);
-                }
-                else if ($data{$i} === ',' && substr($trimmed_str, -1) === ',') {
-                    // If not in quotes, then don't transcribe a comma when the previous character is also a comma
-                }
-                else if ($data{$i} !== ' ' && $data{$i} !== "\n") {
-                    // If not in quotes and found a non-space character, transcribe it
-                    $trimmed_str .= $data{$i};
-                }
-            }
-            else {
-                if ($data{$i} === "\"" && $data{$i-1} !== "\\")
-                    $in_quotes = false;
-
-                // If in quotes, always transcribe every character
-                $trimmed_str .= $data{$i};
-            }
-        }
-
-        // Also get rid of parts that signify no child/linked datarecords
-        $trimmed_str = str_replace( array(',"child_records":{}', ',"linked_records":{}'), '', $trimmed_str );
-
-        return $trimmed_str;
     }
 }
