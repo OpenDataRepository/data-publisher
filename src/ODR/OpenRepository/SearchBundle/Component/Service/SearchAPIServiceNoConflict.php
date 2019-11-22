@@ -503,48 +503,9 @@ class SearchAPIServiceNoConflict
         $query->setParameters($parameters);
 
         $result = $query->getArrayResult();
+        // var_dump($result);exit();
 
-        /*
-        $top_level_datatypes = array();
-        foreach($result as $record_info) {
-            $related_records = $this->dti_service->getAssociatedDatarecords($record_info['id']);
-            print var_export($related_records) ."<br />";
-            foreach ($datatype_associations as $unique_id => $association_string) {
-                if(preg_match("/".$record_info['id'] . "\|\|/", $association_string)) {
-                    // print $record_info['id'] . ' => ' . $unique_id . ' => ' . $association_string . "<br />";
-                    array_push($top_level_datatypes, $unique_id);
-                    break;
-                }
-                // Get the top-level data_type ids that match the query.
-                // query for record uuids of the records of those types
-                // Build result list
-            }
-        }
-        $qs = 'SELECT
-            distinct dr.unique_id
 
-            FROM ODRAdminBundle:DataRecord AS dr
-            LEFT JOIN dr.dataRecordMeta AS drm
-            
-            LEFT JOIN dr.dataType AS dt
-            LEFT JOIN dt.dataTypeMeta AS dtm
-            LEFT JOIN dt.masterDataType AS mdt
-             WHERE
-                dt.unique_id IN (:top_level_datatypes)
-                AND dtm.publicDate <= :now
-        ';
-
-        // Parameters array
-        $parameters = array();
-        $top_level_datatypes = array_unique($top_level_datatypes);
-        $parameters['top_level_datatypes'] = $top_level_datatypes;
-        $parameters['now'] = new \DateTime();
-
-        $query = $this->em->createQuery($qs);
-        $query->setParameters($parameters);
-
-        $result = $query->getArrayResult();
-        */
 
         // Run the raw query
         $sql = '
@@ -574,7 +535,7 @@ class SearchAPIServiceNoConflict
             array('record_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY)
         );
         $result = $stmt->fetchAll();
-        // var_dump($stmt->fetchAll());exit();
+        // var_dump($result);exit();
 
         $possible_records = array();
         foreach($result as $record) {
@@ -585,9 +546,10 @@ class SearchAPIServiceNoConflict
             if($record['e'] !== null) array_push($possible_records, $record['e']);
             if($record['orig'] !== null) array_push($possible_records, $record['orig']);
         }
+        // var_dump(array_unique($possible_records));exit();
+        $possible_records = array_merge($found_record_ids, $possible_records);
+
         // Get only the records that are top level
-
-
         $qs = 'SELECT
             distinct dr.unique_id, dr.id, mdt.id 
 
