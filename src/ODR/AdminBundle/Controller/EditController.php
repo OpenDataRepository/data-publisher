@@ -1225,14 +1225,22 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Image is going to be rotated, so its contents will change...clear the original
-            //  checksum for the original image and its thumbnails
+            // Since the image is going to be rotated, its contents will change...
             $image_path = $crypto_service->decryptImage($image_id);
             if ($replace_existing) {
+                // ...the rotated image is going to be saved under the same id in the database, so
+                //  the checksum needs to be cleared
                 $image->setOriginalChecksum('');    // checksum will be updated after rotation
                 $em->persist($image);
+
+                // Since the image itself doesn't have an updated value, mark the image_meta as
+                //  updated
+                $image_meta = $image->getImageMeta();
+                $image_meta->setUpdated(new \DateTime());
+                $em->persist($image_meta);
             }
 
+            // Load all of the saved alternate sizes for this image (typically thumbnails)
             /** @var Image[] $images */
             $images = $repo_image->findBy( array('parent' => $image->getId()) );
             foreach ($images as $img) {
@@ -1242,6 +1250,8 @@ class EditController extends ODRCustomController
                     unlink($local_filepath);
 
                 if ($replace_existing) {
+                    // ...the rotated thumbnail will be saved under its original id, so the
+                    //  checksum needs to be cleared
                     $img->setOriginalChecksum('');    // checksum will be replaced after rotation
                     $em->persist($img);
                 }
@@ -1252,13 +1262,11 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // If not replacing existing image, have image rotation write back to the same file
+            // Locate where the rotated image will be saved
             $dest_path = $image_path;
             if (!$replace_existing) {
-                // ...otherwise, determine the path to the user's upload folder
-
-                // The image rotation function will save the rotated image there so it can be
-                //  "uploaded again"...this is the easiest way to ensure everything neccessary exists
+                // ...if the image isn't getting saved under its old database id, then the easiest
+                //  way to handle this request is to fake the user "uploading" the image again
                 $dest_path = $this->getParameter('odr_web_directory').'/uploads/files';
                 if ( !file_exists($dest_path) )
                     mkdir( $dest_path );

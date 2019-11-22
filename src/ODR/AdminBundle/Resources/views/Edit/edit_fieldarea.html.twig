@@ -140,7 +140,6 @@ is_datatype_admin: {% if is_datatype_admin %}yes{% else %}no{% endif %}</br>
                                     'datarecord': datarecord,
                                     'datafield': datafield,
                                     'is_link': is_link,
-                                    'force_image_reload' : false,
                                     'token_list': token_list,
                                     'is_datatype_admin': is_datatype_admin,
                                 } %}
@@ -149,7 +148,6 @@ is_datatype_admin: {% if is_datatype_admin %}yes{% else %}no{% endif %}</br>
                                 {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
                                     'datarecord': datarecord,
                                     'datafield': datafield,
-                                    'image_thumbnails_only': false,
                                 } %}
                             {% endif %}
                             </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->

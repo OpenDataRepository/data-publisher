@@ -153,7 +153,7 @@
                         </div>
                         <div class="pure-u-23-24">
                             <a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ image_caption }}">
-                                <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}{% if force_image_reload %}?{{ date().timestamp }}{% endif %}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
+                                <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}?{{ oimage_meta.updated|date('U') }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
                             </a>
                         </div>
                     </div>
