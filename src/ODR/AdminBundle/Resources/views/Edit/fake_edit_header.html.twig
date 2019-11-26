@@ -1,0 +1,37 @@
+{% spaceless %}
+
+<div class="ODRContentWrapper" style="padding-bottom: 15px;">
+
+    {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+        'header_label': 'Create New Record',
+        'pure_sizes': 'pure-u-1',
+        'icon': 0
+    } %}
+    <div class="ODRBodyContent">
+        <p>
+            Unlike most other places in ODR, this page <b><i>does not</i></b> automatically save changes.
+        </p>
+        <p>
+            When you are finished entering data, you will need to click the button below to ensure your changes are saved.
+        </p>
+        <button type="button" class="pure-button pure-button-primary" onclick="SaveAsNew();">Save as New Record</button>    {# defined in Edit:fake_edit_ajax.html.twig #}
+    </div>
+    {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+
+</div>
+
+<h1 class="no-margin-top-phone">
+    <span>Edit Record &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+</h1>
+
+<script>
+    $(function() {
+        $(".MenuDesignArea").remove();
+
+        // Need a tab id in html5 sessionStorage if one doesn't exist
+        if ( !window.sessionStorage.getItem('odr_tab_id') )
+            window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
+    });
+</script>
+
+{% endspaceless %}

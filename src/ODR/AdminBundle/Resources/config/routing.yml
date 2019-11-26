@@ -676,10 +676,6 @@ odr_record_save:
     requirements:
         datarecord_id:  \d+
         datafield_id_id:  \d+
-odr_record_save_as_new:
-    path:  /edit/save_as_new
-    defaults: { _controller: ODRAdminBundle:Edit:saveasnew }
-    methods: [ POST ]
 
 odr_record_public:
     path:  /edit/publicdatarecord/{datarecord_id}
@@ -759,6 +755,29 @@ odr_record_get_field_history:
     requirements:
         datarecord_id:  \d+
         datafield_id:  \d+
+
+#-----------------------------------------
+
+#-----------------------------------------
+# Fake Edit Controller
+# NOTE - they're not really "fake" records, per se...but "ephermal" is too wordy
+odr_edit_fake_record:
+    path:  /edit/fake_record/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:FakeEdit:fakerecord }
+    requirements:
+        datatype_id:  \d+
+
+odr_save_fake_record:
+    path:  /edit/save_fake_record
+    defaults: { _controller: ODRAdminBundle:FakeEdit:savefakerecord }
+    methods: [ POST ]
+
+odr_check_fake_record_field_uniqueness:
+    path:  /edit/check_fake_record/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:FakeEdit:checkfakerecordfieldunique }
+    methods: [ POST ]
+    requirements:
+        datafield_id: \d+
 
 #-----------------------------------------
 

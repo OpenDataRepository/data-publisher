@@ -17,6 +17,26 @@ class ValidUtility
 {
 
     /**
+     * Returns whether the given value is a valid boolean.
+     *
+     * @param mixed $value
+     *
+     * @return bool
+     */
+    static public function isValidBoolean($value)
+    {
+        // These values are valid for boolean fieldtypes
+        if ( $value === 1 || $value === '1' || $value === true )
+            return true;
+        if ( $value === 0 || $value === '0' || $value === false )
+            return true;
+
+        // Anything else is not
+        return false;
+    }
+
+
+    /**
      * Returns whether the given string describes a valid integer value.
      *
      * @param string $value
@@ -116,5 +136,23 @@ class ValidUtility
 
         // Otherwise, no problems
         return true;
+    }
+
+
+    /**
+     * Returns whether the given string is a valid Datetime value for the given format.
+     *
+     * @param string $value
+     * @param string $format
+     *
+     * @return bool
+     */
+    static public function isValidDatetime($value, $format = 'Y-m-d')
+    {
+        $date = \DateTime::createFromFormat($format, $value);
+        if ( $date && $date->format($format) === $value )
+            return true;
+
+        return false;
     }
 }

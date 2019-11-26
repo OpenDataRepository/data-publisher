@@ -128,7 +128,7 @@
         {% if scroll_target != '' %}
         if (!prevent_scroll) {
             var target = '#ShortResults_' + {{ scroll_target }};
-            if ( $(target) !== null && $(target) !== undefined && $(target).offset() !== null ) {
+            if ( $(target) !== undefined && $(target).offset() !== undefined ) {
                 $('html, body').animate({
                     scrollTop: $(target).offset().top
                 }, 500);
