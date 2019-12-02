@@ -86,7 +86,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
         {% if datarecord_is_fake %}
         {# Linking is reliant on both ancestor and descendant records existing beforehand #}
         {# Disable this feature, for now #}
-        <div class="pure-u-1" title="Record must be saved before it can be linked to other records">
+        <div class="pure-u-1 Info" title="Record must be saved before it can be linked to other records">
         {% endif %}
 
         {% if can_edit_parent_record %}
@@ -119,7 +119,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
         {% if datarecord_is_fake %}
         {# Getting ODR to render fake child records when the top-level is also fake is painful #}
         {# Disable this feature, for now #}
-        <div class="pure-u-1" title="Record must be saved before child records can be created">
+        <div class="pure-u-1 Info" title="Record must be saved before child records can be created">
         {% endif %}
 
             <button

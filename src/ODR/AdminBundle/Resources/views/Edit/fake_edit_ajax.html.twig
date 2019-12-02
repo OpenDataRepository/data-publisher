@@ -130,7 +130,8 @@ function SaveRecordData(form_id, interval) {
 
     // May need these in case of errors
     var input_div = $(form_id).find('div.ODRFieldWrapper');
-    var input_id = $(input_div).find('input').attr('id');
+    var input = $(input_div).find('input');
+    var input_id = $(input).attr('id');
 
     $.ajax({
         type: 'POST',
@@ -143,6 +144,19 @@ function SaveRecordData(form_id, interval) {
             // Could potentially be a jquery validate error message in here too...since the save
             //  finished successfully, remove all warning labels
             $(input_div).children('label').remove();
+
+            // Ensure the field complains if it's empty
+            if ( $(input).val().trim() === '' ) {
+                // Add a new warning label to the field
+                $(form_id).addClass('ODRInputError');
+                var label = $("<label>", {
+                    "id": input_id + '-error',
+                    // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
+                    "for": input_id,
+                    "html": "This field must have a value"
+                });
+                $(input_div).append( $(label) );
+            }
         },
         error: function(jqXHR, textStatus, errorThrown) {
             if ( jqXHR.status !== 409 ) {
@@ -153,17 +167,18 @@ function SaveRecordData(form_id, interval) {
                 // Otherwise, conflict error...don't want to reload the field because that tends to
                 //  completely disrupts users that are trying to enter correct values
 
-                // Ensure only one label per field
-                if ( $('#' + input_id + '-error').length === 0 ) {
-                    $(form_id).addClass('ODRInputError');
-                    var label = $("<label>", {
-                        "id": input_id + '-error',
-                        // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
-                        "for": input_id,
-                        "html": "This value is a duplicate in a field that requires unique values"
-                    });
-                    $(input_div).append($(label));
-                }
+                // Remove any existing warning label in the field
+                $('#' + input_id + '-error').remove();
+
+                // Add a new warning label to the field
+                $(form_id).addClass('ODRInputError');
+                var label = $("<label>", {
+                    "id": input_id + '-error',
+                    // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
+                    "for": input_id,
+                    "html": "This value is a duplicate in a field that requires unique values"
+                });
+                $(input_div).append( $(label) );
             }
         },
         complete: function(jqXHR, textStatus) {
@@ -196,8 +211,8 @@ function SaveAsNew() {
     }
 
     // ...and the user wants to
-    if ( !confirm('Are you sure you want to save this data as a new record?') )
-        return;
+    // if ( !confirm('Are you sure you want to save this data as a new record?') )
+    //     return;
 
     // Going to manually create a form from all fields...
     var form_data = {};

@@ -7,7 +7,24 @@
     {% set title = "Edit Record" %}
 {% endif %}
 
-{% if notitle is defined  %}
+{% set can_add_record = false %}
+{% set can_edit_datatype = false %}
+{% set is_datatype_admin = false %}
+{% if user_permissions is defined %}
+    {% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dr_add' ] is defined %}
+        {% set can_add_record = true %}
+    {% endif %}
+
+    {% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
+        {% set can_edit_datatype = true %}
+    {% endif %}
+
+    {% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+        {% set is_datatype_admin = true %}
+    {% endif %}
+{% endif %}
+
+{% if notitle is defined %}
 {% else %}
     <h1 class="no-margin-top-phone">
         <span>{{ title }} &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
@@ -33,6 +50,15 @@
                     Choose View
                 </label>
             </li>
+
+        {% if display_export_options is defined and display_export_options == true
+            and intent == 'searching' and can_add_record == true %}
+            <li class="pure-menu-item SpacerRight">
+                <label id="ODRAddRecord" class="pure-button">
+                    Add New Record
+                </label>
+            </li>
+        {% endif %}
 
         {% if display_export_options is defined and display_export_options == true
             and intent == 'searching' and user_role == 'ROLE_ADMIN' and has_datarecords %}
@@ -76,6 +102,14 @@
 
     $(function() {
         initViewManager();
+
+{% if display_export_options is defined and display_export_options == true
+    and intent == 'searching' and can_add_record == true %}
+        $("#ODRAddRecord").unbind('click').click(function() {
+            var url = '{{ path('odr_edit_fake_record', { 'datatype_id': datatype.id}) }}';
+            UpdateURL(url);
+        });
+{% endif %}
 
 {% if display_export_options is defined and display_export_options == true
     and intent == 'searching' and user_role == 'ROLE_ADMIN' and has_datarecords %}
