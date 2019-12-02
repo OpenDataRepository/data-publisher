@@ -1893,6 +1893,9 @@ footer {
 .Cursor {
     cursor: default;
 }
+.Info {
+    cursor: help;
+}
 
 .DataField {
     position: absolute;

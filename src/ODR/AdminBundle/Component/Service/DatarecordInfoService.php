@@ -853,8 +853,8 @@ class DatarecordInfoService
         unset( $dt_entry[$target_datatype_id]['updatedBy'] );
 
 
-        // The new "fake" datarecord needs an id
-        // generateCSRFTokens() doesn't require it to be numeric
+        // The new "fake" datarecord needs an id...ensure it's not numeric to avoid collisions
+        // generateCSRFTokens() doesn't require it to be numeric, and the length doesn't matter
         $fake_id = UniqueUtility::uniqueIdReal();
         while ( is_numeric($fake_id) )
             $fake_id = UniqueUtility::uniqueIdReal();
@@ -869,7 +869,7 @@ class DatarecordInfoService
 
             'dataRecordMeta' => array(
                 'id' => null,    // TODO - problem here?  drf_id should never be used...
-                'publicDate' => new \DateTime('2200-00-00 00:00:00'),
+                'publicDate' => new \DateTime('2200-01-01 00:00:00'),
             ),
 
             'parent' => array(

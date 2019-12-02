@@ -1261,10 +1261,11 @@
             url: url,
             dataType: "json",
             success: function () {
-                // TODO - don't need to update the javascript array used to cache properties?
-
                 // Remove theme element from page
                 $("#ThemeElement_" + theme_element_id).fadeOut('slow').remove();
+
+                // Update the sidebar so it no longer references the now-deleted theme element
+                ResetToolSet();
             },
             error: function (jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error
@@ -1585,7 +1586,7 @@
                 // Delete the datatype from the page
                 $("#DataType_" + datatype_id).remove();
 
-                // Resets the sidebar tool set
+                // Update the sidebar so it no longer references the now-deleted datatype
                 ResetToolSet();
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -2745,6 +2746,7 @@
                 if ( datafields.length === 0 )
                     theme_element_properties[theme_element_id]['has_datafields'] = 0;
 
+                // Update the sidebar so it no longer references the now-deleted datafield
                 ResetToolSet();
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -3047,6 +3049,8 @@
 
                 // Delete the radio option off the page
                 $("#Option_" + radio_option_id).remove();
+
+                // Don't need to update the sidebar
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

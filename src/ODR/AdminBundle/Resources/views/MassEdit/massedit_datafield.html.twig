@@ -15,7 +15,7 @@
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
         </span>
         <select id="SelectGroup_{{ datafield.id }}" class="ODRBoolean" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
-            <option value="-1">&lt;No change&gt;</option>
+            <option value="-1">&lt;&lt;No change&gt;&gt;</option>
             <option value="0">Unchecked</option>
             <option value="1">Checked</option>
         </select>
@@ -48,6 +48,7 @@
     {% elseif field_typename == "Paragraph Text" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
+        <span class="ODRMassEdit_clear"><label class="ODRParagraphField_clear Pointer"><input type="checkbox" class="ODRParagraphField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>
         <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
             <textarea class="ODRParagraphField pure-u-1" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}></textarea>
         </div>
@@ -56,6 +57,7 @@
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
+        <span class="ODRMassEdit_clear"><label class="ODRField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>
         <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
             <input type="text" class="ODRField pure-u-1" name="" value="" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
         </div>
@@ -148,11 +150,10 @@
     {% elseif field_typename == "DateTime" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
+        <span class="ODRMassEdit_clear"><label class="ODRDatePicker_clear Pointer"><input type="checkbox" class="ODRDatePicker_clearAll" name="" value="1" />&nbsp;Clear All Dates</label></span>
         <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
             <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
         </div>
-        <div style="float:left; margin:5px;"><label class="ODRDatePicker_clear Pointer"><input type="checkbox" class="ODRDatePicker_clearAll" name="" value="1" />&nbsp;Clear All Dates</label></div>
-        <div style="float:right; margin:5px;"><label class="ODRDatePicker_clear Pointer"><u>Clear</u></label></div>
     </fieldset>
 
     {% endif %}

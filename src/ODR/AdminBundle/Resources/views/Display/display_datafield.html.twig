@@ -144,18 +144,15 @@
 
                 {% for image in valuefield %}
                     {% set oimage = image.parent %}
+                    {% set oimage_meta = oimage.imageMeta %}
                     {% set image_ext = oimage.ext %}
                     {% set image_caption = oimage.imageMeta.caption %}
                     {% set image_filename = oimage.imageMeta.originalFileName %}
 
                     <div id="Image_{{ oimage.id }}" class="ODRImage pure-u-1-{{ datafield_meta.children_per_row }}"  rel="{{ image.id }}">    {# rel is the id of the thumbnail, id attr is the id of the full-size image #}
-                    {% if image_thumbnails_only == false %}
                         <a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ image_caption }}">
-                            <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
+                            <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}?{{ oimage_meta.updated|date('U') }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
                         </a>
-                    {% else %}
-                        <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
-                    {% endif %}
                     </div>
             {% endfor %}
             </div>

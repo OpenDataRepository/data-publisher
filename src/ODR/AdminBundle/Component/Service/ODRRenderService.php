@@ -257,9 +257,9 @@ class ODRRenderService
      *
      * @param ODRUser $user
      * @param DataRecord $datarecord
-     * @param string|null $search_key
-     * @param string|null $search_theme_id
-     * @param Theme|null $theme
+     * @param string $search_key Can be the empty string
+     * @param int $search_theme_id Can be 0, only used to correctly set a redirect
+     * @param Theme|null $theme If not null, which Theme to render the datarecord with
      *
      * @return string
      */
@@ -273,9 +273,6 @@ class ODRRenderService
             'token_list' => array(),
 
             'search_theme_id' => $search_theme_id,    // TODO - refactor to get rid of this?
-//            'linked_datatype_ancestors' => $linked_datatype_ancestors,
-//            'linked_datatype_descendants' => $linked_datatype_descendants,
-//            'disabled_datatype_links' => $disabled_datatype_links,
         );
 
         $datatype = $datarecord->getDataType();
@@ -293,6 +290,38 @@ class ODRRenderService
         $extra_parameters['notify_of_sync'] = self::notifyOfThemeSync($theme, $user);
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, $datarecord, $theme);
+    }
+
+
+    /**
+     * Renders and returns the HTML for "editing" a "fake" top-level datarecord...one that doesn't
+     * actually exist in the database.
+     *
+     * @param ODRUser $user
+     * @param DataType $datatype
+     *
+     * @return string
+     */
+    public function getFakeEditHTML($user, $datatype)
+    {
+        $template_name = 'ODRAdminBundle:Edit:fake_edit_ajax.html.twig';
+        $extra_parameters = array(
+            'is_top_level' => 1,    // TODO - get rid of this requirement
+
+            'search_key' => '',
+            'search_theme_id' => 0,    // TODO - refactor to get rid of this?
+            'notify_of_sync' => false,    // No need to check this parameter
+
+            'token_list' => array(),
+
+            'is_fake_datarecord' => true,
+        );
+
+
+        // TODO - eventually replace with $this->theme_service->getPreferredTheme()?
+        $theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
+
+        return self::getHTML($user, $template_name, $extra_parameters, $datatype, null, $theme);
     }
 
 
@@ -450,6 +479,10 @@ class ODRRenderService
         if ( isset($extra_parameters['include_links']) )
             $include_links = $extra_parameters['include_links'];
 
+        $is_fake_datarecord = false;
+        if ( isset($extra_parameters['is_fake_datarecord']) && $extra_parameters['is_fake_datarecord'] === true )
+            $is_fake_datarecord = true;
+
         // All templates need the datatype and theme arrays...
         $initial_datatype_id = $datatype->getId();
         $initial_theme_id = $theme->getId();
@@ -460,8 +493,16 @@ class ODRRenderService
         $initial_datarecord_id = null;
         $datarecord_array = array();
         if ( !is_null($datarecord) ) {
+            // Load the requested datarecord's data from the cache
             $initial_datarecord_id = $datarecord->getId();
             $datarecord_array = $this->dri_service->getDatarecordArray($initial_datarecord_id, $include_links);
+        }
+        else if ( $is_fake_datarecord ) {
+            // Otherwise, this is Edit mode attempting to render a "fake" datarecord...
+            $fake_dr = $this->dri_service->createFakeDatarecordEntry($datatype_array, $datatype->getId());
+            $initial_datarecord_id = $fake_dr['id'];
+
+            $datarecord_array[$initial_datarecord_id] = $fake_dr;
         }
 
 
@@ -509,7 +550,7 @@ class ODRRenderService
             $this->theme_service->stackThemeArray($theme_array, $initial_theme_id);
 
         $stacked_datarecord_array = array();
-        if ( !is_null($datarecord) ) {
+        if ( !is_null($datarecord) || $is_fake_datarecord ) {
             $stacked_datarecord_array[ $initial_datarecord_id ] =
                 $this->dri_service->stackDatarecordArray($datarecord_array, $initial_datarecord_id);
         }
@@ -1139,7 +1180,6 @@ class ODRRenderService
             throw new ODRBadRequestException();
 
         $extra_parameters = array(
-            'force_image_reload' => false,
             'token_list' => array(),
         );
 
@@ -1229,14 +1269,13 @@ class ODRRenderService
                 $is_datatype_admin = 1;
 
 
-            // The 'token_list' and 'force_image_reload' parameters will be merged into this shortly
+            // The 'token_list' parameter will be merged into this shortly
             $parameters = array(
                 'datatype' => $target_datatype,
                 'datarecord' => $target_datarecord,
                 'datafield' => $target_datafield,
 
                 'is_link' => $is_link,
-                'force_image_reload' => false,
                 'is_datatype_admin' => $is_datatype_admin,
             );
         }

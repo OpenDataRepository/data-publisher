@@ -24,7 +24,7 @@
 
     <div class="pure-u-1">
         <button class="pure-button pure-button-primary" type="button" onclick="submitForm();">Save Changes</button>
-        <button class="pure-button pure-button-primary" type="button" onclick="returnToDatarecord();">Return to Datarecord</button>
+{#        <button class="pure-button pure-button-primary" type="button" onclick="returnToDatarecord();">Return to Datarecord</button>#}
     {% if not allow_multiple_links and local_datarecord_is_ancestor %}
         <button class="pure-button" type="button" onclick="unlinkCurrentDatarecord();">Unlink current Datarecord</button>
     {% endif %}
@@ -189,6 +189,7 @@
     }
 {% endif %}
 
+{#
     function returnToDatarecord() {
         var url = '{{ path('odr_record_edit', {'datarecord_id': 0} ) }}';
         url = url.substr(0, (url.length-1));
@@ -200,6 +201,7 @@
 //alert(url);  return;
         UpdateURL(url);
     }
+#}
 
     function submitForm() {
         var post_data = $("#LinkDataRecordForm").serialize();

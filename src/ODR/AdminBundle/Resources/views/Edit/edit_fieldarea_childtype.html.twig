@@ -28,6 +28,11 @@
     {% set can_edit_child_record = true %}
 {% endif %}
 
+{% set datarecord_is_fake = false %}
+{% if parent_datarecord.is_fake is defined and parent_datarecord.is_fake == true %}
+    {% set datarecord_is_fake = true %}
+{% endif %}
+
 {#
 --------------------</br>
 target_datatype_id: {{ target_datatype_id }}<br />
@@ -78,28 +83,58 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
 
     <div class="pure-u-1">
     {% if is_link == 1 %}
-        {% if can_edit_parent_record %}
-        {# User guaranteed to have can_view_datatype for the remote datatype, and they can edit the parent datarecord #}
-        {# Therefore, they can create/remove links to the remote datatype #}
-        <button
-            class="pure-button pure-button-primary"
-            type="button"
-            onclick="AddLinkedRecord({{ childtype.id }},{{ parent_datarecord.id }});"
-        >Add {{ childtype_name }}</button>
+        {% if datarecord_is_fake %}
+        {# Linking is reliant on both ancestor and descendant records existing beforehand #}
+        {# Disable this feature, for now #}
+        <div class="pure-u-1 Info" title="Record must be saved before it can be linked to other records">
+        {% endif %}
 
-        <button
-            type="button"
-            class="pure-button"
-            onclick="OpenLinkSearchPage({{ parent_datatype_id }},{{ childtype.id }},{{ parent_datarecord.id }});"
-        >Link to {{ childtype_name }}</button>
+        {% if can_edit_parent_record %}
+            {# User guaranteed to have can_view_datatype for the remote datatype, and they can edit the parent datarecord #}
+            {# Therefore, they can create/remove links to the remote datatype #}
+            <button
+                class="pure-button pure-button-primary"
+                type="button"
+                onclick="AddLinkedRecord({{ childtype.id }},{{ parent_datarecord.id }});"
+                {% if datarecord_is_fake %}
+                disabled
+                {% endif %}
+            >Add {{ childtype_name }}</button>
+
+            <button
+                type="button"
+                class="pure-button"
+                onclick="OpenLinkSearchPage({{ parent_datatype_id }},{{ childtype.id }},{{ parent_datarecord.id }});"
+                {% if datarecord_is_fake %}
+                disabled
+                {% endif %}
+            >Link to {{ childtype_name }}</button>
+        {% endif %}
+
+        {% if datarecord_is_fake %}
+        </div>
         {% endif %}
 
     {% elseif can_add_child_record and (multiple_allowed == 1 or child_datarecord_count < 1) %}
-        <button
-            class="pure-button pure-button-primary"
-            type="button"
-            onclick="AddChildRecord({{ childtype.id }},{{ parent_datarecord.id }});"
-        >Add {{ childtype_name }} record</button>
+        {% if datarecord_is_fake %}
+        {# Getting ODR to render fake child records when the top-level is also fake is painful #}
+        {# Disable this feature, for now #}
+        <div class="pure-u-1 Info" title="Record must be saved before child records can be created">
+        {% endif %}
+
+            <button
+                class="pure-button pure-button-primary"
+                type="button"
+                onclick="AddChildRecord({{ childtype.id }},{{ parent_datarecord.id }});"
+                {% if datarecord_is_fake %}
+                disabled
+                {% endif %}
+            >Add {{ childtype_name }} record</button>
+
+        {% if datarecord_is_fake %}
+        </div>
+        {% endif %}
+
     {% endif %}
     </div>
 

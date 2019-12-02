@@ -25,20 +25,21 @@
         <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
     </div>
 
-    {# Page/View Options #}
+    {# Page/View Options - notitle is intentionally undefined #}
     {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
         'datatype': datatype,
         'theme': theme,
         'page_type': 'table',
         'search_key': search_key,
 
+        'has_datarecords': has_datarecords,
         'has_search_restriction': has_search_restriction,
         'editable_only': editable_only,
 
         'display_export_options': true,
         'intent': 'searching',
         'user_role': user_role,
-        'has_datarecords': has_datarecords,
+        'user_permissions': user_permissions,
     } %}
 
     <div id="TextResults_wrapper" class="ODRTableOuterWrap">
