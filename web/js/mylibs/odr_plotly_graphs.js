@@ -391,8 +391,6 @@ function barChartPlotly(chart_obj, onComplete) {
                 var file = file_data[display_order];
                 var dr_id = file.dr_id;
 
-                var separator = undefined;
-
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
                         console.log('Plotting bar: ' + dr_id);
@@ -406,42 +404,31 @@ function barChartPlotly(chart_obj, onComplete) {
                             if ( lines[i].match(/^#/) )
                                 continue;
 
-                            // Attempt to guess the separator used for this file based on the first
-                            //  line of data
-                            if ( separator === undefined ) {
-                                if ( lines[i].indexOf(",") !== -1 ) {
-                                    separator = ",";
-                                    console.log('assuming file is comma-separated');
-                                }
-                                else if ( lines[i].indexOf("\t") !== -1 ) {
-                                    separator = "\t";
-                                    console.log('assuming file is tab-separated');
-                                }
-                            }
-
-                            var values = lines[i].split(separator);
+                            // Split the string into "words"...too many different separators and formats
+                            var values = lines[i].match(/[a-zA-Z0-9\.\-\+]+/g);
                             for(var j in values)
                                 values[j] = values[j].trim();
 
                             // Load the numeric values
-                            if ( values.length === 2 ) {
-                                var x_tmp = values[0];    // x values could be strings or numbers
-                                var y_tmp = Number(values[1]);
+                            if ( values !== null ) {
+                                if (values.length === 2) {
+                                    var x_tmp = values[0];    // x values could be strings or numbers
+                                    var y_tmp = Number(values[1]);
 
-                                if ( !isNaN(y_tmp) ) {
-                                    x.push(x_tmp);
-                                    y.push(y_tmp);
-                                }
-                            }
-                            else if ( values.length === 3 ) {
-                                var x_tmp = values[0];    // x values could be strings or numbers
-                                var y_tmp = Number(values[1]);
-                                var e_tmp = Number(values[2]);
+                                    if (!isNaN(y_tmp)) {
+                                        x.push(x_tmp);
+                                        y.push(y_tmp);
+                                    }
+                                } else if (values.length === 3) {
+                                    var x_tmp = values[0];    // x values could be strings or numbers
+                                    var y_tmp = Number(values[1]);
+                                    var e_tmp = Number(values[2]);
 
-                                if ( !isNaN(y_tmp) && !isNaN(e_tmp) ) {
-                                    x.push(x_tmp);
-                                    y.push(y_tmp);
-                                    e.push(e_tmp);
+                                    if (!isNaN(y_tmp) && !isNaN(e_tmp)) {
+                                        x.push(x_tmp);
+                                        y.push(y_tmp);
+                                        e.push(e_tmp);
+                                    }
                                 }
                             }
                         }
@@ -538,8 +525,6 @@ function lineerrorChartPlotly(chart_obj, onComplete) {
                 var file = file_data[display_order];
                 var dr_id = file.dr_id;
 
-                var separator = undefined;
-
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
                         console.log('Plotting xy+error: ' + dr_id);
@@ -554,42 +539,32 @@ function lineerrorChartPlotly(chart_obj, onComplete) {
                             if ( lines[i].match(/^#/) )
                                 continue;
 
-                            // Attempt to guess the separator used for this file based on the first
-                            //  line of data
-                            if ( separator === undefined ) {
-                                if ( lines[i].indexOf(",") !== -1 ) {
-                                    separator = ",";
-                                    console.log('assuming file is comma-separated');
-                                }
-                                else if ( lines[i].indexOf("\t") !== -1 ) {
-                                    separator = "\t";
-                                    console.log('assuming file is tab-separated');
-                                }
-                            }
-
-                            var values = lines[i].split(separator);
+                            // Split the string into "words"...too many different separators and formats
+                            var values = lines[i].match(/[a-zA-Z0-9\.\-\+]+/g);
                             for (var j in values)
                                 values[j] = values[j].trim();
 
-                            // Load the numeric values (both must be valid for line to be accepted
-                            var x_tmp = Number(values[0]);
-                            var y_tmp = Number(values[1]);
+                            // Load the numeric values (both must be valid for line to be accepted)
+                            if ( values !== null ) {
+                                var x_tmp = Number(values[0]);
+                                var y_tmp = Number(values[1]);
 
-                            if ( !isNaN(x_tmp) && !isNaN(y_tmp) ) {
-                                x.push(x_tmp);
-                                y.push(y_tmp);
-                            }
+                                if (!isNaN(x_tmp) && !isNaN(y_tmp)) {
+                                    x.push(x_tmp);
+                                    y.push(y_tmp);
+                                }
 
-                            if ( values[2] !== undefined ) {
-                                var e_tmp = Number(values[2]);
-                                if ( !isNaN(e_tmp) )
-                                    e.push(e_tmp);
-                            }
+                                if (values[2] !== undefined) {
+                                    var e_tmp = Number(values[2]);
+                                    if (!isNaN(e_tmp))
+                                        e.push(e_tmp);
+                                }
 
-                            if ( values[3] !== undefined ) {
-                                var f_tmp = Number(values[3]);
-                                if ( !isNaN(f_tmp) )
-                                    f.push(f_tmp);
+                                if (values[3] !== undefined) {
+                                    var f_tmp = Number(values[3]);
+                                    if (!isNaN(f_tmp))
+                                        f.push(f_tmp);
+                                }
                             }
                         }
 
@@ -757,7 +732,7 @@ function pieChartPlotly(chart_obj, onComplete) {
                 var file = file_data[display_order];
                 var dr_id = file.dr_id;
 
-                var separator = undefined;
+                // var separator = undefined;
                 var labels_column = undefined;
                 var values_column = undefined;
 
@@ -773,54 +748,41 @@ function pieChartPlotly(chart_obj, onComplete) {
                             if ( lines[i].match(/^#/) )
                                 continue;
 
-                            // Attempt to guess the separator used for this file based on the first
-                            //  line of data
-                            if ( separator === undefined ) {
-                                if ( lines[i].indexOf(",") !== -1 ) {
-                                    separator = ",";
-                                    console.log('assuming file is comma-separated');
-                                }
-                                else if ( lines[i].indexOf("\t") !== -1 ) {
-                                    separator = "\t";
-                                    console.log('assuming file is tab-separated');
+                            // Split the string into "words"...too many different separators and formats
+                            var tmp = lines[i].match(/[a-zA-Z0-9\.\-\+]+/g);
+                            for (var j in tmp)
+                                tmp[j] = tmp[j].trim();
+
+                            if ( tmp !== null ) {
+                                if ( tmp.length === 1 ) {
+                                    // Only one column, assume it's numeric
+                                    var val = Number( lines[i].trim() );
+                                    if ( !isNaN(val) )
+                                        values.push(val);
                                 }
                                 else {
-                                    separator = null;
-                                    console.log('assuming file only has one column');
+                                    // Labels could be in either column, really...
+                                    if ( labels_column === undefined ) {
+                                        if ( isNaN( Number(tmp[0]) ) ) {
+                                            // First column is not numeric, assume it contains labels
+                                            labels_column = 0;
+                                            values_column = 1;
+                                        }
+                                        else if ( isNaN( Number(tmp[1]) ) ) {
+                                            // Second column is not numeric, assume it contains labels
+                                            labels_column = 1;
+                                            values_column = 0;
+                                        }
+                                        else {
+                                            // Both columns look like numbers, default to labels being first
+                                            labels_column = 0;
+                                            values_column = 1;
+                                        }
+                                    }
+
+                                    labels.push( tmp[labels_column] );
+                                    values.push( tmp[values_column] );
                                 }
-                            }
-
-                            // Load the numeric values
-                            if ( separator !== null ) {
-                                var tmp = lines[i].split(separator);
-                                for (var j in tmp)
-                                    tmp[j] = tmp[j].trim();
-
-                                if ( labels_column === undefined ) {
-                                    if ( isNaN( Number(tmp[0]) ) ) {
-                                        // First column is not numeric, assume it contains labels
-                                        labels_column = 0;
-                                        values_column = 1;
-                                    }
-                                    else if ( isNaN( Number(tmp[1]) ) ) {
-                                        // Second column is not numeric, assume it contains labels
-                                        labels_column = 1;
-                                        values_column = 0;
-                                    }
-                                    else {
-                                        // Both columns look like numbers, default to labels being first
-                                        labels_column = 0;
-                                        values_column = 1;
-                                    }
-                                }
-
-                                labels.push( tmp[labels_column] );
-                                values.push( tmp[values_column] );
-                            }
-                            else {
-                                var val = Number( lines[i].trim() );
-                                if ( !isNaN(val) )
-                                    values.push(val);
                             }
                         }
 
@@ -900,8 +862,6 @@ function lineChartPlotly(chart_obj, onComplete) {
                 var file = file_data[display_order];
                 var dr_id = file.dr_id;
 
-                var separator = undefined;
-
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
                         console.log('Plotting xy: ' + dr_id);
@@ -914,25 +874,13 @@ function lineChartPlotly(chart_obj, onComplete) {
                             if ( lines[i].match(/^#/) )
                                 continue;
 
-                            // Attempt to guess the separator used for this file based on the first
-                            //  line of data
-                            if ( separator === undefined ) {
-                                if ( lines[i].indexOf(",") !== -1 ) {
-                                    separator = ",";
-                                    console.log('assuming file is comma-separated');
-                                }
-                                else if ( lines[i].indexOf("\t") !== -1 ) {
-                                    separator = "\t";
-                                    console.log('assuming file is tab-separated');
-                                }
-                            }
-
-                            var values = lines[i].split(separator);
+                            // Split the string into "words"...too many different separators and formats
+                            var values = lines[i].match(/[a-zA-Z0-9\.\-\+]+/g);
                             for (var j in values)
                                 values[j] = values[j].trim();
 
-                            // Load the numeric values (both must be valid for line to be accepted
-                            if ( values.length >= 2 ) {
+                            // Load the numeric values (both must be valid for line to be accepted)
+                            if ( values !== null && values.length >= 2 ) {
                                 var x_tmp = Number(values[0]);
                                 var y_tmp = Number(values[1]);
 
@@ -1149,8 +1097,6 @@ function stackedAreaChartPlotly(chart_obj, onComplete) {
                 var file = file_data[display_order];
                 var dr_id = file.dr_id;
 
-                var separator = undefined;
-
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
                         console.log('Plotting stacked area: ' + dr_id);
@@ -1163,25 +1109,13 @@ function stackedAreaChartPlotly(chart_obj, onComplete) {
                             if ( lines[i].match(/^#/) )
                                 continue;
 
-                            // Attempt to guess the separator used for this file based on the first
-                            //  line of data
-                            if ( separator === undefined ) {
-                                if ( lines[i].indexOf(",") !== -1 ) {
-                                    separator = ",";
-                                    console.log('assuming file is comma-separated');
-                                }
-                                else if ( lines[i].indexOf("\t") !== -1 ) {
-                                    separator = "\t";
-                                    console.log('assuming file is tab-separated');
-                                }
-                            }
-
-                            var values = lines[i].split(separator);
+                            // Split the string into "words"...too many different separators and formats
+                            var values = lines[i].match(/[a-zA-Z0-9\.\-\+]+/g);
                             for (var j in values)
                                 values[j] = values[j].trim();
 
                             // Load the numeric values
-                            if ( values.length === 2 ) {
+                            if ( values !== null && values.length === 2 ) {
                                 var x_tmp = Number(values[0]);
                                 var y_tmp = Number(values[1]);
 
