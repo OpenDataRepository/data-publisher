@@ -1570,8 +1570,8 @@
 
     function DeleteDatatype(datatype_id) {
         // Determine datatype_id (for delete) and theme_element_id (for reload)
-        // var theme_element_data = $("#DataType_" + datatype_id).parent().parent().attr('id').split(/_/);
-        // var theme_element_id = theme_element_data[1];
+        var theme_element_data = $("#DataType_" + datatype_id).parent().parent().attr('id').split(/_/);
+        var theme_element_id = theme_element_data[1];
 
         var url = '{{ path('odr_design_delete_datatype', { 'datatype_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
@@ -1585,6 +1585,10 @@
             success: function() {
                 // Delete the datatype from the page
                 $("#DataType_" + datatype_id).remove();
+
+                // Reset the theme element properties so the sidebar displays correctly
+                theme_element_properties[theme_element_id]['has_childtype'] = 0;
+                theme_element_properties[theme_element_id]['child_is_link'] = 0;
 
                 // Update the sidebar so it no longer references the now-deleted datatype
                 ResetToolSet();
