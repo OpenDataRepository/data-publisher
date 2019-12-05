@@ -33,10 +33,11 @@
         "incenteev/composer-parameter-handler": "^2.1",
         "sensio/framework-extra-bundle": "^5.3",
         "sensio/generator-bundle": "^3.1",
-        "doctrine/orm": "^2.6",
+        "doctrine/orm": "2.6.*",
         "doctrine/doctrine-bundle": "^1.10",
         "sensio/distribution-bundle": "^5.0",
-        "lexik/jwt-authentication-bundle": "^2.6"
+        "lexik/jwt-authentication-bundle": "^2.6",
+        "nyholm/psr7": "^1.2"
     },
     "scripts": {
         "post-install-cmd": [
