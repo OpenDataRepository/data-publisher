@@ -2,6 +2,7 @@
 
 {# set variables used by the parent template...http://stackoverflow.com/questions/17244162/symfony2-twig-how-can-i-send-parameters-to-the-parent-template #}
 
+{% set site_baseurl = site_baseurl %}
 {% set current_user = '' %}
 {% if user != 'anon.' %}
     {% set current_user = user.getuserstring %}
@@ -52,6 +53,7 @@
 
 
 {% block body %}
+    SG: {{ site_baseurl }}
 
     {% include 'ODROpenRepositorySearchBundle:Default:search.html.twig' %}
 

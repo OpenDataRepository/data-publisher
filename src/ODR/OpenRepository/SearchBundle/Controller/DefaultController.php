@@ -282,8 +282,10 @@ class DefaultController extends Controller
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
             $site_baseurl = $this->container->getParameter('site_baseurl');
+            /*
             if ($this->container->getParameter('kernel.environment') === 'dev')
                 $site_baseurl .= '/app_dev.php';
+            */
 
             $html = $this->renderView(
                 'ODROpenRepositorySearchBundle:Default:index.html.twig',
