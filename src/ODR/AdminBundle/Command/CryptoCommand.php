@@ -67,6 +67,7 @@ class CryptoCommand extends ContainerAwareCommand
 
                 // 
                 $logger->info('CryptoCommand.php: '.$data->crypto_type.' request for '.$data->object_type.' '.$data->object_id.' from '.$data->redis_prefix.'...');
+                $logger->info('CryptoCommand.php (url): '.$data->url);
                 $current_time = new \DateTime();
 
                 if ($data->crypto_type == 'encrypt') {
