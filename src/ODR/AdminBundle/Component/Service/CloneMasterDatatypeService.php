@@ -223,10 +223,11 @@ class CloneMasterDatatypeService
      * @param integer $datatype_id
      * @param integer $user_id
      * @param string $template_group
+     * @param bool $cloning_from_template
      *
      * @return string
      */
-    public function createDatatypeFromMaster($datatype_id, $user_id, $template_group = "")
+    public function createDatatypeFromMaster($datatype_id, $user_id, $template_group, $cloning_from_template = true)
     {
         try {
             // This function waits a long time and tends to time out and drop its db connection
@@ -262,6 +263,9 @@ class CloneMasterDatatypeService
             if ( is_null($datatype->getMasterDataType()) || $datatype->getMasterDataType()->getId() < 1 ) {
                 throw new ODRException("Invalid master template id");
             }
+
+            if ( $template_group === '' )
+                throw new ODRException('template group can not be empty');
 
 
             // ----------------------------------------
@@ -351,7 +355,7 @@ class CloneMasterDatatypeService
                 }
 
                 // Clone the datatype $dt_master into $new_datatype
-                self::cloneDatatype($dt_master, $new_datatype, $datatype_prefix, $template_group);
+                self::cloneDatatype($dt_master, $new_datatype, $datatype_prefix, $template_group, $cloning_from_template);
             }
 
 
@@ -425,9 +429,9 @@ class CloneMasterDatatypeService
             // ----------------------------------------
             // Clone Datatree and DatatreeMeta entries
             $this->logger->info('----------------------------------------');
-            // TODO Convert to delayed flush and flush at once
             self::cloneDatatree($this->master_datatype);
 
+            // Flush once all the datatree entries are cloned
             $this->em->flush();
 
             foreach ($this->created_datatypes as $dt)
@@ -438,36 +442,30 @@ class CloneMasterDatatypeService
             // Create all of the Group entries required for cloning permissions
             $this->logger->info('----------------------------------------');
             foreach ($this->created_datatypes as $dt)
-                // TODO Convert to delayed flush and flush at once
                 self::cloneDatatypeGroups($dt);
 
-
-            // Flush so groups are available for next portion.
+            // Flush once all of the datatype groups are cloned
             $this->em->flush();
+
 
             // Clone the datatype and datafield permissions for each of the created datatypes
             $this->logger->info('----------------------------------------');
             foreach ($this->created_datatypes as $dt) {
                 $this->logger->info('----------------------------------------');
-                // TODO Convert to delayed flush and flush at once
                 self::cloneDatatypePermissions($dt);
 
-                // TODO Might need to flush here - not sure
+                // Flush once the GroupDatatypePermissions are cloned
                 $this->em->flush();
-
-
-
-                // Pseudo code
-                // Foreach new group
-                // Clone all permissions with one insert...
-
 
                 /** @var DataFields[] $datafields */
                 $datafields = $dt->getDataFields();
                 foreach ($datafields as $df)
-                    // TODO Convert to delayed flush and flush once
                     self::cloneDatafieldPermissions($df);
+
+                // Don't need to flush immediately after the GroupDatafieldPermissions are cloned
+                // Almost done cloning, and nothing needs them at this time
             }
+
 
             // ----------------------------------------
             // The datatypes are now ready for viewing since they have all their datafield, theme,
@@ -475,8 +473,26 @@ class CloneMasterDatatypeService
             foreach ($this->created_datatypes as $dt) {
                 $dt->setSetupStep(DataType::STATE_OPERATIONAL);
 
+                // If not copying from a "master template", then a pile of entities need to be
+                //  modified so they don't think they were derived from other entities
+                if (!$cloning_from_template) {
+                    $this->logger->info('----------------------------------------');
+                    $this->logger->info('CloneDatatypeService: setting newly created datatype '.$dt->getId().' "'.$dt->getShortName().'" to no longer consider datatype '.$dt->getMasterDataType()->getId().' as its master template');
+                    $dt->setMasterDataType(null);
+
+                    /** @var DataFields[] $datafields */
+                    $datafields = $dt->getDataFields();
+                    foreach ($datafields as $df) {
+                        $this->logger->info('CloneDatatypeService: -- setting newly created datafield '.$df->getId().' "'.$df->getFieldName().'" to no longer consider datafield '.$df->getMasterDataField()->getId().' as its master field');
+                        $df->setMasterDataField(null);
+                        $df->setTemplateFieldUuid(null);
+
+                        $this->em->persist($df);
+                    }
+                }
+
                 // These don't need to be immediately flushed...
-                $this->em->persist($dt, true);
+                $this->em->persist($dt);
             }
 
             $this->em->flush();
@@ -527,8 +543,9 @@ class CloneMasterDatatypeService
      * @param DataType|null $new_datatype
      * @param string $datatype_prefix
      * @param string $template_group
+     * @param bool $cloning_from_template
      */
-    private function cloneDatatype($template_datatype, $new_datatype = null, $datatype_prefix = "", $template_group = "")
+    private function cloneDatatype($template_datatype, $new_datatype, $datatype_prefix, $template_group, $cloning_from_template)
     {
         // If $new_dataype isn't created yet, clone $template_datatype to use as a starting point
         $cloned_new_datatype = false;
@@ -547,16 +564,23 @@ class CloneMasterDatatypeService
             $new_datatype->setUniqueId($unique_id);
         }
 
-        // $new_datatype is based off a "master template" datatype
+        // Need to set properties for the new datatype...
         $new_datatype->setIsMasterType(false);
-        $new_datatype->setTemplateGroup($template_group);
-        $new_datatype->setMasterDataType($template_datatype);
         $new_datatype->setSetupStep(DataType::STATE_INITIAL);
+        $new_datatype->setTemplateGroup($template_group);
+
+        // Even if not cloning from a "master template", the new datatype needs to know which
+        //  datatype it's copying from
+        $new_datatype->setMasterDataType($template_datatype);
 
         self::persistObject($new_datatype, true);    // don't flush immediately...
         array_push($this->created_datatypes, $new_datatype);
 
-        $this->logger->debug('CloneDatatypeService: datatype '.$new_datatype->getId().' using datatype '.$template_datatype->getId().' as its master template...');
+        if ($cloning_from_template)
+            $this->logger->debug('CloneDatatypeService: new datatype is using datatype '.$template_datatype->getId().' as its master template...');
+        else
+            $this->logger->debug('CloneDatatypeService: new datatype is being copied from datatype '.$template_datatype->getId().'...');
+
 
         $template_meta = $template_datatype->getDataTypeMeta();
         $new_meta = null;
@@ -610,7 +634,7 @@ class CloneMasterDatatypeService
         // Ensure the "in-memory" version of $new_datatype knows about its meta entry
         $new_datatype->addDataTypeMetum($new_meta);
         self::persistObject($new_meta, true);    // don't flush immediately...
-        $this->logger->debug('CloneDatatypeService: meta entry cloned for datatype '.$new_datatype->getId());
+        $this->logger->debug('CloneDatatypeService: meta entry cloned');
 
 
         // ----------------------------------------
@@ -622,12 +646,14 @@ class CloneMasterDatatypeService
             $new_df = clone $parent_df;
             $new_df->setDataType($new_datatype);
             $new_df->setIsMasterField(false);
-            $new_df->setMasterDataField($parent_df);
 
-            // Copy old unique id to template_field_uuid
-            $new_df->setTemplateFieldUuid($new_df->getFieldUuid());
             // Assign new uuid
             $new_df->setFieldUuid($this->uuid_service->generateDatafieldUniqueId());
+
+            // Even if not cloning from a "master template", the new datafield needs to know which
+            //  field it's getting copied from...
+            $new_df->setMasterDataField($parent_df);
+            $new_df->setTemplateFieldUuid($new_df->getFieldUuid());
 
             // Ensure the "in-memory" version of $new_datatype knows about the new datafield
             $new_datatype->addDataField($new_df);
@@ -718,6 +744,11 @@ class CloneMasterDatatypeService
                     $new_ro = clone $parent_ro;
                     $new_ro->setDataField($new_df);
 
+                    // If not cloning from a master template, then generate a new uuid for this
+                    //  new radio option
+                    if (!$cloning_from_template)
+                        $new_ro->setRadioOptionUuid($this->uuid_service->generateRadioOptionUniqueId());
+
                     // Ensure the "in-memory" version of $new_df knows about its new radio option
                     $new_df->addRadioOption($new_ro);
                     self::persistObject($new_ro, true);    // don't flush immediately...
@@ -746,6 +777,11 @@ class CloneMasterDatatypeService
                     // Clone all the tags for this datafield
                     $new_tag = clone $parent_tag;
                     $new_tag->setDataField($new_df);
+
+                    // If not cloning from a master template, then generate a new uuid for this
+                    //  new tag
+                    if (!$cloning_from_template)
+                        $new_tag->setTagUuid($this->uuid_service->generateTagUniqueId());
 
                     // Ensure the "in-memory" version of $new_df knows about its new tag
                     $new_df->addTag($new_tag);
@@ -847,12 +883,12 @@ class CloneMasterDatatypeService
                     $new_dt = new DataTree();
                     $new_dt->setAncestor($current_ancestor);
                     $new_dt->setDescendant($datatype);
-                    self::persistObject($new_dt, true);
+                    self::persistObject($new_dt, true);    // don't flush immediately...
 
                     // Clone the datatree's meta entry
                     $new_meta = clone $datatree->getDataTreeMeta();
                     $new_meta->setDataTree($new_dt);
-                    self::persistObject($new_meta, true);
+                    self::persistObject($new_meta, true);    // don't flush immediately...
 
                     $new_dt->addDataTreeMetum($new_meta);
                     self::persistObject($new_dt, true);
@@ -919,7 +955,7 @@ class CloneMasterDatatypeService
             // Ensure the "in-memory" version of $new_group knows about its new meta entry
             $new_group->addGroupMetum($new_group_meta);
 
-            self::persistObject($new_group_meta, true);
+            self::persistObject($new_group_meta, true);    // don't flush immediately...
             self::persistObject($new_group, true);
 
             $this->logger->info('CloneDatatypeService: created new Group '.$new_group->getId().' from parent "'.$master_group->getPurpose().'" Group '.$master_group->getId().' for datatype '.$datatype->getId());
@@ -979,7 +1015,6 @@ class CloneMasterDatatypeService
         }
         */
     }
-
 
 
     /**
@@ -1062,10 +1097,8 @@ class CloneMasterDatatypeService
                 }
             }
         }
-
-        // TODO No reason to flush here....
-        // $this->em->flush();
     }
+
 
     /**
      * Clones all GroupDatafield permission entries from $datafield's master datafield.
@@ -1144,9 +1177,6 @@ class CloneMasterDatatypeService
                 }
             }
         }
-
-        // TODO No reason to flush here....
-        // $this->em->flush();
     }
 
 

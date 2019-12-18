@@ -34,6 +34,7 @@ use ODR\AdminBundle\Form\UpdateDatatypePropertiesForm;
 use ODR\AdminBundle\Form\CreateDatatypeForm;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
+use ODR\AdminBundle\Component\Service\CloneMasterDatatypeService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
@@ -1809,6 +1810,90 @@ class DatatypeController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x40a08257;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Copies a non-template database.  The new database does not reference the original...datatypes
+     * and datafields don't reference the original database via template_uuids, and radio/tags have
+     * brand-new uuids.
+     *
+     * @param int $datatype_id The datatype being copied
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function copynormaldatabaseAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CloneMasterDatatypeService $cmd_service */
+            $cmd_service = $this->container->get('odr.clone_master_datatype_service');
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+
+
+            /** @var DataType $source_datatype */
+            $source_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($source_datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            if ( !is_null($source_datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Not allowed to copy Metadata datatypes with this');
+
+
+            // Don't need to verify permissions, firewall won't let this action be called unless user is admin
+            /** @var ODRUser $admin */
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+
+
+            // ----------------------------------------
+            // Create the skeletal datatype that will be copied into
+            $new_dt = $ec_service->createDatatype($admin, 'Copy');
+            // The new datatype needs to treat the source datatype as its "master template" in order
+            //  for the copying process to work...
+            $new_dt->setMasterDataType($source_datatype);
+
+            $em->persist($new_dt);
+            $em->flush();
+
+            // ...but nothing created during the copy (datatypes, datafields, options/tags, etc)
+            // should retain any connection to the "master template" datatype afterwards
+            $clone_from_template = false;
+
+            // Shouldn't need to use a background job for this
+            $cmd_service->createDatatypeFromMaster(
+                $new_dt->getId(),
+                $admin->getId(),
+                $new_dt->getUniqueId(),
+                $clone_from_template
+            );
+
+
+            // ----------------------------------------
+            // Redirect the user to what will be the new datatype's landing page
+            $url = $this->generateUrl('odr_datatype_landing', array('datatype_id' => $new_dt->getId()), false);
+            $return['d'] = array('redirect_url' => $url);
+
+        }
+        catch (\Exception $e) {
+            $source = 0xa4c9a6f3;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

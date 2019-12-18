@@ -317,6 +317,12 @@ odr_add_blank_metadata_datatype:
     requirements:
         datatype_id: \d+
 
+odr_copy_normal_database:
+    path:  /admin/type/copy/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Datatype:copynormaldatabase }
+    requirements:
+        datatype_id: \d+
+
 #-----------------------------------------
 
 #-----------------------------------------
