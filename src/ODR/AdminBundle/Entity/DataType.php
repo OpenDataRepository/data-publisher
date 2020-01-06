@@ -24,8 +24,6 @@ class DataType
     // These are defined as strings instead of bitmasks because they're easier to read in the twig files
     // Datatypes in these states are usually still being copied from a master template, and shouldn't be displayed/used elsewhere
     const STATE_INITIAL = "initial";
-    // Datatypes in this state are technically viewable, but lack a search results theme
-//    const STATE_INCOMPLETE = "incomplete";
     // Datatypes in this state have all the theme and permission entries required to be viewable
     const STATE_OPERATIONAL = "operational";
 
@@ -72,6 +70,16 @@ class DataType
      * @var string
      */
     private $datatype_type;
+
+    /**
+     * @var bool
+     */
+    private $is_default_template;
+
+    /**
+     * @var bool
+     */
+    private $is_metadata_template;
 
     /**
      * @var \DateTime
@@ -376,6 +384,54 @@ class DataType
     public function getDatatypeType()
     {
         return $this->datatype_type;
+    }
+
+    /**
+     * Set isDefaultTemplate.
+     *
+     * @param bool $isDefaultTemplate
+     *
+     * @return DataType
+     */
+    public function setIsDefaultTemplate($isDefaultTemplate)
+    {
+        $this->is_default_template = $isDefaultTemplate;
+
+        return $this;
+    }
+
+    /**
+     * Get isDefaultTemplate.
+     *
+     * @return bool
+     */
+    public function getIsDefaultTemplate()
+    {
+        return $this->is_default_template;
+    }
+
+    /**
+     * Set isMetadataTemplate.
+     *
+     * @param bool $isMetadataTemplate
+     *
+     * @return DataType
+     */
+    public function setIsMetadataTemplate($isMetadataTemplate)
+    {
+        $this->is_metadata_template = $isMetadataTemplate;
+
+        return $this;
+    }
+
+    /**
+     * Get isMetadataTemplate.
+     *
+     * @return bool
+     */
+    public function getIsMetadataTemplate()
+    {
+        return $this->is_metadata_template;
     }
 
     /**

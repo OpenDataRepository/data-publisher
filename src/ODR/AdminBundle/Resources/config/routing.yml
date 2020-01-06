@@ -1799,3 +1799,39 @@ odr_api_user_check:
 #    requirements:
 #        version: 'v\d+'
 #        _format: '|json|xml'
+
+
+
+
+#-----------------------------------------
+odr_create_database:
+    path:  /admin/database/create
+    defaults: { _controller:  ODRAdminBundle:Datatype:createdatabase }
+
+odr_copy_database:
+    path:  /admin/database/copy
+    defaults: { _controller:  ODRAdminBundle:Datatype:copydatabase }
+
+odr_create_template:
+    path:  /admin/template/create
+    defaults: { _controller:  ODRAdminBundle:Datatype:createtemplate }
+
+odr_create_metadata_template:
+    path:  /admin/metadata/create
+    defaults: { _controller:  ODRAdminBundle:Datatype:createmetadata }
+
+
+odr_start_database_setup:
+    path:  /admin/type/enter
+    defaults: { _controller:  ODRAdminBundle:Datatype:getrequiredmetadata }
+    methods: [ POST ]
+
+odr_finish_database_setup:
+    path:  /admin/type/finish
+    defaults: { _controller:  ODRAdminBundle:Datatype:finishsetup }
+    methods: [ POST ]
+
+
+odr_create_default_metadata:
+    path:  /admin/metadata/create_default
+    defaults: { _controller:  ODRAdminBundle:Worker:createDefaultMetadata }

@@ -40,6 +40,7 @@ use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
+use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 // Symfony
@@ -50,6 +51,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 // Utility
 use ODR\AdminBundle\Component\Utility\UserUtility;
+use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
 class DatatypeController extends ODRCustomController
@@ -767,6 +769,7 @@ class DatatypeController extends ODRCustomController
             // Grab each top-level datatype from the repository
             $is_master_type = ($section == "templates" || $section == "datatemplates") ? 1 : 0;
 
+            // TODO - ...this can't require templates to have metadata, it needs to be available regardless
             $query_sql =
                'SELECT dt, dtm, md, mf, dt_cb, dt_ub
                 FROM ODRAdminBundle:DataType AS dt
@@ -1894,6 +1897,830 @@ class DatatypeController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0xa4c9a6f3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+// ----------------------------------------
+// ----------------------------------------
+
+    // Creating a new database by cloning from a template...preserves uuids of template
+    const CREATE_DATABASE_FROM_TEMPLATE = 1;
+    // Creating a new database by copying an existing database...does not preserve uuids
+    const COPY_DATABASE = 2;
+    // Creating a new template by copying an existing template...does not preserve uuids
+    const CREATE_TEMPLATE = 3;
+    // Creating a new metadata template by copying an existing metadata template...does not preserve uuids
+    const CREATE_METADATA_TEMPLATE = 4;
+
+
+    /**
+     * Starts the process of creating a new datatype from a template.  The new datatype will
+     * maintain uuid connections to the template, allowing for changes to the template to be
+     * reflected in the datatype...unless the chosen template is the "empty template".
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function createdatabaseAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Load necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$user->hasRole('ROLE_ADMIN') )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Load a list of the existing top-level templates that could be copied from
+            $query = $em->createQuery(
+                'SELECT dt
+                 FROM ODRAdminBundle:DataType AS dt
+                 WHERE dt.is_master_type = :is_master_type AND dt = dt.grandparent
+                 AND dt.metadata_for IS NULL AND dt.is_metadata_template = :is_metadata_template
+                 AND dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'is_master_type' => 1,
+                    'is_metadata_template' => 0
+                )
+            );
+            $all_templates = $query->getResult();
+            /** @var DataType[] $all_templates */
+
+            // Filter out all the templates the user can't see
+            foreach ($all_templates as $num => $dt) {
+                if ( !$pm_service->canViewDatatype($user, $dt) )
+                    unset( $all_templates[$num] );
+            }
+
+            // The list of available templates to copy from can technically be empty...the twig
+            //  template will automatically insert a "blank" template entry
+            if ( count($all_templates) > 0 ) {
+                // If there are templates though, sort them by name
+                $all_templates = self::sortTemplateList($all_templates);
+            }
+
+
+            // Load a list of the available metadata templates
+            /** @var DataType[] $all_metadata_templates */
+            $all_metadata_templates = $em->getRepository('ODRAdminBundle:DataType')->findBy(
+                array(
+                    'is_metadata_template' => 1,
+                )
+            );
+            if ( count($all_metadata_templates) == 0 )
+                throw new ODRNotFoundException('No Metadata Templates found', true);
+
+            // Ensure the default metadata template is first in the list, then sort the remaining
+            //  templates by name
+            $all_metadata_templates = self::sortTemplateList($all_metadata_templates);
+
+
+            // ----------------------------------------
+            // Render the page to create a new metadata template
+            $templating = $this->get('templating');
+            $page_html = $templating->render(
+                'ODRAdminBundle:Datatype_new:create_datatype.html.twig',
+                array(
+                    'template_list' => $all_templates,
+                    'metadata_list' => $all_metadata_templates,
+                    'type' => DatatypeController::CREATE_DATABASE_FROM_TEMPLATE,
+                )
+            );
+
+            $return['d'] = array( 'html' => $page_html );
+        }
+        catch (\Exception $e) {
+            $source = 0x68f182aa;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Starts the process of copying a new datatype from an existing datatype.  The new datatype
+     * will not maintain uuid connections to the existing datatype.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function copydatabaseAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Load necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$user->hasRole('ROLE_ADMIN') )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Load a list of the existing top-level datatypes that could be copied from
+            $query = $em->createQuery(
+                'SELECT dt
+                 FROM ODRAdminBundle:DataType AS dt
+                 WHERE dt.is_master_type = :is_master_type AND dt = dt.grandparent
+                 AND dt.metadata_for IS NULL
+                 AND dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'is_master_type' => 0
+                )
+            );
+            $all_datatypes = $query->getResult();
+            /** @var DataType[] $all_datatypes */
+
+            // Filter out all the datatypes the user can't see
+            foreach ($all_datatypes as $num => $dt) {
+                if ( !$pm_service->canViewDatatype($user, $dt) )
+                    unset( $all_datatypes[$num] );
+            }
+
+            // If no datatypes remain in the list, then there's obviously nothing to copy from...
+            if ( count($all_datatypes) == 0 )
+                throw new ODRNotFoundException('No Datatypes found', true);
+
+            // Sort the datatypes by name
+            $all_datatypes = self::sortTemplateList($all_datatypes);
+
+
+            // Load a list of the available metadata templates
+            /** @var DataType[] $all_metadata_templates */
+            $all_metadata_templates = $em->getRepository('ODRAdminBundle:DataType')->findBy(
+                array(
+                    'is_metadata_template' => 1,
+                )
+            );
+            if ( count($all_metadata_templates) == 0 )
+                throw new ODRNotFoundException('No Metadata Templates found', true);
+
+            // Ensure the default metadata template is first in the list, then sort the remaining
+            //  metadata templates by name
+            $all_metadata_templates = self::sortTemplateList($all_metadata_templates);
+
+
+            // ----------------------------------------
+            // Render the page to create a new metadata template
+            $templating = $this->get('templating');
+            $page_html = $templating->render(
+                'ODRAdminBundle:Datatype_new:create_datatype.html.twig',
+                array(
+                    'template_list' => $all_datatypes,    // technically not templates in this case
+                    'metadata_list' => $all_metadata_templates,
+                    'type' => DatatypeController::COPY_DATABASE,
+                )
+            );
+
+            $return['d'] = array( 'html' => $page_html );
+        }
+        catch (\Exception $e) {
+            $source = 0xb1caceda;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Starts the process of creating a new datatype template.  Technically, the new template is
+     * copied from an existing template, but it never maintains any uuid connections to the source
+     * template.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function createtemplateAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Load necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$user->hasRole('ROLE_ADMIN') )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Load a list of the existing top-level templates that could be copied from
+            $query = $em->createQuery(
+                'SELECT dt
+                 FROM ODRAdminBundle:DataType AS dt
+                 WHERE dt.is_master_type = :is_master_type AND dt = dt.grandparent
+                 AND dt.metadata_for IS NULL AND dt.is_metadata_template = :is_metadata_template
+                 AND dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'is_master_type' => 1,
+                    'is_metadata_template' => 0
+                )
+            );
+            $all_templates = $query->getResult();
+            /** @var DataType[] $all_templates */
+
+            // Filter out all the templates the user can't see
+            foreach ($all_templates as $num => $dt) {
+                if ( !$pm_service->canViewDatatype($user, $dt) )
+                    unset( $all_templates[$num] );
+            }
+
+            // The list of templates can technically be empty...the twig file will insert an entry
+            //  for a "blank" template
+            if ( count($all_templates) > 0 ) {
+                // If there are templates though, sort them by name
+                $all_templates = self::sortTemplateList($all_templates);
+            }
+
+
+            // Load the default metadata template
+            /** @var DataType $default_metadata_template */
+            $default_metadata_template = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array(
+                    'is_default_template' => 1,
+                    'is_metadata_template' => 1,
+                )
+            );
+            if ($default_metadata_template == null)
+                throw new ODRNotFoundException('No Default Metadata Template found', true);
+
+            // Since this is creating a template, only the default metadata template is allowed here
+
+
+            // ----------------------------------------
+            // Render the page to create a new metadata template
+            $templating = $this->get('templating');
+            $page_html = $templating->render(
+                'ODRAdminBundle:Datatype_new:create_datatype.html.twig',
+                array(
+                    'template_list' => $all_templates,
+                    'metadata_list' => array($default_metadata_template),    // creating a template, so only default choice allowed
+                    'type' => DatatypeController::CREATE_TEMPLATE,
+                )
+            );
+
+            $return['d'] = array( 'html' => $page_html );
+        }
+        catch (\Exception $e) {
+            $source = 0x9609762f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Starts the process of creating a new metadata template.  Technically, the new template is
+     * copied from an existing metadata template, but it never maintains any uuid connections to
+     * its source.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function createmetadataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Load necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$user->hasRole('ROLE_ADMIN') )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Load a list of the existing metadata templates that could be copied from
+            $query = $em->createQuery(
+                'SELECT dt
+                 FROM ODRAdminBundle:DataType AS dt
+                 WHERE dt.is_master_type = :is_master_type AND dt = dt.grandparent
+                 AND dt.metadata_for IS NULL AND dt.is_metadata_template = :is_metadata_template
+                 AND dt.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'is_master_type' => 1,
+                    'is_metadata_template' => 1
+                )
+            );
+            $all_metadata_templates = $query->getResult();
+            /** @var DataType[] $all_metadata_templates */
+
+            // Filter out all the metadata templates the user can't see
+            foreach ($all_metadata_templates as $num => $dt) {
+                if ( !$pm_service->canViewDatatype($user, $dt) )
+                    unset( $all_metadata_templates[$num] );
+            }
+
+            // There should always be at least the default metadata template  TODO - ...need to make something for super-admins to create one after initial install of ODR
+            if ( count($all_metadata_templates) == 0 )
+                throw new ODRNotFoundException('No Metadata Templates found', true);
+
+            // Ensure the default metadata template is first in the list, then sort the remaining
+            //  templates by name
+            $all_metadata_templates = self::sortTemplateList($all_metadata_templates);
+
+
+            // Load the default metadata template
+            /** @var DataType $default_metadata_template */
+            $default_metadata_template = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array(
+                    'is_default_template' => 1,
+                    'is_metadata_template' => 1,
+                )
+            );
+            if ($default_metadata_template == null)
+                throw new ODRNotFoundException('No Default Metadata Template found', true);
+
+            // Since this is creating a template, only the default metadata template is allowed here
+
+
+            // ----------------------------------------
+            // Render the page to create a new metadata template
+            $templating = $this->get('templating');
+            $page_html = $templating->render(
+                'ODRAdminBundle:Datatype_new:create_datatype.html.twig',
+                array(
+                    'template_list' => $all_metadata_templates,
+                    'metadata_list' => array($default_metadata_template),    // creating a template, so only default choice allowed
+                    'type' => DatatypeController::CREATE_METADATA_TEMPLATE,
+                )
+            );
+
+            $return['d'] = array( 'html' => $page_html );
+
+        }
+        catch (\Exception $e) {
+            $source = 0xbc6eb5b3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Sorts the given list of templates (or regular datatypes) by name, placing the default template
+     * first in the list.
+     *
+     * @param DataType[] $template_list
+     *
+     * @return DataType[]
+     */
+    private function sortTemplateList($template_list)
+    {
+        // Locate the default template out of this list if possible
+        // Not guaranteed to have one since this can also get passed a list of regular datatypes
+        $default_template = null;
+        foreach ($template_list as $num => $dt) {
+            if ( $dt->getIsDefaultTemplate() ) {
+                $default_template = $dt;
+                unset( $template_list[$num] );
+                break;
+            }
+        }
+
+        // Sort the remaining templates in the list by their name
+        usort($template_list, function($a, $b) {
+            /** @var DataType $a */
+            /** @var DataType $b */
+            return strcasecmp($a->getLongName(), $b->getLongName());
+        });
+
+        $tmp = array();
+        foreach ($template_list as $num => $dt)
+            $tmp[$dt->getId()] = $dt->getLongName();
+
+        // Prepend the default template if there is one
+        $sorted_list = null;
+        if ( !is_null($default_template) )
+            $sorted_list = array_merge(array($default_template), $template_list);
+        else
+            $sorted_list = $template_list;
+
+        // Redo keys in the array before returning
+        $sorted_list = array_values($sorted_list);
+        return $sorted_list;
+    }
+
+
+    /**
+     * After the source templates/metadata/whatever have been selected, the user needs to provide
+     * the required metadata information (e.g. Name, Description) before any copying actually takes
+     * place.  This information is required at this point in time in order to prevent unattributed
+     * databases floating around in ODR.
+     *
+     * In an attempt to make it future-proof, this controller action sets up a "fake edit" page for
+     * two reasons:
+     * 1) the user can enter all the metadata now, if they want to...they may never have to look at
+     *     the metadata again
+     * 2) Name/Description are the only "required" entries from the perspective of ODR...but
+     *     template designers may want to also require additional entries (e.g. Funding Source).
+     *     This would not be possible if ODR was hardcoded to only require Name/Description.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function getrequiredmetadataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $request->request->all();
+//print_r($post);  exit();
+
+            if ( !isset($post['template_source_id'])    // can technically be a regular datatype
+                || !isset($post['metadata_source_id'])
+                || !isset($post['type'])
+            ) {
+                throw new ODRBadRequestException();
+            }
+
+            if ( !is_numeric($post['template_source_id']) )
+                throw new ODRBadRequestException();
+            if ( !is_numeric($post['metadata_source_id']) )
+                throw new ODRBadRequestException();
+            if ( !is_numeric($post['type']) )
+                throw new ODRBadRequestException();
+
+            $template_source_id = intval($post['template_source_id']);
+            $metadata_source_id = intval($post['metadata_source_id']);
+
+            // For clarity, convert the 'type' parameter into flags
+            $from_template = true;
+            $default_metadata_required = false;
+            switch ( intval($post['type']) ) {
+                case DatatypeController::CREATE_DATABASE_FROM_TEMPLATE:
+                    $from_template = true;
+                    $default_metadata_required = false;
+                    break;
+                case DatatypeController::COPY_DATABASE:
+                    $from_template = false;
+                    $default_metadata_required = false;
+                    break;
+                case DatatypeController::CREATE_TEMPLATE:
+                    $from_template = true;
+                    $default_metadata_required = true;
+                    break;
+                case DatatypeController::CREATE_METADATA_TEMPLATE:
+                    $from_template = true;
+                    $default_metadata_required = true;
+                    break;
+
+                default:
+                    throw new ODRBadRequestException();
+            }
+
+
+            // ----------------------------------------
+            // Load necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRRenderService $odr_render_service */
+            $odr_render_service = $this->container->get('odr.render_service');
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+
+
+            // A source (template or datatype) is almost always required...
+            if ( $template_source_id !== 0 ) {
+                /** @var DataType $source_template */
+                $source_template = $em->getRepository('ODRAdminBundle:DataType')->find($template_source_id);
+                if ($source_template == null)
+                    throw new ODRNotFoundException('Source Template');
+
+                // Require the source template to actually be a template
+                if ($from_template && $source_template->getIsMasterType() === false)
+                    throw new ODRBadRequestException('Source is not a Template');
+                else if (!$from_template && $source_template->getIsMasterType() === true)
+                    throw new ODRBadRequestException('Source is not a valid Database');
+
+                // The source template is allowed to be a metadata template
+            }
+
+
+            // A metadata entry is also always required...though when creating a template it'll
+            //  always be the default metadata entry
+            /** @var DataType $metadata_template */
+            $metadata_template = $em->getRepository('ODRAdminBundle:DataType')->find($metadata_source_id);
+            if ($metadata_template == null)
+                throw new ODRNotFoundException('Metadata Template');
+
+            // Require this to be a metadata template
+            if ( !$metadata_template->getIsMetadataTemplate() )
+                throw new ODRBadRequestException('Selection for Metadata is not a metadata template');
+            // Require the selection to be the default metadata template, if needed
+            if ( $default_metadata_required && !$metadata_template->getIsDefaultTemplate() )
+                throw new ODRBadRequestException('Metadata selection is not the default template');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$user->hasRole('ROLE_ADMIN') )
+                throw new ODRForbiddenException();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Grab the tab's id, if it exists  TODO - is this needed?
+            $params = $request->query->all();
+            $odr_tab_id = '';
+            if ( isset($params['odr_tab_id']) )
+                $odr_tab_id = $params['odr_tab_id'];
+            else
+                $odr_tab_id = $odr_tab_service->createTabId();
+
+            // Create a csrf token to ensure the user can't mess with the source datatypes/templates
+            //  while filling out the metadata entries
+            /** @var CsrfTokenManager $token_manager */
+            $token_manager = $this->container->get('security.csrf.token_manager');
+
+            $token_id = 'Form_'.$user->getId().'_'.$template_source_id.'_'.$metadata_source_id;
+            $csrf_token = $token_manager->getToken($token_id)->getValue();
+
+
+            // ----------------------------------------
+            // Need to render a "fake edit" page for the selected metadata datatype
+            $page_html = $odr_render_service->getFakeEditHTML($user, $metadata_template);
+
+            // The "fake" datarecord still needs a header    TODO - creating a datatype needs a different header
+            $templating = $this->get('templating');
+            $header_html = $templating->render(
+                'ODRAdminBundle:Edit:fake_edit_header.html.twig',
+                array(
+                    'datatype' => $metadata_template,
+                    'odr_tab_id' => $odr_tab_id,
+                    'csrf_token' => $csrf_token,
+
+                    // TODO - needs to attempt to save to DatatypeController::finishsetupAction(), not FakeEditController::savefakerecordAction()
+                    // TODO - ...but all the checks that savefakerecordAction() does still need to happen...
+                    // TODO - ...so does that means that all of FakeEdit needs to be turned into a service?   asdf
+                )
+            );
+
+            $return['d'] = array(
+                'datatype_id' => $metadata_template->getId(),
+                'html' => $header_html.$page_html,
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x07ad3251;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+
+    }
+
+
+    /**
+     * Once the user has entered the required metadata, then ODR finally has all the data it needs
+     * to create a new database/template/metadata template.  This controller action creates the
+     * initial required entities in the backend database, then inserts data into the metadata
+     * datatype, and then finally triggers the background process to copy from the source
+     * template/datatype.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function finishsetupAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $request->request->all();
+//print_r($post);  exit();
+
+            if ( !isset($post['template_source_id'])    // can technically be a regular datatype
+                || !isset($post['metadata_source_id'])
+                || !isset($post['type'])
+            ) {
+                throw new ODRBadRequestException();
+            }
+
+            if ( !is_numeric($post['template_source_id']) )
+                throw new ODRBadRequestException();
+            if ( !is_numeric($post['metadata_source_id']) )
+                throw new ODRBadRequestException();
+            if ( !is_numeric($post['type']) )
+                throw new ODRBadRequestException();
+
+            $template_source_id = intval($post['template_source_id']);
+            $metadata_source_id = intval($post['metadata_source_id']);
+
+            // For clarity, convert the 'type' parameter into flags
+            $from_template = true;
+            $default_metadata_required = false;
+            switch ( intval($post['type']) ) {
+                case DatatypeController::CREATE_DATABASE_FROM_TEMPLATE:
+                    $from_template = true;
+                    $default_metadata_required = false;
+                    break;
+                case DatatypeController::COPY_DATABASE:
+                    $from_template = false;
+                    $default_metadata_required = false;
+                    break;
+                case DatatypeController::CREATE_TEMPLATE:
+                    $from_template = true;
+                    $default_metadata_required = true;
+                    break;
+                case DatatypeController::CREATE_METADATA_TEMPLATE:
+                    $from_template = true;
+                    $default_metadata_required = true;
+                    break;
+
+                default:
+                    throw new ODRBadRequestException();
+            }
+
+
+            // ----------------------------------------
+            // Load necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+
+
+            // A source (template or datatype) is almost always required...
+            if ( $template_source_id !== 0 ) {
+                /** @var DataType $source_template */
+                $source_template = $em->getRepository('ODRAdminBundle:DataType')->find($template_source_id);
+                if ($source_template == null)
+                    throw new ODRNotFoundException('Source Template');
+
+                // Require the source template to actually be a template
+                if ($from_template && $source_template->getIsMasterType() === false)
+                    throw new ODRBadRequestException('Source is not a Template');
+                else if (!$from_template && $source_template->getIsMasterType() === true)
+                    throw new ODRBadRequestException('Source is not a valid Database');
+
+                // The source template is allowed to be a metadata template
+            }
+
+
+            // A metadata entry is also always required...though when creating a template it'll
+            //  always be the default metadata entry
+            /** @var DataType $metadata_template */
+            $metadata_template = $em->getRepository('ODRAdminBundle:DataType')->find($metadata_source_id);
+            if ($metadata_template == null)
+                throw new ODRNotFoundException('Metadata Template');
+
+            // Require this to be a metadata template
+            if ( !$metadata_template->getIsMetadataTemplate() )
+                throw new ODRBadRequestException('Selection for Metadata is not a metadata template');
+            // Require the selection to be the default metadata template, if needed
+            if ( $default_metadata_required && !$metadata_template->getIsDefaultTemplate() )
+                throw new ODRBadRequestException('Metadata selection is not the default template');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Ensure user has permissions to be doing this
+            if ( !$user->hasRole('ROLE_ADMIN') )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // ----------------------------------------
+            // TODO - Create the base datatypes that are going to be copied into
+
+//            $new_database = $ec_service->createDatatype($user, $name, true);
+//            // ...
+//            $new_metadata = $ec_service->createDatatype($user, $name.' Properties', true);
+//            // ...
+//            $new_database->setMetadataDatatype($new_metadata);
+//            $new_metadata->setMetadataFor($new_database);
+//            // ...
+
+            // ----------------------------------------
+            // TODO - Trigger the background cloning process
+            // TODO - ...does this automatically deal with the metadata too?  or does it make assumptions about where the metadata comes from?
+
+
+            // ----------------------------------------
+            // TODO - Redirect to the correct page
+
+        }
+        catch (\Exception $e) {
+            $source = 0x1dc4282e;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

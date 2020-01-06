@@ -14,9 +14,12 @@
     <div class="tabletools">
         {% if level > 1 %}
             <div>
-                <a id="ODRDatatypeList_createDatatype" class="pure-button pure-button-primary ODRCreateDatatype"
-                   href="#{{ path('odr_create_type', {'create_master': 0}) }}"><i class="fa fa-lg fa-plus"></i> New
-                    Database</a>
+                <a class="pure-button pure-button-primary" href="#{{ path('odr_create_database') }}">
+                    <i class="fa fa-lg fa-plus"></i> New Database
+                </a>
+                <a class="pure-button pure-button-primary" href="#{{ path('odr_copy_database') }}">
+                    <i class="fa fa-lg fa-copy"></i> Copy Database
+                </a>
             </div>
         {% endif %}
     </div>

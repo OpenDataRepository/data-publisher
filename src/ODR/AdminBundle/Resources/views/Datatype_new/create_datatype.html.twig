@@ -1,0 +1,105 @@
+{% spaceless %}
+
+{% set creation_type = '' %}
+{% if type == 1 %}
+    {% set creation_type = 'new_database' %}
+{% elseif type == 2 %}
+    {% set creation_type = 'copy_database' %}
+{% elseif type == 3 %}
+    {% set creation_type = 'new_template' %}
+{% elseif type == 4 %}
+    {% set creation_type = 'new_metadata' %}
+{% endif %}
+
+<div id="ODRCreateDatatypeWrapper">
+    <form id="ODRDatatypeCreateForm" method="POST" action="{{ path('odr_start_database_setup') }}" class="pure-form pure-form-aligned">
+        <input type="hidden" name="type" value="{{ type }}"/>
+
+        <fieldset class="pure-u-1-2">
+            <legend class="pure-u-1" style="margin-bottom: 25px;">Available Templates</legend>
+                {# These two creation types need to have a blank template... #}
+                {% if creation_type == 'new_database' or creation_type == 'new_template' %}
+                <div class="pure-control-group">
+                    <label for="template_0">
+                        Blank Template <input id="template_0" class="ODRTemplateSelection" type="radio" name="template_source_id" value="0"/>
+                    </label>
+                </div>
+                {% endif %}
+
+                {% for template in template_list %}
+                    <div class="pure-control-group">
+                        <label for="template_{{ template.id }}">
+                            {{ template.dataTypeMeta.longName }} <input id="template_{{ template.id }}" class="ODRTemplateSelection" type="radio" name="template_source_id" value="{{ template.id }}"/>
+                        </label>
+                    </div>
+                {% endfor %}
+        </fieldset>
+
+        <fieldset class="pure-u-1-2">
+            <legend class="pure-u-1" style="margin-bottom: 25px;">Available Metadata Templates</legend>
+            {% for metadata in metadata_list %}
+                <div class="pure-control-group">
+                    <label for="metadata_{{ metadata.id }}">
+                        {{ metadata.dataTypeMeta.longName }} <input id="metadata_{{ metadata.id }}" class="ODRMetadataSelection" type="radio" name="metadata_source_id" value="{{ metadata.id }}"/>
+                    </label>
+                </div>
+            {% endfor %}
+        </fieldset>
+
+        <fieldset class="pure-u-1">
+            <button id="ODRCreateDatabaseSubmit" type="button" class="pure-button pure-button-primary">Create</button>
+        </fieldset>
+    </form>
+</div>
+
+<script>
+    $(function() {
+        $("#ODRCreateDatabaseSubmit").unbind('click').click(function(event) {
+            // Shouldn't be a problem, but prevent default button behavior
+            event.preventDefault();
+
+            // Ensure both template source and metadata source have a selection
+            if ( $(".ODRTemplateSelection:checked").length === 0
+                || $(".ODRMetadataSelection:checked").length === 0
+            ) {
+                alert('Both halves must have a selection');
+            }
+            else {
+                var url = $("#ODRDatatypeCreateForm").attr('action');
+                var form_data = $("#ODRDatatypeCreateForm").serialize();
+
+                $.ajax({
+                    cache: false,
+                    type: 'POST',
+                    data: form_data,
+                    url: url,
+                    dataType: "json",
+                    success: function(data) {
+                        $("#ODRCreateDatatypeWrapper").html( data.d.html );
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Don't need to do anything specific on an error
+                    },
+                    complete: function(jqXHR) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+
+                        datafield_properties_xhr = null;
+                    }
+                });
+            }
+        });
+    });
+</script>
+
+{% endspaceless %}

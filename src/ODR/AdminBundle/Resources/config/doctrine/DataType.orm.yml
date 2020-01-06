@@ -68,6 +68,18 @@ ODR\AdminBundle\Entity\DataType:
             nullable: true
             column: datatype_type
 
+        is_default_template:
+            type: boolean
+            nullable: false
+            default: false
+            column: is_default_template
+
+        is_metadata_template:
+            type: boolean
+            nullable: false
+            default: false
+            column: is_metadata_template
+
         created:
             type: datetime
             gedmo:

@@ -14,16 +14,12 @@
     <div class="tabletools">
         {% if level > 1 %}
         <div>
-            <a id="ODRDatatypeList_createMasterTemplate"
-               class="pure-button pure-button-primary ODRCreateDatatype"
-               href="#{{ path('odr_create_type', {'create_master': 1}) }}"
-            ><i class="fa fa-lg fa-plus"></i> New Master Template</a>
-            {#
-            <a id="ODRDatatypeList_createMasterTemplate"
-               class="pure-button pure-button-primary ODRCreateDatatype"
-               href="#{{ path('odr_create_type', {'create_master': 2}) }}"
-            ><i class="fa fa-lg fa-plus"></i> New Data Template</a>
-            #}
+            <a class="pure-button pure-button-primary" href="#{{ path('odr_create_template') }}">
+                <i class="fa fa-lg fa-plus"></i> New Master Template
+            </a>
+            <a class="pure-button pure-button-primary" href="#{{ path('odr_create_metadata_template') }}">
+                <i class="fa fa-lg fa-plus"></i> New Metadata Template
+            </a>
         </div>
         {% endif %}
     </div>

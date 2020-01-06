@@ -1169,6 +1169,8 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
+     * @deprecated?
+     *
      * @param Request $request
      *
      * @return Response
@@ -1453,7 +1455,7 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
-     * TODO -
+     * @deprecated?
      *
      * @param Request $request
      *
@@ -1588,6 +1590,8 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
+     * @deprecated?
+     *
      * @param Request $request
      *
      * @return Response
@@ -1665,7 +1669,7 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
-     * TODO -
+     * @deprecated?
      *
      * @param string $uuid_type
      * @param Request $request
@@ -1916,6 +1920,8 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
+     * @deprecated?
+     *
      * @param Request $request
      *
      * @return Response
@@ -1974,6 +1980,8 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
+     * @deprecated?
+     *
      * @param Request $request
      *
      * @return Response
@@ -2053,6 +2061,133 @@ $ret .= '  Set current to '.$count."\n";
         }
         catch (\Exception $e) {
             $source = 0x2e4e2e42;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function createDefaultMetadataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+
+            /** @var DataType $default_metadata */
+            $default_metadata = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array(
+                    'is_metadata_template' => 1,
+                    'is_default_template' => 1,
+                )
+            );
+            if ( $default_metadata == null ) {
+                $dt = $ec_service->createDatatype($user, 'Default Metadata', true);
+                $dt->setIsMetadataTemplate(true);
+                $dt->setIsDefaultTemplate(true);
+                $dt->setIsMasterType(true);
+                $dt->setSetupStep(DataType::STATE_OPERATIONAL);
+                $em->persist($dt);
+
+                $dtm = $dt->getDataTypeMeta();
+                $dtm->setDescription('Default Metadata Description');
+                $em->persist($dtm);
+
+                $master_theme = $ec_service->createTheme($user, $dt, true);
+                $master_theme_meta = $master_theme->getThemeMeta();
+                $master_theme_meta->setIsDefault(true);
+                $master_theme_meta->setShared(true);
+                $em->persist($master_theme_meta);
+
+                $theme_element = $ec_service->createThemeElement($user, $master_theme, true);
+
+                $em->flush();
+
+                $ec_service->createGroupsForDatatype($user, $dt);    // User should automatically be added to the "admin" group
+
+                // Delete the cached version of the datatree array and the list of top-level datatypes
+                $cache_service->delete('cached_datatree_array');
+                $cache_service->delete('top_level_datatypes');
+                $cache_service->delete('top_level_themes');
+
+
+                /** @var \ODR\AdminBundle\Entity\FieldType $long_varchar */
+                $long_varchar = $em->getRepository('ODRAdminBundle:FieldType')->find(6);
+                /** @var \ODR\AdminBundle\Entity\FieldType $paragraph_text */
+                $paragraph_text = $em->getRepository('ODRAdminBundle:FieldType')->find(5);
+                /** @var RenderPlugin $render_plugin */
+                $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);
+
+                $name_df = $ec_service->createDatafield($user, $dt, $long_varchar, $render_plugin, true);
+                $name_df->setIsMasterField(true);
+                $em->persist($name_df);
+
+                $name_dfm = $name_df->getDataFieldMeta();
+                $name_dfm->setFieldName('Dataset Name');
+                $name_dfm->setRequired(true);
+                $name_dfm->setIsUnique(true);
+                $name_dfm->setSearchable(2);
+                $em->persist($name_dfm);
+
+                $desc_df = $ec_service->createDatafield($user, $dt, $paragraph_text, $render_plugin, true);
+                $desc_df->setIsMasterField(true);
+                $em->persist($desc_df);
+
+                $desc_dfm = $desc_df->getDataFieldMeta();
+                $desc_dfm->setFieldName('Dataset Description');
+                $desc_dfm->setRequired(true);
+                $desc_dfm->setIsUnique(true);
+                $desc_dfm->setSearchable(2);
+                $em->persist($desc_dfm);
+
+                $name_tdf = $ec_service->createThemeDatafield($user, $theme_element, $name_df, true);
+                $desc_tdf = $ec_service->createThemeDatafield($user, $theme_element, $desc_df, true);
+
+//                $em->refresh($dt);
+//                $em->refresh($dtm);
+//                $em->refresh($name_df);
+//                $em->refresh($name_dfm);
+//                $em->refresh($desc_df);
+//                $em->refresh($desc_dfm);
+//                $em->refresh($master_theme);
+//                $em->refresh($theme_element);
+//                $em->refresh($name_tdf);
+//                $em->refresh($desc_tdf);
+
+                $ec_service->createGroupsForDatafield($user, $name_df);
+                $ec_service->createGroupsForDatafield($user, $desc_df);
+
+                $em->flush();
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x2e4e2e43;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
