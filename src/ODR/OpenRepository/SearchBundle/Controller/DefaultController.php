@@ -895,9 +895,8 @@ class DefaultController extends Controller
             // ----------------------------------------
             // TODO - convert $output into a string here so .autocomplete( "instance" )._renderItem
             // TODO -  in edit_ajax.html.twig doesn't have to?
-            $final_output = array(
-                'can_add_datarecord' => $can_add_datarecord
-            );
+            $final_output = array();
+
             if ( empty($output) ) {
                 if ( $can_add_datarecord )
                     $dr_id = -1;
