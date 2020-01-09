@@ -53,6 +53,7 @@ use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
+use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
@@ -104,6 +105,10 @@ class MassEditController extends ODRCustomController
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
+
+            // Require this MassEdit request to be for a top-level datatype
+            if ($datatype->getId() !== $datatype->getGrandparent()->getId())
+                throw new ODRBadRequestException();
 
             // A search key is required, otherwise there's no way to identify which datarecords
             //  should be mass edited
@@ -295,6 +300,12 @@ class MassEditController extends ODRCustomController
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
+            // Require this MassEdit request to be for a top-level datatype
+            if ($datatype->getId() !== $datatype->getGrandparent()->getId())
+                throw new ODRBadRequestException();
+
+            $dt_array = $dti_service->getDatatypeArray($datatype_id, false);    // No links, MassEdit isn't allowed to affect them
+
             $session = $request->getSession();
             $api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
@@ -373,22 +384,78 @@ class MassEditController extends ODRCustomController
             $datarecords = explode(',', $datarecords);
 
 
-            // Shouldn't be an issue, but delete the datarecord list out of the user's session
-            unset( $list[$odr_tab_id] );
-            $session->set('mass_edit_datarecord_lists', $list);
-
-
             // ----------------------------------------
             // Ensure no unique datafields managed to get marked for this mass update...store which datatype they belong to at the same time
             $datafield_list = array();
             $datatype_list = array();
+
             foreach ($datafields as $df_id => $value) {
                 /** @var DataFields $df */
                 $df = $repo_datafield->find($df_id);
+
+                // Ensure the datafield belongs to the top-level datatype or one of its descendants
+                $df_array = self::getDatafieldArray($dt_array, $df_id);
+
                 if ( $df->getIsUnique() == 1 ) {
+                    // Silently ignore datafields that are marked as unique
                     unset( $datafields[$df_id] );
                 }
                 else {
+                    // Verity that the user is allowed to change contents of this field
+                    if ( !$pm_service->canEditDatafield($user, $df) )
+                        throw new ODRForbiddenException();
+
+                    // Verify that the given value is acceptable for the datafield
+                    $typeclass = $df->getDataFieldMeta()->getFieldType()->getTypeClass();
+                    $is_valid = true;
+                    switch ($typeclass) {
+                        case 'Boolean':
+                            $is_valid = ValidUtility::isValidBoolean($value);
+                            break;
+                        case 'IntegerValue':
+                            $is_valid = ValidUtility::isValidInteger($value);
+                            break;
+                        case 'DecimalValue':
+                            $is_valid = ValidUtility::isValidDecimal($value);
+                            break;
+                        case 'LongText':    // paragraph text, can accept any value
+                            break;
+                        case 'LongVarchar':
+                            $is_valid = ValidUtility::isValidLongVarchar($value);
+                            break;
+                        case 'MediumVarchar':
+                            $is_valid = ValidUtility::isValidMediumVarchar($value);
+                            break;
+                        case 'ShortVarchar':
+                            $is_valid = ValidUtility::isValidShortVarchar($value);
+                            break;
+                        case 'DatetimeValue':
+                            if ( $value !== '' )    // empty string is valid MassEdit entry, but isn't valid datetime technically
+                                $is_valid = ValidUtility::isValidDatetime($value);
+                            break;
+
+                        case 'Radio':
+                            $is_valid = ValidUtility::areValidRadioOptions($df_array, $value);
+                            break;
+                        case 'Tag':
+                            $is_valid = ValidUtility::areValidTags($df_array, $value);
+                            break;
+
+                        case 'File':
+                        case 'Image':
+                            // Nothing to validate here...MassEdit can currently only change public status for these
+                            break;
+
+                        default:
+                            throw new ODRException('Unable to MassEdit a "'.$typeclass.'" Typeclass');
+                    }
+
+                    //
+                    if ( !$is_valid )
+                        throw new ODRBadRequestException('Invalid value given for the datafield "'.$df->getFieldName().'"');
+
+
+                    // Otherwise, store which datatype this datafield belongs to
                     $dt_id = $df->getDataType()->getId();
                     if ( !isset($datatype_list[$dt_id]) )
                         $datatype_list[$dt_id] = 1;
@@ -397,12 +464,6 @@ class MassEditController extends ODRCustomController
                 }
             }
 
-            // Ensure no completely unrelated datafields are in the post request
-            foreach ($datatype_list as $dt_id => $num) {
-                $grandparent_datatype_id = $dti_service->getGrandparentDatatypeId($dt_id);
-                if ($grandparent_datatype_id != $datatype->getId())
-                    throw new ODRBadRequestException('Invalid datafield');
-            }
 /*
 print '$complete_datarecord_list: '.print_r($complete_datarecord_list, true)."\n";
 print '$datarecords: '.print_r($datarecords, true)."\n";
@@ -412,6 +473,11 @@ exit();
 */
 
             // ----------------------------------------
+            // Now that the fields are vaild, delete the datarecord list out of the user's session
+            // If this was done earlier, then invalid datafield values could not be recovered from
+            unset( $list[$odr_tab_id] );
+            $session->set('mass_edit_datarecord_lists', $list);
+
             // If content of datafields was modified, get/create an entity to track the progress of this mass edit
             // Don't create a TrackedJob if this mass_edit just changes public status
             $tracked_job_id = -1;
@@ -594,6 +660,28 @@ exit();
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Locates and returns the array version of the requested datafield from the given cached datatype array, throwing
+     * an error if it doesn't exist.
+     *
+     * @param array $dt_array
+     * @param int $df_id
+     *
+     * @return array
+     */
+    private function getDatafieldArray($dt_array, $df_id)
+    {
+        // Attempt to locate the requested cached datafield array entry...
+        foreach ($dt_array as $dt_id => $dt) {
+            if ( isset($dt['dataFields'][$df_id]) )
+                return $dt['dataFields'][$df_id];
+        }
+
+        // ...array entry doesn't exist, throw an error
+        throw new ODRBadRequestException('Unable to locate array entry for datafield '.$df_id);
     }
 
 
