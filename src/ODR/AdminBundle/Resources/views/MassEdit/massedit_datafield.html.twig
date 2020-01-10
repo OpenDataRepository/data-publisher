@@ -2,10 +2,21 @@
 
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
 {% if datafield_meta.is_unique == 1 %}
     <div id="Field_{{ datafield.id }}_overlay" class="ODROverlayDiv ODRReloadDiv"></div>
 {% endif %}
+
+{% set max_length = '' %}
+{% if field_typename == "Long Text" %}
+    {% set max_length = 255 %}
+{% elseif field_typename == "Medium Text" %}
+    {% set max_length = 64 %}
+{% elseif field_typename == "Short Text" %}
+    {% set max_length = 32 %}
+{% endif %}
+{% set input_name = field_typeclass ~ 'Form[value]' %}
 
 <form id="Form_DataField_{{ datafield.id }}" class="pure-u-1">
 
@@ -59,7 +70,7 @@
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield_meta.fieldName }}</label>
         <span class="ODRMassEdit_clear"><label class="ODRField_clear Pointer"><input type="checkbox" class="ODRField_clearAll" name="" value="1" />&nbsp;Clear All Values</label></span>
         <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
-            <input type="text" class="ODRField pure-u-1" name="" value="" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
+            <input id="Form_{{ datafield.id }}" type="text" class="ODRField pure-u-1" name="{{ input_name }}" value="" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
         </div>
     </fieldset>
 
@@ -158,5 +169,55 @@
 
     {% endif %}
 </form>
+
+
+{% if field_typename == "Integer"
+    or field_typename == "Decimal"
+    or field_typename == "Long Text"
+    or field_typename == "Medium Text"
+    or field_typename == "Short Text"
+%}
+    <script>
+
+        var {{ field_typeclass }}Interval_{{ datafield.id }} = null;
+        $("#Form_DataField_{{ datafield.id }}").find("#Form_{{ datafield.id }}").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+            clearTimeout( {{ field_typeclass }}Interval_{{ datafield.id }} );
+            {{ field_typeclass }}Interval_{{ datafield.id }} = setTimeout( "$('#Form_DataField_{{ datafield.id }}').submit()", SaveTimeout );
+        });
+
+
+        $("#Form_DataField_{{ datafield.id }}").validate({
+            {% if field_typename == "Integer" %}
+            rules: {
+                "{{ input_name }}": {
+                    ODRInteger: {}  {# 'ODRInteger' rule defined in app.js...the default 'digits' rule apparently doesn't allow negative numbers #}
+                }
+            },
+            {% elseif field_typename == "Decimal" %}
+            rules: {
+                "{{ input_name }}": {
+                    ODRDecimal: {}  {# 'ODRDecimal' rule defined in app.js...the default 'number' rule apparently allows leading zeros e.g. '00045' #}
+                }
+            },
+            {% elseif field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
+            rules: {
+                "{{ input_name }}": {
+                    maxlength: {{ max_length }}
+                }
+            },
+            messages: {
+                "{{ input_name }}": {
+                    maxlength: "{{ max_length }} characters max"
+                }
+            },
+            {% endif %}
+            submitHandler: function(form) {
+                // Not actually going to submit this form...just clear the timeout
+                clearTimeout( {{ field_typeclass }}Interval_{{ datafield.id }} );
+            }
+            // focusInvalid: false
+        });
+    </script>
+{% endif %}
 
 {% endspaceless %}

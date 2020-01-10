@@ -773,9 +773,9 @@ function initPage() {
                             if (item.record_id < 0) {
                                 var html = $('<div id="Datarecord_Select_' + item.record_id + '" class="ODRAutocompleteSelect">');
 
-                                if ( item.can_add_datarecord )
+                                if ( item.record_id == -1 )    // user allowed to add record
                                     $(html).append('<span>No Results Found - Click to save record.</span>');
-                                else
+                                else    // user not allowed to add record
                                     $(html).append('<span>No Results Found.</span>');
 
                                 return $( "<li>" ).append(html).appendTo( ul );
