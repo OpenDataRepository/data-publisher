@@ -273,9 +273,30 @@ class ODRRenderService
             'token_list' => array(),
 
             'search_theme_id' => $search_theme_id,    // TODO - refactor to get rid of this?
+
+            'linked_datatype_ancestors' => array(),
         );
 
         $datatype = $datarecord->getDataType();
+
+        $cached_datatree_array = $this->dti_service->getDatatreeArray();
+        if ( isset($cached_datatree_array['linked_from'][$datatype->getId()]) ) {
+            $ancestor_ids = $cached_datatree_array['linked_from'][$datatype->getId()];
+            $query = $this->em->createQuery(
+               'SELECT dt, dtm
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN dt.dataTypeMeta AS dtm
+                WHERE dt IN (:datatype_ids)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $ancestor_ids) );
+            $results = $query->getArrayResult();
+
+            foreach ($results as $num => $dt) {
+                $dt_id = $dt['id'];
+                $dt['dataTypeMeta'] = $dt['dataTypeMeta'][0];
+                $extra_parameters['linked_datatype_ancestors'][$dt_id] = $dt;
+            }
+        }
 
         if ( !is_null($theme) ) {
             if ( $theme->getDataType()->getId() !== $datatype->getId() )
