@@ -10,6 +10,13 @@
 {% endif %}
 
 
+{% for ancestor in linked_datatype_ancestors %}
+    {% if datatype_permissions[ ancestor.id ] is defined and datatype_permissions[ ancestor.id ][ 'dr_edit' ] is defined %}
+        <button type="button" class="pure-button" onclick="OpenLinkSearchPage({{ ancestor.id }},{{ datatype.id }},{{ datarecord.id }});">Link to {{ ancestor.dataTypeMeta.shortName }} Records.</button>
+    {% endif %}
+{% endfor %}
+
+
 {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
     'datatype': datatype,
     'theme': theme,
