@@ -251,7 +251,7 @@ class DatarecordExportService
     private function reformatJson($data)
     {
 
-        // return $data;
-        return json_encode(json_decode($data));
+        return $data;
+        // return json_encode(json_decode($data));
     }
 }
