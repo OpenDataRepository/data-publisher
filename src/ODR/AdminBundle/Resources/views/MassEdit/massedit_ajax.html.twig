@@ -74,6 +74,7 @@
 {% endspaceless %}
 
 <script>
+var SaveTimeout = 1000;
 
 $(function() {
     disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
@@ -284,6 +285,17 @@ function doMassUpdate() {
 
     // Remove any already-existing input elements added by this function
     $("#MassEditForm .massedit_form_input").remove();
+
+    // Only save if there are no input errors...
+    var has_errors = false;
+    $(".ODRInputError").each(function(index, elem) {
+        if ( $(elem).is(':visible') )
+            has_errors = true;
+    });
+    if ( has_errors ) {
+        alert('At least one field has a problem that must be fixed before saving.');
+        return;
+    }
 
     // Public status
     $("#MassEditForm .ODRPublicSelect").each(function() {

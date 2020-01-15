@@ -255,13 +255,13 @@ class FakeEditController extends ODRCustomController
 
                         // Radio options need a different validation
                         case 'Radio':
-                            if ( !self::areValidRadioOptions($typename, $df, $value) )
+                            if ( !ValidUtility::areValidRadioOptions($df, $value) )
                                 throw new ODRBadRequestException('Invalid value');
                             break;
 
                         // Tags also need a different validation
                         case 'Tag':
-                            if ( !self::areValidTags($df, $value) )
+                            if ( !ValidUtility::areValidTags($df, $value) )
                                 throw new ODRBadRequestException('Invalid value');
                             break;
 
@@ -434,83 +434,6 @@ class FakeEditController extends ODRCustomController
 
         // Otherwise, no problem
         return true;
-    }
-
-
-    /**
-     * Returns whether the collection of options is valid for the given datafield.
-     *
-     * @param string $typename
-     * @param array $df_array
-     * @param array $options
-     *
-     * @return bool
-     */
-    private function areValidRadioOptions($typename, $df_array, $options)
-    {
-        // Single select/radio are allowed to have at most one selection
-        if ($typename === 'Single Select' || $typename === 'Single Radio') {
-            if ( count($options) > 1 )
-                return false;
-        }
-
-        // Convert the available options into a different format to make them easier to search
-        $available_options = array();
-        foreach ($df_array['radioOptions'] as $num => $ro)
-            $available_options[ $ro['id'] ] = 0;
-
-        foreach ($options as $ro_id => $num) {
-            // The option has to belong to the datafield for it to be valid
-            if ( !isset($available_options[$ro_id]) )
-                return false;
-        }
-
-        // Otherwise, no errors
-        return true;
-    }
-
-
-    /**
-     * Returns whether the collection of tags is valid for the given datafield.
-     *
-     * @param array $df_array
-     * @param array $tags
-     *
-     * @return bool
-     */
-    private function areValidTags($df_array, $tags)
-    {
-        // Tags allow any number of selections by default
-
-        // Unfortunately the tags are stored in stacked format, so need to flatten them
-        $available_tags = array();
-        self::getAvailableTags($df_array['tags'], $available_tags);
-
-        foreach ($tags as $tag_id => $num) {
-            // The tag has to belong to the datafield for it to be valid
-            if ( !isset($available_tags[$tag_id]) )
-                return false;
-        }
-
-        // Otherwise, no errors
-        return true;
-    }
-
-
-    /**
-     * Flattens a stacked tag hierarchy, leaving only leaf tag ids in $available_tags
-     *
-     * @param array $tag_array
-     * @param array $available_tags
-     */
-    private function getAvailableTags($tag_array, &$available_tags)
-    {
-        foreach ($tag_array as $tag_id => $tag) {
-            if ( !isset($tag['children']) )
-                $available_tags[$tag_id] = 0;
-            else
-                self::getAvailableTags($tag['children'], $available_tags);
-        }
     }
 
 
