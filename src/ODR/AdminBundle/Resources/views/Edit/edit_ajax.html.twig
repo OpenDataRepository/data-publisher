@@ -1161,8 +1161,12 @@ function AddChildRecord(datatype_id, parent_id) {
             // Refresh child wrapper area
             var datatype_id = data.d.datatype_id;
             var parent_id = data.d.parent_id;
+            var new_datarecord_id = data.d.new_datarecord_id;
 
-            ReloadChild(datatype_id, parent_id);
+            var insert_fake_record = false;
+            ReloadChild(datatype_id, parent_id, insert_fake_record, function() {
+                selectRecordFieldArea(new_datarecord_id);
+            });
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Don't need to do anything specific on an error
