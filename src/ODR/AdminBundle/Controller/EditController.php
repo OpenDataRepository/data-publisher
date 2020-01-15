@@ -272,7 +272,7 @@ class EditController extends ODRCustomController
 
             // Get record_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
-                'new_datarecord_id' => $datarecord->getId(),    // TODO - this isn't used due to asynch call to reloadChild() in edit_ajax.html.twig
+                'new_datarecord_id' => $datarecord->getId(),
                 'datatype_id' => $datatype_id,
                 'parent_id' => $parent_datarecord->getId(),
             );
