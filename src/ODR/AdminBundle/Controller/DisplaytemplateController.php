@@ -2374,8 +2374,24 @@ class DisplaytemplateController extends ODRCustomController
 
 //$datatype_form->addError( new FormError('do not save') );
 
-                // TODO - verify that the datafield provided as a (new) externalIdField can be unique
-                // TODO - verify that the datafields provided as a (new) nameField and sortField are allowed...according to UpdateDataTypeForm.php, they don't have to be unique...
+                // The external_id, name, sort, and background image fields technically need to be verified
+                if ( !is_null($submitted_data->getExternalIdField()) ) {
+                    if ( $submitted_data->getExternalIdField()->getFieldType()->getCanBeUnique() !== true )
+                        $datatype_form->addError( new FormError('Invalid external id field') );
+                }
+                if ( !is_null($submitted_data->getNameField()) ) {
+                    if ( $submitted_data->getNameField()->getFieldType()->getCanBeSortField() !== true )
+                        $datatype_form->addError( new FormError('Invalid name field') );
+                }
+                if ( !is_null($submitted_data->getSortField()) ) {
+                    if ( $submitted_data->getSortField()->getFieldType()->getCanBeSortField() !== true )
+                        $datatype_form->addError( new FormError('Invalid sort field') );
+                }
+                if ( !is_null($submitted_data->getBackgroundImageField()) ) {
+                    if ( $submitted_data->getBackgroundImageField()->getFieldType()->getTypeClass() !== "Image" )
+                        $datatype_form->addError( new FormError('Invalid background image field') );
+                }
+
 
                 if ($datatype_form->isValid()) {
 
@@ -2429,7 +2445,7 @@ class DisplaytemplateController extends ODRCustomController
                     $properties = array(
                         'renderPlugin' => $datatype->getRenderPlugin()->getId(),
 
-                        'externalIdField' => null,    // TODO - changing a field so it's no longer the external id field doesn't update the frontend to permit deletion
+                        'externalIdField' => null,
                         'nameField' => null,
                         'sortField' => null,
                         'backgroundImageField' => null,
