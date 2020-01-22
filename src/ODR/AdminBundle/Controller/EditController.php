@@ -1659,7 +1659,13 @@ class EditController extends ODRCustomController
                 $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find($radio_option_id);
                 if ($radio_option == null)
                     throw new ODRNotFoundException('RadioOption');
+
+                if ( $radio_option->getDataField()->getId() !== $datafield->getId() )
+                    throw new ODRBadRequestException();
             }
+
+            // Single Radio/Select requires different saving methods than Multiple Radio/Select
+            $typename = $datafield->getFieldType()->getTypeName();
 
             // This should only work on a Radio field
             $typeclass = $datafield->getFieldType()->getTypeClass();
@@ -1681,11 +1687,41 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
+            // If the datafield is marked as required, then it always requires at least one selected option
+            if ( $datafield->getRequired() ) {
+                if ($typename == 'Single Radio' || $typename == 'Single Select') {
+                    // For Single Radio/Select, the only way to fail the "required" constraint is
+                    //  for the user to attempt to deselect everything
+                    if ( $radio_option_id == 0 )
+                        throw new ODRBadRequestException('This Datafield requires at least one selection');
+                }
+                else if ($typename == 'Multiple Radio' || $typename == 'Multiple Select') {
+                    // For Multiple Radio/Select, the only way to be in danger of failing the
+                    //  "required" constraint is for the field to currently only have a single
+                    //  radio option selected...
+                    $dr_array = $dri_service->getDatarecordArray($datarecord->getGrandparent()->getId(), false);    // don't need linked records
+                    $dr = $dr_array[$datarecord->getId()];
+
+                    // Get a list of all currently selected radio options...
+                    $rs_array = $dr['dataRecordFields'][$datafield->getId()]['radioSelection'];
+                    $selections = array();
+                    foreach ($rs_array as $ro_id => $rs) {
+                        if ( $rs['selected'] == 1 )
+                            $selections[$ro_id] = 1;
+                    }
+
+                    if ( count($selections) === 1 ) {
+                        // ...and for user to have marked that option for deselection
+                        if ( isset($selections[$radio_option_id]) )
+                            throw new ODRBadRequestException('This Datafield requires at least one selection');
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
             // Locate the existing datarecordfield entry, or create one if it doesn't exist
             $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
-
-            // Course of action differs based on whether multiple selections are allowed
-            $typename = $datafield->getFieldType()->getTypeName();
 
             // A RadioOption id of 0 has no effect on a Multiple Radio/Select datafield
             if ( $radio_option_id != 0 && ($typename == 'Multiple Radio' || $typename == 'Multiple Select') ) {
@@ -1735,10 +1771,6 @@ class EditController extends ODRCustomController
 
                 // Flush now that all the changes have been made
                 $em->flush();
-            }
-            else {
-                // No point doing anything if not a radio fieldtype
-                throw new ODRBadRequestException('EditController::radioselectionAction() called on Datafield that is not a Radio FieldType');
             }
 
 
@@ -1798,6 +1830,8 @@ class EditController extends ODRCustomController
             $emm_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
             /** @var SearchCacheService $search_cache_service */
             $search_cache_service = $this->container->get('odr.search_cache_service');
             /** @var CacheService $cache_service */
@@ -1895,8 +1929,18 @@ class EditController extends ODRCustomController
                         // If the datafield is marked as unique...
                         if ( $datafield->getIsUnique() ) {
                             // ...determine whether the new value is a duplicate of a value that already exists
-                            if ( self::valueAlreadyExists($datafield, $new_value) )
+                            if ( $search_service->valueAlreadyExists($datafield, $new_value) )
                                 throw new ODRConflictException('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield.');
+
+                            // ...also, throw an error when the field is being set to empty
+                            if ( $new_value == '' )
+                                throw new ODRBadRequestException('This Datafield must have a value');
+                        }
+                        // If the datafield is marked as required...
+                        if ( $datafield->getRequired() ) {
+                            // ...then throw an error when the field is being set to empty
+                            if ( $new_value == '' )
+                                throw new ODRBadRequestException('This Datafield must have a value');
                         }
 
                         // ----------------------------------------
@@ -2015,34 +2059,6 @@ class EditController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * Returns whether the given value already exists in the given datafield.
-     *
-     * Changes made here should also be made in FakeEditController::valueAlreadyExists()
-     *
-     * @param DataFields $datafield
-     * @param string $value
-     *
-     * @return bool
-     */
-    private function valueAlreadyExists($datafield, $value)
-    {
-        // Want to perform an exact search for this value
-        // This is allowed because currently only text and number fields are allowed to be unique
-        $value = '"'.$value.'"';
-
-        /** @var SearchService $search_service */
-        $search_service = $this->container->get('odr.search_service');
-        $search_results = $search_service->searchTextOrNumberDatafield($datafield, $value);
-
-        // If the search returned anything, then the value already exists
-        if ( count($search_results['records']) > 0 )
-            return true;
-        else
-            return false;
     }
 
 

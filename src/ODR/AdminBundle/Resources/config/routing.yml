@@ -1486,7 +1486,7 @@ odr_api_get_datatype_list:
     defaults: { _controller: ODRAdminBundle:API:getDatatypeList, type: 'databases',  _format: json }
     methods: [ GET ]
     requirements:
-        version: 'v1'
+        version: 'v\d+'
         _format: '|json|xml'
 
 odr_api_get_template_list:
@@ -1520,7 +1520,7 @@ odr_api_datarecord_list:
     defaults: { _controller: ODRAdminBundle:API:getDatarecordList, limit: 0, offset: 0, _format: json }
     methods: [ GET ]
     requirements:
-        version: 'v1'
+        version: 'v\d+'
         datatype_uuid: '^[a-z0-9]+$'
         limit: \d+
         offset: \d+
@@ -1531,7 +1531,7 @@ odr_api_template_datatype_list:
     defaults: { _controller: ODRAdminBundle:API:getTemplateDatatypeList, limit: 0, offset: 0, _format: json }
     methods: [ GET ]
     requirements:
-        version: 'v1'
+        version: 'v\d+'
         datatype_uuid: '^[a-z0-9]+$'
         limit: \d+
         offset: \d+
@@ -1835,3 +1835,7 @@ odr_finish_database_setup:
 odr_create_default_metadata:
     path:  /admin/metadata/create_default
     defaults: { _controller:  ODRAdminBundle:Worker:createDefaultMetadata }
+
+odr_no_unique_fields_for_metadata:
+    path:  /admin/metadata/no_unique_fields
+    defaults: { _controller:  ODRAdminBundle:Worker:noUniqueFieldsForMetadata }

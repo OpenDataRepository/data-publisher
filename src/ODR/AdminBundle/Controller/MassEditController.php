@@ -454,6 +454,22 @@ class MassEditController extends ODRCustomController
                     if ( !$is_valid )
                         throw new ODRBadRequestException('Invalid value given for the datafield "'.$df->getFieldName().'"');
 
+                    // Ensure that the user isn't attempting to clear a field that requires a value
+                    if ( $df->getRequired() ) {
+                        if ( $typeclass == 'Radio' || $typeclass == 'Tag' ) {
+                            if ( isset($value['none'] ) ) {
+                                throw new ODRBadRequestException('The Datafield "'.$df->getFieldName().'" requires at least one selection');
+                            }
+                            else {
+                                // TODO - there's no quick/easy way to verify that deselecting radio options or tags won't violate the "required" condition...
+                            }
+                        }
+                        else {
+                            if ( $value == '' )
+                                throw new ODRBadRequestException('The Datafield "'.$df->getFieldName().'" requires a value');
+                        }
+
+                    }
 
                     // Otherwise, store which datatype this datafield belongs to
                     $dt_id = $df->getDataType()->getId();

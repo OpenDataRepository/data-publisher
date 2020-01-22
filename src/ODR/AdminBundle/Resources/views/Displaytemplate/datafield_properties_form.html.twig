@@ -120,8 +120,7 @@
         </div>
         {% endif %}
 
-        {% if typename != "Markdown" %}
-            {#
+{#
         <div class="">
             <label for="render_plugin_id">
                 Render Plugin
@@ -131,8 +130,11 @@
                 <button type="button" class="pure-button pure-button-primary" onclick="openPluginSettingsDialog({{ datafield.id }}, {{ datafield.datatype.id }});">Edit</button>
             </span>
         </div>
+#}
 
-            #}
+        {% if typename != "Markdown" and typename != "Boolean" and typename != "File" and typename != "Image" %}
+        {# Markdown fields don't have data...Files/Images fields are nightmarish to enforce "required" on #}
+        {# Boolean fields can't distinguish between "no value" (illegal for "required") and "unselected" (which would be legal) #}
         <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.required) }}
             {{ form_widget(datafield_form.required, { 'attr': {'class': 'ODRFloatingCheckbox', 'style': 'width:auto'} }) }}
@@ -142,7 +144,7 @@
         </div>
         {% endif %}
 
-        {% if fieldtype.getcanbeunique == 1 %}
+        {% if fieldtype.getcanbeunique == 1 and (datatype.getismetadatatemplate == false or datatype.getmetadatafor != null) %}
         <div class="ODRCheckboxProperty">
             {{ form_errors(datafield_form.is_unique) }}
             {% if is_external_id_field == true %}

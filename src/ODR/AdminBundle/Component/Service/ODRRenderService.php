@@ -336,6 +336,7 @@ class ODRRenderService
             'token_list' => array(),
 
             'is_fake_datarecord' => true,
+            'creating_new_datatype' => false,
         );
 
 
@@ -343,6 +344,46 @@ class ODRRenderService
         $theme = $this->theme_service->getDatatypeMasterTheme($datatype->getId());
 
         return self::getHTML($user, $template_name, $extra_parameters, $datatype, null, $theme);
+    }
+
+
+    /**
+     * Renders and returns the HTML for "editing" a "fake" top-level datarecord during creation
+     * of a new datatype/template...similar to getFakeEditHTML(), but requires a couple extra
+     * parameters.
+     *
+     * @param ODRUser $user
+     * @param int $template_source_id   ...don't actually need the hydrated datatype here
+     * @param DataType $metadata_source
+     * @param int $type    One of the constants defined in DatatypeController
+     *
+     * @return string
+     */
+    public function getMetadataRecordCreationHTML($user, $template_source_id, $metadata_source, $type)
+    {
+        $template_name = 'ODRAdminBundle:Edit:fake_edit_ajax.html.twig';
+        $extra_parameters = array(
+            'is_top_level' => 1,    // TODO - get rid of this requirement
+
+            'search_key' => '',
+            'search_theme_id' => 0,    // TODO - refactor to get rid of this?
+            'notify_of_sync' => false,    // No need to check this parameter
+
+            'token_list' => array(),
+
+            'is_fake_datarecord' => true,
+
+            'creating_new_datatype' => true,
+            'template_source_id' => $template_source_id,
+            'metadata_source_id' => $metadata_source->getId(),
+            'type' => $type
+        );
+
+
+        // TODO - eventually replace with $this->theme_service->getPreferredTheme()?
+        $theme = $this->theme_service->getDatatypeMasterTheme($metadata_source->getId());
+
+        return self::getHTML($user, $template_name, $extra_parameters, $metadata_source, null, $theme);
     }
 
 

@@ -19,6 +19,7 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\Group;
@@ -39,6 +40,7 @@ use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
+use ODR\AdminBundle\Component\Service\FakeRecordService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -2445,26 +2447,32 @@ class DatatypeController extends ODRCustomController
 
             $template_source_id = intval($post['template_source_id']);
             $metadata_source_id = intval($post['metadata_source_id']);
+            $type = intval($post['type']);
 
             // For clarity, convert the 'type' parameter into flags
-            $from_template = true;
+            $cloning_from_template = true;
+            $preserve_template_uuids = true;
             $default_metadata_required = false;
-            switch ( intval($post['type']) ) {
+            switch ( $type ) {
                 case DatatypeController::CREATE_DATABASE_FROM_TEMPLATE:
-                    $from_template = true;
+                    $cloning_from_template = true;
+                    $preserve_template_uuids = true;
                     $default_metadata_required = false;
                     break;
                 case DatatypeController::COPY_DATABASE:
-                    $from_template = false;
+                    $cloning_from_template = false;
+                    $preserve_template_uuids = false;
                     $default_metadata_required = false;
                     break;
-                case DatatypeController::CREATE_TEMPLATE:
-                    $from_template = true;
+                case DatatypeController::CREATE_TEMPLATE:    // TODO - test this
+                    $cloning_from_template = true;
+                    $preserve_template_uuids = false;
                     $default_metadata_required = true;
                     break;
-                case DatatypeController::CREATE_METADATA_TEMPLATE:
-                    $from_template = true;
-                    $default_metadata_required = true;
+                case DatatypeController::CREATE_METADATA_TEMPLATE:    // TODO - test this
+                    $cloning_from_template = true;
+                    $preserve_template_uuids = false;
+                    $default_metadata_required = true;    // TODO - ...weren't metadata templates supposed to not have metadata themselves?
                     break;
 
                 default:
@@ -2491,9 +2499,9 @@ class DatatypeController extends ODRCustomController
                     throw new ODRNotFoundException('Source Template');
 
                 // Require the source template to actually be a template
-                if ($from_template && $source_template->getIsMasterType() === false)
+                if ($cloning_from_template && $source_template->getIsMasterType() === false)
                     throw new ODRBadRequestException('Source is not a Template');
-                else if (!$from_template && $source_template->getIsMasterType() === true)
+                else if (!$cloning_from_template && $source_template->getIsMasterType() === true)
                     throw new ODRBadRequestException('Source is not a valid Database');
 
                 // The source template is allowed to be a metadata template
@@ -2546,7 +2554,7 @@ class DatatypeController extends ODRCustomController
 
             // ----------------------------------------
             // Need to render a "fake edit" page for the selected metadata datatype
-            $page_html = $odr_render_service->getFakeEditHTML($user, $metadata_template);
+            $page_html = $odr_render_service->getMetadataRecordCreationHTML($user, $template_source_id, $metadata_template, $type);
 
             // The "fake" datarecord still needs a header    TODO - creating a datatype needs a different header
             $templating = $this->get('templating');
@@ -2556,10 +2564,6 @@ class DatatypeController extends ODRCustomController
                     'datatype' => $metadata_template,
                     'odr_tab_id' => $odr_tab_id,
                     'csrf_token' => $csrf_token,
-
-                    // TODO - needs to attempt to save to DatatypeController::finishsetupAction(), not FakeEditController::savefakerecordAction()
-                    // TODO - ...but all the checks that savefakerecordAction() does still need to happen...
-                    // TODO - ...so does that means that all of FakeEdit needs to be turned into a service?   asdf
                 )
             );
 
@@ -2608,6 +2612,8 @@ class DatatypeController extends ODRCustomController
             if ( !isset($post['template_source_id'])    // can technically be a regular datatype
                 || !isset($post['metadata_source_id'])
                 || !isset($post['type'])
+                || !isset($post['datafields'])    // this should always exist, since metadata should always have required fields
+                || !isset($post['tokens'])
             ) {
                 throw new ODRBadRequestException();
             }
@@ -2618,29 +2624,39 @@ class DatatypeController extends ODRCustomController
                 throw new ODRBadRequestException();
             if ( !is_numeric($post['type']) )
                 throw new ODRBadRequestException();
+            if ( !is_array($post['datafields']) )
+                throw new ODRBadRequestException();
+            if ( !is_array($post['tokens']) )
+                throw new ODRBadRequestException();
 
             $template_source_id = intval($post['template_source_id']);
             $metadata_source_id = intval($post['metadata_source_id']);
+            $type = intval($post['type']);
 
             // For clarity, convert the 'type' parameter into flags
-            $from_template = true;
+            $cloning_from_template = true;
+            $preserve_template_uuids = true;
             $default_metadata_required = false;
-            switch ( intval($post['type']) ) {
+            switch ( $type ) {
                 case DatatypeController::CREATE_DATABASE_FROM_TEMPLATE:
-                    $from_template = true;
+                    $cloning_from_template = true;
+                    $preserve_template_uuids = true;
                     $default_metadata_required = false;
                     break;
                 case DatatypeController::COPY_DATABASE:
-                    $from_template = false;
+                    $cloning_from_template = false;
+                    $preserve_template_uuids = false;
                     $default_metadata_required = false;
                     break;
-                case DatatypeController::CREATE_TEMPLATE:
-                    $from_template = true;
+                case DatatypeController::CREATE_TEMPLATE:    // TODO - test this
+                    $cloning_from_template = true;
+                    $preserve_template_uuids = false;
                     $default_metadata_required = true;
                     break;
-                case DatatypeController::CREATE_METADATA_TEMPLATE:
-                    $from_template = true;
-                    $default_metadata_required = true;
+                case DatatypeController::CREATE_METADATA_TEMPLATE:    // TODO - test this
+                    $cloning_from_template = true;
+                    $preserve_template_uuids = false;
+                    $default_metadata_required = true;    // TODO - ...weren't metadata templates supposed to not have metadata themselves?
                     break;
 
                 default:
@@ -2653,8 +2669,14 @@ class DatatypeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
+            /** @var CloneMasterDatatypeService $clone_datatype_service */
+            $clone_datatype_service = $this->container->get('odr.clone_master_datatype_service');
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var FakeRecordService $fake_record_service */
+            $fake_record_service = $this->container->get('odr.fake_record_service');
 
 
             // A source (template or datatype) is almost always required...
@@ -2665,9 +2687,9 @@ class DatatypeController extends ODRCustomController
                     throw new ODRNotFoundException('Source Template');
 
                 // Require the source template to actually be a template
-                if ($from_template && $source_template->getIsMasterType() === false)
+                if ($cloning_from_template && $source_template->getIsMasterType() === false)
                     throw new ODRBadRequestException('Source is not a Template');
-                else if (!$from_template && $source_template->getIsMasterType() === true)
+                else if (!$cloning_from_template && $source_template->getIsMasterType() === true)
                     throw new ODRBadRequestException('Source is not a valid Database');
 
                 // The source template is allowed to be a metadata template
@@ -2699,25 +2721,147 @@ class DatatypeController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            // ----------------------------------------
-            // TODO - Create the base datatypes that are going to be copied into
-
-//            $new_database = $ec_service->createDatatype($user, $name, true);
-//            // ...
-//            $new_metadata = $ec_service->createDatatype($user, $name.' Properties', true);
-//            // ...
-//            $new_database->setMetadataDatatype($new_metadata);
-//            $new_metadata->setMetadataFor($new_database);
-//            // ...
 
             // ----------------------------------------
-            // TODO - Trigger the background cloning process
-            // TODO - ...does this automatically deal with the metadata too?  or does it make assumptions about where the metadata comes from?
+            // Verify that the metadata form got filled out properly
+            $fake_record_service->verifyFakeRecord($post, $metadata_template, $user);
+
+//            throw new ODRNotImplementedException();
+
+            // TODO - ...I have no memory of how the dataset name/description was going to be identified/protected...
+            $new_datatype_name = $post['datafields'][243];
+            $new_datatype_desc = $post['datafields'][244];
 
 
             // ----------------------------------------
-            // TODO - Redirect to the correct page
+            // Create the skeleton of the datatype that is going to be copied into
+            $new_database = $ec_service->createDatatype($user, $new_datatype_name, true);    // don't flush immediately
+            // The new database isn't guaranteed to have a source template/datatype
+            if ( $template_source_id !== 0 )
+                $new_database->setMasterDataType($source_template);
 
+            // If this is a template, set those flags
+            if ( $type === DatatypeController::CREATE_TEMPLATE ) {
+                $new_database->setIsMasterType(true);
+            }
+            else if ( $type === DatatypeController::CREATE_METADATA_TEMPLATE ) {
+                $new_database->setIsMasterType(true);
+                $new_database->setIsMetadataTemplate(true);
+            }
+            $em->persist($new_database);
+
+            // TODO - ...I have no memory of how the dataset name/description was going to be identified/protected...
+            $new_database_meta = $new_database->getDataTypeMeta();
+            $new_database_meta->setDescription($new_datatype_desc);
+            $em->persist($new_database_meta);
+
+
+            // Create the skeleton of the metadata datatype
+            $new_metadata_datatype = $ec_service->createDatatype($user, $new_datatype_name.' Properties', true);    // don't flush immediately
+            $new_metadata_datatype->setMasterDataType($metadata_template);
+            $em->persist($new_metadata_datatype);
+
+
+            // Connect the datatype and its metadata
+            $new_database->setMetadataDatatype($new_metadata_datatype);
+            $new_metadata_datatype->setMetadataFor($new_database);
+            $em->persist($new_database);
+            $em->persist($new_metadata_datatype);
+
+            // Flush now before any cloner runs
+            $em->flush();
+
+
+            // ----------------------------------------
+            // Trigger an immediate clone of the metadata datatype from whatever template
+            $ret = $clone_datatype_service->createDatatypeFromMaster($new_metadata_datatype->getId(), $user->getId(), $new_database->getUniqueId(), true);
+            if ( $ret !== 'complete' )
+                throw new ODRException($ret);
+
+            // Convert the post data so the datafield values point to the fields in the new metadata
+            //  datatype, not the fields from the template
+            $new_data = array();
+            foreach ($new_metadata_datatype->getDataFields() as $df) {
+                /** @var DataFields $df */
+                $template_df_id = $df->getMasterDataField()->getId();
+
+                // Transfer the data submitted under the metadata template's datafield to the newly
+                //  cloned metadata datatype's field
+                $new_data[ $df->getId() ] = $post['datafields'][$template_df_id];
+            }
+            $post['datafields'] = $new_data;
+
+            // Now that the metadata datatype is cloned and the post data has been tweaked, create
+            //  the new metadata record
+            $new_metadata_record = $fake_record_service->commitFakeRecord($post, $new_metadata_datatype, $user);
+
+
+            // ----------------------------------------
+            // Trigger a background clone for the full datatype if needed
+            if ( $template_source_id !== 0 ) {
+//                $pheanstalk = $this->get('pheanstalk');
+//                $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+//                $api_key = $this->container->getParameter('beanstalk_api_key');
+//
+//                // Insert the new job into the queue
+//                $priority = 1024;   // should be roughly default priority
+//                $payload = json_encode(
+//                    array(
+//                        "user_id" => $user->getId(),
+//                        "datatype_id" => $new_database->getId(),
+//                        "template_group" => $new_database->getTemplateGroup(),
+//                        "preserve_template_uuids" => $preserve_template_uuids,
+//
+//                        "redis_prefix" => $redis_prefix,    // debug purposes only
+//                        "api_key" => $api_key,
+//                    )
+//                );
+//
+//                $delay = 0;
+//                $pheanstalk->useTube('create_datatype_from_master')->put($payload, $priority, $delay);
+
+                $ret = $clone_datatype_service->createDatatypeFromMaster($new_database->getId(), $user->getId(), $new_database->getUniqueId(), $preserve_template_uuids);
+                if ( $ret !== 'complete' )
+                    throw new ODRException($ret);
+            }
+            else {
+                // Otherwise, nothing to copy from...create a master theme for the new database
+                $master_theme = $ec_service->createTheme($user, $new_database, true);
+                $master_theme_meta = $master_theme->getThemeMeta();
+                $master_theme_meta->setIsDefault(true);
+                $master_theme_meta->setShared(true);
+                $em->persist($master_theme_meta);
+
+                $ec_service->createThemeElement($user, $master_theme, true);
+
+                $em->flush();
+
+                $ec_service->createGroupsForDatatype($user, $new_database);    // User should automatically be added to the "admin" group
+
+                // Delete the cached version of the datatree array and the list of top-level datatypes
+                $cache_service->delete('cached_datatree_array');
+                $cache_service->delete('top_level_datatypes');
+                $cache_service->delete('top_level_themes');
+
+
+                // The datatype is ready for use
+                $new_database->setSetupStep(DataType::STATE_OPERATIONAL);
+                $em->persist($new_database);
+
+                $em->flush();
+            }
+
+
+            // ----------------------------------------
+            // Attempt to redirect to the new database's master layout design page
+            $return['d'] = array(
+                'url' => $this->generateUrl(
+                    'odr_design_master_theme',
+                    array(
+                        'datatype_id' => $new_database->getId(),
+                    )
+                )
+            );
         }
         catch (\Exception $e) {
             $source = 0x1dc4282e;

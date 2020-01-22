@@ -693,8 +693,6 @@ class DatarecordInfoService
      *
      * @param DataRecord $datarecord
      * @param ODRUser $user
-     *
-     * @throws \Doctrine\ORM\OptimisticLockException
      */
     public function updateDatarecordCacheEntry($datarecord, $user)
     {
@@ -847,6 +845,8 @@ class DatarecordInfoService
      * splice this fake datarecord's ids into the cached array of a parent datarecord, if needed.
      * The caller will also need to deal with setting the parent/grandparent attributes in this case.
      *
+     * TODO - move into FakeRecordService?  would make ODRRenderService require an additional import
+     *
      * @param array $datatype_array @see DatatypeInfoService::getDatatypeArray()
      * @param int $target_datatype_id
      *
@@ -866,7 +866,7 @@ class DatarecordInfoService
 
 
         // The new "fake" datarecord needs an id...ensure it's not numeric to avoid collisions
-        // generateCSRFTokens() doesn't require it to be numeric, and the length doesn't matter
+        // self::generateCSRFTokens() doesn't require numeric ids, and the length doesn't matter
         $fake_id = UniqueUtility::uniqueIdReal();
         while ( is_numeric($fake_id) )
             $fake_id = UniqueUtility::uniqueIdReal();

@@ -94,6 +94,43 @@ class SearchService
 
 
     /**
+     * Returns whether the given value already exists in the given datafield.
+     *
+     * @param DataFields $datafield
+     * @param string $value
+     *
+     * @return bool
+     */
+    public function valueAlreadyExists($datafield, $value)
+    {
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+        switch ($typeclass) {
+            case 'IntegerValue':
+            case 'DecimalValue':
+            case 'ShortVarchar':
+            case 'MediumVarchar':
+            case 'LongVarchar':
+                // These are the only fieldtypes that can be unique at the moment
+                break;
+
+            default:
+                throw new ODRBadRequestException('The "'.$typeclass.'" typeclass is not allowed to be unique');
+        }
+
+        // Want to perform an exact search for this value...this setup is permissible because
+        //  currently only text and number fields are allowed to be unique
+        $value = '"'.$value.'"';
+        $search_results = self::searchTextOrNumberDatafield($datafield, $value);
+
+        // If the search returned anything, then the value already exists
+        if ( count($search_results['records']) > 0 )
+            return true;
+        else
+            return false;
+    }
+
+
+    /**
      * Searches the specified radio option datafield using the selections array, and returns an
      * array of all datarecord ids that match the criteria.
      *

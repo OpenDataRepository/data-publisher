@@ -85,19 +85,68 @@ function initPage() {
     });
 
     $(".ODRUniqueField").each(function(index, elem) {
-        var input_div = $(elem).find('div.ODRFieldWrapper');
-        var input_id = $(input_div).find('input').attr('id');
-
-        $(elem).addClass('ODRInputError');
-        var label = $("<label>", {
-            "id": input_id + '-error',
-            // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
-            "for": input_id,
-            "html": "This field must have a value"
-        });
-        $(input_div).append( $(label) );
-        // console.log('created warning for ' + $(elem).attr('id') );
+        if ( !$(elem).hasClass('ODRInputError') )
+            addWarningToField(elem, "This field must have a value");
     });
+    $(".ODRRequiredField").each(function(index, elem) {
+        if ( !$(elem).hasClass('ODRInputError') )
+            addWarningToField(elem, "This field must have a value");
+    });
+
+    $(".SingleRadioGroup").unbind('click').click(function() {
+        var form = $(this).closest('form');
+        var is_required = $(form).hasClass('ODRRequiredField');
+
+        if ( is_required ) {
+            // If this field requires a selection, display a warning when none of the options are
+            //  selected
+            if ( $(form).find('input:checked').length == 0 ) {
+                addWarningToField(form, 'This field must have a selection');
+                return;
+            }
+        }
+
+        // Otherwise, ensure no warnings in the field
+        $(form).removeClass('ODRInputError');
+        $('#' + $(form).attr('id') + '-error').remove();
+    });
+
+    $(".MultipleRadioGroup").unbind('click').click(function() {
+        var form = $(this).closest('form');
+        var is_required = $(form).hasClass('ODRRequiredField');
+
+        if ( is_required ) {
+            // If this field requires a selection, display a warning when none of the options are
+            //  selected
+            if ( $(form).find('input:checked').length == 0 ) {
+                addWarningToField(form, 'This field must have a selection');
+                return;
+            }
+        }
+
+        // Otherwise, ensure no warnings in the field
+        $(form).removeClass('ODRInputError');
+        $('#' + $(form).attr('id') + '-error').remove();
+    });
+
+    $(".SingleSelectGroup").unbind('change').change(function() {
+        var form = $(this).closest('form');
+        var is_required = $(form).hasClass('ODRRequiredField');
+        var radio_option_id = $(this).val();
+
+        if ( radio_option_id == 0 && is_required ) {
+            // When this field requires a selection, display a warning when the user attempts to
+            //  select "nothing"
+            addWarningToField(form, 'This field must have a selection');
+        }
+        else {
+            // Otherwise, ensure no warnings in the field
+            $(form).removeClass('ODRInputError');
+            $('#' + $(form).attr('id') + '-error').remove();
+        }
+    });
+
+    {# NOTE - the lack of .MultipleSelectGroup is intentional...it's handled exactly the same as .MultipleRadioGroup #}
 
     console.log('Init page done.');
 }
@@ -113,13 +162,89 @@ function OpenLinkSearchPage(child_datatype_id, fake_dr_id) {
     alert('Record must be saved before it can be linked to other records');
 }
 
+function addWarningToField(elem, warning_text) {
+    // All of these need to have this class...
+    $(elem).addClass('ODRInputError');
+    var form_error_id = $(elem).attr('id');
+
+    // ...but everything else depends on the structure of the HTML
+    var input_div = $(elem).find('div.ODRFieldWrapper');
+    var radio_div = $(elem).find('div.ODRRadioOptionsEdit');
+    var select_div = $(elem).find('select');
+
+    if ( $(input_div).length > 0 ) {
+        $(input_div).append( $("<label>", {
+            "id": form_error_id + '-error',
+            // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
+            "for": form_error_id,
+            "html": warning_text
+        }) );
+        // console.log('created warning for conventional field: ' + $(elem).attr('id'));
+    }
+    else if ( $(radio_div).length > 0 ) {
+        $(radio_div).parent().append( $("<label>", {
+            "id": form_error_id + '-error',
+            // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
+            // "for": form_error_id,
+            "html": warning_text
+        }) );
+        // console.log('created warning for radio field: ' + $(elem).attr('id'));
+    }
+    else if ( $(select_div).length > 0 ) {
+        $(select_div).parent().append( $("<label>", {
+            "id": form_error_id + '-error',
+            // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
+            // "for": form_error_id,
+            "html": warning_text
+        }) );
+        // console.log('created warning for select field: ' + $(elem).attr('id'));
+    }
+    else {
+        console.log('unable to create warning for: ' + $(elem).attr('id'));
+    }
+}
+
 function SaveRecordData(form_id, interval) {
     // Clear the save timeout for this specific datafield
     clearTimeout(interval);
 
-    // For FakeEdit, only want to actually execute this on unique datafields
-    if ( !$(form_id).hasClass('ODRUniqueField') )
+    // May need these in case of errors
+    var input_div = $(form_id).find('div.ODRFieldWrapper');
+    var input = null;
+    if ( $(input_div).find('input').length > 0 )
+        input = $(input_div).find('input');
+    else
+        input = $(input_div).find('textarea');
+
+    var form_error_id = $(form_id).attr('id');
+
+    // For FakeEdit, only want to actually execute this on unique or required datafields
+    var is_unique = $(form_id).hasClass('ODRUniqueField');
+    var is_required = $(form_id).hasClass('ODRRequiredField');
+    if ( !is_unique && !is_required )
         return;
+
+    // If the field is Required but not Unique...
+    if ( !is_unique && is_required ) {
+        // Remove any existing warning label in the field...this will either add a new warning, or
+        //  remove the warning css entirely
+        $('#' + form_error_id + '-error').remove();
+
+        if ( $(input).val().trim() === '' ) {
+            // ...if the field currently has no value in it, then complain that it's empty
+            addWarningToField(form_id, "This field must have a value");
+        }
+        else {
+            // ...otherwise, remove the warning css for this field
+            $(form_id).removeClass('ODRInputError');
+            // $(input_div).children('label').remove();
+        }
+
+        // Don't need to contact the server for this
+        return;
+    }
+
+    // Otherwise, fields that are Unique need to contact the server to check if the value is duplicated
 
     // Determine save type
     var post_data = $(form_id).serialize();
@@ -127,11 +252,6 @@ function SaveRecordData(form_id, interval) {
 
     // console.log('Check Form: ', form_id);
     $(form_id).find('.ODRSaveIndicator').fadeIn('50');
-
-    // May need these in case of errors
-    var input_div = $(form_id).find('div.ODRFieldWrapper');
-    var input = $(input_div).find('input');
-    var input_id = $(input).attr('id');
 
     $.ajax({
         type: 'POST',
@@ -145,18 +265,10 @@ function SaveRecordData(form_id, interval) {
             //  finished successfully, remove all warning labels
             $(input_div).children('label').remove();
 
-            // Ensure the field complains if it's empty
-            if ( $(input).val().trim() === '' ) {
-                // Add a new warning label to the field
-                $(form_id).addClass('ODRInputError');
-                var label = $("<label>", {
-                    "id": input_id + '-error',
-                    // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
-                    "for": input_id,
-                    "html": "This field must have a value"
-                });
-                $(input_div).append( $(label) );
-            }
+            // This AJAX request only executes when the field is unique...so the page needs to
+            //  complain if the field is empty
+            if ( $(input).val().trim() === '' )
+                addWarningToField(form_id, "This field must have a value");
         },
         error: function(jqXHR, textStatus, errorThrown) {
             if ( jqXHR.status !== 409 ) {
@@ -168,17 +280,10 @@ function SaveRecordData(form_id, interval) {
                 //  completely disrupts users that are trying to enter correct values
 
                 // Remove any existing warning label in the field
-                $('#' + input_id + '-error').remove();
+                $('#' + form_error_id + '-error').remove();
 
-                // Add a new warning label to the field
-                $(form_id).addClass('ODRInputError');
-                var label = $("<label>", {
-                    "id": input_id + '-error',
-                    // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
-                    "for": input_id,
-                    "html": "This value is a duplicate in a field that requires unique values"
-                });
-                $(input_div).append( $(label) );
+                // Add a new warning to the field
+                addWarningToField(form_id, "This value is a duplicate in a field that requires unique values");
             }
         },
         complete: function(jqXHR, textStatus) {
@@ -220,6 +325,11 @@ function SaveAsNew() {
     form_data.datarecord_id = '{{ initial_datarecord_id }}';
     form_data.datafields = {};
     form_data.tokens = {};
+{% if creating_new_datatype == true %}
+    form_data.template_source_id = {{ template_source_id }};
+    form_data.metadata_source_id = {{ metadata_source_id }};
+    form_data.type = {{ type }};
+{% endif %}
 
     // For each datafield on the page...
     $(".ODRDataField").each(function(index, df) {
@@ -233,6 +343,9 @@ function SaveAsNew() {
             var token = $(form).children("input[type=hidden]").val();
             var fieldset = $(form).children('fieldset').first();    // should only be one
 
+            // The tokens should always exist...the datafields may not, if no field is required and user doesn't enter anything
+            form_data.tokens[df_id] = token;
+
             // ...determine what kind of field this is...
             if ( $(fieldset).find("div.ODRRadioOptionsEdit").length > 0 ) {
                 // Single/Multiple Radio field, and Multiple Select
@@ -245,7 +358,6 @@ function SaveAsNew() {
                             form_data.datafields[df_id] = {};
 
                         form_data.datafields[df_id][ro_id] = 1;
-                        form_data.tokens[df_id] = token;
                     }
                 });
             }
@@ -260,7 +372,6 @@ function SaveAsNew() {
                             form_data.datafields[df_id] = {};
 
                         form_data.datafields[df_id][tag_id] = 1;
-                        form_data.tokens[df_id] = token;
                     }
                 });
             }
@@ -272,9 +383,8 @@ function SaveAsNew() {
                     var ro_id = ro_id_data[1];
 
                     if ( ro_id !== '0' ) {
-                        form_data.datafields[df_id] = {};
+                        form_data.datafields[df_id] = {};    // only one selection possible
                         form_data.datafields[df_id][ro_id] = 1;
-                        form_data.tokens[df_id] = token;
                     }
                 }
             }
@@ -284,10 +394,8 @@ function SaveAsNew() {
                 // console.log( $(textarea).attr('id') );
 
                 var val = $(textarea).val().trim();
-                if (val !== '') {
+                if (val !== '')
                     form_data.datafields[df_id] = val;
-                    form_data.tokens[df_id] = token;
-                }
             }
             else if ( $(fieldset).find("input").length > 0 ) {
                 var input = $(fieldset).find("input");
@@ -295,18 +403,14 @@ function SaveAsNew() {
 
                 if ( $(input).is(":checkbox") ) {
                     // Boolean field
-                    if ( $(input).is(":checked") ) {
+                    if ( $(input).is(":checked") )
                         form_data.datafields[df_id] = 1;
-                        form_data.tokens[df_id] = token;
-                    }
                 }
                 else {
                     // Text/number/datetime fields
                     var val = $(input).val().trim();
-                    if (val !== '') {
+                    if (val !== '')
                         form_data.datafields[df_id] = val;
-                        form_data.tokens[df_id] = token;
-                    }
                 }
             }
             else {
@@ -317,7 +421,12 @@ function SaveAsNew() {
     // console.log(form_data);
 
     // Now that the form data has been built...
+{% if creating_new_datatype == true %}
+    var url  = '{{ path('odr_finish_database_setup') }}';
+{% else %}
     var url  = '{{ path('odr_save_fake_record') }}';
+{% endif %}
+
     $.ajax({
         cache: false,
         type: 'POST',
@@ -325,6 +434,11 @@ function SaveAsNew() {
         url: url,
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
+        {% if creating_new_datatype == true %}
+            // Redirect the user to the new database's master layout design page
+            var url = data.d.url;
+            UpdateURL(url);
+        {% else %}
             // Extract the new datarecord's id
             var new_record_id = data.d.new_datarecord_id;
 
@@ -338,6 +452,7 @@ function SaveAsNew() {
 
             // Redirect the user to the newly created datarecord
             UpdateURL(new_url);
+        {% endif %}
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Don't need to do anything specific on an error

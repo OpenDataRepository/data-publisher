@@ -447,6 +447,9 @@ class EntityCreationService
         $datatype->setIsMasterType(false);
         $datatype->setMasterDataType(null);
 
+        $datatype->setIsDefaultTemplate(false);
+        $datatype->setIsMetadataTemplate(false);
+
         // TODO - what is this supposed to be used for?
         $datatype->setDatatypeType(null);
 

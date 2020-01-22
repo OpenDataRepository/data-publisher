@@ -2151,7 +2151,7 @@ $ret .= '  Set current to '.$count."\n";
                 $name_dfm = $name_df->getDataFieldMeta();
                 $name_dfm->setFieldName('Dataset Name');
                 $name_dfm->setRequired(true);
-                $name_dfm->setIsUnique(true);
+//                $name_dfm->setIsUnique(true);
                 $name_dfm->setSearchable(2);
                 $em->persist($name_dfm);
 
@@ -2162,13 +2162,14 @@ $ret .= '  Set current to '.$count."\n";
                 $desc_dfm = $desc_df->getDataFieldMeta();
                 $desc_dfm->setFieldName('Dataset Description');
                 $desc_dfm->setRequired(true);
-                $desc_dfm->setIsUnique(true);
+//                $desc_dfm->setIsUnique(true);
                 $desc_dfm->setSearchable(2);
                 $em->persist($desc_dfm);
 
                 $name_tdf = $ec_service->createThemeDatafield($user, $theme_element, $name_df, true);
                 $desc_tdf = $ec_service->createThemeDatafield($user, $theme_element, $desc_df, true);
 
+                // These aren't needed
 //                $em->refresh($dt);
 //                $em->refresh($dtm);
 //                $em->refresh($name_df);
@@ -2180,14 +2181,90 @@ $ret .= '  Set current to '.$count."\n";
 //                $em->refresh($name_tdf);
 //                $em->refresh($desc_tdf);
 
-                $ec_service->createGroupsForDatafield($user, $name_df);
-                $ec_service->createGroupsForDatafield($user, $desc_df);
+//                $ec_service->createGroupsForDatafield($user, $name_df);
+//                $ec_service->createGroupsForDatafield($user, $desc_df);
 
                 $em->flush();
             }
         }
         catch (\Exception $e) {
             $source = 0x2e4e2e43;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function noUniqueFieldsForMetadataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $save = false;
+//        $save = true;
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+
+
+            $query = $em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                WHERE (dt.metadata_for IS NOT NULL OR dt.is_metadata_template = 1)
+                AND dfm.is_unique = 1
+                AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            );
+            $results = $query->getResult();
+            /** @var DataFields[] $results */
+
+            print '<table border="1">';
+            print '<tr><th>Template Name</th><th>Datafield Name</th></tr>';
+            foreach ($results as $df) {
+                print '<tr>';
+                print '<td>'.$df->getDataType()->getShortName().'</td>';
+                print '<td>'.$df->getFieldName().'</td>';
+                print '</tr>';
+            }
+            print '</table>';
+
+            if ( $save ) {
+                foreach ($results as $df) {
+                    $properties = array(
+                        'is_unique' => 0
+                    );
+                    $emm_service->updateDatafieldMeta($user, $df, $properties);
+                }
+            }
+
+        }
+        catch (\Exception $e) {
+            $source = 0xf56ac6d6;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

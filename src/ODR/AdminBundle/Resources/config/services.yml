@@ -129,6 +129,7 @@ services:
             $theme_info_service: "@odr.theme_info_service"
             $logger: "@monolog.logger.clone_theme"
 
+
     odr.permissions_management_service:
         class: ODR\AdminBundle\Component\Service\PermissionsManagementService
         arguments:
@@ -145,6 +146,18 @@ services:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $tag_helper_service: "@odr.tag_helper_service"
+            $token_manager: "@security.csrf.token_manager"
+            $logger: "@logger"
+
+    odr.fake_record_service:
+        class: ODR\AdminBundle\Component\Service\FakeRecordService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $datatype_info_service: "@odr.datatype_info_service"
+            $entity_creation_service: "@odr.entity_creation_service"
+            $permissions_service: "@odr.permissions_management_service"
+            $search_service: "@odr.search_service"
+            $search_cache_service: "@odr.search_cache_service"
             $token_manager: "@security.csrf.token_manager"
             $logger: "@logger"
 

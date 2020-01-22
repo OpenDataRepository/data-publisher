@@ -1574,6 +1574,30 @@ class TagsController extends ODRCustomController
 
 
             // ----------------------------------------
+            // If the datafield is marked as required, then it always requires at least one selected tag
+            if ( $datafield->getRequired() ) {
+                // For a Tag field, the only way to be in danger of failing the "required" constraint
+                //  is for the field to currently only have a single tag selected...
+                $dr_array = $dri_service->getDatarecordArray($datarecord->getGrandparent()->getId(), false);    // don't need linked records
+                $dr = $dr_array[$datarecord->getId()];
+
+                // Get a list of all currently selected tags...
+                $tag_array = $dr['dataRecordFields'][$datafield->getId()]['tagSelection'];
+                $selections = array();
+                foreach ($tag_array as $t_id => $ts) {
+                    if ( $ts['selected'] == 1 )
+                        $selections[$t_id] = 1;
+                }
+
+                if ( count($selections) === 1 ) {
+                    // ...and for user to have marked that option for deselection
+                    if ( isset($selections[$tag_id]) )
+                        throw new ODRBadRequestException('This Datafield requires at least one selection');
+                }
+            }
+
+
+            // ----------------------------------------
             // Locate the existing datarecordfield entry, or create one if it doesn't exist
             $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
 

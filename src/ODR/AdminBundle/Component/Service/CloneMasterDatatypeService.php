@@ -223,11 +223,11 @@ class CloneMasterDatatypeService
      * @param integer $datatype_id
      * @param integer $user_id
      * @param string $template_group
-     * @param bool $cloning_from_template
+     * @param bool $preserve_template_uuids
      *
      * @return string
      */
-    public function createDatatypeFromMaster($datatype_id, $user_id, $template_group, $cloning_from_template = true)
+    public function createDatatypeFromMaster($datatype_id, $user_id, $template_group, $preserve_template_uuids = true)
     {
         try {
             // This function waits a long time and tends to time out and drop its db connection
@@ -245,16 +245,23 @@ class CloneMasterDatatypeService
             if ( is_null($this->user) )
                 throw new ODRNotFoundException('User');
 
-            $this->logger->debug('----------------------------------------');
-            $this->logger->debug('CloneDatatypeService: entered createDatatypeFromMaster(' . $template_group . '), user '.$user_id.' is attempting to clone a datatype');
-
             // Get the DataType to work with
             $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
-
             /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ( is_null($datatype) )
                 throw new ODRNotFoundException('Datatype');
+
+            $this->logger->debug('----------------------------------------');
+            if ( $datatype->getIsMasterType() )
+                $this->logger->debug('CloneDatatypeService: entered createDatatypeFromMaster(' . $template_group . '), user '.$user_id.' is attempting to copy from the template "'.$datatype->getShortName().'"');
+            else
+                $this->logger->debug('CloneDatatypeService: entered createDatatypeFromMaster(' . $template_group . '), user '.$user_id.' is attempting to clone the datatype "'.$datatype->getShortName().'"');
+            if ( $preserve_template_uuids )
+                $this->logger->debug('CloneDatatypeService: -- the new datatype WILL keep references to uuids of its source');
+            else
+                $this->logger->debug('CloneDatatypeService: -- the new datatype WILL NOT keep references to uuids of its source');
+
 
             // Check if datatype is not in "initial" mode
             if ($datatype->getSetupStep() != DataType::STATE_INITIAL)
@@ -355,7 +362,7 @@ class CloneMasterDatatypeService
                 }
 
                 // Clone the datatype $dt_master into $new_datatype
-                self::cloneDatatype($dt_master, $new_datatype, $datatype_prefix, $template_group, $cloning_from_template);
+                self::cloneDatatype($dt_master, $new_datatype, $datatype_prefix, $template_group, $preserve_template_uuids);
             }
 
 
@@ -394,19 +401,19 @@ class CloneMasterDatatypeService
 
                 $dt->setParent($corrected_parent);
                 $dt->setGrandparent($corrected_grandparent);
-                $this->em->persist($dt, true);
+                $this->em->persist($dt);
 
-                $this->logger->info('CloneDatatypeService: correcting ancestors for datatype '.$dt->getId().' "'.$dt->getShortName().'"...parent set to dt '.$corrected_parent->getId().', grandparent set to dt '.$corrected_grandparent->getId());
+                $this->logger->info('CloneDatatypeService: correcting ancestors for datatype "'.$dt->getShortName().'"...parent set to dt "'.$corrected_parent->getShortName().'", grandparent set to dt "'.$corrected_grandparent->getShortName().'"');
             }
 
-            // TODO Let's make this the first flush.... Or possibly defer to later...
+            // Unable to defer a flush any longer
             $this->em->flush();
 
 
             // TODO Add removed linked types to associated, dt_mapping, and created_datatypes
             // to resume creation of datatype.
             foreach($this->existing_datatypes as $dt) {
-                array_push($this->created_datatypes, $dt);
+                array_push($this->created_datatypes, $dt);    // TODO - why is it done this way?
             }
             // This creates the dt_mapping array
             foreach ($this->created_datatypes as $dt)
@@ -424,6 +431,7 @@ class CloneMasterDatatypeService
                     $this->df_mapping,
                     $this->associated_datatypes
                 );
+            $this->logger->info('CloneDatatypeService: all themes cloned');
 
 
             // ----------------------------------------
@@ -470,12 +478,14 @@ class CloneMasterDatatypeService
             // ----------------------------------------
             // The datatypes are now ready for viewing since they have all their datafield, theme,
             //  datatree, and various permission entries
+            $this->logger->info('----------------------------------------');
             foreach ($this->created_datatypes as $dt) {
                 $dt->setSetupStep(DataType::STATE_OPERATIONAL);
+                $this->logger->info('CloneDatatypeService: setting newly created datatype '.$dt->getId().' "'.$dt->getShortName().'" to STATE_OPERATIONAL');
 
                 // If not copying from a "master template", then a pile of entities need to be
                 //  modified so they don't think they were derived from other entities
-                if (!$cloning_from_template) {
+                if (!$preserve_template_uuids) {
                     $this->logger->info('----------------------------------------');
                     $this->logger->info('CloneDatatypeService: setting newly created datatype '.$dt->getId().' "'.$dt->getShortName().'" to no longer consider datatype '.$dt->getMasterDataType()->getId().' as its master template');
                     $dt->setMasterDataType(null);
@@ -543,9 +553,9 @@ class CloneMasterDatatypeService
      * @param DataType|null $new_datatype
      * @param string $datatype_prefix
      * @param string $template_group
-     * @param bool $cloning_from_template
+     * @param bool $preserve_template_uuids
      */
-    private function cloneDatatype($template_datatype, $new_datatype, $datatype_prefix, $template_group, $cloning_from_template)
+    private function cloneDatatype($template_datatype, $new_datatype, $datatype_prefix, $template_group, $preserve_template_uuids)
     {
         // If $new_dataype isn't created yet, clone $template_datatype to use as a starting point
         $cloned_new_datatype = false;
@@ -576,7 +586,7 @@ class CloneMasterDatatypeService
         self::persistObject($new_datatype, true);    // don't flush immediately...
         array_push($this->created_datatypes, $new_datatype);
 
-        if ($cloning_from_template)
+        if ($preserve_template_uuids)
             $this->logger->debug('CloneDatatypeService: new datatype is using datatype '.$template_datatype->getId().' as its master template...');
         else
             $this->logger->debug('CloneDatatypeService: new datatype is being copied from datatype '.$template_datatype->getId().'...');
@@ -593,14 +603,14 @@ class CloneMasterDatatypeService
             // TODO - Does this newly cloned meta entry needs to be modified somehow?
         }
         else {
-            // $new_datatype was created back in DatatypeController::addAction(), and already has
-            //  a meta entry
+            // $new_datatype was created back in DatatypeController::finishsetupAction(), and
+            //  already has a meta entry with the name/description
             $new_meta = $new_datatype->getDataTypeMeta();
-
-            // This meta entry needs to be modified with properties from the template datatype
-            $new_meta->setShortName( $template_meta->getShortName() );
-            $new_meta->setLongName( $template_meta->getLongName() );
-            $new_meta->setDescription( $template_meta->getDescription() );
+//
+//            // This meta entry needs to be modified with properties from the template datatype
+//            $new_meta->setShortName( $template_meta->getShortName() );
+//            $new_meta->setLongName( $template_meta->getLongName() );
+//            $new_meta->setDescription( $template_meta->getDescription() );
         }
 
         // New top-level datatype need search slugs...child datatypes shouldn't, since searching
@@ -653,7 +663,7 @@ class CloneMasterDatatypeService
             // Even if not cloning from a "master template", the new datafield needs to know which
             //  field it's getting copied from...
             $new_df->setMasterDataField($parent_df);
-            $new_df->setTemplateFieldUuid($new_df->getFieldUuid());
+            $new_df->setTemplateFieldUuid($parent_df->getFieldUuid());
 
             // Ensure the "in-memory" version of $new_datatype knows about the new datafield
             $new_datatype->addDataField($new_df);
@@ -746,7 +756,7 @@ class CloneMasterDatatypeService
 
                     // If not cloning from a master template, then generate a new uuid for this
                     //  new radio option
-                    if (!$cloning_from_template)
+                    if (!$preserve_template_uuids)
                         $new_ro->setRadioOptionUuid($this->uuid_service->generateRadioOptionUniqueId());
 
                     // Ensure the "in-memory" version of $new_df knows about its new radio option
@@ -780,7 +790,7 @@ class CloneMasterDatatypeService
 
                     // If not cloning from a master template, then generate a new uuid for this
                     //  new tag
-                    if (!$cloning_from_template)
+                    if (!$preserve_template_uuids)
                         $new_tag->setTagUuid($this->uuid_service->generateTagUniqueId());
 
                     // Ensure the "in-memory" version of $new_df knows about its new tag

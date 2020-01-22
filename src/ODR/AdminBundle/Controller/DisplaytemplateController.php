@@ -241,6 +241,10 @@ class DisplaytemplateController extends ODRCustomController
             //  here, the template synchronization needs to tell the user what will be changed, or
             //  changes get made without the user's knowledge/consent...which is bad.
 
+            // TODO - what about deleting radio options from a field marked as "required"?
+            // TODO - any deletion could put multiple records in violation of that condition...
+            // TODO - ...but it's a ridiculous amount of work to verify/warn about it beforehand...
+
 
             // ----------------------------------------
             // Wrap this in a transaction
@@ -2974,9 +2978,13 @@ class DisplaytemplateController extends ODRCustomController
 
                 // If the datafield got set to unique...
                 if ( !$current_datafield_meta->getIsUnique() && $submitted_data->getIsUnique() ) {
-                    // ...if it has duplicate values, manually add an error to the Symfony form...this will conveniently cause the subsequent isValid() call to fail
+                    // ...if it has duplicate values, manually add an error to the Symfony form
                     if ( !self::datafieldCanBeUnique($em, $datafield) )
                         $datafield_form->addError( new FormError("This Datafield can't be set to 'unique' because some Datarecords have duplicate values stored in this Datafield...click the gear icon to list which ones.") );
+
+                    // Don't allow metadata to have unique fields...it's meaningless
+                    if ( $datatype->getIsMetadataTemplate() || !is_null($datatype->getMetadataFor()) )
+                        $datafield_form->addError( new FormError("This Datafield can't be set to 'unique' because it belongs to a Metadata Datatype") );
                 }
 
                 // If the unique status of the datafield got changed at all, force a slideout reload so the fieldtype will have the correct state
@@ -3146,6 +3154,7 @@ class DisplaytemplateController extends ODRCustomController
 
                             'used_by_table_theme' => $used_by_table_theme,
 
+                            'datatype' => $datatype,
                             'datafield' => $datafield,
                             'datafield_form' => $datafield_form->createView(),
                         )

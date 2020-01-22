@@ -858,6 +858,8 @@ function initPage() {
 
     $(".SingleRadioGroup").unbind('click').click(function() {
 
+        {# TODO - display warnings when no options selected?  currently field just reloads... #}
+
         // Want to prevent sending unecessary ajax events...can't detect if option is already selected with is("checked")
 
         // If already checked, do nothing
@@ -889,6 +891,8 @@ function initPage() {
                 // Don't need to do anything on success
             },
             error: function(jqXHR, textStatus, errorThrown) {
+                // TODO - special handling for users trying to save "no options selected" in required fields?
+
                 // Just reload the datafield on error, since can't restore the old value
                 ReloadDatafield(datarecord_id, datafield_id);
             },
@@ -910,6 +914,8 @@ function initPage() {
 
     $(".MultipleRadioGroup").unbind('click').click(function() {
 
+        {# TODO - display warnings when no options selected?  currently field just reloads... #}
+
         // Grab relevant entity ids
         var id_data = $(this).attr('id').split(/_/);
         var datarecord_id = id_data[1];
@@ -929,6 +935,8 @@ function initPage() {
                 // Don't need to do anything on success
             },
             error: function(jqXHR, textStatus, errorThrown) {
+                // TODO - special handling for users trying to save "no options selected" in required fields?
+
                 // Just reload the datafield on error, since can't restore the old value
                 ReloadDatafield(datarecord_id, datafield_id);
             },
@@ -950,12 +958,27 @@ function initPage() {
 
     $(".SingleSelectGroup").unbind('change').change(function() {
 
+        var form = $(this).closest('form');
+        var is_required = $(form).hasClass('ODRRequiredField');
+
         // Grab relevant entity ids
         var id_data = $(this).attr('id').split(/_/);
         var datarecord_id = id_data[1];
         var datafield_id = id_data[2];
 
         var radio_option_id = $(this).val();
+
+        if ( radio_option_id == 0 && is_required ) {
+            // When this field requires a selection, display a warning when the user attempts to
+            //  select "nothing"
+            addWarningToField(form, 'This field must have a selection');
+            return;
+        }
+        else {
+            // Otherwise, ensure no warnings in the field
+            $(form).removeClass('ODRInputError');
+            $('#' + $(form).attr('id') + '-error').remove();
+        }
 
         var url  = '{{ path('odr_record_radio_selection', {'datarecord_id': 0, 'datafield_id': 0, 'radio_option_id': 0} ) }}';
         url = url.substring(0,(url.length - 5));
@@ -970,6 +993,8 @@ function initPage() {
                 // Don't need to do anything on success
             },
             error: function(jqXHR, textStatus, errorThrown) {
+                // TODO - special handling for users trying to save "no options selected" in required fields?
+
                 // Just reload the datafield on error, since can't restore the old value
                 ReloadDatafield(datarecord_id, datafield_id);
             },
@@ -1013,6 +1038,8 @@ function initPage() {
                 // Don't need to do anything on success
             },
             error: function(jqXHR, textStatus, errorThrown) {
+                // TODO - special handling for users trying to save "no tags selected" in required fields?
+
                 // Just reload the datafield on error, since can't restore the old value
                 ReloadDatafield(datarecord_id, datafield_id);
             },
@@ -1335,7 +1362,7 @@ function SaveRecordData(form_id, interval) {
 
     // May need these in case of errors
     var input_div = $(form_id).find('div.ODRFieldWrapper');
-    var input_id = $(input_div).find('input').attr('id');
+    var form_error_id = $(form_id).attr('id');
 
     $.ajax({
         type: 'POST',
@@ -1350,6 +1377,8 @@ function SaveRecordData(form_id, interval) {
             $(input_div).children('label').remove();
         },
         error: function(jqXHR, textStatus, errorThrown) {
+            // TODO - special handling for users trying to save blank values in required fields?
+
             if ( jqXHR.status !== 409 ) {
                 // Just reload the datafield on most errors, since can't restore the old value
                 ReloadDatafield(datarecord_id, datafield_id);
@@ -1359,16 +1388,8 @@ function SaveRecordData(form_id, interval) {
                 //  completely disrupts users that are trying to enter correct values
 
                 // Ensure only one label per field
-                if ( $('#' + input_id + '-error').length === 0 ) {
-                    $(form_id).addClass('ODRInputError');
-                    var label = $("<label>", {
-                        "id": input_id + '-error',
-                        // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
-                        "for": input_id,
-                        "html": "This value is a duplicate in a field that requires unique values"
-                    });
-                    $(input_div).append($(label));
-                }
+                if ( $('#' + form_error_id + '-error').length === 0 )
+                    addWarningToField(form_id, "This value is a duplicate in a field that requires unique values");
             }
         },
         complete: function(jqXHR, textStatus) {
@@ -1386,6 +1407,48 @@ function SaveRecordData(form_id, interval) {
             $(form_id).find('.ODRSaveIndicator').fadeOut('350');
         }
     });
+}
+
+function addWarningToField(elem, warning_text) {
+    // All of these need to have this class...
+    $(elem).addClass('ODRInputError');
+    var input_id = $(elem).attr('id');
+
+    // ...but everything else depends on the structure of the HTML
+    var input_div = $(elem).find('div.ODRFieldWrapper');
+    var radio_div = $(elem).find('div.ODRRadioOptionsEdit');
+    var select_div = $(elem).find('select');
+
+    if ( $(input_div).length > 0 ) {
+        $(input_div).append( $("<label>", {
+            "id": input_id + '-error',
+            // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
+            "for": input_id,
+            "html": warning_text
+        }) );
+        // console.log('created warning for conventional field: ' + $(elem).attr('id'));
+    }
+    else if ( $(radio_div).length > 0 ) {
+        $(radio_div).parent().append( $("<label>", {
+            "id": input_id + '-error',
+            // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
+            // "for": input_id,
+            "html": warning_text
+        }) );
+        // console.log('created warning for radio field: ' + $(elem).attr('id'));
+    }
+    else if ( $(select_div).length > 0 ) {
+        $(select_div).parent().append( $("<label>", {
+            "id": input_id + '-error',
+            // "class": "ODRInputError",    // jQuery validate plugin auto-deletes the label if it has this class
+            // "for": input_id,
+            "html": warning_text
+        }) );
+        // console.log('created warning for select field: ' + $(elem).attr('id'));
+    }
+    else {
+        console.log('unable to create warning for: ' + $(elem).attr('id'));
+    }
 }
 
 function insertLoadingDiv(parent_div_id) {

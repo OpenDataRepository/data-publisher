@@ -76,7 +76,7 @@
         {% else %}
             action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
         {% endif %}
-        class="pure-u-1{% if is_link > 0 %} ODRLinkLookupForm{% endif %} {% if datafield_meta.is_unique %}ODRUniqueField{% endif %}"
+        class="pure-u-1{% if is_link > 0 %} ODRLinkLookupForm{% endif %} {% if datafield_meta.is_unique %}ODRUniqueField{% endif %} {% if datafield_meta.required %}ODRRequiredField{% endif %}"
         id="EditForm_{{ unique_id }}"
         method="POST"
     >
@@ -193,7 +193,6 @@
                     id="{{ input_id }}"
                     class="pure-u-1{% if is_link > 0 %} ODRLinkLookupInput{% endif %}"
                     name="{{ input_name }}"
-                    {% if datafield_meta.required == 1 %}required="required"{% endif %}
                     data-error-type="inline"
                     {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
                 >{{ valuefield_value }}</textarea>
@@ -231,17 +230,25 @@
         <fieldset>
             <label class="ODRRadioField ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
 
-            {% set print_null_option = false %}
+            {% set print_null_option = true %}
             {% set has_selection = false %}
             {% if field_typename == "Single Radio" %}
-                {% set print_null_option = true %}
-
                 {% for radio_selection in valuefield %}
                     {% if radio_selection.selected == 1 %}
                         {% set has_selection = true %}
                     {% endif %}
                 {% endfor %}
             {% endif %}
+
+
+            {% if field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
+                {# Don't print the null option for Multiple Radio/Select fields #}
+                {% set print_null_option = false %}
+            {% elseif field_typename == "Single Radio" and datafield_meta.required == true %}
+                {# Also don't print the null option for Single Radio fields that require a selection #}
+                {% set print_null_option = false %}
+            {% endif %}
+
 
             {% if datafield.radioOptions is defined %}
                 <div class="ODRRadioOptionsEdit">
@@ -259,7 +266,7 @@
                         </label>
                     {% endif %}
 
-                    <label for="{{ input_id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield_meta.children_per_row }}" style="margin: 0.5em 0;">
+                    <label for="{{ input_id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield_meta.children_per_row }}">
 
                     {% if field_typename == "Single Radio" %}
                         <input
@@ -303,6 +310,7 @@
 
             {% if datafield.radioOptions is defined %}
                 {% if field_typename == "Single Select" %}
+                    {# Print the null option regardless of whether the field requires a selection or not...need it for UI reasons #}
                     <option id="Option_0" value="0">No Option Selected</option>
                 {% endif %}
 
