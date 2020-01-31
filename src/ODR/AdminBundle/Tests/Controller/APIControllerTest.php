@@ -12,7 +12,8 @@ class APIControllerTest extends WebTestCase
     public static $token = "";
     public static $headers = array();
 
-    public static $base_url = "http://office_dev/app_dev.php/api/v3";
+    public static $base_url = "https://ahed-dev.nasawestprime.com/ahed-api/api/v3";
+    // public static $base_url = "http://office_dev/app_dev.php/api/v3";
     // public static $base_url = "http://localhost:8000/app_dev.php/api/v3";
     // public static $base_url = "http://eta.odr.io/api/v3";
 

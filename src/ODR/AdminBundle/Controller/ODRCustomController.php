@@ -50,6 +50,7 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 
 class ODRCustomController extends Controller
@@ -71,7 +72,7 @@ class ODRCustomController extends Controller
      *
      * @param Request $request
      *
-     * @return string
+     * @return stringsh/
      */
     public function renderList($datarecords, $datatype, $theme, $user, $path_str, $intent, $search_key, $offset, Request $request)
     {
@@ -961,8 +962,10 @@ class ODRCustomController extends Controller
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
             // Generate the url for cURL to use
-            $url = $this->container->getParameter('site_baseurl');
-            $url .= $router->generate('odr_crypto_request');
+
+            // $url = $this->container->getParameter('site_baseurl');
+            // $url .= $router->generate('odr_crypto_request');
+            $url = $router->generate('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
             // Insert the new job into the queue
             $priority = 1024;   // should be roughly default priority

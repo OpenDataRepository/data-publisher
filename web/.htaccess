@@ -2,7 +2,7 @@
     RewriteEngine On
 
     <IfModule mod_vhost_alias.c>
-        RewriteBase /
+        RewriteBase /ahed-api
     </IfModule>
 
     RewriteCond %{HTTP:Authorization} ^(.*)

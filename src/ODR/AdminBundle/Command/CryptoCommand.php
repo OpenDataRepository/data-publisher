@@ -67,6 +67,7 @@ class CryptoCommand extends ContainerAwareCommand
 
                 // 
                 $logger->info('CryptoCommand.php: '.$data->crypto_type.' request for '.$data->object_type.' '.$data->object_id.' from '.$data->redis_prefix.'...');
+                $logger->info('CryptoCommand.php (url): '.$data->url);
                 $current_time = new \DateTime();
 
                 if ($data->crypto_type == 'encrypt') {
@@ -122,6 +123,8 @@ class CryptoCommand extends ContainerAwareCommand
                             CURLOPT_URL => $data->url,
                             CURLOPT_FRESH_CONNECT => 1,
                             CURLOPT_RETURNTRANSFER => 1,
+                            CURLOPT_SSL_VERIFYHOST => 0, // This is bad - due to NASA self-signed certs
+                            CURLOPT_SSL_VERIFYPEER => 0, // Remove on properly signed servers
                             CURLOPT_FORBID_REUSE => 1,
                             CURLOPT_TIMEOUT => 0,   // TODO - actual timeout value instead of "never"?
                             CURLOPT_POSTFIELDS => http_build_query($parameters)

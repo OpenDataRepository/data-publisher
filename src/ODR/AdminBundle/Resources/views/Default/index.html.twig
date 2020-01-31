@@ -1,6 +1,7 @@
 {% extends '::base.html.twig' %}
 
 {# set variables used by the parent template...http://stackoverflow.com/questions/17244162/symfony2-twig-how-can-i-send-parameters-to-the-parent-template #}
+{% set site_baseurl = site_baseurl %}
 {% set header_right_title = 'Logout' %}
 {% set header_right_path = path('odr_logout') %}
 {% set header_right_js = '' %}
